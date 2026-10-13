@@ -1,0 +1,12 @@
+.DS_Store
+node_modules
+
+# Personal, machine-local Claude instructions (auto-loaded alongside CLAUDE.md)
+CLAUDE.local.md
+
+# Per-machine Claude Code settings
+.claude/settings.local.json
+
+# Claude Code worktrees (native EnterWorktree) + SDD scratch ledger
+.claude/worktrees/
+.superpowers/

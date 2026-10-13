@@ -1,0 +1,10 @@
+{
+  "extraKnownMarketplaces": {
+    "retz8-harness": {
+      "source": { "source": "github", "repo": "retz8/daily-work-harness" }
+    }
+  },
+  "enabledPlugins": {
+    "daily-work-harness@retz8-harness": true
+  }
+}
