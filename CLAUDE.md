@@ -1,6 +1,6 @@
 # CLAUDE.md — a2ui-spectra
 
-> **INSTRUCTION FOR ALL AGENTS — do this before any task:** read [spectra-brainstorming.md](spectra-brainstorming.md) in full. It is the design authority for this project until a `SPEC.md` exists.
+> **INSTRUCTION FOR ALL AGENTS — do this before any task:** read [SPEC.md](SPEC.md) in full. It is the design authority for this project.
 
 This file holds only the **operational rules** not covered there.
 
@@ -13,7 +13,7 @@ Spectra is a dev tool for the developer of an A2UI agent: attach to the running 
 
 ## Conventions
 
-- **Shaped like an upstream tool from the first commit.** The shape — workspace, package name, build tooling, script targets, licence — is in the brainstorming doc under "Repo, name, home".
+- **Shaped like an upstream tool from the first commit.** The shape — workspace, package name, build tooling, script targets, licence — is in SPEC.md under "Engineering decisions" and "Governance".
 - **No guessed run commands.** Consult the README of the package in question for build, run and test steps.
 - **No disposition popups — always plain chat.** Never use `AskUserQuestion` to present decisions or choices. Lay out the options, tradeoffs and a recommendation as plain text.
 - **Local only.** Spectra runs as a local process. Nothing in this project is deployed, and there is no cloud for it.

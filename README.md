@@ -2,7 +2,7 @@
 
 DevTools for [A2UI](https://github.com/a2ui-project/a2ui) agents: attach to your running agent, inspect every turn, check and preview it, record and replay it.
 
-> **Status: in development.** Nothing here runs yet. The design is being settled first — see [spectra-brainstorming.md](spectra-brainstorming.md) for where it is headed.
+> **Status: in development.** Nothing here runs yet. The design is settled first — see [SPEC.md](SPEC.md) for where it is headed.
 
 ## What it will do
 
