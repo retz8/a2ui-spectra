@@ -7,7 +7,7 @@ Grill `spectra-brainstorming.md` into the first version of `SPEC.md`: project st
 The repo shaped like an upstream tool, Apache 2.0, CI; the turn record spec's first version, its OpenTelemetry attribute names and shared test data.
 Spec: `_dev/docs/spec/phase-1-foundation.md`.
 
-- [ ] **1.1** [WIP] The workspace — the root Yarn 4 workspace with upstream's tooling, the LICENSE file, the test workspace with the five canonical targets and no tests yet, the one-job CI workflow, SPEC.md's upstream reference line; the gates green in CI. Spec: `_dev/docs/spec/task-1.1-workspace.md` (parallel with 1.2)
+- [x] **1.1** The workspace — the root Yarn 4 workspace with upstream's tooling, the LICENSE file, the test workspace with the five canonical targets and no tests yet, the one-job CI workflow, SPEC.md's upstream reference line; the gates green in CI. Spec: `_dev/docs/spec/task-1.1-workspace.md` (parallel with 1.2)
 - [ ] **1.2** The turn record spec's first version — the schema, the prose, the `a2ui.` attribute names, the GenAI conventions pin; grilled on its own first (parallel with 1.1)
 - [ ] **1.3** The shared test data — the case list, the hand-written fixtures, and the validation harness filling the test workspace; whether the fixtures are exempt from Prettier, as upstream's conformance test data is (after 1.1 and 1.2)
 
