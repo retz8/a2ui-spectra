@@ -4,7 +4,7 @@
 Grill `spectra-brainstorming.md` into the first version of `SPEC.md`: project structure, tech stacks, roadmap, v1 coverage in detail, and more.
 
 ## Phase 1 — Foundation [WIP]
-The repo shaped like an upstream tool, Apache 2.0, the contribution rule, CI; the turn record spec's first version, its OpenTelemetry attribute names and shared test data.
+The repo shaped like an upstream tool, Apache 2.0, CI; the turn record spec's first version, its OpenTelemetry attribute names and shared test data.
 
 ## Phase 2 — First turn on screen
 `a2ui-spectra run` and `a2ui-spectra attach`; the A2A adapter, with the wire proxy and the message box as host; captured turns in the local store; the viewer's turn list, raw messages, tree and data model; schema checks for v0.9, v0.9.1 and v1.0. Built and run as the compiled binary from this phase on.
@@ -28,6 +28,6 @@ Agent restart and logs, restart on save, re-run the last turn, the preview reloa
 The binary on npm, PyPI and GitHub releases, with the curl script.
 
 ## Phase 9 — The case
-The demo, with the restaurant finder in Python and in TypeScript producing the same view and a real misfit found and fixed in minutes; a README; the proposal as a GitHub Discussion.
+The demo, with the restaurant finder in Python and in TypeScript producing the same view and a real misfit found and fixed in minutes; a README; the contribution rule; the proposal as a GitHub Discussion.
 
 ## Backlog
