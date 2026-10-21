@@ -25,13 +25,13 @@ Upstream's developer tools start from a surface: a pasted payload, or one the to
 
 Tools outside upstream that attach to a live agent, as of 2026-10-17:
 
-| Tool | Attaches over | What it covers |
-| --- | --- | --- |
-| [`agui-inspector`](https://github.com/dogganidhal/agui-inspector) | AG-UI | Sends runs to the agent and records every request and SSE frame with timing; validates against AG-UI's schemas; renders A2UI v0.8 and v0.9; saves and reopens sessions |
-| [`a2a-a2ui-inspector`](https://github.com/suyangw-g/a2a-a2ui-inspector) | A2A | Chats with an A2A agent and renders its A2UI v0.9 surfaces |
-| [`a2ui-inspector`](https://github.com/zhijiewong/a2ui-inspector) | WebSocket, SSE, an HTTP proxy, JSONL replay | An A2UI v0.9 sidecar; sends actions back to the agent; a validation CLI |
-| [`agent-surface`](https://github.com/kimjusnu/agent-surface) | Adapters for AG-UI, A2UI and MCP Apps | A host with trace replay and diff, and an evaluation gate that writes JUnit output for CI |
-| [`a2ui-debugger`](https://github.com/mgechev/a2ui-debugger) | A bare SSE stream, or pasted JSON | An A2UI v0.8 message log, state tree, preview and time travel |
+| Tool                                                                    | Attaches over                               | What it covers                                                                                                                                                         |
+| ----------------------------------------------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [`agui-inspector`](https://github.com/dogganidhal/agui-inspector)       | AG-UI                                       | Sends runs to the agent and records every request and SSE frame with timing; validates against AG-UI's schemas; renders A2UI v0.8 and v0.9; saves and reopens sessions |
+| [`a2a-a2ui-inspector`](https://github.com/suyangw-g/a2a-a2ui-inspector) | A2A                                         | Chats with an A2A agent and renders its A2UI v0.9 surfaces                                                                                                             |
+| [`a2ui-inspector`](https://github.com/zhijiewong/a2ui-inspector)        | WebSocket, SSE, an HTTP proxy, JSONL replay | An A2UI v0.9 sidecar; sends actions back to the agent; a validation CLI                                                                                                |
+| [`agent-surface`](https://github.com/kimjusnu/agent-surface)            | Adapters for AG-UI, A2UI and MCP Apps       | A host with trace replay and diff, and an evaluation gate that writes JUnit output for CI                                                                              |
+| [`a2ui-debugger`](https://github.com/mgechev/a2ui-debugger)             | A bare SSE stream, or pasted JSON           | An A2UI v0.8 message log, state tree, preview and time travel                                                                                                          |
 
 None of them sees inside the turn (the exact model request, the raw response, tool calls, tokens, retries, the A2UI step), and none replays a turn without calling the model. Spectra's claim is seeing inside the turn and replaying it without paying for the model, behind one turn record format and one viewer across transports.
 
@@ -69,6 +69,7 @@ None of them sees inside the turn (the exact model request, the raw response, to
   - **tools recorded, model live:** model tokens only.
 
   A cache keyed by the exact request means an unchanged request never reaches the model twice. This is the record-and-replay pattern of Ruby's VCR and Netflix's Polly.js, applied to model calls.
+
 - A test command that runs every fixture with model and tools recorded, for CI.
 
 **The dev loop**
@@ -212,13 +213,13 @@ a2ui-spectra attach http://localhost:10002
 
 What Spectra needs to know, and where it comes from:
 
-| What | Source |
-| --- | --- |
+| What                                             | Source                                                                                                                                 |
+| ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
 | How to reach the agent, and over which transport | An A2A agent's card names its transport and, when it advertises the A2UI extension, the protocol version and the catalogs it supports. |
-| The catalog schema, for the checks | The catalog id. The basic catalog is built in; a custom catalog is a path to its `catalog.json`. |
-| The catalog's look, for the preview | The URL of the preview page the catalog's dev server serves with the preview adapter. |
-| Model providers | Redirected through the base-URL variables. An agent that hardcodes its endpoint needs a line of config. |
-| Tool servers | The variable the agent reads each server's URL from. |
+| The catalog schema, for the checks               | The catalog id. The basic catalog is built in; a custom catalog is a path to its `catalog.json`.                                       |
+| The catalog's look, for the preview              | The URL of the preview page the catalog's dev server serves with the preview adapter.                                                  |
+| Model providers                                  | Redirected through the base-URL variables. An agent that hardcodes its endpoint needs a line of config.                                |
+| Tool servers                                     | The variable the agent reads each server's URL from.                                                                                   |
 
 Settings beyond the defaults go in an optional config file committed in the repo.
 
@@ -226,12 +227,12 @@ Settings beyond the defaults go in an optional config file committed in the repo
 
 **3. Go deeper.** Each step is optional, and each adds to the view:
 
-| What the adopter has done | What they get |
-| --- | --- |
-| Install, `a2ui-spectra run -- <cmd>`, send a message from the box | The tree, the data model, the raw messages and actions; the schema and structural checks; the basic catalog's checks and preview; the timeline; the exact model request, the raw response and tokens; capture, fixtures, replay and the test command; agent restart, logs and restart on save |
-| Config only: the custom catalog's `catalog.json`, the tool servers' URL variables, where fixtures are saved | Catalog checks for their own components; tool calls recorded, and replay with tools recorded and the model live |
-| Small code or dependency changes: a hardcoded tool server URL made configurable, an OpenTelemetry exporter switched on, the wrapper added | Framework traces (tools in the agent's process, the framework's own retries); the A2UI step: raw text linked to the tree, the inference format, retries and parse errors |
-| Catalog side: the preview adapter and its page | The preview of their own catalog, and pressing its controls |
+| What the adopter has done                                                                                                                 | What they get                                                                                                                                                                                                                                                                                 |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Install, `a2ui-spectra run -- <cmd>`, send a message from the box                                                                         | The tree, the data model, the raw messages and actions; the schema and structural checks; the basic catalog's checks and preview; the timeline; the exact model request, the raw response and tokens; capture, fixtures, replay and the test command; agent restart, logs and restart on save |
+| Config only: the custom catalog's `catalog.json`, the tool servers' URL variables, where fixtures are saved                               | Catalog checks for their own components; tool calls recorded, and replay with tools recorded and the model live                                                                                                                                                                               |
+| Small code or dependency changes: a hardcoded tool server URL made configurable, an OpenTelemetry exporter switched on, the wrapper added | Framework traces (tools in the agent's process, the framework's own retries); the A2UI step: raw text linked to the tree, the inference format, retries and parse errors                                                                                                                      |
+| Catalog side: the preview adapter and its page                                                                                            | The preview of their own catalog, and pressing its controls                                                                                                                                                                                                                                   |
 
 **4. Fixtures:**
 
@@ -243,11 +244,11 @@ Settings beyond the defaults go in an optional config file committed in the repo
 
 When launched with `a2ui-spectra run`, Spectra owns the agent's process: restart, logs, and reload on file change. With `a2ui-spectra attach`, Spectra watches the agent but does not own it.
 
-| Where | What happens there |
-| --- | --- |
-| Browser | Sending messages; reading turns; saving and replaying fixtures; running the fixture set as tests; switching preview widths; restarting the agent and reading its logs (under `a2ui-spectra run`) |
-| Terminal | Launching Spectra once; secrets such as API keys in the shell or the agent's `.env`; CI through the same test command |
-| Editor | Changing the agent's code, prompt or catalog |
+| Where    | What happens there                                                                                                                                                                               |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Browser  | Sending messages; reading turns; saving and replaying fixtures; running the fixture set as tests; switching preview widths; restarting the agent and reading its logs (under `a2ui-spectra run`) |
+| Terminal | Launching Spectra once; secrets such as API keys in the shell or the agent's `.env`; CI through the same test command                                                                            |
+| Editor   | Changing the agent's code, prompt or catalog                                                                                                                                                     |
 
 The round trip from the editor:
 
@@ -257,15 +258,15 @@ The round trip from the editor:
 
 ## Engineering decisions
 
-| Part | Decision |
-| --- | --- |
+| Part                                                                                                  | Decision                                                                                                                                                                                                                                                                                                                                    |
+| ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | CLI and local server (transport adapters, proxies, OpenTelemetry receiver, file store, viewer server) | TypeScript written against Node's standard APIs. It runs on Node in development and tests. Bun compiles it into one binary per platform with the web UI embedded, as Temporal's CLI embeds its web UI. The binary's automatic loading of `.env` and `bunfig.toml` is switched off. It imports upstream's web core for state and validation. |
-| Checks | Schema checks run as standard JSON Schema, against each protocol version's schemas taken from upstream. The A2UI-specific checks reuse upstream's web core. |
-| Viewer | TypeScript, React, Vite |
-| Preview adapters | A framework-free TypeScript core, with React, Lit and Angular adapters; Dart and Swift for the Flutter and SwiftUI adapters |
-| Wrappers | OpenTelemetry instrumentation; Python and TypeScript in v1, then Dart |
-| OpenTelemetry receiver | OTLP over HTTP in v1 |
-| Storage | Plain files |
+| Checks                                                                                                | Schema checks run as standard JSON Schema, against each protocol version's schemas taken from upstream. The A2UI-specific checks reuse upstream's web core.                                                                                                                                                                                 |
+| Viewer                                                                                                | TypeScript, React, Vite                                                                                                                                                                                                                                                                                                                     |
+| Preview adapters                                                                                      | A framework-free TypeScript core, with React, Lit and Angular adapters; Dart and Swift for the Flutter and SwiftUI adapters                                                                                                                                                                                                                 |
+| Wrappers                                                                                              | OpenTelemetry instrumentation; Python and TypeScript in v1, then Dart                                                                                                                                                                                                                                                                       |
+| OpenTelemetry receiver                                                                                | OTLP over HTTP in v1                                                                                                                                                                                                                                                                                                                        |
+| Storage                                                                                               | Plain files                                                                                                                                                                                                                                                                                                                                 |
 
 The viewer's own stack is not visible to the adopter.
 
@@ -273,7 +274,7 @@ The viewer's own stack is not visible to the adopter.
 
 - One repo holds every package: the CLI and local server, the viewer, the preview core and adapters, the Python and TypeScript wrappers, and the turn record spec with its shared test data.
 - Shaped like an upstream tool from the first commit: Yarn workspaces built with `wireit`, with upstream's standard script targets (`build`, `lint`, `lint:fix`, `test`, `format`, `format:check`). The Python wrapper is a uv project, as upstream's Python packages are. The layout follows upstream's monorepo conventions.
-- **Upstream reference** (`upstream/main` at 45633b9): Yarn 4.13.0 with the `node-modules` linker; CI on Node 22; `tools/inspector` and `tools/editor` are `@a2ui/<tool>` workspaces marked `private` and built with `wireit`.
+- **Upstream reference** (`upstream/main` at 059b8d34): Yarn 4.13.0 with the `node-modules` linker; CI on Node 22; `tools/inspector` and `tools/editor` are `@a2ui/<tool>` workspaces marked `private` and built with `wireit`.
 
 ### Distribution and names
 
@@ -297,25 +298,25 @@ The demo shows the restaurant finder in Python and in TypeScript producing the s
 
 A2UIVerse is Spectra's first adopter, and Spectra is tested against its agents too. They are not part of the coverage line.
 
-| Area | v1 | After v1 |
-| --- | --- | --- |
-| A2UI protocol versions | v0.9, v0.9.1, v1.0 | v0.8 is not covered |
-| Transport | A2A | AG-UI first, then MCP as transport, REST, WebSockets |
-| The A2UI step (wrapper) | Python and TypeScript, covering upstream's public parsing entry points as well as the inference-format classes | Dart, then retired when the upstream hook lands |
-| Model providers | Gemini read in full: prompt, tokens, display. Every other provider is recorded and replayed, shown as raw requests. | Reading OpenAI, Anthropic and others |
-| Reaching model and tool calls | Redirection through environment variables | HTTPS interception as the fallback |
-| Tools | MCP over streamable HTTP and over HTTP+SSE; HTTP tools. Tools that are plain functions in the agent's process run live during replay. | MCP over stdio |
-| Framework traces | OTLP over HTTP; each producer's dialect translated into the turn record | OTLP over gRPC |
-| Preview | Web, through preview adapters for React, Lit and Angular; the basic catalog built in | Flutter (possibly through Flutter's web build first), SwiftUI, Compose |
-| Install | npm, PyPI, GitHub releases with a curl script | Homebrew, `dart pub global` |
+| Area                          | v1                                                                                                                                    | After v1                                                               |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| A2UI protocol versions        | v0.9, v0.9.1, v1.0                                                                                                                    | v0.8 is not covered                                                    |
+| Transport                     | A2A                                                                                                                                   | AG-UI first, then MCP as transport, REST, WebSockets                   |
+| The A2UI step (wrapper)       | Python and TypeScript, covering upstream's public parsing entry points as well as the inference-format classes                        | Dart, then retired when the upstream hook lands                        |
+| Model providers               | Gemini read in full: prompt, tokens, display. Every other provider is recorded and replayed, shown as raw requests.                   | Reading OpenAI, Anthropic and others                                   |
+| Reaching model and tool calls | Redirection through environment variables                                                                                             | HTTPS interception as the fallback                                     |
+| Tools                         | MCP over streamable HTTP and over HTTP+SSE; HTTP tools. Tools that are plain functions in the agent's process run live during replay. | MCP over stdio                                                         |
+| Framework traces              | OTLP over HTTP; each producer's dialect translated into the turn record                                                               | OTLP over gRPC                                                         |
+| Preview                       | Web, through preview adapters for React, Lit and Angular; the basic catalog built in                                                  | Flutter (possibly through Flutter's web build first), SwiftUI, Compose |
+| Install                       | npm, PyPI, GitHub releases with a curl script                                                                                         | Homebrew, `dart pub global`                                            |
 
 What each kind of agent gets in v1:
 
-| Agent | What it gets |
-| --- | --- |
-| A2A agents on upstream's Python or TypeScript SDK | Everything |
+| Agent                                                                                                                             | What it gets                                                                                                                                                        |
+| --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A2A agents on upstream's Python or TypeScript SDK                                                                                 | Everything                                                                                                                                                          |
 | A2A agents not on those SDKs: Dart agents on upstream's SDK, agents that build A2UI JSON by hand, any other language or framework | Everything except the A2UI step, which they can report themselves following the turn record spec. Model and tool data wherever redirection and OpenTelemetry reach. |
-| AG-UI agents, A2UI over MCP, REST, WebSockets | Nothing until those transports' adapters are added |
+| AG-UI agents, A2UI over MCP, REST, WebSockets                                                                                     | Nothing until those transports' adapters are added                                                                                                                  |
 
 ## Upstream landscape
 
