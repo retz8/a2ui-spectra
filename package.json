@@ -1,0 +1,24 @@
+{
+  "name": "a2ui-spectra-workspace",
+  "private": true,
+  "packageManager": "yarn@4.13.0",
+  "workspaces": [
+    "conformance"
+  ],
+  "scripts": {
+    "build:all": "yarn workspaces foreach -A -p --topological-dev run build",
+    "test:all": "yarn workspaces foreach -A -p --topological-dev run test",
+    "lint:all": "yarn workspaces foreach -A -p --topological-dev run lint",
+    "lint:deps": "syncpack list-mismatches",
+    "lint:fix:all": "yarn workspaces foreach -A -p --topological-dev run lint:fix",
+    "format:all": "prettier --config .prettierrc --write .",
+    "format:check:all": "prettier --config .prettierrc --check .",
+    "clean:all": "yarn workspaces foreach -A -p run clean"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.4",
+    "syncpack": "^13.0.0",
+    "typescript": "5.9.3",
+    "wireit": "^0.15.0-pre.2"
+  }
+}

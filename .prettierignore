@@ -1,0 +1,14 @@
+**/node_modules
+**/dist
+**/build
+**/lib
+**/.wireit
+**/*.tsbuildinfo
+**/.playwright
+.git
+.dart_tool
+.venv
+*.min.js
+
+_dev/
+.claude/

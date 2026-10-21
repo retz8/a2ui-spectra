@@ -1,0 +1,11 @@
+{
+  "dependencyTypes": ["dev", "prod", "peer"],
+  "versionGroups": [
+    {
+      "label": "Unified TypeScript version",
+      "packages": ["**"],
+      "dependencies": ["typescript"],
+      "pinVersion": "5.9.3"
+    }
+  ]
+}

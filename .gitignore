@@ -10,3 +10,15 @@ CLAUDE.local.md
 # Claude Code worktrees (native EnterWorktree) + SDD scratch ledger
 .claude/worktrees/
 .superpowers/
+
+# Wireit and build output
+.wireit
+dist
+*.tsbuildinfo
+
+# Yarn Modern
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/sdks
+.yarn/cache
