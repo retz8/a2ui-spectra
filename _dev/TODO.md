@@ -3,7 +3,7 @@
 ## Phase 0 — Spec [done]
 Grill `spectra-brainstorming.md` into the first version of `SPEC.md`: project structure, tech stacks, roadmap, v1 coverage in detail, and more.
 
-## Phase 1 — Foundation
+## Phase 1 — Foundation [WIP]
 The repo shaped like an upstream tool, Apache 2.0, the contribution rule, CI; the turn record spec's first version, its OpenTelemetry attribute names and shared test data.
 
 ## Phase 2 — First turn on screen
