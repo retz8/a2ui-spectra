@@ -1,0 +1,915 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/retz8/a2ui-spectra/main/specification/turn_record/v0_1/json/turn_record.json",
+  "title": "A2UI turn record",
+  "description": "One turn of an A2UI agent, with the earlier turns of its conversation, version v0.1. See ../docs/turn_record.md.",
+  "type": "object",
+  "properties": {
+    "version": {
+      "const": "v0.1"
+    },
+    "turns": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/Turn"
+      },
+      "description": "The turns of the conversation, oldest first. The recorded turn is the last."
+    }
+  },
+  "required": ["version", "turns"],
+  "additionalProperties": false,
+  "$defs": {
+    "TraceId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{32}$"
+    },
+    "SpanId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{16}$"
+    },
+    "UnixNano": {
+      "type": "string",
+      "pattern": "^[0-9]+$",
+      "description": "Nanoseconds since the Unix epoch, as a decimal string, as in OTLP JSON."
+    },
+    "ProtocolVersion": {
+      "type": "string",
+      "pattern": "^v[0-9]+\\.[0-9]+(\\.[0-9]+)?$"
+    },
+    "Status": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "enum": [0, 1, 2]
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": ["code"],
+      "additionalProperties": false
+    },
+    "SpanEvent": {
+      "type": "object",
+      "properties": {
+        "timeUnixNano": {
+          "$ref": "#/$defs/UnixNano"
+        },
+        "name": {
+          "type": "string"
+        },
+        "attributes": {
+          "type": "object"
+        }
+      },
+      "required": ["timeUnixNano", "name"],
+      "additionalProperties": false,
+      "if": {
+        "properties": {
+          "name": {
+            "const": "a2ui.http.response.chunk"
+          }
+        }
+      },
+      "then": {
+        "required": ["attributes"],
+        "properties": {
+          "attributes": {
+            "type": "object",
+            "properties": {
+              "a2ui.http.response.chunk.body": true,
+              "a2ui.http.response.chunk.event": {
+                "type": "string"
+              },
+              "a2ui.http.response.chunk.id": {
+                "type": "string"
+              }
+            },
+            "required": ["a2ui.http.response.chunk.body"],
+            "additionalProperties": false
+          }
+        }
+      }
+    },
+    "Link": {
+      "type": "object",
+      "properties": {
+        "traceId": {
+          "$ref": "#/$defs/TraceId"
+        },
+        "spanId": {
+          "$ref": "#/$defs/SpanId"
+        },
+        "attributes": {
+          "type": "object"
+        }
+      },
+      "required": ["traceId", "spanId"],
+      "additionalProperties": false
+    },
+    "WireMessage": {
+      "description": "One delivery from the transport, in GenAI's message and part shape. An A2UI part is a part whose type is \"a2ui\".",
+      "allOf": [
+        {
+          "$ref": "gen-ai-input-messages.json#/$defs/ChatMessage"
+        }
+      ],
+      "properties": {
+        "parts": {
+          "items": {
+            "if": {
+              "properties": {
+                "type": {
+                  "const": "a2ui"
+                }
+              },
+              "required": ["type"]
+            },
+            "then": {
+              "$ref": "#/$defs/A2uiPart"
+            }
+          }
+        }
+      }
+    },
+    "A2uiPart": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "a2ui"
+        },
+        "content": true
+      },
+      "required": ["type", "content"],
+      "description": "One A2UI message, or an array of them, as the transport delivered it. Not validated against any A2UI schema."
+    },
+    "ComponentRange": {
+      "type": "object",
+      "properties": {
+        "surfaceId": {
+          "type": "string"
+        },
+        "componentId": {
+          "type": "string"
+        },
+        "start": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "end": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": ["surfaceId", "componentId", "start", "end"],
+      "additionalProperties": false,
+      "description": "Where a component's text sits in the parser input, in UTF-16 code units. start is inclusive and end is exclusive."
+    },
+    "Finding": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "surfaceId": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": ["code", "message"],
+      "additionalProperties": false,
+      "description": "One check finding, in A2UI's error shape."
+    },
+    "Event": {
+      "type": "object",
+      "description": "One event, shaped as an OTLP span with attributes as an object.",
+      "properties": {
+        "traceId": {
+          "$ref": "#/$defs/TraceId"
+        },
+        "spanId": {
+          "$ref": "#/$defs/SpanId"
+        },
+        "parentSpanId": {
+          "$ref": "#/$defs/SpanId"
+        },
+        "name": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [0, 1, 2, 3, 4, 5]
+        },
+        "startTimeUnixNano": {
+          "$ref": "#/$defs/UnixNano"
+        },
+        "endTimeUnixNano": {
+          "$ref": "#/$defs/UnixNano"
+        },
+        "attributes": {
+          "type": "object",
+          "properties": {
+            "a2ui.event.kind": {
+              "enum": [
+                "turn",
+                "wire_input",
+                "wire_output",
+                "model_call",
+                "tool_call",
+                "prompt_generation",
+                "parse",
+                "check",
+                "framework_span"
+              ]
+            }
+          },
+          "required": ["a2ui.event.kind"]
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SpanEvent"
+          }
+        },
+        "links": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Link"
+          }
+        },
+        "status": {
+          "$ref": "#/$defs/Status"
+        }
+      },
+      "required": ["traceId", "spanId", "name", "kind", "startTimeUnixNano", "attributes"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "turn"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "turn"
+                  },
+                  "gen_ai.operation.name": {
+                    "const": "invoke_agent"
+                  },
+                  "gen_ai.agent.name": {
+                    "type": "string"
+                  },
+                  "gen_ai.conversation.id": {
+                    "type": "string"
+                  },
+                  "a2ui.turn.outcome": {
+                    "enum": ["completed", "failed", "cancelled", "waiting_for_input"]
+                  },
+                  "a2ui.turn.protocol_version": {
+                    "$ref": "#/$defs/ProtocolVersion"
+                  },
+                  "a2ui.turn.capture_paths": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "enum": ["wire", "model_proxy", "tool_proxy", "otel_receiver", "wrapper"]
+                    }
+                  },
+                  "a2ui.turn.writer.name": {
+                    "type": "string"
+                  },
+                  "a2ui.turn.writer.version": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "a2ui.event.kind",
+                  "gen_ai.operation.name",
+                  "a2ui.turn.outcome",
+                  "a2ui.turn.capture_paths",
+                  "a2ui.turn.writer.name",
+                  "a2ui.turn.writer.version"
+                ],
+                "additionalProperties": false
+              },
+              "kind": {
+                "const": 3
+              }
+            },
+            "allOf": [
+              {
+                "not": {
+                  "required": ["parentSpanId"]
+                }
+              }
+            ],
+            "required": ["endTimeUnixNano", "status"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "wire_input"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "wire_input"
+                  },
+                  "a2ui.wire.message": {
+                    "$ref": "#/$defs/WireMessage"
+                  },
+                  "a2ui.wire.data_model": {
+                    "type": "object"
+                  },
+                  "a2ui.wire.capabilities": {
+                    "type": "object"
+                  },
+                  "a2ui.wire.metadata": {
+                    "type": "object"
+                  }
+                },
+                "required": ["a2ui.event.kind", "a2ui.wire.message"],
+                "additionalProperties": false
+              }
+            },
+            "not": {
+              "required": ["endTimeUnixNano"]
+            },
+            "required": ["parentSpanId"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "wire_output"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "wire_output"
+                  },
+                  "a2ui.wire.message": {
+                    "$ref": "#/$defs/WireMessage"
+                  },
+                  "a2ui.wire.metadata": {
+                    "type": "object"
+                  }
+                },
+                "required": ["a2ui.event.kind", "a2ui.wire.message"],
+                "additionalProperties": false
+              }
+            },
+            "not": {
+              "required": ["endTimeUnixNano"]
+            },
+            "required": ["parentSpanId"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "model_call"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "model_call"
+                  },
+                  "gen_ai.operation.name": {
+                    "type": "string"
+                  },
+                  "gen_ai.provider.name": {
+                    "type": "string"
+                  },
+                  "gen_ai.request.model": {
+                    "type": "string"
+                  },
+                  "gen_ai.request.max_tokens": {
+                    "type": "integer"
+                  },
+                  "gen_ai.request.temperature": {
+                    "type": "number"
+                  },
+                  "gen_ai.request.top_p": {
+                    "type": "number"
+                  },
+                  "gen_ai.request.top_k": {
+                    "type": "integer"
+                  },
+                  "gen_ai.request.frequency_penalty": {
+                    "type": "number"
+                  },
+                  "gen_ai.request.presence_penalty": {
+                    "type": "number"
+                  },
+                  "gen_ai.request.stop_sequences": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "gen_ai.request.seed": {
+                    "type": "integer"
+                  },
+                  "gen_ai.request.choice.count": {
+                    "type": "integer"
+                  },
+                  "gen_ai.request.stream": {
+                    "type": "boolean"
+                  },
+                  "gen_ai.output.type": {
+                    "type": "string"
+                  },
+                  "gen_ai.response.id": {
+                    "type": "string"
+                  },
+                  "gen_ai.response.model": {
+                    "type": "string"
+                  },
+                  "gen_ai.response.finish_reasons": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "gen_ai.response.time_to_first_chunk": {
+                    "type": "number"
+                  },
+                  "gen_ai.conversation.id": {
+                    "type": "string"
+                  },
+                  "gen_ai.usage.input_tokens": {
+                    "type": "integer"
+                  },
+                  "gen_ai.usage.output_tokens": {
+                    "type": "integer"
+                  },
+                  "gen_ai.usage.cache_read.input_tokens": {
+                    "type": "integer"
+                  },
+                  "gen_ai.usage.cache_write.input_tokens": {
+                    "type": "integer"
+                  },
+                  "gen_ai.usage.reasoning.output_tokens": {
+                    "type": "integer"
+                  },
+                  "gen_ai.system_instructions": {
+                    "$ref": "gen-ai-system-instructions.json"
+                  },
+                  "gen_ai.input.messages": {
+                    "$ref": "gen-ai-input-messages.json"
+                  },
+                  "gen_ai.output.messages": {
+                    "$ref": "gen-ai-output-messages.json"
+                  },
+                  "gen_ai.tool.definitions": {
+                    "$ref": "gen-ai-tool-definitions.json"
+                  },
+                  "http.request.method": {
+                    "type": "string"
+                  },
+                  "url.full": {
+                    "type": "string"
+                  },
+                  "http.response.status_code": {
+                    "type": "integer"
+                  },
+                  "server.address": {
+                    "type": "string"
+                  },
+                  "server.port": {
+                    "type": "integer"
+                  },
+                  "a2ui.http.request.body": true,
+                  "a2ui.http.response.body": true,
+                  "error.type": {
+                    "type": "string"
+                  },
+                  "otel.scope.name": {
+                    "type": "string"
+                  },
+                  "otel.scope.version": {
+                    "type": "string"
+                  },
+                  "a2ui.received.attributes": {
+                    "type": "object"
+                  },
+                  "a2ui.retry.attempt": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": ["a2ui.event.kind"],
+                "patternProperties": {
+                  "^http\\.request\\.header\\.[a-z0-9-]+$": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "^http\\.response\\.header\\.[a-z0-9-]+$": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "required": ["endTimeUnixNano"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "tool_call"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "tool_call"
+                  },
+                  "gen_ai.operation.name": {
+                    "type": "string"
+                  },
+                  "gen_ai.tool.name": {
+                    "type": "string"
+                  },
+                  "gen_ai.tool.call.id": {
+                    "type": "string"
+                  },
+                  "gen_ai.tool.type": {
+                    "type": "string"
+                  },
+                  "gen_ai.tool.description": {
+                    "type": "string"
+                  },
+                  "gen_ai.tool.call.arguments": {
+                    "$ref": "gen-ai-tool-call-arguments.json"
+                  },
+                  "gen_ai.tool.call.result": {
+                    "$ref": "gen-ai-tool-call-result.json"
+                  },
+                  "gen_ai.agent.name": {
+                    "type": "string"
+                  },
+                  "gen_ai.conversation.id": {
+                    "type": "string"
+                  },
+                  "mcp.method.name": {
+                    "type": "string"
+                  },
+                  "mcp.session.id": {
+                    "type": "string"
+                  },
+                  "mcp.protocol.version": {
+                    "type": "string"
+                  },
+                  "mcp.resource.uri": {
+                    "type": "string"
+                  },
+                  "jsonrpc.request.id": {
+                    "type": "string"
+                  },
+                  "http.request.method": {
+                    "type": "string"
+                  },
+                  "url.full": {
+                    "type": "string"
+                  },
+                  "http.response.status_code": {
+                    "type": "integer"
+                  },
+                  "server.address": {
+                    "type": "string"
+                  },
+                  "server.port": {
+                    "type": "integer"
+                  },
+                  "a2ui.http.request.body": true,
+                  "a2ui.http.response.body": true,
+                  "error.type": {
+                    "type": "string"
+                  },
+                  "otel.scope.name": {
+                    "type": "string"
+                  },
+                  "otel.scope.version": {
+                    "type": "string"
+                  },
+                  "a2ui.received.attributes": {
+                    "type": "object"
+                  }
+                },
+                "required": ["a2ui.event.kind"],
+                "patternProperties": {
+                  "^http\\.request\\.header\\.[a-z0-9-]+$": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "^http\\.response\\.header\\.[a-z0-9-]+$": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "required": ["endTimeUnixNano"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "prompt_generation"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "prompt_generation"
+                  },
+                  "a2ui.prompt.ui_section": {
+                    "type": "string"
+                  },
+                  "a2ui.prompt.inference_format": {
+                    "type": "string"
+                  },
+                  "a2ui.prompt.catalog_id": {
+                    "type": "string"
+                  },
+                  "a2ui.prompt.catalog_version": {
+                    "type": "string"
+                  },
+                  "error.type": {
+                    "type": "string"
+                  },
+                  "otel.scope.name": {
+                    "type": "string"
+                  },
+                  "otel.scope.version": {
+                    "type": "string"
+                  },
+                  "a2ui.received.attributes": {
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "a2ui.event.kind",
+                  "a2ui.prompt.ui_section",
+                  "a2ui.prompt.inference_format",
+                  "a2ui.prompt.catalog_id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "parse"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "parse"
+                  },
+                  "a2ui.parse.input": {
+                    "type": "string"
+                  },
+                  "a2ui.parse.inference_format": {
+                    "type": "string"
+                  },
+                  "a2ui.parse.messages": {
+                    "type": "array"
+                  },
+                  "a2ui.parse.components": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/ComponentRange"
+                    }
+                  },
+                  "error.type": {
+                    "type": "string"
+                  },
+                  "otel.scope.name": {
+                    "type": "string"
+                  },
+                  "otel.scope.version": {
+                    "type": "string"
+                  },
+                  "a2ui.received.attributes": {
+                    "type": "object"
+                  }
+                },
+                "required": ["a2ui.event.kind", "a2ui.parse.input"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "check"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "check"
+                  },
+                  "a2ui.check.name": {
+                    "enum": ["schema", "catalog", "structural", "binding"]
+                  },
+                  "a2ui.check.passed": {
+                    "type": "boolean"
+                  },
+                  "a2ui.check.protocol_version": {
+                    "$ref": "#/$defs/ProtocolVersion"
+                  },
+                  "a2ui.check.catalog_id": {
+                    "type": "string"
+                  },
+                  "a2ui.check.findings": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/Finding"
+                    }
+                  }
+                },
+                "required": [
+                  "a2ui.event.kind",
+                  "a2ui.check.name",
+                  "a2ui.check.passed",
+                  "a2ui.check.protocol_version",
+                  "a2ui.check.findings"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "not": {
+              "required": ["endTimeUnixNano"]
+            },
+            "required": ["parentSpanId"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "framework_span"
+                  }
+                }
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "framework_span"
+                  },
+                  "otel.scope.name": {
+                    "type": "string"
+                  },
+                  "otel.scope.version": {
+                    "type": "string"
+                  },
+                  "a2ui.received.attributes": {
+                    "type": "object"
+                  }
+                },
+                "required": ["a2ui.event.kind", "otel.scope.name", "a2ui.received.attributes"],
+                "additionalProperties": true
+              }
+            },
+            "required": ["endTimeUnixNano"]
+          }
+        }
+      ]
+    },
+    "Turn": {
+      "type": "object",
+      "description": "One turn: a flat list of its events, linked through parentSpanId. Exactly one event is the turn event.",
+      "properties": {
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Event"
+          },
+          "contains": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "a2ui.event.kind": {
+                    "const": "turn"
+                  }
+                }
+              }
+            }
+          },
+          "minContains": 1,
+          "maxContains": 1
+        }
+      },
+      "required": ["events"],
+      "additionalProperties": false
+    }
+  }
+}

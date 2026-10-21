@@ -12,3 +12,6 @@
 
 _dev/
 .claude/
+
+# OpenTelemetry GenAI schemas, copied unchanged at the pinned commit
+specification/turn_record/*/json/gen-ai-*.json
