@@ -59,7 +59,7 @@ The harness fails when a kind the schema defines appears in no must-pass fixture
 The full records' A2UI messages come from upstream at 059b8d34, recorded as v0.9:
 
 - The restaurant finder's from its examples for v0.9 (`samples/agent/adk/restaurant_finder/examples/0.9/`). Its failing checks point at real paths in those messages.
-- `custom-components-example`'s from its contact card example for v0.9 (`samples/agent/adk/custom-components-example/examples/0.9/contact_card.json`), then the floor plan its `view_location` action sends, as `a2ui_examples.py` builds it from the HTML its MCP server returns.
+- `custom-components-example`'s from its multi-surface example for v0.9 (`samples/agent/adk/custom-components-example/examples/0.9/multi_surface.json`), the response its prompt asks for when a lookup finds one contact, then the floor plan its `view_location` action sends, as `a2ui_examples.py` builds it from the HTML its MCP server returns.
 
 The minimal fixtures carry the smallest message their part needs, written by hand.
 
