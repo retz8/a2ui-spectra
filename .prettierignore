@@ -15,3 +15,6 @@ _dev/
 
 # OpenTelemetry GenAI schemas, copied unchanged at the pinned commit
 specification/turn_record/*/json/gen-ai-*.json
+
+# Conformance fixtures, kept as written
+conformance/test_data/**

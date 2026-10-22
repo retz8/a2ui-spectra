@@ -1,0 +1,3039 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "b573274bef9042e64dc49a8f6d014d92",
+          "spanId": "952ef8bd079a1373",
+          "name": "invoke_agent Restaurant Agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792576800000000000",
+          "endTimeUnixNano": "1792576805020000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "Restaurant Agent",
+            "gen_ai.conversation.id": "c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.protocol_version": "v0.9",
+            "a2ui.turn.capture_paths": [
+              "wire",
+              "model_proxy",
+              "tool_proxy",
+              "otel_receiver",
+              "wrapper"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "b573274bef9042e64dc49a8f6d014d92",
+          "spanId": "8a9800c4538def5e",
+          "parentSpanId": "952ef8bd079a1373",
+          "name": "wire_input",
+          "kind": 1,
+          "startTimeUnixNano": "1792576800003000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_input",
+            "a2ui.wire.message": {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Top 2 Chinese restaurants in New York"
+                }
+              ]
+            },
+            "a2ui.wire.capabilities": {
+              "v0.9": {
+                "supportedCatalogIds": [
+                  "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+                ]
+              }
+            },
+            "a2ui.wire.metadata": {
+              "locale": "en-US"
+            }
+          }
+        },
+        {
+          "traceId": "b573274bef9042e64dc49a8f6d014d92",
+          "spanId": "fbb88aa6fa9c43eb",
+          "parentSpanId": "952ef8bd079a1373",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792576800008000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Finding restaurants that match your criteria..."
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "d8a8cc776a410215e328729c7f4f4051",
+          "spanId": "cd5c049a0edd31a1",
+          "name": "invoke_agent restaurant_agent",
+          "kind": 1,
+          "startTimeUnixNano": "1792576800010000000",
+          "endTimeUnixNano": "1792576804995000000",
+          "attributes": {
+            "a2ui.event.kind": "framework_span",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "restaurant_agent",
+            "gen_ai.conversation.id": "c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+            "otel.scope.name": "gcp.vertex.agent",
+            "otel.scope.version": "1.28.1",
+            "a2ui.received.attributes": {
+              "gen_ai.operation.name": "invoke_agent",
+              "gen_ai.agent.description": "An agent that finds restaurants and helps book tables.",
+              "gen_ai.agent.name": "restaurant_agent",
+              "gen_ai.conversation.id": "c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+              "gcp.vertex.agent.invocation_id": "e-4b1d7e20-9a6c-4f3e-8b52-1c0a7d9e3f64"
+            }
+          },
+          "status": {
+            "code": 0
+          }
+        },
+        {
+          "traceId": "d8a8cc776a410215e328729c7f4f4051",
+          "spanId": "441acead535218c3",
+          "parentSpanId": "cd5c049a0edd31a1",
+          "name": "prompt_generation",
+          "kind": 1,
+          "startTimeUnixNano": "1792576800012000000",
+          "endTimeUnixNano": "1792576800014000000",
+          "attributes": {
+            "a2ui.event.kind": "prompt_generation",
+            "a2ui.prompt.ui_section": "## Workflow Description:\n\nThe generated response MUST follow these rules:\n- The response can contain one or more A2UI JSON blocks.\n- Each A2UI JSON block MUST be wrapped in `<a2ui-json>` and `</a2ui-json>` tags.\n- Between or around these blocks, you can provide conversational text.\n- The JSON part MUST be a single, raw JSON object (usually a list of A2UI messages) and MUST validate against the provided A2UI JSON SCHEMA.\n- Top-Down Component Ordering: Within the `components` list of a message:\n    - The 'root' component MUST be the FIRST element.\n    - Parent components MUST appear before their child components.\n    This specific ordering allows the streaming parser to yield and render the UI incrementally as it arrives.",
+            "a2ui.prompt.inference_format": "direct_json",
+            "a2ui.prompt.catalog_id": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+            "otel.scope.name": "a2ui_spectra_wrapper",
+            "otel.scope.version": "0.0.0",
+            "a2ui.received.attributes": {
+              "a2ui.event.kind": "prompt_generation",
+              "a2ui.prompt.ui_section": "## Workflow Description:\n\nThe generated response MUST follow these rules:\n- The response can contain one or more A2UI JSON blocks.\n- Each A2UI JSON block MUST be wrapped in `<a2ui-json>` and `</a2ui-json>` tags.\n- Between or around these blocks, you can provide conversational text.\n- The JSON part MUST be a single, raw JSON object (usually a list of A2UI messages) and MUST validate against the provided A2UI JSON SCHEMA.\n- Top-Down Component Ordering: Within the `components` list of a message:\n    - The 'root' component MUST be the FIRST element.\n    - Parent components MUST appear before their child components.\n    This specific ordering allows the streaming parser to yield and render the UI incrementally as it arrives.",
+              "a2ui.prompt.inference_format": "direct_json",
+              "a2ui.prompt.catalog_id": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+            }
+          }
+        },
+        {
+          "traceId": "d8a8cc776a410215e328729c7f4f4051",
+          "spanId": "9ac3d7c700c06e7a",
+          "parentSpanId": "cd5c049a0edd31a1",
+          "name": "call_llm",
+          "kind": 1,
+          "startTimeUnixNano": "1792576800020000000",
+          "endTimeUnixNano": "1792576801220000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "generate_content",
+            "gen_ai.request.model": "gemini-3.6-flash",
+            "gen_ai.conversation.id": "c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+            "gen_ai.usage.input_tokens": 2841,
+            "gen_ai.usage.output_tokens": 31,
+            "gen_ai.response.finish_reasons": [
+              "stop"
+            ],
+            "otel.scope.name": "gcp.vertex.agent",
+            "otel.scope.version": "1.28.1",
+            "a2ui.received.attributes": {
+              "gen_ai.system": "gcp.vertex.agent",
+              "gen_ai.request.model": "gemini-3.6-flash",
+              "gcp.vertex.agent.invocation_id": "e-4b1d7e20-9a6c-4f3e-8b52-1c0a7d9e3f64",
+              "gcp.vertex.agent.session_id": "c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+              "gcp.vertex.agent.event_id": "8d2f4a61",
+              "gcp.vertex.agent.llm_request": "{\"model\": \"gemini-3.6-flash\", \"contents\": [{\"role\": \"user\", \"parts\": [{\"text\": \"Top 2 Chinese restaurants in New York\"}]}]}",
+              "gcp.vertex.agent.llm_response": "{\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"functionCall\": {\"id\": \"adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03\", \"name\": \"get_restaurants\", \"args\": {\"cuisine\": \"Chinese\", \"location\": \"New York\", \"count\": 2}}}]}, \"index\": 0, \"finishReason\": \"STOP\"}], \"usageMetadata\": {\"promptTokenCount\": 2841, \"candidatesTokenCount\": 31, \"totalTokenCount\": 2872}, \"modelVersion\": \"gemini-3.6-flash\", \"responseId\": \"resp-1a\"}",
+              "gen_ai.usage.input_tokens": 2841,
+              "gen_ai.usage.output_tokens": 31,
+              "gen_ai.response.finish_reasons": [
+                "STOP"
+              ]
+            }
+          },
+          "links": [
+            {
+              "traceId": "b573274bef9042e64dc49a8f6d014d92",
+              "spanId": "01f8f1c824b0697b"
+            }
+          ]
+        },
+        {
+          "traceId": "b573274bef9042e64dc49a8f6d014d92",
+          "spanId": "01f8f1c824b0697b",
+          "parentSpanId": "952ef8bd079a1373",
+          "name": "generate_content gemini-3.6-flash",
+          "kind": 3,
+          "startTimeUnixNano": "1792576800025000000",
+          "endTimeUnixNano": "1792576801210000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "generate_content",
+            "gen_ai.provider.name": "gcp.gemini",
+            "gen_ai.request.model": "gemini-3.6-flash",
+            "gen_ai.request.stream": false,
+            "gen_ai.output.type": "text",
+            "gen_ai.response.id": "resp-1a",
+            "gen_ai.response.model": "gemini-3.6-flash",
+            "gen_ai.response.finish_reasons": [
+              "stop"
+            ],
+            "gen_ai.usage.input_tokens": 2841,
+            "gen_ai.usage.output_tokens": 31,
+            "gen_ai.system_instructions": [
+              {
+                "type": "text",
+                "content": "You are a helpful restaurant finding assistant. Your final output MUST be an A2UI UI definition.\n\n## UI Description:\n-   If the query is for a list of restaurants, use the restaurant data you have already received from the `get_restaurants` tool to populate the `updateDataModel` message.\n-   IMPORTANT: When using updateDataModel to update items, you MUST specify `path: \"/items\"` in `updateDataModel`, and the `value` MUST be an array of restaurants.\n-   IMPORTANT: Always specify the path when using updateDataModel. The part message is ignored when the path is missing.\n-   If the number of restaurants is 5 or fewer, you MUST use the `SINGLE_COLUMN_LIST_EXAMPLE` template.\n-   If the number of restaurants is more than 5, you MUST use the `TWO_COLUMN_LIST_EXAMPLE` template.\n-   If the query is to book a restaurant (e.g., \"USER_WANTS_TO_BOOK...\"), you MUST use the `BOOKING_FORM_EXAMPLE` template.\n-   If the query is a booking submission (e.g., \"User submitted a booking...\"), you MUST use the `CONFIRMATION_EXAMPLE` template.\n\n## Workflow Description:\n\nThe generated response MUST follow these rules:\n- The response can contain one or more A2UI JSON blocks.\n- Each A2UI JSON block MUST be wrapped in `<a2ui-json>` and `</a2ui-json>` tags.\n- Between or around these blocks, you can provide conversational text.\n- The JSON part MUST be a single, raw JSON object (usually a list of A2UI messages) and MUST validate against the provided A2UI JSON SCHEMA.\n- Top-Down Component Ordering: Within the `components` list of a message:\n    - The 'root' component MUST be the FIRST element.\n    - Parent components MUST appear before their child components.\n    This specific ordering allows the streaming parser to yield and render the UI incrementally as it arrives."
+              }
+            ],
+            "gen_ai.input.messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Top 2 Chinese restaurants in New York"
+                  }
+                ]
+              }
+            ],
+            "gen_ai.output.messages": [
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "tool_call",
+                    "id": "adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03",
+                    "name": "get_restaurants",
+                    "arguments": {
+                      "cuisine": "Chinese",
+                      "location": "New York",
+                      "count": 2
+                    }
+                  }
+                ],
+                "finish_reason": "stop"
+              }
+            ],
+            "gen_ai.tool.definitions": [
+              {
+                "type": "function",
+                "name": "get_restaurants",
+                "description": "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "cuisine": {
+                      "type": "string"
+                    },
+                    "location": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "default": 5
+                    }
+                  },
+                  "required": [
+                    "cuisine",
+                    "location"
+                  ]
+                }
+              }
+            ],
+            "http.request.method": "POST",
+            "url.full": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.user-agent": [
+              "google-genai-sdk/1.27.0 gl-python/3.13.5"
+            ],
+            "http.response.header.content-type": [
+              "application/json; charset=UTF-8"
+            ],
+            "http.response.status_code": 200,
+            "server.address": "generativelanguage.googleapis.com",
+            "server.port": 443,
+            "a2ui.http.request.body": {
+              "contents": [
+                {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "text": "Top 2 Chinese restaurants in New York"
+                    }
+                  ]
+                }
+              ],
+              "systemInstruction": {
+                "role": "user",
+                "parts": [
+                  {
+                    "text": "You are a helpful restaurant finding assistant. Your final output MUST be an A2UI UI definition.\n\n## UI Description:\n-   If the query is for a list of restaurants, use the restaurant data you have already received from the `get_restaurants` tool to populate the `updateDataModel` message.\n-   IMPORTANT: When using updateDataModel to update items, you MUST specify `path: \"/items\"` in `updateDataModel`, and the `value` MUST be an array of restaurants.\n-   IMPORTANT: Always specify the path when using updateDataModel. The part message is ignored when the path is missing.\n-   If the number of restaurants is 5 or fewer, you MUST use the `SINGLE_COLUMN_LIST_EXAMPLE` template.\n-   If the number of restaurants is more than 5, you MUST use the `TWO_COLUMN_LIST_EXAMPLE` template.\n-   If the query is to book a restaurant (e.g., \"USER_WANTS_TO_BOOK...\"), you MUST use the `BOOKING_FORM_EXAMPLE` template.\n-   If the query is a booking submission (e.g., \"User submitted a booking...\"), you MUST use the `CONFIRMATION_EXAMPLE` template.\n\n## Workflow Description:\n\nThe generated response MUST follow these rules:\n- The response can contain one or more A2UI JSON blocks.\n- Each A2UI JSON block MUST be wrapped in `<a2ui-json>` and `</a2ui-json>` tags.\n- Between or around these blocks, you can provide conversational text.\n- The JSON part MUST be a single, raw JSON object (usually a list of A2UI messages) and MUST validate against the provided A2UI JSON SCHEMA.\n- Top-Down Component Ordering: Within the `components` list of a message:\n    - The 'root' component MUST be the FIRST element.\n    - Parent components MUST appear before their child components.\n    This specific ordering allows the streaming parser to yield and render the UI incrementally as it arrives."
+                  }
+                ]
+              },
+              "tools": [
+                {
+                  "functionDeclarations": [
+                    {
+                      "name": "get_restaurants",
+                      "description": "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return.",
+                      "parameters": {
+                        "type": "object",
+                        "properties": {
+                          "cuisine": {
+                            "type": "string"
+                          },
+                          "location": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer",
+                            "default": 5
+                          }
+                        },
+                        "required": [
+                          "cuisine",
+                          "location"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ],
+              "generationConfig": {}
+            },
+            "a2ui.http.response.body": {
+              "candidates": [
+                {
+                  "content": {
+                    "role": "model",
+                    "parts": [
+                      {
+                        "functionCall": {
+                          "id": "adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03",
+                          "name": "get_restaurants",
+                          "args": {
+                            "cuisine": "Chinese",
+                            "location": "New York",
+                            "count": 2
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "index": 0,
+                  "finishReason": "STOP"
+                }
+              ],
+              "usageMetadata": {
+                "promptTokenCount": 2841,
+                "candidatesTokenCount": 31,
+                "totalTokenCount": 2872
+              },
+              "modelVersion": "gemini-3.6-flash",
+              "responseId": "resp-1a"
+            }
+          },
+          "links": [
+            {
+              "traceId": "d8a8cc776a410215e328729c7f4f4051",
+              "spanId": "9ac3d7c700c06e7a"
+            }
+          ],
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "d8a8cc776a410215e328729c7f4f4051",
+          "spanId": "949e064b05d7a3c1",
+          "parentSpanId": "cd5c049a0edd31a1",
+          "name": "execute_tool get_restaurants",
+          "kind": 1,
+          "startTimeUnixNano": "1792576801225000000",
+          "endTimeUnixNano": "1792576801240000000",
+          "attributes": {
+            "a2ui.event.kind": "tool_call",
+            "gen_ai.operation.name": "execute_tool",
+            "gen_ai.tool.name": "get_restaurants",
+            "gen_ai.tool.call.id": "adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03",
+            "gen_ai.tool.type": "function",
+            "gen_ai.tool.description": "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return.",
+            "gen_ai.tool.call.arguments": {
+              "cuisine": "Chinese",
+              "location": "New York",
+              "count": 2
+            },
+            "gen_ai.tool.call.result": {
+              "result": "[{\"name\": \"Xi'an Famous Foods\", \"detail\": \"Spicy and savory hand-pulled noodles.\", \"imageUrl\": \"http://localhost:10002/static/shrimpchowmein.jpeg\", \"rating\": \"\\u2605\\u2605\\u2605\\u2605\\u2606\", \"infoLink\": \"[More Info](https://www.xianfoods.com/)\", \"address\": \"81 St Marks Pl, New York, NY 10003\"}, {\"name\": \"Han Dynasty\", \"detail\": \"Authentic Szechuan cuisine.\", \"imageUrl\": \"http://localhost:10002/static/mapotofu.jpeg\", \"rating\": \"\\u2605\\u2605\\u2605\\u2605\\u2606\", \"infoLink\": \"[More Info](https://www.handynasty.net/)\", \"address\": \"90 3rd Ave, New York, NY 10003\"}]"
+            },
+            "gen_ai.agent.name": "restaurant_agent",
+            "gen_ai.conversation.id": "c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+            "otel.scope.name": "gcp.vertex.agent",
+            "otel.scope.version": "1.28.1",
+            "a2ui.received.attributes": {
+              "gen_ai.operation.name": "execute_tool",
+              "gen_ai.tool.name": "get_restaurants",
+              "gen_ai.tool.description": "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return.",
+              "gen_ai.tool.call.id": "adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03",
+              "gcp.vertex.agent.tool_call_args": "{\"cuisine\": \"Chinese\", \"location\": \"New York\", \"count\": 2}",
+              "gcp.vertex.agent.event_id": "3a9c6e15",
+              "gcp.vertex.agent.tool_response": "{\"result\": \"[{\\\"name\\\": \\\"Xi'an Famous Foods\\\", \\\"detail\\\": \\\"Spicy and savory hand-pulled noodles.\\\", \\\"imageUrl\\\": \\\"http://localhost:10002/static/shrimpchowmein.jpeg\\\", \\\"rating\\\": \\\"\\\\u2605\\\\u2605\\\\u2605\\\\u2605\\\\u2606\\\", \\\"infoLink\\\": \\\"[More Info](https://www.xianfoods.com/)\\\", \\\"address\\\": \\\"81 St Marks Pl, New York, NY 10003\\\"}, {\\\"name\\\": \\\"Han Dynasty\\\", \\\"detail\\\": \\\"Authentic Szechuan cuisine.\\\", \\\"imageUrl\\\": \\\"http://localhost:10002/static/mapotofu.jpeg\\\", \\\"rating\\\": \\\"\\\\u2605\\\\u2605\\\\u2605\\\\u2605\\\\u2606\\\", \\\"infoLink\\\": \\\"[More Info](https://www.handynasty.net/)\\\", \\\"address\\\": \\\"90 3rd Ave, New York, NY 10003\\\"}]\"}"
+            }
+          },
+          "status": {
+            "code": 0
+          }
+        },
+        {
+          "traceId": "d8a8cc776a410215e328729c7f4f4051",
+          "spanId": "24b33186c2848267",
+          "parentSpanId": "cd5c049a0edd31a1",
+          "name": "call_llm",
+          "kind": 1,
+          "startTimeUnixNano": "1792576801250000000",
+          "endTimeUnixNano": "1792576804950000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "generate_content",
+            "gen_ai.request.model": "gemini-3.6-flash",
+            "gen_ai.conversation.id": "c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+            "gen_ai.usage.input_tokens": 3260,
+            "gen_ai.usage.output_tokens": 912,
+            "gen_ai.response.finish_reasons": [
+              "stop"
+            ],
+            "otel.scope.name": "gcp.vertex.agent",
+            "otel.scope.version": "1.28.1",
+            "a2ui.received.attributes": {
+              "gen_ai.system": "gcp.vertex.agent",
+              "gen_ai.request.model": "gemini-3.6-flash",
+              "gcp.vertex.agent.invocation_id": "e-4b1d7e20-9a6c-4f3e-8b52-1c0a7d9e3f64",
+              "gcp.vertex.agent.session_id": "c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+              "gcp.vertex.agent.event_id": "5e7b0c92",
+              "gcp.vertex.agent.llm_request": "{\"model\": \"gemini-3.6-flash\", \"contents\": [{\"role\": \"user\", \"parts\": [{\"text\": \"Top 2 Chinese restaurants in New York\"}]}, {\"role\": \"model\", \"parts\": [{\"functionCall\": {\"id\": \"adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03\", \"name\": \"get_restaurants\", \"args\": {\"cuisine\": \"Chinese\", \"location\": \"New York\", \"count\": 2}}}]}, {\"role\": \"user\", \"parts\": [{\"functionResponse\": {\"id\": \"adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03\", \"name\": \"get_restaurants\", \"response\": {\"result\": \"[{\\\"name\\\": \\\"Xi'an Famous Foods\\\", \\\"detail\\\": \\\"Spicy and savory hand-pulled noodles.\\\", \\\"imageUrl\\\": \\\"http://localhost:10002/static/shrimpchowmein.jpeg\\\", \\\"rating\\\": \\\"\\\\u2605\\\\u2605\\\\u2605\\\\u2605\\\\u2606\\\", \\\"infoLink\\\": \\\"[More Info](https://www.xianfoods.com/)\\\", \\\"address\\\": \\\"81 St Marks Pl, New York, NY 10003\\\"}, {\\\"name\\\": \\\"Han Dynasty\\\", \\\"detail\\\": \\\"Authentic Szechuan cuisine.\\\", \\\"imageUrl\\\": \\\"http://localhost:10002/static/mapotofu.jpeg\\\", \\\"rating\\\": \\\"\\\\u2605\\\\u2605\\\\u2605\\\\u2605\\\\u2606\\\", \\\"infoLink\\\": \\\"[More Info](https://www.handynasty.net/)\\\", \\\"address\\\": \\\"90 3rd Ave, New York, NY 10003\\\"}]\"}}}]}]}",
+              "gcp.vertex.agent.llm_response": "{\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"text\": \"Here are the top 2 Chinese restaurants in New York 🍜\\n<a2ui-json>\\n[{\\\"version\\\":\\\"v0.9\\\",\\\"createSurface\\\":{\\\"surfaceId\\\":\\\"default\\\",\\\"catalogId\\\":\\\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\\\",\\\"theme\\\":{\\\"primaryColor\\\":\\\"#FF0000\\\",\\\"font\\\":\\\"Roboto\\\"},\\\"sendDataModel\\\":true}},{\\\"version\\\":\\\"v0.9\\\",\\\"updateComponents\\\":{\\\"surfaceId\\\":\\\"default\\\",\\\"components\\\":[{\\\"id\\\":\\\"root\\\",\\\"component\\\":\\\"Column\\\",\\\"children\\\":[\\\"title-heading\\\",\\\"item-list\\\"]},{\\\"id\\\":\\\"title-heading\\\",\\\"component\\\":\\\"Text\\\",\\\"variant\\\":\\\"h1\\\",\\\"text\\\":{\\\"path\\\":\\\"/title\\\"}},{\\\"id\\\":\\\"item-list\\\",\\\"component\\\":\\\"List\\\",\\\"direction\\\":\\\"vertical\\\",\\\"children\\\":{\\\"componentId\\\":\\\"item-card-template\\\",\\\"path\\\":\\\"/items\\\"}},{\\\"id\\\":\\\"item-card-template\\\",\\\"component\\\":\\\"Card\\\",\\\"child\\\":\\\"card-layout\\\"},{\\\"id\\\":\\\"card-layout\\\",\\\"component\\\":\\\"Row\\\",\\\"children\\\":[\\\"card-image\\\",\\\"card-details\\\"]},{\\\"id\\\":\\\"card-image\\\",\\\"component\\\":\\\"Image\\\",\\\"variant\\\":\\\"mediumFeature\\\",\\\"weight\\\":1,\\\"url\\\":{\\\"path\\\":\\\"imageUrl\\\"}},{\\\"id\\\":\\\"card-details\\\",\\\"component\\\":\\\"Column\\\",\\\"weight\\\":2,\\\"children\\\":[\\\"template-name\\\",\\\"template-rating\\\",\\\"template-detail\\\",\\\"template-link\\\",\\\"template-book-button\\\"]},{\\\"id\\\":\\\"template-name\\\",\\\"component\\\":\\\"Text\\\",\\\"variant\\\":\\\"h3\\\",\\\"text\\\":{\\\"path\\\":\\\"name\\\"}},{\\\"id\\\":\\\"template-rating\\\",\\\"component\\\":\\\"Text\\\",\\\"text\\\":{\\\"path\\\":\\\"rating\\\"}},{\\\"id\\\":\\\"template-detail\\\",\\\"component\\\":\\\"Text\\\",\\\"text\\\":{\\\"path\\\":\\\"detail\\\"}},{\\\"id\\\":\\\"template-link\\\",\\\"component\\\":\\\"Text\\\",\\\"text\\\":{\\\"path\\\":\\\"infoLink\\\"}},{\\\"id\\\":\\\"template-book-button\\\",\\\"component\\\":\\\"Button\\\",\\\"child\\\":\\\"book-now-text\\\",\\\"variant\\\":\\\"primary\\\",\\\"action\\\":{\\\"event\\\":{\\\"name\\\":\\\"book_restaurant\\\",\\\"context\\\":{\\\"restaurantName\\\":{\\\"path\\\":\\\"name\\\"},\\\"imageUrl\\\":{\\\"path\\\":\\\"imageUrl\\\"},\\\"address\\\":{\\\"path\\\":\\\"address\\\"}}}}},{\\\"id\\\":\\\"book-now-text\\\",\\\"component\\\":\\\"Text\\\",\\\"text\\\":\\\"Book Now\\\"}]}},{\\\"version\\\":\\\"v0.9\\\",\\\"updateDataModel\\\":{\\\"surfaceId\\\":\\\"default\\\",\\\"path\\\":\\\"/title\\\",\\\"value\\\":\\\"Top 2 Chinese Restaurants in New York\\\"}},{\\\"version\\\":\\\"v0.9\\\",\\\"updateDataModel\\\":{\\\"surfaceId\\\":\\\"default\\\",\\\"path\\\":\\\"/items\\\",\\\"value\\\":[{\\\"name\\\":\\\"Xi'an Famous Foods\\\",\\\"detail\\\":\\\"Spicy and savory hand-pulled noodles.\\\",\\\"imageUrl\\\":\\\"http://localhost:10002/static/shrimpchowmein.jpeg\\\",\\\"rating\\\":\\\"★★★★☆\\\",\\\"infoLink\\\":\\\"[More Info](https://www.xianfoods.com/)\\\",\\\"address\\\":\\\"81 St Marks Pl, New York, NY 10003\\\"},{\\\"name\\\":\\\"Han Dynasty\\\",\\\"detail\\\":\\\"Authentic Szechuan cuisine.\\\",\\\"imageUrl\\\":\\\"http://localhost:10002/static/mapotofu.jpeg\\\",\\\"rating\\\":\\\"★★★★☆\\\",\\\"infoLink\\\":\\\"[More Info](https://www.handynasty.net/)\\\",\\\"address\\\":\\\"90 3rd Ave, New York, NY 10003\\\"}]}}]\\n</a2ui-json>\"}]}, \"index\": 0, \"finishReason\": \"STOP\"}], \"usageMetadata\": {\"promptTokenCount\": 3260, \"candidatesTokenCount\": 912, \"totalTokenCount\": 4172}, \"modelVersion\": \"gemini-3.6-flash\", \"responseId\": \"resp-1b\"}",
+              "gen_ai.usage.input_tokens": 3260,
+              "gen_ai.usage.output_tokens": 912,
+              "gen_ai.response.finish_reasons": [
+                "STOP"
+              ]
+            }
+          },
+          "links": [
+            {
+              "traceId": "b573274bef9042e64dc49a8f6d014d92",
+              "spanId": "0d4568cb42c299a7"
+            }
+          ]
+        },
+        {
+          "traceId": "b573274bef9042e64dc49a8f6d014d92",
+          "spanId": "0d4568cb42c299a7",
+          "parentSpanId": "952ef8bd079a1373",
+          "name": "generate_content gemini-3.6-flash",
+          "kind": 3,
+          "startTimeUnixNano": "1792576801255000000",
+          "endTimeUnixNano": "1792576804940000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "generate_content",
+            "gen_ai.provider.name": "gcp.gemini",
+            "gen_ai.request.model": "gemini-3.6-flash",
+            "gen_ai.request.stream": false,
+            "gen_ai.output.type": "text",
+            "gen_ai.response.id": "resp-1b",
+            "gen_ai.response.model": "gemini-3.6-flash",
+            "gen_ai.response.finish_reasons": [
+              "stop"
+            ],
+            "gen_ai.usage.input_tokens": 3260,
+            "gen_ai.usage.output_tokens": 912,
+            "gen_ai.system_instructions": [
+              {
+                "type": "text",
+                "content": "You are a helpful restaurant finding assistant. Your final output MUST be an A2UI UI definition.\n\n## UI Description:\n-   If the query is for a list of restaurants, use the restaurant data you have already received from the `get_restaurants` tool to populate the `updateDataModel` message.\n-   IMPORTANT: When using updateDataModel to update items, you MUST specify `path: \"/items\"` in `updateDataModel`, and the `value` MUST be an array of restaurants.\n-   IMPORTANT: Always specify the path when using updateDataModel. The part message is ignored when the path is missing.\n-   If the number of restaurants is 5 or fewer, you MUST use the `SINGLE_COLUMN_LIST_EXAMPLE` template.\n-   If the number of restaurants is more than 5, you MUST use the `TWO_COLUMN_LIST_EXAMPLE` template.\n-   If the query is to book a restaurant (e.g., \"USER_WANTS_TO_BOOK...\"), you MUST use the `BOOKING_FORM_EXAMPLE` template.\n-   If the query is a booking submission (e.g., \"User submitted a booking...\"), you MUST use the `CONFIRMATION_EXAMPLE` template.\n\n## Workflow Description:\n\nThe generated response MUST follow these rules:\n- The response can contain one or more A2UI JSON blocks.\n- Each A2UI JSON block MUST be wrapped in `<a2ui-json>` and `</a2ui-json>` tags.\n- Between or around these blocks, you can provide conversational text.\n- The JSON part MUST be a single, raw JSON object (usually a list of A2UI messages) and MUST validate against the provided A2UI JSON SCHEMA.\n- Top-Down Component Ordering: Within the `components` list of a message:\n    - The 'root' component MUST be the FIRST element.\n    - Parent components MUST appear before their child components.\n    This specific ordering allows the streaming parser to yield and render the UI incrementally as it arrives."
+              }
+            ],
+            "gen_ai.input.messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Top 2 Chinese restaurants in New York"
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "tool_call",
+                    "id": "adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03",
+                    "name": "get_restaurants",
+                    "arguments": {
+                      "cuisine": "Chinese",
+                      "location": "New York",
+                      "count": 2
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "parts": [
+                  {
+                    "type": "tool_call_response",
+                    "id": "adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03",
+                    "response": {
+                      "result": "[{\"name\": \"Xi'an Famous Foods\", \"detail\": \"Spicy and savory hand-pulled noodles.\", \"imageUrl\": \"http://localhost:10002/static/shrimpchowmein.jpeg\", \"rating\": \"\\u2605\\u2605\\u2605\\u2605\\u2606\", \"infoLink\": \"[More Info](https://www.xianfoods.com/)\", \"address\": \"81 St Marks Pl, New York, NY 10003\"}, {\"name\": \"Han Dynasty\", \"detail\": \"Authentic Szechuan cuisine.\", \"imageUrl\": \"http://localhost:10002/static/mapotofu.jpeg\", \"rating\": \"\\u2605\\u2605\\u2605\\u2605\\u2606\", \"infoLink\": \"[More Info](https://www.handynasty.net/)\", \"address\": \"90 3rd Ave, New York, NY 10003\"}]"
+                    }
+                  }
+                ]
+              }
+            ],
+            "gen_ai.output.messages": [
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Here are the top 2 Chinese restaurants in New York 🍜\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"default\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"},\"sendDataModel\":true}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"default\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"title-heading\",\"item-list\"]},{\"id\":\"title-heading\",\"component\":\"Text\",\"variant\":\"h1\",\"text\":{\"path\":\"/title\"}},{\"id\":\"item-list\",\"component\":\"List\",\"direction\":\"vertical\",\"children\":{\"componentId\":\"item-card-template\",\"path\":\"/items\"}},{\"id\":\"item-card-template\",\"component\":\"Card\",\"child\":\"card-layout\"},{\"id\":\"card-layout\",\"component\":\"Row\",\"children\":[\"card-image\",\"card-details\"]},{\"id\":\"card-image\",\"component\":\"Image\",\"variant\":\"mediumFeature\",\"weight\":1,\"url\":{\"path\":\"imageUrl\"}},{\"id\":\"card-details\",\"component\":\"Column\",\"weight\":2,\"children\":[\"template-name\",\"template-rating\",\"template-detail\",\"template-link\",\"template-book-button\"]},{\"id\":\"template-name\",\"component\":\"Text\",\"variant\":\"h3\",\"text\":{\"path\":\"name\"}},{\"id\":\"template-rating\",\"component\":\"Text\",\"text\":{\"path\":\"rating\"}},{\"id\":\"template-detail\",\"component\":\"Text\",\"text\":{\"path\":\"detail\"}},{\"id\":\"template-link\",\"component\":\"Text\",\"text\":{\"path\":\"infoLink\"}},{\"id\":\"template-book-button\",\"component\":\"Button\",\"child\":\"book-now-text\",\"variant\":\"primary\",\"action\":{\"event\":{\"name\":\"book_restaurant\",\"context\":{\"restaurantName\":{\"path\":\"name\"},\"imageUrl\":{\"path\":\"imageUrl\"},\"address\":{\"path\":\"address\"}}}}},{\"id\":\"book-now-text\",\"component\":\"Text\",\"text\":\"Book Now\"}]}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"default\",\"path\":\"/title\",\"value\":\"Top 2 Chinese Restaurants in New York\"}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"default\",\"path\":\"/items\",\"value\":[{\"name\":\"Xi'an Famous Foods\",\"detail\":\"Spicy and savory hand-pulled noodles.\",\"imageUrl\":\"http://localhost:10002/static/shrimpchowmein.jpeg\",\"rating\":\"★★★★☆\",\"infoLink\":\"[More Info](https://www.xianfoods.com/)\",\"address\":\"81 St Marks Pl, New York, NY 10003\"},{\"name\":\"Han Dynasty\",\"detail\":\"Authentic Szechuan cuisine.\",\"imageUrl\":\"http://localhost:10002/static/mapotofu.jpeg\",\"rating\":\"★★★★☆\",\"infoLink\":\"[More Info](https://www.handynasty.net/)\",\"address\":\"90 3rd Ave, New York, NY 10003\"}]}}]\n</a2ui-json>"
+                  }
+                ],
+                "finish_reason": "stop"
+              }
+            ],
+            "gen_ai.tool.definitions": [
+              {
+                "type": "function",
+                "name": "get_restaurants",
+                "description": "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "cuisine": {
+                      "type": "string"
+                    },
+                    "location": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "default": 5
+                    }
+                  },
+                  "required": [
+                    "cuisine",
+                    "location"
+                  ]
+                }
+              }
+            ],
+            "http.request.method": "POST",
+            "url.full": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.user-agent": [
+              "google-genai-sdk/1.27.0 gl-python/3.13.5"
+            ],
+            "http.response.header.content-type": [
+              "application/json; charset=UTF-8"
+            ],
+            "http.response.status_code": 200,
+            "server.address": "generativelanguage.googleapis.com",
+            "server.port": 443,
+            "a2ui.http.request.body": {
+              "contents": [
+                {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "text": "Top 2 Chinese restaurants in New York"
+                    }
+                  ]
+                },
+                {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "functionCall": {
+                        "id": "adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03",
+                        "name": "get_restaurants",
+                        "args": {
+                          "cuisine": "Chinese",
+                          "location": "New York",
+                          "count": 2
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "functionResponse": {
+                        "id": "adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03",
+                        "name": "get_restaurants",
+                        "response": {
+                          "result": "[{\"name\": \"Xi'an Famous Foods\", \"detail\": \"Spicy and savory hand-pulled noodles.\", \"imageUrl\": \"http://localhost:10002/static/shrimpchowmein.jpeg\", \"rating\": \"\\u2605\\u2605\\u2605\\u2605\\u2606\", \"infoLink\": \"[More Info](https://www.xianfoods.com/)\", \"address\": \"81 St Marks Pl, New York, NY 10003\"}, {\"name\": \"Han Dynasty\", \"detail\": \"Authentic Szechuan cuisine.\", \"imageUrl\": \"http://localhost:10002/static/mapotofu.jpeg\", \"rating\": \"\\u2605\\u2605\\u2605\\u2605\\u2606\", \"infoLink\": \"[More Info](https://www.handynasty.net/)\", \"address\": \"90 3rd Ave, New York, NY 10003\"}]"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ],
+              "systemInstruction": {
+                "role": "user",
+                "parts": [
+                  {
+                    "text": "You are a helpful restaurant finding assistant. Your final output MUST be an A2UI UI definition.\n\n## UI Description:\n-   If the query is for a list of restaurants, use the restaurant data you have already received from the `get_restaurants` tool to populate the `updateDataModel` message.\n-   IMPORTANT: When using updateDataModel to update items, you MUST specify `path: \"/items\"` in `updateDataModel`, and the `value` MUST be an array of restaurants.\n-   IMPORTANT: Always specify the path when using updateDataModel. The part message is ignored when the path is missing.\n-   If the number of restaurants is 5 or fewer, you MUST use the `SINGLE_COLUMN_LIST_EXAMPLE` template.\n-   If the number of restaurants is more than 5, you MUST use the `TWO_COLUMN_LIST_EXAMPLE` template.\n-   If the query is to book a restaurant (e.g., \"USER_WANTS_TO_BOOK...\"), you MUST use the `BOOKING_FORM_EXAMPLE` template.\n-   If the query is a booking submission (e.g., \"User submitted a booking...\"), you MUST use the `CONFIRMATION_EXAMPLE` template.\n\n## Workflow Description:\n\nThe generated response MUST follow these rules:\n- The response can contain one or more A2UI JSON blocks.\n- Each A2UI JSON block MUST be wrapped in `<a2ui-json>` and `</a2ui-json>` tags.\n- Between or around these blocks, you can provide conversational text.\n- The JSON part MUST be a single, raw JSON object (usually a list of A2UI messages) and MUST validate against the provided A2UI JSON SCHEMA.\n- Top-Down Component Ordering: Within the `components` list of a message:\n    - The 'root' component MUST be the FIRST element.\n    - Parent components MUST appear before their child components.\n    This specific ordering allows the streaming parser to yield and render the UI incrementally as it arrives."
+                  }
+                ]
+              },
+              "tools": [
+                {
+                  "functionDeclarations": [
+                    {
+                      "name": "get_restaurants",
+                      "description": "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return.",
+                      "parameters": {
+                        "type": "object",
+                        "properties": {
+                          "cuisine": {
+                            "type": "string"
+                          },
+                          "location": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer",
+                            "default": 5
+                          }
+                        },
+                        "required": [
+                          "cuisine",
+                          "location"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ],
+              "generationConfig": {}
+            },
+            "a2ui.http.response.body": {
+              "candidates": [
+                {
+                  "content": {
+                    "role": "model",
+                    "parts": [
+                      {
+                        "text": "Here are the top 2 Chinese restaurants in New York 🍜\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"default\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"},\"sendDataModel\":true}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"default\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"title-heading\",\"item-list\"]},{\"id\":\"title-heading\",\"component\":\"Text\",\"variant\":\"h1\",\"text\":{\"path\":\"/title\"}},{\"id\":\"item-list\",\"component\":\"List\",\"direction\":\"vertical\",\"children\":{\"componentId\":\"item-card-template\",\"path\":\"/items\"}},{\"id\":\"item-card-template\",\"component\":\"Card\",\"child\":\"card-layout\"},{\"id\":\"card-layout\",\"component\":\"Row\",\"children\":[\"card-image\",\"card-details\"]},{\"id\":\"card-image\",\"component\":\"Image\",\"variant\":\"mediumFeature\",\"weight\":1,\"url\":{\"path\":\"imageUrl\"}},{\"id\":\"card-details\",\"component\":\"Column\",\"weight\":2,\"children\":[\"template-name\",\"template-rating\",\"template-detail\",\"template-link\",\"template-book-button\"]},{\"id\":\"template-name\",\"component\":\"Text\",\"variant\":\"h3\",\"text\":{\"path\":\"name\"}},{\"id\":\"template-rating\",\"component\":\"Text\",\"text\":{\"path\":\"rating\"}},{\"id\":\"template-detail\",\"component\":\"Text\",\"text\":{\"path\":\"detail\"}},{\"id\":\"template-link\",\"component\":\"Text\",\"text\":{\"path\":\"infoLink\"}},{\"id\":\"template-book-button\",\"component\":\"Button\",\"child\":\"book-now-text\",\"variant\":\"primary\",\"action\":{\"event\":{\"name\":\"book_restaurant\",\"context\":{\"restaurantName\":{\"path\":\"name\"},\"imageUrl\":{\"path\":\"imageUrl\"},\"address\":{\"path\":\"address\"}}}}},{\"id\":\"book-now-text\",\"component\":\"Text\",\"text\":\"Book Now\"}]}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"default\",\"path\":\"/title\",\"value\":\"Top 2 Chinese Restaurants in New York\"}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"default\",\"path\":\"/items\",\"value\":[{\"name\":\"Xi'an Famous Foods\",\"detail\":\"Spicy and savory hand-pulled noodles.\",\"imageUrl\":\"http://localhost:10002/static/shrimpchowmein.jpeg\",\"rating\":\"★★★★☆\",\"infoLink\":\"[More Info](https://www.xianfoods.com/)\",\"address\":\"81 St Marks Pl, New York, NY 10003\"},{\"name\":\"Han Dynasty\",\"detail\":\"Authentic Szechuan cuisine.\",\"imageUrl\":\"http://localhost:10002/static/mapotofu.jpeg\",\"rating\":\"★★★★☆\",\"infoLink\":\"[More Info](https://www.handynasty.net/)\",\"address\":\"90 3rd Ave, New York, NY 10003\"}]}}]\n</a2ui-json>"
+                      }
+                    ]
+                  },
+                  "index": 0,
+                  "finishReason": "STOP"
+                }
+              ],
+              "usageMetadata": {
+                "promptTokenCount": 3260,
+                "candidatesTokenCount": 912,
+                "totalTokenCount": 4172
+              },
+              "modelVersion": "gemini-3.6-flash",
+              "responseId": "resp-1b"
+            }
+          },
+          "links": [
+            {
+              "traceId": "d8a8cc776a410215e328729c7f4f4051",
+              "spanId": "24b33186c2848267"
+            }
+          ],
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "d8a8cc776a410215e328729c7f4f4051",
+          "spanId": "dfd59a87ee2fac4a",
+          "parentSpanId": "cd5c049a0edd31a1",
+          "name": "parse",
+          "kind": 1,
+          "startTimeUnixNano": "1792576804960000000",
+          "endTimeUnixNano": "1792576804975000000",
+          "attributes": {
+            "a2ui.event.kind": "parse",
+            "a2ui.parse.input": "Here are the top 2 Chinese restaurants in New York 🍜\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"default\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"},\"sendDataModel\":true}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"default\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"title-heading\",\"item-list\"]},{\"id\":\"title-heading\",\"component\":\"Text\",\"variant\":\"h1\",\"text\":{\"path\":\"/title\"}},{\"id\":\"item-list\",\"component\":\"List\",\"direction\":\"vertical\",\"children\":{\"componentId\":\"item-card-template\",\"path\":\"/items\"}},{\"id\":\"item-card-template\",\"component\":\"Card\",\"child\":\"card-layout\"},{\"id\":\"card-layout\",\"component\":\"Row\",\"children\":[\"card-image\",\"card-details\"]},{\"id\":\"card-image\",\"component\":\"Image\",\"variant\":\"mediumFeature\",\"weight\":1,\"url\":{\"path\":\"imageUrl\"}},{\"id\":\"card-details\",\"component\":\"Column\",\"weight\":2,\"children\":[\"template-name\",\"template-rating\",\"template-detail\",\"template-link\",\"template-book-button\"]},{\"id\":\"template-name\",\"component\":\"Text\",\"variant\":\"h3\",\"text\":{\"path\":\"name\"}},{\"id\":\"template-rating\",\"component\":\"Text\",\"text\":{\"path\":\"rating\"}},{\"id\":\"template-detail\",\"component\":\"Text\",\"text\":{\"path\":\"detail\"}},{\"id\":\"template-link\",\"component\":\"Text\",\"text\":{\"path\":\"infoLink\"}},{\"id\":\"template-book-button\",\"component\":\"Button\",\"child\":\"book-now-text\",\"variant\":\"primary\",\"action\":{\"event\":{\"name\":\"book_restaurant\",\"context\":{\"restaurantName\":{\"path\":\"name\"},\"imageUrl\":{\"path\":\"imageUrl\"},\"address\":{\"path\":\"address\"}}}}},{\"id\":\"book-now-text\",\"component\":\"Text\",\"text\":\"Book Now\"}]}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"default\",\"path\":\"/title\",\"value\":\"Top 2 Chinese Restaurants in New York\"}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"default\",\"path\":\"/items\",\"value\":[{\"name\":\"Xi'an Famous Foods\",\"detail\":\"Spicy and savory hand-pulled noodles.\",\"imageUrl\":\"http://localhost:10002/static/shrimpchowmein.jpeg\",\"rating\":\"★★★★☆\",\"infoLink\":\"[More Info](https://www.xianfoods.com/)\",\"address\":\"81 St Marks Pl, New York, NY 10003\"},{\"name\":\"Han Dynasty\",\"detail\":\"Authentic Szechuan cuisine.\",\"imageUrl\":\"http://localhost:10002/static/mapotofu.jpeg\",\"rating\":\"★★★★☆\",\"infoLink\":\"[More Info](https://www.handynasty.net/)\",\"address\":\"90 3rd Ave, New York, NY 10003\"}]}}]\n</a2ui-json>",
+            "a2ui.parse.inference_format": "direct_json",
+            "a2ui.parse.messages": [
+              {
+                "version": "v0.9",
+                "createSurface": {
+                  "surfaceId": "default",
+                  "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+                  "theme": {
+                    "primaryColor": "#FF0000",
+                    "font": "Roboto"
+                  },
+                  "sendDataModel": true
+                }
+              },
+              {
+                "version": "v0.9",
+                "updateComponents": {
+                  "surfaceId": "default",
+                  "components": [
+                    {
+                      "id": "root",
+                      "component": "Column",
+                      "children": [
+                        "title-heading",
+                        "item-list"
+                      ]
+                    },
+                    {
+                      "id": "title-heading",
+                      "component": "Text",
+                      "variant": "h1",
+                      "text": {
+                        "path": "/title"
+                      }
+                    },
+                    {
+                      "id": "item-list",
+                      "component": "List",
+                      "direction": "vertical",
+                      "children": {
+                        "componentId": "item-card-template",
+                        "path": "/items"
+                      }
+                    },
+                    {
+                      "id": "item-card-template",
+                      "component": "Card",
+                      "child": "card-layout"
+                    },
+                    {
+                      "id": "card-layout",
+                      "component": "Row",
+                      "children": [
+                        "card-image",
+                        "card-details"
+                      ]
+                    },
+                    {
+                      "id": "card-image",
+                      "component": "Image",
+                      "variant": "mediumFeature",
+                      "weight": 1,
+                      "url": {
+                        "path": "imageUrl"
+                      }
+                    },
+                    {
+                      "id": "card-details",
+                      "component": "Column",
+                      "weight": 2,
+                      "children": [
+                        "template-name",
+                        "template-rating",
+                        "template-detail",
+                        "template-link",
+                        "template-book-button"
+                      ]
+                    },
+                    {
+                      "id": "template-name",
+                      "component": "Text",
+                      "variant": "h3",
+                      "text": {
+                        "path": "name"
+                      }
+                    },
+                    {
+                      "id": "template-rating",
+                      "component": "Text",
+                      "text": {
+                        "path": "rating"
+                      }
+                    },
+                    {
+                      "id": "template-detail",
+                      "component": "Text",
+                      "text": {
+                        "path": "detail"
+                      }
+                    },
+                    {
+                      "id": "template-link",
+                      "component": "Text",
+                      "text": {
+                        "path": "infoLink"
+                      }
+                    },
+                    {
+                      "id": "template-book-button",
+                      "component": "Button",
+                      "child": "book-now-text",
+                      "variant": "primary",
+                      "action": {
+                        "event": {
+                          "name": "book_restaurant",
+                          "context": {
+                            "restaurantName": {
+                              "path": "name"
+                            },
+                            "imageUrl": {
+                              "path": "imageUrl"
+                            },
+                            "address": {
+                              "path": "address"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "id": "book-now-text",
+                      "component": "Text",
+                      "text": "Book Now"
+                    }
+                  ]
+                }
+              },
+              {
+                "version": "v0.9",
+                "updateDataModel": {
+                  "surfaceId": "default",
+                  "path": "/title",
+                  "value": "Top 2 Chinese Restaurants in New York"
+                }
+              },
+              {
+                "version": "v0.9",
+                "updateDataModel": {
+                  "surfaceId": "default",
+                  "path": "/items",
+                  "value": [
+                    {
+                      "name": "Xi'an Famous Foods",
+                      "detail": "Spicy and savory hand-pulled noodles.",
+                      "imageUrl": "http://localhost:10002/static/shrimpchowmein.jpeg",
+                      "rating": "★★★★☆",
+                      "infoLink": "[More Info](https://www.xianfoods.com/)",
+                      "address": "81 St Marks Pl, New York, NY 10003"
+                    },
+                    {
+                      "name": "Han Dynasty",
+                      "detail": "Authentic Szechuan cuisine.",
+                      "imageUrl": "http://localhost:10002/static/mapotofu.jpeg",
+                      "rating": "★★★★☆",
+                      "infoLink": "[More Info](https://www.handynasty.net/)",
+                      "address": "90 3rd Ave, New York, NY 10003"
+                    }
+                  ]
+                }
+              }
+            ],
+            "a2ui.parse.components": [
+              {
+                "surfaceId": "default",
+                "componentId": "root",
+                "start": 350,
+                "end": 425
+              },
+              {
+                "surfaceId": "default",
+                "componentId": "title-heading",
+                "start": 426,
+                "end": 507
+              },
+              {
+                "surfaceId": "default",
+                "componentId": "item-list",
+                "start": 508,
+                "end": 632
+              },
+              {
+                "surfaceId": "default",
+                "componentId": "item-card-template",
+                "start": 633,
+                "end": 701
+              },
+              {
+                "surfaceId": "default",
+                "componentId": "card-layout",
+                "start": 702,
+                "end": 781
+              },
+              {
+                "surfaceId": "default",
+                "componentId": "card-image",
+                "start": 782,
+                "end": 884
+              },
+              {
+                "surfaceId": "default",
+                "componentId": "card-details",
+                "start": 885,
+                "end": 1042
+              },
+              {
+                "surfaceId": "default",
+                "componentId": "template-name",
+                "start": 1043,
+                "end": 1122
+              },
+              {
+                "surfaceId": "default",
+                "componentId": "template-rating",
+                "start": 1123,
+                "end": 1191
+              },
+              {
+                "surfaceId": "default",
+                "componentId": "template-detail",
+                "start": 1192,
+                "end": 1260
+              },
+              {
+                "surfaceId": "default",
+                "componentId": "template-link",
+                "start": 1261,
+                "end": 1329
+              },
+              {
+                "surfaceId": "default",
+                "componentId": "template-book-button",
+                "start": 1330,
+                "end": 1575
+              },
+              {
+                "surfaceId": "default",
+                "componentId": "book-now-text",
+                "start": 1576,
+                "end": 1635
+              }
+            ],
+            "otel.scope.name": "a2ui_spectra_wrapper",
+            "otel.scope.version": "0.0.0",
+            "a2ui.received.attributes": {
+              "a2ui.event.kind": "parse",
+              "a2ui.parse.input": "Here are the top 2 Chinese restaurants in New York 🍜\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"default\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"},\"sendDataModel\":true}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"default\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"title-heading\",\"item-list\"]},{\"id\":\"title-heading\",\"component\":\"Text\",\"variant\":\"h1\",\"text\":{\"path\":\"/title\"}},{\"id\":\"item-list\",\"component\":\"List\",\"direction\":\"vertical\",\"children\":{\"componentId\":\"item-card-template\",\"path\":\"/items\"}},{\"id\":\"item-card-template\",\"component\":\"Card\",\"child\":\"card-layout\"},{\"id\":\"card-layout\",\"component\":\"Row\",\"children\":[\"card-image\",\"card-details\"]},{\"id\":\"card-image\",\"component\":\"Image\",\"variant\":\"mediumFeature\",\"weight\":1,\"url\":{\"path\":\"imageUrl\"}},{\"id\":\"card-details\",\"component\":\"Column\",\"weight\":2,\"children\":[\"template-name\",\"template-rating\",\"template-detail\",\"template-link\",\"template-book-button\"]},{\"id\":\"template-name\",\"component\":\"Text\",\"variant\":\"h3\",\"text\":{\"path\":\"name\"}},{\"id\":\"template-rating\",\"component\":\"Text\",\"text\":{\"path\":\"rating\"}},{\"id\":\"template-detail\",\"component\":\"Text\",\"text\":{\"path\":\"detail\"}},{\"id\":\"template-link\",\"component\":\"Text\",\"text\":{\"path\":\"infoLink\"}},{\"id\":\"template-book-button\",\"component\":\"Button\",\"child\":\"book-now-text\",\"variant\":\"primary\",\"action\":{\"event\":{\"name\":\"book_restaurant\",\"context\":{\"restaurantName\":{\"path\":\"name\"},\"imageUrl\":{\"path\":\"imageUrl\"},\"address\":{\"path\":\"address\"}}}}},{\"id\":\"book-now-text\",\"component\":\"Text\",\"text\":\"Book Now\"}]}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"default\",\"path\":\"/title\",\"value\":\"Top 2 Chinese Restaurants in New York\"}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"default\",\"path\":\"/items\",\"value\":[{\"name\":\"Xi'an Famous Foods\",\"detail\":\"Spicy and savory hand-pulled noodles.\",\"imageUrl\":\"http://localhost:10002/static/shrimpchowmein.jpeg\",\"rating\":\"★★★★☆\",\"infoLink\":\"[More Info](https://www.xianfoods.com/)\",\"address\":\"81 St Marks Pl, New York, NY 10003\"},{\"name\":\"Han Dynasty\",\"detail\":\"Authentic Szechuan cuisine.\",\"imageUrl\":\"http://localhost:10002/static/mapotofu.jpeg\",\"rating\":\"★★★★☆\",\"infoLink\":\"[More Info](https://www.handynasty.net/)\",\"address\":\"90 3rd Ave, New York, NY 10003\"}]}}]\n</a2ui-json>",
+              "a2ui.parse.inference_format": "direct_json",
+              "a2ui.parse.messages": [
+                {
+                  "version": "v0.9",
+                  "createSurface": {
+                    "surfaceId": "default",
+                    "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+                    "theme": {
+                      "primaryColor": "#FF0000",
+                      "font": "Roboto"
+                    },
+                    "sendDataModel": true
+                  }
+                },
+                {
+                  "version": "v0.9",
+                  "updateComponents": {
+                    "surfaceId": "default",
+                    "components": [
+                      {
+                        "id": "root",
+                        "component": "Column",
+                        "children": [
+                          "title-heading",
+                          "item-list"
+                        ]
+                      },
+                      {
+                        "id": "title-heading",
+                        "component": "Text",
+                        "variant": "h1",
+                        "text": {
+                          "path": "/title"
+                        }
+                      },
+                      {
+                        "id": "item-list",
+                        "component": "List",
+                        "direction": "vertical",
+                        "children": {
+                          "componentId": "item-card-template",
+                          "path": "/items"
+                        }
+                      },
+                      {
+                        "id": "item-card-template",
+                        "component": "Card",
+                        "child": "card-layout"
+                      },
+                      {
+                        "id": "card-layout",
+                        "component": "Row",
+                        "children": [
+                          "card-image",
+                          "card-details"
+                        ]
+                      },
+                      {
+                        "id": "card-image",
+                        "component": "Image",
+                        "variant": "mediumFeature",
+                        "weight": 1,
+                        "url": {
+                          "path": "imageUrl"
+                        }
+                      },
+                      {
+                        "id": "card-details",
+                        "component": "Column",
+                        "weight": 2,
+                        "children": [
+                          "template-name",
+                          "template-rating",
+                          "template-detail",
+                          "template-link",
+                          "template-book-button"
+                        ]
+                      },
+                      {
+                        "id": "template-name",
+                        "component": "Text",
+                        "variant": "h3",
+                        "text": {
+                          "path": "name"
+                        }
+                      },
+                      {
+                        "id": "template-rating",
+                        "component": "Text",
+                        "text": {
+                          "path": "rating"
+                        }
+                      },
+                      {
+                        "id": "template-detail",
+                        "component": "Text",
+                        "text": {
+                          "path": "detail"
+                        }
+                      },
+                      {
+                        "id": "template-link",
+                        "component": "Text",
+                        "text": {
+                          "path": "infoLink"
+                        }
+                      },
+                      {
+                        "id": "template-book-button",
+                        "component": "Button",
+                        "child": "book-now-text",
+                        "variant": "primary",
+                        "action": {
+                          "event": {
+                            "name": "book_restaurant",
+                            "context": {
+                              "restaurantName": {
+                                "path": "name"
+                              },
+                              "imageUrl": {
+                                "path": "imageUrl"
+                              },
+                              "address": {
+                                "path": "address"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "id": "book-now-text",
+                        "component": "Text",
+                        "text": "Book Now"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "version": "v0.9",
+                  "updateDataModel": {
+                    "surfaceId": "default",
+                    "path": "/title",
+                    "value": "Top 2 Chinese Restaurants in New York"
+                  }
+                },
+                {
+                  "version": "v0.9",
+                  "updateDataModel": {
+                    "surfaceId": "default",
+                    "path": "/items",
+                    "value": [
+                      {
+                        "name": "Xi'an Famous Foods",
+                        "detail": "Spicy and savory hand-pulled noodles.",
+                        "imageUrl": "http://localhost:10002/static/shrimpchowmein.jpeg",
+                        "rating": "★★★★☆",
+                        "infoLink": "[More Info](https://www.xianfoods.com/)",
+                        "address": "81 St Marks Pl, New York, NY 10003"
+                      },
+                      {
+                        "name": "Han Dynasty",
+                        "detail": "Authentic Szechuan cuisine.",
+                        "imageUrl": "http://localhost:10002/static/mapotofu.jpeg",
+                        "rating": "★★★★☆",
+                        "infoLink": "[More Info](https://www.handynasty.net/)",
+                        "address": "90 3rd Ave, New York, NY 10003"
+                      }
+                    ]
+                  }
+                }
+              ],
+              "a2ui.parse.components": [
+                {
+                  "surfaceId": "default",
+                  "componentId": "root",
+                  "start": 350,
+                  "end": 425
+                },
+                {
+                  "surfaceId": "default",
+                  "componentId": "title-heading",
+                  "start": 426,
+                  "end": 507
+                },
+                {
+                  "surfaceId": "default",
+                  "componentId": "item-list",
+                  "start": 508,
+                  "end": 632
+                },
+                {
+                  "surfaceId": "default",
+                  "componentId": "item-card-template",
+                  "start": 633,
+                  "end": 701
+                },
+                {
+                  "surfaceId": "default",
+                  "componentId": "card-layout",
+                  "start": 702,
+                  "end": 781
+                },
+                {
+                  "surfaceId": "default",
+                  "componentId": "card-image",
+                  "start": 782,
+                  "end": 884
+                },
+                {
+                  "surfaceId": "default",
+                  "componentId": "card-details",
+                  "start": 885,
+                  "end": 1042
+                },
+                {
+                  "surfaceId": "default",
+                  "componentId": "template-name",
+                  "start": 1043,
+                  "end": 1122
+                },
+                {
+                  "surfaceId": "default",
+                  "componentId": "template-rating",
+                  "start": 1123,
+                  "end": 1191
+                },
+                {
+                  "surfaceId": "default",
+                  "componentId": "template-detail",
+                  "start": 1192,
+                  "end": 1260
+                },
+                {
+                  "surfaceId": "default",
+                  "componentId": "template-link",
+                  "start": 1261,
+                  "end": 1329
+                },
+                {
+                  "surfaceId": "default",
+                  "componentId": "template-book-button",
+                  "start": 1330,
+                  "end": 1575
+                },
+                {
+                  "surfaceId": "default",
+                  "componentId": "book-now-text",
+                  "start": 1576,
+                  "end": 1635
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "b573274bef9042e64dc49a8f6d014d92",
+          "spanId": "8647f6a401ee6a66",
+          "parentSpanId": "952ef8bd079a1373",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792576805000000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Here are the top 2 Chinese restaurants in New York 🍜"
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "createSurface": {
+                      "surfaceId": "default",
+                      "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+                      "theme": {
+                        "primaryColor": "#FF0000",
+                        "font": "Roboto"
+                      },
+                      "sendDataModel": true
+                    }
+                  }
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "default",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "title-heading",
+                            "item-list"
+                          ]
+                        },
+                        {
+                          "id": "title-heading",
+                          "component": "Text",
+                          "variant": "h1",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "item-list",
+                          "component": "List",
+                          "direction": "vertical",
+                          "children": {
+                            "componentId": "item-card-template",
+                            "path": "/items"
+                          }
+                        },
+                        {
+                          "id": "item-card-template",
+                          "component": "Card",
+                          "child": "card-layout"
+                        },
+                        {
+                          "id": "card-layout",
+                          "component": "Row",
+                          "children": [
+                            "card-image",
+                            "card-details"
+                          ]
+                        },
+                        {
+                          "id": "card-image",
+                          "component": "Image",
+                          "variant": "mediumFeature",
+                          "weight": 1,
+                          "url": {
+                            "path": "imageUrl"
+                          }
+                        },
+                        {
+                          "id": "card-details",
+                          "component": "Column",
+                          "weight": 2,
+                          "children": [
+                            "template-name",
+                            "template-rating",
+                            "template-detail",
+                            "template-link",
+                            "template-book-button"
+                          ]
+                        },
+                        {
+                          "id": "template-name",
+                          "component": "Text",
+                          "variant": "h3",
+                          "text": {
+                            "path": "name"
+                          }
+                        },
+                        {
+                          "id": "template-rating",
+                          "component": "Text",
+                          "text": {
+                            "path": "rating"
+                          }
+                        },
+                        {
+                          "id": "template-detail",
+                          "component": "Text",
+                          "text": {
+                            "path": "detail"
+                          }
+                        },
+                        {
+                          "id": "template-link",
+                          "component": "Text",
+                          "text": {
+                            "path": "infoLink"
+                          }
+                        },
+                        {
+                          "id": "template-book-button",
+                          "component": "Button",
+                          "child": "book-now-text",
+                          "variant": "primary",
+                          "action": {
+                            "event": {
+                              "name": "book_restaurant",
+                              "context": {
+                                "restaurantName": {
+                                  "path": "name"
+                                },
+                                "imageUrl": {
+                                  "path": "imageUrl"
+                                },
+                                "address": {
+                                  "path": "address"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "id": "book-now-text",
+                          "component": "Text",
+                          "text": "Book Now"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateDataModel": {
+                      "surfaceId": "default",
+                      "path": "/title",
+                      "value": "Top 2 Chinese Restaurants in New York"
+                    }
+                  }
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateDataModel": {
+                      "surfaceId": "default",
+                      "path": "/items",
+                      "value": [
+                        {
+                          "name": "Xi'an Famous Foods",
+                          "detail": "Spicy and savory hand-pulled noodles.",
+                          "imageUrl": "http://localhost:10002/static/shrimpchowmein.jpeg",
+                          "rating": "★★★★☆",
+                          "infoLink": "[More Info](https://www.xianfoods.com/)",
+                          "address": "81 St Marks Pl, New York, NY 10003"
+                        },
+                        {
+                          "name": "Han Dynasty",
+                          "detail": "Authentic Szechuan cuisine.",
+                          "imageUrl": "http://localhost:10002/static/mapotofu.jpeg",
+                          "rating": "★★★★☆",
+                          "infoLink": "[More Info](https://www.handynasty.net/)",
+                          "address": "90 3rd Ave, New York, NY 10003"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "a2ui.wire.metadata": {
+              "adk_app_name": "restaurant_agent",
+              "adk_user_id": "A2A_USER_c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+              "adk_session_id": "c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+              "adk_author": "restaurant_agent"
+            }
+          }
+        },
+        {
+          "traceId": "b573274bef9042e64dc49a8f6d014d92",
+          "spanId": "1096bfaf84796756",
+          "parentSpanId": "952ef8bd079a1373",
+          "name": "check",
+          "kind": 1,
+          "startTimeUnixNano": "1792576805010000000",
+          "attributes": {
+            "a2ui.event.kind": "check",
+            "a2ui.check.name": "schema",
+            "a2ui.check.passed": true,
+            "a2ui.check.protocol_version": "v0.9",
+            "a2ui.check.findings": []
+          }
+        },
+        {
+          "traceId": "b573274bef9042e64dc49a8f6d014d92",
+          "spanId": "b2af20ec6620ecca",
+          "parentSpanId": "952ef8bd079a1373",
+          "name": "check",
+          "kind": 1,
+          "startTimeUnixNano": "1792576805012000000",
+          "attributes": {
+            "a2ui.event.kind": "check",
+            "a2ui.check.name": "structural",
+            "a2ui.check.passed": true,
+            "a2ui.check.protocol_version": "v0.9",
+            "a2ui.check.findings": []
+          }
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "traceId": "e7fef010a726aab1dda645f5dd53dd5f",
+          "spanId": "180ad2ecfbcb7fe2",
+          "name": "invoke_agent Restaurant Agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792576860000000000",
+          "endTimeUnixNano": "1792576864600000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "Restaurant Agent",
+            "gen_ai.conversation.id": "c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.protocol_version": "v0.9",
+            "a2ui.turn.capture_paths": [
+              "wire",
+              "model_proxy",
+              "tool_proxy",
+              "otel_receiver",
+              "wrapper"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "e7fef010a726aab1dda645f5dd53dd5f",
+          "spanId": "94fb4473134f352c",
+          "parentSpanId": "180ad2ecfbcb7fe2",
+          "name": "wire_input",
+          "kind": 1,
+          "startTimeUnixNano": "1792576860004000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_input",
+            "a2ui.wire.message": {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "action": {
+                      "name": "book_restaurant",
+                      "surfaceId": "default",
+                      "sourceComponentId": "template-book-button",
+                      "timestamp": "2026-10-21T10:01:00.004Z",
+                      "context": {
+                        "restaurantName": "Xi'an Famous Foods",
+                        "imageUrl": "http://localhost:10002/static/shrimpchowmein.jpeg",
+                        "address": "81 St Marks Pl, New York, NY 10003"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "a2ui.wire.data_model": {
+              "version": "v0.9",
+              "surfaces": {
+                "default": {
+                  "title": "Top 2 Chinese Restaurants in New York",
+                  "items": [
+                    {
+                      "name": "Xi'an Famous Foods",
+                      "detail": "Spicy and savory hand-pulled noodles.",
+                      "imageUrl": "http://localhost:10002/static/shrimpchowmein.jpeg",
+                      "rating": "★★★★☆",
+                      "infoLink": "[More Info](https://www.xianfoods.com/)",
+                      "address": "81 St Marks Pl, New York, NY 10003"
+                    },
+                    {
+                      "name": "Han Dynasty",
+                      "detail": "Authentic Szechuan cuisine.",
+                      "imageUrl": "http://localhost:10002/static/mapotofu.jpeg",
+                      "rating": "★★★★☆",
+                      "infoLink": "[More Info](https://www.handynasty.net/)",
+                      "address": "90 3rd Ave, New York, NY 10003"
+                    }
+                  ]
+                }
+              }
+            },
+            "a2ui.wire.capabilities": {
+              "v0.9": {
+                "supportedCatalogIds": [
+                  "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+                ]
+              }
+            },
+            "a2ui.wire.metadata": {
+              "locale": "en-US"
+            }
+          }
+        },
+        {
+          "traceId": "a3d123ce9e0e05627f882ef4e902e07d",
+          "spanId": "4e24c925eb0c34a7",
+          "name": "invoke_agent restaurant_agent",
+          "kind": 1,
+          "startTimeUnixNano": "1792576860010000000",
+          "endTimeUnixNano": "1792576864570000000",
+          "attributes": {
+            "a2ui.event.kind": "framework_span",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "restaurant_agent",
+            "gen_ai.conversation.id": "c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+            "otel.scope.name": "gcp.vertex.agent",
+            "otel.scope.version": "1.28.1",
+            "a2ui.received.attributes": {
+              "gen_ai.operation.name": "invoke_agent",
+              "gen_ai.agent.description": "An agent that finds restaurants and helps book tables.",
+              "gen_ai.agent.name": "restaurant_agent",
+              "gen_ai.conversation.id": "c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+              "gcp.vertex.agent.invocation_id": "e-9c3a5f81-2d4b-4e7c-a6f0-5b8e1d3c7a29"
+            }
+          },
+          "status": {
+            "code": 0
+          }
+        },
+        {
+          "traceId": "a3d123ce9e0e05627f882ef4e902e07d",
+          "spanId": "d047309c82444b2b",
+          "parentSpanId": "4e24c925eb0c34a7",
+          "name": "call_llm",
+          "kind": 1,
+          "startTimeUnixNano": "1792576860020000000",
+          "endTimeUnixNano": "1792576862020000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "generate_content",
+            "gen_ai.request.model": "gemini-3.6-flash",
+            "gen_ai.conversation.id": "c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+            "gen_ai.usage.input_tokens": 4310,
+            "gen_ai.usage.output_tokens": 518,
+            "gen_ai.response.finish_reasons": [
+              "length"
+            ],
+            "otel.scope.name": "gcp.vertex.agent",
+            "otel.scope.version": "1.28.1",
+            "a2ui.received.attributes": {
+              "gen_ai.system": "gcp.vertex.agent",
+              "gen_ai.request.model": "gemini-3.6-flash",
+              "gcp.vertex.agent.invocation_id": "e-9c3a5f81-2d4b-4e7c-a6f0-5b8e1d3c7a29",
+              "gcp.vertex.agent.session_id": "c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+              "gcp.vertex.agent.event_id": "b71e3d08",
+              "gcp.vertex.agent.llm_request": "{\"model\": \"gemini-3.6-flash\", \"contents\": [{\"role\": \"user\", \"parts\": [{\"text\": \"Top 2 Chinese restaurants in New York\"}]}, {\"role\": \"model\", \"parts\": [{\"functionCall\": {\"id\": \"adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03\", \"name\": \"get_restaurants\", \"args\": {\"cuisine\": \"Chinese\", \"location\": \"New York\", \"count\": 2}}}]}, {\"role\": \"user\", \"parts\": [{\"functionResponse\": {\"id\": \"adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03\", \"name\": \"get_restaurants\", \"response\": {\"result\": \"[{\\\"name\\\": \\\"Xi'an Famous Foods\\\", \\\"detail\\\": \\\"Spicy and savory hand-pulled noodles.\\\", \\\"imageUrl\\\": \\\"http://localhost:10002/static/shrimpchowmein.jpeg\\\", \\\"rating\\\": \\\"\\\\u2605\\\\u2605\\\\u2605\\\\u2605\\\\u2606\\\", \\\"infoLink\\\": \\\"[More Info](https://www.xianfoods.com/)\\\", \\\"address\\\": \\\"81 St Marks Pl, New York, NY 10003\\\"}, {\\\"name\\\": \\\"Han Dynasty\\\", \\\"detail\\\": \\\"Authentic Szechuan cuisine.\\\", \\\"imageUrl\\\": \\\"http://localhost:10002/static/mapotofu.jpeg\\\", \\\"rating\\\": \\\"\\\\u2605\\\\u2605\\\\u2605\\\\u2605\\\\u2606\\\", \\\"infoLink\\\": \\\"[More Info](https://www.handynasty.net/)\\\", \\\"address\\\": \\\"90 3rd Ave, New York, NY 10003\\\"}]\"}}}]}, {\"role\": \"model\", \"parts\": [{\"text\": \"Here are the top 2 Chinese restaurants in New York 🍜\\n<a2ui-json>\\n[{\\\"version\\\":\\\"v0.9\\\",\\\"createSurface\\\":{\\\"surfaceId\\\":\\\"default\\\",\\\"catalogId\\\":\\\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\\\",\\\"theme\\\":{\\\"primaryColor\\\":\\\"#FF0000\\\",\\\"font\\\":\\\"Roboto\\\"},\\\"sendDataModel\\\":true}},{\\\"version\\\":\\\"v0.9\\\",\\\"updateComponents\\\":{\\\"surfaceId\\\":\\\"default\\\",\\\"components\\\":[{\\\"id\\\":\\\"root\\\",\\\"component\\\":\\\"Column\\\",\\\"children\\\":[\\\"title-heading\\\",\\\"item-list\\\"]},{\\\"id\\\":\\\"title-heading\\\",\\\"component\\\":\\\"Text\\\",\\\"variant\\\":\\\"h1\\\",\\\"text\\\":{\\\"path\\\":\\\"/title\\\"}},{\\\"id\\\":\\\"item-list\\\",\\\"component\\\":\\\"List\\\",\\\"direction\\\":\\\"vertical\\\",\\\"children\\\":{\\\"componentId\\\":\\\"item-card-template\\\",\\\"path\\\":\\\"/items\\\"}},{\\\"id\\\":\\\"item-card-template\\\",\\\"component\\\":\\\"Card\\\",\\\"child\\\":\\\"card-layout\\\"},{\\\"id\\\":\\\"card-layout\\\",\\\"component\\\":\\\"Row\\\",\\\"children\\\":[\\\"card-image\\\",\\\"card-details\\\"]},{\\\"id\\\":\\\"card-image\\\",\\\"component\\\":\\\"Image\\\",\\\"variant\\\":\\\"mediumFeature\\\",\\\"weight\\\":1,\\\"url\\\":{\\\"path\\\":\\\"imageUrl\\\"}},{\\\"id\\\":\\\"card-details\\\",\\\"component\\\":\\\"Column\\\",\\\"weight\\\":2,\\\"children\\\":[\\\"template-name\\\",\\\"template-rating\\\",\\\"template-detail\\\",\\\"template-link\\\",\\\"template-book-button\\\"]},{\\\"id\\\":\\\"template-name\\\",\\\"component\\\":\\\"Text\\\",\\\"variant\\\":\\\"h3\\\",\\\"text\\\":{\\\"path\\\":\\\"name\\\"}},{\\\"id\\\":\\\"template-rating\\\",\\\"component\\\":\\\"Text\\\",\\\"text\\\":{\\\"path\\\":\\\"rating\\\"}},{\\\"id\\\":\\\"template-detail\\\",\\\"component\\\":\\\"Text\\\",\\\"text\\\":{\\\"path\\\":\\\"detail\\\"}},{\\\"id\\\":\\\"template-link\\\",\\\"component\\\":\\\"Text\\\",\\\"text\\\":{\\\"path\\\":\\\"infoLink\\\"}},{\\\"id\\\":\\\"template-book-button\\\",\\\"component\\\":\\\"Button\\\",\\\"child\\\":\\\"book-now-text\\\",\\\"variant\\\":\\\"primary\\\",\\\"action\\\":{\\\"event\\\":{\\\"name\\\":\\\"book_restaurant\\\",\\\"context\\\":{\\\"restaurantName\\\":{\\\"path\\\":\\\"name\\\"},\\\"imageUrl\\\":{\\\"path\\\":\\\"imageUrl\\\"},\\\"address\\\":{\\\"path\\\":\\\"address\\\"}}}}},{\\\"id\\\":\\\"book-now-text\\\",\\\"component\\\":\\\"Text\\\",\\\"text\\\":\\\"Book Now\\\"}]}},{\\\"version\\\":\\\"v0.9\\\",\\\"updateDataModel\\\":{\\\"surfaceId\\\":\\\"default\\\",\\\"path\\\":\\\"/title\\\",\\\"value\\\":\\\"Top 2 Chinese Restaurants in New York\\\"}},{\\\"version\\\":\\\"v0.9\\\",\\\"updateDataModel\\\":{\\\"surfaceId\\\":\\\"default\\\",\\\"path\\\":\\\"/items\\\",\\\"value\\\":[{\\\"name\\\":\\\"Xi'an Famous Foods\\\",\\\"detail\\\":\\\"Spicy and savory hand-pulled noodles.\\\",\\\"imageUrl\\\":\\\"http://localhost:10002/static/shrimpchowmein.jpeg\\\",\\\"rating\\\":\\\"★★★★☆\\\",\\\"infoLink\\\":\\\"[More Info](https://www.xianfoods.com/)\\\",\\\"address\\\":\\\"81 St Marks Pl, New York, NY 10003\\\"},{\\\"name\\\":\\\"Han Dynasty\\\",\\\"detail\\\":\\\"Authentic Szechuan cuisine.\\\",\\\"imageUrl\\\":\\\"http://localhost:10002/static/mapotofu.jpeg\\\",\\\"rating\\\":\\\"★★★★☆\\\",\\\"infoLink\\\":\\\"[More Info](https://www.handynasty.net/)\\\",\\\"address\\\":\\\"90 3rd Ave, New York, NY 10003\\\"}]}}]\\n</a2ui-json>\"}]}, {\"role\": \"user\", \"parts\": [{\"text\": \"USER_WANTS_TO_BOOK: Xi'an Famous Foods, Address: 81 St Marks Pl, New York, NY 10003, ImageURL: http://localhost:10002/static/shrimpchowmein.jpeg\"}]}]}",
+              "gcp.vertex.agent.llm_response": "{\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"text\": \"Let's book a table at Xi'an Famous Foods.\\n<a2ui-json>\\n[{\\\"version\\\":\\\"v0.9\\\",\\\"createSurface\\\":{\\\"surfaceId\\\":\\\"booking-form\\\",\\\"catalogId\\\":\\\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\\\",\\\"theme\\\":{\\\"primaryColor\\\":\\\"#FF0000\\\",\\\"font\\\":\\\"Roboto\\\"}}},{\\\"version\\\":\\\"v0.9\\\",\\\"updateComponents\\\":{\\\"surfaceId\\\":\\\"booking-form\\\",\\\"components\\\":[{\\\"id\\\":\\\"root\\\",\\\"component\\\":\\\"Column\\\",\\\"children\\\":[\\\"booking-title\\\",\\\"restaurant-image\\\",\\\"restaurant-address\\\",\\\"party-size-field\\\",\\\"datetime-field\\\",\\\"dietary-\"}]}, \"index\": 0, \"finishReason\": \"MAX_TOKENS\"}], \"usageMetadata\": {\"promptTokenCount\": 4310, \"candidatesTokenCount\": 518, \"totalTokenCount\": 4828}, \"modelVersion\": \"gemini-3.6-flash\", \"responseId\": \"resp-2a\"}",
+              "gen_ai.usage.input_tokens": 4310,
+              "gen_ai.usage.output_tokens": 518,
+              "gen_ai.response.finish_reasons": [
+                "MAX_TOKENS"
+              ]
+            }
+          },
+          "links": [
+            {
+              "traceId": "e7fef010a726aab1dda645f5dd53dd5f",
+              "spanId": "0e10d0ca2cafad42"
+            }
+          ]
+        },
+        {
+          "traceId": "e7fef010a726aab1dda645f5dd53dd5f",
+          "spanId": "0e10d0ca2cafad42",
+          "parentSpanId": "180ad2ecfbcb7fe2",
+          "name": "generate_content gemini-3.6-flash",
+          "kind": 3,
+          "startTimeUnixNano": "1792576860025000000",
+          "endTimeUnixNano": "1792576862010000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "generate_content",
+            "gen_ai.provider.name": "gcp.gemini",
+            "gen_ai.request.model": "gemini-3.6-flash",
+            "gen_ai.request.stream": true,
+            "gen_ai.output.type": "text",
+            "gen_ai.response.id": "resp-2a",
+            "gen_ai.response.model": "gemini-3.6-flash",
+            "gen_ai.response.finish_reasons": [
+              "length"
+            ],
+            "gen_ai.usage.input_tokens": 4310,
+            "gen_ai.usage.output_tokens": 518,
+            "gen_ai.system_instructions": [
+              {
+                "type": "text",
+                "content": "You are a helpful restaurant finding assistant. Your final output MUST be an A2UI UI definition.\n\n## UI Description:\n-   If the query is for a list of restaurants, use the restaurant data you have already received from the `get_restaurants` tool to populate the `updateDataModel` message.\n-   IMPORTANT: When using updateDataModel to update items, you MUST specify `path: \"/items\"` in `updateDataModel`, and the `value` MUST be an array of restaurants.\n-   IMPORTANT: Always specify the path when using updateDataModel. The part message is ignored when the path is missing.\n-   If the number of restaurants is 5 or fewer, you MUST use the `SINGLE_COLUMN_LIST_EXAMPLE` template.\n-   If the number of restaurants is more than 5, you MUST use the `TWO_COLUMN_LIST_EXAMPLE` template.\n-   If the query is to book a restaurant (e.g., \"USER_WANTS_TO_BOOK...\"), you MUST use the `BOOKING_FORM_EXAMPLE` template.\n-   If the query is a booking submission (e.g., \"User submitted a booking...\"), you MUST use the `CONFIRMATION_EXAMPLE` template.\n\n## Workflow Description:\n\nThe generated response MUST follow these rules:\n- The response can contain one or more A2UI JSON blocks.\n- Each A2UI JSON block MUST be wrapped in `<a2ui-json>` and `</a2ui-json>` tags.\n- Between or around these blocks, you can provide conversational text.\n- The JSON part MUST be a single, raw JSON object (usually a list of A2UI messages) and MUST validate against the provided A2UI JSON SCHEMA.\n- Top-Down Component Ordering: Within the `components` list of a message:\n    - The 'root' component MUST be the FIRST element.\n    - Parent components MUST appear before their child components.\n    This specific ordering allows the streaming parser to yield and render the UI incrementally as it arrives."
+              }
+            ],
+            "gen_ai.input.messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Top 2 Chinese restaurants in New York"
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "tool_call",
+                    "id": "adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03",
+                    "name": "get_restaurants",
+                    "arguments": {
+                      "cuisine": "Chinese",
+                      "location": "New York",
+                      "count": 2
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "parts": [
+                  {
+                    "type": "tool_call_response",
+                    "id": "adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03",
+                    "response": {
+                      "result": "[{\"name\": \"Xi'an Famous Foods\", \"detail\": \"Spicy and savory hand-pulled noodles.\", \"imageUrl\": \"http://localhost:10002/static/shrimpchowmein.jpeg\", \"rating\": \"\\u2605\\u2605\\u2605\\u2605\\u2606\", \"infoLink\": \"[More Info](https://www.xianfoods.com/)\", \"address\": \"81 St Marks Pl, New York, NY 10003\"}, {\"name\": \"Han Dynasty\", \"detail\": \"Authentic Szechuan cuisine.\", \"imageUrl\": \"http://localhost:10002/static/mapotofu.jpeg\", \"rating\": \"\\u2605\\u2605\\u2605\\u2605\\u2606\", \"infoLink\": \"[More Info](https://www.handynasty.net/)\", \"address\": \"90 3rd Ave, New York, NY 10003\"}]"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Here are the top 2 Chinese restaurants in New York 🍜\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"default\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"},\"sendDataModel\":true}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"default\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"title-heading\",\"item-list\"]},{\"id\":\"title-heading\",\"component\":\"Text\",\"variant\":\"h1\",\"text\":{\"path\":\"/title\"}},{\"id\":\"item-list\",\"component\":\"List\",\"direction\":\"vertical\",\"children\":{\"componentId\":\"item-card-template\",\"path\":\"/items\"}},{\"id\":\"item-card-template\",\"component\":\"Card\",\"child\":\"card-layout\"},{\"id\":\"card-layout\",\"component\":\"Row\",\"children\":[\"card-image\",\"card-details\"]},{\"id\":\"card-image\",\"component\":\"Image\",\"variant\":\"mediumFeature\",\"weight\":1,\"url\":{\"path\":\"imageUrl\"}},{\"id\":\"card-details\",\"component\":\"Column\",\"weight\":2,\"children\":[\"template-name\",\"template-rating\",\"template-detail\",\"template-link\",\"template-book-button\"]},{\"id\":\"template-name\",\"component\":\"Text\",\"variant\":\"h3\",\"text\":{\"path\":\"name\"}},{\"id\":\"template-rating\",\"component\":\"Text\",\"text\":{\"path\":\"rating\"}},{\"id\":\"template-detail\",\"component\":\"Text\",\"text\":{\"path\":\"detail\"}},{\"id\":\"template-link\",\"component\":\"Text\",\"text\":{\"path\":\"infoLink\"}},{\"id\":\"template-book-button\",\"component\":\"Button\",\"child\":\"book-now-text\",\"variant\":\"primary\",\"action\":{\"event\":{\"name\":\"book_restaurant\",\"context\":{\"restaurantName\":{\"path\":\"name\"},\"imageUrl\":{\"path\":\"imageUrl\"},\"address\":{\"path\":\"address\"}}}}},{\"id\":\"book-now-text\",\"component\":\"Text\",\"text\":\"Book Now\"}]}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"default\",\"path\":\"/title\",\"value\":\"Top 2 Chinese Restaurants in New York\"}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"default\",\"path\":\"/items\",\"value\":[{\"name\":\"Xi'an Famous Foods\",\"detail\":\"Spicy and savory hand-pulled noodles.\",\"imageUrl\":\"http://localhost:10002/static/shrimpchowmein.jpeg\",\"rating\":\"★★★★☆\",\"infoLink\":\"[More Info](https://www.xianfoods.com/)\",\"address\":\"81 St Marks Pl, New York, NY 10003\"},{\"name\":\"Han Dynasty\",\"detail\":\"Authentic Szechuan cuisine.\",\"imageUrl\":\"http://localhost:10002/static/mapotofu.jpeg\",\"rating\":\"★★★★☆\",\"infoLink\":\"[More Info](https://www.handynasty.net/)\",\"address\":\"90 3rd Ave, New York, NY 10003\"}]}}]\n</a2ui-json>"
+                  }
+                ]
+              },
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "USER_WANTS_TO_BOOK: Xi'an Famous Foods, Address: 81 St Marks Pl, New York, NY 10003, ImageURL: http://localhost:10002/static/shrimpchowmein.jpeg"
+                  }
+                ]
+              }
+            ],
+            "gen_ai.output.messages": [
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Let's book a table at Xi'an Famous Foods.\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"booking-form\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"}}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"booking-form\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"booking-title\",\"restaurant-image\",\"restaurant-address\",\"party-size-field\",\"datetime-field\",\"dietary-"
+                  }
+                ],
+                "finish_reason": "length"
+              }
+            ],
+            "gen_ai.tool.definitions": [
+              {
+                "type": "function",
+                "name": "get_restaurants",
+                "description": "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "cuisine": {
+                      "type": "string"
+                    },
+                    "location": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "default": 5
+                    }
+                  },
+                  "required": [
+                    "cuisine",
+                    "location"
+                  ]
+                }
+              }
+            ],
+            "gen_ai.response.time_to_first_chunk": 0.875,
+            "http.request.method": "POST",
+            "url.full": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:streamGenerateContent?alt=sse",
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.user-agent": [
+              "google-genai-sdk/1.27.0 gl-python/3.13.5"
+            ],
+            "http.response.header.content-type": [
+              "text/event-stream"
+            ],
+            "http.response.status_code": 200,
+            "server.address": "generativelanguage.googleapis.com",
+            "server.port": 443,
+            "a2ui.http.request.body": {
+              "contents": [
+                {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "text": "Top 2 Chinese restaurants in New York"
+                    }
+                  ]
+                },
+                {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "functionCall": {
+                        "id": "adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03",
+                        "name": "get_restaurants",
+                        "args": {
+                          "cuisine": "Chinese",
+                          "location": "New York",
+                          "count": 2
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "functionResponse": {
+                        "id": "adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03",
+                        "name": "get_restaurants",
+                        "response": {
+                          "result": "[{\"name\": \"Xi'an Famous Foods\", \"detail\": \"Spicy and savory hand-pulled noodles.\", \"imageUrl\": \"http://localhost:10002/static/shrimpchowmein.jpeg\", \"rating\": \"\\u2605\\u2605\\u2605\\u2605\\u2606\", \"infoLink\": \"[More Info](https://www.xianfoods.com/)\", \"address\": \"81 St Marks Pl, New York, NY 10003\"}, {\"name\": \"Han Dynasty\", \"detail\": \"Authentic Szechuan cuisine.\", \"imageUrl\": \"http://localhost:10002/static/mapotofu.jpeg\", \"rating\": \"\\u2605\\u2605\\u2605\\u2605\\u2606\", \"infoLink\": \"[More Info](https://www.handynasty.net/)\", \"address\": \"90 3rd Ave, New York, NY 10003\"}]"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "text": "Here are the top 2 Chinese restaurants in New York 🍜\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"default\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"},\"sendDataModel\":true}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"default\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"title-heading\",\"item-list\"]},{\"id\":\"title-heading\",\"component\":\"Text\",\"variant\":\"h1\",\"text\":{\"path\":\"/title\"}},{\"id\":\"item-list\",\"component\":\"List\",\"direction\":\"vertical\",\"children\":{\"componentId\":\"item-card-template\",\"path\":\"/items\"}},{\"id\":\"item-card-template\",\"component\":\"Card\",\"child\":\"card-layout\"},{\"id\":\"card-layout\",\"component\":\"Row\",\"children\":[\"card-image\",\"card-details\"]},{\"id\":\"card-image\",\"component\":\"Image\",\"variant\":\"mediumFeature\",\"weight\":1,\"url\":{\"path\":\"imageUrl\"}},{\"id\":\"card-details\",\"component\":\"Column\",\"weight\":2,\"children\":[\"template-name\",\"template-rating\",\"template-detail\",\"template-link\",\"template-book-button\"]},{\"id\":\"template-name\",\"component\":\"Text\",\"variant\":\"h3\",\"text\":{\"path\":\"name\"}},{\"id\":\"template-rating\",\"component\":\"Text\",\"text\":{\"path\":\"rating\"}},{\"id\":\"template-detail\",\"component\":\"Text\",\"text\":{\"path\":\"detail\"}},{\"id\":\"template-link\",\"component\":\"Text\",\"text\":{\"path\":\"infoLink\"}},{\"id\":\"template-book-button\",\"component\":\"Button\",\"child\":\"book-now-text\",\"variant\":\"primary\",\"action\":{\"event\":{\"name\":\"book_restaurant\",\"context\":{\"restaurantName\":{\"path\":\"name\"},\"imageUrl\":{\"path\":\"imageUrl\"},\"address\":{\"path\":\"address\"}}}}},{\"id\":\"book-now-text\",\"component\":\"Text\",\"text\":\"Book Now\"}]}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"default\",\"path\":\"/title\",\"value\":\"Top 2 Chinese Restaurants in New York\"}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"default\",\"path\":\"/items\",\"value\":[{\"name\":\"Xi'an Famous Foods\",\"detail\":\"Spicy and savory hand-pulled noodles.\",\"imageUrl\":\"http://localhost:10002/static/shrimpchowmein.jpeg\",\"rating\":\"★★★★☆\",\"infoLink\":\"[More Info](https://www.xianfoods.com/)\",\"address\":\"81 St Marks Pl, New York, NY 10003\"},{\"name\":\"Han Dynasty\",\"detail\":\"Authentic Szechuan cuisine.\",\"imageUrl\":\"http://localhost:10002/static/mapotofu.jpeg\",\"rating\":\"★★★★☆\",\"infoLink\":\"[More Info](https://www.handynasty.net/)\",\"address\":\"90 3rd Ave, New York, NY 10003\"}]}}]\n</a2ui-json>"
+                    }
+                  ]
+                },
+                {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "text": "USER_WANTS_TO_BOOK: Xi'an Famous Foods, Address: 81 St Marks Pl, New York, NY 10003, ImageURL: http://localhost:10002/static/shrimpchowmein.jpeg"
+                    }
+                  ]
+                }
+              ],
+              "systemInstruction": {
+                "role": "user",
+                "parts": [
+                  {
+                    "text": "You are a helpful restaurant finding assistant. Your final output MUST be an A2UI UI definition.\n\n## UI Description:\n-   If the query is for a list of restaurants, use the restaurant data you have already received from the `get_restaurants` tool to populate the `updateDataModel` message.\n-   IMPORTANT: When using updateDataModel to update items, you MUST specify `path: \"/items\"` in `updateDataModel`, and the `value` MUST be an array of restaurants.\n-   IMPORTANT: Always specify the path when using updateDataModel. The part message is ignored when the path is missing.\n-   If the number of restaurants is 5 or fewer, you MUST use the `SINGLE_COLUMN_LIST_EXAMPLE` template.\n-   If the number of restaurants is more than 5, you MUST use the `TWO_COLUMN_LIST_EXAMPLE` template.\n-   If the query is to book a restaurant (e.g., \"USER_WANTS_TO_BOOK...\"), you MUST use the `BOOKING_FORM_EXAMPLE` template.\n-   If the query is a booking submission (e.g., \"User submitted a booking...\"), you MUST use the `CONFIRMATION_EXAMPLE` template.\n\n## Workflow Description:\n\nThe generated response MUST follow these rules:\n- The response can contain one or more A2UI JSON blocks.\n- Each A2UI JSON block MUST be wrapped in `<a2ui-json>` and `</a2ui-json>` tags.\n- Between or around these blocks, you can provide conversational text.\n- The JSON part MUST be a single, raw JSON object (usually a list of A2UI messages) and MUST validate against the provided A2UI JSON SCHEMA.\n- Top-Down Component Ordering: Within the `components` list of a message:\n    - The 'root' component MUST be the FIRST element.\n    - Parent components MUST appear before their child components.\n    This specific ordering allows the streaming parser to yield and render the UI incrementally as it arrives."
+                  }
+                ]
+              },
+              "tools": [
+                {
+                  "functionDeclarations": [
+                    {
+                      "name": "get_restaurants",
+                      "description": "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return.",
+                      "parameters": {
+                        "type": "object",
+                        "properties": {
+                          "cuisine": {
+                            "type": "string"
+                          },
+                          "location": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer",
+                            "default": 5
+                          }
+                        },
+                        "required": [
+                          "cuisine",
+                          "location"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ],
+              "generationConfig": {}
+            }
+          },
+          "events": [
+            {
+              "timeUnixNano": "1792576860900000000",
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "candidates": [
+                    {
+                      "content": {
+                        "role": "model",
+                        "parts": [
+                          {
+                            "text": "Let's book a table at Xi'an Famous Foods.\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"booking-form\",\"catalogId\":\"https://a2ui.org/specificati"
+                          }
+                        ]
+                      },
+                      "index": 0
+                    }
+                  ],
+                  "usageMetadata": {
+                    "promptTokenCount": 4310,
+                    "candidatesTokenCount": 0,
+                    "totalTokenCount": 4310
+                  },
+                  "modelVersion": "gemini-3.6-flash",
+                  "responseId": "resp-2a"
+                }
+              }
+            },
+            {
+              "timeUnixNano": "1792576861400000000",
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "candidates": [
+                    {
+                      "content": {
+                        "role": "model",
+                        "parts": [
+                          {
+                            "text": "on/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"}}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"booking-form\",\"co"
+                          }
+                        ]
+                      },
+                      "index": 0
+                    }
+                  ],
+                  "usageMetadata": {
+                    "promptTokenCount": 4310,
+                    "candidatesTokenCount": 0,
+                    "totalTokenCount": 4310
+                  },
+                  "modelVersion": "gemini-3.6-flash",
+                  "responseId": "resp-2a"
+                }
+              }
+            },
+            {
+              "timeUnixNano": "1792576862000000000",
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "candidates": [
+                    {
+                      "content": {
+                        "role": "model",
+                        "parts": [
+                          {
+                            "text": "mponents\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"booking-title\",\"restaurant-image\",\"restaurant-address\",\"party-size-field\",\"datetime-field\",\"dietary-"
+                          }
+                        ]
+                      },
+                      "index": 0,
+                      "finishReason": "MAX_TOKENS"
+                    }
+                  ],
+                  "usageMetadata": {
+                    "promptTokenCount": 4310,
+                    "candidatesTokenCount": 518,
+                    "totalTokenCount": 4828
+                  },
+                  "modelVersion": "gemini-3.6-flash",
+                  "responseId": "resp-2a"
+                }
+              }
+            }
+          ],
+          "links": [
+            {
+              "traceId": "a3d123ce9e0e05627f882ef4e902e07d",
+              "spanId": "d047309c82444b2b"
+            }
+          ],
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "a3d123ce9e0e05627f882ef4e902e07d",
+          "spanId": "4e2863ab2ba26543",
+          "parentSpanId": "4e24c925eb0c34a7",
+          "name": "parse",
+          "kind": 1,
+          "startTimeUnixNano": "1792576862030000000",
+          "endTimeUnixNano": "1792576862035000000",
+          "attributes": {
+            "a2ui.event.kind": "parse",
+            "a2ui.parse.input": "Let's book a table at Xi'an Famous Foods.\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"booking-form\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"}}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"booking-form\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"booking-title\",\"restaurant-image\",\"restaurant-address\",\"party-size-field\",\"datetime-field\",\"dietary-",
+            "a2ui.parse.inference_format": "direct_json",
+            "a2ui.parse.messages": [
+              {
+                "version": "v0.9",
+                "createSurface": {
+                  "surfaceId": "booking-form",
+                  "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+                  "theme": {
+                    "primaryColor": "#FF0000",
+                    "font": "Roboto"
+                  }
+                }
+              }
+            ],
+            "error.type": "a2ui.core.exceptions.A2uiParseError",
+            "otel.scope.name": "a2ui_spectra_wrapper",
+            "otel.scope.version": "0.0.0",
+            "a2ui.received.attributes": {
+              "a2ui.event.kind": "parse",
+              "a2ui.parse.input": "Let's book a table at Xi'an Famous Foods.\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"booking-form\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"}}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"booking-form\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"booking-title\",\"restaurant-image\",\"restaurant-address\",\"party-size-field\",\"datetime-field\",\"dietary-",
+              "a2ui.parse.inference_format": "direct_json",
+              "a2ui.parse.messages": [
+                {
+                  "version": "v0.9",
+                  "createSurface": {
+                    "surfaceId": "booking-form",
+                    "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+                    "theme": {
+                      "primaryColor": "#FF0000",
+                      "font": "Roboto"
+                    }
+                  }
+                }
+              ],
+              "error.type": "a2ui.core.exceptions.A2uiParseError"
+            }
+          },
+          "status": {
+            "code": 2,
+            "message": "Failed to parse A2UI JSON: Unterminated string starting at: line 2 column 412 (char 412)"
+          }
+        },
+        {
+          "traceId": "a3d123ce9e0e05627f882ef4e902e07d",
+          "spanId": "975776a0c32646a3",
+          "parentSpanId": "4e24c925eb0c34a7",
+          "name": "call_llm",
+          "kind": 1,
+          "startTimeUnixNano": "1792576862040000000",
+          "endTimeUnixNano": "1792576864540000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "generate_content",
+            "gen_ai.request.model": "gemini-3.6-flash",
+            "gen_ai.conversation.id": "c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+            "gen_ai.usage.input_tokens": 4975,
+            "gen_ai.usage.output_tokens": 655,
+            "gen_ai.response.finish_reasons": [
+              "stop"
+            ],
+            "otel.scope.name": "gcp.vertex.agent",
+            "otel.scope.version": "1.28.1",
+            "a2ui.received.attributes": {
+              "gen_ai.system": "gcp.vertex.agent",
+              "gen_ai.request.model": "gemini-3.6-flash",
+              "gcp.vertex.agent.invocation_id": "e-9c3a5f81-2d4b-4e7c-a6f0-5b8e1d3c7a29",
+              "gcp.vertex.agent.session_id": "c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+              "gcp.vertex.agent.event_id": "f0c58a27",
+              "gcp.vertex.agent.llm_request": "{\"model\": \"gemini-3.6-flash\", \"contents\": [{\"role\": \"user\", \"parts\": [{\"text\": \"Top 2 Chinese restaurants in New York\"}]}, {\"role\": \"model\", \"parts\": [{\"functionCall\": {\"id\": \"adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03\", \"name\": \"get_restaurants\", \"args\": {\"cuisine\": \"Chinese\", \"location\": \"New York\", \"count\": 2}}}]}, {\"role\": \"user\", \"parts\": [{\"functionResponse\": {\"id\": \"adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03\", \"name\": \"get_restaurants\", \"response\": {\"result\": \"[{\\\"name\\\": \\\"Xi'an Famous Foods\\\", \\\"detail\\\": \\\"Spicy and savory hand-pulled noodles.\\\", \\\"imageUrl\\\": \\\"http://localhost:10002/static/shrimpchowmein.jpeg\\\", \\\"rating\\\": \\\"\\\\u2605\\\\u2605\\\\u2605\\\\u2605\\\\u2606\\\", \\\"infoLink\\\": \\\"[More Info](https://www.xianfoods.com/)\\\", \\\"address\\\": \\\"81 St Marks Pl, New York, NY 10003\\\"}, {\\\"name\\\": \\\"Han Dynasty\\\", \\\"detail\\\": \\\"Authentic Szechuan cuisine.\\\", \\\"imageUrl\\\": \\\"http://localhost:10002/static/mapotofu.jpeg\\\", \\\"rating\\\": \\\"\\\\u2605\\\\u2605\\\\u2605\\\\u2605\\\\u2606\\\", \\\"infoLink\\\": \\\"[More Info](https://www.handynasty.net/)\\\", \\\"address\\\": \\\"90 3rd Ave, New York, NY 10003\\\"}]\"}}}]}, {\"role\": \"model\", \"parts\": [{\"text\": \"Here are the top 2 Chinese restaurants in New York 🍜\\n<a2ui-json>\\n[{\\\"version\\\":\\\"v0.9\\\",\\\"createSurface\\\":{\\\"surfaceId\\\":\\\"default\\\",\\\"catalogId\\\":\\\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\\\",\\\"theme\\\":{\\\"primaryColor\\\":\\\"#FF0000\\\",\\\"font\\\":\\\"Roboto\\\"},\\\"sendDataModel\\\":true}},{\\\"version\\\":\\\"v0.9\\\",\\\"updateComponents\\\":{\\\"surfaceId\\\":\\\"default\\\",\\\"components\\\":[{\\\"id\\\":\\\"root\\\",\\\"component\\\":\\\"Column\\\",\\\"children\\\":[\\\"title-heading\\\",\\\"item-list\\\"]},{\\\"id\\\":\\\"title-heading\\\",\\\"component\\\":\\\"Text\\\",\\\"variant\\\":\\\"h1\\\",\\\"text\\\":{\\\"path\\\":\\\"/title\\\"}},{\\\"id\\\":\\\"item-list\\\",\\\"component\\\":\\\"List\\\",\\\"direction\\\":\\\"vertical\\\",\\\"children\\\":{\\\"componentId\\\":\\\"item-card-template\\\",\\\"path\\\":\\\"/items\\\"}},{\\\"id\\\":\\\"item-card-template\\\",\\\"component\\\":\\\"Card\\\",\\\"child\\\":\\\"card-layout\\\"},{\\\"id\\\":\\\"card-layout\\\",\\\"component\\\":\\\"Row\\\",\\\"children\\\":[\\\"card-image\\\",\\\"card-details\\\"]},{\\\"id\\\":\\\"card-image\\\",\\\"component\\\":\\\"Image\\\",\\\"variant\\\":\\\"mediumFeature\\\",\\\"weight\\\":1,\\\"url\\\":{\\\"path\\\":\\\"imageUrl\\\"}},{\\\"id\\\":\\\"card-details\\\",\\\"component\\\":\\\"Column\\\",\\\"weight\\\":2,\\\"children\\\":[\\\"template-name\\\",\\\"template-rating\\\",\\\"template-detail\\\",\\\"template-link\\\",\\\"template-book-button\\\"]},{\\\"id\\\":\\\"template-name\\\",\\\"component\\\":\\\"Text\\\",\\\"variant\\\":\\\"h3\\\",\\\"text\\\":{\\\"path\\\":\\\"name\\\"}},{\\\"id\\\":\\\"template-rating\\\",\\\"component\\\":\\\"Text\\\",\\\"text\\\":{\\\"path\\\":\\\"rating\\\"}},{\\\"id\\\":\\\"template-detail\\\",\\\"component\\\":\\\"Text\\\",\\\"text\\\":{\\\"path\\\":\\\"detail\\\"}},{\\\"id\\\":\\\"template-link\\\",\\\"component\\\":\\\"Text\\\",\\\"text\\\":{\\\"path\\\":\\\"infoLink\\\"}},{\\\"id\\\":\\\"template-book-button\\\",\\\"component\\\":\\\"Button\\\",\\\"child\\\":\\\"book-now-text\\\",\\\"variant\\\":\\\"primary\\\",\\\"action\\\":{\\\"event\\\":{\\\"name\\\":\\\"book_restaurant\\\",\\\"context\\\":{\\\"restaurantName\\\":{\\\"path\\\":\\\"name\\\"},\\\"imageUrl\\\":{\\\"path\\\":\\\"imageUrl\\\"},\\\"address\\\":{\\\"path\\\":\\\"address\\\"}}}}},{\\\"id\\\":\\\"book-now-text\\\",\\\"component\\\":\\\"Text\\\",\\\"text\\\":\\\"Book Now\\\"}]}},{\\\"version\\\":\\\"v0.9\\\",\\\"updateDataModel\\\":{\\\"surfaceId\\\":\\\"default\\\",\\\"path\\\":\\\"/title\\\",\\\"value\\\":\\\"Top 2 Chinese Restaurants in New York\\\"}},{\\\"version\\\":\\\"v0.9\\\",\\\"updateDataModel\\\":{\\\"surfaceId\\\":\\\"default\\\",\\\"path\\\":\\\"/items\\\",\\\"value\\\":[{\\\"name\\\":\\\"Xi'an Famous Foods\\\",\\\"detail\\\":\\\"Spicy and savory hand-pulled noodles.\\\",\\\"imageUrl\\\":\\\"http://localhost:10002/static/shrimpchowmein.jpeg\\\",\\\"rating\\\":\\\"★★★★☆\\\",\\\"infoLink\\\":\\\"[More Info](https://www.xianfoods.com/)\\\",\\\"address\\\":\\\"81 St Marks Pl, New York, NY 10003\\\"},{\\\"name\\\":\\\"Han Dynasty\\\",\\\"detail\\\":\\\"Authentic Szechuan cuisine.\\\",\\\"imageUrl\\\":\\\"http://localhost:10002/static/mapotofu.jpeg\\\",\\\"rating\\\":\\\"★★★★☆\\\",\\\"infoLink\\\":\\\"[More Info](https://www.handynasty.net/)\\\",\\\"address\\\":\\\"90 3rd Ave, New York, NY 10003\\\"}]}}]\\n</a2ui-json>\"}]}, {\"role\": \"user\", \"parts\": [{\"text\": \"USER_WANTS_TO_BOOK: Xi'an Famous Foods, Address: 81 St Marks Pl, New York, NY 10003, ImageURL: http://localhost:10002/static/shrimpchowmein.jpeg\"}]}, {\"role\": \"model\", \"parts\": [{\"text\": \"Let's book a table at Xi'an Famous Foods.\\n<a2ui-json>\\n[{\\\"version\\\":\\\"v0.9\\\",\\\"createSurface\\\":{\\\"surfaceId\\\":\\\"booking-form\\\",\\\"catalogId\\\":\\\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\\\",\\\"theme\\\":{\\\"primaryColor\\\":\\\"#FF0000\\\",\\\"font\\\":\\\"Roboto\\\"}}},{\\\"version\\\":\\\"v0.9\\\",\\\"updateComponents\\\":{\\\"surfaceId\\\":\\\"booking-form\\\",\\\"components\\\":[{\\\"id\\\":\\\"root\\\",\\\"component\\\":\\\"Column\\\",\\\"children\\\":[\\\"booking-title\\\",\\\"restaurant-image\\\",\\\"restaurant-address\\\",\\\"party-size-field\\\",\\\"datetime-field\\\",\\\"dietary-\"}]}, {\"role\": \"user\", \"parts\": [{\"text\": \"Your previous response was invalid. Failed to parse A2UI JSON: Unterminated string starting at: line 2 column 412 (char 412) You MUST generate a valid response that strictly follows the A2UI JSON SCHEMA. The response MUST be a JSON list of A2UI messages. Ensure each JSON part is wrapped in '<a2ui-json>' and '</a2ui-json>' tags. Please retry the original request: 'USER_WANTS_TO_BOOK: Xi'an Famous Foods, Address: 81 St Marks Pl, New York, NY 10003, ImageURL: http://localhost:10002/static/shrimpchowmein.jpeg'\"}]}]}",
+              "gcp.vertex.agent.llm_response": "{\"candidates\": [{\"content\": {\"role\": \"model\", \"parts\": [{\"text\": \"Please fill in your booking details for Xi'an Famous Foods.\\n<a2ui-json>\\n[{\\\"version\\\":\\\"v0.9\\\",\\\"createSurface\\\":{\\\"surfaceId\\\":\\\"booking-form\\\",\\\"catalogId\\\":\\\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\\\",\\\"theme\\\":{\\\"primaryColor\\\":\\\"#FF0000\\\",\\\"font\\\":\\\"Roboto\\\"}}},{\\\"version\\\":\\\"v0.9\\\",\\\"updateComponents\\\":{\\\"surfaceId\\\":\\\"booking-form\\\",\\\"components\\\":[{\\\"id\\\":\\\"root\\\",\\\"component\\\":\\\"Column\\\",\\\"children\\\":[\\\"booking-title\\\",\\\"restaurant-image\\\",\\\"restaurant-address\\\",\\\"party-size-field\\\",\\\"datetime-field\\\",\\\"dietary-field\\\",\\\"submit-button\\\"]},{\\\"id\\\":\\\"booking-title\\\",\\\"component\\\":\\\"Text\\\",\\\"variant\\\":\\\"h2\\\",\\\"text\\\":{\\\"path\\\":\\\"/title\\\"}},{\\\"id\\\":\\\"restaurant-image\\\",\\\"component\\\":\\\"Image\\\",\\\"url\\\":{\\\"path\\\":\\\"/imageUrl\\\"}},{\\\"id\\\":\\\"restaurant-address\\\",\\\"component\\\":\\\"Text\\\",\\\"text\\\":{\\\"path\\\":\\\"/address\\\"}},{\\\"id\\\":\\\"party-size-field\\\",\\\"component\\\":\\\"TextField\\\",\\\"label\\\":\\\"Party Size\\\",\\\"value\\\":{\\\"path\\\":\\\"/partySize\\\"},\\\"variant\\\":\\\"number\\\"},{\\\"id\\\":\\\"datetime-field\\\",\\\"component\\\":\\\"DateTimeInput\\\",\\\"label\\\":\\\"Date & Time\\\",\\\"value\\\":{\\\"path\\\":\\\"/reservationTime\\\"},\\\"enableDate\\\":true,\\\"enableTime\\\":true},{\\\"id\\\":\\\"dietary-field\\\",\\\"component\\\":\\\"TextField\\\",\\\"label\\\":\\\"Dietary Requirements\\\",\\\"value\\\":{\\\"path\\\":\\\"/dietary\\\"}},{\\\"id\\\":\\\"submit-button\\\",\\\"component\\\":\\\"Button\\\",\\\"child\\\":\\\"submit-reservation-text\\\",\\\"action\\\":{\\\"event\\\":{\\\"name\\\":\\\"submit_booking\\\",\\\"context\\\":{\\\"restaurantName\\\":{\\\"path\\\":\\\"/restaurantName\\\"},\\\"partySize\\\":{\\\"path\\\":\\\"/partySize\\\"},\\\"reservationTime\\\":{\\\"path\\\":\\\"/reservationTime\\\"},\\\"dietary\\\":{\\\"path\\\":\\\"/dietary\\\"},\\\"imageUrl\\\":{\\\"path\\\":\\\"/imageUrl\\\"}}}}},{\\\"id\\\":\\\"submit-reservation-text\\\",\\\"component\\\":\\\"Text\\\",\\\"text\\\":\\\"Submit Reservation\\\"}]}},{\\\"version\\\":\\\"v0.9\\\",\\\"updateDataModel\\\":{\\\"surfaceId\\\":\\\"booking-form\\\",\\\"path\\\":\\\"/\\\",\\\"value\\\":{\\\"title\\\":\\\"Book a Table at Xi'an Famous Foods\\\",\\\"address\\\":\\\"81 St Marks Pl, New York, NY 10003\\\",\\\"restaurantName\\\":\\\"Xi'an Famous Foods\\\",\\\"partySize\\\":\\\"2\\\",\\\"reservationTime\\\":\\\"\\\",\\\"imageUrl\\\":\\\"http://localhost:10002/static/shrimpchowmein.jpeg\\\"}}}]\\n</a2ui-json>\"}]}, \"index\": 0, \"finishReason\": \"STOP\"}], \"usageMetadata\": {\"promptTokenCount\": 4975, \"candidatesTokenCount\": 655, \"totalTokenCount\": 5630}, \"modelVersion\": \"gemini-3.6-flash\", \"responseId\": \"resp-2b\"}",
+              "gen_ai.usage.input_tokens": 4975,
+              "gen_ai.usage.output_tokens": 655,
+              "gen_ai.response.finish_reasons": [
+                "STOP"
+              ]
+            },
+            "a2ui.retry.attempt": 2
+          },
+          "links": [
+            {
+              "traceId": "e7fef010a726aab1dda645f5dd53dd5f",
+              "spanId": "c998da45a75c258d"
+            },
+            {
+              "traceId": "a3d123ce9e0e05627f882ef4e902e07d",
+              "spanId": "4e2863ab2ba26543"
+            }
+          ]
+        },
+        {
+          "traceId": "e7fef010a726aab1dda645f5dd53dd5f",
+          "spanId": "c998da45a75c258d",
+          "parentSpanId": "180ad2ecfbcb7fe2",
+          "name": "generate_content gemini-3.6-flash",
+          "kind": 3,
+          "startTimeUnixNano": "1792576862045000000",
+          "endTimeUnixNano": "1792576864530000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "generate_content",
+            "gen_ai.provider.name": "gcp.gemini",
+            "gen_ai.request.model": "gemini-3.6-flash",
+            "gen_ai.request.stream": true,
+            "gen_ai.output.type": "text",
+            "gen_ai.response.id": "resp-2b",
+            "gen_ai.response.model": "gemini-3.6-flash",
+            "gen_ai.response.finish_reasons": [
+              "stop"
+            ],
+            "gen_ai.usage.input_tokens": 4975,
+            "gen_ai.usage.output_tokens": 655,
+            "gen_ai.system_instructions": [
+              {
+                "type": "text",
+                "content": "You are a helpful restaurant finding assistant. Your final output MUST be an A2UI UI definition.\n\n## UI Description:\n-   If the query is for a list of restaurants, use the restaurant data you have already received from the `get_restaurants` tool to populate the `updateDataModel` message.\n-   IMPORTANT: When using updateDataModel to update items, you MUST specify `path: \"/items\"` in `updateDataModel`, and the `value` MUST be an array of restaurants.\n-   IMPORTANT: Always specify the path when using updateDataModel. The part message is ignored when the path is missing.\n-   If the number of restaurants is 5 or fewer, you MUST use the `SINGLE_COLUMN_LIST_EXAMPLE` template.\n-   If the number of restaurants is more than 5, you MUST use the `TWO_COLUMN_LIST_EXAMPLE` template.\n-   If the query is to book a restaurant (e.g., \"USER_WANTS_TO_BOOK...\"), you MUST use the `BOOKING_FORM_EXAMPLE` template.\n-   If the query is a booking submission (e.g., \"User submitted a booking...\"), you MUST use the `CONFIRMATION_EXAMPLE` template.\n\n## Workflow Description:\n\nThe generated response MUST follow these rules:\n- The response can contain one or more A2UI JSON blocks.\n- Each A2UI JSON block MUST be wrapped in `<a2ui-json>` and `</a2ui-json>` tags.\n- Between or around these blocks, you can provide conversational text.\n- The JSON part MUST be a single, raw JSON object (usually a list of A2UI messages) and MUST validate against the provided A2UI JSON SCHEMA.\n- Top-Down Component Ordering: Within the `components` list of a message:\n    - The 'root' component MUST be the FIRST element.\n    - Parent components MUST appear before their child components.\n    This specific ordering allows the streaming parser to yield and render the UI incrementally as it arrives."
+              }
+            ],
+            "gen_ai.input.messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Top 2 Chinese restaurants in New York"
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "tool_call",
+                    "id": "adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03",
+                    "name": "get_restaurants",
+                    "arguments": {
+                      "cuisine": "Chinese",
+                      "location": "New York",
+                      "count": 2
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "parts": [
+                  {
+                    "type": "tool_call_response",
+                    "id": "adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03",
+                    "response": {
+                      "result": "[{\"name\": \"Xi'an Famous Foods\", \"detail\": \"Spicy and savory hand-pulled noodles.\", \"imageUrl\": \"http://localhost:10002/static/shrimpchowmein.jpeg\", \"rating\": \"\\u2605\\u2605\\u2605\\u2605\\u2606\", \"infoLink\": \"[More Info](https://www.xianfoods.com/)\", \"address\": \"81 St Marks Pl, New York, NY 10003\"}, {\"name\": \"Han Dynasty\", \"detail\": \"Authentic Szechuan cuisine.\", \"imageUrl\": \"http://localhost:10002/static/mapotofu.jpeg\", \"rating\": \"\\u2605\\u2605\\u2605\\u2605\\u2606\", \"infoLink\": \"[More Info](https://www.handynasty.net/)\", \"address\": \"90 3rd Ave, New York, NY 10003\"}]"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Here are the top 2 Chinese restaurants in New York 🍜\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"default\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"},\"sendDataModel\":true}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"default\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"title-heading\",\"item-list\"]},{\"id\":\"title-heading\",\"component\":\"Text\",\"variant\":\"h1\",\"text\":{\"path\":\"/title\"}},{\"id\":\"item-list\",\"component\":\"List\",\"direction\":\"vertical\",\"children\":{\"componentId\":\"item-card-template\",\"path\":\"/items\"}},{\"id\":\"item-card-template\",\"component\":\"Card\",\"child\":\"card-layout\"},{\"id\":\"card-layout\",\"component\":\"Row\",\"children\":[\"card-image\",\"card-details\"]},{\"id\":\"card-image\",\"component\":\"Image\",\"variant\":\"mediumFeature\",\"weight\":1,\"url\":{\"path\":\"imageUrl\"}},{\"id\":\"card-details\",\"component\":\"Column\",\"weight\":2,\"children\":[\"template-name\",\"template-rating\",\"template-detail\",\"template-link\",\"template-book-button\"]},{\"id\":\"template-name\",\"component\":\"Text\",\"variant\":\"h3\",\"text\":{\"path\":\"name\"}},{\"id\":\"template-rating\",\"component\":\"Text\",\"text\":{\"path\":\"rating\"}},{\"id\":\"template-detail\",\"component\":\"Text\",\"text\":{\"path\":\"detail\"}},{\"id\":\"template-link\",\"component\":\"Text\",\"text\":{\"path\":\"infoLink\"}},{\"id\":\"template-book-button\",\"component\":\"Button\",\"child\":\"book-now-text\",\"variant\":\"primary\",\"action\":{\"event\":{\"name\":\"book_restaurant\",\"context\":{\"restaurantName\":{\"path\":\"name\"},\"imageUrl\":{\"path\":\"imageUrl\"},\"address\":{\"path\":\"address\"}}}}},{\"id\":\"book-now-text\",\"component\":\"Text\",\"text\":\"Book Now\"}]}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"default\",\"path\":\"/title\",\"value\":\"Top 2 Chinese Restaurants in New York\"}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"default\",\"path\":\"/items\",\"value\":[{\"name\":\"Xi'an Famous Foods\",\"detail\":\"Spicy and savory hand-pulled noodles.\",\"imageUrl\":\"http://localhost:10002/static/shrimpchowmein.jpeg\",\"rating\":\"★★★★☆\",\"infoLink\":\"[More Info](https://www.xianfoods.com/)\",\"address\":\"81 St Marks Pl, New York, NY 10003\"},{\"name\":\"Han Dynasty\",\"detail\":\"Authentic Szechuan cuisine.\",\"imageUrl\":\"http://localhost:10002/static/mapotofu.jpeg\",\"rating\":\"★★★★☆\",\"infoLink\":\"[More Info](https://www.handynasty.net/)\",\"address\":\"90 3rd Ave, New York, NY 10003\"}]}}]\n</a2ui-json>"
+                  }
+                ]
+              },
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "USER_WANTS_TO_BOOK: Xi'an Famous Foods, Address: 81 St Marks Pl, New York, NY 10003, ImageURL: http://localhost:10002/static/shrimpchowmein.jpeg"
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Let's book a table at Xi'an Famous Foods.\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"booking-form\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"}}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"booking-form\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"booking-title\",\"restaurant-image\",\"restaurant-address\",\"party-size-field\",\"datetime-field\",\"dietary-"
+                  }
+                ]
+              },
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Your previous response was invalid. Failed to parse A2UI JSON: Unterminated string starting at: line 2 column 412 (char 412) You MUST generate a valid response that strictly follows the A2UI JSON SCHEMA. The response MUST be a JSON list of A2UI messages. Ensure each JSON part is wrapped in '<a2ui-json>' and '</a2ui-json>' tags. Please retry the original request: 'USER_WANTS_TO_BOOK: Xi'an Famous Foods, Address: 81 St Marks Pl, New York, NY 10003, ImageURL: http://localhost:10002/static/shrimpchowmein.jpeg'"
+                  }
+                ]
+              }
+            ],
+            "gen_ai.output.messages": [
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Please fill in your booking details for Xi'an Famous Foods.\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"booking-form\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"}}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"booking-form\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"booking-title\",\"restaurant-image\",\"restaurant-address\",\"party-size-field\",\"datetime-field\",\"dietary-field\",\"submit-button\"]},{\"id\":\"booking-title\",\"component\":\"Text\",\"variant\":\"h2\",\"text\":{\"path\":\"/title\"}},{\"id\":\"restaurant-image\",\"component\":\"Image\",\"url\":{\"path\":\"/imageUrl\"}},{\"id\":\"restaurant-address\",\"component\":\"Text\",\"text\":{\"path\":\"/address\"}},{\"id\":\"party-size-field\",\"component\":\"TextField\",\"label\":\"Party Size\",\"value\":{\"path\":\"/partySize\"},\"variant\":\"number\"},{\"id\":\"datetime-field\",\"component\":\"DateTimeInput\",\"label\":\"Date & Time\",\"value\":{\"path\":\"/reservationTime\"},\"enableDate\":true,\"enableTime\":true},{\"id\":\"dietary-field\",\"component\":\"TextField\",\"label\":\"Dietary Requirements\",\"value\":{\"path\":\"/dietary\"}},{\"id\":\"submit-button\",\"component\":\"Button\",\"child\":\"submit-reservation-text\",\"action\":{\"event\":{\"name\":\"submit_booking\",\"context\":{\"restaurantName\":{\"path\":\"/restaurantName\"},\"partySize\":{\"path\":\"/partySize\"},\"reservationTime\":{\"path\":\"/reservationTime\"},\"dietary\":{\"path\":\"/dietary\"},\"imageUrl\":{\"path\":\"/imageUrl\"}}}}},{\"id\":\"submit-reservation-text\",\"component\":\"Text\",\"text\":\"Submit Reservation\"}]}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"booking-form\",\"path\":\"/\",\"value\":{\"title\":\"Book a Table at Xi'an Famous Foods\",\"address\":\"81 St Marks Pl, New York, NY 10003\",\"restaurantName\":\"Xi'an Famous Foods\",\"partySize\":\"2\",\"reservationTime\":\"\",\"imageUrl\":\"http://localhost:10002/static/shrimpchowmein.jpeg\"}}}]\n</a2ui-json>"
+                  }
+                ],
+                "finish_reason": "stop"
+              }
+            ],
+            "gen_ai.tool.definitions": [
+              {
+                "type": "function",
+                "name": "get_restaurants",
+                "description": "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "cuisine": {
+                      "type": "string"
+                    },
+                    "location": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "default": 5
+                    }
+                  },
+                  "required": [
+                    "cuisine",
+                    "location"
+                  ]
+                }
+              }
+            ],
+            "gen_ai.response.time_to_first_chunk": 0.755,
+            "http.request.method": "POST",
+            "url.full": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:streamGenerateContent?alt=sse",
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.user-agent": [
+              "google-genai-sdk/1.27.0 gl-python/3.13.5"
+            ],
+            "http.response.header.content-type": [
+              "text/event-stream"
+            ],
+            "http.response.status_code": 200,
+            "server.address": "generativelanguage.googleapis.com",
+            "server.port": 443,
+            "a2ui.http.request.body": {
+              "contents": [
+                {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "text": "Top 2 Chinese restaurants in New York"
+                    }
+                  ]
+                },
+                {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "functionCall": {
+                        "id": "adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03",
+                        "name": "get_restaurants",
+                        "args": {
+                          "cuisine": "Chinese",
+                          "location": "New York",
+                          "count": 2
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "functionResponse": {
+                        "id": "adk-7f2c9b14-3e8a-4d56-b0a1-9c4e2f6d8a03",
+                        "name": "get_restaurants",
+                        "response": {
+                          "result": "[{\"name\": \"Xi'an Famous Foods\", \"detail\": \"Spicy and savory hand-pulled noodles.\", \"imageUrl\": \"http://localhost:10002/static/shrimpchowmein.jpeg\", \"rating\": \"\\u2605\\u2605\\u2605\\u2605\\u2606\", \"infoLink\": \"[More Info](https://www.xianfoods.com/)\", \"address\": \"81 St Marks Pl, New York, NY 10003\"}, {\"name\": \"Han Dynasty\", \"detail\": \"Authentic Szechuan cuisine.\", \"imageUrl\": \"http://localhost:10002/static/mapotofu.jpeg\", \"rating\": \"\\u2605\\u2605\\u2605\\u2605\\u2606\", \"infoLink\": \"[More Info](https://www.handynasty.net/)\", \"address\": \"90 3rd Ave, New York, NY 10003\"}]"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "text": "Here are the top 2 Chinese restaurants in New York 🍜\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"default\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"},\"sendDataModel\":true}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"default\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"title-heading\",\"item-list\"]},{\"id\":\"title-heading\",\"component\":\"Text\",\"variant\":\"h1\",\"text\":{\"path\":\"/title\"}},{\"id\":\"item-list\",\"component\":\"List\",\"direction\":\"vertical\",\"children\":{\"componentId\":\"item-card-template\",\"path\":\"/items\"}},{\"id\":\"item-card-template\",\"component\":\"Card\",\"child\":\"card-layout\"},{\"id\":\"card-layout\",\"component\":\"Row\",\"children\":[\"card-image\",\"card-details\"]},{\"id\":\"card-image\",\"component\":\"Image\",\"variant\":\"mediumFeature\",\"weight\":1,\"url\":{\"path\":\"imageUrl\"}},{\"id\":\"card-details\",\"component\":\"Column\",\"weight\":2,\"children\":[\"template-name\",\"template-rating\",\"template-detail\",\"template-link\",\"template-book-button\"]},{\"id\":\"template-name\",\"component\":\"Text\",\"variant\":\"h3\",\"text\":{\"path\":\"name\"}},{\"id\":\"template-rating\",\"component\":\"Text\",\"text\":{\"path\":\"rating\"}},{\"id\":\"template-detail\",\"component\":\"Text\",\"text\":{\"path\":\"detail\"}},{\"id\":\"template-link\",\"component\":\"Text\",\"text\":{\"path\":\"infoLink\"}},{\"id\":\"template-book-button\",\"component\":\"Button\",\"child\":\"book-now-text\",\"variant\":\"primary\",\"action\":{\"event\":{\"name\":\"book_restaurant\",\"context\":{\"restaurantName\":{\"path\":\"name\"},\"imageUrl\":{\"path\":\"imageUrl\"},\"address\":{\"path\":\"address\"}}}}},{\"id\":\"book-now-text\",\"component\":\"Text\",\"text\":\"Book Now\"}]}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"default\",\"path\":\"/title\",\"value\":\"Top 2 Chinese Restaurants in New York\"}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"default\",\"path\":\"/items\",\"value\":[{\"name\":\"Xi'an Famous Foods\",\"detail\":\"Spicy and savory hand-pulled noodles.\",\"imageUrl\":\"http://localhost:10002/static/shrimpchowmein.jpeg\",\"rating\":\"★★★★☆\",\"infoLink\":\"[More Info](https://www.xianfoods.com/)\",\"address\":\"81 St Marks Pl, New York, NY 10003\"},{\"name\":\"Han Dynasty\",\"detail\":\"Authentic Szechuan cuisine.\",\"imageUrl\":\"http://localhost:10002/static/mapotofu.jpeg\",\"rating\":\"★★★★☆\",\"infoLink\":\"[More Info](https://www.handynasty.net/)\",\"address\":\"90 3rd Ave, New York, NY 10003\"}]}}]\n</a2ui-json>"
+                    }
+                  ]
+                },
+                {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "text": "USER_WANTS_TO_BOOK: Xi'an Famous Foods, Address: 81 St Marks Pl, New York, NY 10003, ImageURL: http://localhost:10002/static/shrimpchowmein.jpeg"
+                    }
+                  ]
+                },
+                {
+                  "role": "model",
+                  "parts": [
+                    {
+                      "text": "Let's book a table at Xi'an Famous Foods.\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"booking-form\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"}}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"booking-form\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"booking-title\",\"restaurant-image\",\"restaurant-address\",\"party-size-field\",\"datetime-field\",\"dietary-"
+                    }
+                  ]
+                },
+                {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "text": "Your previous response was invalid. Failed to parse A2UI JSON: Unterminated string starting at: line 2 column 412 (char 412) You MUST generate a valid response that strictly follows the A2UI JSON SCHEMA. The response MUST be a JSON list of A2UI messages. Ensure each JSON part is wrapped in '<a2ui-json>' and '</a2ui-json>' tags. Please retry the original request: 'USER_WANTS_TO_BOOK: Xi'an Famous Foods, Address: 81 St Marks Pl, New York, NY 10003, ImageURL: http://localhost:10002/static/shrimpchowmein.jpeg'"
+                    }
+                  ]
+                }
+              ],
+              "systemInstruction": {
+                "role": "user",
+                "parts": [
+                  {
+                    "text": "You are a helpful restaurant finding assistant. Your final output MUST be an A2UI UI definition.\n\n## UI Description:\n-   If the query is for a list of restaurants, use the restaurant data you have already received from the `get_restaurants` tool to populate the `updateDataModel` message.\n-   IMPORTANT: When using updateDataModel to update items, you MUST specify `path: \"/items\"` in `updateDataModel`, and the `value` MUST be an array of restaurants.\n-   IMPORTANT: Always specify the path when using updateDataModel. The part message is ignored when the path is missing.\n-   If the number of restaurants is 5 or fewer, you MUST use the `SINGLE_COLUMN_LIST_EXAMPLE` template.\n-   If the number of restaurants is more than 5, you MUST use the `TWO_COLUMN_LIST_EXAMPLE` template.\n-   If the query is to book a restaurant (e.g., \"USER_WANTS_TO_BOOK...\"), you MUST use the `BOOKING_FORM_EXAMPLE` template.\n-   If the query is a booking submission (e.g., \"User submitted a booking...\"), you MUST use the `CONFIRMATION_EXAMPLE` template.\n\n## Workflow Description:\n\nThe generated response MUST follow these rules:\n- The response can contain one or more A2UI JSON blocks.\n- Each A2UI JSON block MUST be wrapped in `<a2ui-json>` and `</a2ui-json>` tags.\n- Between or around these blocks, you can provide conversational text.\n- The JSON part MUST be a single, raw JSON object (usually a list of A2UI messages) and MUST validate against the provided A2UI JSON SCHEMA.\n- Top-Down Component Ordering: Within the `components` list of a message:\n    - The 'root' component MUST be the FIRST element.\n    - Parent components MUST appear before their child components.\n    This specific ordering allows the streaming parser to yield and render the UI incrementally as it arrives."
+                  }
+                ]
+              },
+              "tools": [
+                {
+                  "functionDeclarations": [
+                    {
+                      "name": "get_restaurants",
+                      "description": "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return.",
+                      "parameters": {
+                        "type": "object",
+                        "properties": {
+                          "cuisine": {
+                            "type": "string"
+                          },
+                          "location": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer",
+                            "default": 5
+                          }
+                        },
+                        "required": [
+                          "cuisine",
+                          "location"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ],
+              "generationConfig": {}
+            },
+            "a2ui.retry.attempt": 2
+          },
+          "events": [
+            {
+              "timeUnixNano": "1792576862800000000",
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "candidates": [
+                    {
+                      "content": {
+                        "role": "model",
+                        "parts": [
+                          {
+                            "text": "Please fill in your booking details for Xi'an Famous Foods.\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"booking-form\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"}}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"booking-form\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"booking-title\",\"restaurant-image\",\"restaurant-address\",\"party-size-field\",\"datetime-field\",\"dietary-field\",\"submit-button\"]},{\"id\":\"booking-title\",\"component\":\"Text\",\"variant\":\"h2\",\"text\":{\"path\":\"/title\"}},{\"id\":\"restaurant-"
+                          }
+                        ]
+                      },
+                      "index": 0
+                    }
+                  ],
+                  "usageMetadata": {
+                    "promptTokenCount": 4975,
+                    "candidatesTokenCount": 0,
+                    "totalTokenCount": 4975
+                  },
+                  "modelVersion": "gemini-3.6-flash",
+                  "responseId": "resp-2b"
+                }
+              }
+            },
+            {
+              "timeUnixNano": "1792576863600000000",
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "candidates": [
+                    {
+                      "content": {
+                        "role": "model",
+                        "parts": [
+                          {
+                            "text": "image\",\"component\":\"Image\",\"url\":{\"path\":\"/imageUrl\"}},{\"id\":\"restaurant-address\",\"component\":\"Text\",\"text\":{\"path\":\"/address\"}},{\"id\":\"party-size-field\",\"component\":\"TextField\",\"label\":\"Party Size\",\"value\":{\"path\":\"/partySize\"},\"variant\":\"number\"},{\"id\":\"datetime-field\",\"component\":\"DateTimeInput\",\"label\":\"Date & Time\",\"value\":{\"path\":\"/reservationTime\"},\"enableDate\":true,\"enableTime\":true},{\"id\":\"dietary-field\",\"component\":\"TextField\",\"label\":\"Dietary Requirements\",\"value\":{\"path\":\"/dietary\"}},{\"id\":\"submit-button\",\"component\":\"Button\",\"child\":\"submit-reservation-text\",\"action\":{\"event\":{\"name\":\"submit_booki"
+                          }
+                        ]
+                      },
+                      "index": 0
+                    }
+                  ],
+                  "usageMetadata": {
+                    "promptTokenCount": 4975,
+                    "candidatesTokenCount": 0,
+                    "totalTokenCount": 4975
+                  },
+                  "modelVersion": "gemini-3.6-flash",
+                  "responseId": "resp-2b"
+                }
+              }
+            },
+            {
+              "timeUnixNano": "1792576864500000000",
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "candidates": [
+                    {
+                      "content": {
+                        "role": "model",
+                        "parts": [
+                          {
+                            "text": "ng\",\"context\":{\"restaurantName\":{\"path\":\"/restaurantName\"},\"partySize\":{\"path\":\"/partySize\"},\"reservationTime\":{\"path\":\"/reservationTime\"},\"dietary\":{\"path\":\"/dietary\"},\"imageUrl\":{\"path\":\"/imageUrl\"}}}}},{\"id\":\"submit-reservation-text\",\"component\":\"Text\",\"text\":\"Submit Reservation\"}]}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"booking-form\",\"path\":\"/\",\"value\":{\"title\":\"Book a Table at Xi'an Famous Foods\",\"address\":\"81 St Marks Pl, New York, NY 10003\",\"restaurantName\":\"Xi'an Famous Foods\",\"partySize\":\"2\",\"reservationTime\":\"\",\"imageUrl\":\"http://localhost:10002/static/shrimpchowmein.jpeg\"}}}]\n</a2ui-json>"
+                          }
+                        ]
+                      },
+                      "index": 0,
+                      "finishReason": "STOP"
+                    }
+                  ],
+                  "usageMetadata": {
+                    "promptTokenCount": 4975,
+                    "candidatesTokenCount": 655,
+                    "totalTokenCount": 5630
+                  },
+                  "modelVersion": "gemini-3.6-flash",
+                  "responseId": "resp-2b"
+                }
+              }
+            }
+          ],
+          "links": [
+            {
+              "traceId": "a3d123ce9e0e05627f882ef4e902e07d",
+              "spanId": "975776a0c32646a3"
+            },
+            {
+              "traceId": "a3d123ce9e0e05627f882ef4e902e07d",
+              "spanId": "4e2863ab2ba26543"
+            }
+          ],
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "a3d123ce9e0e05627f882ef4e902e07d",
+          "spanId": "8759de215bb820f4",
+          "parentSpanId": "4e24c925eb0c34a7",
+          "name": "parse",
+          "kind": 1,
+          "startTimeUnixNano": "1792576864550000000",
+          "endTimeUnixNano": "1792576864560000000",
+          "attributes": {
+            "a2ui.event.kind": "parse",
+            "a2ui.parse.input": "Please fill in your booking details for Xi'an Famous Foods.\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"booking-form\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"}}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"booking-form\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"booking-title\",\"restaurant-image\",\"restaurant-address\",\"party-size-field\",\"datetime-field\",\"dietary-field\",\"submit-button\"]},{\"id\":\"booking-title\",\"component\":\"Text\",\"variant\":\"h2\",\"text\":{\"path\":\"/title\"}},{\"id\":\"restaurant-image\",\"component\":\"Image\",\"url\":{\"path\":\"/imageUrl\"}},{\"id\":\"restaurant-address\",\"component\":\"Text\",\"text\":{\"path\":\"/address\"}},{\"id\":\"party-size-field\",\"component\":\"TextField\",\"label\":\"Party Size\",\"value\":{\"path\":\"/partySize\"},\"variant\":\"number\"},{\"id\":\"datetime-field\",\"component\":\"DateTimeInput\",\"label\":\"Date & Time\",\"value\":{\"path\":\"/reservationTime\"},\"enableDate\":true,\"enableTime\":true},{\"id\":\"dietary-field\",\"component\":\"TextField\",\"label\":\"Dietary Requirements\",\"value\":{\"path\":\"/dietary\"}},{\"id\":\"submit-button\",\"component\":\"Button\",\"child\":\"submit-reservation-text\",\"action\":{\"event\":{\"name\":\"submit_booking\",\"context\":{\"restaurantName\":{\"path\":\"/restaurantName\"},\"partySize\":{\"path\":\"/partySize\"},\"reservationTime\":{\"path\":\"/reservationTime\"},\"dietary\":{\"path\":\"/dietary\"},\"imageUrl\":{\"path\":\"/imageUrl\"}}}}},{\"id\":\"submit-reservation-text\",\"component\":\"Text\",\"text\":\"Submit Reservation\"}]}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"booking-form\",\"path\":\"/\",\"value\":{\"title\":\"Book a Table at Xi'an Famous Foods\",\"address\":\"81 St Marks Pl, New York, NY 10003\",\"restaurantName\":\"Xi'an Famous Foods\",\"partySize\":\"2\",\"reservationTime\":\"\",\"imageUrl\":\"http://localhost:10002/static/shrimpchowmein.jpeg\"}}}]\n</a2ui-json>",
+            "a2ui.parse.inference_format": "direct_json",
+            "a2ui.parse.messages": [
+              {
+                "version": "v0.9",
+                "createSurface": {
+                  "surfaceId": "booking-form",
+                  "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+                  "theme": {
+                    "primaryColor": "#FF0000",
+                    "font": "Roboto"
+                  }
+                }
+              },
+              {
+                "version": "v0.9",
+                "updateComponents": {
+                  "surfaceId": "booking-form",
+                  "components": [
+                    {
+                      "id": "root",
+                      "component": "Column",
+                      "children": [
+                        "booking-title",
+                        "restaurant-image",
+                        "restaurant-address",
+                        "party-size-field",
+                        "datetime-field",
+                        "dietary-field",
+                        "submit-button"
+                      ]
+                    },
+                    {
+                      "id": "booking-title",
+                      "component": "Text",
+                      "variant": "h2",
+                      "text": {
+                        "path": "/title"
+                      }
+                    },
+                    {
+                      "id": "restaurant-image",
+                      "component": "Image",
+                      "url": {
+                        "path": "/imageUrl"
+                      }
+                    },
+                    {
+                      "id": "restaurant-address",
+                      "component": "Text",
+                      "text": {
+                        "path": "/address"
+                      }
+                    },
+                    {
+                      "id": "party-size-field",
+                      "component": "TextField",
+                      "label": "Party Size",
+                      "value": {
+                        "path": "/partySize"
+                      },
+                      "variant": "number"
+                    },
+                    {
+                      "id": "datetime-field",
+                      "component": "DateTimeInput",
+                      "label": "Date & Time",
+                      "value": {
+                        "path": "/reservationTime"
+                      },
+                      "enableDate": true,
+                      "enableTime": true
+                    },
+                    {
+                      "id": "dietary-field",
+                      "component": "TextField",
+                      "label": "Dietary Requirements",
+                      "value": {
+                        "path": "/dietary"
+                      }
+                    },
+                    {
+                      "id": "submit-button",
+                      "component": "Button",
+                      "child": "submit-reservation-text",
+                      "action": {
+                        "event": {
+                          "name": "submit_booking",
+                          "context": {
+                            "restaurantName": {
+                              "path": "/restaurantName"
+                            },
+                            "partySize": {
+                              "path": "/partySize"
+                            },
+                            "reservationTime": {
+                              "path": "/reservationTime"
+                            },
+                            "dietary": {
+                              "path": "/dietary"
+                            },
+                            "imageUrl": {
+                              "path": "/imageUrl"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "id": "submit-reservation-text",
+                      "component": "Text",
+                      "text": "Submit Reservation"
+                    }
+                  ]
+                }
+              },
+              {
+                "version": "v0.9",
+                "updateDataModel": {
+                  "surfaceId": "booking-form",
+                  "path": "/",
+                  "value": {
+                    "title": "Book a Table at Xi'an Famous Foods",
+                    "address": "81 St Marks Pl, New York, NY 10003",
+                    "restaurantName": "Xi'an Famous Foods",
+                    "partySize": "2",
+                    "reservationTime": "",
+                    "imageUrl": "http://localhost:10002/static/shrimpchowmein.jpeg"
+                  }
+                }
+              }
+            ],
+            "a2ui.parse.components": [
+              {
+                "surfaceId": "booking-form",
+                "componentId": "root",
+                "start": 345,
+                "end": 516
+              },
+              {
+                "surfaceId": "booking-form",
+                "componentId": "booking-title",
+                "start": 517,
+                "end": 598
+              },
+              {
+                "surfaceId": "booking-form",
+                "componentId": "restaurant-image",
+                "start": 599,
+                "end": 671
+              },
+              {
+                "surfaceId": "booking-form",
+                "componentId": "restaurant-address",
+                "start": 672,
+                "end": 745
+              },
+              {
+                "surfaceId": "booking-form",
+                "componentId": "party-size-field",
+                "start": 746,
+                "end": 865
+              },
+              {
+                "surfaceId": "booking-form",
+                "componentId": "datetime-field",
+                "start": 866,
+                "end": 1011
+              },
+              {
+                "surfaceId": "booking-form",
+                "componentId": "dietary-field",
+                "start": 1012,
+                "end": 1117
+              },
+              {
+                "surfaceId": "booking-form",
+                "componentId": "submit-button",
+                "start": 1118,
+                "end": 1438
+              },
+              {
+                "surfaceId": "booking-form",
+                "componentId": "submit-reservation-text",
+                "start": 1439,
+                "end": 1518
+              }
+            ],
+            "otel.scope.name": "a2ui_spectra_wrapper",
+            "otel.scope.version": "0.0.0",
+            "a2ui.received.attributes": {
+              "a2ui.event.kind": "parse",
+              "a2ui.parse.input": "Please fill in your booking details for Xi'an Famous Foods.\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"booking-form\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"}}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"booking-form\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"booking-title\",\"restaurant-image\",\"restaurant-address\",\"party-size-field\",\"datetime-field\",\"dietary-field\",\"submit-button\"]},{\"id\":\"booking-title\",\"component\":\"Text\",\"variant\":\"h2\",\"text\":{\"path\":\"/title\"}},{\"id\":\"restaurant-image\",\"component\":\"Image\",\"url\":{\"path\":\"/imageUrl\"}},{\"id\":\"restaurant-address\",\"component\":\"Text\",\"text\":{\"path\":\"/address\"}},{\"id\":\"party-size-field\",\"component\":\"TextField\",\"label\":\"Party Size\",\"value\":{\"path\":\"/partySize\"},\"variant\":\"number\"},{\"id\":\"datetime-field\",\"component\":\"DateTimeInput\",\"label\":\"Date & Time\",\"value\":{\"path\":\"/reservationTime\"},\"enableDate\":true,\"enableTime\":true},{\"id\":\"dietary-field\",\"component\":\"TextField\",\"label\":\"Dietary Requirements\",\"value\":{\"path\":\"/dietary\"}},{\"id\":\"submit-button\",\"component\":\"Button\",\"child\":\"submit-reservation-text\",\"action\":{\"event\":{\"name\":\"submit_booking\",\"context\":{\"restaurantName\":{\"path\":\"/restaurantName\"},\"partySize\":{\"path\":\"/partySize\"},\"reservationTime\":{\"path\":\"/reservationTime\"},\"dietary\":{\"path\":\"/dietary\"},\"imageUrl\":{\"path\":\"/imageUrl\"}}}}},{\"id\":\"submit-reservation-text\",\"component\":\"Text\",\"text\":\"Submit Reservation\"}]}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"booking-form\",\"path\":\"/\",\"value\":{\"title\":\"Book a Table at Xi'an Famous Foods\",\"address\":\"81 St Marks Pl, New York, NY 10003\",\"restaurantName\":\"Xi'an Famous Foods\",\"partySize\":\"2\",\"reservationTime\":\"\",\"imageUrl\":\"http://localhost:10002/static/shrimpchowmein.jpeg\"}}}]\n</a2ui-json>",
+              "a2ui.parse.inference_format": "direct_json",
+              "a2ui.parse.messages": [
+                {
+                  "version": "v0.9",
+                  "createSurface": {
+                    "surfaceId": "booking-form",
+                    "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+                    "theme": {
+                      "primaryColor": "#FF0000",
+                      "font": "Roboto"
+                    }
+                  }
+                },
+                {
+                  "version": "v0.9",
+                  "updateComponents": {
+                    "surfaceId": "booking-form",
+                    "components": [
+                      {
+                        "id": "root",
+                        "component": "Column",
+                        "children": [
+                          "booking-title",
+                          "restaurant-image",
+                          "restaurant-address",
+                          "party-size-field",
+                          "datetime-field",
+                          "dietary-field",
+                          "submit-button"
+                        ]
+                      },
+                      {
+                        "id": "booking-title",
+                        "component": "Text",
+                        "variant": "h2",
+                        "text": {
+                          "path": "/title"
+                        }
+                      },
+                      {
+                        "id": "restaurant-image",
+                        "component": "Image",
+                        "url": {
+                          "path": "/imageUrl"
+                        }
+                      },
+                      {
+                        "id": "restaurant-address",
+                        "component": "Text",
+                        "text": {
+                          "path": "/address"
+                        }
+                      },
+                      {
+                        "id": "party-size-field",
+                        "component": "TextField",
+                        "label": "Party Size",
+                        "value": {
+                          "path": "/partySize"
+                        },
+                        "variant": "number"
+                      },
+                      {
+                        "id": "datetime-field",
+                        "component": "DateTimeInput",
+                        "label": "Date & Time",
+                        "value": {
+                          "path": "/reservationTime"
+                        },
+                        "enableDate": true,
+                        "enableTime": true
+                      },
+                      {
+                        "id": "dietary-field",
+                        "component": "TextField",
+                        "label": "Dietary Requirements",
+                        "value": {
+                          "path": "/dietary"
+                        }
+                      },
+                      {
+                        "id": "submit-button",
+                        "component": "Button",
+                        "child": "submit-reservation-text",
+                        "action": {
+                          "event": {
+                            "name": "submit_booking",
+                            "context": {
+                              "restaurantName": {
+                                "path": "/restaurantName"
+                              },
+                              "partySize": {
+                                "path": "/partySize"
+                              },
+                              "reservationTime": {
+                                "path": "/reservationTime"
+                              },
+                              "dietary": {
+                                "path": "/dietary"
+                              },
+                              "imageUrl": {
+                                "path": "/imageUrl"
+                              }
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "id": "submit-reservation-text",
+                        "component": "Text",
+                        "text": "Submit Reservation"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "version": "v0.9",
+                  "updateDataModel": {
+                    "surfaceId": "booking-form",
+                    "path": "/",
+                    "value": {
+                      "title": "Book a Table at Xi'an Famous Foods",
+                      "address": "81 St Marks Pl, New York, NY 10003",
+                      "restaurantName": "Xi'an Famous Foods",
+                      "partySize": "2",
+                      "reservationTime": "",
+                      "imageUrl": "http://localhost:10002/static/shrimpchowmein.jpeg"
+                    }
+                  }
+                }
+              ],
+              "a2ui.parse.components": [
+                {
+                  "surfaceId": "booking-form",
+                  "componentId": "root",
+                  "start": 345,
+                  "end": 516
+                },
+                {
+                  "surfaceId": "booking-form",
+                  "componentId": "booking-title",
+                  "start": 517,
+                  "end": 598
+                },
+                {
+                  "surfaceId": "booking-form",
+                  "componentId": "restaurant-image",
+                  "start": 599,
+                  "end": 671
+                },
+                {
+                  "surfaceId": "booking-form",
+                  "componentId": "restaurant-address",
+                  "start": 672,
+                  "end": 745
+                },
+                {
+                  "surfaceId": "booking-form",
+                  "componentId": "party-size-field",
+                  "start": 746,
+                  "end": 865
+                },
+                {
+                  "surfaceId": "booking-form",
+                  "componentId": "datetime-field",
+                  "start": 866,
+                  "end": 1011
+                },
+                {
+                  "surfaceId": "booking-form",
+                  "componentId": "dietary-field",
+                  "start": 1012,
+                  "end": 1117
+                },
+                {
+                  "surfaceId": "booking-form",
+                  "componentId": "submit-button",
+                  "start": 1118,
+                  "end": 1438
+                },
+                {
+                  "surfaceId": "booking-form",
+                  "componentId": "submit-reservation-text",
+                  "start": 1439,
+                  "end": 1518
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "e7fef010a726aab1dda645f5dd53dd5f",
+          "spanId": "947181bfa9bf5e80",
+          "parentSpanId": "180ad2ecfbcb7fe2",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792576864580000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Please fill in your booking details for Xi'an Famous Foods."
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "createSurface": {
+                      "surfaceId": "booking-form",
+                      "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+                      "theme": {
+                        "primaryColor": "#FF0000",
+                        "font": "Roboto"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "booking-form",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "booking-title",
+                            "restaurant-image",
+                            "restaurant-address",
+                            "party-size-field",
+                            "datetime-field",
+                            "dietary-field",
+                            "submit-button"
+                          ]
+                        },
+                        {
+                          "id": "booking-title",
+                          "component": "Text",
+                          "variant": "h2",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "restaurant-image",
+                          "component": "Image",
+                          "url": {
+                            "path": "/imageUrl"
+                          }
+                        },
+                        {
+                          "id": "restaurant-address",
+                          "component": "Text",
+                          "text": {
+                            "path": "/address"
+                          }
+                        },
+                        {
+                          "id": "party-size-field",
+                          "component": "TextField",
+                          "label": "Party Size",
+                          "value": {
+                            "path": "/partySize"
+                          },
+                          "variant": "number"
+                        },
+                        {
+                          "id": "datetime-field",
+                          "component": "DateTimeInput",
+                          "label": "Date & Time",
+                          "value": {
+                            "path": "/reservationTime"
+                          },
+                          "enableDate": true,
+                          "enableTime": true
+                        },
+                        {
+                          "id": "dietary-field",
+                          "component": "TextField",
+                          "label": "Dietary Requirements",
+                          "value": {
+                            "path": "/dietary"
+                          }
+                        },
+                        {
+                          "id": "submit-button",
+                          "component": "Button",
+                          "child": "submit-reservation-text",
+                          "action": {
+                            "event": {
+                              "name": "submit_booking",
+                              "context": {
+                                "restaurantName": {
+                                  "path": "/restaurantName"
+                                },
+                                "partySize": {
+                                  "path": "/partySize"
+                                },
+                                "reservationTime": {
+                                  "path": "/reservationTime"
+                                },
+                                "dietary": {
+                                  "path": "/dietary"
+                                },
+                                "imageUrl": {
+                                  "path": "/imageUrl"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "id": "submit-reservation-text",
+                          "component": "Text",
+                          "text": "Submit Reservation"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateDataModel": {
+                      "surfaceId": "booking-form",
+                      "path": "/",
+                      "value": {
+                        "title": "Book a Table at Xi'an Famous Foods",
+                        "address": "81 St Marks Pl, New York, NY 10003",
+                        "restaurantName": "Xi'an Famous Foods",
+                        "partySize": "2",
+                        "reservationTime": "",
+                        "imageUrl": "http://localhost:10002/static/shrimpchowmein.jpeg"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "a2ui.wire.metadata": {
+              "adk_app_name": "restaurant_agent",
+              "adk_user_id": "A2A_USER_c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+              "adk_session_id": "c3e9a1d4-5b7f-4e2a-8d61-0f4b2c9e7a35",
+              "adk_author": "restaurant_agent"
+            }
+          }
+        },
+        {
+          "traceId": "e7fef010a726aab1dda645f5dd53dd5f",
+          "spanId": "42b80bd5b9fb2994",
+          "parentSpanId": "180ad2ecfbcb7fe2",
+          "name": "check",
+          "kind": 1,
+          "startTimeUnixNano": "1792576864590000000",
+          "attributes": {
+            "a2ui.event.kind": "check",
+            "a2ui.check.name": "schema",
+            "a2ui.check.passed": true,
+            "a2ui.check.protocol_version": "v0.9",
+            "a2ui.check.findings": []
+          }
+        },
+        {
+          "traceId": "e7fef010a726aab1dda645f5dd53dd5f",
+          "spanId": "defcea002226755b",
+          "parentSpanId": "180ad2ecfbcb7fe2",
+          "name": "check",
+          "kind": 1,
+          "startTimeUnixNano": "1792576864591000000",
+          "attributes": {
+            "a2ui.event.kind": "check",
+            "a2ui.check.name": "catalog",
+            "a2ui.check.passed": true,
+            "a2ui.check.protocol_version": "v0.9",
+            "a2ui.check.catalog_id": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+            "a2ui.check.findings": []
+          }
+        },
+        {
+          "traceId": "e7fef010a726aab1dda645f5dd53dd5f",
+          "spanId": "dd1b6dc1f8b2f7d2",
+          "parentSpanId": "180ad2ecfbcb7fe2",
+          "name": "check",
+          "kind": 1,
+          "startTimeUnixNano": "1792576864592000000",
+          "attributes": {
+            "a2ui.event.kind": "check",
+            "a2ui.check.name": "structural",
+            "a2ui.check.passed": true,
+            "a2ui.check.protocol_version": "v0.9",
+            "a2ui.check.findings": []
+          }
+        },
+        {
+          "traceId": "e7fef010a726aab1dda645f5dd53dd5f",
+          "spanId": "1bfd45201e798921",
+          "parentSpanId": "180ad2ecfbcb7fe2",
+          "name": "check",
+          "kind": 1,
+          "startTimeUnixNano": "1792576864593000000",
+          "attributes": {
+            "a2ui.event.kind": "check",
+            "a2ui.check.name": "binding",
+            "a2ui.check.passed": false,
+            "a2ui.check.protocol_version": "v0.9",
+            "a2ui.check.findings": [
+              {
+                "code": "BINDING_PATH_UNFILLED",
+                "surfaceId": "booking-form",
+                "path": "/components/6/value",
+                "message": "The data model has no value at /dietary."
+              },
+              {
+                "code": "BINDING_PATH_UNFILLED",
+                "surfaceId": "booking-form",
+                "path": "/components/7/action/event/context/dietary",
+                "message": "The data model has no value at /dietary."
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

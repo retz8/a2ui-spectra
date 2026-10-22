@@ -1,0 +1,45 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "8ffce95ad85ffb2b6b40c6b475f7b1ef",
+          "spanId": "067705598ded8695",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792576800000000000",
+          "endTimeUnixNano": "1792576801500000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "wire"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "8ffce95ad85ffb2b6b40c6b475f7b1ef",
+          "spanId": "31f363e9a1195d29",
+          "parentSpanId": "067705598ded8695",
+          "name": "check",
+          "kind": 1,
+          "startTimeUnixNano": "1792576801450000000",
+          "attributes": {
+            "a2ui.event.kind": "check",
+            "a2ui.check.name": "schema",
+            "a2ui.check.passed": true,
+            "a2ui.check.protocol_version": "v0.9",
+            "a2ui.check.findings": []
+          }
+        }
+      ]
+    }
+  ]
+}

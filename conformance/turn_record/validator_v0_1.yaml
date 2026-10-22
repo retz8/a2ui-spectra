@@ -1,0 +1,322 @@
+# Turn record v0.1: every fixture validated against
+# specification/turn_record/v0_1/json/turn_record.json.
+
+- name: minimal_turn
+  description: "A one-turn record holding only the turn event, with only the required fields."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/minimal_turn.json"
+
+- name: minimal_wire_input
+  description: "A one-turn record holding the turn event and one wire_input event, with only the required fields."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/minimal_wire_input.json"
+
+- name: minimal_wire_output
+  description: "A one-turn record holding the turn event and one wire_output event, with only the required fields."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/minimal_wire_output.json"
+
+- name: minimal_model_call
+  description: "A one-turn record holding the turn event and one model_call event, with only the required fields."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/minimal_model_call.json"
+
+- name: minimal_tool_call
+  description: "A one-turn record holding the turn event and one tool_call event, with only the required fields."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/minimal_tool_call.json"
+
+- name: minimal_prompt_generation
+  description: "A one-turn record holding the turn event and one prompt_generation event, with only the required fields."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/minimal_prompt_generation.json"
+
+- name: minimal_parse
+  description: "A one-turn record holding the turn event and one parse event, with only the required fields."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/minimal_parse.json"
+
+- name: minimal_check
+  description: "A one-turn record holding the turn event and one check event, with only the required fields."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/minimal_check.json"
+
+- name: minimal_framework_span
+  description: "A one-turn record holding the turn event and one framework_span event, with only the required fields."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/minimal_framework_span.json"
+
+- name: full_record
+  description: "Two turns of upstream's restaurant finder, a list and then a booking form, with every kind present and every optional part filled in."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/full_record.json"
+
+- name: version_not_v0_1
+  description: "The record declares a version other than v0.1."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/version_not_v0_1.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/version"
+        code: const
+
+- name: turns_empty
+  description: "The record holds no turn."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/turns_empty.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns"
+        code: minItems
+
+- name: turn_without_events
+  description: "A turn has no events list."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/turn_without_events.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0"
+        code: required
+
+- name: turn_without_turn_event
+  description: "A turn holds no turn event."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/turn_without_turn_event.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events"
+        code: contains
+
+- name: turn_with_two_turn_events
+  description: "A turn holds two turn events."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/turn_with_two_turn_events.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events"
+        code: maxContains
+
+- name: trace_id_uppercase
+  description: "A trace id is not lowercase hex."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/trace_id_uppercase.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/0/traceId"
+        code: pattern
+
+- name: span_id_too_short
+  description: "A span id has 8 hex characters instead of 16."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/span_id_too_short.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/0/spanId"
+        code: pattern
+
+- name: start_time_not_decimal
+  description: "A start time is a date string, not nanoseconds as a decimal string."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/start_time_not_decimal.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/0/startTimeUnixNano"
+        code: pattern
+
+- name: turn_protocol_version_without_v
+  description: "The turn's protocol version lacks its leading v."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/turn_protocol_version_without_v.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/0/attributes/a2ui.turn.protocol_version"
+        code: pattern
+
+- name: status_code_unknown
+  description: "A status code is outside OTLP's 0, 1 and 2."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/status_code_unknown.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/0/status/code"
+        code: enum
+
+- name: event_kind_unknown
+  description: "An event names a kind the record does not define."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/event_kind_unknown.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes/a2ui.event.kind"
+        code: enum
+
+- name: turn_without_outcome
+  description: "The turn event has no outcome."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/turn_without_outcome.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/0/attributes"
+        code: required
+
+- name: wire_input_with_end_time
+  description: "A wire input event has an end time."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/wire_input_with_end_time.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1"
+        code: not
+
+- name: wire_message_without_role
+  description: "A wire message has no role."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/wire_message_without_role.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes/a2ui.wire.message"
+        code: required
+
+- name: wire_output_with_data_model
+  description: "A wire output event carries the data model, which only the host sends."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/wire_output_with_data_model.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes"
+        code: additionalProperties
+
+- name: a2ui_part_without_content
+  description: "An A2UI part has no content."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/a2ui_part_without_content.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes/a2ui.wire.message/parts/0"
+        code: required
+
+- name: model_call_without_end_time
+  description: "A model call event has no end time."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/model_call_without_end_time.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1"
+        code: required
+
+- name: chunk_without_body
+  description: "A streamed chunk has no body."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/chunk_without_body.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/events/0/attributes"
+        code: required
+
+- name: link_without_span_id
+  description: "A link has no span id."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/link_without_span_id.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/links/0"
+        code: required
+
+- name: tool_call_header_not_array
+  description: "A request header is a string, not an array of strings."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/tool_call_header_not_array.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes/http.request.header.content-type"
+        code: type
+
+- name: tool_call_result_not_object
+  description: "A tool result that is not a JSON object is in gen_ai.tool.call.result."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/tool_call_result_not_object.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes/gen_ai.tool.call.result"
+        code: type
+
+- name: prompt_generation_without_catalog_id
+  description: "A prompt generation event has no catalog id."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/prompt_generation_without_catalog_id.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes"
+        code: required
+
+- name: parse_without_input
+  description: "A parse event has no input text."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/parse_without_input.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes"
+        code: required
+
+- name: component_range_negative_start
+  description: "A component range starts before the input."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/component_range_negative_start.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes/a2ui.parse.components/0/start"
+        code: minimum
+
+- name: check_unknown_name
+  description: "A check event names a check the record does not define."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/check_unknown_name.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes/a2ui.check.name"
+        code: enum
+
+- name: finding_without_code
+  description: "A check finding has no code."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/finding_without_code.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes/a2ui.check.findings/0"
+        code: required
+
+- name: framework_span_without_received_attributes
+  description: "A framework span has no received attributes."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/framework_span_without_received_attributes.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes"
+        code: required

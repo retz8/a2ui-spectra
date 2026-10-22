@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/retz8/a2ui-spectra/main/conformance/conformance_schema.json",
+  "title": "A2UI Spectra Conformance Test Suite Schema",
+  "description": "JSON schema validating the conformance test suites under conformance/.",
+  "type": "array",
+  "items": {
+    "anyOf": [{"$ref": "#/$defs/ValidateTurnRecordTest"}]
+  },
+  "$defs": {
+    "ValidateTurnRecordTest": {
+      "type": "object",
+      "description": "Validates one turn record fixture against the turn record schema of the suite's version.",
+      "properties": {
+        "name": {"type": "string", "description": "Unique name of the test case."},
+        "description": {
+          "type": "string",
+          "description": "What the test verifies. For a case that must fail, the reason it fails."
+        },
+        "action": {"const": "validate_turn_record"},
+        "fixture": {
+          "type": "string",
+          "description": "Path of the turn record fixture, relative to conformance/."
+        },
+        "expectError": {
+          "$ref": "#/$defs/ExpectError",
+          "description": "Present when the fixture must fail validation."
+        }
+      },
+      "required": ["name", "action", "fixture"],
+      "additionalProperties": false,
+      "if": {"required": ["expectError"]},
+      "then": {"required": ["description"]}
+    },
+    "ExpectError": {
+      "type": "object",
+      "properties": {
+        "category": {"const": "ValidationError"},
+        "details": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Each detail matches at least one error the validator reports.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "description": "JSON Pointer to the failing value in the fixture."
+              },
+              "code": {
+                "type": "string",
+                "description": "The JSON Schema keyword that failed, as JSON Schema 2020-12's output format names it."
+              }
+            },
+            "required": ["path", "code"],
+            "additionalProperties": false
+          }
+        }
+      },
+      "required": ["category", "details"],
+      "additionalProperties": false
+    }
+  }
+}

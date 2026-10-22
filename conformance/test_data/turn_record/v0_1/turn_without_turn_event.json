@@ -1,0 +1,29 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "8ffce95ad85ffb2b6b40c6b475f7b1ef",
+          "spanId": "b9958b3b914f49bf",
+          "parentSpanId": "067705598ded8695",
+          "name": "wire_input",
+          "kind": 1,
+          "startTimeUnixNano": "1792576800005000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_input",
+            "a2ui.wire.message": {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Hello"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

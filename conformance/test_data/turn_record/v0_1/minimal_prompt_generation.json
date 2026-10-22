@@ -1,0 +1,44 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "8ffce95ad85ffb2b6b40c6b475f7b1ef",
+          "spanId": "067705598ded8695",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792576800000000000",
+          "endTimeUnixNano": "1792576801500000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "otel_receiver",
+              "wrapper"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "cac0f9798ad54139b6aa00d1eec460c6",
+          "spanId": "73897bc27e6173cf",
+          "name": "prompt_generation",
+          "kind": 1,
+          "startTimeUnixNano": "1792576800050000000",
+          "attributes": {
+            "a2ui.event.kind": "prompt_generation",
+            "a2ui.prompt.ui_section": "## Workflow Description:\n\nThe generated response MUST follow these rules:\n- The response can contain one or more A2UI JSON blocks.\n- Each A2UI JSON block MUST be wrapped in `<a2ui-json>` and `</a2ui-json>` tags.\n- Between or around these blocks, you can provide conversational text.\n- The JSON part MUST be a single, raw JSON object (usually a list of A2UI messages) and MUST validate against the provided A2UI JSON SCHEMA.\n- Top-Down Component Ordering: Within the `components` list of a message:\n    - The 'root' component MUST be the FIRST element.\n    - Parent components MUST appear before their child components.\n    This specific ordering allows the streaming parser to yield and render the UI incrementally as it arrives.",
+            "a2ui.prompt.inference_format": "direct_json",
+            "a2ui.prompt.catalog_id": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+          }
+        }
+      ]
+    }
+  ]
+}
