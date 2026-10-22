@@ -47,7 +47,7 @@
   fixture: "test_data/turn_record/v0_1/minimal_framework_span.json"
 
 - name: full_record_restaurant_finder
-  description: "Two turns of upstream's restaurant finder, a list and then a booking form whose model call is retried after a failed parse, with every kind present."
+  description: "Two turns of upstream's restaurant finder, a list whose first model request gets a 503 and is retried, then a booking form whose model call is retried after a failed parse, with every kind present."
   action: validate_turn_record
   fixture: "test_data/turn_record/v0_1/full_record_restaurant_finder.json"
 

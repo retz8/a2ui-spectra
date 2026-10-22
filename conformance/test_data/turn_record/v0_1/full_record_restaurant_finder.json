@@ -9,7 +9,7 @@
           "name": "invoke_agent Restaurant Agent",
           "kind": 3,
           "startTimeUnixNano": "1792576800000000000",
-          "endTimeUnixNano": "1792576805020000000",
+          "endTimeUnixNano": "1792576807020000000",
           "attributes": {
             "a2ui.event.kind": "turn",
             "gen_ai.operation.name": "invoke_agent",
@@ -87,7 +87,7 @@
           "name": "invoke_agent restaurant_agent",
           "kind": 1,
           "startTimeUnixNano": "1792576800010000000",
-          "endTimeUnixNano": "1792576804995000000",
+          "endTimeUnixNano": "1792576806995000000",
           "attributes": {
             "a2ui.event.kind": "framework_span",
             "gen_ai.operation.name": "invoke_agent",
@@ -137,7 +137,7 @@
           "name": "call_llm",
           "kind": 1,
           "startTimeUnixNano": "1792576800020000000",
-          "endTimeUnixNano": "1792576801220000000",
+          "endTimeUnixNano": "1792576803220000000",
           "attributes": {
             "a2ui.event.kind": "model_call",
             "gen_ai.operation.name": "generate_content",
@@ -168,9 +168,154 @@
           "links": [
             {
               "traceId": "b573274bef9042e64dc49a8f6d014d92",
+              "spanId": "888eb723db657c65"
+            },
+            {
+              "traceId": "b573274bef9042e64dc49a8f6d014d92",
               "spanId": "01f8f1c824b0697b"
             }
           ]
+        },
+        {
+          "traceId": "b573274bef9042e64dc49a8f6d014d92",
+          "spanId": "888eb723db657c65",
+          "parentSpanId": "952ef8bd079a1373",
+          "name": "generate_content gemini-3.6-flash",
+          "kind": 3,
+          "startTimeUnixNano": "1792576800025000000",
+          "endTimeUnixNano": "1792576800240000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "generate_content",
+            "gen_ai.provider.name": "gcp.gemini",
+            "gen_ai.request.model": "gemini-3.6-flash",
+            "gen_ai.request.stream": false,
+            "gen_ai.system_instructions": [
+              {
+                "type": "text",
+                "content": "You are a helpful restaurant finding assistant. Your final output MUST be an A2UI UI definition.\n\n## UI Description:\n-   If the query is for a list of restaurants, use the restaurant data you have already received from the `get_restaurants` tool to populate the `updateDataModel` message.\n-   IMPORTANT: When using updateDataModel to update items, you MUST specify `path: \"/items\"` in `updateDataModel`, and the `value` MUST be an array of restaurants.\n-   IMPORTANT: Always specify the path when using updateDataModel. The part message is ignored when the path is missing.\n-   If the number of restaurants is 5 or fewer, you MUST use the `SINGLE_COLUMN_LIST_EXAMPLE` template.\n-   If the number of restaurants is more than 5, you MUST use the `TWO_COLUMN_LIST_EXAMPLE` template.\n-   If the query is to book a restaurant (e.g., \"USER_WANTS_TO_BOOK...\"), you MUST use the `BOOKING_FORM_EXAMPLE` template.\n-   If the query is a booking submission (e.g., \"User submitted a booking...\"), you MUST use the `CONFIRMATION_EXAMPLE` template.\n\n## Workflow Description:\n\nThe generated response MUST follow these rules:\n- The response can contain one or more A2UI JSON blocks.\n- Each A2UI JSON block MUST be wrapped in `<a2ui-json>` and `</a2ui-json>` tags.\n- Between or around these blocks, you can provide conversational text.\n- The JSON part MUST be a single, raw JSON object (usually a list of A2UI messages) and MUST validate against the provided A2UI JSON SCHEMA.\n- Top-Down Component Ordering: Within the `components` list of a message:\n    - The 'root' component MUST be the FIRST element.\n    - Parent components MUST appear before their child components.\n    This specific ordering allows the streaming parser to yield and render the UI incrementally as it arrives."
+              }
+            ],
+            "gen_ai.input.messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Top 2 Chinese restaurants in New York"
+                  }
+                ]
+              }
+            ],
+            "gen_ai.tool.definitions": [
+              {
+                "type": "function",
+                "name": "get_restaurants",
+                "description": "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return.",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "cuisine": {
+                      "type": "string"
+                    },
+                    "location": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer",
+                      "default": 5
+                    }
+                  },
+                  "required": [
+                    "cuisine",
+                    "location"
+                  ]
+                }
+              }
+            ],
+            "error.type": "503",
+            "http.request.method": "POST",
+            "url.full": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.user-agent": [
+              "google-genai-sdk/1.27.0 gl-python/3.13.5"
+            ],
+            "http.response.header.content-type": [
+              "application/json; charset=UTF-8"
+            ],
+            "http.response.status_code": 503,
+            "server.address": "generativelanguage.googleapis.com",
+            "server.port": 443,
+            "a2ui.http.request.body": {
+              "contents": [
+                {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "text": "Top 2 Chinese restaurants in New York"
+                    }
+                  ]
+                }
+              ],
+              "systemInstruction": {
+                "role": "user",
+                "parts": [
+                  {
+                    "text": "You are a helpful restaurant finding assistant. Your final output MUST be an A2UI UI definition.\n\n## UI Description:\n-   If the query is for a list of restaurants, use the restaurant data you have already received from the `get_restaurants` tool to populate the `updateDataModel` message.\n-   IMPORTANT: When using updateDataModel to update items, you MUST specify `path: \"/items\"` in `updateDataModel`, and the `value` MUST be an array of restaurants.\n-   IMPORTANT: Always specify the path when using updateDataModel. The part message is ignored when the path is missing.\n-   If the number of restaurants is 5 or fewer, you MUST use the `SINGLE_COLUMN_LIST_EXAMPLE` template.\n-   If the number of restaurants is more than 5, you MUST use the `TWO_COLUMN_LIST_EXAMPLE` template.\n-   If the query is to book a restaurant (e.g., \"USER_WANTS_TO_BOOK...\"), you MUST use the `BOOKING_FORM_EXAMPLE` template.\n-   If the query is a booking submission (e.g., \"User submitted a booking...\"), you MUST use the `CONFIRMATION_EXAMPLE` template.\n\n## Workflow Description:\n\nThe generated response MUST follow these rules:\n- The response can contain one or more A2UI JSON blocks.\n- Each A2UI JSON block MUST be wrapped in `<a2ui-json>` and `</a2ui-json>` tags.\n- Between or around these blocks, you can provide conversational text.\n- The JSON part MUST be a single, raw JSON object (usually a list of A2UI messages) and MUST validate against the provided A2UI JSON SCHEMA.\n- Top-Down Component Ordering: Within the `components` list of a message:\n    - The 'root' component MUST be the FIRST element.\n    - Parent components MUST appear before their child components.\n    This specific ordering allows the streaming parser to yield and render the UI incrementally as it arrives."
+                  }
+                ]
+              },
+              "tools": [
+                {
+                  "functionDeclarations": [
+                    {
+                      "name": "get_restaurants",
+                      "description": "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return.",
+                      "parameters": {
+                        "type": "object",
+                        "properties": {
+                          "cuisine": {
+                            "type": "string"
+                          },
+                          "location": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer",
+                            "default": 5
+                          }
+                        },
+                        "required": [
+                          "cuisine",
+                          "location"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ],
+              "generationConfig": {}
+            },
+            "a2ui.http.response.body": {
+              "error": {
+                "code": 503,
+                "message": "The model is overloaded. Please try again later.",
+                "status": "UNAVAILABLE"
+              }
+            }
+          },
+          "links": [
+            {
+              "traceId": "d8a8cc776a410215e328729c7f4f4051",
+              "spanId": "9ac3d7c700c06e7a"
+            }
+          ],
+          "status": {
+            "code": 2,
+            "message": "The model is overloaded. Please try again later."
+          }
         },
         {
           "traceId": "b573274bef9042e64dc49a8f6d014d92",
@@ -178,8 +323,8 @@
           "parentSpanId": "952ef8bd079a1373",
           "name": "generate_content gemini-3.6-flash",
           "kind": 3,
-          "startTimeUnixNano": "1792576800025000000",
-          "endTimeUnixNano": "1792576801210000000",
+          "startTimeUnixNano": "1792576802250000000",
+          "endTimeUnixNano": "1792576803210000000",
           "attributes": {
             "a2ui.event.kind": "model_call",
             "gen_ai.operation.name": "generate_content",
@@ -367,8 +512,8 @@
           "parentSpanId": "cd5c049a0edd31a1",
           "name": "execute_tool get_restaurants",
           "kind": 1,
-          "startTimeUnixNano": "1792576801225000000",
-          "endTimeUnixNano": "1792576801240000000",
+          "startTimeUnixNano": "1792576803225000000",
+          "endTimeUnixNano": "1792576803240000000",
           "attributes": {
             "a2ui.event.kind": "tool_call",
             "gen_ai.operation.name": "execute_tool",
@@ -408,8 +553,8 @@
           "parentSpanId": "cd5c049a0edd31a1",
           "name": "call_llm",
           "kind": 1,
-          "startTimeUnixNano": "1792576801250000000",
-          "endTimeUnixNano": "1792576804950000000",
+          "startTimeUnixNano": "1792576803250000000",
+          "endTimeUnixNano": "1792576806950000000",
           "attributes": {
             "a2ui.event.kind": "model_call",
             "gen_ai.operation.name": "generate_content",
@@ -450,8 +595,8 @@
           "parentSpanId": "952ef8bd079a1373",
           "name": "generate_content gemini-3.6-flash",
           "kind": 3,
-          "startTimeUnixNano": "1792576801255000000",
-          "endTimeUnixNano": "1792576804940000000",
+          "startTimeUnixNano": "1792576803255000000",
+          "endTimeUnixNano": "1792576806940000000",
           "attributes": {
             "a2ui.event.kind": "model_call",
             "gen_ai.operation.name": "generate_content",
@@ -682,8 +827,8 @@
           "parentSpanId": "cd5c049a0edd31a1",
           "name": "parse",
           "kind": 1,
-          "startTimeUnixNano": "1792576804960000000",
-          "endTimeUnixNano": "1792576804975000000",
+          "startTimeUnixNano": "1792576806960000000",
+          "endTimeUnixNano": "1792576806975000000",
           "attributes": {
             "a2ui.event.kind": "parse",
             "a2ui.parse.input": "Here are the top 2 Chinese restaurants in New York 🍜\n<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"default\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"theme\":{\"primaryColor\":\"#FF0000\",\"font\":\"Roboto\"},\"sendDataModel\":true}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"default\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"title-heading\",\"item-list\"]},{\"id\":\"title-heading\",\"component\":\"Text\",\"variant\":\"h1\",\"text\":{\"path\":\"/title\"}},{\"id\":\"item-list\",\"component\":\"List\",\"direction\":\"vertical\",\"children\":{\"componentId\":\"item-card-template\",\"path\":\"/items\"}},{\"id\":\"item-card-template\",\"component\":\"Card\",\"child\":\"card-layout\"},{\"id\":\"card-layout\",\"component\":\"Row\",\"children\":[\"card-image\",\"card-details\"]},{\"id\":\"card-image\",\"component\":\"Image\",\"variant\":\"mediumFeature\",\"weight\":1,\"url\":{\"path\":\"imageUrl\"}},{\"id\":\"card-details\",\"component\":\"Column\",\"weight\":2,\"children\":[\"template-name\",\"template-rating\",\"template-detail\",\"template-link\",\"template-book-button\"]},{\"id\":\"template-name\",\"component\":\"Text\",\"variant\":\"h3\",\"text\":{\"path\":\"name\"}},{\"id\":\"template-rating\",\"component\":\"Text\",\"text\":{\"path\":\"rating\"}},{\"id\":\"template-detail\",\"component\":\"Text\",\"text\":{\"path\":\"detail\"}},{\"id\":\"template-link\",\"component\":\"Text\",\"text\":{\"path\":\"infoLink\"}},{\"id\":\"template-book-button\",\"component\":\"Button\",\"child\":\"book-now-text\",\"variant\":\"primary\",\"action\":{\"event\":{\"name\":\"book_restaurant\",\"context\":{\"restaurantName\":{\"path\":\"name\"},\"imageUrl\":{\"path\":\"imageUrl\"},\"address\":{\"path\":\"address\"}}}}},{\"id\":\"book-now-text\",\"component\":\"Text\",\"text\":\"Book Now\"}]}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"default\",\"path\":\"/title\",\"value\":\"Top 2 Chinese Restaurants in New York\"}},{\"version\":\"v0.9\",\"updateDataModel\":{\"surfaceId\":\"default\",\"path\":\"/items\",\"value\":[{\"name\":\"Xi'an Famous Foods\",\"detail\":\"Spicy and savory hand-pulled noodles.\",\"imageUrl\":\"http://localhost:10002/static/shrimpchowmein.jpeg\",\"rating\":\"★★★★☆\",\"infoLink\":\"[More Info](https://www.xianfoods.com/)\",\"address\":\"81 St Marks Pl, New York, NY 10003\"},{\"name\":\"Han Dynasty\",\"detail\":\"Authentic Szechuan cuisine.\",\"imageUrl\":\"http://localhost:10002/static/mapotofu.jpeg\",\"rating\":\"★★★★☆\",\"infoLink\":\"[More Info](https://www.handynasty.net/)\",\"address\":\"90 3rd Ave, New York, NY 10003\"}]}}]\n</a2ui-json>",
@@ -1203,7 +1348,7 @@
           "parentSpanId": "952ef8bd079a1373",
           "name": "wire_output",
           "kind": 1,
-          "startTimeUnixNano": "1792576805000000000",
+          "startTimeUnixNano": "1792576807000000000",
           "attributes": {
             "a2ui.event.kind": "wire_output",
             "a2ui.wire.message": {
@@ -1409,7 +1554,7 @@
           "parentSpanId": "952ef8bd079a1373",
           "name": "check",
           "kind": 1,
-          "startTimeUnixNano": "1792576805010000000",
+          "startTimeUnixNano": "1792576807010000000",
           "attributes": {
             "a2ui.event.kind": "check",
             "a2ui.check.name": "schema",
@@ -1424,7 +1569,7 @@
           "parentSpanId": "952ef8bd079a1373",
           "name": "check",
           "kind": 1,
-          "startTimeUnixNano": "1792576805012000000",
+          "startTimeUnixNano": "1792576807012000000",
           "attributes": {
             "a2ui.event.kind": "check",
             "a2ui.check.name": "structural",
