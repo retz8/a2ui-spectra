@@ -2,15 +2,63 @@
   "name": "a2ui-spectra-conformance",
   "private": true,
   "license": "Apache-2.0",
+  "type": "module",
   "scripts": {
-    "build": "echo 'Workspace has no build step.'",
-    "lint": "echo \"Workspace has no lint configuration.\"",
-    "lint:fix": "echo \"Workspace has no lint configuration.\"",
-    "test": "node -e 'const fs=require(\"fs\"); const path=require(\"path\"); function find(d){for(const f of fs.readdirSync(d)){const p=path.join(d,f);if(f===\"node_modules\"||f===\"dist\")continue;if(fs.statSync(p).isDirectory()){if(find(p))return true;}else if(f.includes(\".test.\")||f.includes(\".spec.\"))return true;}return false;} if(find(\".\")){require(\"child_process\").execSync(\"vitest run\",{stdio:\"inherit\"});}else{console.log(\"Workspace has no tests.\");}'",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "build": "wireit",
+    "build:tsc": "wireit",
+    "test": "wireit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "clean": "wireit",
+    "format": "prettier --ignore-path ../.prettierignore --write .",
+    "format:check": "prettier --ignore-path ../.prettierignore --check ."
+  },
+  "wireit": {
+    "build": {
+      "dependencies": [
+        "build:tsc"
+      ]
+    },
+    "build:tsc": {
+      "command": "tsc -b --pretty",
+      "env": {
+        "FORCE_COLOR": "1"
+      },
+      "files": [
+        "tests/**/*.ts",
+        "tsconfig.json"
+      ],
+      "output": [
+        "dist/"
+      ],
+      "clean": "if-file-deleted"
+    },
+    "test": {
+      "command": "node --test --enable-source-maps --test-reporter spec \"dist/tests/**/*.test.js\"",
+      "dependencies": [
+        "build"
+      ],
+      "files": [
+        "conformance_schema.json",
+        "turn_record/**",
+        "test_data/turn_record/**",
+        "../specification/turn_record/**/json/*.json"
+      ],
+      "output": []
+    },
+    "clean": {
+      "command": "rm -rf dist .wireit"
+    }
   },
   "devDependencies": {
-    "prettier": "^3.8.4"
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.9.3",
+    "ajv": "^8.17.1",
+    "eslint": "^10.4.1",
+    "gts": "^7.0.0",
+    "js-yaml": "^4.3.0",
+    "prettier": "^3.8.4",
+    "typescript": "5.9.3",
+    "wireit": "^0.15.0-pre.2"
   }
 }
