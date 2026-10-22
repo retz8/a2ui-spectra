@@ -38,7 +38,7 @@ Each is a small, complete file: a minimal record of one turn, holding the turn e
 
 ### 7. Must-pass fixtures
 
-One minimal fixture per kind, nine in all: a one-turn record holding the turn event and one event of the kind, with only the required fields. The turn kind's fixture holds just the turn event. Two full records, one from each of the coverage line's Python samples: each has two turns, an earlier one and the recorded one, with every kind present and every optional part an upstream sample produces, including links, streamed chunks, a received span with its original attributes, a retry after a failed parse, a model request that fails with a 503 and is retried, as the restaurant finder's Gemini client is configured to do, failing checks with findings, and MCP calls through the tool proxy. The chunk `id` and `a2ui.prompt.catalog_version` are left out: no upstream sample produces them. The must-fail fixtures are the minimal fixtures, each broken in one place.
+One minimal fixture per kind, nine in all: a one-turn record holding the turn event and one event of the kind, with only the required fields. The turn kind's fixture holds just the turn event. Two full records, one from each of the coverage line's Python samples: each has two turns, an earlier one and the recorded one, with every kind present and every optional part an upstream sample produces, including links, streamed chunks, a received span with its original attributes, a retry after a failed parse, a model request that fails with a 503 and is retried, as the restaurant finder's Gemini client is configured to do, failing checks with findings, and MCP calls through the tool proxy. The chunk `id` and `a2ui.prompt.catalog_version` are left out of the full records: no upstream sample produces them. Two hand-written must-pass fixtures cover the optional attributes of the closed attribute sets the full records leave out: a prompt generation that failed, with its error type, for a catalog that carries its own version; and a model call whose streamed chunks carry `event` and `id`. The must-fail fixtures are the minimal fixtures, each broken in one place.
 
 ### 8. Must-fail coverage
 
@@ -65,7 +65,7 @@ The minimal fixtures carry the smallest message their part needs, written by han
 
 ### 11. Fixture names
 
-Descriptive, all in the one `v0_1/` directory: `minimal_<kind>.json` for the minimal fixtures, `full_record_restaurant_finder.json` and `full_record_custom_components.json` for the full records, and each must-fail fixture named for what it breaks.
+Descriptive, all in the one `v0_1/` directory: `minimal_<kind>.json` for the minimal fixtures, `full_record_restaurant_finder.json` and `full_record_custom_components.json` for the full records, and each other fixture named for what it holds or breaks.
 
 ### 12. MCP over HTTP+SSE in the full records
 
