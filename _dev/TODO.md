@@ -21,7 +21,7 @@ Catalog and structural checks; the preview protocol and its core; the built-in b
 The model proxy (Gemini read in full, other providers recorded raw) and the tool proxy (MCP over both HTTP transports), reached by redirection, with credentials stripped; the OTLP/HTTP receiver translating each producer's dialect; the exact model request, tokens and the timeline.
 
 ## Phase 5 — The A2UI step
-The Python and TypeScript wrappers as OpenTelemetry instrumentation; retries and parse errors; raw text linked to the components it became.
+The Python and TypeScript wrappers as OpenTelemetry instrumentation; retries and parse errors; raw text linked to the components it became. Upstream changes after the Phase 1 pin, unreleased on 2026-10-22: the agent SDKs default to Express instead of Direct JSON (#3365); TypeScript's `Parser` is stateless, with a `ResponseStream` (#3279). `a2ui-adk`'s `SendA2uiToClientToolset` takes A2UI as the argument of a `send_a2ui_to_client` tool call, parsed by `parse_and_fix` and checked by `validate_payload` from the agent SDK.
 
 ## Phase 6 — Fixtures and replay
 Save as fixture; replay with everything recorded and with tools recorded and the model live, each labelled with its cost; `a2ui-spectra replay`; `a2ui-spectra test` for CI.
