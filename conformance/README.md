@@ -15,7 +15,7 @@ Test suites are organized by area.
   - Also must pass: `prompt_generation_failed.json` and `chunk_with_id.json`, hand-written minimal fixtures holding the optional attributes of closed attribute sets that neither full record holds: a failed prompt generation's `error.type` with `a2ui.prompt.catalog_version`, and a chunk's `event` and `id`.
   - Must fail: a minimal fixture broken in one place, named for what it breaks. At least one case breaks each unit of the schema: the top level, each shared definition, each kind's rules, the turn's one turn event, and the rule on GenAI content.
 
-All fixtures are located in `test_data/`, under `test_data/<area>/<version>/`, and are exempt from Prettier.
+All fixtures are located in `test_data/`, under `test_data/<area>/<version>/`, and are exempt from Prettier. The turn record v0.1 fixtures and their case list are written by [`_dev/tools/make_fixtures.py`](../_dev/tools/make_fixtures.py), which reads upstream's samples at 059b8d34 and computes the full records' component ranges, timings and repeated content.
 
 `conformance_schema.json` at the root is the JSON schema that validates the structure of the YAML case files. The harness validates each case file against it before running any case.
 
