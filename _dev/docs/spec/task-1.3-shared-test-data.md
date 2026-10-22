@@ -38,7 +38,7 @@ Each is a small, complete file: a minimal record of one turn, holding the turn e
 
 ### 7. Must-pass fixtures
 
-One minimal fixture per kind, nine in all: a one-turn record holding the turn event and one event of the kind, with only the required fields. The turn kind's fixture holds just the turn event. Two full records, one from each of the coverage line's Python samples: each has two turns, an earlier one and the recorded one, with every kind present and every optional part an upstream sample produces, including links, streamed chunks, a received span with its original attributes, a retry, failing checks with findings, and MCP calls through the tool proxy. The chunk `id` and `a2ui.prompt.catalog_version` are left out: no upstream sample produces them. The must-fail fixtures are the minimal fixtures, each broken in one place.
+One minimal fixture per kind, nine in all: a one-turn record holding the turn event and one event of the kind, with only the required fields. The turn kind's fixture holds just the turn event. Two full records, one from each of the coverage line's Python samples: each has two turns, an earlier one and the recorded one, with every kind present and every optional part an upstream sample produces, including links, streamed chunks, a received span with its original attributes, a retry after a failed parse, a model request that fails with a 503 and is retried, as the restaurant finder's Gemini client is configured to do, failing checks with findings, and MCP calls through the tool proxy. The chunk `id` and `a2ui.prompt.catalog_version` are left out: no upstream sample produces them. The must-fail fixtures are the minimal fixtures, each broken in one place.
 
 ### 8. Must-fail coverage
 
