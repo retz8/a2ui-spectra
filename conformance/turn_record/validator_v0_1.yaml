@@ -46,10 +46,15 @@
   action: validate_turn_record
   fixture: "test_data/turn_record/v0_1/minimal_framework_span.json"
 
-- name: full_record
-  description: "Two turns of upstream's restaurant finder, a list and then a booking form, with every kind present and every optional part filled in."
+- name: full_record_restaurant_finder
+  description: "Two turns of upstream's restaurant finder, a list and then a booking form whose model call is retried after a failed parse, with every kind present."
   action: validate_turn_record
-  fixture: "test_data/turn_record/v0_1/full_record.json"
+  fixture: "test_data/turn_record/v0_1/full_record_restaurant_finder.json"
+
+- name: full_record_custom_components
+  description: "Two turns of upstream's custom-components-example, a contact card with an org chart and then the floor plan its view_location action reads over MCP, with every kind present."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/full_record_custom_components.json"
 
 - name: version_not_v0_1
   description: "The record declares a version other than v0.1."
