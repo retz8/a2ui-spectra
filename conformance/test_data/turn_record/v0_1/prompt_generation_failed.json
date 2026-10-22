@@ -1,0 +1,50 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "8ffce95ad85ffb2b6b40c6b475f7b1ef",
+          "spanId": "067705598ded8695",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792576800000000000",
+          "endTimeUnixNano": "1792576801500000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "otel_receiver",
+              "wrapper"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "cac0f9798ad54139b6aa00d1eec460c6",
+          "spanId": "73897bc27e6173cf",
+          "name": "prompt_generation",
+          "kind": 1,
+          "startTimeUnixNano": "1792576800050000000",
+          "attributes": {
+            "a2ui.event.kind": "prompt_generation",
+            "a2ui.prompt.ui_section": "",
+            "a2ui.prompt.inference_format": "direct_json",
+            "a2ui.prompt.catalog_id": "example.com:contacts",
+            "a2ui.prompt.catalog_version": "2.1.0",
+            "error.type": "a2ui.core.exceptions.A2uiCatalogError"
+          },
+          "status": {
+            "code": 2,
+            "message": "Catalog example.com:contacts declares no components."
+          }
+        }
+      ]
+    }
+  ]
+}
