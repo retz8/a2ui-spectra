@@ -324,7 +324,7 @@ As read from `upstream/main` at 45633b9 (2026-10-16), unless noted.
 
 - **Protocol versions** (`specification/`): v0.9.1 is the current production release. v1.0, previously known as 0.10, is a release candidate, with its own A2A extension spec. v0.9 is closed. v0.8 is legacy.
 - **Agent SDKs:**
-  - **Python:** `a2ui-agent-sdk`, 0.9.0 on PyPI. Its code covers v0.8 to v1.0. Elemental and Atom are experimental (`python/a2ui_agent/src/a2ui/inference_formats/experimental/`).
+  - **Python:** four packages on PyPI (2026-10-22): `a2ui-core` 0.4.0, the core library; `a2ui-agent-sdk` 0.9.0, the agent SDK; `a2ui-a2a` 0.1.0, the A2A extension; `a2ui-adk` 0.1.0, the ADK extension. The A2A and ADK extensions moved out of the agent SDK, with their import paths (`a2ui.a2a`, `a2ui.adk`) unchanged. The agent SDK's code covers v0.8 to v1.0. Elemental and Atom are experimental (`python/a2ui_agent/src/a2ui/inference_formats/experimental/`).
   - **TypeScript:** `@a2ui/agent` 0.0.1, not published to npm. It covers v0.9, v0.9.1 and v1.0, and implements Direct JSON and Express; Elemental and Atom are not implemented, and Express does not stream (`typescript/agents/a2ui_agent/KNOWN_GAPS.md`).
   - **Dart** (`dart/a2ui_agent`), and a legacy JVM SDK (`kotlin/agent_sdk_legacy`).
   - **Inference formats** (Direct JSON, Express, Elemental, Atom) are syntaxes the model writes a UI in before the SDK compiles it into A2UI messages.
