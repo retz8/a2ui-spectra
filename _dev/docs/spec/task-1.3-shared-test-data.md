@@ -38,7 +38,7 @@ Each is a small, complete file: a minimal record of one turn, holding the turn e
 
 ### 7. Must-pass fixtures
 
-One minimal fixture per kind, nine in all: a one-turn record holding the turn event and one event of the kind, with only the required fields. The turn kind's fixture holds just the turn event. One full record: two turns, an earlier one and the recorded one, with every kind present and every optional part filled in, including links, streamed chunks, a received span with its original attributes, a retry, and failing checks with findings. The must-fail fixtures are the minimal fixtures, each broken in one place.
+One minimal fixture per kind, nine in all: a one-turn record holding the turn event and one event of the kind, with only the required fields. The turn kind's fixture holds just the turn event. Two full records, one from each of the coverage line's Python samples: each has two turns, an earlier one and the recorded one, with every kind present and every optional part an upstream sample produces, including links, streamed chunks, a received span with its original attributes, a retry, failing checks with findings, and MCP calls through the tool proxy. The chunk `id` and `a2ui.prompt.catalog_version` are left out: no upstream sample produces them. The must-fail fixtures are the minimal fixtures, each broken in one place.
 
 ### 8. Must-fail coverage
 
@@ -56,24 +56,33 @@ The harness fails when a kind the schema defines appears in no must-pass fixture
 
 ### 10. Fixture content
 
-The full record's A2UI messages come from upstream's restaurant finder examples for v0.9 (`samples/agent/adk/restaurant_finder/examples/0.9/`) at 059b8d34, recorded as v0.9. Its failing checks point at real paths in those messages. The minimal fixtures carry the smallest message their part needs, written by hand.
+The full records' A2UI messages come from upstream at 059b8d34, recorded as v0.9:
+
+- The restaurant finder's from its examples for v0.9 (`samples/agent/adk/restaurant_finder/examples/0.9/`). Its failing checks point at real paths in those messages.
+- `custom-components-example`'s from its contact card example for v0.9 (`samples/agent/adk/custom-components-example/examples/0.9/contact_card.json`), then the floor plan its `view_location` action sends, as `a2ui_examples.py` builds it from the HTML its MCP server returns.
+
+The minimal fixtures carry the smallest message their part needs, written by hand.
 
 ### 11. Fixture names
 
-Descriptive, all in the one `v0_1/` directory: `minimal_<kind>.json` for the minimal fixtures, `full_record.json` for the full record, and each must-fail fixture named for what it breaks.
+Descriptive, all in the one `v0_1/` directory: `minimal_<kind>.json` for the minimal fixtures, `full_record_restaurant_finder.json` and `full_record_custom_components.json` for the full records, and each must-fail fixture named for what it breaks.
 
-### 12. Prettier
+### 12. MCP over HTTP+SSE in the full records
+
+Each JSON-RPC request is one `tool_call` event. Its exchange is the request's POST, and its reply from the `GET /sse` stream is a chunk span event on it with `event: message`. The stream's `endpoint` event is a chunk on the `initialize` call.
+
+### 13. Prettier
 
 The fixtures are exempt from Prettier, as upstream's `conformance/test_data/**` is. The case file, the case schema and the harness are formatted.
 
-### 13. The harness
+### 14. The harness
 
 TypeScript, compiled by `tsc` and run by Node's built-in test runner, reading YAML with `js-yaml`, as upstream web core's expression parser conformance test does. The test workspace's build becomes the TypeScript compile, and its lint becomes ESLint with the root ESLint preset.
 
-### 14. The validator
+### 15. The validator
 
 Ajv 8, its draft 2020-12 build, in strict mode, with the draft-07 meta-schema loaded for the copied GenAI schema that declares it. `format` is an annotation and is not checked.
 
-### 15. The README
+### 16. The README
 
 `conformance/README.md`, in upstream's shape: the `turn_record/` area and its suite, the `validate_turn_record` case vocabulary, where fixtures live and how cases name them, the two checks on the test data as a whole, and the build, lint and test commands.
