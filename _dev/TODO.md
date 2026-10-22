@@ -18,7 +18,7 @@ Spec: `_dev/docs/spec/phase-1-foundation.md`.
 Catalog and structural checks; the preview protocol and its core; the built-in basic catalog preview; the React, Lit and Angular preview adapters; the preview you can press; preview widths.
 
 ## Phase 4 — Inside the turn
-The model proxy (Gemini read in full, other providers recorded raw) and the tool proxy (MCP over both HTTP transports), reached by redirection, with credentials stripped; the OTLP/HTTP receiver translating each producer's dialect; the exact model request, tokens and the timeline.
+The model proxy (Gemini read in full, other providers recorded raw) and the tool proxy (MCP over both HTTP transports), reached by redirection, with credentials stripped; the OTLP/HTTP receiver translating each producer's dialect; the exact model request, tokens and the timeline. `full_record_custom_components.json` in the shared test data records MCP over HTTP+SSE as one `tool_call` event per JSON-RPC request, its exchange the POST and its reply from the `GET /sse` stream an `event: message` chunk on it, with the stream's `endpoint` event a chunk on `initialize`.
 
 ## Phase 5 — The A2UI step
 The Python and TypeScript wrappers as OpenTelemetry instrumentation; retries and parse errors; raw text linked to the components it became. Upstream changes after the Phase 1 pin, unreleased on 2026-10-22: the agent SDKs default to Express instead of Direct JSON (#3365); TypeScript's `Parser` is stateless, with a `ResponseStream` (#3279). `a2ui-adk`'s `SendA2uiToClientToolset` takes A2UI as the argument of a `send_a2ui_to_client` tool call, parsed by `parse_and_fix` and checked by `validate_payload` from the agent SDK.
