@@ -24,9 +24,15 @@ jobs:
         uses: google/wireit@9d7c2e5346f8ef1b1ab6014c4e96c74e234f7ed5 # setup-github-actions-caching/v2.0.4
       - name: Build
         run: yarn build:all
+      - name: Build the binary
+        run: yarn workspace a2ui-spectra build:binary
       - name: Lint
         run: yarn lint:all
       - name: Format check
         run: yarn format:check:all
       - name: Test
         run: yarn test:all
+      - name: Test against the binary
+        run: yarn workspace a2ui-spectra test
+        env:
+          SPECTRA_BINARY: dist/a2ui-spectra
