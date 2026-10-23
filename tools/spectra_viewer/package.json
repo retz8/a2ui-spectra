@@ -1,0 +1,50 @@
+{
+  "name": "a2ui-spectra-viewer",
+  "private": true,
+  "version": "0.0.1",
+  "description": "The viewer of Spectra for A2UI, served by the a2ui-spectra tool.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "build": "wireit",
+    "test": "node -e 'const fs=require(\"fs\"); const path=require(\"path\"); function find(d){for(const f of fs.readdirSync(d)){const p=path.join(d,f);if(f===\"node_modules\"||f===\"dist\")continue;if(fs.statSync(p).isDirectory()){if(find(p))return true;}else if(f.includes(\".test.\")||f.includes(\".spec.\"))return true;}return false;} if(find(\".\")){require(\"child_process\").execSync(\"vitest run\",{stdio:\"inherit\"});}else{console.log(\"Workspace has no tests.\");}'",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "clean": "wireit",
+    "format": "prettier --ignore-path ../../.prettierignore --write .",
+    "format:check": "prettier --ignore-path ../../.prettierignore --check ."
+  },
+  "wireit": {
+    "build": {
+      "command": "tsc -b && vite build",
+      "files": [
+        "src/**/*",
+        "index.html",
+        "tsconfig.json",
+        "vite.config.*"
+      ],
+      "output": [
+        "dist/"
+      ]
+    },
+    "clean": {
+      "command": "rm -rf dist .wireit"
+    }
+  },
+  "dependencies": {
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "eslint": "^10.4.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "gts": "^7.0.0",
+    "prettier": "^3.8.4",
+    "typescript": "5.9.3",
+    "vite": "^8.0.16",
+    "wireit": "^0.15.0-pre.2"
+  }
+}

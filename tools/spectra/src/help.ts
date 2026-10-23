@@ -1,0 +1,72 @@
+import {type CommandName, DEFAULT_PROXY_PORT, DEFAULT_VIEWER_PORT} from './args.js';
+import {NAME, VERSION} from './version.js';
+
+const sharedOptions = `  --port <n>           The viewer's port. Default: ${DEFAULT_VIEWER_PORT}.
+  --proxy-port <n>     The wire proxy's port. Default: ${DEFAULT_PROXY_PORT}.
+  --no-open            Do not open the browser.
+  --allow-host <name>  Also answer requests addressed to <name>, a host name
+                       without a port, such as a tunnel's. Can be repeated.
+  --help               Show this help.`;
+
+const toolHelp = `${NAME} ${VERSION}: DevTools for A2UI agents.
+
+Usage:
+  ${NAME} attach <agent-url> [options]
+  ${NAME} run --agent-url <url> [options] -- <command> [args...]
+  ${NAME} <command> --help
+  ${NAME} --help
+  ${NAME} --version
+
+Commands:
+  attach  Attach to an agent that is already running.
+  run     Start the agent's command, then attach to it.
+
+The agent's URL is its base address: its card is read from
+<agent-url>/.well-known/agent-card.json.
+
+Options:
+${sharedOptions}
+`;
+
+const attachHelp = `Usage: ${NAME} attach <agent-url> [options]
+
+Attach to an agent that is already running at <agent-url>, its base address.
+Spectra waits until the agent's card answers at
+<agent-url>/.well-known/agent-card.json, then starts the viewer.
+
+Options:
+${sharedOptions}
+`;
+
+const runHelp = `Usage: ${NAME} run --agent-url <url> [options] -- <command> [args...]
+
+Start the agent's command, wait until the agent's card answers at
+<url>/.well-known/agent-card.json, then attach to it as attach does.
+
+The command after '--' starts without a shell, with Spectra's environment and
+working directory, and writes to Spectra's terminal. Environment variables go
+before ${NAME}:
+
+  ${NAME} run --agent-url http://localhost:10002 -- uv run .
+  LITELLM_MODEL=gemini/gemini-2.5-flash \\
+    ${NAME} run --agent-url http://localhost:10004 -- uv run .
+
+When the command exits, Spectra exits with its exit code. When Spectra stops,
+it stops the command and everything it started; a second Ctrl-C forces it.
+
+Options:
+  --agent-url <url>    The agent's base address. Required.
+${sharedOptions}
+`;
+
+/** The help text for the tool, or for one command. */
+export function helpText(topic?: CommandName): string {
+  switch (topic) {
+    case 'attach':
+      return attachHelp;
+    case 'run':
+      return runHelp;
+    default:
+      return toolHelp;
+  }
+}

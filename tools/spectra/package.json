@@ -1,0 +1,96 @@
+{
+  "name": "a2ui-spectra",
+  "private": true,
+  "version": "0.0.1",
+  "description": "DevTools for A2UI agents: attach to a running agent and see every turn.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": "./dist/cli.js",
+  "scripts": {
+    "build": "wireit",
+    "build:tsc": "wireit",
+    "build:viewer": "wireit",
+    "build:binary": "wireit",
+    "test": "wireit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "clean": "wireit",
+    "format": "prettier --ignore-path ../../.prettierignore --write .",
+    "format:check": "prettier --ignore-path ../../.prettierignore --check ."
+  },
+  "wireit": {
+    "build": {
+      "dependencies": [
+        "build:tsc",
+        "build:viewer"
+      ]
+    },
+    "build:tsc": {
+      "command": "tsc -b --pretty",
+      "env": {
+        "FORCE_COLOR": "1"
+      },
+      "files": [
+        "src/**/*.ts",
+        "tsconfig.json"
+      ],
+      "output": [
+        "dist/**",
+        "!dist/viewer/**",
+        "!dist/a2ui-spectra"
+      ],
+      "clean": "if-file-deleted"
+    },
+    "build:viewer": {
+      "command": "node -e \"const fs=require('fs');fs.rmSync('dist/viewer',{recursive:true,force:true});fs.cpSync('../spectra_viewer/dist','dist/viewer',{recursive:true})\"",
+      "dependencies": [
+        "../spectra_viewer:build"
+      ],
+      "files": [],
+      "output": [
+        "dist/viewer/**"
+      ]
+    },
+    "build:binary": {
+      "command": "bun build --compile --minify --sourcemap --no-compile-autoload-dotenv --no-compile-autoload-bunfig src/cli.ts --asset dist/viewer --outfile dist/a2ui-spectra",
+      "dependencies": [
+        "build:viewer"
+      ],
+      "files": [
+        "src/**/*.ts",
+        "tsconfig.json",
+        "package.json"
+      ],
+      "output": [
+        "dist/a2ui-spectra"
+      ]
+    },
+    "test": {
+      "command": "node --test --enable-source-maps --test-reporter spec \"dist/**/*.test.js\"",
+      "dependencies": [
+        "build"
+      ],
+      "env": {
+        "SPECTRA_BINARY": {
+          "external": true
+        }
+      },
+      "files": [
+        "../../conformance/test_data/turn_record/v0_1/minimal_*.json"
+      ],
+      "output": []
+    },
+    "clean": {
+      "command": "rm -rf dist .wireit"
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "bun": "1.4.4",
+    "eslint": "^10.4.1",
+    "gts": "^7.0.0",
+    "prettier": "^3.8.4",
+    "typescript": "5.9.3",
+    "wireit": "^0.15.0-pre.2"
+  }
+}

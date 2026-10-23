@@ -3,7 +3,8 @@
   "private": true,
   "packageManager": "yarn@4.13.0",
   "workspaces": [
-    "conformance"
+    "conformance",
+    "tools/*"
   ],
   "scripts": {
     "build:all": "yarn workspaces foreach -A -p --topological-dev run build",
@@ -20,5 +21,10 @@
     "syncpack": "^13.0.0",
     "typescript": "5.9.3",
     "wireit": "^0.15.0-pre.2"
+  },
+  "dependenciesMeta": {
+    "bun": {
+      "built": true
+    }
   }
 }
