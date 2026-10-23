@@ -15,7 +15,7 @@ Spec: `_dev/docs/spec/phase-1-foundation.md`.
 `a2ui-spectra run` and `a2ui-spectra attach`; the A2A adapter, with the wire proxy and the message box as host; captured turns in the local store; the viewer's turn list, raw messages, tree and data model; schema checks for v0.9, v0.9.1 and v1.0. Built and run as the compiled binary from this phase on.
 Spec: `_dev/docs/spec/phase-2-first-turn-on-screen.md`. The done line — the three core samples under both entry points, and upstream's Angular sample client through the wire proxy — is the phase's acceptance run at wrap-up.
 
-- [ ] **2.1** The workspaces and the binary — the tool and viewer workspaces, the CLI with `run` and `attach` and their options, the server skeleton, the Bun build, CI building and running the binary. (first)
+- [ ] **2.1** [WIP] The workspaces and the binary — the tool and viewer workspaces, the CLI with `run` and `attach` and their options, the server skeleton, the Bun build, CI building and running the binary. (first)
 - [ ] **2.2** The A2A adapter — the wire proxy, the turn and wire events written as turn record v0.1, the dialect acceptance and `_dev/a2ui-findings.md`, the conformance action with traffic recorded from the three samples, SPEC.md's corrections (the protocol-version row, the upstream reference line at the pin). (after 2.1; parallel with 2.3)
 - [ ] **2.3** The store and the schema check — the local store, the copied protocol schemas and the schema check, built and tested against Phase 1's fixture records. (after 2.1; parallel with 2.2)
 - [ ] **2.4** The server and the message box as host — the API and the live stream, the A2A client and its offer, the stub agent and the end-to-end test under Node and against the binary. (after 2.2 and 2.3)
