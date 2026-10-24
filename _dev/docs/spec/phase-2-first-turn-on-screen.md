@@ -68,7 +68,7 @@ The turn's version is the `version` field of the A2UI messages it carries, and t
 
 ### 10. The message box's offer
 
-The message box offers everything Spectra supports and lets the agent choose: the v0.9, v0.9.1 and v1.0 extension URIs in the extensions header, and capabilities in the message metadata under both the v0.9 and the v1.0 keys, naming each version's basic catalog. It follows the card fetched at start: a 0.3 card gets `message/stream` and `X-A2A-Extensions`; a 1.0 card gets `SendStreamingMessage`, `A2A-Extensions` and `A2A-Version: 1.0` at its first JSON-RPC interface; an agent whose card does not declare streaming gets its version's send method. It keeps the `contextId` per conversation with a control that starts a new one, sends the `taskId` back when the previous turn ended waiting for input, and sends no data model. A reply's text parts show in the box; its A2UI parts show as a count linking to the turn.
+The message box offers everything Spectra supports and lets the agent choose: the v0.9, v0.9.1 and v1.0 extension URIs in the extensions header, and capabilities in the message metadata under both the v0.9 and the v1.0 keys, naming each version's basic catalog. It follows the card fetched at start, speaking the version of the card's first JSON-RPC interface at A2A 0.3 or 1.0: A2A 0.3 gets `message/stream` and `X-A2A-Extensions`; A2A 1.0 gets `SendStreamingMessage`, `A2A-Extensions` and `A2A-Version: 1.0`; an agent whose card does not declare streaming gets its version's send method. A card with JSON-RPC at neither version is warned about at start, and the box does not send. It keeps the `contextId` per conversation with a control that starts a new one, sends the `taskId` back when the previous turn ended waiting for input, and sends no data model. A reply's text parts show in the box; its A2UI parts show as a count linking to the turn.
 
 ### 11. The local store
 
@@ -76,7 +76,7 @@ The message box offers everything Spectra supports and lets the agent choose: th
 
 ### 12. The server
 
-One local HTTP server on its own port, next to the proxy's. It serves the viewer's built files; a JSON API lists turns and returns a record; two POST routes send a message and start a new conversation, performed by the server as the A2A client through the proxy; and one server-sent event stream pushes turn opened, each wire event as it arrives, and turn closed. Spectra opens the browser on launch and prints the URL. The viewer's port and the proxy's port each have a default and an option to change it.
+One local HTTP server on its own port, next to the proxy's. It serves the viewer's built files; a JSON API lists turns and returns a record; two POST routes send a message and start a new conversation, performed by the server as the A2A client through the proxy, the send answering with the turn's trace id once the turn opens; the server holds the box's one conversation and refuses a send while its last turn is open; and one server-sent event stream pushes turn opened, each wire event as it arrives, and turn closed. Spectra opens the browser on launch and prints the URL. The viewer's port and the proxy's port each have a default and an option to change it.
 
 ### 13. The tree and the data model
 
@@ -96,7 +96,7 @@ Bun compiles the tool for the host platform with the viewer's build embedded and
 
 ### 17. Tests
 
-Unit tests in the tool and the viewer under Node's test runner. A conformance action for the A2A capture path: recorded A2A traffic as the fixture, a HAR file of the requests and the responses or their stream events, captured once from every entry of sub-task 2.3's coverage roster, replayed through the wire proxy over HTTP, and the record the adapter must write from it. An end-to-end test that starts the tool against a small A2A agent in the test workspace, written on the A2A JavaScript SDK and serving A2A 0.3 and A2A 1.0, started in sub-task 2.3, that answers with canned A2UI, sends a message through the message box's API, and asserts a record lands in the store and validates. The done line is a manual run.
+Unit tests in the tool and the viewer under Node's test runner. A conformance action for the A2A capture path: recorded A2A traffic as the fixture, a HAR file of the requests and the responses or their stream events, captured once from every entry of sub-task 2.3's coverage roster, replayed through the wire proxy over HTTP, and the record the adapter must write from it. An end-to-end test that starts the tool against a small A2A agent in the test workspace, written on the A2A JavaScript SDK and serving A2A 0.3 and A2A 1.0, started in sub-task 2.3, that answers with canned A2UI, runs it on both A2A versions with a two-turn conversation sent through the message box's API on each, and asserts each turn's record lands in the store and validates. The done line is a manual run.
 
 ### 18. A2UI findings
 
