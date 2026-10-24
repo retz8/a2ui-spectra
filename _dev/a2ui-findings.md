@@ -206,7 +206,7 @@ Compare v0.9 line 115 with the example below it at lines 119-139.
 
 Change the defining sentences to `message.metadata[...]`.
 
-## 8. The v0.9 and v0.9.1 examples write a component in v0.8's shape
+## 8. The v0.9 and v0.9.1 examples write a component in no version's shape
 
 **Component:** the v0.9 and v0.9.1 extension specs' "Server-to-client
 messages" example.
@@ -217,8 +217,11 @@ messages" example.
 
 The example `updateComponents` message holds
 `{"Text": {"id": "root", "text": "Hello!"}}` (v0.9 and v0.9.1 lines 209-214),
-the component shape of v0.8. In v0.9 a component carries `id` and a `component`
-property naming its type: `ComponentCommon` requires `id`
+which matches neither v0.8 nor v0.9. In v0.8 `id` sits beside a `component`
+object keyed by the type name, `{"id": "root", "component": {"Text": {...}}}`
+(`specification/v0_8/json/server_to_client.json:45-62`). In v0.9 a component
+carries `id` and a `component` property naming its type: `ComponentCommon`
+requires `id`
 (`specification/v0_9/json/common_types.json:25-35`) and the basic catalog's
 `Text` sets `"component": {"const": "Text"}`
 (`specification/v0_9/catalogs/basic/catalog.json:20-21`). The v1.0 spec's
@@ -226,9 +229,10 @@ example uses the current shape, `"component": "Text"` (line 213).
 
 ### Reproduction
 
-Validate the example's `updateComponents` message against
-`specification/v0_9/json/server_to_client.json` with the basic catalog: the
-component has no `id` and no `component`.
+Validate each spec's example `updateComponents` message against that version's
+`server_to_client.json` (`specification/v0_9/json/` and
+`specification/v0_9_1/json/`) with its basic catalog: the component has no `id`
+and no `component`.
 
 ### Fix
 
