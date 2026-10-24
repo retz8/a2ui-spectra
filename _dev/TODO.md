@@ -16,10 +16,11 @@ Spec: `_dev/docs/spec/phase-1-foundation.md`.
 Spec: `_dev/docs/spec/phase-2-first-turn-on-screen.md`. The done line — the three core samples under both entry points, and upstream's Angular sample client through the wire proxy — is the phase's acceptance run at wrap-up.
 
 - [x] **2.1** The workspaces and the binary — the tool and viewer workspaces, the CLI with `run` and `attach` and their options, the server skeleton, the Bun build, CI building and running the binary. Spec: `_dev/docs/spec/task-2.1-workspaces-and-binary.md` (first)
-- [ ] **2.2** [WIP] The A2A adapter — the wire proxy, the turn and wire events written as turn record v0.1, the dialect acceptance and `_dev/a2ui-findings.md`, the conformance action with traffic recorded from the three samples, SPEC.md's corrections (the protocol-version row, the upstream reference line at the pin). (after 2.1; parallel with 2.3)
-- [ ] **2.3** The store and the schema check — the local store, the copied protocol schemas and the schema check, built and tested against Phase 1's fixture records. (after 2.1; parallel with 2.2)
-- [ ] **2.4** The server and the message box as host — the API and the live stream, the A2A client and its offer, the stub agent and the end-to-end test under Node and against the binary. (after 2.2 and 2.3)
-- [ ] **2.5** The viewer — the turn list, the turn view with the input, the raw messages, the tree, the data model and the check results, the message box's UI. (after 2.4's spec; parallel with 2.4's implementation)
+- [ ] **2.2** [WIP] The A2A adapter — the wire proxy for A2A 0.3 and 1.0 over JSON-RPC, the card rewrite and the transport check, the turn and wire events written as turn record v0.1, the dialect acceptance and `_dev/a2ui-findings.md`, unit tests and the command-line test against the proxy; SPEC.md's amendments (the protocol-version row, the upstream reference line at the pin, the coverage line as axes, the transport row), the Phase 2 spec's amendments, the turn record prose's `data` part. Spec: `_dev/docs/spec/task-2.2-a2a-adapter.md` (after 2.1)
+- [ ] **2.3** The coverage roster — the found agents, the agents built for the coverage gaps, traffic recorded once from every roster agent, and the conformance action for the A2A capture path. (after 2.2)
+- [ ] **2.4** The store and the schema check — the local store, the copied protocol schemas and the schema check, built and tested against Phase 1's fixture records. (after 2.3)
+- [ ] **2.5** The server and the message box as host — the API and the live stream, the A2A client and its offer, the stub agent and the end-to-end test under Node and against the binary. (after 2.4)
+- [ ] **2.6** The viewer — the turn list, the turn view with the input, the raw messages, the tree, the data model and the check results, the message box's UI. (after 2.5)
 
 ## Phase 3 — Checks and preview
 Catalog and structural checks; the preview protocol and its core; the built-in basic catalog preview; the React, Lit and Angular preview adapters; the preview you can press; preview widths.
