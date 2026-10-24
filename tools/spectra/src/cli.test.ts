@@ -12,7 +12,7 @@ import path from 'node:path';
 import {after, describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
 
-import {startCardServer} from './testing/card_server.js';
+import {SEND_REPLY, startFakeAgent, STREAM_REPLY} from './testing/fake_agent.js';
 import {VERSION} from './version.js';
 
 const binary = process.env.SPECTRA_BINARY;
@@ -20,7 +20,7 @@ const spectraCommand: [string, ...string[]] =
   binary === undefined || binary === ''
     ? [process.execPath, fileURLToPath(new URL('./cli.js', import.meta.url))]
     : [path.resolve(binary)];
-const cardServerScript = fileURLToPath(new URL('./testing/card_server.js', import.meta.url));
+const fakeAgentScript = fileURLToPath(new URL('./testing/fake_agent.js', import.meta.url));
 const posix = process.platform !== 'win32';
 const TIMEOUT = 30_000;
 
@@ -188,6 +188,23 @@ async function eventually(check: () => boolean, timeoutMs = 3000) {
 }
 
 const viewerUrl = /The viewer is at http:\/\/localhost:(\d+)\//;
+const proxyAddress = /Point a host at the wire proxy: http:\/\/127\.0\.0\.1:(\d+)\//;
+
+function jsonRpc(method: string): string {
+  return JSON.stringify({
+    jsonrpc: '2.0',
+    id: 1,
+    method,
+    params: {
+      message: {
+        kind: 'message',
+        messageId: 'm-1',
+        role: 'user',
+        parts: [{kind: 'text', text: 'Hi'}],
+      },
+    },
+  });
+}
 
 describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, () => {
   it('prints its version', {timeout: TIMEOUT}, async () => {
@@ -230,7 +247,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         `Waiting for the agent's card at http://localhost:${agentPort}/\\.well-known/agent-card\\.json`,
       ),
     );
-    const agent = await startCardServer(agentPort);
+    const agent = await startFakeAgent(agentPort);
     try {
       const [, shownPort] = await spectra.waitFor(viewerUrl);
       assert.equal(Number(shownPort), port);
@@ -278,9 +295,139 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
     }
   });
 
+  it(
+    'attach starts the wire proxy, which rewrites the card and relays the agent as it answers',
+    {timeout: TIMEOUT},
+    async () => {
+      const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+      const agent = await startFakeAgent(agentPort);
+      const spectra = new SpectraProcess([
+        'attach',
+        `http://localhost:${agentPort}`,
+        '--port',
+        String(port),
+        '--proxy-port',
+        String(proxyPort),
+        '--no-open',
+      ]);
+      try {
+        const [, shownPort] = await spectra.waitFor(proxyAddress);
+        assert.equal(Number(shownPort), proxyPort);
+        await spectra.waitFor(viewerUrl);
+
+        const card = await send(proxyPort, {path: '/.well-known/agent-card.json'});
+        assert.equal(card.status, 200);
+        assert.equal(
+          (JSON.parse(card.body) as {url: string}).url,
+          `http://127.0.0.1:${proxyPort}/`,
+        );
+
+        const sent = await send(proxyPort, {
+          method: 'POST',
+          headers: {'content-type': 'application/json'},
+          body: jsonRpc('message/send'),
+        });
+        assert.equal(sent.body, SEND_REPLY);
+
+        const streamed = await send(proxyPort, {
+          method: 'POST',
+          headers: {'content-type': 'application/json'},
+          body: jsonRpc('message/stream'),
+        });
+        assert.match(streamed.type ?? '', /^text\/event-stream/);
+        assert.equal(streamed.body, STREAM_REPLY);
+
+        const seen = await send(proxyPort, {
+          path: '/headers',
+          headers: {'x-a2a-extensions': 'https://a2ui.org/a2a-extension/a2ui/v0.9'},
+        });
+        const headers = JSON.parse(seen.body) as Record<string, string>;
+        assert.equal(headers.host, `localhost:${agentPort}`);
+        assert.equal(headers['x-a2a-extensions'], 'https://a2ui.org/a2a-extension/a2ui/v0.9');
+
+        spectra.signal('SIGTERM');
+        assert.equal((await spectra.exited).code, 128 + 15);
+      } finally {
+        await closeServer(agent);
+      }
+    },
+  );
+
+  it(
+    'attach warns when the card prefers another transport to JSON-RPC, and keeps running',
+    {timeout: TIMEOUT},
+    async () => {
+      const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+      const agent = await startFakeAgent(agentPort, {transports: ['GRPC', 'JSONRPC']});
+      const spectra = new SpectraProcess([
+        'attach',
+        `http://localhost:${agentPort}`,
+        '--port',
+        String(port),
+        '--proxy-port',
+        String(proxyPort),
+        '--no-open',
+      ]);
+      try {
+        await spectra.waitFor(/card prefers GRPC/);
+        await spectra.waitFor(viewerUrl);
+        spectra.signal('SIGTERM');
+        assert.equal((await spectra.exited).code, 128 + 15);
+      } finally {
+        await closeServer(agent);
+      }
+    },
+  );
+
+  it('attach stops when the card lists no JSON-RPC interface', {timeout: TIMEOUT}, async () => {
+    const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+    const agent = await startFakeAgent(agentPort, {transports: ['GRPC', 'HTTP+JSON']});
+    try {
+      const result = await finished([
+        'attach',
+        `http://localhost:${agentPort}`,
+        '--port',
+        String(port),
+        '--proxy-port',
+        String(proxyPort),
+        '--no-open',
+      ]);
+      assert.equal(result.code, 1, result.output);
+      assert.match(result.output, /lists no A2A JSON-RPC interface/);
+      assert.match(result.output, /GRPC, HTTP\+JSON/);
+      assert.doesNotMatch(result.output, viewerUrl);
+    } finally {
+      await closeServer(agent);
+    }
+  });
+
+  it('reports a taken proxy port and the option that changes it', {timeout: TIMEOUT}, async () => {
+    const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+    const agent = await startFakeAgent(agentPort);
+    const holder = createServer();
+    await new Promise<void>(resolve => holder.listen(proxyPort, '127.0.0.1', () => resolve()));
+    try {
+      const result = await finished([
+        'attach',
+        `http://localhost:${agentPort}`,
+        '--port',
+        String(port),
+        '--proxy-port',
+        String(proxyPort),
+        '--no-open',
+      ]);
+      assert.equal(result.code, 1);
+      assert.match(result.output, new RegExp(`Port ${proxyPort} is taken`));
+      assert.match(result.output, /--proxy-port/);
+    } finally {
+      await closeServer(holder);
+      await closeServer(agent);
+    }
+  });
+
   it('reports a taken port and the option that changes it', {timeout: TIMEOUT}, async () => {
     const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
-    const agent = await startCardServer(agentPort);
+    const agent = await startFakeAgent(agentPort);
     const holder = createServer();
     await new Promise<void>(resolve => holder.listen(port, '127.0.0.1', () => resolve()));
     try {
@@ -316,7 +463,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         '--no-open',
         '--',
         process.execPath,
-        cardServerScript,
+        fakeAgentScript,
         '--port',
         String(agentPort),
         ...agentArgs,
@@ -414,6 +561,16 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         } finally {
           rmSync(dir, {recursive: true, force: true});
         }
+      },
+    );
+
+    it(
+      "stops the agent's process when its card lists no JSON-RPC interface",
+      {timeout: TIMEOUT},
+      async () => {
+        const result = await finished(await runArgs(['--transports', 'GRPC']));
+        assert.equal(result.code, 1, result.output);
+        assert.match(result.output, /lists no A2A JSON-RPC interface/);
       },
     );
 

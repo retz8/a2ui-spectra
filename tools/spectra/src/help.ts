@@ -32,7 +32,8 @@ const attachHelp = `Usage: ${NAME} attach <agent-url> [options]
 
 Attach to an agent that is already running at <agent-url>, its base address.
 Spectra waits until the agent's card answers at
-<agent-url>/.well-known/agent-card.json, then starts the viewer.
+<agent-url>/.well-known/agent-card.json, then starts the wire proxy and the
+viewer. Point a host at the wire proxy's address in place of the agent's URL.
 
 Options:
 ${sharedOptions}

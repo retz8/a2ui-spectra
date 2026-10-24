@@ -1,6 +1,6 @@
 # Spectra for A2UI
 
-The `a2ui-spectra` command: it attaches to a running A2UI agent over A2A and serves Spectra's viewer on a local port. The viewer is built in [`../spectra_viewer/`](../spectra_viewer).
+The `a2ui-spectra` command: it attaches to a running A2UI agent over A2A, puts a wire proxy in front of it, and serves Spectra's viewer on a local port. The viewer is built in [`../spectra_viewer/`](../spectra_viewer).
 
 ## Prerequisites
 
@@ -19,7 +19,7 @@ a2ui-spectra --version
 - `attach` attaches to an agent that is already running at `<agent-url>`.
 - `run` starts the agent's command, then attaches to it. The command after `--` starts without a shell, with Spectra's environment and working directory, and writes to Spectra's terminal. Environment variables go before `a2ui-spectra`.
 
-The agent's URL is its base address. Both commands wait, with no time limit, until the agent's card answers at `<agent-url>/.well-known/agent-card.json`, then start the viewer, print its URL and open the browser.
+The agent's URL is its base address. Both commands wait, with no time limit, until the agent's card answers at `<agent-url>/.well-known/agent-card.json`, then start the wire proxy and the viewer, print their addresses and open the browser.
 
 | Option                | Meaning                                                                                                      | Default |
 | --------------------- | ------------------------------------------------------------------------------------------------------------ | ------- |
@@ -30,6 +30,16 @@ The agent's URL is its base address. Both commands wait, with no time limit, unt
 | `--allow-host <name>` | Also answer requests addressed to `<name>`, a host name without a port, such as a tunnel's. Can be repeated. |         |
 
 A port that is taken is an error at start. The viewer's server listens on loopback only and answers requests addressed to `localhost`, `127.0.0.1` and `[::1]`, plus the names given with `--allow-host`.
+
+## The wire proxy
+
+Point a host at the address Spectra prints, `http://127.0.0.1:<proxy-port>` followed by the agent's base path, in place of the agent's URL. The proxy speaks A2A 0.3 and A2A 1.0 over JSON-RPC.
+
+- It forwards every request to the agent's origin with its headers and body as received, except `Host`, which it sets to the agent's. Replies and server-sent event streams pass back as received.
+- It rewrites the agent's card, at `/.well-known/agent-card.json`, at `/.well-known/agent.json` and as the extended card, so that each JSON-RPC endpoint in it points at the proxy. Endpoints of other transports are left as they are.
+- It reads each `message/send` and `message/stream`, or `SendMessage` and `SendStreamingMessage` in A2A 1.0, as one turn, written as turn record v0.1 events.
+
+At start, Spectra checks where the card puts JSON-RPC. When the card prefers another transport, Spectra warns that hosts following the card's preference bypass the proxy. When the card lists no JSON-RPC interface, Spectra stops with an error.
 
 Under `run`:
 
@@ -44,7 +54,9 @@ Under `run`:
 
 - `src/`: the TypeScript source, with each unit test beside its source as `*.test.ts`.
 - `src/cli.test.ts`: the command-line test, which starts Spectra as a process.
-- `src/testing/card_server.ts`: a card-only agent the command-line test runs.
+- `src/a2a/`: the A2A adapter: the wire proxy, the card rewrite and the turns it captures.
+- `src/testing/fake_agent.ts`: a small A2A agent the command-line test runs.
+- `src/testing/turn_record_schema.ts`: validates the records tests produce against turn record v0.1's schema.
 - `src/record/turn_record.ts`: the types for turn record v0.1.
 - `dist/`: the compiled tool, with the viewer's build copied into `dist/viewer/`.
 

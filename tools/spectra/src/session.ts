@@ -1,5 +1,7 @@
 import {constants} from 'node:os';
 
+import {checkTransport} from './a2a/card.js';
+import {startWireProxy, type WireProxy} from './a2a/proxy.js';
 import {agentCardUrl, waitForAgentCard} from './agent_card.js';
 import {
   type AgentExit,
@@ -24,7 +26,8 @@ const STOP_SIGNALS: NodeJS.Signals[] =
 
 /**
  * Runs `attach`, or `run` when given the agent's command: waits for the
- * agent's card, starts the server, prints its URL and opens the browser, then
+ * agent's card, checks the card offers A2A over JSON-RPC, starts the wire
+ * proxy and the server, prints their addresses and opens the browser, then
  * runs until a stop signal, or until the agent's process exits. Resolves with
  * Spectra's exit code.
  */
@@ -38,6 +41,7 @@ export async function runSession(
   let stoppedBy: NodeJS.Signals | undefined;
   let agent: AgentProcess | undefined;
   let agentExit: AgentExit | undefined;
+  let proxy: WireProxy | undefined;
   let server: ViewerServer | undefined;
   let failed = false;
 
@@ -86,12 +90,34 @@ export async function runSession(
     });
 
     if (card !== undefined && !stop.signal.aborted) {
+      const transport = checkTransport(card);
+      if (transport.kind === 'no_jsonrpc') {
+        out.error(
+          "The agent's card lists no A2A JSON-RPC interface" +
+            (transport.transports.length > 0 ? `, only ${transport.transports.join(', ')}` : '') +
+            '. Spectra captures A2A over JSON-RPC only.',
+        );
+        stop.abort();
+        return 1;
+      }
+      if (transport.kind === 'jsonrpc_later') {
+        out.info(
+          `The agent's card prefers ${transport.preferred} to JSON-RPC. ` +
+            "Hosts that follow the card's preference bypass the wire proxy, and their turns are not captured.",
+        );
+      }
+      proxy = await startWireProxy({
+        port: options.proxyPort,
+        agentUrl: options.agentUrl,
+        agentName: typeof card.name === 'string' ? card.name : undefined,
+      });
       server = await startViewerServer({
         port: options.port,
         viewerDir,
         allowedHosts: options.allowedHosts,
       });
       out.info(`The viewer is at ${server.url}`);
+      out.info(`Point a host at the wire proxy: ${proxy.address}`);
       if (options.open) {
         openBrowser(server.url);
       }
@@ -107,6 +133,7 @@ export async function runSession(
     }
   } finally {
     await server?.close();
+    await proxy?.close();
     if (agent !== undefined) {
       await agent.stop();
       agentExit = await agent.exited;
