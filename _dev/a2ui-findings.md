@@ -169,14 +169,18 @@ encoding" sections.
 
 **Severity:** specification contradiction.
 
+**Upstream:** PR #3603.
+
 ### Issue
 
 The prose places the MIME type inside the data:
 `DataPart.data.metadata["mimeType"] = "application/a2ui+json"` (v0.9 and v0.9.1
 lines 51, 56 and 176; v1.0 lines 51, 56 and 178). Every example in the same
 specs places it in the part's own metadata, a sibling of `data`
-(v0.9 and v0.9.1 lines 219-222; v1.0 lines 221-223). Every implementation in
-the repo follows the examples.
+(v0.9 and v0.9.1 lines 219-222; v1.0 lines 221-223). No implementation in the
+repo uses the prose's location: the A2A helpers and the other samples follow
+the examples, and the Lit and React sample clients put it on the part itself
+(finding 4).
 
 ### Reproduction
 
