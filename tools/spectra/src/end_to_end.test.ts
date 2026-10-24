@@ -260,6 +260,19 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
             [first.traceId, second.traceId],
           );
 
+          // The second turn updates the surface the first created, and does not create it again.
+          assert.deepEqual(
+            a2uiPartsOf(two.turn).flatMap(part =>
+              Array.isArray(part.content) ? (part.content as unknown[]) : [part.content],
+            ),
+            [
+              {
+                version: 'v1.0',
+                updateDataModel: {surfaceId: 'greeting', path: '/greeting', value: 'Hello, Ada!'},
+              },
+            ],
+          );
+
           // One part holding an array is A2A 1.0's form; one message per part is A2A 0.3's.
           const parts = a2uiPartsOf(one.turn);
           if (a2a === '1.0') {

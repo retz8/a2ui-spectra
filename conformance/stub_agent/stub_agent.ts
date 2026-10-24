@@ -325,7 +325,21 @@ class CannedA2uiExecutor implements AgentExecutor {
   cancelTask = async (_taskId: string, _eventBus: ExecutionEventBus): Promise<void> => {};
 
   async execute(context: RequestContext, eventBus: ExecutionEventBus): Promise<void> {
-    eventBus.publish(AgentEvent.task(context.task ?? newTask(context)));
+    // A task the message continues is sent as working, without the last turn's status message and its A2UI.
+    eventBus.publish(
+      AgentEvent.task(
+        context.task === undefined
+          ? newTask(context)
+          : {
+              ...context.task,
+              status: {
+                state: TaskState.TASK_STATE_WORKING,
+                timestamp: new Date().toISOString(),
+                message: undefined,
+              },
+            },
+      ),
+    );
     const version = offeredVersion(context.userMessage.metadata);
     if (version === undefined) {
       publishStatus(eventBus, context, TaskState.TASK_STATE_COMPLETED, [
