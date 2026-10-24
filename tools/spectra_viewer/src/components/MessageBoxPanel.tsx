@@ -2,6 +2,7 @@ import {SendIcon} from 'lucide-react';
 import {useEffect, useRef, useState, type FormEvent, type KeyboardEvent} from 'react';
 
 import {Button} from '@/components/ui/button.tsx';
+import {Spinner} from '@/components/ui/spinner.tsx';
 import {Textarea} from '@/components/ui/textarea.tsx';
 import type {ChatEntry} from '@/model/chat.ts';
 import {boxChatOf, useNeededRecords} from '@/state/selectors.ts';
@@ -157,7 +158,12 @@ function ChatTurn({entry, onOpenTurn}: {entry: ChatEntry; onOpenTurn: (traceId: 
             {entry.a2uiMessages} A2UI {entry.a2uiMessages === 1 ? 'message' : 'messages'}
           </button>
         )}
-        {entry.open && <span className="text-sky-700 dark:text-sky-400">open</span>}
+        {entry.open && (
+          <span className="flex items-center gap-1 text-sky-700 dark:text-sky-400">
+            <Spinner className="size-3.5" />
+            open
+          </span>
+        )}
         {entry.outcome === 'waiting_for_input' && (
           <span className="text-amber-700 dark:text-amber-400">
             waiting for input: the next message continues the task
