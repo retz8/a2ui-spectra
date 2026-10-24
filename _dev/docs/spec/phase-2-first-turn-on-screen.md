@@ -76,7 +76,7 @@ The message box offers everything Spectra supports and lets the agent choose: th
 
 ### 12. The server
 
-One local HTTP server on its own port, next to the proxy's. It serves the viewer's built files; a JSON API lists turns and returns a record; two POST routes send a message and start a new conversation, performed by the server as the A2A client through the proxy, the send answering with the turn's trace id once the turn opens; the server holds the box's one conversation and refuses a send while its last turn is open; and one server-sent event stream pushes turn opened, each wire event as it arrives, and turn closed. Spectra opens the browser on launch and prints the URL. The viewer's port and the proxy's port each have a default and an option to change it.
+One local HTTP server on its own port, next to the proxy's. It serves the viewer's built files; a JSON API lists turns and returns a record; two POST routes send a message and start a new conversation, performed by the server as the A2A client through the proxy, the send answering with the turn's trace id once the turn opens; the server holds the box's one conversation and refuses a send while its last turn is open; and one server-sent event stream pushes turn opened, each wire event as it arrives, and turn closed, with a heartbeat. Spectra opens the browser on launch and prints the URL. The viewer's port and the proxy's port each have a default and an option to change it.
 
 ### 13. The tree and the data model
 

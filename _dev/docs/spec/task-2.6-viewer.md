@@ -66,7 +66,7 @@ A chat built from the records of the turns the box sent in its conversation: eac
 
 ### 14. The connection
 
-While the live stream is down, a bar reads "Not connected to Spectra" and the box's input is disabled. On reconnect, the viewer refetches the listing, the box's state and, when it closed meanwhile, the selected turn's record, then takes the stream's catch-up.
+While the live stream is down, a bar reads "Not connected to Spectra" and the box's input is disabled. A stream whose heartbeat stops counts as down. On reconnect, the viewer refetches the listing, the box's state and, when it closed meanwhile, the selected turn's record, then takes the stream's catch-up.
 
 ### 15. The stack
 
