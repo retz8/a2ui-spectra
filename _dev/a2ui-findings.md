@@ -206,36 +206,7 @@ Compare v0.9 line 115 with the example below it at lines 119-139.
 
 Change the defining sentences to `message.metadata[...]`.
 
-## 8. The v0.9.1 capabilities example does not validate against the v0.9.1 schema
-
-**Component:** `specification/v0_9_1/docs/a2ui_extension_specification.md`;
-`specification/v0_9_1/json/client_capabilities.json`.
-
-**Severity:** specification contradiction.
-
-### Issue
-
-The v0.9.1 spec's capabilities example keys the capabilities by `"v0.9.1"`
-(line 129). The v0.9.1 schema it links defines only a `"v0.9"` property and
-requires it (`client_capabilities.json:7-26`); its `$id` is still v0.9's,
-`https://a2ui.org/specification/v0_9/client_capabilities.json` (line 3). The
-v0.9.1 data model schema, by contrast, accepts both versions
-(`client_data_model.json:8-10`). A host cannot tell which key a v0.9.1 agent
-reads, and agents differ: the TypeScript sample reads only `"v0.9"` and
-`"v1.0"` (`samples/agent/node/restaurant_finder/src/versions.ts`).
-
-### Reproduction
-
-Validate the example at lines 120-138 (its `metadata.a2uiClientCapabilities`
-value) against `specification/v0_9_1/json/client_capabilities.json`: it fails on
-the required `v0.9` property.
-
-### Fix
-
-Decide the key for v0.9.1 and make the example and the schema agree, for
-example by accepting both `"v0.9"` and `"v0.9.1"` as the data model schema does.
-
-## 9. The v0.9 and v0.9.1 examples write a component in v0.8's shape
+## 8. The v0.9 and v0.9.1 examples write a component in v0.8's shape
 
 **Component:** the v0.9 and v0.9.1 extension specs' "Server-to-client
 messages" example.
@@ -263,7 +234,7 @@ component has no `id` and no `component`.
 
 Write the component as `{"id": "root", "component": "Text", "text": "Hello!"}`.
 
-## 10. Nothing in a reply names the A2UI version the agent chose
+## 9. Nothing in a reply names the A2UI version the agent chose
 
 **Component:** the extension specs.
 
@@ -294,7 +265,7 @@ that carries the chosen version: there is none.
 Have the agent name the version it uses in every reply, for example by always
 echoing the activated extension URI, or with a key in the reply's metadata.
 
-## 11. The extension specs cover A2A 0.3 only
+## 10. The extension specs cover A2A 0.3 only
 
 **Component:** the extension specs' activation and data encoding sections.
 
@@ -326,7 +297,7 @@ Read the cited sections of the extension specs against A2A v1.0.1's
 Add an A2A 1.0 section to each extension spec: the header to activate with, and
 where a part's A2UI MIME type goes.
 
-## 12. The specs require an array where an A2A 0.3 data part holds an object
+## 11. The specs require an array where an A2A 0.3 data part holds an object
 
 **Component:** the extension specs' data encoding section; A2A 0.3's `DataPart`.
 
@@ -336,7 +307,7 @@ where a part's A2UI MIME type goes.
 
 The extension specs say a data part's `data` "MUST be an array of messages"
 (v0.9 and v0.9.1 line 178, v1.0 line 180), and they bind A2UI to A2A 0.3 (see
-finding 11). A2A 0.3 types `DataPart.data` as an object: `"type": "object"` in
+finding 10). A2A 0.3 types `DataPart.data` as an object: `"type": "object"` in
 A2A's `specification/json/a2a.json` at tag `v0.3.0` (`DataPart.properties.data`).
 The A2A SDKs follow it: Python's `a2a-sdk` 0.3.25 declares `data: dict[str, Any]`
 (`a2a/types.py:277`) and `@a2a-js/sdk` 0.3.14 declares an object. So an A2A 0.3
@@ -356,7 +327,7 @@ Read `DataPart` in A2A's `specification/json/a2a.json` at `v0.3.0`, and validate
 Allow one message or an array under A2A 0.3, or say that A2A 0.3 carries one
 message per part and only A2A 1.0 carries an array.
 
-## 13. The sample clients and agents send and read actions in v0.8's shape
+## 12. The sample clients and agents send and read actions in v0.8's shape
 
 **Component:** `samples/client/angular/projects/restaurant/src/app/client.ts`;
 `samples/client/lit/shell/app.ts`;
@@ -391,7 +362,7 @@ in `a2ui-spectra` holds the Angular client's `userAction` parts as sent.
 Send `{"version": "v0.9", "action": {…}}` from the Angular and Lit clients, as
 the React client does, and read `action` in the custom-components sample.
 
-## 14. The custom-components sample fails every v0.9 turn that reaches the model
+## 13. The custom-components sample fails every v0.9 turn that reaches the model
 
 **Component:** `samples/agent/adk/custom-components-example/agent.py`.
 
@@ -425,7 +396,7 @@ in `a2ui-spectra` holds such a turn.
 Seed `expression` in the session state, as the restaurant finder does, or escape
 the catalog's braces before it goes into an ADK instruction.
 
-## 15. The Python restaurant finder creates the same surface twice in a streamed turn
+## 14. The Python restaurant finder creates the same surface twice in a streamed turn
 
 **Component:** `samples/agent/adk/restaurant_finder/agent.py`.
 
