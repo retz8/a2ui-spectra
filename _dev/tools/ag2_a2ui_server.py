@@ -79,7 +79,7 @@ def main():
 
     agent = Agent(
         name="ag2_a2ui_agent",
-        prompt="Answer the user's question with a small card.",
+        prompt="Always answer with an A2UI surface: a Card holding the answer as Text components.",
         config=config,
     )
     executor = A2UIAgentExecutor(agent, protocol_version=args.version)
