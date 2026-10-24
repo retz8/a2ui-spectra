@@ -11,7 +11,7 @@ Spec: `_dev/docs/spec/phase-1-foundation.md`.
 - [x] **1.2** The turn record spec's first version — the schema, the prose, the `a2ui.` attribute names, the GenAI conventions pin; grilled on its own first. Spec: `_dev/docs/spec/task-1.2-turn-record.md` (parallel with 1.1)
 - [x] **1.3** The shared test data — the case list, the hand-written fixtures, and the validation harness filling the test workspace; whether the fixtures are exempt from Prettier, as upstream's conformance test data is; the harness loads the draft-07 meta-schema and accepts the `binary` format the copied GenAI schemas use; a tool result that is not a JSON object stays out of `gen_ai.tool.call.result`. Spec: `_dev/docs/spec/task-1.3-shared-test-data.md` (after 1.1 and 1.2)
 
-## Phase 2 — First turn on screen [WIP]
+## Phase 2 — First turn on screen [done]
 `a2ui-spectra run` and `a2ui-spectra attach`; the A2A adapter, with the wire proxy and the message box as host; captured turns in the local store; the viewer's turn list, raw messages, tree and data model; schema checks for v0.9, v0.9.1 and v1.0. Built and run as the compiled binary from this phase on.
 Spec: `_dev/docs/spec/phase-2-first-turn-on-screen.md`. The done line — the three core samples under both entry points, upstream's Angular sample client through the wire proxy, and one A2A 1.0 agent from the coverage roster — is the phase's acceptance run at wrap-up.
 

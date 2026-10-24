@@ -62,7 +62,7 @@ Its row appears at turn opened, its input in brief filled from its first wire ev
 
 ### 13. The message box's panel
 
-A chat built from the records: each turn shows the text sent, then the reply's text parts in order, then the number of its A2UI messages, linking to the turn, and its outcome when it is not completed — waiting for input, failed with its reason, or cancelled. While a turn is open, the input is disabled, reading "waiting for the turn to close". When the box cannot send, the reason replaces the input. A refused send shows its error under the input. New conversation clears the panel; the turn list keeps every turn. After a reload, the panel rebuilds the current conversation from its latest record.
+A chat built from the records of the turns the box sent in its conversation: each turn shows the text sent, then the reply's text parts in order, then the number of its A2UI messages, linking to the turn, and its outcome when it is not completed — waiting for input, failed with its reason, or cancelled. An open turn shows a spinner. While a turn is open, the input is disabled, reading "waiting for the turn to close". When the box cannot send, the reason replaces the input. A refused send shows its error under the input. New conversation clears the panel; the turn list keeps every turn. After a reload, the panel rebuilds the box's turns from their records.
 
 ### 14. The connection
 

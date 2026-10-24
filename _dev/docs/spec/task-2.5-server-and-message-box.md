@@ -35,7 +35,7 @@ The send route answers once the wire proxy opens the turn for the box's request,
 
 ### 6. The box's conversation
 
-The server holds one current conversation for the message box: its `contextId`, and the `taskId` to send back after a turn that ended waiting for input. The send route continues it, the new-conversation route clears it, and a read route returns its conversation id, or none yet, with the trace id of its open turn when it has one. Each run of Spectra starts with no conversation, and every browser tab shares it.
+The server holds one current conversation for the message box: its `contextId`, taken from the conversation its turn was recorded in when the reply broke off before naming it, and the `taskId` to send back after a turn that ended waiting for input. The send route continues it, the new-conversation route clears it, and a read route returns its conversation id, or none yet, the trace ids of the turns the box sent in it, and the trace id of its open turn when it has one. Each run of Spectra starts with no conversation, and every browser tab shares it.
 
 ### 7. One turn at a time
 
