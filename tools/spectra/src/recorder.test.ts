@@ -87,7 +87,12 @@ describe('the turn recorder', () => {
       now: () => 1792576862000000000n,
       newSpanId: () => 'cccccccccccccccc',
     });
-    recorder.onTurn({type: 'turn_opened', traceId: TRACE_ID, conversationId: 'ctx-1'});
+    recorder.onTurn({
+      type: 'turn_opened',
+      traceId: TRACE_ID,
+      conversationId: 'ctx-1',
+      startTimeUnixNano: '1792576860000000000',
+    });
     recorder.onTurn({type: 'turn_closed', traceId: TRACE_ID, turn: turnOf([SURFACE])});
     await recorder.idle();
 
@@ -123,7 +128,11 @@ describe('the turn recorder', () => {
   it('is idle only once every open turn has closed and been written', async () => {
     const store = await storeIn();
     const recorder = new TurnRecorder(store, collect());
-    recorder.onTurn({type: 'turn_opened', traceId: TRACE_ID});
+    recorder.onTurn({
+      type: 'turn_opened',
+      traceId: TRACE_ID,
+      startTimeUnixNano: '1792576860000000000',
+    });
     let idle = false;
     const waiting = recorder.idle().then(() => (idle = true));
     await new Promise(resolve => setTimeout(resolve, 20));
@@ -146,5 +155,37 @@ describe('the turn recorder', () => {
     assert.match(out.errors[0], /^Spectra could not write .*ctx-1.*\.json: /);
     assert.match(out.errors[0], /The turn is kept in memory until Spectra stops\.$/);
     assert.equal((await store.list()).length, 1);
+  });
+
+  it('hands on each checked turn once its write has finished', async () => {
+    const store = await storeIn();
+    const recorded: Array<{turn: Turn; files: number}> = [];
+    const recorder = new TurnRecorder(store, collect(), {
+      onRecorded: turn => {
+        void store.list().then(listed => recorded.push({turn, files: listed.length}));
+      },
+    });
+    recorder.onTurn({type: 'turn_closed', traceId: TRACE_ID, turn: turnOf([SURFACE])});
+    await recorder.idle();
+    await new Promise(resolve => setTimeout(resolve, 20));
+
+    assert.equal(recorded.length, 1);
+    assert.equal(recorded[0].files, 1);
+    assert.ok(isEventOfKind(recorded[0].turn.events.at(-1)!, 'check'));
+    const [stored] = await store.list();
+    const record = await store.read(stored.file);
+    assert.deepEqual(record.turns.at(-1), recorded[0].turn);
+  });
+
+  it('hands on a checked turn whose write failed', async () => {
+    const store = await storeIn();
+    writeFileSync(path.join(store.turnsDir, 'ctx-1'), 'not a folder');
+    const recorded: Turn[] = [];
+    const recorder = new TurnRecorder(store, collect(), {onRecorded: turn => recorded.push(turn)});
+    recorder.onTurn({type: 'turn_closed', traceId: TRACE_ID, turn: turnOf([SURFACE])});
+    await recorder.idle();
+
+    assert.equal(recorded.length, 1);
+    assert.ok(isEventOfKind(recorded[0].events.at(-1)!, 'check'));
   });
 });

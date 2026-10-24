@@ -22,7 +22,15 @@ import {
 
 /** What the adapter hands out as a turn is captured. */
 export type TurnNotification =
-  | {type: 'turn_opened'; traceId: string; conversationId?: string}
+  | {
+      type: 'turn_opened';
+      traceId: string;
+      conversationId?: string;
+      /** The turn's start, in nanoseconds since the Unix epoch. */
+      startTimeUnixNano: string;
+      /** The `messageId` of the host's message, when it gave one. */
+      messageId?: string;
+    }
   | {type: 'wire_event'; traceId: string; event: WireInputEvent | WireOutputEvent}
   /** The turn: its turn event, then its wire events in order. No check event. */
   | {type: 'turn_closed'; traceId: string; turn: Turn};
@@ -94,6 +102,8 @@ export class TurnCapture {
       type: 'turn_opened',
       traceId: this.#traceId,
       ...(this.#conversationId !== undefined && {conversationId: this.#conversationId}),
+      startTimeUnixNano: this.#start.toString(),
+      ...(request.message.messageId !== undefined && {messageId: request.message.messageId}),
     });
 
     const parts = this.#parts(request.message.parts);

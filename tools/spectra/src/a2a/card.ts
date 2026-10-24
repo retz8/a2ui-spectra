@@ -1,7 +1,7 @@
 import {isRecord} from './protocol.js';
 
 /** A2A's name for the JSON-RPC transport, in both versions' cards. */
-const JSONRPC = 'JSONRPC';
+export const JSONRPC = 'JSONRPC';
 
 /** The scheme and authority of an absolute URL. */
 const ORIGIN = /^[a-z][a-z0-9+.-]*:\/\/[^/?#]*/i;

@@ -1,5 +1,6 @@
 import {createServer, type IncomingMessage, type ServerResponse} from 'node:http';
 
+import {type Api, handleApi} from './api.js';
 import {isAllowedHost} from './host_check.js';
 import {sendText, serveViewerFile} from './viewer_files.js';
 
@@ -20,6 +21,8 @@ export interface ViewerServerOptions {
   viewerDir: string;
   /** Host names answered besides the loopback names. */
   allowedHosts: readonly string[];
+  /** What the API under `/api/` serves from; without it, there are no API routes. */
+  api?: Api;
 }
 
 export interface ViewerServer {
@@ -28,7 +31,7 @@ export interface ViewerServer {
   close(): Promise<void>;
 }
 
-/** Starts the local server that serves the viewer. */
+/** Starts the local server that serves the viewer and its API. */
 export function startViewerServer(options: ViewerServerOptions): Promise<ViewerServer> {
   const server = createServer((request, response) => handle(options, request, response));
   return new Promise((resolve, reject) => {
@@ -61,12 +64,16 @@ function handle(
     );
     return;
   }
-  if (request.method === 'GET' || request.method === 'HEAD') {
-    serveViewerFile(options.viewerDir, request, response);
+  const changes = request.method !== 'GET' && request.method !== 'HEAD';
+  if (changes && !isJson(request.headers['content-type'])) {
+    sendText(response, 415, 'Only JSON is accepted.\n');
     return;
   }
-  if (!isJson(request.headers['content-type'])) {
-    sendText(response, 415, 'Only JSON is accepted.\n');
+  if (options.api !== undefined && handleApi(options.api, request, response)) {
+    return;
+  }
+  if (!changes) {
+    serveViewerFile(options.viewerDir, request, response);
     return;
   }
   sendText(response, 404, 'Not found.\n');

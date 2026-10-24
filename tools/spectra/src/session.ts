@@ -1,6 +1,6 @@
 import {constants} from 'node:os';
 
-import {checkTransport} from './a2a/card.js';
+import {checkTransport, rewriteCard} from './a2a/card.js';
 import {startWireProxy, type WireProxy} from './a2a/proxy.js';
 import {agentCardUrl, waitForAgentCard} from './agent_card.js';
 import {
@@ -12,10 +12,12 @@ import {
 } from './agent_process.js';
 import type {SessionOptions} from './args.js';
 import {openBrowser} from './browser.js';
+import {MessageBox} from './message_box.js';
 import type {Output} from './output.js';
 import {TurnRecorder} from './recorder.js';
 import {PortTakenError, startViewerServer, type ViewerServer} from './server.js';
 import {TurnStore} from './store/store.js';
+import {TurnHub} from './turn_hub.js';
 
 /** The agent's command, under `run`. */
 export interface AgentCommand {
@@ -29,11 +31,11 @@ const STOP_SIGNALS: NodeJS.Signals[] =
 /**
  * Runs `attach`, or `run` when given the agent's command: opens the store,
  * waits for the agent's card, checks the card offers A2A over JSON-RPC,
- * starts the wire proxy and the server, prints their addresses and opens the
- * browser, then runs until a stop signal, or until the agent's process exits.
- * Each turn the proxy captures is checked and written to the store, and
- * Spectra waits for the turns still open when it stops. Resolves with
- * Spectra's exit code.
+ * starts the wire proxy, the message box and the server, prints their
+ * addresses and opens the browser, then runs until a stop signal, or until
+ * the agent's process exits. Each turn the proxy captures is checked and
+ * written to the store, then closed on the live stream, and Spectra waits
+ * for the turns still open when it stops. Resolves with Spectra's exit code.
  */
 export async function runSession(
   options: SessionOptions,
@@ -48,13 +50,15 @@ export async function runSession(
     out.error(error instanceof Error ? error.message : String(error));
     return 1;
   }
-  const recorder = new TurnRecorder(store, out);
+  const turns = new TurnHub();
+  const recorder = new TurnRecorder(store, out, {onRecorded: turns.onRecorded});
 
   const stop = new AbortController();
   let stoppedBy: NodeJS.Signals | undefined;
   let agent: AgentProcess | undefined;
   let agentExit: AgentExit | undefined;
   let proxy: WireProxy | undefined;
+  let box: MessageBox | undefined;
   let server: ViewerServer | undefined;
   let failed = false;
 
@@ -131,12 +135,20 @@ export async function runSession(
         port: options.proxyPort,
         agentUrl: options.agentUrl,
         agentName: typeof card.name === 'string' ? card.name : undefined,
-        onTurn: recorder.onTurn,
+        onTurn: notification => {
+          recorder.onTurn(notification);
+          turns.onTurn(notification);
+        },
       });
+      box = new MessageBox({card: rewriteCard(card, proxy.origin), turns});
+      if (box.unavailable !== undefined) {
+        out.info(box.unavailable);
+      }
       server = await startViewerServer({
         port: options.port,
         viewerDir,
         allowedHosts: options.allowedHosts,
+        api: {store, turns, box},
       });
       out.info(`The viewer is at ${server.url}`);
       out.info(`Point a host at the wire proxy: ${proxy.address}`);
@@ -156,6 +168,7 @@ export async function runSession(
     }
   } finally {
     await server?.close();
+    box?.close();
     await proxy?.close();
     await recorder.idle();
     if (agent !== undefined) {

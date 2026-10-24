@@ -61,6 +61,7 @@ export interface A2aMessage {
   role?: 'user' | 'agent';
   parts: unknown[];
   contextId?: string;
+  taskId?: string;
   metadata?: Record<string, unknown>;
 }
 
@@ -81,6 +82,7 @@ export type Reply =
   | {kind: 'message'; message: A2aMessage}
   | {
       kind: 'task';
+      taskId?: string;
       contextId?: string;
       state?: TaskState;
       statusMessage?: A2aMessage;
@@ -88,8 +90,14 @@ export type Reply =
       artifacts: A2aArtifact[];
       metadata?: Record<string, unknown>;
     }
-  | {kind: 'status-update'; contextId?: string; state?: TaskState; message?: A2aMessage}
-  | {kind: 'artifact-update'; contextId?: string; artifact: A2aArtifact};
+  | {
+      kind: 'status-update';
+      taskId?: string;
+      contextId?: string;
+      state?: TaskState;
+      message?: A2aMessage;
+    }
+  | {kind: 'artifact-update'; taskId?: string; contextId?: string; artifact: A2aArtifact};
 
 /** Whether a value is a JSON object. */
 export function isRecord(value: unknown): value is Record<string, unknown> {
@@ -157,6 +165,7 @@ function taskReply(task: Record<string, unknown>, version: A2aVersion): Reply {
   const status = isRecord(task.status) ? task.status : {};
   return {
     kind: 'task',
+    ...optional('taskId', stringOrUndefined(task.id)),
     ...optional('contextId', stringOrUndefined(task.contextId)),
     ...optional('state', readState(status.state, version)),
     ...optional('statusMessage', readMessage(status.message)),
@@ -174,6 +183,7 @@ function statusUpdateReply(event: Record<string, unknown>, version: A2aVersion):
   const status = isRecord(event.status) ? event.status : {};
   return {
     kind: 'status-update',
+    ...optional('taskId', stringOrUndefined(event.taskId)),
     ...optional('contextId', stringOrUndefined(event.contextId)),
     ...optional('state', readState(status.state, version)),
     ...optional('message', readMessage(status.message)),
@@ -183,6 +193,7 @@ function statusUpdateReply(event: Record<string, unknown>, version: A2aVersion):
 function artifactUpdateReply(event: Record<string, unknown>): Reply {
   return {
     kind: 'artifact-update',
+    ...optional('taskId', stringOrUndefined(event.taskId)),
     ...optional('contextId', stringOrUndefined(event.contextId)),
     artifact: readArtifact(event.artifact) ?? {parts: []},
   };
@@ -197,6 +208,7 @@ function readMessage(value: unknown): A2aMessage | undefined {
     ...optional('role', readRole(value.role)),
     parts: Array.isArray(value.parts) ? value.parts : [],
     ...optional('contextId', stringOrUndefined(value.contextId)),
+    ...optional('taskId', stringOrUndefined(value.taskId)),
     ...optional('metadata', isRecord(value.metadata) ? value.metadata : undefined),
   };
 }

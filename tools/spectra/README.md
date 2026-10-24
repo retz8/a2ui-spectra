@@ -1,6 +1,6 @@
 # Spectra for A2UI
 
-The `a2ui-spectra` command: it attaches to a running A2UI agent over A2A, puts a wire proxy in front of it, checks each turn it captures and writes it to a local store, and serves Spectra's viewer on a local port. The viewer is built in [`../spectra_viewer/`](../spectra_viewer).
+The `a2ui-spectra` command: it attaches to a running A2UI agent over A2A, puts a wire proxy in front of it, checks each turn it captures and writes it to a local store, sends messages to the agent from its message box, and serves Spectra's viewer and its API on a local port. The viewer is built in [`../spectra_viewer/`](../spectra_viewer).
 
 ## Prerequisites
 
@@ -39,7 +39,7 @@ Point a host at the address Spectra prints, `http://127.0.0.1:<proxy-port>` foll
 - It rewrites the agent's card, at `/.well-known/agent-card.json`, at `/.well-known/agent.json` and as the extended card, so that each JSON-RPC endpoint in it points at the proxy. Endpoints of other transports are left as they are.
 - It reads each `message/send` and `message/stream`, or `SendMessage` and `SendStreamingMessage` in A2A 1.0, as one turn, written as turn record v0.1 events.
 
-At start, Spectra checks where the card puts JSON-RPC. When the card prefers another transport, Spectra warns that hosts following the card's preference bypass the proxy. When the card lists no JSON-RPC interface, or no interface at all, Spectra stops with an error.
+At start, Spectra checks where the card puts JSON-RPC. When the card prefers another transport, Spectra warns that hosts following the card's preference bypass the proxy. When the card lists no JSON-RPC interface, or no interface at all, Spectra stops with an error. When the card lists JSON-RPC only at A2A versions other than 0.3 and 1.0, Spectra warns that the message box cannot send to the agent and keeps running.
 
 Under `run`:
 
@@ -78,6 +78,35 @@ The check writes one `check` event, named `schema`, into the turn.
 | `SCHEMA_NOT_AN_OBJECT`       | Content, or an element of an array, that is not a JSON object                                                  |
 | `SCHEMA_VERSIONS_MIXED`      | The agent's messages in one turn declare more than one version                                                 |
 
+## The message box
+
+The message box is Spectra's own host: an A2A client that sends through the wire proxy, so its turns are captured like any other host's. It sends one text part per message, and no data model.
+
+- **The interface.** It follows the card fetched at start. With `supportedInterfaces`, it speaks to the first JSON-RPC entry whose `protocolVersion` is 0.3 or 1.0, compared on major.minor, and sets that entry's `tenant` in each A2A 1.0 request. A card without `supportedInterfaces` is spoken to as A2A 0.3 at its JSON-RPC interface.
+- **The method.** `message/stream` in A2A 0.3 and `SendStreamingMessage` in A2A 1.0 when the card declares streaming, else `message/send` and `SendMessage`.
+- **The offer.** Every A2UI version Spectra supports, for the agent to choose from: the v0.9, v0.9.1 and v1.0 extension URIs in `X-A2A-Extensions` in A2A 0.3 or `A2A-Extensions` in A2A 1.0, with `A2A-Version: 1.0`; and in the message's metadata, `a2uiClientCapabilities` for v0.9 and v0.9.1 and `a2uiRendererCapabilities` for v1.0, each naming its version's basic catalog.
+- **The conversation.** It holds one: the `contextId` the agent's first reply names, and the `taskId` to send back after a turn that ended waiting for input. Each run of Spectra starts with none, and a new conversation can be started at any time.
+- **One turn at a time.** While the conversation's last turn is open, a send is refused. A turn left open by starting a new conversation goes on, and is captured.
+
+## The API
+
+The viewer's server answers under `/api/`. The routes that change anything take JSON only.
+
+| Route                                    | Answer                                                                                                                                                                                                                                                               |
+| ---------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/turns`                         | `{"turns": [...]}`, newest first: each turn's `traceId`, `conversationId` when it has one, and `startTime`. The store's turns, earlier runs and turns kept in memory after a failed write included, and the turns open now, with `"open": true`.                     |
+| `GET /api/turns/<trace id>`              | The record of a closed turn: its file's turn record, the conversation's earlier turns included. `409` for a turn still open, `404` for an unknown one.                                                                                                               |
+| `GET /api/stream`                        | The live stream, as server-sent events. A new subscriber first receives each open turn's `turn_opened` and its `wire_event`s so far, then every event as it comes.                                                                                                   |
+| `GET /api/message-box`                   | The message box's conversation: `conversationId` once the agent has named one, `openTurn` with the trace id of its open turn, and `unavailable` with the reason when the box cannot send to the agent.                                                               |
+| `POST /api/message-box/messages`         | Sends `{"text": "…"}` in the conversation. Answers once the wire proxy opens the turn, with its `traceId` and the `conversationId` when known. `409` while a turn is open, `422` when the box cannot send to the agent, `502` when the wire proxy cannot be reached. |
+| `POST /api/message-box/new-conversation` | Starts a new conversation, and answers with its state.                                                                                                                                                                                                               |
+
+The live stream's events:
+
+- `turn_opened`: `{"traceId", "conversationId", "startTime"}`, the conversation id when the host's request names one.
+- `wire_event`: `{"traceId", "event"}`, each wire input and wire output event as it is captured.
+- `turn_closed`: `{"traceId", "turn"}`, sent once the turn is checked and its write has finished, whether or not the write succeeded. `turn` is the turn's own events with its check event, as the record holds it.
+
 ## The binary
 
 `yarn build:binary` compiles the tool with Bun, pinned as a dev dependency, into `dist/a2ui-spectra` for the host platform. The viewer's build is embedded, and the binary does not load `.env` or `bunfig.toml` files from its working directory.
@@ -86,11 +115,16 @@ The check writes one `check` event, named `schema`, into the turn.
 
 - `src/`: the TypeScript source, with each unit test beside its source as `*.test.ts`.
 - `src/cli.test.ts`: the command-line test, which starts Spectra as a process.
+- `src/end_to_end.test.ts`: the end-to-end test, which starts Spectra against the conformance workspace's stub agent and holds a two-turn conversation through the message box's API on A2A 1.0 and on A2A 0.3.
 - `src/a2a/`: the A2A adapter: the wire proxy, the card rewrite and the turns it captures.
 - `src/check/`: the schema check, and the protocol schemas it copies in `src/check/schemas/`.
 - `src/store/`: the store.
 - `src/recorder.ts`: checks each closed turn and writes it to the store.
+- `src/turn_hub.ts`: the turns of this run as they happen, for the live stream.
+- `src/api.ts`: the API's routes.
+- `src/message_box.ts` and `src/a2a/client.ts`: the message box and its A2A client.
 - `src/testing/fake_agent.ts`: a small A2A agent the command-line test runs.
+- `src/testing/spectra_process.ts`: Spectra as a process, for the command-line test and the end-to-end test.
 - `src/testing/turn_record_schema.ts`: validates the records tests produce against turn record v0.1's schema.
 - `src/record/turn_record.ts`: the types for turn record v0.1.
 - `dist/`: the compiled tool, with the viewer's build copied into `dist/viewer/`.
@@ -101,8 +135,8 @@ From `tools/spectra/`:
 
 - `yarn build`: compiles `src/` into `dist/` and copies the viewer's build into `dist/viewer/`, building the viewer first.
 - `yarn build:binary`: compiles the binary into `dist/a2ui-spectra`.
-- `yarn test`: builds, then runs the unit tests and the command-line test under Node's test runner.
-- `SPECTRA_BINARY=dist/a2ui-spectra yarn test`: runs the same tests with the command-line test against the binary.
+- `yarn test`: builds the tool and the conformance workspace, whose stub agent the end-to-end test runs, then runs the unit tests, the command-line test and the end-to-end test under Node's test runner.
+- `SPECTRA_BINARY=dist/a2ui-spectra yarn test`: runs the same tests with the command-line test and the end-to-end test against the binary.
 - `yarn lint` and `yarn lint:fix`: ESLint with the root ESLint preset.
 - `yarn format` and `yarn format:check`: Prettier, with the root `.prettierignore`.
 - `node dist/cli.js <command>`: runs the built tool under Node.

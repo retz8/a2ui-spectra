@@ -1,0 +1,230 @@
+/**
+ * The message box's A2A client: the interface it speaks to, the requests it
+ * sends with Spectra's offer, and what it reads back from a reply.
+ */
+
+import {JSONRPC} from './card.js';
+import {type A2aVersion, isRecord, readReply, type TaskState} from './protocol.js';
+import {SseParser} from './sse.js';
+
+/** The A2UI extension URIs of every version Spectra supports, sent in the extensions header. */
+export const A2UI_EXTENSION_URIS: readonly string[] = [
+  'https://a2ui.org/a2a-extension/a2ui/v0.9',
+  'https://a2ui.org/a2a-extension/a2ui/v0.9.1',
+  'https://a2ui.org/a2a-extension/a2ui/v1.0',
+];
+
+const BASIC_CATALOG_V0_9 = 'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json';
+const BASIC_CATALOG_V1_0 = 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json';
+
+/**
+ * The capabilities sent in every message's metadata: v0.9 and v0.9.1 under
+ * v0.9's key, v1.0 under v1.0's, each naming its version's basic catalog.
+ */
+export const A2UI_CAPABILITIES: Readonly<Record<string, unknown>> = {
+  a2uiClientCapabilities: {
+    'v0.9': {supportedCatalogIds: [BASIC_CATALOG_V0_9]},
+    'v0.9.1': {supportedCatalogIds: [BASIC_CATALOG_V0_9]},
+  },
+  a2uiRendererCapabilities: {
+    'v1.0': {supportedCatalogIds: [BASIC_CATALOG_V1_0]},
+  },
+};
+
+/** Where the box sends, and how. */
+export interface BoxInterface {
+  version: A2aVersion;
+  url: string;
+  /** The interface's tenant, set in every A2A 1.0 request; none when the interface sets none. */
+  tenant?: string;
+  /** Whether the card declares streaming, which picks the stream method over the send. */
+  streaming: boolean;
+}
+
+export type InterfaceChoice =
+  | ({kind: 'found'} & BoxInterface)
+  /** The card lists JSON-RPC only at versions the box does not speak, named here. */
+  | {kind: 'none'; versions: string[]};
+
+/**
+ * Chooses the interface the box speaks to. With `supportedInterfaces`, it is
+ * the first JSON-RPC entry whose `protocolVersion` is 0.3 or 1.0, compared on
+ * major.minor. A card without them is spoken to as A2A 0.3 at its first
+ * JSON-RPC interface: its `url`, unless it prefers another transport, then
+ * `additionalInterfaces`.
+ */
+export function chooseInterface(card: Record<string, unknown>): InterfaceChoice {
+  const streaming = isRecord(card.capabilities) && card.capabilities.streaming === true;
+  if (Array.isArray(card.supportedInterfaces)) {
+    const versions: string[] = [];
+    for (const entry of card.supportedInterfaces) {
+      if (!isRecord(entry) || entry.protocolBinding !== JSONRPC || typeof entry.url !== 'string') {
+        continue;
+      }
+      const declared = typeof entry.protocolVersion === 'string' ? entry.protocolVersion : '';
+      const version = majorMinor(declared);
+      if (version === '0.3' || version === '1.0') {
+        const tenant = typeof entry.tenant === 'string' && entry.tenant !== '' ? entry.tenant : '';
+        return {
+          kind: 'found',
+          version,
+          url: entry.url,
+          ...(tenant !== '' && {tenant}),
+          streaming,
+        };
+      }
+      versions.push(declared === '' ? 'no version' : declared);
+    }
+    return {kind: 'none', versions: [...new Set(versions)]};
+  }
+  const preferred = typeof card.preferredTransport === 'string' ? card.preferredTransport : JSONRPC;
+  if (preferred === JSONRPC && typeof card.url === 'string') {
+    return {kind: 'found', version: '0.3', url: card.url, streaming};
+  }
+  const additional = Array.isArray(card.additionalInterfaces) ? card.additionalInterfaces : [];
+  for (const entry of additional) {
+    if (isRecord(entry) && entry.transport === JSONRPC && typeof entry.url === 'string') {
+      return {kind: 'found', version: '0.3', url: entry.url, streaming};
+    }
+  }
+  return {kind: 'none', versions: []};
+}
+
+function majorMinor(version: string): string | undefined {
+  return /^(\d+\.\d+)(?:\.\d+)?$/.exec(version.trim())?.[1];
+}
+
+/** The text message the box sends, and the conversation it continues. */
+export interface BoxMessage {
+  text: string;
+  messageId: string;
+  contextId?: string;
+  taskId?: string;
+}
+
+/** One JSON-RPC request, ready to post. */
+export interface BoxRequest {
+  headers: Record<string, string>;
+  body: string;
+}
+
+/**
+ * The send or stream request for the interface's A2A version, with Spectra's
+ * offer: every supported A2UI extension in the version's extensions header,
+ * and the capabilities in the message's metadata.
+ */
+export function boxRequest(target: BoxInterface, message: BoxMessage, id: number): BoxRequest {
+  const extensions = A2UI_EXTENSION_URIS.join(', ');
+  const conversation = {
+    ...(message.contextId !== undefined && {contextId: message.contextId}),
+    ...(message.taskId !== undefined && {taskId: message.taskId}),
+  };
+  if (target.version === '0.3') {
+    return {
+      headers: {
+        'content-type': 'application/json',
+        accept: target.streaming ? 'text/event-stream' : 'application/json',
+        'x-a2a-extensions': extensions,
+      },
+      body: JSON.stringify({
+        jsonrpc: '2.0',
+        id,
+        method: target.streaming ? 'message/stream' : 'message/send',
+        params: {
+          message: {
+            kind: 'message',
+            messageId: message.messageId,
+            role: 'user',
+            parts: [{kind: 'text', text: message.text}],
+            ...conversation,
+            metadata: A2UI_CAPABILITIES,
+          },
+        },
+      }),
+    };
+  }
+  return {
+    headers: {
+      'content-type': 'application/json',
+      accept: target.streaming ? 'text/event-stream' : 'application/json',
+      'a2a-version': '1.0',
+      'a2a-extensions': extensions,
+    },
+    body: JSON.stringify({
+      jsonrpc: '2.0',
+      id,
+      method: target.streaming ? 'SendStreamingMessage' : 'SendMessage',
+      params: {
+        ...(target.tenant !== undefined && {tenant: target.tenant}),
+        message: {
+          messageId: message.messageId,
+          role: 'ROLE_USER',
+          parts: [{text: message.text}],
+          ...conversation,
+          metadata: A2UI_CAPABILITIES,
+        },
+      },
+    }),
+  };
+}
+
+/** What the box carries into its next send from a reply. */
+export interface ReplySummary {
+  contextId?: string;
+  /** The task the reply was about, the last one it named. */
+  taskId?: string;
+  /** The last task state the reply carried. */
+  state?: TaskState;
+}
+
+/**
+ * Reads a reply to the end, a JSON-RPC response or a server-sent event
+ * stream of them, for the conversation and the task it names.
+ */
+export async function readReplySummary(
+  response: Response,
+  version: A2aVersion,
+): Promise<ReplySummary> {
+  const summary: ReplySummary = {};
+  const take = (body: unknown) => {
+    if (!isRecord(body) || !('result' in body)) {
+      return;
+    }
+    const reply = readReply(body.result, version);
+    if (reply === undefined) {
+      return;
+    }
+    const contextId = reply.kind === 'message' ? reply.message.contextId : reply.contextId;
+    const taskId = reply.kind === 'message' ? reply.message.taskId : reply.taskId;
+    summary.contextId ??= contextId;
+    if (taskId !== undefined) {
+      summary.taskId = taskId;
+    }
+    if ((reply.kind === 'task' || reply.kind === 'status-update') && reply.state) {
+      summary.state = reply.state;
+    }
+  };
+  if (/^text\/event-stream\b/i.test(response.headers.get('content-type') ?? '')) {
+    const sse = new SseParser();
+    const text = new TextDecoder();
+    for await (const chunk of response.body ?? []) {
+      for (const event of sse.push(text.decode(chunk as Uint8Array, {stream: true}))) {
+        take(parseJson(event.data));
+      }
+    }
+    for (const event of sse.push(text.decode())) {
+      take(parseJson(event.data));
+    }
+  } else {
+    take(parseJson(await response.text()));
+  }
+  return summary;
+}
+
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return undefined;
+  }
+}

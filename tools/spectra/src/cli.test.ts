@@ -4,130 +4,22 @@
  * compiled binary, the same cases run against the binary instead.
  */
 import assert from 'node:assert/strict';
-import {type ChildProcess, spawn} from 'node:child_process';
 import {mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync} from 'node:fs';
 import {createServer, request as httpRequest, type Server} from 'node:http';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
-import {after, describe, it} from 'node:test';
+import {describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
 
 import {type CheckEvent, isEventOfKind, type TurnRecord} from './record/turn_record.js';
 import {SEND_REPLY, startFakeAgent, STREAM_REPLY} from './testing/fake_agent.js';
+import {binary, finished, freePort, SpectraProcess, workingDir} from './testing/spectra_process.js';
 import {turnRecordErrors} from './testing/turn_record_schema.js';
 import {VERSION} from './version.js';
 
-const binary = process.env.SPECTRA_BINARY;
-const spectraCommand: [string, ...string[]] =
-  binary === undefined || binary === ''
-    ? [process.execPath, fileURLToPath(new URL('./cli.js', import.meta.url))]
-    : [path.resolve(binary)];
 const fakeAgentScript = fileURLToPath(new URL('./testing/fake_agent.js', import.meta.url));
 const posix = process.platform !== 'win32';
 const TIMEOUT = 30_000;
-
-interface Exit {
-  code: number | null;
-  signal: NodeJS.Signals | null;
-}
-
-/** Spectra running as a process, with its stdout and stderr collected. */
-class SpectraProcess {
-  output = '';
-  readonly exited: Promise<Exit>;
-  readonly #child: ChildProcess;
-  #listeners: Array<() => void> = [];
-
-  /** Spectra starts in `cwd`, by default a fresh directory, where it creates its store. */
-  constructor(args: string[], cwd: string = workingDir()) {
-    const [command, ...prefix] = spectraCommand;
-    this.#child = spawn(command, [...prefix, ...args], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      cwd,
-    });
-    for (const stream of [this.#child.stdout, this.#child.stderr]) {
-      stream?.setEncoding('utf8');
-      stream?.on('data', (chunk: string) => {
-        this.output += chunk;
-        for (const listener of this.#listeners) listener();
-      });
-    }
-    this.exited = new Promise(resolve => {
-      this.#child.once('exit', (code, signal) => resolve({code, signal}));
-      this.#child.once('error', error => {
-        this.output += `Spectra could not start: ${error.message}\n`;
-        resolve({code: null, signal: null});
-      });
-    });
-    running.add(this);
-    void this.exited.then(() => running.delete(this));
-  }
-
-  /** Resolves with the first match of the pattern in the output so far. */
-  waitFor(pattern: RegExp, timeoutMs = 15_000): Promise<RegExpMatchArray> {
-    return new Promise((resolve, reject) => {
-      const check = () => {
-        const match = this.output.match(pattern);
-        if (match !== null) {
-          done();
-          resolve(match);
-        }
-      };
-      const timer = setTimeout(() => {
-        done();
-        reject(new Error(`No ${pattern} in Spectra's output:\n${this.output}`));
-      }, timeoutMs);
-      const done = () => {
-        clearTimeout(timer);
-        this.#listeners = this.#listeners.filter(l => l !== check);
-      };
-      this.#listeners.push(check);
-      check();
-    });
-  }
-
-  signal(signal: NodeJS.Signals): void {
-    this.#child.kill(signal);
-  }
-}
-
-const running = new Set<SpectraProcess>();
-after(() => {
-  for (const spectra of running) spectra.signal('SIGKILL');
-});
-
-const workingDirs: string[] = [];
-after(() => {
-  for (const dir of workingDirs) rmSync(dir, {recursive: true, force: true});
-});
-
-/** A fresh working directory for one Spectra process. */
-function workingDir(): string {
-  const dir = mkdtempSync(path.join(tmpdir(), 'spectra-cwd-'));
-  workingDirs.push(dir);
-  return dir;
-}
-
-async function finished(args: string[], cwd?: string): Promise<Exit & {output: string}> {
-  const spectra = new SpectraProcess(args, cwd);
-  const exit = await spectra.exited;
-  return {...exit, output: spectra.output};
-}
-
-function freePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      server.close(() =>
-        typeof address === 'object' && address !== null
-          ? resolve(address.port)
-          : reject(new Error('No port.')),
-      );
-    });
-  });
-}
 
 interface Answer {
   status: number;

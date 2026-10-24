@@ -7,6 +7,11 @@ import {isEventOfKind, type Turn, type TurnEvent} from './record/turn_record.js'
 import type {TurnStore} from './store/store.js';
 
 export interface TurnRecorderOptions {
+  /**
+   * Called with each closed turn and its check event once its write has
+   * finished, whether or not the write succeeded.
+   */
+  onRecorded?: (turn: Turn) => void;
   /** Nanoseconds since the Unix epoch. */
   now?: () => bigint;
   newSpanId?: () => string;
@@ -15,13 +20,15 @@ export interface TurnRecorderOptions {
 /**
  * Takes the adapter's turn notifications: each closed turn gets its schema
  * check event and is written to the store. A failed write is reported and
- * the turn stays in the store's memory for this run.
+ * the turn stays in the store's memory for this run. Either way, the checked
+ * turn is then handed on.
  */
 export class TurnRecorder {
   readonly #store: TurnStore;
   readonly #out: Output;
   readonly #now: () => bigint;
   readonly #newSpanId: () => string;
+  readonly #onRecorded: (turn: Turn) => void;
   readonly #open = new Set<string>();
   readonly #writing = new Set<Promise<void>>();
   #onIdle: Array<() => void> = [];
@@ -31,6 +38,7 @@ export class TurnRecorder {
     this.#out = out;
     this.#now = options.now ?? nowUnixNano;
     this.#newSpanId = options.newSpanId ?? (() => randomBytes(8).toString('hex'));
+    this.#onRecorded = options.onRecorded ?? (() => {});
   }
 
   readonly onTurn: TurnListener = (notification: TurnNotification) => {
@@ -65,15 +73,18 @@ export class TurnRecorder {
               }),
             ],
           };
-    const writing: Promise<void> = this.#store.write(checked).then(
-      () => {},
-      (error: unknown) => {
-        this.#out.error(
-          `${error instanceof Error ? error.message : String(error)}. ` +
-            'The turn is kept in memory until Spectra stops.',
-        );
-      },
-    );
+    const writing: Promise<void> = this.#store
+      .write(checked)
+      .then(
+        () => {},
+        (error: unknown) => {
+          this.#out.error(
+            `${error instanceof Error ? error.message : String(error)}. ` +
+              'The turn is kept in memory until Spectra stops.',
+          );
+        },
+      )
+      .then(() => this.#onRecorded(checked));
     this.#writing.add(writing);
     void writing.then(() => {
       this.#writing.delete(writing);

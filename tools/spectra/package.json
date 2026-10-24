@@ -70,7 +70,8 @@
     "test": {
       "command": "node --test --enable-source-maps --test-reporter spec \"dist/**/*.test.js\"",
       "dependencies": [
-        "build"
+        "build",
+        "../../conformance:build"
       ],
       "env": {
         "SPECTRA_BINARY": {

@@ -178,6 +178,8 @@ describe('TurnCapture', () => {
       type: 'turn_opened',
       traceId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
       conversationId: 'ctx-1',
+      startTimeUnixNano: '1792576800001000000',
+      messageId: 'm-user',
     });
     assert.equal(
       captured.notifications[1].type === 'wire_event' && captured.notifications[1].event,
@@ -449,6 +451,8 @@ describe('TurnCapture', () => {
       assert.deepEqual(captured.notifications[0], {
         type: 'turn_opened',
         traceId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        startTimeUnixNano: '1792576800001000000',
+        messageId: 'm-user',
       });
     });
   });

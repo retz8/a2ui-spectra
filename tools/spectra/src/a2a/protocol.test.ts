@@ -115,6 +115,7 @@ describe('readReply, A2A 0.3', () => {
       ),
       {
         kind: 'task',
+        taskId: 't-1',
         contextId: 'ctx-9',
         state: 'input-required',
         statusMessage: {messageId: 'r-2', role: 'agent', parts: []},
@@ -145,7 +146,7 @@ describe('readReply, A2A 0.3', () => {
         },
         '0.3',
       ),
-      {kind: 'status-update', contextId: 'ctx-9', state: 'working'},
+      {kind: 'status-update', taskId: 't-1', contextId: 'ctx-9', state: 'working'},
     );
     assert.deepEqual(
       readReply(
@@ -158,7 +159,12 @@ describe('readReply, A2A 0.3', () => {
         },
         '0.3',
       ),
-      {kind: 'artifact-update', contextId: 'ctx-9', artifact: {parts: [{kind: 'text', text: 'x'}]}},
+      {
+        kind: 'artifact-update',
+        taskId: 't-1',
+        contextId: 'ctx-9',
+        artifact: {parts: [{kind: 'text', text: 'x'}]},
+      },
     );
   });
 
@@ -179,7 +185,14 @@ describe('readReply, A2A 1.0', () => {
         {task: {id: 't-1', contextId: 'ctx-2', status: {state: 'TASK_STATE_SUBMITTED'}}},
         '1.0',
       ),
-      {kind: 'task', contextId: 'ctx-2', state: 'submitted', history: [], artifacts: []},
+      {
+        kind: 'task',
+        taskId: 't-1',
+        contextId: 'ctx-2',
+        state: 'submitted',
+        history: [],
+        artifacts: [],
+      },
     );
     assert.deepEqual(
       readReply(
@@ -197,6 +210,7 @@ describe('readReply, A2A 1.0', () => {
       ),
       {
         kind: 'status-update',
+        taskId: 't-1',
         contextId: 'ctx-2',
         state: 'auth-required',
         message: {messageId: 'r-3', role: 'agent', parts: [{text: 'Sign in'}]},
@@ -213,7 +227,12 @@ describe('readReply, A2A 1.0', () => {
         },
         '1.0',
       ),
-      {kind: 'artifact-update', contextId: 'ctx-2', artifact: {parts: [{text: 'x'}]}},
+      {
+        kind: 'artifact-update',
+        taskId: 't-1',
+        contextId: 'ctx-2',
+        artifact: {parts: [{text: 'x'}]},
+      },
     );
   });
 
