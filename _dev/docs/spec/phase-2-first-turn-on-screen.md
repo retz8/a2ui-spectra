@@ -32,7 +32,7 @@ Out of scope:
 
 ### 1. Done line
 
-The compiled binary runs each of the coverage line's three samples under `a2ui-spectra run` and, already running, under `a2ui-spectra attach`. A message from the message box produces a turn in the viewer with its raw messages, tree, data model and schema check, and a turn record v0.1 file in the local store. Upstream's Angular sample client, pointed at the wire proxy, produces the same turn. The custom-components sample is reached from the message box only. One A2A 1.0 agent from sub-task 2.3's coverage roster also runs under `a2ui-spectra run` and `a2ui-spectra attach`, with a message from the message box producing its turn.
+The compiled binary runs each of the coverage line's three samples under `a2ui-spectra run` and, already running, under `a2ui-spectra attach`. A message from the message box produces a turn in the viewer with its raw messages, tree, data model and schema check, and a turn record v0.1 file in the local store. Upstream's Angular sample client, pointed at the wire proxy, produces the same turn. The custom-components sample is reached from the message box only; at the pin its turn is the failed turn the sample produces for a message that reaches its model. One A2A 1.0 agent from sub-task 2.3's coverage roster, AG2's `A2UIAgentExecutor` serving v1.0, also runs under `a2ui-spectra run` and `a2ui-spectra attach`, with a message from the message box producing its turn.
 
 ### 2. Upstream pin
 
@@ -96,7 +96,7 @@ Bun compiles the tool for the host platform with the viewer's build embedded and
 
 ### 17. Tests
 
-Unit tests in the tool and the viewer under Node's test runner. A conformance action for the A2A capture path: recorded A2A traffic as the fixture, the request and the response or its stream events, captured once from every agent of sub-task 2.3's coverage roster, and the record the adapter must write from it. An end-to-end test that starts the tool against a small A2A agent in the test workspace, written on the A2A JavaScript SDK, that answers with canned A2UI, sends a message through the message box's API, and asserts a record lands in the store and validates. The done line is a manual run.
+Unit tests in the tool and the viewer under Node's test runner. A conformance action for the A2A capture path: recorded A2A traffic as the fixture, a HAR file of the requests and the responses or their stream events, captured once from every entry of sub-task 2.3's coverage roster, replayed through the wire proxy over HTTP, and the record the adapter must write from it. An end-to-end test that starts the tool against a small A2A agent in the test workspace, written on the A2A JavaScript SDK and serving A2A 0.3 and A2A 1.0, started in sub-task 2.3, that answers with canned A2UI, sends a message through the message box's API, and asserts a record lands in the store and validates. The done line is a manual run.
 
 ### 18. A2UI findings
 
