@@ -13,7 +13,7 @@ Spec: `_dev/docs/spec/phase-1-foundation.md`.
 
 ## Phase 2 — First turn on screen [WIP]
 `a2ui-spectra run` and `a2ui-spectra attach`; the A2A adapter, with the wire proxy and the message box as host; captured turns in the local store; the viewer's turn list, raw messages, tree and data model; schema checks for v0.9, v0.9.1 and v1.0. Built and run as the compiled binary from this phase on.
-Spec: `_dev/docs/spec/phase-2-first-turn-on-screen.md`. The done line — the three core samples under both entry points, and upstream's Angular sample client through the wire proxy — is the phase's acceptance run at wrap-up.
+Spec: `_dev/docs/spec/phase-2-first-turn-on-screen.md`. The done line — the three core samples under both entry points, upstream's Angular sample client through the wire proxy, and one A2A 1.0 agent from the coverage roster — is the phase's acceptance run at wrap-up.
 
 - [x] **2.1** The workspaces and the binary — the tool and viewer workspaces, the CLI with `run` and `attach` and their options, the server skeleton, the Bun build, CI building and running the binary. Spec: `_dev/docs/spec/task-2.1-workspaces-and-binary.md` (first)
 - [ ] **2.2** [WIP] The A2A adapter — the wire proxy for A2A 0.3 and 1.0 over JSON-RPC, the card rewrite and the transport check, the turn and wire events written as turn record v0.1, the dialect acceptance and `_dev/a2ui-findings.md`, unit tests and the command-line test against the proxy; SPEC.md's amendments (the protocol-version row, the upstream reference line at the pin, the coverage line as axes, the transport row), the Phase 2 spec's amendments, the turn record prose's `data` part. Spec: `_dev/docs/spec/task-2.2-a2a-adapter.md` (after 2.1)

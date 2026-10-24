@@ -14,7 +14,8 @@ In scope:
 - The schema check for v0.9, v0.9.1 and v1.0.
 - The tool workspace and the viewer workspace, and the binary.
 - `_dev/a2ui-findings.md`.
-- SPEC.md's corrections: the adopter table's row on where the protocol version comes from, and the upstream reference line.
+- SPEC.md's corrections: the adopter table's row on where the protocol version comes from, the upstream reference line, the coverage line and the coverage table's transport row.
+- The coverage roster: the agents found and the agents built for the coverage gaps, whose recorded traffic the conformance action runs on.
 - The tests: unit tests, the conformance action for the A2A capture path, the stub agent and the end-to-end test.
 
 Out of scope:
@@ -31,7 +32,7 @@ Out of scope:
 
 ### 1. Done line
 
-The compiled binary runs each of the coverage line's three samples under `a2ui-spectra run` and, already running, under `a2ui-spectra attach`. A message from the message box produces a turn in the viewer with its raw messages, tree, data model and schema check, and a turn record v0.1 file in the local store. Upstream's Angular sample client, pointed at the wire proxy, produces the same turn. The custom-components sample is reached from the message box only.
+The compiled binary runs each of the coverage line's three samples under `a2ui-spectra run` and, already running, under `a2ui-spectra attach`. A message from the message box produces a turn in the viewer with its raw messages, tree, data model and schema check, and a turn record v0.1 file in the local store. Upstream's Angular sample client, pointed at the wire proxy, produces the same turn. The custom-components sample is reached from the message box only. One A2A 1.0 agent from sub-task 2.3's coverage roster also runs under `a2ui-spectra run` and `a2ui-spectra attach`, with a message from the message box producing its turn.
 
 ### 2. Upstream pin
 
@@ -47,15 +48,15 @@ The agent's URL is required input on both entry points: `attach`'s argument, and
 
 ### 5. The wire proxy
 
-One transparent reverse proxy with its own listener. It forwards every request to the agent's origin unchanged and relays request bodies, responses and server-sent event streams byte for byte, parsing a copy on the side for capture. The one edit it makes is the agent card's `url`, rewritten to the proxy's own address. The message box is an A2A client pointed at the proxy like any other host, so there is one capture path. The proxy handles A2A over JSON-RPC on HTTP; an agent whose card prefers another transport is reported at attach, not proxied.
+One transparent reverse proxy with its own listener. It forwards every request to the agent's origin unchanged and relays request bodies, responses and server-sent event streams byte for byte, parsing a copy on the side for capture. The one edit it makes is to the agent card: its JSON-RPC endpoints, rewritten to the proxy's own address. The message box is an A2A client pointed at the proxy like any other host, so there is one capture path. The proxy handles A2A 0.3 and A2A 1.0 over JSON-RPC on HTTP. An agent whose card prefers another transport is reported at attach; one whose card lists no JSON-RPC interface is not proxied, and Spectra stops.
 
 ### 6. One turn per host message
 
-A turn opens at a `message/send` or `message/stream` request and closes with the JSON-RPC response, or when the server-sent event stream ends. The request is the wire input; the response, or each stream event, is one wire output in order. The conversation is the A2A `contextId`: a request without one opens a new conversation, named by the id the agent's reply assigns. The task's state at the close is the turn's outcome: completed, waiting for input, failed or canceled. A JSON-RPC error, or a stream that drops before its final event, is failed.
+A turn opens at a send or stream request — `message/send` or `message/stream` in A2A 0.3, `SendMessage` or `SendStreamingMessage` in A2A 1.0 — and closes with the JSON-RPC response, or when the server-sent event stream ends. The request is the wire input; the response, or each stream event, is one wire output in order. The conversation is the A2A `contextId`: a request without one opens a new conversation, named by the id the agent's reply assigns. The last task state the turn saw when it closed is the turn's outcome, whatever the `final` flag says: completed; waiting for input, for `input-required` and `auth-required`; cancelled; and failed, for `failed`, `rejected` and a turn that ends still `submitted`, `working` or `unknown`. A reply that is a message with no task is completed. A JSON-RPC error, a response that is not 2xx, or a connection that breaks is failed.
 
 ### 7. Which traffic becomes a turn
 
-Only `message/send` and `message/stream`. Everything else passes through the proxy untouched and unrecorded: the card fetch, the task methods, push-notification configuration, and any other path the agent serves.
+Only the send and stream methods of A2A 0.3 and A2A 1.0. Everything else passes through the proxy untouched and unrecorded: the card fetch, the task methods, push-notification configuration, and any other path the agent serves.
 
 ### 8. Which parts are A2UI
 
@@ -63,11 +64,11 @@ A data part is an A2UI part when its MIME type is `application/a2ui+json` or `ap
 
 ### 9. The turn's protocol version
 
-The turn's version is the `version` field of the A2UI messages it carries, and the schema check validates each message against the version it declares. Messages of mixed versions in one turn are a finding. A turn with no A2UI messages takes its version from the response's `X-A2A-Extensions` header, else from the host's offered capabilities when they name one version, else records none and runs no schema check. SPEC.md's adopter table is corrected: the card names the versions the agent supports; the turn's version comes from its messages.
+The turn's version is the `version` field of the A2UI messages it carries, and the schema check validates each message against the version it declares. Messages of mixed versions in one turn are a finding. A turn with no A2UI messages takes its version from the response's extensions header, `X-A2A-Extensions` in A2A 0.3 and `A2A-Extensions` in A2A 1.0, else from the host's offered capabilities when they name one version, else records none and runs no schema check. SPEC.md's adopter table is corrected: the card names the versions the agent supports; the turn's version comes from its messages.
 
 ### 10. The message box's offer
 
-The message box offers everything Spectra supports and lets the agent choose: the v0.9, v0.9.1 and v1.0 extension URIs in the `X-A2A-Extensions` header, and capabilities in the message metadata under both the v0.9 and the v1.0 keys, naming each version's basic catalog. It uses `message/stream`, keeps the `contextId` per conversation with a control that starts a new one, sends the `taskId` back when the previous turn ended waiting for input, and sends no data model. A reply's text parts show in the box; its A2UI parts show as a count linking to the turn.
+The message box offers everything Spectra supports and lets the agent choose: the v0.9, v0.9.1 and v1.0 extension URIs in the extensions header, and capabilities in the message metadata under both the v0.9 and the v1.0 keys, naming each version's basic catalog. It follows the card fetched at start: a 0.3 card gets `message/stream` and `X-A2A-Extensions`; a 1.0 card gets `SendStreamingMessage`, `A2A-Extensions` and `A2A-Version: 1.0` at its first JSON-RPC interface; an agent whose card does not declare streaming gets its version's send method. It keeps the `contextId` per conversation with a control that starts a new one, sends the `taskId` back when the previous turn ended waiting for input, and sends no data model. A reply's text parts show in the box; its A2UI parts show as a count linking to the turn.
 
 ### 11. The local store
 
@@ -95,11 +96,11 @@ Bun compiles the tool for the host platform with the viewer's build embedded and
 
 ### 17. Tests
 
-Unit tests in the tool and the viewer under Node's test runner. A conformance action for the A2A capture path: recorded A2A traffic as the fixture, the request and the response or its stream events, captured once from each of the three samples, and the record the adapter must write from it. An end-to-end test that starts the tool against a small A2A agent in the test workspace, written on the A2A JavaScript SDK, that answers with canned A2UI, sends a message through the message box's API, and asserts a record lands in the store and validates. The done line is a manual run.
+Unit tests in the tool and the viewer under Node's test runner. A conformance action for the A2A capture path: recorded A2A traffic as the fixture, the request and the response or its stream events, captured once from every agent of sub-task 2.3's coverage roster, and the record the adapter must write from it. An end-to-end test that starts the tool against a small A2A agent in the test workspace, written on the A2A JavaScript SDK, that answers with canned A2UI, sends a message through the message box's API, and asserts a record lands in the store and validates. The done line is a manual run.
 
 ### 18. A2UI findings
 
-`_dev/a2ui-findings.md`, in the shape of `_dev/otel-findings.md`, records what upstream does differently from its own extension spec, each checked against the pin. Known at the start of the phase: the Python A2A extension writes the deprecated MIME type for v0.9; the Lit and React sample clients put the MIME type on the part rather than in its metadata; every sample agent and client sends one A2UI message per part where the spec says an array; the custom-components sample reads capabilities from inside a data part rather than from the message metadata.
+`_dev/a2ui-findings.md`, in the shape of `_dev/otel-findings.md`, records issues in upstream A2UI's specifications and implementations found while building Spectra — implementations that deviate from the extension specification, the specifications' contradictions, and their gaps — each checked against the pin. Issues in other projects, such as ADK and the A2A SDKs, are not recorded there. Known at the start of the phase: the Python A2A extension writes the deprecated MIME type for v0.9; the Lit and React sample clients put the MIME type on the part rather than in its metadata; every sample agent and client sends one A2UI message per part where the spec says an array; the custom-components sample reads capabilities from inside a data part rather than from the message metadata.
 
 ## Invariants
 
