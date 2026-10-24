@@ -13,7 +13,9 @@ import {
 import type {SessionOptions} from './args.js';
 import {openBrowser} from './browser.js';
 import type {Output} from './output.js';
+import {TurnRecorder} from './recorder.js';
 import {PortTakenError, startViewerServer, type ViewerServer} from './server.js';
+import {TurnStore} from './store/store.js';
 
 /** The agent's command, under `run`. */
 export interface AgentCommand {
@@ -25,10 +27,12 @@ const STOP_SIGNALS: NodeJS.Signals[] =
   process.platform === 'win32' ? ['SIGINT', 'SIGTERM'] : ['SIGINT', 'SIGTERM', 'SIGHUP'];
 
 /**
- * Runs `attach`, or `run` when given the agent's command: waits for the
- * agent's card, checks the card offers A2A over JSON-RPC, starts the wire
- * proxy and the server, prints their addresses and opens the browser, then
- * runs until a stop signal, or until the agent's process exits. Resolves with
+ * Runs `attach`, or `run` when given the agent's command: opens the store,
+ * waits for the agent's card, checks the card offers A2A over JSON-RPC,
+ * starts the wire proxy and the server, prints their addresses and opens the
+ * browser, then runs until a stop signal, or until the agent's process exits.
+ * Each turn the proxy captures is checked and written to the store, and
+ * Spectra waits for the turns still open when it stops. Resolves with
  * Spectra's exit code.
  */
 export async function runSession(
@@ -37,6 +41,15 @@ export async function runSession(
   out: Output,
   viewerDir: string,
 ): Promise<number> {
+  let store: TurnStore;
+  try {
+    store = await TurnStore.open(process.cwd());
+  } catch (error) {
+    out.error(error instanceof Error ? error.message : String(error));
+    return 1;
+  }
+  const recorder = new TurnRecorder(store, out);
+
   const stop = new AbortController();
   let stoppedBy: NodeJS.Signals | undefined;
   let agent: AgentProcess | undefined;
@@ -118,6 +131,7 @@ export async function runSession(
         port: options.proxyPort,
         agentUrl: options.agentUrl,
         agentName: typeof card.name === 'string' ? card.name : undefined,
+        onTurn: recorder.onTurn,
       });
       server = await startViewerServer({
         port: options.port,
@@ -126,6 +140,7 @@ export async function runSession(
       });
       out.info(`The viewer is at ${server.url}`);
       out.info(`Point a host at the wire proxy: ${proxy.address}`);
+      out.info(`Turns are saved in ${store.turnsDir}`);
       if (options.open) {
         openBrowser(server.url);
       }
@@ -142,6 +157,7 @@ export async function runSession(
   } finally {
     await server?.close();
     await proxy?.close();
+    await recorder.idle();
     if (agent !== undefined) {
       await agent.stop();
       agentExit = await agent.exited;

@@ -5,14 +5,16 @@
  */
 import assert from 'node:assert/strict';
 import {type ChildProcess, spawn} from 'node:child_process';
-import {mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync} from 'node:fs';
 import {createServer, request as httpRequest, type Server} from 'node:http';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {after, describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
 
+import {type CheckEvent, isEventOfKind, type TurnRecord} from './record/turn_record.js';
 import {SEND_REPLY, startFakeAgent, STREAM_REPLY} from './testing/fake_agent.js';
+import {turnRecordErrors} from './testing/turn_record_schema.js';
 import {VERSION} from './version.js';
 
 const binary = process.env.SPECTRA_BINARY;
@@ -36,7 +38,8 @@ class SpectraProcess {
   readonly #child: ChildProcess;
   #listeners: Array<() => void> = [];
 
-  constructor(args: string[], cwd?: string) {
+  /** Spectra starts in `cwd`, by default a fresh directory, where it creates its store. */
+  constructor(args: string[], cwd: string = workingDir()) {
     const [command, ...prefix] = spectraCommand;
     this.#child = spawn(command, [...prefix, ...args], {
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -92,6 +95,18 @@ const running = new Set<SpectraProcess>();
 after(() => {
   for (const spectra of running) spectra.signal('SIGKILL');
 });
+
+const workingDirs: string[] = [];
+after(() => {
+  for (const dir of workingDirs) rmSync(dir, {recursive: true, force: true});
+});
+
+/** A fresh working directory for one Spectra process. */
+function workingDir(): string {
+  const dir = mkdtempSync(path.join(tmpdir(), 'spectra-cwd-'));
+  workingDirs.push(dir);
+  return dir;
+}
 
 async function finished(args: string[], cwd?: string): Promise<Exit & {output: string}> {
   const spectra = new SpectraProcess(args, cwd);
@@ -352,6 +367,83 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
       }
     },
   );
+
+  it(
+    'attach writes each turn through the proxy to the store, with its schema check',
+    {timeout: TIMEOUT},
+    async () => {
+      const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+      const agent = await startFakeAgent(agentPort);
+      const cwd = workingDir();
+      const spectra = new SpectraProcess(
+        [
+          'attach',
+          `http://localhost:${agentPort}`,
+          '--port',
+          String(port),
+          '--proxy-port',
+          String(proxyPort),
+          '--no-open',
+        ],
+        cwd,
+      );
+      try {
+        const [, turnsDir] = await spectra.waitFor(/Turns are saved in (.+)\n/);
+        const store = path.join(realpathSync(cwd), '.a2ui-spectra');
+        assert.equal(turnsDir, path.join(store, 'turns'));
+        await spectra.waitFor(viewerUrl);
+
+        for (const method of ['message/send', 'message/stream']) {
+          const answer = await send(proxyPort, {
+            method: 'POST',
+            headers: {'content-type': 'application/json'},
+            body: jsonRpc(method),
+          });
+          assert.equal(answer.status, 200);
+        }
+        spectra.signal('SIGTERM');
+        assert.equal((await spectra.exited).code, 128 + 15, spectra.output);
+
+        assert.match(readFileSync(path.join(store, '.gitignore'), 'utf8'), /^\*$/m);
+        const conversation = path.join(store, 'turns', 'ctx-1');
+        const files = readdirSync(conversation).sort();
+        assert.equal(files.length, 2, files.join(', '));
+        for (const file of files) {
+          assert.match(file, /^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}\.\d{3}Z_[0-9a-f]{32}\.json$/);
+        }
+        const [sent, streamed] = files.map(
+          file => JSON.parse(readFileSync(path.join(conversation, file), 'utf8')) as TurnRecord,
+        );
+        assert.deepEqual(turnRecordErrors(sent), []);
+        assert.deepEqual(turnRecordErrors(streamed), []);
+        assert.equal(sent.turns.length, 1);
+        assert.equal(streamed.turns.length, 2);
+        assert.deepEqual(streamed.turns[0], sent.turns[0]);
+
+        const checks = (record: TurnRecord) =>
+          record.turns
+            .at(-1)
+            ?.events.filter((event): event is CheckEvent => isEventOfKind(event, 'check'));
+        // The send's reply is text, and nothing in its turn names a protocol version.
+        assert.deepEqual(checks(sent), []);
+        const [check] = checks(streamed) ?? [];
+        assert.equal(check?.attributes['a2ui.check.name'], 'schema');
+        assert.equal(check.attributes['a2ui.check.passed'], true);
+        assert.equal(check.attributes['a2ui.check.protocol_version'], 'v0.9');
+      } finally {
+        await closeServer(agent);
+      }
+    },
+  );
+
+  it('stops at start when its store cannot be created', {timeout: TIMEOUT}, async () => {
+    const cwd = workingDir();
+    writeFileSync(path.join(cwd, '.a2ui-spectra'), 'not a directory');
+    const result = await finished(['attach', 'http://localhost:9', '--no-open'], cwd);
+    assert.equal(result.code, 1, result.output);
+    assert.match(result.output, /Spectra cannot create its store at .*\.a2ui-spectra: /);
+    assert.doesNotMatch(result.output, /Waiting for the agent's card/);
+  });
 
   it(
     'attach warns when the card prefers another transport to JSON-RPC, and keeps running',
