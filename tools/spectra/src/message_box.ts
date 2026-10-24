@@ -8,6 +8,7 @@ import {
   readReplySummary,
   type ReplySummary,
 } from './a2a/client.js';
+import {isEventOfKind, type Turn, type TurnEvent} from './record/turn_record.js';
 import type {TurnHub} from './turn_hub.js';
 
 /** A send the box refuses, with the HTTP status the server answers with. */
@@ -25,6 +26,8 @@ export class MessageBoxError extends Error {
 export interface MessageBoxState {
   /** The conversation's id; none until the agent's first reply names one. */
   conversationId?: string;
+  /** The trace ids of the turns the box sent in this conversation, oldest first. */
+  turns?: string[];
   /** The trace id of the conversation's open turn, when it has one. */
   openTurn?: string;
   /** Why the box cannot send to this agent, when it cannot. */
@@ -60,12 +63,13 @@ export class MessageBox {
   readonly #unsubscribe: () => void;
   /** Turns waited for: by the host message's id until they open, by trace id until they close. */
   readonly #opening = new Map<string, (traceId: string) => void>();
-  readonly #closing = new Map<string, () => void>();
+  readonly #closing = new Map<string, (turn: Turn) => void>();
   #requestId = 0;
   /** Bumped by each new conversation, so an earlier conversation's reply changes nothing. */
   #generation = 0;
   #conversationId: string | undefined;
   #taskId: string | undefined;
+  #sent: string[] = [];
   /** The current conversation's open turn: true while its request is on its way, then its trace id. */
   #open: string | true | undefined;
 
@@ -78,7 +82,7 @@ export class MessageBox {
       if (event.type === 'turn_opened' && event.messageId !== undefined) {
         this.#opening.get(event.messageId)?.(event.traceId);
       } else if (event.type === 'turn_closed') {
-        this.#closing.get(event.traceId)?.();
+        this.#closing.get(event.traceId)?.(event.turn);
       }
     });
   }
@@ -100,6 +104,7 @@ export class MessageBox {
     const unavailable = this.unavailable;
     return {
       ...(this.#conversationId !== undefined && {conversationId: this.#conversationId}),
+      ...(this.#sent.length > 0 && {turns: [...this.#sent]}),
       ...(typeof this.#open === 'string' && {openTurn: this.#open}),
       ...(unavailable !== undefined && {unavailable}),
     };
@@ -110,6 +115,7 @@ export class MessageBox {
     this.#generation++;
     this.#conversationId = undefined;
     this.#taskId = undefined;
+    this.#sent = [];
     this.#open = undefined;
     return this.state();
   }
@@ -173,9 +179,10 @@ export class MessageBox {
       this.#opening.delete(messageId);
     }
 
-    const closed = new Promise<void>(resolve => this.#closing.set(traceId, resolve));
+    const closed = new Promise<Turn>(resolve => this.#closing.set(traceId, resolve));
     if (generation === this.#generation) {
       this.#open = traceId;
+      this.#sent.push(traceId);
     }
     void this.#finish(generation, traceId, target, responding, closed);
     return {
@@ -192,15 +199,16 @@ export class MessageBox {
 
   /**
    * Reads the reply to its end and waits for the turn to close, then carries
-   * the conversation on: its id, and the task when the turn ended waiting
-   * for input.
+   * the conversation on: its id, from the reply or else from the closed turn
+   * when the reply broke off, and the task when the turn ended waiting for
+   * input.
    */
   async #finish(
     generation: number,
     traceId: string,
     target: BoxInterface,
     responding: Promise<Response>,
-    closed: Promise<void>,
+    closed: Promise<Turn>,
   ): Promise<void> {
     let summary: ReplySummary = {};
     try {
@@ -208,12 +216,13 @@ export class MessageBox {
     } catch {
       // A reply that cannot be read is a failed turn, which the record shows.
     }
-    await closed;
+    const turn = await closed;
     this.#closing.delete(traceId);
     if (generation !== this.#generation) {
       return;
     }
-    this.#conversationId ??= summary.contextId;
+    const turnEvent = turn.events.find((event): event is TurnEvent => isEventOfKind(event, 'turn'));
+    this.#conversationId ??= summary.contextId ?? turnEvent?.attributes['gen_ai.conversation.id'];
     const waiting = summary.state === 'input-required' || summary.state === 'auth-required';
     this.#taskId = waiting ? summary.taskId : undefined;
     this.#open = undefined;

@@ -17,6 +17,8 @@ export interface ListedTurn {
 /** The message box's conversation. */
 export interface MessageBoxState {
   conversationId?: string;
+  /** The trace ids of the turns the box sent in this conversation, oldest first. */
+  turns?: string[];
   openTurn?: string;
   unavailable?: string;
 }

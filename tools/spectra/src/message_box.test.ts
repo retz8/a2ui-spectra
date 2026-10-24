@@ -49,14 +49,14 @@ class FakeProxy {
   };
 
   /** Closes a turn as the recorder does, once the reply has been read. */
-  async close(traceId: string): Promise<void> {
+  async close(traceId: string, conversationId?: string): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 10));
-    this.turns.onRecorded(turnOf(traceId));
+    this.turns.onRecorded(turnOf(traceId, conversationId));
     await new Promise(resolve => setTimeout(resolve, 0));
   }
 }
 
-function turnOf(traceId: string): Turn {
+function turnOf(traceId: string, conversationId?: string): Turn {
   return {
     events: [
       {
@@ -69,6 +69,7 @@ function turnOf(traceId: string): Turn {
         attributes: {
           'a2ui.event.kind': 'turn',
           'gen_ai.operation.name': 'invoke_agent',
+          ...(conversationId !== undefined && {'gen_ai.conversation.id': conversationId}),
           'a2ui.turn.outcome': 'completed',
           'a2ui.turn.capture_paths': ['wire'],
           'a2ui.turn.writer.name': 'a2ui-spectra',
@@ -89,6 +90,28 @@ function streamReply(state: string, taskId = 't-1', contextId = 'ctx-1') {
     );
 }
 
+/** A 1.0 stream reply that names its task and conversation, then breaks off. */
+function brokenReply() {
+  return async () =>
+    new Response(
+      new ReadableStream({
+        start(controller) {
+          const task = {id: 't-1', contextId: 'ctx-1', status: {state: 'TASK_STATE_SUBMITTED'}};
+          const event = {jsonrpc: '2.0', id: 1, result: {task}};
+          controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`));
+          controller.error(new Error('The agent hung up.'));
+        },
+      }),
+      {headers: {'content-type': 'text/event-stream'}},
+    );
+}
+
+/** A JSON-RPC error, which names no conversation. */
+function errorReply() {
+  return async () =>
+    Response.json({jsonrpc: '2.0', id: 1, error: {code: -32603, message: 'Internal error'}});
+}
+
 function boxOn(proxy: FakeProxy, card: Record<string, unknown> = CARD_1_0): MessageBox {
   let ids = 0;
   return new MessageBox({
@@ -107,9 +130,9 @@ describe('the message box', () => {
     const sent = await box.send('Hi');
     assert.deepEqual(sent, {traceId: proxy.sent[0].traceId});
     assert.equal(proxy.sent[0].url, URL_1_0);
-    assert.deepEqual(box.state(), {openTurn: sent.traceId});
+    assert.deepEqual(box.state(), {turns: [sent.traceId], openTurn: sent.traceId});
     await proxy.close(sent.traceId);
-    assert.deepEqual(box.state(), {conversationId: 'ctx-1'});
+    assert.deepEqual(box.state(), {conversationId: 'ctx-1', turns: [sent.traceId]});
     box.close();
   });
 
@@ -133,6 +156,35 @@ describe('the message box', () => {
     assert.equal(proxy.sent[1].message.taskId, 't-1');
     assert.equal(proxy.sent[2].message.contextId, 'ctx-1');
     assert.equal(proxy.sent[2].message.taskId, undefined, 'A completed task is not sent back.');
+    box.close();
+  });
+
+  it('carries on the conversation its turn was recorded in when the reply broke off', async () => {
+    const proxy = new FakeProxy();
+    const box = boxOn(proxy);
+    proxy.replies.push(brokenReply(), streamReply('TASK_STATE_COMPLETED'));
+    const first = await box.send('Hi');
+    await proxy.close(first.traceId, 'ctx-1');
+    assert.deepEqual(box.state(), {conversationId: 'ctx-1', turns: [first.traceId]});
+    await proxy.close((await box.send('Again')).traceId);
+    assert.equal(proxy.sent[1].message.contextId, 'ctx-1');
+    box.close();
+  });
+
+  it('lists the turns it sent in its conversation, one that names none included', async () => {
+    const proxy = new FakeProxy();
+    const box = boxOn(proxy);
+    proxy.replies.push(errorReply(), streamReply('TASK_STATE_COMPLETED'));
+    const first = await box.send('Hi');
+    await proxy.close(first.traceId);
+    assert.deepEqual(box.state(), {turns: [first.traceId]});
+    const second = await box.send('Again');
+    await proxy.close(second.traceId);
+    assert.deepEqual(box.state(), {
+      conversationId: 'ctx-1',
+      turns: [first.traceId, second.traceId],
+    });
+    assert.deepEqual(box.newConversation(), {});
     box.close();
   });
 
@@ -164,9 +216,9 @@ describe('the message box', () => {
     assert.deepEqual(box.newConversation(), {});
     const second = await box.send('Hello again');
     await proxy.close(first.traceId);
-    assert.deepEqual(box.state(), {openTurn: second.traceId});
+    assert.deepEqual(box.state(), {turns: [second.traceId], openTurn: second.traceId});
     await proxy.close(second.traceId);
-    assert.deepEqual(box.state(), {conversationId: 'ctx-2'});
+    assert.deepEqual(box.state(), {conversationId: 'ctx-2', turns: [second.traceId]});
     assert.equal(proxy.sent[1].message.contextId, undefined);
     box.close();
   });

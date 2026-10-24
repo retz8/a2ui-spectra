@@ -97,37 +97,38 @@ export function turnViewOf(state: SpectraState, traceId: string, needs: string[]
   return {status: 'loading'};
 }
 
-/** The message box's conversation as its chat: the closed turns from the latest record, then any turn still open. */
+/**
+ * The message box's conversation as its chat: each turn the box sent, in
+ * order, open from the live stream or closed from the stream or a record. A
+ * record holds its conversation's turns up to its own, so the newest unknown
+ * turn's record is read first.
+ */
 export function boxChatOf(
   state: SpectraState,
   needs: string[],
 ): {entries: ChatEntry[]; loading: boolean} {
-  const {conversationId, openTurn} = state.box;
-  const turns: Array<{traceId: string; events: readonly TurnRecordEvent[]}> = [];
-  let loading = false;
-  if (conversationId !== undefined) {
-    const row = state.turns.find(turn => turn.conversationId === conversationId && !turn.open);
-    const record = row === undefined ? undefined : state.records.get(row.traceId);
-    if (row !== undefined && (record === undefined || 'loading' in record)) {
-      needs.push(row.traceId);
-      loading = true;
-    } else if (record !== undefined && 'record' in record) {
-      for (const turn of record.record.turns)
-        turns.push({traceId: traceIdOf(turn), events: turn.events});
-    }
-    // Turns that closed in this page and are newer than the record read.
-    for (const [traceId, turn] of state.closed) {
-      const id = turn.events.find(isTurnEvent)?.attributes['gen_ai.conversation.id'];
-      if (id === conversationId && !turns.some(entry => entry.traceId === traceId)) {
-        turns.push({traceId, events: turn.events});
-      }
+  const sent = state.box.turns ?? [];
+  const known = new Map<string, readonly TurnRecordEvent[]>();
+  for (const traceId of sent) {
+    const record = state.records.get(traceId);
+    if (record !== undefined && 'record' in record) {
+      for (const turn of record.record.turns) known.set(traceIdOf(turn), turn.events);
     }
   }
-  const live = openTurn === undefined ? undefined : state.live.get(openTurn);
-  if (live !== undefined && !turns.some(entry => entry.traceId === live.traceId)) {
-    turns.push({traceId: live.traceId, events: live.events});
-  }
-  return {entries: turns.map(({traceId, events}) => chatEntryOf(traceId, events)), loading};
+  for (const [traceId, turn] of state.closed) known.set(traceId, turn.events);
+  for (const [traceId, turn] of state.live) known.set(traceId, turn.events);
+  const unknown = [...sent].reverse().find(traceId => {
+    const record = state.records.get(traceId);
+    return !known.has(traceId) && (record === undefined || !('error' in record));
+  });
+  if (unknown !== undefined) needs.push(unknown);
+  return {
+    entries: sent.flatMap(traceId => {
+      const events = known.get(traceId);
+      return events === undefined ? [] : [chatEntryOf(traceId, events)];
+    }),
+    loading: unknown !== undefined,
+  };
 }
 
 function traceIdOf(turn: Turn): string {
