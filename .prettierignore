@@ -16,5 +16,8 @@ _dev/
 # OpenTelemetry GenAI schemas, copied unchanged at the pinned commit
 specification/turn_record/*/json/gen-ai-*.json
 
+# A2UI protocol schemas, copied unchanged at the pinned commit
+tools/spectra/src/check/schemas/*/*.json
+
 # Conformance fixtures, kept as written
 conformance/test_data/**

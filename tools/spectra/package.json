@@ -32,6 +32,7 @@
       },
       "files": [
         "src/**/*.ts",
+        "src/**/*.json",
         "tsconfig.json"
       ],
       "output": [
@@ -58,6 +59,7 @@
       ],
       "files": [
         "src/**/*.ts",
+        "src/**/*.json",
         "tsconfig.json",
         "package.json"
       ],
@@ -77,6 +79,7 @@
       },
       "files": [
         "../../conformance/test_data/turn_record/v0_1/minimal_*.json",
+        "../../conformance/test_data/turn_record/v0_1/full_record_*.json",
         "../../conformance/a2a_capture/**",
         "../../conformance/test_data/a2a_capture/**",
         "../../specification/turn_record/v0_1/json/*.json"
