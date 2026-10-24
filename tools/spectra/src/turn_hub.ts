@@ -1,4 +1,5 @@
 import type {TurnListener} from './a2a/turn.js';
+import {inputBriefOf, type InputBrief} from './listing.js';
 import {
   isEventOfKind,
   type Turn,
@@ -76,13 +77,21 @@ export class TurnHub {
     this.#emit({type: 'turn_closed', traceId: turnEvent.traceId, turn});
   };
 
-  /** The turns open now, in the order they opened. */
-  openTurns(): OpenTurn[] {
-    return [...this.#open.values()].map(({opened}) => ({
-      traceId: opened.traceId,
-      ...(opened.conversationId !== undefined && {conversationId: opened.conversationId}),
-      startTime: opened.startTime,
-    }));
+  /** The turns open now, in the order they opened, each with its input in brief once its input has come. */
+  openTurns(): Array<OpenTurn & {input?: InputBrief}> {
+    return [...this.#open.values()].map(({opened, wireEvents}) => {
+      const wireInput = wireEvents.find(({event}) => isEventOfKind(event, 'wire_input'))?.event;
+      const input =
+        wireInput !== undefined && isEventOfKind(wireInput, 'wire_input')
+          ? inputBriefOf(wireInput)
+          : undefined;
+      return {
+        traceId: opened.traceId,
+        ...(opened.conversationId !== undefined && {conversationId: opened.conversationId}),
+        startTime: opened.startTime,
+        ...(input !== undefined && {input}),
+      };
+    });
   }
 
   isOpen(traceId: string): boolean {

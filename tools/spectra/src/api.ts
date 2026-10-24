@@ -1,5 +1,6 @@
 import type {IncomingMessage, ServerResponse} from 'node:http';
 
+import {type ListingFields, listingFieldsOf} from './listing.js';
 import {type MessageBox, MessageBoxError} from './message_box.js';
 import type {StoredTurn, TurnStore} from './store/store.js';
 import type {HubEvent, TurnHub} from './turn_hub.js';
@@ -12,7 +13,7 @@ export interface Api {
 }
 
 /** One entry of the turn listing. */
-export interface ListedTurn {
+export interface ListedTurn extends Partial<ListingFields> {
   traceId: string;
   conversationId?: string;
   /** The turn's start, as an ISO 8601 UTC time to the millisecond. */
@@ -20,6 +21,9 @@ export interface ListedTurn {
   /** Set on a turn still open. */
   open?: true;
 }
+
+/** The listing's fields of each record file read so far, by store and file. A file is written once. */
+const listingCache = new WeakMap<TurnStore, Map<string, ListingFields | undefined>>();
 
 /** The largest request body the API reads. */
 const MAX_BODY_BYTES = 64 * 1024;
@@ -95,12 +99,15 @@ function isRoute(pathname: string): boolean {
 
 /** The store's turns and the open turns, newest first. */
 async function listTurns(api: Api): Promise<ListedTurn[]> {
-  const stored: ListedTurn[] = (await api.store.list()).map(
-    ({traceId, conversationId, startTime}: StoredTurn) => ({
-      traceId,
-      ...(conversationId !== undefined && {conversationId}),
-      startTime,
-    }),
+  const stored: ListedTurn[] = await Promise.all(
+    (await api.store.list()).map(
+      async ({traceId, conversationId, startTime, file}: StoredTurn) => ({
+        traceId,
+        ...(conversationId !== undefined && {conversationId}),
+        startTime,
+        ...(await storedFields(api.store, file)),
+      }),
+    ),
   );
   const listed = new Set(stored.map(turn => turn.traceId));
   const open: ListedTurn[] = api.turns
@@ -111,6 +118,24 @@ async function listTurns(api: Api): Promise<ListedTurn[]> {
   return [...open.reverse(), ...stored].sort((a, b) =>
     a.startTime === b.startTime ? 0 : a.startTime < b.startTime ? 1 : -1,
   );
+}
+
+/** The listing's fields of a stored turn, read from its record; none when it does not read as one. */
+async function storedFields(store: TurnStore, file: string): Promise<ListingFields | undefined> {
+  let cache = listingCache.get(store);
+  if (cache === undefined) {
+    cache = new Map();
+    listingCache.set(store, cache);
+  }
+  if (!cache.has(file)) {
+    try {
+      const {turns} = await store.read(file);
+      cache.set(file, listingFieldsOf(turns[turns.length - 1]));
+    } catch {
+      return undefined;
+    }
+  }
+  return cache.get(file);
 }
 
 async function sendRecord(api: Api, traceId: string, response: ServerResponse): Promise<void> {

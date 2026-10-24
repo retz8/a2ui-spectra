@@ -8,7 +8,7 @@ import {after, describe, it} from 'node:test';
 import {SseParser} from './a2a/sse.js';
 import type {ListedTurn} from './api.js';
 import {MessageBox} from './message_box.js';
-import type {Turn, TurnRecord} from './record/turn_record.js';
+import type {Turn, TurnRecord, WireInputEvent, WirePart} from './record/turn_record.js';
 import {startViewerServer, type ViewerServer} from './server.js';
 import {TurnStore} from './store/store.js';
 import {TurnHub} from './turn_hub.js';
@@ -60,6 +60,19 @@ function closedTurn(n: number, conversationId?: string): Turn {
         status: {code: 1},
       },
     ],
+  };
+}
+
+/** The host's message of turn n. */
+function wireInput(n: number, ...parts: WirePart[]): WireInputEvent {
+  return {
+    traceId: trace(n),
+    spanId: '0000000000000001',
+    parentSpanId: '0000000000000000',
+    name: 'wire_input',
+    kind: 1,
+    startTimeUnixNano: `${1792576800 + n}100000000`,
+    attributes: {'a2ui.event.kind': 'wire_input', 'a2ui.wire.message': {role: 'user', parts}},
   };
 }
 
@@ -119,9 +132,60 @@ describe('the API', () => {
     assert.equal(status, 200);
     assert.deepEqual((body as {turns: ListedTurn[]}).turns, [
       {traceId: trace(4), startTime: '2026-10-21T10:00:04.000Z', open: true},
-      {traceId: trace(3), startTime: '2026-10-21T10:00:03.000Z'},
+      {traceId: trace(3), startTime: '2026-10-21T10:00:03.000Z', outcome: 'completed'},
       {traceId: trace(2), startTime: '2026-10-21T10:00:02.000Z', open: true},
-      {traceId: trace(1), conversationId: 'ctx-1', startTime: '2026-10-21T10:00:01.000Z'},
+      {
+        traceId: trace(1),
+        conversationId: 'ctx-1',
+        startTime: '2026-10-21T10:00:01.000Z',
+        outcome: 'completed',
+      },
+    ]);
+  });
+
+  it("lists each turn's outcome, input in brief and schema check, an open turn's input once it arrives", async () => {
+    const {store, turns, base} = await serve();
+    const closed = closedTurn(1, 'ctx-1');
+    closed.events.push(wireInput(1, {type: 'text', content: 'Book a table'}), {
+      traceId: trace(1),
+      spanId: '0000000000000002',
+      parentSpanId: '0000000000000000',
+      name: 'check schema',
+      kind: 1,
+      startTimeUnixNano: `${1792576801}600000000`,
+      attributes: {
+        'a2ui.event.kind': 'check',
+        'a2ui.check.name': 'schema',
+        'a2ui.check.passed': false,
+        'a2ui.check.protocol_version': 'v0.9',
+        'a2ui.check.findings': [{code: 'VALIDATION_FAILED', message: 'Bad.'}],
+      },
+    });
+    await store.write(closed);
+    openTurn(turns, 2);
+    openTurn(turns, 3);
+    turns.onTurn({
+      type: 'wire_event',
+      traceId: trace(3),
+      event: wireInput(3, {type: 'a2ui', content: {version: 'v0.9', action: {name: 'next'}}}),
+    });
+    const {body} = await getJson(`${base}/api/turns`);
+    assert.deepEqual((body as {turns: ListedTurn[]}).turns, [
+      {
+        traceId: trace(3),
+        startTime: '2026-10-21T10:00:03.000Z',
+        open: true,
+        input: {action: 'next'},
+      },
+      {traceId: trace(2), startTime: '2026-10-21T10:00:02.000Z', open: true},
+      {
+        traceId: trace(1),
+        conversationId: 'ctx-1',
+        startTime: '2026-10-21T10:00:01.000Z',
+        outcome: 'completed',
+        input: {text: 'Book a table'},
+        schemaCheck: {passed: false, findings: 1},
+      },
     ]);
   });
 

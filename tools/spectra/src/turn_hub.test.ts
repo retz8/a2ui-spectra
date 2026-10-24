@@ -65,7 +65,12 @@ describe('the turn hub', () => {
     hub.subscribe(event => events.push(event));
     open(hub, TRACE_A, 'ctx-1');
     assert.deepEqual(hub.openTurns(), [
-      {traceId: TRACE_A, conversationId: 'ctx-1', startTime: '2026-10-21T10:00:00.000Z'},
+      {
+        traceId: TRACE_A,
+        conversationId: 'ctx-1',
+        startTime: '2026-10-21T10:00:00.000Z',
+        input: {text: 'Hi'},
+      },
     ]);
 
     hub.onTurn({type: 'turn_closed', traceId: TRACE_A, turn: closedTurn(TRACE_A)});
