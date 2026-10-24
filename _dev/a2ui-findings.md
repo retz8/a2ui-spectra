@@ -143,6 +143,8 @@ Put the MIME type in `metadata.mimeType`, as the Angular client does.
 
 **Severity:** deviation from the extension specs.
 
+**Upstream:** PR #3272.
+
 ### Issue
 
 The extension specs carry client capabilities in the message's metadata,
