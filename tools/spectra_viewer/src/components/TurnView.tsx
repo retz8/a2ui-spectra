@@ -26,6 +26,9 @@ import {WireEvents} from './WireEvents.tsx';
 /** How long the element a link landed on stays marked. */
 const LANDED_MS = 1500;
 
+/** How many frames a link waits for the element it lands on to mount. */
+const LANDING_FRAMES = 10;
+
 export function TurnView({traceId}: {traceId: string | undefined}) {
   const state = useSpectra();
   const needs: string[] = [];
@@ -75,16 +78,28 @@ function TurnDetail({
   };
   useEffect(() => {
     if (landing === undefined) return;
-    const element = document.getElementById(landing);
-    if (element === null) return;
-    element.scrollIntoView({block: 'center', behavior: 'smooth'});
-    element.dataset.landed = 'true';
-    const timer = setTimeout(() => {
-      delete element.dataset.landed;
-      setLanding(undefined);
-    }, LANDED_MS);
-    return () => clearTimeout(timer);
-  }, [landing, tab]);
+    let element: HTMLElement | null = null;
+    let frame = 0;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // A tab's content mounts a render after the tab changes, so the element can be a frame or two away.
+    const land = (tries: number) => {
+      element = document.getElementById(landing);
+      if (element === null) {
+        if (tries < LANDING_FRAMES) frame = requestAnimationFrame(() => land(tries + 1));
+        else setLanding(undefined);
+        return;
+      }
+      element.scrollIntoView({block: 'center', behavior: 'smooth'});
+      element.dataset.landed = 'true';
+      timer = setTimeout(() => setLanding(undefined), LANDED_MS);
+    };
+    land(0);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+      if (element !== null) delete element.dataset.landed;
+    };
+  }, [landing]);
 
   const withIndex = (keep: (event: TurnRecordEvent) => event is WireEvent) =>
     events.flatMap((event, index) => (keep(event) ? [{event, index}] : []));
