@@ -986,6 +986,7 @@ __metadata:
   resolution: "a2ui-spectra@workspace:tools/spectra"
   dependencies:
     "@types/node": "npm:^25.9.3"
+    ajv: "npm:^8.17.1"
     bun: "npm:1.4.4"
     eslint: "npm:^10.4.1"
     gts: "npm:^7.0.0"
