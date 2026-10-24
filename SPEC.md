@@ -295,7 +295,7 @@ The viewer's own stack is not visible to the adopter.
 - A2A SDKs beyond Python's and JavaScript's;
 - the wire forms: a send and a stream; A2UI in a task's status message, in an artifact and in a plain message reply; one A2UI message per part and an array; the MIME type in the part's metadata and on the part;
 - the turn outcomes: completed, waiting for input, failed and cancelled;
-- the hosts: Spectra's message box, upstream's Angular sample client, and CopilotKit's runtime as an A2A host.
+- the hosts: Spectra's message box, upstream's Angular sample client and upstream's React sample client.
 
 Upstream's three core samples are the headline targets. Agents found in the ecosystem, and agents built for what no found agent exercises, fill the rest.
 
