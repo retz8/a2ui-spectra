@@ -32,7 +32,7 @@ The proxy rewrites every card it serves: at `/.well-known/agent-card.json`, at t
 
 ### 5. The transport check at start
 
-Judged on the card fetched at start. When the card lists a JSON-RPC interface but not first, Spectra warns, naming the preferred transport, that hosts following the card's preference bypass capture, and keeps running. When the card lists no JSON-RPC interface, Spectra says it captures only A2A over JSON-RPC, names the transports the card lists, and exits with an error, ending the agent's process under `run` as on any exit.
+Judged on the card fetched at start. When the card lists a JSON-RPC interface but not first, Spectra warns, naming the preferred transport, that hosts following the card's preference bypass capture, and keeps running. When the card lists interfaces but no JSON-RPC one, Spectra says it captures only A2A over JSON-RPC, names the transports the card lists, and exits with an error. When the card lists no interface at all, Spectra says so, that A2A 1.0 requires `supportedInterfaces` and A2A 0.3 a `url`, and that hosts following the card cannot reach the agent either, and exits with an error. Either exit ends the agent's process under `run`, as any exit does.
 
 ### 6. What the adapter hands out
 

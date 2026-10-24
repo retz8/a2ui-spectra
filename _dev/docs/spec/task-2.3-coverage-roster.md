@@ -43,7 +43,7 @@ The fewest conversations that exercise every axis value the entry's row lists. E
 
 ### 4. What sends the requests
 
-A host sends the requests to the agents it reaches: upstream's Angular and React sample clients to the restaurant finders, whose port 10002 both clients hardcode. Every other entry's requests come from the request script: one request file per conversation, holding its JSON-RPC requests and the headers they need, sent in order through the recording proxy, with each reply's `contextId` and `taskId` carried into the next request. Every conversation begins with the card fetch.
+A host sends the requests to the agents it reaches: upstream's Angular and React sample clients to the restaurant finders, whose port 10002 both clients hardcode. Every other entry's requests come from the request script: one request file per conversation, holding its JSON-RPC requests and the headers they need, sent in order through the recording proxy, with each reply's `contextId` and `taskId` carried into the next request. Every conversation begins with the card fetch. A request file names the JSON-RPC path when the card lists no interface.
 
 ### 5. The recording proxy
 
