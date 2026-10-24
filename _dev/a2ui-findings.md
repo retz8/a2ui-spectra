@@ -117,6 +117,8 @@ to the part converter.
 
 **Severity:** deviation from the extension specs.
 
+**Upstream:** issue #3601, PR #3602.
+
 ### Issue
 
 Every example in the extension specs puts the MIME type in the part's metadata,
@@ -212,6 +214,8 @@ Change the defining sentences to `message.metadata[...]`.
 messages" example.
 
 **Severity:** specification example that fails its own schema.
+
+**Upstream:** PR #3600.
 
 ### Issue
 
