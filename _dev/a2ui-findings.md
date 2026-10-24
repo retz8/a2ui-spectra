@@ -430,3 +430,68 @@ in `a2ui-spectra` holds three such turns.
 
 Skip partial events or the final aggregated one in `token_stream`, so each piece
 of text reaches the parser once.
+
+## 15. The v0.9.1 schemas declare v0.9's `$id`s
+
+**Component:** every schema in `specification/v0_9_1/json/` that declares an
+`$id`, and `specification/v0_9_1/catalogs/basic/catalog.json`.
+
+**Severity:** specification defect.
+
+### Issue
+
+Each v0.9.1 schema declares the `$id` of its v0.9 counterpart: for example,
+`specification/v0_9_1/json/server_to_client.json:3` declares
+`https://a2ui.org/specification/v0_9/server_to_client.json`, the `$id` of
+`specification/v0_9/json/server_to_client.json`. The same holds for
+`client_capabilities.json`, `client_data_model.json`,
+`client_to_server_list.json`, `client_to_server_list_wrapper.json`,
+`common_types.json`, `sample.json`, `server_capabilities.json`,
+`server_to_client_list.json`, `server_to_client_list_wrapper.json` and the basic
+catalog, `https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json`.
+
+JSON Schema tools register schemas and resolve `$ref`s by `$id`. A validator
+that holds v0.9 and v0.9.1 together either refuses the second version or
+resolves one version's references to the other's documents. A tool that checks
+both versions has to keep each in its own validator.
+
+### Reproduction
+
+With Ajv 8's draft 2020-12 build, `addSchema` the v0.9 and then the v0.9.1
+`server_to_client.json`. The second call throws
+`schema with key or id "https://a2ui.org/specification/v0_9/server_to_client.json" already exists`.
+
+### Fix
+
+Give each v0.9.1 file the `$id` of its own path, under
+`https://a2ui.org/specification/v0_9_1/`.
+
+## 16. `client_to_server.json` declares no `$id` in v0.9 and v0.9.1
+
+**Component:** `specification/v0_9/json/client_to_server.json` and
+`specification/v0_9_1/json/client_to_server.json`.
+
+**Severity:** specification defect.
+
+### Issue
+
+Every other schema of v0.9 and v0.9.1 declares an `$id`, and v1.0's counterpart,
+`specification/v1_0/json/renderer_to_agent.json`, declares
+`https://a2ui.org/specification/v1_0/renderer_to_agent.json`.
+`client_to_server.json` declares none. `client_to_server_list.json` references
+it as `client_to_server.json` (line 8 in both versions), resolved against its
+own `$id` to `https://a2ui.org/specification/v0_9/client_to_server.json`, which
+no schema declares. A validator that loads the schemas by their `$id`s cannot
+resolve that reference unless it registers `client_to_server.json` under that
+address by hand.
+
+### Reproduction
+
+With Ajv 8's draft 2020-12 build, `addSchema` every v0.9 schema that declares an
+`$id`, and compile `client_to_server_list.json`. It fails with
+`can't resolve reference client_to_server.json from id https://a2ui.org/specification/v0_9/client_to_server_list.json`.
+
+### Fix
+
+Declare `https://a2ui.org/specification/v0_9/client_to_server.json` in v0.9's
+file, and the v0.9.1 address in v0.9.1's, with finding 15.
