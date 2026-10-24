@@ -59,7 +59,7 @@ The last task state the turn saw when it closed, whatever the `final` flag says:
 - `failed` and `rejected` → `failed`;
 - a reply that is a `Message` with no task → `completed`;
 - a stream that ends while the state is `submitted`, `working` or `unknown`, or that carried no state → `failed`;
-- a JSON-RPC error, a non-2xx response or a connection that breaks → `failed`, with the error's message as the turn event's status message.
+- a JSON-RPC error, a non-2xx response or a connection that breaks → `failed`, with the turn event's status message saying why: the JSON-RPC error's `message`; `HTTP <status> <reason>` for a response that is not 2xx; `The connection to the agent broke before the reply ended.` for a connection that breaks. The first failure the turn sees is the one it keeps.
 
 A2A 1.0's `TASK_STATE_*` names map the same way.
 
@@ -70,7 +70,7 @@ A2A 1.0's `TASK_STATE_*` names map the same way.
 - A data part with an A2UI MIME type → an `a2ui` part.
 - Any other data part → a generic part, `{"type": "data", "content": <the data>}`.
 
-A file's name stays on the part as `name`, and the part's metadata, less the A2UI MIME type once read, stays on the part as `metadata`.
+A file's name stays on the part as `name`, and the part's metadata, less the A2UI MIME type once read, stays on the part as `metadata`. A media type on a part that is not A2UI, A2A 1.0's `mediaType` on any part or the MIME type on an A2A 0.3 data part, stays on the part as `mime_type`.
 
 ### 10. Metadata
 
