@@ -28,6 +28,7 @@ export interface LiveEvents {
   turn_opened: {traceId: string; conversationId?: string; startTime: string};
   wire_event: {traceId: string; event: WireEvent};
   turn_closed: {traceId: string; turn: Turn};
+  heartbeat: Record<string, never>;
 }
 
 /** A route's refusal, with the server's message. */

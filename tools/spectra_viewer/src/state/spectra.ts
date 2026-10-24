@@ -62,6 +62,13 @@ const RETRY_MS = 2000;
  */
 const CHECK_MS = 5000;
 
+/**
+ * How long the live stream may stay silent before the page opens it again.
+ * The server sends a heartbeat every two seconds; a stream a proxy holds open
+ * after Spectra stopped, or restarted, sends nothing more.
+ */
+const SILENCE_MS = 7000;
+
 class Spectra {
   #state: SpectraState = {
     loaded: false,
@@ -75,6 +82,7 @@ class Spectra {
   #started = false;
   #source: EventSource | undefined;
   #retry: ReturnType<typeof setTimeout> | undefined;
+  #silence: ReturnType<typeof setTimeout> | undefined;
 
   getState = (): SpectraState => this.#state;
 
@@ -129,6 +137,7 @@ class Spectra {
     const source = new EventSource(STREAM_PATH);
     this.#source = source;
     source.onopen = () => {
+      this.#heard(source);
       // The stream catches a new subscriber up on the open turns, so they start again from it.
       this.#set({connected: true, live: new Map()});
       void this.#reload();
@@ -141,16 +150,29 @@ class Spectra {
       name: Name,
       handle: (data: LiveEvents[Name]) => void,
     ) =>
-      source.addEventListener(name, event =>
-        handle(JSON.parse((event as MessageEvent<string>).data) as LiveEvents[Name]),
-      );
+      source.addEventListener(name, event => {
+        this.#heard(source);
+        handle(JSON.parse((event as MessageEvent<string>).data) as LiveEvents[Name]);
+      });
     on('turn_opened', data => this.#turnOpened(data));
     on('wire_event', data => this.#wireEvent(data));
     on('turn_closed', data => this.#turnClosed(data));
+    on('heartbeat', () => {});
+  }
+
+  /** Opens the stream again when nothing, not even a heartbeat, comes on it for a while. */
+  #heard(source: EventSource): void {
+    clearTimeout(this.#silence);
+    this.#silence = setTimeout(() => {
+      if (this.#source !== source) return;
+      this.#set({connected: false});
+      this.#reconnect();
+    }, SILENCE_MS);
   }
 
   /** Drops the stream and opens it again after a pause, once. */
   #reconnect(): void {
+    clearTimeout(this.#silence);
     this.#source?.close();
     this.#source = undefined;
     if (this.#retry === undefined) this.#retry = setTimeout(() => this.#connect(), RETRY_MS);

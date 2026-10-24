@@ -15,7 +15,7 @@ Three columns, which can be resized: the turn list, the selected turn, and the m
 - Each finding and each rejection links to its message in Raw messages, and the message links back.
 - **An open turn** shows its wire events as they arrive, and its surfaces build up with each one.
 - **The message box** shows the turns it sent in its conversation as a chat built from their records: the text sent, the reply's text parts, the number of A2UI messages linking to the turn, and the outcome when it is not completed, or a spinner while the turn is open. Its input waits while a turn is open. "New conversation" starts a new one.
-- While the live stream is down, a bar says so; when it comes back, the page reads the listing, the box and the selected turn again.
+- While the live stream is down, or silent past its heartbeat, a bar says so; when it comes back, the page reads the listing, the box and the selected turn again.
 
 ## Stack
 

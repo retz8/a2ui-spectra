@@ -84,7 +84,7 @@ function openTurn(turns: TurnHub, n: number): void {
   });
 }
 
-async function serve() {
+async function serve(heartbeatMs = 60_000) {
   const dir = mkdtempSync(path.join(tmpdir(), 'spectra-api-'));
   dirs.push(dir);
   const store = await TurnStore.open(dir);
@@ -104,7 +104,7 @@ async function serve() {
     port,
     viewerDir: dir,
     allowedHosts: [],
-    api: {store, turns, box},
+    api: {store, turns, box, heartbeatMs},
   });
   servers.push(server);
   const base = `http://127.0.0.1:${port}`;
@@ -249,6 +249,26 @@ describe('the API', () => {
     assert.deepEqual(events, [
       {event: 'turn_opened', data: {traceId: trace(1), startTime: '2026-10-21T10:00:01.000Z'}},
       {event: 'turn_closed', data: {traceId: trace(1), turn: closedTurn(1)}},
+    ]);
+  });
+
+  it('sends a heartbeat on the live stream, so a stream gone silent can be told apart', async () => {
+    const {base} = await serve(20);
+    const response = await fetch(`${base}/api/stream`);
+    const reader = response.body!.getReader();
+    const sse = new SseParser();
+    const text = new TextDecoder();
+    const events: Array<{event?: string; data: unknown}> = [];
+    while (events.length < 2) {
+      const {value} = await reader.read();
+      for (const event of sse.push(text.decode(value, {stream: true}))) {
+        events.push({event: event.event, data: JSON.parse(event.data)});
+      }
+    }
+    await reader.cancel();
+    assert.deepEqual(events, [
+      {event: 'heartbeat', data: {}},
+      {event: 'heartbeat', data: {}},
     ]);
   });
 

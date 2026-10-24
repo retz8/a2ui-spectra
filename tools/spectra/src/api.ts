@@ -10,6 +10,8 @@ export interface Api {
   store: TurnStore;
   turns: TurnHub;
   box: MessageBox;
+  /** How often the live stream sends its heartbeat. */
+  heartbeatMs?: number;
 }
 
 /** One entry of the turn listing. */
@@ -28,8 +30,12 @@ const listingCache = new WeakMap<TurnStore, Map<string, ListingFields | undefine
 /** The largest request body the API reads. */
 const MAX_BODY_BYTES = 64 * 1024;
 
-/** How often the live stream sends a comment, so an idle connection stays open. */
-const KEEP_ALIVE_MS = 15_000;
+/**
+ * How often the live stream sends a heartbeat event. It keeps an idle
+ * connection open, and lets the page tell a stream that went silent, such as
+ * one a proxy holds open after Spectra stopped, from one that is quiet.
+ */
+const HEARTBEAT_MS = 2000;
 
 /**
  * Answers a request under `/api/`. Returns false for any other path, which
@@ -71,7 +77,7 @@ async function answer(
   } else if (turn !== null) {
     await sendRecord(api, turn[1], response);
   } else if (route === 'GET /api/stream') {
-    stream(api.turns, request, response);
+    stream(api.turns, api.heartbeatMs ?? HEARTBEAT_MS, request, response);
   } else if (route === 'GET /api/message-box') {
     sendJson(response, 200, api.box.state());
   } else if (route === 'POST /api/message-box/messages') {
@@ -151,8 +157,13 @@ async function sendRecord(api: Api, traceId: string, response: ServerResponse): 
   sendJson(response, 200, await api.store.read(stored.file));
 }
 
-/** The live stream: open turns caught up first, then every event as it comes. */
-function stream(turns: TurnHub, request: IncomingMessage, response: ServerResponse): void {
+/** The live stream: open turns caught up first, then every event as it comes, and a heartbeat. */
+function stream(
+  turns: TurnHub,
+  heartbeatMs: number,
+  request: IncomingMessage,
+  response: ServerResponse,
+): void {
   response.writeHead(200, {
     'content-type': 'text/event-stream; charset=utf-8',
     'cache-control': 'no-store',
@@ -160,10 +171,13 @@ function stream(turns: TurnHub, request: IncomingMessage, response: ServerRespon
   });
   response.write(': Spectra live stream\n\n');
   const unsubscribe = turns.subscribe(event => response.write(sseEvent(event)), {catchUp: true});
-  const keepAlive = setInterval(() => response.write(': keep-alive\n\n'), KEEP_ALIVE_MS);
-  keepAlive.unref();
+  const heartbeat = setInterval(
+    () => response.write('event: heartbeat\ndata: {}\n\n'),
+    heartbeatMs,
+  );
+  heartbeat.unref();
   const stop = () => {
-    clearInterval(keepAlive);
+    clearInterval(heartbeat);
     unsubscribe();
   };
   request.once('close', stop);
