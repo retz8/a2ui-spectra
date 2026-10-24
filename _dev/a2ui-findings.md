@@ -505,3 +505,37 @@ With Ajv 8's draft 2020-12 build, `addSchema` every v0.9 schema that declares an
 
 Declare `https://a2ui.org/specification/v0_9/client_to_server.json` in v0.9's
 file, and the v0.9.1 address in v0.9.1's, with finding 15.
+
+## 17. The TypeScript restaurant finder's stub creates `stub-notice` again in every turn
+
+**Component:** `samples/agent/node/restaurant_finder/src/model.ts`.
+
+**Severity:** deviation from the v0.9 and v1.0 protocols.
+
+### Issue
+
+The v0.9 protocol says "It is an error to try to create a surface with a
+`surfaceId` that already exists without first deleting it; `surfaceId` must be
+globally unique for the renderer's lifetime"
+(`specification/v0_9/docs/a2ui_protocol.md:180`), and v1.0 calls it "a state
+integrity error (`code: "INTEGRITY_ERROR"`)"
+(`specification/v1_0/docs/a2ui_protocol.md:178`). Run with `STUB_LLM=true`, the
+sample answers without a model, and "each stub response starts with an extra
+surface, `stub-notice`" (`samples/agent/node/restaurant_finder/README.md:31`):
+`StubBackend` puts the notice's messages, `createSurface` included, before the
+example of every turn (`src/model.ts:123`), with no `deleteSurface`. So the
+second turn of a conversation creates `stub-notice` while the host still holds
+it from the first, and a host on upstream's web core rejects it with
+`Surface stub-notice already exists.`
+
+### Reproduction
+
+Run the sample with `STUB_LLM=true`, send a message, then press a button of the
+surface it draws, in the same conversation. The A2A capture suite's recording
+`conformance/test_data/a2a_capture/v0_1/node_restaurant_finder/stream_v1_0_booking.har`
+in `a2ui-spectra` holds such a conversation on v1.0.
+
+### Fix
+
+Send the notice in the first turn of a conversation only, or send
+`deleteSurface` for `stub-notice` before creating it again.

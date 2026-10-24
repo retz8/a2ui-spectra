@@ -68,7 +68,7 @@ The turn's version is the `version` field of the A2UI messages it carries, and t
 
 ### 10. The message box's offer
 
-The message box offers everything Spectra supports and lets the agent choose: the v0.9, v0.9.1 and v1.0 extension URIs in the extensions header, and capabilities in the message metadata under both the v0.9 and the v1.0 keys, naming each version's basic catalog. It follows the card fetched at start, speaking the version of the card's first JSON-RPC interface at A2A 0.3 or 1.0: A2A 0.3 gets `message/stream` and `X-A2A-Extensions`; A2A 1.0 gets `SendStreamingMessage`, `A2A-Extensions` and `A2A-Version: 1.0`; an agent whose card does not declare streaming gets its version's send method. A card with JSON-RPC at neither version is warned about at start, and the box does not send. It keeps the `contextId` per conversation with a control that starts a new one, sends the `taskId` back when the previous turn ended waiting for input, and sends no data model. A reply's text parts show in the box; its A2UI parts show as a count linking to the turn.
+The message box offers everything Spectra supports and lets the agent choose: the v0.9, v0.9.1 and v1.0 extension URIs in the extensions header, and capabilities in the message metadata under both the v0.9 and the v1.0 keys, naming each version's basic catalog. It follows the card fetched at start, speaking the version of the card's first JSON-RPC interface at A2A 0.3 or 1.0: A2A 0.3 gets `message/stream` and `X-A2A-Extensions`; A2A 1.0 gets `SendStreamingMessage`, `A2A-Extensions` and `A2A-Version: 1.0`; an agent whose card does not declare streaming gets its version's send method. A card with JSON-RPC at neither version is warned about at start, and the box does not send. It keeps the `contextId` per conversation with a control that starts a new one, sends the `taskId` back when the previous turn ended waiting for input, and sends no data model. A reply's text parts show in the box; its A2UI parts show as a count linking to the turn; and a turn's outcome shows when it is not completed.
 
 ### 11. The local store
 
@@ -80,7 +80,7 @@ One local HTTP server on its own port, next to the proxy's. It serves the viewer
 
 ### 13. The tree and the data model
 
-The viewer feeds the turn's A2UI messages, in order, into upstream web core's message processor in its relaxed validation mode with the version's basic catalog registered, and shows each surface's component model as the tree and its data model as the data model. A message the processor rejects is listed with its error and the rest continue.
+The viewer feeds the agent's A2UI messages of the conversation up to the turn — those of the earlier turns embedded in the record, then the turn's own — in order, into upstream web core's message processor in its relaxed validation mode, with the basic catalogs registered and a permissive stand-in with no component schemas under each other catalog id the messages name, and shows each surface's component model as the tree, or unnested for a surface with a component of the stand-in, and its data model as the data model. A message of the turn the processor rejects is listed with its error and the rest continue.
 
 ### 14. The schema check
 

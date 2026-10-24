@@ -46,7 +46,7 @@ Every surface live after the turn. The surfaces the turn's messages touched come
 
 ### 9. A surface
 
-Each surface, labelled with its surface id and catalog id, shows its tree, then its data model as a collapsible JSON view. The tree is nested from the surface's root: each node reads its component's type and id and expands to its properties; a child id with no component shows as a placeholder naming the id; components no parent reaches are listed after the root's tree, under "not under the root".
+Each surface, labelled with its surface id and catalog id, shows its tree, then its data model as a collapsible JSON view. The tree is nested from the surface's root: each node reads its component's type and id and expands to its properties; a child id with no component shows as a placeholder naming the id; components no parent reaches are listed after the root's tree, under "not under the root". A surface with a component of a stand-in catalog lists its components in the order they came, under "nested once the catalog's schemas are known", in place of the tree.
 
 ### 10. Rejected messages
 
