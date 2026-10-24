@@ -147,6 +147,8 @@ Each wire event is one delivery from the transport, at the time it was sent or a
 
 `content` is one A2UI message, or an array of them, as the transport delivered it. It is not validated against any A2UI schema.
 
+A data part that is not A2UI is a generic part of type `data`, its `content` the data.
+
 | Attribute                | Type   | Required | On           | Meaning                                                    |
 | ------------------------ | ------ | -------- | ------------ | ---------------------------------------------------------- |
 | `a2ui.event.kind`        | string | yes      | both         | `"wire_input"` or `"wire_output"`.                         |
