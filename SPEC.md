@@ -305,7 +305,7 @@ Upstream's three core samples are the headline targets. Agents found in the ecos
 
 The demo shows the restaurant finder in Python and in TypeScript producing the same Spectra view.
 
-A2UIVerse is Spectra's first adopter, and Spectra is tested against its agents too. They are not part of the coverage line.
+A2UIVerse is Spectra's first adopter, and Spectra is tested against its agents too.
 
 | Area                          | v1                                                                                                                                    | After v1                                                                          |
 | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
