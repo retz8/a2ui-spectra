@@ -63,7 +63,7 @@ The stub reads the host's offered capabilities as the extension specs describe a
 
 ### 13. The stub's wire form
 
-As the extension specs say, on both A2A versions: one data part holding an array of A2UI messages, with the MIME type `application/a2ui+json` in the part's metadata.
+Each A2A version's own part type, with the MIME type `application/a2ui+json` in each A2UI part's metadata. On A2A 1.0, one data part holds an array of A2UI messages, as the extension specs say. On A2A 0.3, whose data part holds an object, each A2UI message is its own data part, as finding 11 of `_dev/a2ui-findings.md` proposes.
 
 ### 14. Tests
 
