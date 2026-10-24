@@ -1,0 +1,72 @@
+{
+  "card": {"headers": {"A2A-Version": "1.0"}},
+  "endpoint": "/a2a",
+  "requests": [
+    {
+      "headers": {
+        "Content-Type": "application/json",
+        "A2A-Version": "1.0",
+        "A2A-Extensions": "https://a2ui.org/a2a-extension/a2ui/v0.9.1"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "SendMessage",
+        "params": {
+          "message": {
+            "messageId": "strathweb-booking-user-1",
+            "role": "ROLE_USER",
+            "parts": [{"text": "Book a table"}],
+            "metadata": {
+              "a2uiClientCapabilities": {
+                "v0.9.1": {"supportedCatalogIds": ["https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"]}
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
+        "A2A-Version": "1.0",
+        "A2A-Extensions": "https://a2ui.org/a2a-extension/a2ui/v0.9.1"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "SendStreamingMessage",
+        "params": {
+          "message": {
+            "messageId": "strathweb-booking-user-2",
+            "role": "ROLE_USER",
+            "contextId": "${contextId}",
+            "parts": [
+              {
+                "data": [
+                  {
+                    "version": "v0.9.1",
+                    "action": {
+                      "name": "next",
+                      "surfaceId": "table_booking",
+                      "sourceComponentId": "next",
+                      "timestamp": "2026-10-24T09:00:00Z",
+                      "context": {}
+                    }
+                  }
+                ],
+                "metadata": {"mimeType": "application/a2ui+json"}
+              }
+            ],
+            "metadata": {
+              "a2uiClientCapabilities": {
+                "v0.9.1": {"supportedCatalogIds": ["https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"]}
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

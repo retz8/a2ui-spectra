@@ -54,3 +54,33 @@
   action: capture_a2a
   traffic: "test_data/a2a_capture/v0_1/a2uiverse_circleci/runs_then_confirm_rerun.har"
   expect: "test_data/a2a_capture/v0_1/a2uiverse_circleci/runs_then_confirm_rerun.json"
+
+- name: ag2_send_v0_9_1_card
+  description: "AG2 1.2.1's A2UIAgentExecutor on a2a-sdk 1.2.3 over A2A 1.0, sent: v0.9.1 in a task's status message, a text part and one data part holding an array, the MIME type on the part only, ending completed."
+  action: capture_a2a
+  traffic: "test_data/a2a_capture/v0_1/ag2/send_v0_9_1_card.har"
+  expect: "test_data/a2a_capture/v0_1/ag2/send_v0_9_1_card.json"
+
+- name: ag2_stream_v1_0_function_call
+  description: "AG2 1.2.1's A2UIAgentExecutor over A2A 1.0, streamed: v1.0 with a function call that wants a response, ending input-required, which is waiting for input."
+  action: capture_a2a
+  traffic: "test_data/a2a_capture/v0_1/ag2/stream_v1_0_function_call.har"
+  expect: "test_data/a2a_capture/v0_1/ag2/stream_v1_0_function_call.json"
+
+- name: ag2_stream_v1_0_failed
+  description: "AG2 1.2.1's A2UIAgentExecutor over A2A 1.0, streamed: the model fails, so the stream sends a failed status and then a JSON-RPC error event, ending failed with the error's message."
+  action: capture_a2a
+  traffic: "test_data/a2a_capture/v0_1/ag2/stream_v1_0_failed.har"
+  expect: "test_data/a2a_capture/v0_1/ag2/stream_v1_0_failed.json"
+
+- name: strathweb_booking_wizard_send_then_stream
+  description: "filipw/strathweb-a2ui's BookingWizard on a2a-dotnet over A2A 1.0: a send and then a stream, answered with plain messages, v0.9.1 as one data part holding an array, the MIME type in the part's metadata, both ending completed."
+  action: capture_a2a
+  traffic: "test_data/a2a_capture/v0_1/strathweb_booking_wizard/send_then_stream.har"
+  expect: "test_data/a2a_capture/v0_1/strathweb_booking_wizard/send_then_stream.json"
+
+- name: a2term_examplesvc_send_multipart_and_tagged_text
+  description: "muncus/a2term's examplesvc on a2a-go over A2A 1.0, its card declaring no streaming: two sends answered with plain messages, one data part holding an array with the MIME type both on the part and in its metadata, then A2UI inside a text part's tags, which is text."
+  action: capture_a2a
+  traffic: "test_data/a2a_capture/v0_1/a2term_examplesvc/send_multipart_and_tagged_text.har"
+  expect: "test_data/a2a_capture/v0_1/a2term_examplesvc/send_multipart_and_tagged_text.json"

@@ -1,0 +1,151 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "0244dc6c335783d2fcfb244349de16a4",
+          "spanId": "5e00fb6aed819186",
+          "name": "invoke_agent ag2_a2ui_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000005000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "ag2_a2ui_agent",
+            "gen_ai.conversation.id": "98e177eb-12e9-4ed7-9098-b9ae59422855",
+            "a2ui.turn.outcome": "waiting_for_input",
+            "a2ui.turn.protocol_version": "v1.0",
+            "a2ui.turn.capture_paths": [
+              "wire"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "0244dc6c335783d2fcfb244349de16a4",
+          "spanId": "ebfefd883b11d82a",
+          "parentSpanId": "5e00fb6aed819186",
+          "name": "wire_input",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000001000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_input",
+            "a2ui.wire.message": {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Show me a card and open the docs"
+                }
+              ]
+            },
+            "a2ui.wire.capabilities": {
+              "v1.0": {
+                "supportedCatalogIds": [
+                  "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "traceId": "0244dc6c335783d2fcfb244349de16a4",
+          "spanId": "0677c3163c299bbf",
+          "parentSpanId": "5e00fb6aed819186",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000002000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": []
+            }
+          }
+        },
+        {
+          "traceId": "0244dc6c335783d2fcfb244349de16a4",
+          "spanId": "10c2ada68c83f0fa",
+          "parentSpanId": "5e00fb6aed819186",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000003000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": []
+            }
+          }
+        },
+        {
+          "traceId": "0244dc6c335783d2fcfb244349de16a4",
+          "spanId": "cbc28d56f2256cc0",
+          "parentSpanId": "5e00fb6aed819186",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000004000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Here is your card."
+                },
+                {
+                  "type": "a2ui",
+                  "content": [
+                    {
+                      "version": "v1.0",
+                      "createSurface": {
+                        "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                        "surfaceId": "card"
+                      }
+                    },
+                    {
+                      "updateComponents": {
+                        "surfaceId": "card",
+                        "components": [
+                          {
+                            "id": "root",
+                            "component": "Card",
+                            "child": "greeting"
+                          },
+                          {
+                            "id": "greeting",
+                            "component": "Text",
+                            "text": "Hello from AG2"
+                          }
+                        ]
+                      },
+                      "version": "v1.0"
+                    },
+                    {
+                      "callFunction": {
+                        "args": {
+                          "url": "https://a2ui.org"
+                        },
+                        "call": "openUrl"
+                      },
+                      "version": "v1.0",
+                      "wantResponse": true,
+                      "functionCallId": "open-docs"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

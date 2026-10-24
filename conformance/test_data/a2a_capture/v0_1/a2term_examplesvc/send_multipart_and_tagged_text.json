@@ -1,0 +1,274 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "385c53fb85a88f820259abe288fefd18",
+          "spanId": "1df8ccce9fdcce89",
+          "name": "invoke_agent A2UI Example Agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000003000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "A2UI Example Agent",
+            "gen_ai.conversation.id": "01a16c28-6d52-7d91-9a70-9a1528f76e34",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.protocol_version": "v0.9",
+            "a2ui.turn.capture_paths": [
+              "wire"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "385c53fb85a88f820259abe288fefd18",
+          "spanId": "3900c3f3978967a8",
+          "parentSpanId": "1df8ccce9fdcce89",
+          "name": "wire_input",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000001000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_input",
+            "a2ui.wire.message": {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "multipart"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "385c53fb85a88f820259abe288fefd18",
+          "spanId": "8c919ab78119cdc2",
+          "parentSpanId": "1df8ccce9fdcce89",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000002000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Here is a multi-part response with text and interactive A2UI:",
+                  "mime_type": "text/plain"
+                },
+                {
+                  "type": "a2ui",
+                  "content": [
+                    {
+                      "updateComponents": {
+                        "components": [
+                          {
+                            "child": "multipart_col",
+                            "component": "Card",
+                            "id": "root"
+                          },
+                          {
+                            "children": [
+                              "mp_title",
+                              "mp_desc",
+                              "mp_div_1",
+                              "mp_row_badges",
+                              "mp_div_2",
+                              "mp_body",
+                              "mp_div_3",
+                              "mp_row_actions"
+                            ],
+                            "component": "Column",
+                            "id": "multipart_col"
+                          },
+                          {
+                            "component": "Text",
+                            "id": "mp_title",
+                            "text": "🔀 Multi-Part A2A Message",
+                            "variant": "h1"
+                          },
+                          {
+                            "component": "Text",
+                            "id": "mp_desc",
+                            "text": "Demonstrating an A2A message with both text/plain and application/a2ui+json parts.",
+                            "variant": "caption"
+                          },
+                          {
+                            "component": "Divider",
+                            "id": "mp_div_1"
+                          },
+                          {
+                            "children": [
+                              "mp_badge_parts",
+                              "mp_badge_mime",
+                              "mp_badge_status"
+                            ],
+                            "component": "Row",
+                            "id": "mp_row_badges"
+                          },
+                          {
+                            "component": "Text",
+                            "id": "mp_badge_parts",
+                            "text": "[📦 Multi-Part A2A]",
+                            "variant": "body"
+                          },
+                          {
+                            "component": "Text",
+                            "id": "mp_badge_mime",
+                            "text": "[🏷️ application/a2ui+json]",
+                            "variant": "body"
+                          },
+                          {
+                            "component": "Text",
+                            "id": "mp_badge_status",
+                            "text": "[🟢 Connected]",
+                            "variant": "body"
+                          },
+                          {
+                            "component": "Divider",
+                            "id": "mp_div_2"
+                          },
+                          {
+                            "component": "Text",
+                            "id": "mp_body",
+                            "text": "This surface was delivered via an A2A DataPart carrying declarative A2UI components alongside a separate text part in the same response.",
+                            "variant": "body"
+                          },
+                          {
+                            "component": "Divider",
+                            "id": "mp_div_3"
+                          },
+                          {
+                            "children": [
+                              "btn_mp_action",
+                              "btn_mp_return"
+                            ],
+                            "component": "Row",
+                            "id": "mp_row_actions"
+                          },
+                          {
+                            "action": {
+                              "event": {
+                                "context": {
+                                  "source": "multipart_card"
+                                },
+                                "name": "multipart_test_action"
+                              }
+                            },
+                            "child": "txt_mp_action",
+                            "component": "Button",
+                            "id": "btn_mp_action"
+                          },
+                          {
+                            "component": "Text",
+                            "id": "txt_mp_action",
+                            "text": "⚡ Test Action"
+                          },
+                          {
+                            "action": {
+                              "event": {
+                                "context": {
+                                  "previous": "multipart"
+                                },
+                                "name": "return_to_showcase"
+                              }
+                            },
+                            "child": "txt_mp_return",
+                            "component": "Button",
+                            "id": "btn_mp_return"
+                          },
+                          {
+                            "component": "Text",
+                            "id": "txt_mp_return",
+                            "text": "🔙 Return to Showcase"
+                          }
+                        ],
+                        "surfaceId": "multipart-surface"
+                      },
+                      "version": "v0.9"
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "traceId": "8ff12cca481367ed7e3d2079aad2d47b",
+          "spanId": "a931b7c7dcab5a46",
+          "name": "invoke_agent A2UI Example Agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800001000000000",
+          "endTimeUnixNano": "1792800001003000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "A2UI Example Agent",
+            "gen_ai.conversation.id": "01a16c28-6d52-7d91-9a70-9a1528f76e34",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "wire"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "8ff12cca481367ed7e3d2079aad2d47b",
+          "spanId": "a91ae160c7a32262",
+          "parentSpanId": "a931b7c7dcab5a46",
+          "name": "wire_input",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001001000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_input",
+            "a2ui.wire.message": {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "buttons"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "8ff12cca481367ed7e3d2079aad2d47b",
+          "spanId": "e695dcbf0579124b",
+          "parentSpanId": "a931b7c7dcab5a46",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001002000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Here is the Button Gallery:\n\n<a2ui-json>\n{\n  \"updateComponents\": {\n    \"components\": [\n      {\n        \"child\": \"btn_col\",\n        \"component\": \"Card\",\n        \"id\": \"root\"\n      },\n      {\n        \"children\": [\n          \"btn_title\",\n          \"btn_desc\",\n          \"div_btn\",\n          \"row_actions\"\n        ],\n        \"component\": \"Column\",\n        \"id\": \"btn_col\"\n      },\n      {\n        \"component\": \"Text\",\n        \"id\": \"btn_title\",\n        \"text\": \"🔘 Button Gallery\",\n        \"variant\": \"h1\"\n      },\n      {\n        \"component\": \"Text\",\n        \"id\": \"btn_desc\",\n        \"text\": \"Select any button to trigger an A2UI action event back to the agent.\",\n        \"variant\": \"body\"\n      },\n      {\n        \"component\": \"Divider\",\n        \"id\": \"div_btn\"\n      },\n      {\n        \"children\": [\n          \"btn_approve\",\n          \"btn_reject\",\n          \"btn_cancel\"\n        ],\n        \"component\": \"Row\",\n        \"id\": \"row_actions\"\n      },\n      {\n        \"action\": {\n          \"event\": {\n            \"context\": {\n              \"decision\": \"approved\",\n              \"item_id\": \"item-994\"\n            },\n            \"name\": \"approve_request\"\n          }\n        },\n        \"child\": \"txt_approve\",\n        \"component\": \"Button\",\n        \"id\": \"btn_approve\"\n      },\n      {\n        \"component\": \"Text\",\n        \"id\": \"txt_approve\",\n        \"text\": \"✅ Approve\"\n      },\n      {\n        \"action\": {\n          \"event\": {\n            \"context\": {\n              \"decision\": \"rejected\",\n              \"item_id\": \"item-994\"\n            },\n            \"name\": \"reject_request\"\n          }\n        },\n        \"child\": \"txt_reject\",\n        \"component\": \"Button\",\n        \"id\": \"btn_reject\"\n      },\n      {\n        \"component\": \"Text\",\n        \"id\": \"txt_reject\",\n        \"text\": \"❌ Reject\"\n      },\n      {\n        \"action\": {\n          \"event\": {\n            \"context\": {\n              \"decision\": \"cancel\"\n            },\n            \"name\": \"cancel_action\"\n          }\n        },\n        \"child\": \"txt_cancel\",\n        \"component\": \"Button\",\n        \"id\": \"btn_cancel\"\n      },\n      {\n        \"component\": \"Text\",\n        \"id\": \"txt_cancel\",\n        \"text\": \"⏹ Cancel\"\n      }\n    ],\n    \"surfaceId\": \"button-surface\"\n  },\n  \"version\": \"v0.9\"\n}\n</a2ui-json>"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

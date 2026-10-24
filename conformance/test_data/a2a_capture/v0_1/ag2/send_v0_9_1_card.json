@@ -1,0 +1,110 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "91ca471f6d6b573541375012b08a6227",
+          "spanId": "47b5b89fb776bb79",
+          "name": "invoke_agent ag2_a2ui_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000003000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "ag2_a2ui_agent",
+            "gen_ai.conversation.id": "2ca9106a-65b6-4dcc-aded-aa7af6bc0aab",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.protocol_version": "v0.9.1",
+            "a2ui.turn.capture_paths": [
+              "wire"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "91ca471f6d6b573541375012b08a6227",
+          "spanId": "832510a1b7b3e470",
+          "parentSpanId": "47b5b89fb776bb79",
+          "name": "wire_input",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000001000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_input",
+            "a2ui.wire.message": {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Show me a card"
+                }
+              ]
+            },
+            "a2ui.wire.capabilities": {
+              "v0.9.1": {
+                "supportedCatalogIds": [
+                  "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "traceId": "91ca471f6d6b573541375012b08a6227",
+          "spanId": "2559ac452a3aeee9",
+          "parentSpanId": "47b5b89fb776bb79",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000002000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Here is your card."
+                },
+                {
+                  "type": "a2ui",
+                  "content": [
+                    {
+                      "createSurface": {
+                        "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+                        "surfaceId": "card"
+                      },
+                      "version": "v0.9.1"
+                    },
+                    {
+                      "version": "v0.9.1",
+                      "updateComponents": {
+                        "components": [
+                          {
+                            "id": "root",
+                            "component": "Card",
+                            "child": "greeting"
+                          },
+                          {
+                            "text": "Hello from AG2",
+                            "component": "Text",
+                            "id": "greeting"
+                          }
+                        ],
+                        "surfaceId": "card"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

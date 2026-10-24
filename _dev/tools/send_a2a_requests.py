@@ -11,6 +11,7 @@ A request file is a JSON object:
 
     {
       "card": {"headers": {...}},           # optional headers for the card fetch
+      "endpoint": "/a2a",                   # optional: the JSON-RPC path, for a card that lists none
       "requests": [
         {
           "headers": {...},                 # the request's headers
@@ -53,7 +54,9 @@ def main():
     status, _, card_text = request("GET", f"{agent}/.well-known/agent-card.json", card_headers, None)
     if status != 200:
         sys.exit(f"The card fetch answered {status}.")
-    endpoint = jsonrpc_endpoint(json.loads(card_text))
+    endpoint = jsonrpc_endpoint(json.loads(card_text)) or (agent + plan["endpoint"] if "endpoint" in plan else None)
+    if endpoint is None:
+        sys.exit("The card lists no JSON-RPC interface, and the request file names no endpoint.")
     print(f"card: {status}, JSON-RPC at {endpoint}", flush=True)
 
     for index, item in enumerate(plan["requests"]):
@@ -195,12 +198,12 @@ def jsonrpc_endpoint(card):
     for interface in card.get("supportedInterfaces") or []:
         if str(interface.get("protocolBinding", "")).upper() in ("JSONRPC", "JSON-RPC"):
             return interface["url"]
-    if str(card.get("preferredTransport", "JSONRPC")).upper() in ("JSONRPC", "JSON-RPC"):
+    if isinstance(card.get("url"), str) and str(card.get("preferredTransport", "JSONRPC")).upper() in ("JSONRPC", "JSON-RPC"):
         return card["url"]
     for interface in card.get("additionalInterfaces") or []:
         if str(interface.get("transport", "")).upper() in ("JSONRPC", "JSON-RPC"):
             return interface["url"]
-    sys.exit("The card lists no JSON-RPC interface.")
+    return None
 
 
 if __name__ == "__main__":

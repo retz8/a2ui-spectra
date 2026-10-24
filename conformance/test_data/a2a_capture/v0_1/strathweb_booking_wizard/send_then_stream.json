@@ -1,0 +1,496 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "d9c259db9e29ed077cc7da83f394cccd",
+          "spanId": "4b3bf9448a4c5a9a",
+          "name": "invoke_agent table-booking",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000003000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "table-booking",
+            "gen_ai.conversation.id": "4012afd1de554f05ab11867581c21e4b",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.protocol_version": "v0.9.1",
+            "a2ui.turn.capture_paths": [
+              "wire"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "d9c259db9e29ed077cc7da83f394cccd",
+          "spanId": "ad0aef08705e01a1",
+          "parentSpanId": "4b3bf9448a4c5a9a",
+          "name": "wire_input",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000001000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_input",
+            "a2ui.wire.message": {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Book a table"
+                }
+              ]
+            },
+            "a2ui.wire.capabilities": {
+              "v0.9.1": {
+                "supportedCatalogIds": [
+                  "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "traceId": "d9c259db9e29ed077cc7da83f394cccd",
+          "spanId": "11551eac5f604bf9",
+          "parentSpanId": "4b3bf9448a4c5a9a",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000002000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Let's get you a table. Three quick steps."
+                },
+                {
+                  "type": "a2ui",
+                  "content": [
+                    {
+                      "version": "v0.9.1",
+                      "createSurface": {
+                        "surfaceId": "table_booking",
+                        "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+                        "sendDataModel": true
+                      }
+                    },
+                    {
+                      "version": "v0.9.1",
+                      "updateComponents": {
+                        "surfaceId": "table_booking",
+                        "components": [
+                          {
+                            "id": "text_1",
+                            "component": "Text",
+                            "text": "Book a table",
+                            "variant": "h2"
+                          },
+                          {
+                            "id": "text_2",
+                            "component": "Text",
+                            "text": {
+                              "path": "/stepLabel"
+                            },
+                            "variant": "caption"
+                          },
+                          {
+                            "id": "divider_1",
+                            "component": "Divider"
+                          },
+                          {
+                            "id": "textField_1",
+                            "component": "TextField",
+                            "label": "Your name",
+                            "value": {
+                              "path": "/name"
+                            },
+                            "checks": [
+                              {
+                                "condition": {
+                                  "call": "required",
+                                  "args": {
+                                    "value": {
+                                      "path": "/name"
+                                    }
+                                  }
+                                },
+                                "message": "We need a name for the booking."
+                              }
+                            ]
+                          },
+                          {
+                            "id": "slider_1",
+                            "component": "Slider",
+                            "value": {
+                              "path": "/guests"
+                            },
+                            "max": 10,
+                            "min": 1,
+                            "label": "Guests"
+                          },
+                          {
+                            "id": "choicePicker_1",
+                            "component": "ChoicePicker",
+                            "label": "Occasion",
+                            "variant": "mutuallyExclusive",
+                            "displayStyle": "chips",
+                            "options": [
+                              {
+                                "label": "Just dinner",
+                                "value": "dinner"
+                              },
+                              {
+                                "label": "Birthday",
+                                "value": "birthday"
+                              },
+                              {
+                                "label": "Anniversary",
+                                "value": "anniversary"
+                              },
+                              {
+                                "label": "Business",
+                                "value": "business"
+                              }
+                            ],
+                            "value": {
+                              "path": "/occasion"
+                            }
+                          },
+                          {
+                            "id": "step",
+                            "component": "Column",
+                            "children": [
+                              "textField_1",
+                              "slider_1",
+                              "choicePicker_1"
+                            ]
+                          },
+                          {
+                            "id": "text_3",
+                            "component": "Text",
+                            "text": "Next"
+                          },
+                          {
+                            "id": "button_1",
+                            "component": "Button",
+                            "variant": "primary",
+                            "action": {
+                              "event": {
+                                "name": "next"
+                              }
+                            },
+                            "child": "text_3"
+                          },
+                          {
+                            "id": "nav",
+                            "component": "Row",
+                            "justify": "end",
+                            "children": [
+                              "button_1"
+                            ]
+                          },
+                          {
+                            "id": "wizard",
+                            "component": "Column",
+                            "children": [
+                              "text_1",
+                              "text_2",
+                              "divider_1",
+                              "step",
+                              "nav"
+                            ]
+                          },
+                          {
+                            "id": "root",
+                            "component": "Card",
+                            "child": "wizard"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "version": "v0.9.1",
+                      "updateDataModel": {
+                        "surfaceId": "table_booking",
+                        "path": "/",
+                        "value": {
+                          "step": 1,
+                          "stepLabel": "Step 1 of 3: who is coming",
+                          "name": "",
+                          "guests": 2,
+                          "occasion": [],
+                          "date": "",
+                          "time": [],
+                          "window": false,
+                          "notes": ""
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "traceId": "1ea288cc99377b637b6d25f749f4df0b",
+          "spanId": "c401884c91230373",
+          "name": "invoke_agent table-booking",
+          "kind": 3,
+          "startTimeUnixNano": "1792800001000000000",
+          "endTimeUnixNano": "1792800001004000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "table-booking",
+            "gen_ai.conversation.id": "4012afd1de554f05ab11867581c21e4b",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.protocol_version": "v0.9.1",
+            "a2ui.turn.capture_paths": [
+              "wire"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "1ea288cc99377b637b6d25f749f4df0b",
+          "spanId": "ff66ab6379493324",
+          "parentSpanId": "c401884c91230373",
+          "name": "wire_input",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001001000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_input",
+            "a2ui.wire.message": {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": [
+                    {
+                      "version": "v0.9.1",
+                      "action": {
+                        "name": "next",
+                        "surfaceId": "table_booking",
+                        "sourceComponentId": "next",
+                        "timestamp": "2026-10-24T09:00:00Z",
+                        "context": {}
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            "a2ui.wire.capabilities": {
+              "v0.9.1": {
+                "supportedCatalogIds": [
+                  "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "traceId": "1ea288cc99377b637b6d25f749f4df0b",
+          "spanId": "1db0dbb9ef9d5afb",
+          "parentSpanId": "c401884c91230373",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001002000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": ""
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "1ea288cc99377b637b6d25f749f4df0b",
+          "spanId": "64e6002ac84e0bbb",
+          "parentSpanId": "c401884c91230373",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001003000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": [
+                    {
+                      "version": "v0.9.1",
+                      "updateComponents": {
+                        "surfaceId": "table_booking",
+                        "components": [
+                          {
+                            "id": "dateTimeInput_fbfcc3af",
+                            "component": "DateTimeInput",
+                            "value": {
+                              "path": "/date"
+                            },
+                            "enableDate": true,
+                            "label": "Date",
+                            "checks": [
+                              {
+                                "condition": {
+                                  "call": "required",
+                                  "args": {
+                                    "value": {
+                                      "path": "/date"
+                                    }
+                                  }
+                                },
+                                "message": "Pick a date."
+                              }
+                            ]
+                          },
+                          {
+                            "id": "choicePicker_d918a515",
+                            "component": "ChoicePicker",
+                            "label": "Time",
+                            "variant": "mutuallyExclusive",
+                            "displayStyle": "chips",
+                            "options": [
+                              {
+                                "label": "18:00",
+                                "value": "18:00"
+                              },
+                              {
+                                "label": "19:00",
+                                "value": "19:00"
+                              },
+                              {
+                                "label": "20:00",
+                                "value": "20:00"
+                              },
+                              {
+                                "label": "21:00",
+                                "value": "21:00"
+                              }
+                            ],
+                            "value": {
+                              "path": "/time"
+                            },
+                            "checks": [
+                              {
+                                "condition": {
+                                  "call": "required",
+                                  "args": {
+                                    "value": {
+                                      "path": "/time"
+                                    }
+                                  }
+                                },
+                                "message": "Pick a time."
+                              }
+                            ]
+                          },
+                          {
+                            "id": "checkBox_74fb09e9",
+                            "component": "CheckBox",
+                            "label": "A window table if there is one",
+                            "value": {
+                              "path": "/window"
+                            }
+                          },
+                          {
+                            "id": "step",
+                            "component": "Column",
+                            "children": [
+                              "dateTimeInput_fbfcc3af",
+                              "choicePicker_d918a515",
+                              "checkBox_74fb09e9"
+                            ]
+                          },
+                          {
+                            "id": "text_01985c5f",
+                            "component": "Text",
+                            "text": "Back"
+                          },
+                          {
+                            "id": "button_2f50ea85",
+                            "component": "Button",
+                            "action": {
+                              "event": {
+                                "name": "back"
+                              }
+                            },
+                            "child": "text_01985c5f"
+                          },
+                          {
+                            "id": "text_1325162a",
+                            "component": "Text",
+                            "text": "Next"
+                          },
+                          {
+                            "id": "button_5d2e10ed",
+                            "component": "Button",
+                            "variant": "primary",
+                            "action": {
+                              "event": {
+                                "name": "next"
+                              }
+                            },
+                            "child": "text_1325162a"
+                          },
+                          {
+                            "id": "nav",
+                            "component": "Row",
+                            "justify": "spaceBetween",
+                            "children": [
+                              "button_2f50ea85",
+                              "button_5d2e10ed"
+                            ]
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "version": "v0.9.1",
+                      "updateDataModel": {
+                        "surfaceId": "table_booking",
+                        "path": "/step",
+                        "value": 2
+                      }
+                    },
+                    {
+                      "version": "v0.9.1",
+                      "updateDataModel": {
+                        "surfaceId": "table_booking",
+                        "path": "/stepLabel",
+                        "value": "Step 2 of 3: when"
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
