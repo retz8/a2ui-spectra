@@ -292,7 +292,7 @@ The viewer's own stack is not visible to the adopter.
 
 - the A2UI protocol versions v0.9, v0.9.1 and v1.0;
 - A2A 0.3 and A2A 1.0;
-- A2A SDKs beyond Python's and JavaScript's;
+- A2A SDKs: Python's and JavaScript's, and at least one in another language;
 - the wire forms: a send and a stream; A2UI in a task's status message, in an artifact and in a plain message reply; one A2UI message per part and an array; the MIME type in the part's metadata and on the part;
 - the turn outcomes: completed, waiting for input, failed and cancelled;
 - the hosts: Spectra's message box, upstream's Angular sample client and upstream's React sample client.

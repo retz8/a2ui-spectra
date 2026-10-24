@@ -40,29 +40,31 @@ Both sample clients reach their agent at `localhost:10002`, where the recording 
 
 The axes of SPEC.md's coverage line, and the entries that exercise each:
 
-| Axis                                     | Value                                | Entries                                                                                                                              |
-| ---------------------------------------- | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
-| A2UI protocol version                    | v0.9                                 | the Python and Node restaurant finders, the custom-components sample, the file-upload summarizer, A2UIVerse's CircleCI agent, a2term |
-|                                          | v0.9.1                               | AG2, strathweb-a2ui                                                                                                                  |
-|                                          | v1.0                                 | the Node restaurant finder, AG2                                                                                                      |
-| A2A version                              | 0.3                                  | upstream's samples, A2UIVerse's CircleCI agent, the stub agent                                                                       |
-|                                          | 1.0                                  | AG2, strathweb-a2ui, a2term, the stub agent                                                                                          |
-| A2A SDK beyond Python's and JavaScript's | a2a-dotnet, a2a-go                   | strathweb-a2ui, a2term                                                                                                               |
-| Wire form                                | a send                               | the Node restaurant finder, the file-upload summarizer, AG2, strathweb-a2ui, a2term                                                  |
-|                                          | a stream                             | every entry but a2term                                                                                                               |
-|                                          | A2UI in a task's status message      | the Python and Node restaurant finders, the custom-components sample, A2UIVerse's CircleCI agent, AG2                                |
-|                                          | A2UI in an artifact                  | the file-upload summarizer                                                                                                           |
-|                                          | A2UI in a plain message reply        | strathweb-a2ui, a2term                                                                                                               |
-|                                          | one A2UI message per part            | upstream's samples, A2UIVerse's CircleCI agent                                                                                       |
-|                                          | an array per part                    | AG2, strathweb-a2ui, a2term                                                                                                          |
-|                                          | the MIME type in the part's metadata | every entry with A2UI but AG2                                                                                                        |
-|                                          | the MIME type on the part            | AG2 and a2term in replies, the React sample client in requests                                                                       |
-| Turn outcome                             | completed                            | every entry but the stub agent                                                                                                       |
-|                                          | waiting for input                    | the Python and Node restaurant finders, A2UIVerse's CircleCI agent (`auth-required`), AG2                                            |
-|                                          | failed                               | the Node restaurant finder (a failed task), the custom-components sample (a stream that breaks off), AG2 (a JSON-RPC error)          |
-|                                          | cancelled                            | the stub agent                                                                                                                       |
-| Host                                     | upstream's Angular sample client     | the Python restaurant finder                                                                                                         |
-|                                          | upstream's React sample client       | the Node restaurant finder                                                                                                           |
+| Axis                  | Value                                  | Entries                                                                                                                              |
+| --------------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| A2UI protocol version | v0.9                                   | the Python and Node restaurant finders, the custom-components sample, the file-upload summarizer, A2UIVerse's CircleCI agent, a2term |
+|                       | v0.9.1                                 | AG2, strathweb-a2ui                                                                                                                  |
+|                       | v1.0                                   | the Node restaurant finder, AG2                                                                                                      |
+| A2A version           | 0.3                                    | upstream's samples, A2UIVerse's CircleCI agent, the stub agent                                                                       |
+|                       | 1.0                                    | AG2, strathweb-a2ui, a2term, the stub agent                                                                                          |
+| A2A SDK               | Python's `a2a-sdk`                     | the Python restaurant finder, the custom-components sample, the file-upload summarizer, A2UIVerse's CircleCI agent, AG2              |
+|                       | JavaScript's `@a2a-js/sdk`             | the Node restaurant finder, the stub agent                                                                                           |
+|                       | another language's: a2a-dotnet, a2a-go | strathweb-a2ui, a2term                                                                                                               |
+| Wire form             | a send                                 | the Node restaurant finder, the file-upload summarizer, AG2, strathweb-a2ui, a2term                                                  |
+|                       | a stream                               | every entry but a2term                                                                                                               |
+|                       | A2UI in a task's status message        | the Python and Node restaurant finders, the custom-components sample, A2UIVerse's CircleCI agent, AG2                                |
+|                       | A2UI in an artifact                    | the file-upload summarizer                                                                                                           |
+|                       | A2UI in a plain message reply          | strathweb-a2ui, a2term                                                                                                               |
+|                       | one A2UI message per part              | upstream's samples, A2UIVerse's CircleCI agent                                                                                       |
+|                       | an array per part                      | AG2, strathweb-a2ui, a2term                                                                                                          |
+|                       | the MIME type in the part's metadata   | every entry with A2UI but AG2                                                                                                        |
+|                       | the MIME type on the part              | AG2 and a2term in replies, the React sample client in requests                                                                       |
+| Turn outcome          | completed                              | every entry but the stub agent                                                                                                       |
+|                       | waiting for input                      | the Python and Node restaurant finders, A2UIVerse's CircleCI agent (`auth-required`), AG2                                            |
+|                       | failed                                 | the Node restaurant finder (a failed task), the custom-components sample (a stream that breaks off), AG2 (a JSON-RPC error)          |
+|                       | cancelled                              | the stub agent                                                                                                                       |
+| Host                  | upstream's Angular sample client       | the Python restaurant finder                                                                                                         |
+|                       | upstream's React sample client         | the Node restaurant finder                                                                                                           |
 
 #### Recording
 
