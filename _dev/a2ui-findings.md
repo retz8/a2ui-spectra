@@ -312,7 +312,9 @@ specs do not say which header an A2A 1.0 client activates with, or whether the
 A2UI MIME type goes in `mediaType` or `metadata.mimeType`. A2A 1.0 agents
 already differ: `filipw/strathweb-a2ui` at `c92222f` sets only
 `metadata.mimeType` (`src/Strathweb.A2UI.A2A/A2UIParts.cs:22-26`), and
-`muncus/a2term` at `79426d3` sets both (`cmd/examplesvc/cards.go:618-631`).
+`muncus/a2term` at `79426d3` sets both (`cmd/examplesvc/cards.go:618-631`), and
+AG2's `A2UIAgentExecutor` in `ag2` 1.2.1 sets only `mediaType`
+(`ag2/a2ui/a2a/parts.py:23-46` in the PyPI wheel).
 
 ### Reproduction
 
@@ -323,3 +325,133 @@ Read the cited sections of the extension specs against A2A v1.0.1's
 
 Add an A2A 1.0 section to each extension spec: the header to activate with, and
 where a part's A2UI MIME type goes.
+
+## 12. The specs require an array where an A2A 0.3 data part holds an object
+
+**Component:** the extension specs' data encoding section; A2A 0.3's `DataPart`.
+
+**Severity:** specification contradiction.
+
+### Issue
+
+The extension specs say a data part's `data` "MUST be an array of messages"
+(v0.9 and v0.9.1 line 178, v1.0 line 180), and they bind A2UI to A2A 0.3 (see
+finding 11). A2A 0.3 types `DataPart.data` as an object: `"type": "object"` in
+A2A's `specification/json/a2a.json` at tag `v0.3.0` (`DataPart.properties.data`).
+The A2A SDKs follow it: Python's `a2a-sdk` 0.3.25 declares `data: dict[str, Any]`
+(`a2a/types.py:277`) and `@a2a-js/sdk` 0.3.14 declares an object. So an A2A 0.3
+part that follows the extension specs does not validate as an A2A 0.3 part, and
+Python's SDK rejects it. Under A2A 1.0, whose `Part.data` is a `google.protobuf.Value`,
+"object, array, string, number, boolean, or null" (`specification/a2a.proto` at
+A2A's `v1.0.1`), the array is carried: `filipw/strathweb-a2ui`, `muncus/a2term` and AG2 send one.
+
+### Reproduction
+
+Read `DataPart` in A2A's `specification/json/a2a.json` at `v0.3.0`, and validate
+`{"kind": "data", "data": [{"version": "v0.9", "deleteSurface": {"surfaceId":
+"s"}}]}` against it.
+
+### Fix
+
+Allow one message or an array under A2A 0.3, or say that A2A 0.3 carries one
+message per part and only A2A 1.0 carries an array.
+
+## 13. The sample clients and agents send and read actions in v0.8's shape
+
+**Component:** `samples/client/angular/projects/restaurant/src/app/client.ts`;
+`samples/client/lit/shell/app.ts`;
+`samples/agent/adk/custom-components-example/agent_executor.py`.
+
+**Severity:** deviation from the extension specs.
+
+### Issue
+
+The v0.9 extension spec's "Client-to-server events" section says an action's
+data part "must validate against the Client-to-Server Message List Schema"
+(v0.9 line 228), and its example holds `{"version": "v0.9", "action": {…}}`
+(lines 230-251); `client_to_server.json` requires `version` with `action` or
+`error` (lines 90-97). The Angular client sends `{"userAction": {…}}`
+(`client.ts:31`, wrapped as the part's data at `server.ts:66-82`), and so does
+the Lit client (`app.ts:527-535`). `userAction` is v0.8's client event key
+(`typescript/core/web_core/src/v0_8/types/client-event.ts:44`). The
+custom-components sample reads an action only from `userAction`
+(`agent_executor.py:96-98`), so a client that follows the v0.9 spec cannot press
+its controls; the restaurant finders read both (`samples/agent/adk/restaurant_finder/agent_executor.py:84-94`,
+`samples/agent/node/restaurant_finder/src/a2a.ts:77-83`). The React client sends
+the v0.9 shape (`samples/client/react/shell/src/App.tsx:68`).
+
+### Reproduction
+
+Read the cited lines. The A2A capture suite's recording
+`conformance/test_data/a2a_capture/v0_1/angular_client/python_restaurant_finder_booking.har`
+in `a2ui-spectra` holds the Angular client's `userAction` parts as sent.
+
+### Fix
+
+Send `{"version": "v0.9", "action": {…}}` from the Angular and Lit clients, as
+the React client does, and read `action` in the custom-components sample.
+
+## 14. The custom-components sample fails every v0.9 turn that reaches the model
+
+**Component:** `samples/agent/adk/custom-components-example/agent.py`.
+
+**Severity:** sample defect.
+
+### Issue
+
+The v0.9 basic catalog describes `formatString` with the text "`${expression}`"
+(`specification/v0_9/catalogs/basic/catalog.json:965`), and the catalog goes
+into the agent's instruction. ADK replaces every `{name}` in an instruction with
+the session state's value and raises `KeyError: Context variable not found` when
+there is none (`google/adk/utils/instructions_utils.py:122-124` in `google-adk`
+2.3.0, the version upstream's `uv.lock` pins). The restaurant finder seeds
+`"expression": "{expression}"` into its session state for this
+(`samples/agent/adk/restaurant_finder/agent.py:210`); the custom-components
+sample seeds only `base_url` (`agent.py:379`). Every v0.9 turn that reaches the
+model fails with ``KeyError: 'Context variable not found: `expression`.'``, and
+over `message/stream` the connection closes after the `submitted` task, with no
+final status. Turns the sample answers without the model, such as its
+`send_message` action, work.
+
+### Reproduction
+
+Run the sample with a Gemini key and send it a text message over
+`message/stream` with the v0.9 extension requested. The A2A capture suite's
+recording `conformance/test_data/a2a_capture/v0_1/custom_components/action_then_model_turn.har`
+in `a2ui-spectra` holds such a turn.
+
+### Fix
+
+Seed `expression` in the session state, as the restaurant finder does, or escape
+the catalog's braces before it goes into an ADK instruction.
+
+## 15. The Python restaurant finder creates the same surface twice in a streamed turn
+
+**Component:** `samples/agent/adk/restaurant_finder/agent.py`.
+
+**Severity:** deviation from the v0.9 protocol.
+
+### Issue
+
+The v0.9 protocol says "It is an error to try to create a surface with a
+`surfaceId` that already exists without first deleting it"
+(`specification/v0_9/docs/a2ui_protocol.md:180`). Over `message/stream`, every
+turn of the sample sends `createSurface` for its surface twice, with no
+`deleteSurface` between. ADK's streaming mode delivers the model's reply as
+partial chunks and then once more as one aggregated response
+(`google/adk/utils/streaming_utils.py:28-33`, `StreamingResponseAggregator`, in
+`google-adk` 2.3.0). The sample's `token_stream` passes on the text of every
+event without looking at `event.partial` (`agent.py:281-298`), so its streaming
+parser reads the whole reply a second time and emits its messages again.
+
+### Reproduction
+
+Run the sample with a Gemini key and stream any request with the v0.9 extension
+requested. The A2A capture suite's recording
+`conformance/test_data/a2a_capture/v0_1/angular_client/python_restaurant_finder_booking.har`
+in `a2ui-spectra` holds three such turns.
+
+### Fix
+
+Skip partial events or the final aggregated one in `token_stream`, so each piece
+of text reaches the parser once.
