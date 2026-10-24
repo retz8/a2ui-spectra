@@ -41,7 +41,10 @@ export const STREAM_REPLY =
 
 export interface FakeAgentOptions {
   onCardAnswered?: () => void;
-  /** The transports the card lists, in preference order. Default: JSON-RPC only. */
+  /**
+   * The transports the card lists, in preference order; none is a card that
+   * lists no interface. Default: JSON-RPC only.
+   */
   transports?: string[];
 }
 
@@ -51,14 +54,18 @@ export function startFakeAgent(
   {onCardAnswered, transports = ['JSONRPC']}: FakeAgentOptions = {},
 ): Promise<Server> {
   const url = `http://localhost:${port}/`;
-  const card = {
-    name: FAKE_AGENT_NAME,
-    url,
-    preferredTransport: transports[0],
-    ...(transports.length > 1 && {
-      additionalInterfaces: transports.slice(1).map(transport => ({url, transport})),
-    }),
-  };
+  // No transports is a card that lists no interface at all, as an empty A2A 1.0 list.
+  const card =
+    transports.length === 0
+      ? {name: FAKE_AGENT_NAME, supportedInterfaces: []}
+      : {
+          name: FAKE_AGENT_NAME,
+          url,
+          preferredTransport: transports[0],
+          ...(transports.length > 1 && {
+            additionalInterfaces: transports.slice(1).map(transport => ({url, transport})),
+          }),
+        };
   const server = createServer((request, response) => {
     if (
       request.method === 'GET' &&

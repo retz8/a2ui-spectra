@@ -54,11 +54,12 @@ function withOrigin(url: string, origin: string): string {
   return ORIGIN.test(url) ? url.replace(ORIGIN, origin) : url;
 }
 
-/** Where the card puts JSON-RPC among the transports it lists. */
+/** Where the card puts JSON-RPC among the transports it lists, or that it lists none. */
 export type TransportCheck =
   | {kind: 'jsonrpc_first'}
   | {kind: 'jsonrpc_later'; preferred: string}
-  | {kind: 'no_jsonrpc'; transports: string[]};
+  | {kind: 'no_jsonrpc'; transports: string[]}
+  | {kind: 'no_interface'};
 
 /**
  * Reads the card's transports in preference order: in A2A 0.3, the preferred
@@ -67,6 +68,9 @@ export type TransportCheck =
  */
 export function checkTransport(card: Record<string, unknown>): TransportCheck {
   const transports = [...new Set(transportsOf(card))];
+  if (transports.length === 0) {
+    return {kind: 'no_interface'};
+  }
   if (transports[0] === JSONRPC) {
     return {kind: 'jsonrpc_first'};
   }

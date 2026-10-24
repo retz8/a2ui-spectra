@@ -91,11 +91,19 @@ export async function runSession(
 
     if (card !== undefined && !stop.signal.aborted) {
       const transport = checkTransport(card);
+      if (transport.kind === 'no_interface') {
+        out.error(
+          "The agent's card lists no interface to reach it at. A2A 1.0 requires the card's " +
+            'supportedInterfaces, and A2A 0.3 its url, so hosts that follow the card cannot reach ' +
+            'the agent either.',
+        );
+        stop.abort();
+        return 1;
+      }
       if (transport.kind === 'no_jsonrpc') {
         out.error(
-          "The agent's card lists no A2A JSON-RPC interface" +
-            (transport.transports.length > 0 ? `, only ${transport.transports.join(', ')}` : '') +
-            '. Spectra captures A2A over JSON-RPC only.',
+          `The agent's card lists no A2A JSON-RPC interface, only ${transport.transports.join(', ')}. ` +
+            'Spectra captures A2A over JSON-RPC only.',
         );
         stop.abort();
         return 1;

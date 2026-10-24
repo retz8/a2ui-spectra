@@ -127,6 +127,12 @@ describe('checkTransport', () => {
       }),
       {kind: 'no_jsonrpc', transports: ['GRPC']},
     );
-    assert.deepEqual(checkTransport({name: 'No interfaces'}), {kind: 'no_jsonrpc', transports: []});
+  });
+
+  it('tells a card that lists no interface at all from one without JSON-RPC', () => {
+    assert.deepEqual(checkTransport({name: 'No interfaces'}), {kind: 'no_interface'});
+    assert.deepEqual(checkTransport({name: 'Empty', supportedInterfaces: []}), {
+      kind: 'no_interface',
+    });
   });
 });

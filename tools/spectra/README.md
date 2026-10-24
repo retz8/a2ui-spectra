@@ -39,7 +39,7 @@ Point a host at the address Spectra prints, `http://127.0.0.1:<proxy-port>` foll
 - It rewrites the agent's card, at `/.well-known/agent-card.json`, at `/.well-known/agent.json` and as the extended card, so that each JSON-RPC endpoint in it points at the proxy. Endpoints of other transports are left as they are.
 - It reads each `message/send` and `message/stream`, or `SendMessage` and `SendStreamingMessage` in A2A 1.0, as one turn, written as turn record v0.1 events.
 
-At start, Spectra checks where the card puts JSON-RPC. When the card prefers another transport, Spectra warns that hosts following the card's preference bypass the proxy. When the card lists no JSON-RPC interface, Spectra stops with an error.
+At start, Spectra checks where the card puts JSON-RPC. When the card prefers another transport, Spectra warns that hosts following the card's preference bypass the proxy. When the card lists no JSON-RPC interface, or no interface at all, Spectra stops with an error.
 
 Under `run`:
 

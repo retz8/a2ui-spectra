@@ -379,6 +379,28 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
     },
   );
 
+  it('attach stops when the card lists no interface at all', {timeout: TIMEOUT}, async () => {
+    const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+    const agent = await startFakeAgent(agentPort, {transports: []});
+    try {
+      const result = await finished([
+        'attach',
+        `http://localhost:${agentPort}`,
+        '--port',
+        String(port),
+        '--proxy-port',
+        String(proxyPort),
+        '--no-open',
+      ]);
+      assert.equal(result.code, 1, result.output);
+      assert.match(result.output, /lists no interface/);
+      assert.match(result.output, /supportedInterfaces/);
+      assert.doesNotMatch(result.output, viewerUrl);
+    } finally {
+      await closeServer(agent);
+    }
+  });
+
   it('attach stops when the card lists no JSON-RPC interface', {timeout: TIMEOUT}, async () => {
     const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
     const agent = await startFakeAgent(agentPort, {transports: ['GRPC', 'HTTP+JSON']});
