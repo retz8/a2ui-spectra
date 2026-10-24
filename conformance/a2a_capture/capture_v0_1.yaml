@@ -1,0 +1,56 @@
+# The A2A capture path: each recording of the coverage roster replayed through
+# the wire proxy, and the turns it captures compared with the expected record.
+
+- name: stub_agent_cancel_a2a_1_0
+  description: "The stub agent over A2A 1.0: a stream the host cancels while it is open, ending cancelled."
+  action: capture_a2a
+  traffic: "test_data/a2a_capture/v0_1/stub_agent/cancel_a2a_1_0.har"
+  expect: "test_data/a2a_capture/v0_1/stub_agent/cancel_a2a_1_0.json"
+
+- name: stub_agent_cancel_a2a_0_3
+  description: "The stub agent over A2A 0.3, on the same endpoint: a stream the host cancels while it is open, ending cancelled."
+  action: capture_a2a
+  traffic: "test_data/a2a_capture/v0_1/stub_agent/cancel_a2a_0_3.har"
+  expect: "test_data/a2a_capture/v0_1/stub_agent/cancel_a2a_0_3.json"
+
+- name: node_restaurant_finder_stream_v1_0_booking
+  description: "Upstream's Node restaurant finder over A2A 0.3, streamed: a v1.0 list ending waiting for input with final true, then the submitted booking ending completed."
+  action: capture_a2a
+  traffic: "test_data/a2a_capture/v0_1/node_restaurant_finder/stream_v1_0_booking.har"
+  expect: "test_data/a2a_capture/v0_1/node_restaurant_finder/stream_v1_0_booking.json"
+
+- name: node_restaurant_finder_send_task_history_and_failed
+  description: "Upstream's Node restaurant finder over A2A 0.3, sent: a v0.9 list whose A2UI is in the task's history, ending waiting for input, then a request offering only v0.9.1, ending failed."
+  action: capture_a2a
+  traffic: "test_data/a2a_capture/v0_1/node_restaurant_finder/send_task_history_and_failed.har"
+  expect: "test_data/a2a_capture/v0_1/node_restaurant_finder/send_task_history_and_failed.json"
+
+- name: angular_client_python_restaurant_finder_booking
+  description: "Upstream's Angular sample client as host of upstream's Python restaurant finder over A2A 0.3, streamed: a text turn and two action turns, the MIME type in the part's metadata, A2UI one message per part in status messages, waiting for input with final false twice, then completed."
+  action: capture_a2a
+  traffic: "test_data/a2a_capture/v0_1/angular_client/python_restaurant_finder_booking.har"
+  expect: "test_data/a2a_capture/v0_1/angular_client/python_restaurant_finder_booking.json"
+
+- name: react_client_node_restaurant_finder_text_and_action
+  description: "Upstream's React sample client as host of upstream's Node restaurant finder over A2A 0.3, streamed: a text turn ending waiting for input and an action turn with the MIME type on the part, ending completed."
+  action: capture_a2a
+  traffic: "test_data/a2a_capture/v0_1/react_client/node_restaurant_finder_text_and_action.har"
+  expect: "test_data/a2a_capture/v0_1/react_client/node_restaurant_finder_text_and_action.json"
+
+- name: custom_components_action_then_model_turn
+  description: "Upstream's custom-components sample over A2A 0.3, streamed: a model-free action ending completed with A2UI, then a text turn that reaches the model, whose stream breaks off after the submitted task, ending failed."
+  action: capture_a2a
+  traffic: "test_data/a2a_capture/v0_1/custom_components/action_then_model_turn.har"
+  expect: "test_data/a2a_capture/v0_1/custom_components/action_then_model_turn.json"
+
+- name: file_upload_summarizer_artifact_stream_and_send
+  description: "Upstream's community file-upload summarizer through ADK's A2aAgentExecutor over A2A 0.3: a stream whose A2UI comes again in an artifact update, ending completed, then a send whose A2UI is in the task's artifact, ending completed."
+  action: capture_a2a
+  traffic: "test_data/a2a_capture/v0_1/file_upload_summarizer/artifact_stream_and_send.har"
+  expect: "test_data/a2a_capture/v0_1/file_upload_summarizer/artifact_stream_and_send.json"
+
+- name: a2uiverse_circleci_runs_then_confirm_rerun
+  description: "A2UIVerse's CircleCI agent in deterministic mode over A2A 0.3, streamed: a text turn painting the recent runs, ending completed, then a rerun confirmation that needs a scope the token lacks, ending auth-required, which is waiting for input."
+  action: capture_a2a
+  traffic: "test_data/a2a_capture/v0_1/a2uiverse_circleci/runs_then_confirm_rerun.har"
+  expect: "test_data/a2a_capture/v0_1/a2uiverse_circleci/runs_then_confirm_rerun.json"

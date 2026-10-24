@@ -1,0 +1,577 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "60b70584e727b555232e571446e5245c",
+          "spanId": "c0cc4b651a2b9fc5",
+          "name": "invoke_agent FileUpload Summarizer Agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000008000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "FileUpload Summarizer Agent",
+            "gen_ai.conversation.id": "0e8f6531-2779-44d3-be64-8167384464ed",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.protocol_version": "v0.9",
+            "a2ui.turn.capture_paths": [
+              "wire"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "60b70584e727b555232e571446e5245c",
+          "spanId": "af66d1c24f8025d2",
+          "parentSpanId": "c0cc4b651a2b9fc5",
+          "name": "wire_input",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000001000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_input",
+            "a2ui.wire.message": {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Show me the file uploader"
+                }
+              ]
+            },
+            "a2ui.wire.capabilities": {
+              "v0.9": {
+                "supportedCatalogIds": [
+                  "https://a2ui.org/samples/community/agent/adk/file_upload_summarizer/catalogs/0.9/file_upload_catalog.json"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "traceId": "60b70584e727b555232e571446e5245c",
+          "spanId": "e61aa8949da44a52",
+          "parentSpanId": "c0cc4b651a2b9fc5",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000002000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": []
+            }
+          }
+        },
+        {
+          "traceId": "60b70584e727b555232e571446e5245c",
+          "spanId": "2ed080550ef5f658",
+          "parentSpanId": "c0cc4b651a2b9fc5",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000003000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": []
+            }
+          }
+        },
+        {
+          "traceId": "60b70584e727b555232e571446e5245c",
+          "spanId": "09a82e05ef7d0388",
+          "parentSpanId": "c0cc4b651a2b9fc5",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000004000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Here's my thought process, as requested:\n\n**Navigating the File Uploader**\n\nOkay, the user wants the file uploader. \"Show me the file uploader,\" they said. Right, I know how to handle this. I've got to use my tools. Let me quickly examine what's available... ah, yes, I see it: `show_file_uploader_tool`. That's precisely what I need. It's designed for exactly this purpose – it displays the A2UI FileUpload demonstration surface, complete with the uploader and the necessary button. I can even control whether the user can upload multiple files at once using the `multiple` parameter, which defaults to `false`. For now, I'll just keep it at the default. Excellent, that's straightforward. Let's execute that tool call: `show_file_uploader_tool`. That should do the trick.\n\n\n",
+                  "metadata": {
+                    "adk_thought": true
+                  }
+                },
+                {
+                  "type": "data",
+                  "content": {
+                    "id": "call_429963",
+                    "args": {
+                      "multiple": false
+                    },
+                    "name": "show_file_uploader_tool"
+                  },
+                  "metadata": {
+                    "adk_type": "function_call",
+                    "adk_thought_signature": "EvUCCvICAWkUfRMUiczB8pGcEu/ysiVaNf+BEPytTS4kMpqReFYB1wyIuEaVmhBtbX+ICRfZjhJoVHolvFg9yjS8swAfs/GCOovWlE3rEFEotFLxNcQu36D9jSgruEgDVauvZFdCiitVc7vHYHr+teRxoT7mawXQ/5tVwYhdBZCvftyhbQ76VNLLNiBFUFTqdKE8OgHAKzjSp66JAKvdAhca9S6XpL33mljLVR3AasJoValNH/hdvGNmFBcUDH162zdSe3spbkU6JkANbLH4WY1fBTmmOmysbvjFuYMSDecg3aH0PgM36eTixCrfmO4o+tmi1iRmxbpvIJkFvXL2uuTpjmrz12feyZ2xaTTpVJwEfLlVUhQ0GGvw7yLYOuFmnVOrYyyS11PUzbDpO37gON6EDuepC9QhsSrf4oEm/eq0QgHorrAPAblaJGc3ellVWg1cf8PgEoyf9hhOROj7E2HyvvmWCon9waiVz9LpQLHDobcQeamWrg=="
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "60b70584e727b555232e571446e5245c",
+          "spanId": "c21348e6efb0ddca",
+          "parentSpanId": "c0cc4b651a2b9fc5",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000005000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "createSurface": {
+                      "surfaceId": "file_upload_surface_0c619c30",
+                      "catalogId": "https://a2ui.org/samples/community/agent/adk/file_upload_summarizer/catalogs/0.9/file_upload_catalog.json"
+                    }
+                  }
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "file_upload_surface_0c619c30",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "doc_uploader",
+                            "summarize_btn"
+                          ]
+                        },
+                        {
+                          "id": "doc_uploader",
+                          "component": "FileUpload",
+                          "label": "Upload a document to Mock Drive for summarization",
+                          "accept": ".txt,.md,.pdf,.csv,.json",
+                          "maxSize": 10485760,
+                          "multiple": false
+                        },
+                        {
+                          "id": "summarize_btn",
+                          "component": "Button",
+                          "child": "summarize_btn_txt",
+                          "checks": [
+                            {
+                              "condition": {
+                                "call": "required",
+                                "args": {
+                                  "value": {
+                                    "path": "/uploaded_files"
+                                  }
+                                },
+                                "returnType": "boolean"
+                              },
+                              "message": "Please wait for the file upload to complete"
+                            }
+                          ],
+                          "action": {
+                            "event": {
+                              "name": "summarize_file",
+                              "context": {
+                                "files": {
+                                  "path": "/uploaded_files"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "id": "summarize_btn_txt",
+                          "component": "Text",
+                          "text": "Summarize Uploaded Document"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "60b70584e727b555232e571446e5245c",
+          "spanId": "914b9e447eeff67c",
+          "parentSpanId": "c0cc4b651a2b9fc5",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000006000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "createSurface": {
+                      "surfaceId": "file_upload_surface_0c619c30",
+                      "catalogId": "https://a2ui.org/samples/community/agent/adk/file_upload_summarizer/catalogs/0.9/file_upload_catalog.json"
+                    }
+                  }
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "file_upload_surface_0c619c30",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "doc_uploader",
+                            "summarize_btn"
+                          ]
+                        },
+                        {
+                          "id": "doc_uploader",
+                          "component": "FileUpload",
+                          "label": "Upload a document to Mock Drive for summarization",
+                          "accept": ".txt,.md,.pdf,.csv,.json",
+                          "maxSize": 10485760,
+                          "multiple": false
+                        },
+                        {
+                          "id": "summarize_btn",
+                          "component": "Button",
+                          "child": "summarize_btn_txt",
+                          "checks": [
+                            {
+                              "condition": {
+                                "call": "required",
+                                "args": {
+                                  "value": {
+                                    "path": "/uploaded_files"
+                                  }
+                                },
+                                "returnType": "boolean"
+                              },
+                              "message": "Please wait for the file upload to complete"
+                            }
+                          ],
+                          "action": {
+                            "event": {
+                              "name": "summarize_file",
+                              "context": {
+                                "files": {
+                                  "path": "/uploaded_files"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "id": "summarize_btn_txt",
+                          "component": "Text",
+                          "text": "Summarize Uploaded Document"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "60b70584e727b555232e571446e5245c",
+          "spanId": "253310d01904b8bf",
+          "parentSpanId": "c0cc4b651a2b9fc5",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000007000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "traceId": "776aef4695b83bccece8afb15c54ee83",
+          "spanId": "ed2f01ae6c653314",
+          "name": "invoke_agent FileUpload Summarizer Agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800001000000000",
+          "endTimeUnixNano": "1792800001003000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "FileUpload Summarizer Agent",
+            "gen_ai.conversation.id": "0e8f6531-2779-44d3-be64-8167384464ed",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.protocol_version": "v0.9",
+            "a2ui.turn.capture_paths": [
+              "wire"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "776aef4695b83bccece8afb15c54ee83",
+          "spanId": "005051557065e33b",
+          "parentSpanId": "ed2f01ae6c653314",
+          "name": "wire_input",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001001000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_input",
+            "a2ui.wire.message": {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Show me the file uploader again"
+                }
+              ]
+            },
+            "a2ui.wire.capabilities": {
+              "v0.9": {
+                "supportedCatalogIds": [
+                  "https://a2ui.org/samples/community/agent/adk/file_upload_summarizer/catalogs/0.9/file_upload_catalog.json"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "traceId": "776aef4695b83bccece8afb15c54ee83",
+          "spanId": "1aa8ee993f0d387d",
+          "parentSpanId": "ed2f01ae6c653314",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001002000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Okay, here's my interpretation of that request, formatted for a user who's deeply familiar with the code:\n\n**Re-Engaging the File Uploader**\n\nAlright, the user's requesting to see that file uploader again. My immediate thought is, \"Right, I know what they're after.\" That means I need to re-execute the `show_file_uploader_tool` function. Nothing fancy, just a straightforward call to that procedure. No need to overthink it; the intent is clear. Let's get that interface back on screen.\n\n\n",
+                  "metadata": {
+                    "adk_thought": true
+                  }
+                },
+                {
+                  "type": "data",
+                  "content": {
+                    "id": "call_273124",
+                    "args": {
+                      "multiple": false
+                    },
+                    "name": "show_file_uploader_tool"
+                  },
+                  "metadata": {
+                    "adk_type": "function_call",
+                    "adk_thought_signature": "EskBCsYBAWkUfROGsrlZg+1DgyJyTIv2LlPjY4dmpu4EF1bMp4NXIhnJ2hw1sc6IsN22GEVXHpGzP8wQ+p3Nq68rtMSIBm9pYzk93L04EmngTujsqiolHrKVwcJ5NpO95kLi88w9wTPQioR/LJz7HVZx1Co5mGcvpF2jzIu41t6YBo//hL5YNlbIGHbja0sQYCoSJOfm9mu91PR+sKLHd0y0jzSdjoadpUIR4Br/Ms55hCsu9eLYlhUCr9oyVh12+gg6aKxzXSFz5VpO"
+                  }
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "createSurface": {
+                      "surfaceId": "file_upload_surface_b88930f6",
+                      "catalogId": "https://a2ui.org/samples/community/agent/adk/file_upload_summarizer/catalogs/0.9/file_upload_catalog.json"
+                    }
+                  }
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "file_upload_surface_b88930f6",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "doc_uploader",
+                            "summarize_btn"
+                          ]
+                        },
+                        {
+                          "id": "doc_uploader",
+                          "component": "FileUpload",
+                          "label": "Upload a document to Mock Drive for summarization",
+                          "accept": ".txt,.md,.pdf,.csv,.json",
+                          "maxSize": 10485760,
+                          "multiple": false
+                        },
+                        {
+                          "id": "summarize_btn",
+                          "component": "Button",
+                          "child": "summarize_btn_txt",
+                          "checks": [
+                            {
+                              "condition": {
+                                "call": "required",
+                                "args": {
+                                  "value": {
+                                    "path": "/uploaded_files"
+                                  }
+                                },
+                                "returnType": "boolean"
+                              },
+                              "message": "Please wait for the file upload to complete"
+                            }
+                          ],
+                          "action": {
+                            "event": {
+                              "name": "summarize_file",
+                              "context": {
+                                "files": {
+                                  "path": "/uploaded_files"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "id": "summarize_btn_txt",
+                          "component": "Text",
+                          "text": "Summarize Uploaded Document"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "createSurface": {
+                      "surfaceId": "file_upload_surface_b88930f6",
+                      "catalogId": "https://a2ui.org/samples/community/agent/adk/file_upload_summarizer/catalogs/0.9/file_upload_catalog.json"
+                    }
+                  }
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "file_upload_surface_b88930f6",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "doc_uploader",
+                            "summarize_btn"
+                          ]
+                        },
+                        {
+                          "id": "doc_uploader",
+                          "component": "FileUpload",
+                          "label": "Upload a document to Mock Drive for summarization",
+                          "accept": ".txt,.md,.pdf,.csv,.json",
+                          "maxSize": 10485760,
+                          "multiple": false
+                        },
+                        {
+                          "id": "summarize_btn",
+                          "component": "Button",
+                          "child": "summarize_btn_txt",
+                          "checks": [
+                            {
+                              "condition": {
+                                "call": "required",
+                                "args": {
+                                  "value": {
+                                    "path": "/uploaded_files"
+                                  }
+                                },
+                                "returnType": "boolean"
+                              },
+                              "message": "Please wait for the file upload to complete"
+                            }
+                          ],
+                          "action": {
+                            "event": {
+                              "name": "summarize_file",
+                              "context": {
+                                "files": {
+                                  "path": "/uploaded_files"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "id": "summarize_btn_txt",
+                          "component": "Text",
+                          "text": "Summarize Uploaded Document"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "a2ui.wire.metadata": {
+              "adk_app_name": "file_upload_summarizer_agent",
+              "adk_user_id": "A2A_USER_0e8f6531-2779-44d3-be64-8167384464ed",
+              "adk_session_id": "0e8f6531-2779-44d3-be64-8167384464ed",
+              "adk_invocation_id": "e-caa64416-702b-4b82-a80c-1fdc7cb4772a",
+              "adk_author": "file_upload_summarizer_agent",
+              "adk_event_id": "869f31e6-94f5-4aa4-944f-4d016e50ea57",
+              "adk_usage_metadata": {
+                "candidatesTokenCount": 18,
+                "promptTokenCount": 1054,
+                "promptTokensDetails": [
+                  {
+                    "modality": "TEXT",
+                    "tokenCount": 1054
+                  }
+                ],
+                "thoughtsTokenCount": 27,
+                "totalTokenCount": 1099
+              },
+              "adk_actions": {
+                "skipSummarization": true,
+                "stateDelta": {},
+                "artifactDelta": {},
+                "requestedAuthConfigs": {},
+                "requestedToolConfirmations": {}
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

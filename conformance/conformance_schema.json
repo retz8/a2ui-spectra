@@ -5,7 +5,7 @@
   "description": "JSON schema validating the conformance test suites under conformance/.",
   "type": "array",
   "items": {
-    "anyOf": [{"$ref": "#/$defs/ValidateTurnRecordTest"}]
+    "anyOf": [{"$ref": "#/$defs/ValidateTurnRecordTest"}, {"$ref": "#/$defs/CaptureA2aTest"}]
   },
   "$defs": {
     "ValidateTurnRecordTest": {
@@ -31,6 +31,28 @@
       "additionalProperties": false,
       "if": {"required": ["expectError"]},
       "then": {"required": ["description"]}
+    },
+    "CaptureA2aTest": {
+      "type": "object",
+      "description": "Replays one HAR recording of A2A traffic through the A2A capture path and compares the turns it captures with an expected turn record.",
+      "properties": {
+        "name": {"type": "string", "description": "Unique name of the test case."},
+        "description": {
+          "type": "string",
+          "description": "The roster entry and the axis values the recording verifies."
+        },
+        "action": {"const": "capture_a2a"},
+        "traffic": {
+          "type": "string",
+          "description": "Path of the HAR 1.2 recording, relative to conformance/."
+        },
+        "expect": {
+          "type": "string",
+          "description": "Path of the expected turn record, relative to conformance/."
+        }
+      },
+      "required": ["name", "description", "action", "traffic", "expect"],
+      "additionalProperties": false
     },
     "ExpectError": {
       "type": "object",

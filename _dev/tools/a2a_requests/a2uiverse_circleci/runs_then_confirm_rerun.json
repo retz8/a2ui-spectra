@@ -1,0 +1,92 @@
+{
+  "card": {
+    "headers": {
+      "X-A2A-Extensions": "https://a2ui.org/a2a-extension/a2ui/v0.9.1"
+    }
+  },
+  "requests": [
+    {
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
+        "Authorization": "Bearer ${env:A2UIVERSE_TOKEN}",
+        "X-A2A-Extensions": "https://a2ui.org/a2a-extension/a2ui/v0.9.1"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "message/stream",
+        "params": {
+          "message": {
+            "kind": "message",
+            "messageId": "a2uiverse-circleci-user-1",
+            "role": "user",
+            "parts": [
+              {
+                "kind": "text",
+                "text": "Show me the recent runs"
+              }
+            ],
+            "metadata": {
+              "a2uiClientCapabilities": {
+                "v0.9.1": {
+                  "supportedCatalogIds": [
+                    "https://github.com/retz8/a2uiverse-apps/blob/main/circleci/circleci-catalog/catalogs/v0.9.1/catalog.json"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
+        "Authorization": "Bearer ${env:A2UIVERSE_TOKEN}",
+        "X-A2A-Extensions": "https://a2ui.org/a2a-extension/a2ui/v0.9.1"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "message/stream",
+        "params": {
+          "message": {
+            "kind": "message",
+            "messageId": "a2uiverse-circleci-user-2",
+            "role": "user",
+            "contextId": "${contextId}",
+            "parts": [
+              {
+                "kind": "data",
+                "data": {
+                  "version": "v0.9",
+                  "action": {
+                    "name": "confirm-rerun",
+                    "surfaceId": "runs",
+                    "sourceComponentId": "confirm",
+                    "timestamp": "2026-10-24T09:00:00Z",
+                    "context": {}
+                  }
+                },
+                "metadata": {
+                  "mimeType": "application/json+a2ui"
+                }
+              }
+            ],
+            "metadata": {
+              "a2uiClientCapabilities": {
+                "v0.9.1": {
+                  "supportedCatalogIds": [
+                    "https://github.com/retz8/a2uiverse-apps/blob/main/circleci/circleci-catalog/catalogs/v0.9.1/catalog.json"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

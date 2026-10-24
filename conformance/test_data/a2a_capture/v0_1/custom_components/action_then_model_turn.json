@@ -1,0 +1,199 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "d9fa20915a26e210ebf95624102aaa8d",
+          "spanId": "980476e38a9df966",
+          "name": "invoke_agent Contact Lookup Agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000004000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "Contact Lookup Agent",
+            "gen_ai.conversation.id": "e05ac5fa-7629-4171-87d1-db031e41f0fe",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.protocol_version": "v0.9",
+            "a2ui.turn.capture_paths": [
+              "wire"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "d9fa20915a26e210ebf95624102aaa8d",
+          "spanId": "939cb9b9e7f74057",
+          "parentSpanId": "980476e38a9df966",
+          "name": "wire_input",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000001000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_input",
+            "a2ui.wire.message": {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "userAction": {
+                      "name": "send_message",
+                      "surfaceId": "contact-card",
+                      "sourceComponentId": "message-button",
+                      "timestamp": "2026-10-24T09:00:00Z",
+                      "context": {
+                        "contactName": "Alex Jordan"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "d9fa20915a26e210ebf95624102aaa8d",
+          "spanId": "0c9a2251771ef931",
+          "parentSpanId": "980476e38a9df966",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000002000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": []
+            }
+          }
+        },
+        {
+          "traceId": "d9fa20915a26e210ebf95624102aaa8d",
+          "spanId": "779aff619caf9826",
+          "parentSpanId": "980476e38a9df966",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000003000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Message sent to Alex Jordan"
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "createSurface": {
+                      "surfaceId": "action-modal",
+                      "catalogId": "inline_catalog"
+                    }
+                  }
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "action-modal",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Modal",
+                          "trigger": "hidden",
+                          "content": "msg",
+                          "open": true
+                        },
+                        {
+                          "id": "hidden",
+                          "component": "Text",
+                          "text": " "
+                        },
+                        {
+                          "id": "msg",
+                          "component": "Text",
+                          "text": "Message Sent (Fallback)"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "traceId": "2f8501891423b0943d8fb4a7aaa9dc13",
+          "spanId": "7d39c5a00fa3b138",
+          "name": "invoke_agent Contact Lookup Agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800001000000000",
+          "endTimeUnixNano": "1792800001003000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "Contact Lookup Agent",
+            "gen_ai.conversation.id": "e05ac5fa-7629-4171-87d1-db031e41f0fe",
+            "a2ui.turn.outcome": "failed",
+            "a2ui.turn.capture_paths": [
+              "wire"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 2,
+            "message": "The connection to the agent broke before the reply ended."
+          }
+        },
+        {
+          "traceId": "2f8501891423b0943d8fb4a7aaa9dc13",
+          "spanId": "e40cf532379e6544",
+          "parentSpanId": "7d39c5a00fa3b138",
+          "name": "wire_input",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001001000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_input",
+            "a2ui.wire.message": {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Who is Alex Jordan?"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "2f8501891423b0943d8fb4a7aaa9dc13",
+          "spanId": "5b26588ec461a330",
+          "parentSpanId": "7d39c5a00fa3b138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001002000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": []
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

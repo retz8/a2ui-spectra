@@ -1,0 +1,24 @@
+{
+  "requests": [
+    {
+      "headers": {"Content-Type": "application/json", "Accept": "text/event-stream"},
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "message/stream",
+        "params": {
+          "message": {
+            "kind": "message",
+            "messageId": "stub-cancel-a2a-0-3-user-1",
+            "role": "user",
+            "parts": [{"kind": "text", "text": "start"}]
+          }
+        }
+      },
+      "whileOpen": {
+        "headers": {"Content-Type": "application/json"},
+        "body": {"jsonrpc": "2.0", "id": 2, "method": "tasks/cancel", "params": {"id": "${taskId}"}}
+      }
+    }
+  ]
+}

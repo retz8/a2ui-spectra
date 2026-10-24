@@ -1,0 +1,47 @@
+{
+  "requests": [
+    {
+      "headers": {"Content-Type": "application/json"},
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "message/send",
+        "params": {
+          "message": {
+            "kind": "message",
+            "messageId": "node-rf-send-user-1",
+            "role": "user",
+            "parts": [{"kind": "text", "text": "Top 3 Chinese restaurants in New York"}],
+            "metadata": {
+              "a2uiClientCapabilities": {
+                "v0.9": {"supportedCatalogIds": ["https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"]}
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "headers": {"Content-Type": "application/json"},
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "message/send",
+        "params": {
+          "message": {
+            "kind": "message",
+            "messageId": "node-rf-send-user-2",
+            "role": "user",
+            "contextId": "${contextId}",
+            "parts": [{"kind": "text", "text": "Top 3 Chinese restaurants in New York"}],
+            "metadata": {
+              "a2uiClientCapabilities": {
+                "v0.9.1": {"supportedCatalogIds": ["https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"]}
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

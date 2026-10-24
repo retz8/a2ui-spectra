@@ -1,0 +1,110 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "1a17988a7d84226fdfa48c613de96bd6",
+          "spanId": "856a28db114b6e85",
+          "name": "invoke_agent Spectra stub agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000005000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "Spectra stub agent",
+            "gen_ai.conversation.id": "1034095c-d7b6-4b82-9487-ce0f6aee38d9",
+            "a2ui.turn.outcome": "cancelled",
+            "a2ui.turn.capture_paths": [
+              "wire"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "1a17988a7d84226fdfa48c613de96bd6",
+          "spanId": "2ec0043a1f4e5a8d",
+          "parentSpanId": "856a28db114b6e85",
+          "name": "wire_input",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000001000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_input",
+            "a2ui.wire.message": {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "start"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "1a17988a7d84226fdfa48c613de96bd6",
+          "spanId": "b072b2edbe353fd7",
+          "parentSpanId": "856a28db114b6e85",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000002000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": []
+            },
+            "a2ui.wire.metadata": {}
+          }
+        },
+        {
+          "traceId": "1a17988a7d84226fdfa48c613de96bd6",
+          "spanId": "18c87c719422b117",
+          "parentSpanId": "856a28db114b6e85",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000003000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Working until you cancel."
+                }
+              ]
+            },
+            "a2ui.wire.metadata": {}
+          }
+        },
+        {
+          "traceId": "1a17988a7d84226fdfa48c613de96bd6",
+          "spanId": "eb457c6134146cce",
+          "parentSpanId": "856a28db114b6e85",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000004000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Cancelled."
+                }
+              ]
+            },
+            "a2ui.wire.metadata": {}
+          }
+        }
+      ]
+    }
+  ]
+}

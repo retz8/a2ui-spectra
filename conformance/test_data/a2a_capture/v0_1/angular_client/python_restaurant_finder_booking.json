@@ -1,0 +1,3454 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "b95895a8f4d35138",
+          "name": "invoke_agent Restaurant Agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000026000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "Restaurant Agent",
+            "gen_ai.conversation.id": "0cf495b2-ed8e-40db-b0f1-2d8bb99a630b",
+            "a2ui.turn.outcome": "waiting_for_input",
+            "a2ui.turn.protocol_version": "v0.9",
+            "a2ui.turn.capture_paths": [
+              "wire"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "4246ae429d22d891",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_input",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000001000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_input",
+            "a2ui.wire.message": {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Top 3 Chinese restaurants in New York"
+                }
+              ]
+            },
+            "a2ui.wire.capabilities": {
+              "v0.9": {
+                "supportedCatalogIds": [
+                  "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "a4192a82399e090e",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000002000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": []
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "c34a3990c978efd7",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000003000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Here are the top 3 Chinese restaurants in New"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "11166f714e89c384",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000004000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": " York:"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "30663db8687f46a6",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000005000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "createSurface": {
+                      "surfaceId": "default",
+                      "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+                      "theme": {
+                        "primaryColor": "#FF0000",
+                        "font": "Roboto"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "0a6259b196debcf9",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000006000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "default",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "title-heading",
+                            "item-list"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "f8a618075aa69b99",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000007000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "default",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "title-heading",
+                            "item-list"
+                          ]
+                        },
+                        {
+                          "id": "title-heading",
+                          "component": "Text",
+                          "variant": "h1",
+                          "text": {
+                            "path": "/title"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "d589fd9ba3a52a4a",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000008000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "default",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "title-heading",
+                            "item-list"
+                          ]
+                        },
+                        {
+                          "id": "title-heading",
+                          "component": "Text",
+                          "variant": "h1",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "item-list",
+                          "component": "List",
+                          "direction": "vertical",
+                          "children": {
+                            "componentId": "item-card-template",
+                            "path": "/items"
+                          }
+                        },
+                        {
+                          "id": "item-card-template",
+                          "component": "Card",
+                          "child": "card-layout"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "d1be8d0d8dc31c55",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000009000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "default",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "title-heading",
+                            "item-list"
+                          ]
+                        },
+                        {
+                          "id": "title-heading",
+                          "component": "Text",
+                          "variant": "h1",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "item-list",
+                          "component": "List",
+                          "direction": "vertical",
+                          "children": {
+                            "componentId": "item-card-template",
+                            "path": "/items"
+                          }
+                        },
+                        {
+                          "id": "item-card-template",
+                          "component": "Card",
+                          "child": "card-layout"
+                        },
+                        {
+                          "id": "card-layout",
+                          "component": "Row",
+                          "children": [
+                            "card-image",
+                            "card-details"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "a9b49988d45fc264",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000010000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "default",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "title-heading",
+                            "item-list"
+                          ]
+                        },
+                        {
+                          "id": "title-heading",
+                          "component": "Text",
+                          "variant": "h1",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "item-list",
+                          "component": "List",
+                          "direction": "vertical",
+                          "children": {
+                            "componentId": "item-card-template",
+                            "path": "/items"
+                          }
+                        },
+                        {
+                          "id": "item-card-template",
+                          "component": "Card",
+                          "child": "card-layout"
+                        },
+                        {
+                          "id": "card-layout",
+                          "component": "Row",
+                          "children": [
+                            "card-image",
+                            "card-details"
+                          ]
+                        },
+                        {
+                          "id": "card-image",
+                          "component": "Image",
+                          "variant": "mediumFeature",
+                          "weight": 1,
+                          "url": {
+                            "path": "imageUrl"
+                          }
+                        },
+                        {
+                          "id": "card-details",
+                          "component": "Column",
+                          "weight": 2,
+                          "children": []
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "8f97c4fcddfd6c75",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000011000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "default",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "title-heading",
+                            "item-list"
+                          ]
+                        },
+                        {
+                          "id": "title-heading",
+                          "component": "Text",
+                          "variant": "h1",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "item-list",
+                          "component": "List",
+                          "direction": "vertical",
+                          "children": {
+                            "componentId": "item-card-template",
+                            "path": "/items"
+                          }
+                        },
+                        {
+                          "id": "item-card-template",
+                          "component": "Card",
+                          "child": "card-layout"
+                        },
+                        {
+                          "id": "card-layout",
+                          "component": "Row",
+                          "children": [
+                            "card-image",
+                            "card-details"
+                          ]
+                        },
+                        {
+                          "id": "card-image",
+                          "component": "Image",
+                          "variant": "mediumFeature",
+                          "weight": 1,
+                          "url": {
+                            "path": "imageUrl"
+                          }
+                        },
+                        {
+                          "id": "card-details",
+                          "component": "Column",
+                          "weight": 2,
+                          "children": [
+                            "template-name",
+                            "template-rating",
+                            "template-detail",
+                            "template-link",
+                            "template-book-button"
+                          ]
+                        },
+                        {
+                          "id": "template-name",
+                          "component": "Text",
+                          "variant": "h3",
+                          "text": {
+                            "path": "name"
+                          }
+                        },
+                        {
+                          "id": "template-rating",
+                          "component": "Text",
+                          "text": {
+                            "path": "rating"
+                          }
+                        },
+                        {
+                          "id": "template-detail",
+                          "component": "Text",
+                          "text": {
+                            "path": "detail"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "49603c4fb9ffc3f1",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000012000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "default",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "title-heading",
+                            "item-list"
+                          ]
+                        },
+                        {
+                          "id": "title-heading",
+                          "component": "Text",
+                          "variant": "h1",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "item-list",
+                          "component": "List",
+                          "direction": "vertical",
+                          "children": {
+                            "componentId": "item-card-template",
+                            "path": "/items"
+                          }
+                        },
+                        {
+                          "id": "item-card-template",
+                          "component": "Card",
+                          "child": "card-layout"
+                        },
+                        {
+                          "id": "card-layout",
+                          "component": "Row",
+                          "children": [
+                            "card-image",
+                            "card-details"
+                          ]
+                        },
+                        {
+                          "id": "card-image",
+                          "component": "Image",
+                          "variant": "mediumFeature",
+                          "weight": 1,
+                          "url": {
+                            "path": "imageUrl"
+                          }
+                        },
+                        {
+                          "id": "card-details",
+                          "component": "Column",
+                          "weight": 2,
+                          "children": [
+                            "template-name",
+                            "template-rating",
+                            "template-detail",
+                            "template-link",
+                            "template-book-button"
+                          ]
+                        },
+                        {
+                          "id": "template-name",
+                          "component": "Text",
+                          "variant": "h3",
+                          "text": {
+                            "path": "name"
+                          }
+                        },
+                        {
+                          "id": "template-rating",
+                          "component": "Text",
+                          "text": {
+                            "path": "rating"
+                          }
+                        },
+                        {
+                          "id": "template-detail",
+                          "component": "Text",
+                          "text": {
+                            "path": "detail"
+                          }
+                        },
+                        {
+                          "id": "template-link",
+                          "component": "Text",
+                          "text": {
+                            "path": "infoLink"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "041a254476562dbd",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000013000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "default",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "title-heading",
+                            "item-list"
+                          ]
+                        },
+                        {
+                          "id": "title-heading",
+                          "component": "Text",
+                          "variant": "h1",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "item-list",
+                          "component": "List",
+                          "direction": "vertical",
+                          "children": {
+                            "componentId": "item-card-template",
+                            "path": "/items"
+                          }
+                        },
+                        {
+                          "id": "item-card-template",
+                          "component": "Card",
+                          "child": "card-layout"
+                        },
+                        {
+                          "id": "card-layout",
+                          "component": "Row",
+                          "children": [
+                            "card-image",
+                            "card-details"
+                          ]
+                        },
+                        {
+                          "id": "card-image",
+                          "component": "Image",
+                          "variant": "mediumFeature",
+                          "weight": 1,
+                          "url": {
+                            "path": "imageUrl"
+                          }
+                        },
+                        {
+                          "id": "card-details",
+                          "component": "Column",
+                          "weight": 2,
+                          "children": [
+                            "template-name",
+                            "template-rating",
+                            "template-detail",
+                            "template-link",
+                            "template-book-button"
+                          ]
+                        },
+                        {
+                          "id": "template-name",
+                          "component": "Text",
+                          "variant": "h3",
+                          "text": {
+                            "path": "name"
+                          }
+                        },
+                        {
+                          "id": "template-rating",
+                          "component": "Text",
+                          "text": {
+                            "path": "rating"
+                          }
+                        },
+                        {
+                          "id": "template-detail",
+                          "component": "Text",
+                          "text": {
+                            "path": "detail"
+                          }
+                        },
+                        {
+                          "id": "template-link",
+                          "component": "Text",
+                          "text": {
+                            "path": "infoLink"
+                          }
+                        },
+                        {
+                          "id": "template-book-button",
+                          "component": "Button",
+                          "child": "book-now-text",
+                          "variant": "primary",
+                          "action": {
+                            "event": {
+                              "name": "book_restaurant",
+                              "context": {}
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "6b3a437f67e3a148",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000014000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "default",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "title-heading",
+                            "item-list"
+                          ]
+                        },
+                        {
+                          "id": "title-heading",
+                          "component": "Text",
+                          "variant": "h1",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "item-list",
+                          "component": "List",
+                          "direction": "vertical",
+                          "children": {
+                            "componentId": "item-card-template",
+                            "path": "/items"
+                          }
+                        },
+                        {
+                          "id": "item-card-template",
+                          "component": "Card",
+                          "child": "card-layout"
+                        },
+                        {
+                          "id": "card-layout",
+                          "component": "Row",
+                          "children": [
+                            "card-image",
+                            "card-details"
+                          ]
+                        },
+                        {
+                          "id": "card-image",
+                          "component": "Image",
+                          "variant": "mediumFeature",
+                          "weight": 1,
+                          "url": {
+                            "path": "imageUrl"
+                          }
+                        },
+                        {
+                          "id": "card-details",
+                          "component": "Column",
+                          "weight": 2,
+                          "children": [
+                            "template-name",
+                            "template-rating",
+                            "template-detail",
+                            "template-link",
+                            "template-book-button"
+                          ]
+                        },
+                        {
+                          "id": "template-name",
+                          "component": "Text",
+                          "variant": "h3",
+                          "text": {
+                            "path": "name"
+                          }
+                        },
+                        {
+                          "id": "template-rating",
+                          "component": "Text",
+                          "text": {
+                            "path": "rating"
+                          }
+                        },
+                        {
+                          "id": "template-detail",
+                          "component": "Text",
+                          "text": {
+                            "path": "detail"
+                          }
+                        },
+                        {
+                          "id": "template-link",
+                          "component": "Text",
+                          "text": {
+                            "path": "infoLink"
+                          }
+                        },
+                        {
+                          "id": "template-book-button",
+                          "component": "Button",
+                          "child": "book-now-text",
+                          "variant": "primary",
+                          "action": {
+                            "event": {
+                              "name": "book_restaurant",
+                              "context": {
+                                "restaurantName": {
+                                  "path": "name"
+                                },
+                                "imageUrl": {
+                                  "path": "imageUrl"
+                                },
+                                "address": {
+                                  "path": "address"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "b8712dade2a6d92f",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000015000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "default",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "title-heading",
+                            "item-list"
+                          ]
+                        },
+                        {
+                          "id": "title-heading",
+                          "component": "Text",
+                          "variant": "h1",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "item-list",
+                          "component": "List",
+                          "direction": "vertical",
+                          "children": {
+                            "componentId": "item-card-template",
+                            "path": "/items"
+                          }
+                        },
+                        {
+                          "id": "item-card-template",
+                          "component": "Card",
+                          "child": "card-layout"
+                        },
+                        {
+                          "id": "card-layout",
+                          "component": "Row",
+                          "children": [
+                            "card-image",
+                            "card-details"
+                          ]
+                        },
+                        {
+                          "id": "card-image",
+                          "component": "Image",
+                          "variant": "mediumFeature",
+                          "weight": 1,
+                          "url": {
+                            "path": "imageUrl"
+                          }
+                        },
+                        {
+                          "id": "card-details",
+                          "component": "Column",
+                          "weight": 2,
+                          "children": [
+                            "template-name",
+                            "template-rating",
+                            "template-detail",
+                            "template-link",
+                            "template-book-button"
+                          ]
+                        },
+                        {
+                          "id": "template-name",
+                          "component": "Text",
+                          "variant": "h3",
+                          "text": {
+                            "path": "name"
+                          }
+                        },
+                        {
+                          "id": "template-rating",
+                          "component": "Text",
+                          "text": {
+                            "path": "rating"
+                          }
+                        },
+                        {
+                          "id": "template-detail",
+                          "component": "Text",
+                          "text": {
+                            "path": "detail"
+                          }
+                        },
+                        {
+                          "id": "template-link",
+                          "component": "Text",
+                          "text": {
+                            "path": "infoLink"
+                          }
+                        },
+                        {
+                          "id": "template-book-button",
+                          "component": "Button",
+                          "child": "book-now-text",
+                          "variant": "primary",
+                          "action": {
+                            "event": {
+                              "name": "book_restaurant",
+                              "context": {
+                                "restaurantName": {
+                                  "path": "name"
+                                },
+                                "imageUrl": {
+                                  "path": "imageUrl"
+                                },
+                                "address": {
+                                  "path": "address"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "id": "book-now-text",
+                          "component": "Text",
+                          "text": "Book Now"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "48ab37db8f776452",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000016000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateDataModel": {
+                      "surfaceId": "default",
+                      "path": "/title",
+                      "value": "Top Chinese Restaurants in New York"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "826060e9a0f5b1b3",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000017000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateDataModel": {
+                      "surfaceId": "default",
+                      "path": "/items",
+                      "value": [
+                        {
+                          "name": "Xi'an Famous Foods",
+                          "rating": "★★★★☆",
+                          "detail": "Spicy and savory hand-pulled noodles.",
+                          "infoLink": "[More Info](https://www.xianfoods.com/)",
+                          "imageUrl": "http://localhost:10012/static/shrimpchowmein.jpeg",
+                          "address": "81 St Marks Pl, New York, NY 10003"
+                        },
+                        {
+                          "name": "Han Dynasty"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "2f070e5588f84cd8",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000018000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateDataModel": {
+                      "surfaceId": "default",
+                      "path": "/items",
+                      "value": [
+                        {
+                          "name": "Xi'an Famous Foods",
+                          "rating": "★★★★☆",
+                          "detail": "Spicy and savory hand-pulled noodles.",
+                          "infoLink": "[More Info](https://www.xianfoods.com/)",
+                          "imageUrl": "http://localhost:10012/static/shrimpchowmein.jpeg",
+                          "address": "81 St Marks Pl, New York, NY 10003"
+                        },
+                        {
+                          "name": "Han Dynasty",
+                          "rating": "★★★★☆",
+                          "detail": "Authentic Szechuan cuisine.",
+                          "infoLink": "[More Info](https://www.handynasty.net/)",
+                          "imageUrl": "http://localhost:10012/static/mapotofu.jpeg",
+                          "address": "90 3rd Ave, New York, NY 10003"
+                        },
+                        {}
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "643239f9bdb8e829",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000019000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateDataModel": {
+                      "surfaceId": "default",
+                      "path": "/items",
+                      "value": [
+                        {
+                          "name": "Xi'an Famous Foods",
+                          "rating": "★★★★☆",
+                          "detail": "Spicy and savory hand-pulled noodles.",
+                          "infoLink": "[More Info](https://www.xianfoods.com/)",
+                          "imageUrl": "http://localhost:10012/static/shrimpchowmein.jpeg",
+                          "address": "81 St Marks Pl, New York, NY 10003"
+                        },
+                        {
+                          "name": "Han Dynasty",
+                          "rating": "★★★★☆",
+                          "detail": "Authentic Szechuan cuisine.",
+                          "infoLink": "[More Info](https://www.handynasty.net/)",
+                          "imageUrl": "http://localhost:10012/static/mapotofu.jpeg",
+                          "address": "90 3rd Ave, New York, NY 10003"
+                        },
+                        {
+                          "name": "RedFarm",
+                          "rating": "★★★★☆",
+                          "detail": "Modern Chinese with a farm-to-table approach.",
+                          "infoLink": "[More Info](https://www.redfarmnyc.com/)",
+                          "imageUrl": "http://localhost:10012/static/beefbroccoli.jpeg",
+                          "address": "529 Hudson St, New York, NY 10014"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "2712ee967bd662fc",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000020000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Here are the top 3 Chinese restaurants in New York:"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "39bc16d9774bbfc2",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000021000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "createSurface": {
+                      "surfaceId": "default",
+                      "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+                      "theme": {
+                        "primaryColor": "#FF0000",
+                        "font": "Roboto"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "99522752be7f0b73",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000022000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "default",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "title-heading",
+                            "item-list"
+                          ]
+                        },
+                        {
+                          "id": "title-heading",
+                          "component": "Text",
+                          "variant": "h1",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "item-list",
+                          "component": "List",
+                          "direction": "vertical",
+                          "children": {
+                            "componentId": "item-card-template",
+                            "path": "/items"
+                          }
+                        },
+                        {
+                          "id": "item-card-template",
+                          "component": "Card",
+                          "child": "card-layout"
+                        },
+                        {
+                          "id": "card-layout",
+                          "component": "Row",
+                          "children": [
+                            "card-image",
+                            "card-details"
+                          ]
+                        },
+                        {
+                          "id": "card-image",
+                          "component": "Image",
+                          "variant": "mediumFeature",
+                          "weight": 1,
+                          "url": {
+                            "path": "imageUrl"
+                          }
+                        },
+                        {
+                          "id": "card-details",
+                          "component": "Column",
+                          "weight": 2,
+                          "children": [
+                            "template-name",
+                            "template-rating",
+                            "template-detail",
+                            "template-link",
+                            "template-book-button"
+                          ]
+                        },
+                        {
+                          "id": "template-name",
+                          "component": "Text",
+                          "variant": "h3",
+                          "text": {
+                            "path": "name"
+                          }
+                        },
+                        {
+                          "id": "template-rating",
+                          "component": "Text",
+                          "text": {
+                            "path": "rating"
+                          }
+                        },
+                        {
+                          "id": "template-detail",
+                          "component": "Text",
+                          "text": {
+                            "path": "detail"
+                          }
+                        },
+                        {
+                          "id": "template-link",
+                          "component": "Text",
+                          "text": {
+                            "path": "infoLink"
+                          }
+                        },
+                        {
+                          "id": "template-book-button",
+                          "component": "Button",
+                          "child": "book-now-text",
+                          "variant": "primary",
+                          "action": {
+                            "event": {
+                              "name": "book_restaurant",
+                              "context": {
+                                "restaurantName": {
+                                  "path": "name"
+                                },
+                                "imageUrl": {
+                                  "path": "imageUrl"
+                                },
+                                "address": {
+                                  "path": "address"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "id": "book-now-text",
+                          "component": "Text",
+                          "text": "Book Now"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "ddb39226f72235dc",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000023000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateDataModel": {
+                      "surfaceId": "default",
+                      "path": "/title",
+                      "value": "Top Chinese Restaurants in New York"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "e286d9b43017a818",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000024000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateDataModel": {
+                      "surfaceId": "default",
+                      "path": "/items",
+                      "value": [
+                        {
+                          "name": "Xi'an Famous Foods",
+                          "rating": "★★★★☆",
+                          "detail": "Spicy and savory hand-pulled noodles.",
+                          "infoLink": "[More Info](https://www.xianfoods.com/)",
+                          "imageUrl": "http://localhost:10012/static/shrimpchowmein.jpeg",
+                          "address": "81 St Marks Pl, New York, NY 10003"
+                        },
+                        {
+                          "name": "Han Dynasty",
+                          "rating": "★★★★☆",
+                          "detail": "Authentic Szechuan cuisine.",
+                          "infoLink": "[More Info](https://www.handynasty.net/)",
+                          "imageUrl": "http://localhost:10012/static/mapotofu.jpeg",
+                          "address": "90 3rd Ave, New York, NY 10003"
+                        },
+                        {
+                          "name": "RedFarm",
+                          "rating": "★★★★☆",
+                          "detail": "Modern Chinese with a farm-to-table approach.",
+                          "infoLink": "[More Info](https://www.redfarmnyc.com/)",
+                          "imageUrl": "http://localhost:10012/static/beefbroccoli.jpeg",
+                          "address": "529 Hudson St, New York, NY 10014"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "7fd0e6bd429951e03ada6d94f540b112",
+          "spanId": "1f8c70c78f92cbeb",
+          "parentSpanId": "b95895a8f4d35138",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000025000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "f04c083376db26ff",
+          "name": "invoke_agent Restaurant Agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800001000000000",
+          "endTimeUnixNano": "1792800001020000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "Restaurant Agent",
+            "gen_ai.conversation.id": "0cf495b2-ed8e-40db-b0f1-2d8bb99a630b",
+            "a2ui.turn.outcome": "waiting_for_input",
+            "a2ui.turn.protocol_version": "v0.9",
+            "a2ui.turn.capture_paths": [
+              "wire"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "70d025875d9c646d",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_input",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001001000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_input",
+            "a2ui.wire.message": {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "userAction": {
+                      "name": "book_restaurant",
+                      "surfaceId": "default",
+                      "sourceComponentId": "book-button",
+                      "timestamp": "2026-10-24T09:00:00.000Z",
+                      "context": {
+                        "restaurantName": "Han Dynasty",
+                        "address": "90 3rd Ave, New York, NY 10003",
+                        "imageUrl": "http://localhost:10002/static/mapotofu.jpeg"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "a2ui.wire.capabilities": {
+              "v0.9": {
+                "supportedCatalogIds": [
+                  "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "b7b379a2df0ce809",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001002000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": []
+            }
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "c08ee59855055153",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001003000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Please fill out the"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "c351a5b5c838f485",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001004000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": " form below to reserve a table at Han Dynasty:"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "0dbf3889e4835da1",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001005000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "createSurface": {
+                      "surfaceId": "booking-form",
+                      "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+                      "theme": {
+                        "primaryColor": "#FF0000",
+                        "font": "Roboto"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "a0a403d5c3a45c76",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001006000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "booking-form",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "booking-title",
+                            "restaurant-image",
+                            "restaurant-address",
+                            "party-size-field",
+                            "datetime-field",
+                            "dietary-field",
+                            "submit-button"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "7a6909d831c45e57",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001007000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "booking-form",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "booking-title",
+                            "restaurant-image",
+                            "restaurant-address",
+                            "party-size-field",
+                            "datetime-field",
+                            "dietary-field",
+                            "submit-button"
+                          ]
+                        },
+                        {
+                          "id": "booking-title",
+                          "component": "Text",
+                          "variant": "h2",
+                          "text": {
+                            "path": "/title"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "4d2da7b502cbe754",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001008000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "booking-form",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "booking-title",
+                            "restaurant-image",
+                            "restaurant-address",
+                            "party-size-field",
+                            "datetime-field",
+                            "dietary-field",
+                            "submit-button"
+                          ]
+                        },
+                        {
+                          "id": "booking-title",
+                          "component": "Text",
+                          "variant": "h2",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "restaurant-image",
+                          "component": "Image",
+                          "url": {
+                            "path": "/imageUrl"
+                          }
+                        },
+                        {
+                          "id": "restaurant-address",
+                          "component": "Text",
+                          "text": {
+                            "path": "/address"
+                          }
+                        },
+                        {
+                          "id": "party-size-field",
+                          "component": "TextField",
+                          "label": "Party Size",
+                          "value": {
+                            "path": "/partySize"
+                          },
+                          "variant": "number"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "3dd339fac9c55c47",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001009000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "booking-form",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "booking-title",
+                            "restaurant-image",
+                            "restaurant-address",
+                            "party-size-field",
+                            "datetime-field",
+                            "dietary-field",
+                            "submit-button"
+                          ]
+                        },
+                        {
+                          "id": "booking-title",
+                          "component": "Text",
+                          "variant": "h2",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "restaurant-image",
+                          "component": "Image",
+                          "url": {
+                            "path": "/imageUrl"
+                          }
+                        },
+                        {
+                          "id": "restaurant-address",
+                          "component": "Text",
+                          "text": {
+                            "path": "/address"
+                          }
+                        },
+                        {
+                          "id": "party-size-field",
+                          "component": "TextField",
+                          "label": "Party Size",
+                          "value": {
+                            "path": "/partySize"
+                          },
+                          "variant": "number"
+                        },
+                        {
+                          "id": "datetime-field",
+                          "component": "DateTimeInput",
+                          "label": "Date & Time",
+                          "value": {
+                            "path": "/reservationTime"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "911ff9eff2c2cd23",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001010000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "booking-form",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "booking-title",
+                            "restaurant-image",
+                            "restaurant-address",
+                            "party-size-field",
+                            "datetime-field",
+                            "dietary-field",
+                            "submit-button"
+                          ]
+                        },
+                        {
+                          "id": "booking-title",
+                          "component": "Text",
+                          "variant": "h2",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "restaurant-image",
+                          "component": "Image",
+                          "url": {
+                            "path": "/imageUrl"
+                          }
+                        },
+                        {
+                          "id": "restaurant-address",
+                          "component": "Text",
+                          "text": {
+                            "path": "/address"
+                          }
+                        },
+                        {
+                          "id": "party-size-field",
+                          "component": "TextField",
+                          "label": "Party Size",
+                          "value": {
+                            "path": "/partySize"
+                          },
+                          "variant": "number"
+                        },
+                        {
+                          "id": "datetime-field",
+                          "component": "DateTimeInput",
+                          "label": "Date & Time",
+                          "value": {
+                            "path": "/reservationTime"
+                          },
+                          "enableDate": true,
+                          "enableTime": true
+                        },
+                        {
+                          "id": "dietary-field",
+                          "component": "TextField",
+                          "label": "Dietary Requirements",
+                          "value": {
+                            "path": "/dietary"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "72579801d400857e",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001011000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "booking-form",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "booking-title",
+                            "restaurant-image",
+                            "restaurant-address",
+                            "party-size-field",
+                            "datetime-field",
+                            "dietary-field",
+                            "submit-button"
+                          ]
+                        },
+                        {
+                          "id": "booking-title",
+                          "component": "Text",
+                          "variant": "h2",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "restaurant-image",
+                          "component": "Image",
+                          "url": {
+                            "path": "/imageUrl"
+                          }
+                        },
+                        {
+                          "id": "restaurant-address",
+                          "component": "Text",
+                          "text": {
+                            "path": "/address"
+                          }
+                        },
+                        {
+                          "id": "party-size-field",
+                          "component": "TextField",
+                          "label": "Party Size",
+                          "value": {
+                            "path": "/partySize"
+                          },
+                          "variant": "number"
+                        },
+                        {
+                          "id": "datetime-field",
+                          "component": "DateTimeInput",
+                          "label": "Date & Time",
+                          "value": {
+                            "path": "/reservationTime"
+                          },
+                          "enableDate": true,
+                          "enableTime": true
+                        },
+                        {
+                          "id": "dietary-field",
+                          "component": "TextField",
+                          "label": "Dietary Requirements",
+                          "value": {
+                            "path": "/dietary"
+                          }
+                        },
+                        {
+                          "id": "submit-button",
+                          "component": "Button",
+                          "child": "submit-reservation-text",
+                          "action": {
+                            "event": {
+                              "name": "submit_booking",
+                              "context": {
+                                "restaurantName": {
+                                  "path": "/restaurantName"
+                                },
+                                "partySize": {
+                                  "path": "/partySize"
+                                },
+                                "reservationTime": {
+                                  "path": "/reservationTime"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "0351b40f84002322",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001012000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "booking-form",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "booking-title",
+                            "restaurant-image",
+                            "restaurant-address",
+                            "party-size-field",
+                            "datetime-field",
+                            "dietary-field",
+                            "submit-button"
+                          ]
+                        },
+                        {
+                          "id": "booking-title",
+                          "component": "Text",
+                          "variant": "h2",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "restaurant-image",
+                          "component": "Image",
+                          "url": {
+                            "path": "/imageUrl"
+                          }
+                        },
+                        {
+                          "id": "restaurant-address",
+                          "component": "Text",
+                          "text": {
+                            "path": "/address"
+                          }
+                        },
+                        {
+                          "id": "party-size-field",
+                          "component": "TextField",
+                          "label": "Party Size",
+                          "value": {
+                            "path": "/partySize"
+                          },
+                          "variant": "number"
+                        },
+                        {
+                          "id": "datetime-field",
+                          "component": "DateTimeInput",
+                          "label": "Date & Time",
+                          "value": {
+                            "path": "/reservationTime"
+                          },
+                          "enableDate": true,
+                          "enableTime": true
+                        },
+                        {
+                          "id": "dietary-field",
+                          "component": "TextField",
+                          "label": "Dietary Requirements",
+                          "value": {
+                            "path": "/dietary"
+                          }
+                        },
+                        {
+                          "id": "submit-button",
+                          "component": "Button",
+                          "child": "submit-reservation-text",
+                          "action": {
+                            "event": {
+                              "name": "submit_booking",
+                              "context": {
+                                "restaurantName": {
+                                  "path": "/restaurantName"
+                                },
+                                "partySize": {
+                                  "path": "/partySize"
+                                },
+                                "reservationTime": {
+                                  "path": "/reservationTime"
+                                },
+                                "dietary": {
+                                  "path": "/dietary"
+                                },
+                                "imageUrl": {
+                                  "path": "/imageUrl"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "597542aba4293d87",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001013000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "booking-form",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "booking-title",
+                            "restaurant-image",
+                            "restaurant-address",
+                            "party-size-field",
+                            "datetime-field",
+                            "dietary-field",
+                            "submit-button"
+                          ]
+                        },
+                        {
+                          "id": "booking-title",
+                          "component": "Text",
+                          "variant": "h2",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "restaurant-image",
+                          "component": "Image",
+                          "url": {
+                            "path": "/imageUrl"
+                          }
+                        },
+                        {
+                          "id": "restaurant-address",
+                          "component": "Text",
+                          "text": {
+                            "path": "/address"
+                          }
+                        },
+                        {
+                          "id": "party-size-field",
+                          "component": "TextField",
+                          "label": "Party Size",
+                          "value": {
+                            "path": "/partySize"
+                          },
+                          "variant": "number"
+                        },
+                        {
+                          "id": "datetime-field",
+                          "component": "DateTimeInput",
+                          "label": "Date & Time",
+                          "value": {
+                            "path": "/reservationTime"
+                          },
+                          "enableDate": true,
+                          "enableTime": true
+                        },
+                        {
+                          "id": "dietary-field",
+                          "component": "TextField",
+                          "label": "Dietary Requirements",
+                          "value": {
+                            "path": "/dietary"
+                          }
+                        },
+                        {
+                          "id": "submit-button",
+                          "component": "Button",
+                          "child": "submit-reservation-text",
+                          "action": {
+                            "event": {
+                              "name": "submit_booking",
+                              "context": {
+                                "restaurantName": {
+                                  "path": "/restaurantName"
+                                },
+                                "partySize": {
+                                  "path": "/partySize"
+                                },
+                                "reservationTime": {
+                                  "path": "/reservationTime"
+                                },
+                                "dietary": {
+                                  "path": "/dietary"
+                                },
+                                "imageUrl": {
+                                  "path": "/imageUrl"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "id": "submit-reservation-text",
+                          "component": "Text",
+                          "text": "Submit Reservation"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "56d84dd16c54cdcc",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001014000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateDataModel": {
+                      "surfaceId": "booking-form",
+                      "path": "/",
+                      "value": {
+                        "title": "Book a Table at Han Dynasty",
+                        "address": "90 3rd Ave, New York, NY 10003",
+                        "restaurantName": "Han Dynasty",
+                        "partySize": "2",
+                        "reservationTime": "",
+                        "dietary": "",
+                        "imageUrl": "http://localhost:10002/static/mapotofu.jpeg"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "8bcbded6c5e7f1dd",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001015000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Please fill out the form below to reserve a table at Han Dynasty:"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "fa6de707f4b5ee2f",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001016000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "createSurface": {
+                      "surfaceId": "booking-form",
+                      "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+                      "theme": {
+                        "primaryColor": "#FF0000",
+                        "font": "Roboto"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "92ca9068f59e2a65",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001017000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "booking-form",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "booking-title",
+                            "restaurant-image",
+                            "restaurant-address",
+                            "party-size-field",
+                            "datetime-field",
+                            "dietary-field",
+                            "submit-button"
+                          ]
+                        },
+                        {
+                          "id": "booking-title",
+                          "component": "Text",
+                          "variant": "h2",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "restaurant-image",
+                          "component": "Image",
+                          "url": {
+                            "path": "/imageUrl"
+                          }
+                        },
+                        {
+                          "id": "restaurant-address",
+                          "component": "Text",
+                          "text": {
+                            "path": "/address"
+                          }
+                        },
+                        {
+                          "id": "party-size-field",
+                          "component": "TextField",
+                          "label": "Party Size",
+                          "value": {
+                            "path": "/partySize"
+                          },
+                          "variant": "number"
+                        },
+                        {
+                          "id": "datetime-field",
+                          "component": "DateTimeInput",
+                          "label": "Date & Time",
+                          "value": {
+                            "path": "/reservationTime"
+                          },
+                          "enableDate": true,
+                          "enableTime": true
+                        },
+                        {
+                          "id": "dietary-field",
+                          "component": "TextField",
+                          "label": "Dietary Requirements",
+                          "value": {
+                            "path": "/dietary"
+                          }
+                        },
+                        {
+                          "id": "submit-button",
+                          "component": "Button",
+                          "child": "submit-reservation-text",
+                          "action": {
+                            "event": {
+                              "name": "submit_booking",
+                              "context": {
+                                "restaurantName": {
+                                  "path": "/restaurantName"
+                                },
+                                "partySize": {
+                                  "path": "/partySize"
+                                },
+                                "reservationTime": {
+                                  "path": "/reservationTime"
+                                },
+                                "dietary": {
+                                  "path": "/dietary"
+                                },
+                                "imageUrl": {
+                                  "path": "/imageUrl"
+                                }
+                              }
+                            }
+                          }
+                        },
+                        {
+                          "id": "submit-reservation-text",
+                          "component": "Text",
+                          "text": "Submit Reservation"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "88df84becd4cef3a",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001018000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateDataModel": {
+                      "surfaceId": "booking-form",
+                      "path": "/",
+                      "value": {
+                        "title": "Book a Table at Han Dynasty",
+                        "address": "90 3rd Ave, New York, NY 10003",
+                        "restaurantName": "Han Dynasty",
+                        "partySize": "2",
+                        "reservationTime": "",
+                        "dietary": "",
+                        "imageUrl": "http://localhost:10002/static/mapotofu.jpeg"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "8975f7cb9e9f521b8df19e94c83f5717",
+          "spanId": "1e7581ec61fe0490",
+          "parentSpanId": "f04c083376db26ff",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800001019000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": []
+            }
+          }
+        }
+      ]
+    },
+    {
+      "events": [
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "90800b21858289b4",
+          "name": "invoke_agent Restaurant Agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800002000000000",
+          "endTimeUnixNano": "1792800002020000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "Restaurant Agent",
+            "gen_ai.conversation.id": "0cf495b2-ed8e-40db-b0f1-2d8bb99a630b",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.protocol_version": "v0.9",
+            "a2ui.turn.capture_paths": [
+              "wire"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "82581c4101d84efe",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_input",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002001000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_input",
+            "a2ui.wire.message": {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "userAction": {
+                      "name": "submit_booking",
+                      "surfaceId": "booking-form",
+                      "sourceComponentId": "submit-button",
+                      "timestamp": "2026-10-24T09:01:00.000Z",
+                      "context": {
+                        "restaurantName": "Han Dynasty",
+                        "partySize": "2",
+                        "reservationTime": "7:00 PM",
+                        "dietary": "None",
+                        "imageUrl": "http://localhost:10002/static/mapotofu.jpeg"
+                      }
+                    }
+                  }
+                }
+              ]
+            },
+            "a2ui.wire.capabilities": {
+              "v0.9": {
+                "supportedCatalogIds": [
+                  "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "0a467f9329f912b1",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002002000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": []
+            }
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "c3f2d2ed0a178e5d",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002003000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Your booking has"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "d9cac884673bfd22",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002004000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": " been confirmed!"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "6ddeef29bd61b913",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002005000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "createSurface": {
+                      "surfaceId": "confirmation",
+                      "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+                      "theme": {
+                        "primaryColor": "#FF0000",
+                        "font": "Roboto"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "d0d703f854d8d46f",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002006000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "confirmation",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Card",
+                          "child": "confirmation-column"
+                        },
+                        {
+                          "id": "confirmation-column",
+                          "component": "Column",
+                          "children": [
+                            "confirm-title",
+                            "confirm-image"
+                          ]
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "48f5811b7fdc949a",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002007000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "confirmation",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Card",
+                          "child": "confirmation-column"
+                        },
+                        {
+                          "id": "confirmation-column",
+                          "component": "Column",
+                          "children": [
+                            "confirm-title",
+                            "confirm-image",
+                            "divider1",
+                            "confirm-details",
+                            "divider2",
+                            "confirm-dietary",
+                            "divider3",
+                            "confirm-text"
+                          ]
+                        },
+                        {
+                          "id": "confirm-title",
+                          "component": "Text",
+                          "variant": "h2",
+                          "text": {
+                            "path": "/title"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "ee828db60790108e",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002008000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "confirmation",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Card",
+                          "child": "confirmation-column"
+                        },
+                        {
+                          "id": "confirmation-column",
+                          "component": "Column",
+                          "children": [
+                            "confirm-title",
+                            "confirm-image",
+                            "divider1",
+                            "confirm-details",
+                            "divider2",
+                            "confirm-dietary",
+                            "divider3",
+                            "confirm-text"
+                          ]
+                        },
+                        {
+                          "id": "confirm-title",
+                          "component": "Text",
+                          "variant": "h2",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "confirm-image",
+                          "component": "Image",
+                          "url": {
+                            "path": "/imageUrl"
+                          }
+                        },
+                        {
+                          "id": "confirm-details",
+                          "component": "Text",
+                          "text": {
+                            "path": "/bookingDetails"
+                          }
+                        },
+                        {
+                          "id": "confirm-dietary",
+                          "component": "Text",
+                          "text": {
+                            "path": "/dietaryRequirements"
+                          }
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "45618c74279de9cd",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002009000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "confirmation",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Card",
+                          "child": "confirmation-column"
+                        },
+                        {
+                          "id": "confirmation-column",
+                          "component": "Column",
+                          "children": [
+                            "confirm-title",
+                            "confirm-image",
+                            "divider1",
+                            "confirm-details",
+                            "divider2",
+                            "confirm-dietary",
+                            "divider3",
+                            "confirm-text"
+                          ]
+                        },
+                        {
+                          "id": "confirm-title",
+                          "component": "Text",
+                          "variant": "h2",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "confirm-image",
+                          "component": "Image",
+                          "url": {
+                            "path": "/imageUrl"
+                          }
+                        },
+                        {
+                          "id": "confirm-details",
+                          "component": "Text",
+                          "text": {
+                            "path": "/bookingDetails"
+                          }
+                        },
+                        {
+                          "id": "confirm-dietary",
+                          "component": "Text",
+                          "text": {
+                            "path": "/dietaryRequirements"
+                          }
+                        },
+                        {
+                          "id": "confirm-text",
+                          "component": "Text",
+                          "variant": "h5",
+                          "text": "We look forward to seeing you!"
+                        },
+                        {
+                          "id": "divider1",
+                          "component": "Divider"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "61c46f14f04963cf",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002010000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "confirmation",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Card",
+                          "child": "confirmation-column"
+                        },
+                        {
+                          "id": "confirmation-column",
+                          "component": "Column",
+                          "children": [
+                            "confirm-title",
+                            "confirm-image",
+                            "divider1",
+                            "confirm-details",
+                            "divider2",
+                            "confirm-dietary",
+                            "divider3",
+                            "confirm-text"
+                          ]
+                        },
+                        {
+                          "id": "confirm-title",
+                          "component": "Text",
+                          "variant": "h2",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "confirm-image",
+                          "component": "Image",
+                          "url": {
+                            "path": "/imageUrl"
+                          }
+                        },
+                        {
+                          "id": "confirm-details",
+                          "component": "Text",
+                          "text": {
+                            "path": "/bookingDetails"
+                          }
+                        },
+                        {
+                          "id": "confirm-dietary",
+                          "component": "Text",
+                          "text": {
+                            "path": "/dietaryRequirements"
+                          }
+                        },
+                        {
+                          "id": "confirm-text",
+                          "component": "Text",
+                          "variant": "h5",
+                          "text": "We look forward to seeing you!"
+                        },
+                        {
+                          "id": "divider1",
+                          "component": "Divider"
+                        },
+                        {
+                          "id": "divider2",
+                          "component": "Divider"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "b674721b92346e25",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002011000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "confirmation",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Card",
+                          "child": "confirmation-column"
+                        },
+                        {
+                          "id": "confirmation-column",
+                          "component": "Column",
+                          "children": [
+                            "confirm-title",
+                            "confirm-image",
+                            "divider1",
+                            "confirm-details",
+                            "divider2",
+                            "confirm-dietary",
+                            "divider3",
+                            "confirm-text"
+                          ]
+                        },
+                        {
+                          "id": "confirm-title",
+                          "component": "Text",
+                          "variant": "h2",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "confirm-image",
+                          "component": "Image",
+                          "url": {
+                            "path": "/imageUrl"
+                          }
+                        },
+                        {
+                          "id": "confirm-details",
+                          "component": "Text",
+                          "text": {
+                            "path": "/bookingDetails"
+                          }
+                        },
+                        {
+                          "id": "confirm-dietary",
+                          "component": "Text",
+                          "text": {
+                            "path": "/dietaryRequirements"
+                          }
+                        },
+                        {
+                          "id": "confirm-text",
+                          "component": "Text",
+                          "variant": "h5",
+                          "text": "We look forward to seeing you!"
+                        },
+                        {
+                          "id": "divider1",
+                          "component": "Divider"
+                        },
+                        {
+                          "id": "divider2",
+                          "component": "Divider"
+                        },
+                        {
+                          "id": "divider3",
+                          "component": "Divider"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "e281a66c703aa00c",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002012000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateDataModel": {
+                      "surfaceId": "confirmation",
+                      "path": "/"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "df12f944261729d6",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002013000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateDataModel": {
+                      "surfaceId": "confirmation",
+                      "path": "/",
+                      "value": {
+                        "title": "Booking at Han Dynasty",
+                        "bookingDetails": "2 people at 7:00 PM",
+                        "dietaryRequirements": "Dietary Requirements: None"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "9494bbaf3a2a0ae1",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002014000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateDataModel": {
+                      "surfaceId": "confirmation",
+                      "path": "/",
+                      "value": {
+                        "title": "Booking at Han Dynasty",
+                        "bookingDetails": "2 people at 7:00 PM",
+                        "dietaryRequirements": "Dietary Requirements: None",
+                        "imageUrl": "http://localhost:10002/static/mapotofu.jpeg"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "a274478a03e86a2b",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002015000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Your booking has been confirmed!"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "763e9292a74c96ef",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002016000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "createSurface": {
+                      "surfaceId": "confirmation",
+                      "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+                      "theme": {
+                        "primaryColor": "#FF0000",
+                        "font": "Roboto"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "9bf4a19b6e60e212",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002017000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "confirmation",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Card",
+                          "child": "confirmation-column"
+                        },
+                        {
+                          "id": "confirmation-column",
+                          "component": "Column",
+                          "children": [
+                            "confirm-title",
+                            "confirm-image",
+                            "divider1",
+                            "confirm-details",
+                            "divider2",
+                            "confirm-dietary",
+                            "divider3",
+                            "confirm-text"
+                          ]
+                        },
+                        {
+                          "id": "confirm-title",
+                          "component": "Text",
+                          "variant": "h2",
+                          "text": {
+                            "path": "/title"
+                          }
+                        },
+                        {
+                          "id": "confirm-image",
+                          "component": "Image",
+                          "url": {
+                            "path": "/imageUrl"
+                          }
+                        },
+                        {
+                          "id": "confirm-details",
+                          "component": "Text",
+                          "text": {
+                            "path": "/bookingDetails"
+                          }
+                        },
+                        {
+                          "id": "confirm-dietary",
+                          "component": "Text",
+                          "text": {
+                            "path": "/dietaryRequirements"
+                          }
+                        },
+                        {
+                          "id": "confirm-text",
+                          "component": "Text",
+                          "variant": "h5",
+                          "text": "We look forward to seeing you!"
+                        },
+                        {
+                          "id": "divider1",
+                          "component": "Divider"
+                        },
+                        {
+                          "id": "divider2",
+                          "component": "Divider"
+                        },
+                        {
+                          "id": "divider3",
+                          "component": "Divider"
+                        }
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "93fd79de27d144df",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002018000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateDataModel": {
+                      "surfaceId": "confirmation",
+                      "path": "/",
+                      "value": {
+                        "title": "Booking at Han Dynasty",
+                        "bookingDetails": "2 people at 7:00 PM",
+                        "dietaryRequirements": "Dietary Requirements: None",
+                        "imageUrl": "http://localhost:10002/static/mapotofu.jpeg"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "traceId": "6a6ca5367c9f3958685c88699556062a",
+          "spanId": "bab652b2d2849cf2",
+          "parentSpanId": "90800b21858289b4",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800002019000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": []
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
