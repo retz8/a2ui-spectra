@@ -72,7 +72,7 @@ The message box offers everything Spectra supports and lets the agent choose: th
 
 ### 11. The local store
 
-A directory in the working directory Spectra was launched from, created with a git-ignore file inside it that ignores everything. Each turn is one complete turn record v0.1 file, with the earlier turns of its conversation embedded, named so files sort by time within their conversation. The file is written once, atomically, when the turn closes, with the schema check's event already in it. A turn in flight lives in the server's memory and reaches the viewer live.
+`.a2ui-spectra/` in the working directory Spectra was launched from, created with a git-ignore file inside it that ignores everything, with the turns under `.a2ui-spectra/turns/`. Each turn is one complete turn record v0.1 file, with the earlier turns of its conversation embedded, named so files sort by time within their conversation. The file is written once, atomically, when the turn closes, with the schema check's event already in it. A turn in flight lives in the server's memory and reaches the viewer live.
 
 ### 12. The server
 
@@ -84,7 +84,7 @@ The viewer feeds the turn's A2UI messages, in order, into upstream web core's me
 
 ### 14. The schema check
 
-The protocol schemas of v0.9, v0.9.1 and v1.0 are copied unchanged at the pin into Spectra and validated with Ajv on draft 2020-12, one instance per version. Each A2UI message in the turn is validated against the single-message envelope of the version it declares, with the envelope's catalog reference bound to a permissive stand-in that accepts any component and any theme; components are left to Phase 3's catalog check. The check runs in the server when the turn closes and writes one check event into the record, findings in A2UI's error shape. A turn with no A2UI messages records a check of zero messages, shown by the viewer as "no A2UI in this turn".
+The protocol schemas of v0.9, v0.9.1 and v1.0 are copied unchanged at the pin into Spectra and validated with Ajv on draft 2020-12, one instance per version, with strict mode off. Each A2UI message the agent sent in the turn is validated against the single-message envelope of the version it declares, with the envelope's catalog reference bound to a permissive stand-in that accepts any component, any function and any theme, a v1.0 component's own properties counted as evaluated; components are left to Phase 3's catalog check. The host's A2UI messages are not checked. The check runs in the server when the turn closes and writes one check event into the record, findings in A2UI's error shape. A turn with no A2UI messages from the agent and a protocol version records a check of zero messages, shown by the viewer as "no A2UI in this turn"; a turn with no protocol version records no check event.
 
 ### 15. The workspaces
 
