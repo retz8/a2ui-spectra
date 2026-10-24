@@ -9,7 +9,7 @@ Spec for sub-task 2.5 of Phase 2 — First turn on screen (`_dev/docs/spec/phase
 - The stub agent's canned A2UI conversation and its options.
 - Unit tests, and the end-to-end test under Node and against the binary.
 - The Phase 2 spec's amendments, `_dev/TODO.md`'s, the tool's README and `conformance/README.md`.
-- Not in scope: the viewer and the message box's UI, sub-task 2.6; the message box sending the agent's credentials, Phase 3.
+- Not in scope: the viewer and the message box's UI, sub-task 2.6; the message box sending the agent's credentials, Phase 4.
 
 ## Locked decisions
 
@@ -78,7 +78,7 @@ Each A2A version's own part type, with the MIME type `application/a2ui+json` in 
 
 ### 16. Other documents
 
-- `_dev/TODO.md`: the 2.5 line names this spec; Phase 3's line gains the message box sending the agent's credentials from the shell, never recorded.
+- `_dev/TODO.md`: the 2.5 line names this spec; Phase 4's line gains the message box sending the agent's credentials from the shell, never recorded.
 - The tool's README: the API, the live stream and the message box.
 - `conformance/README.md`: the stub's two options.
 - SPEC.md and `_dev/a2ui-findings.md` are unchanged.

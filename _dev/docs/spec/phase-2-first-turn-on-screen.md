@@ -20,11 +20,11 @@ In scope:
 
 Out of scope:
 
-- Redirection: the model providers' base-URL variables and the OpenTelemetry variables. Phase 4.
-- Owning the agent's process beyond spawning it and ending it: restart, logs in the browser, restart on save. Phase 7.
-- The config file. Phase 3, with the catalog path and the preview page's URL as its first settings; the agent URL joins it then.
-- Actions, the data model sent by the host, and the preview. Phase 3.
-- The platform matrix. Phase 8.
+- Redirection: the model providers' base-URL variables and the OpenTelemetry variables. Phase 5.
+- Owning the agent's process beyond spawning it and ending it: restart, logs in the browser, restart on save. Phase 8.
+- The config file. Phase 4, with the catalog path and the preview page's URL as its first settings; the agent URL joins it then.
+- Actions, the data model sent by the host, and the preview. Phase 4.
+- The platform matrix. Phase 9.
 - A2A's task methods and push notifications attached to the turn they belong to. Backlog.
 - A2UI v0.8.
 
@@ -84,7 +84,7 @@ The viewer feeds the agent's A2UI messages of the conversation up to the turn â€
 
 ### 14. The schema check
 
-The protocol schemas of v0.9, v0.9.1 and v1.0 are copied unchanged at the pin into Spectra and validated with Ajv on draft 2020-12, one instance per version, with strict mode off. Each A2UI message the agent sent in the turn is validated against the single-message envelope of the version it declares, with the envelope's catalog reference bound to a permissive stand-in that accepts any component, any function and any theme, a v1.0 component's own properties counted as evaluated; components are left to Phase 3's catalog check. The host's A2UI messages are not checked. The check runs in the server when the turn closes and writes one check event into the record, findings in A2UI's error shape. A turn with no A2UI messages from the agent and a protocol version records a check of zero messages, shown by the viewer as "no A2UI in this turn"; a turn with no protocol version records no check event.
+The protocol schemas of v0.9, v0.9.1 and v1.0 are copied unchanged at the pin into Spectra and validated with Ajv on draft 2020-12, one instance per version, with strict mode off. Each A2UI message the agent sent in the turn is validated against the single-message envelope of the version it declares, with the envelope's catalog reference bound to a permissive stand-in that accepts any component, any function and any theme, a v1.0 component's own properties counted as evaluated; components are left to Phase 4's catalog check. The host's A2UI messages are not checked. The check runs in the server when the turn closes and writes one check event into the record, findings in A2UI's error shape. A turn with no A2UI messages from the agent and a protocol version records a check of zero messages, shown by the viewer as "no A2UI in this turn"; a turn with no protocol version records no check event.
 
 ### 15. The workspaces
 

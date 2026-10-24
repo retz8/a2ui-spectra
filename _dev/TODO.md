@@ -22,25 +22,31 @@ Spec: `_dev/docs/spec/phase-2-first-turn-on-screen.md`. The done line — the th
 - [x] **2.5** The server and the message box as host — the API and the live stream, the message box's A2A client following the card's first JSON-RPC interface at A2A 0.3 or 1.0 with its offer, one conversation and one open turn at a time, the stub agent's canned A2UI conversation, the end-to-end test on both A2A versions under Node and against the binary. Spec: `_dev/docs/spec/task-2.5-server-and-message-box.md` (after 2.4)
 - [x] **2.6** The viewer — the turn list, the turn view with the input, the raw messages, the tree, the data model and the check results, the message box's UI. Spec: `_dev/docs/spec/task-2.6-viewer.md` (after 2.5)
 
-## Phase 3 — Checks and preview
+## Phase 3 — The viewer's UI [WIP]
+The viewer's frame, layout and visual design, drawn first as a design artifact that the build follows: Spectra's mark and the attached agent's live status; turns grouped by conversation; the turn view as a timeline of the turn's steps beside its result, with the problems on the steps; the message box docked under the turn view.
+Spec: `_dev/docs/spec/phase-3-viewer-ui.md`.
+
+- [ ] **3.1** The design artifact — every screen and state of the phase spec, in light and dark, that the later sub-tasks follow.
+
+## Phase 4 — Checks and preview
 Catalog and structural checks; the preview protocol and its core; the built-in basic catalog preview; the React, Lit and Angular preview adapters; the preview you can press; preview widths; the message box sending the agent's credentials from the shell, never recorded.
 
-## Phase 4 — Inside the turn
+## Phase 5 — Inside the turn
 The model proxy (Gemini read in full, other providers recorded raw) and the tool proxy (MCP over both HTTP transports), reached by redirection, with credentials stripped; the OTLP/HTTP receiver translating each producer's dialect; the exact model request, tokens and the timeline. `full_record_custom_components.json` in the shared test data records MCP over HTTP+SSE as one `tool_call` event per JSON-RPC request, its exchange the POST and its reply from the `GET /sse` stream an `event: message` chunk on it, with the stream's `endpoint` event a chunk on `initialize`.
 
-## Phase 5 — The A2UI step
+## Phase 6 — The A2UI step
 The Python and TypeScript wrappers as OpenTelemetry instrumentation; retries and parse errors; raw text linked to the components it became. Upstream changes after the Phase 1 pin, unreleased on 2026-10-22: the agent SDKs default to Express instead of Direct JSON (#3365); TypeScript's `Parser` is stateless, with a `ResponseStream` (#3279). `a2ui-adk`'s `SendA2uiToClientToolset` takes A2UI as the argument of a `send_a2ui_to_client` tool call, parsed by `parse_and_fix` and checked by `validate_payload` from the agent SDK.
 
-## Phase 6 — Fixtures and replay
+## Phase 7 — Fixtures and replay
 Save as fixture; replay with everything recorded and with tools recorded and the model live, each labelled with its cost; `a2ui-spectra replay`; `a2ui-spectra test` for CI.
 
-## Phase 7 — The dev loop
+## Phase 8 — The dev loop
 Agent restart and logs, restart on save, re-run the last turn, the preview reloading from the catalog's dev server.
 
-## Phase 8 — Shipping
+## Phase 9 — Shipping
 The binary on npm, PyPI and GitHub releases, with the curl script.
 
-## Phase 9 — The case
+## Phase 10 — The case
 The demo, with the restaurant finder in Python and in TypeScript producing the same view and a real misfit found and fixed in minutes; a README; the contribution rule; the proposal as a GitHub Discussion.
 
 ## Backlog

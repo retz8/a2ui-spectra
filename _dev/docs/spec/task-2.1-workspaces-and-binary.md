@@ -46,7 +46,7 @@ Whenever the child exits, before or after its card answers, Spectra says so, shu
 
 ### 8. Ending the agent's process
 
-The child is started as the leader of its own process group. Spectra ends it by sending the stop signal to the group, and force-kills the group if it has not exited after 10 seconds, the time `docker stop` waits by default. A second Ctrl-C forces it at once. Ending the process tree on Windows comes with Phase 8's platform work.
+The child is started as the leader of its own process group. Spectra ends it by sending the stop signal to the group, and force-kills the group if it has not exited after 10 seconds, the time `docker stop` waits by default. A second Ctrl-C forces it at once. Ending the process tree on Windows comes with Phase 9's platform work.
 
 ### 9. The browser
 
@@ -78,7 +78,7 @@ A test in the tool workspace, run by its `test` target under Node's test runner,
 
 ### 16. The package
 
-The tool is at version 0.0.1 until Phase 8 sets the release scheme, and is private until Phase 8.
+The tool is at version 0.0.1 until Phase 9 sets the release scheme, and is private until Phase 9.
 
 ### 17. READMEs
 

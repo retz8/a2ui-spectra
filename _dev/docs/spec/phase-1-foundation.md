@@ -15,11 +15,11 @@ In scope:
 
 Out of scope:
 
-- The contribution rule, moved to Phase 9.
+- The contribution rule, moved to Phase 10.
 - The nightly routine's repo setup (labels, repo-committed skills, routine registration): an off-phase chore.
-- Python. The root uv workspace, its formatter, type checker and CI job come in Phase 5 with the Python wrapper.
+- Python. The root uv workspace, its formatter, type checker and CI job come in Phase 6 with the Python wrapper.
 - Any package other than the test workspace. Each later phase adds its packages when it starts.
-- Reserving the package names on npm and PyPI before Phase 8.
+- Reserving the package names on npm and PyPI before Phase 9.
 - Field-level design of the turn record, including how its version is numbered and declared. That belongs to the turn record sub-task's own grill.
 
 ## Locked decisions

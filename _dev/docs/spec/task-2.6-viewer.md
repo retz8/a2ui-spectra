@@ -8,7 +8,7 @@ Spec for sub-task 2.6 of Phase 2 — First turn on screen (`_dev/docs/spec/phase
 - The listing API's added fields for the turn list.
 - The viewer's unit tests, and the tool's for the listing's added fields.
 - The Phase 2 spec's amendments, SPEC.md's viewer row, a new entry in `_dev/a2ui-findings.md`, the tool's and the viewer's READMEs, and `_dev/TODO.md`.
-- Not in scope: the preview, actions and the data model sent by the host, Phase 3.
+- Not in scope: the preview, actions and the data model sent by the host, Phase 4.
 
 ## Locked decisions
 

@@ -352,13 +352,14 @@ As read from `upstream/main` at 45633b9 (2026-10-16), unless noted.
 
 1. **Foundation:** the repo shaped like an upstream tool, Apache 2.0, CI; the turn record spec's first version, its OpenTelemetry attribute names and shared test data.
 2. **First turn on screen:** `a2ui-spectra run` and `a2ui-spectra attach`; the A2A adapter, with the wire proxy and the message box as host; captured turns in the local store; the viewer's turn list, raw messages, tree and data model; schema checks for v0.9, v0.9.1 and v1.0. Built and run as the compiled binary from this phase on.
-3. **Checks and preview:** catalog and structural checks; the preview protocol and its core; the built-in basic catalog preview; the React, Lit and Angular preview adapters; the preview you can press; preview widths.
-4. **Inside the turn:** the model proxy (Gemini read in full, other providers recorded raw) and the tool proxy (MCP over both HTTP transports), reached by redirection, with credentials stripped; the OTLP/HTTP receiver translating each producer's dialect; the exact model request, tokens and the timeline.
-5. **The A2UI step:** the Python and TypeScript wrappers as OpenTelemetry instrumentation; retries and parse errors; raw text linked to the components it became.
-6. **Fixtures and replay:** save as fixture; replay with everything recorded and with tools recorded and the model live, each labelled with its cost; `a2ui-spectra replay`; `a2ui-spectra test` for CI.
-7. **The dev loop:** agent restart and logs, restart on save, re-run the last turn, the preview reloading from the catalog's dev server.
-8. **Shipping:** the binary on npm, PyPI and GitHub releases, with the curl script.
-9. **The case:** the demo, with the restaurant finder in Python and in TypeScript producing the same view and a real misfit found and fixed in minutes; a README; the contribution rule; the proposal as a GitHub Discussion.
+3. **The viewer's UI:** the viewer's frame, layout and visual design, drawn first as a design artifact that the build follows.
+4. **Checks and preview:** catalog and structural checks; the preview protocol and its core; the built-in basic catalog preview; the React, Lit and Angular preview adapters; the preview you can press; preview widths.
+5. **Inside the turn:** the model proxy (Gemini read in full, other providers recorded raw) and the tool proxy (MCP over both HTTP transports), reached by redirection, with credentials stripped; the OTLP/HTTP receiver translating each producer's dialect; the exact model request, tokens and the timeline.
+6. **The A2UI step:** the Python and TypeScript wrappers as OpenTelemetry instrumentation; retries and parse errors; raw text linked to the components it became.
+7. **Fixtures and replay:** save as fixture; replay with everything recorded and with tools recorded and the model live, each labelled with its cost; `a2ui-spectra replay`; `a2ui-spectra test` for CI.
+8. **The dev loop:** agent restart and logs, restart on save, re-run the last turn, the preview reloading from the catalog's dev server.
+9. **Shipping:** the binary on npm, PyPI and GitHub releases, with the curl script.
+10. **The case:** the demo, with the restaurant finder in Python and in TypeScript producing the same view and a real misfit found and fixed in minutes; a README; the contribution rule; the proposal as a GitHub Discussion.
 
 ### After v1: widen coverage and propose the hook
 
