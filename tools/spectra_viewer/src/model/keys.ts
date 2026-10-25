@@ -15,15 +15,32 @@ export interface KeyPress {
   ctrlKey: boolean;
   metaKey: boolean;
   altKey: boolean;
+  shiftKey: boolean;
   target: EventTarget | null;
 }
 
-/** The page's key a press is, or nothing when it is not one, or falls where typing goes. */
+/**
+ * The page's key a press is, or nothing when it is not one, or falls where
+ * typing goes. A letter is read by whether Shift is held, not by its case, so
+ * Caps Lock changes nothing.
+ */
 export function pageKeyOf(event: KeyPress): PageKey | undefined {
-  if (event.ctrlKey || event.metaKey || event.altKey || !PAGE_KEYS.has(event.key)) return undefined;
+  if (event.ctrlKey || event.metaKey || event.altKey) return undefined;
+  const letter = event.key.length === 1 ? event.key.toLowerCase() : undefined;
+  const key =
+    letter === 'n'
+      ? event.shiftKey
+        ? 'N'
+        : 'n'
+      : letter === 'l'
+        ? event.shiftKey
+          ? undefined
+          : 'l'
+        : event.key;
+  if (key === undefined || !PAGE_KEYS.has(key)) return undefined;
   const target = event.target as {closest?: (selector: string) => unknown} | null;
   if (target?.closest?.('input, textarea, select, [contenteditable], [role="dialog"]')) {
     return undefined;
   }
-  return event.key as PageKey;
+  return key as PageKey;
 }

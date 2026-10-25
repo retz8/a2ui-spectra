@@ -59,10 +59,25 @@ describe('problemsOf', () => {
     ]);
   });
 
-  it("puts a failed turn's reason on the outcome", () => {
+  it("puts a failed turn's reason on the outcome, saying the agent gave it", () => {
     assert.deepEqual(problemsOfRecording('ag2/stream_v1_0_failed'), [
-      {step: 'outcome', sentence: 'The scripted model failed.', code: 'outcome failed'},
+      {
+        step: 'outcome',
+        sentence: 'The scripted model failed.',
+        code: 'The reason the agent gave · outcome failed',
+      },
     ]);
+  });
+
+  it('says only that a failed turn failed when its agent gave no reason', () => {
+    const outcome = problemsOfRecording('node_restaurant_finder/send_task_history_and_failed').find(
+      problem => problem.step === 'outcome',
+    );
+    assert.deepEqual(outcome, {
+      step: 'outcome',
+      sentence: 'The turn failed.',
+      code: 'outcome failed',
+    });
   });
 
   it('puts a finding on the message its path names, with the path inside it, and one that names none on the outcome', () => {

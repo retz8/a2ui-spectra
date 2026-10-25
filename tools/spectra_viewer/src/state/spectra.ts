@@ -26,7 +26,7 @@ import {
   unixMillis,
   type WireEvent,
 } from '../model/record.ts';
-import {rowFieldsOf} from '../model/summary.ts';
+import {openFieldsOf, rowFieldsOf} from '../model/summary.ts';
 
 /** An open turn, as the live stream has sent it so far. */
 export interface LiveTurn {
@@ -198,10 +198,18 @@ class Spectra {
       const [turns, box, context] = await Promise.all([listTurns(), getMessageBox(), getContext()]);
       // What the stream said while the listing was on its way is newer than the listing.
       const {live, closed} = this.#state;
-      const rows = new Map(turns.map(turn => [turn.traceId, turn]));
+      // An open turn's agent is the session's.
+      const rows = new Map(
+        turns.map(turn => [
+          turn.traceId,
+          turn.open && context.agentName !== undefined
+            ? {agentName: context.agentName, ...turn}
+            : turn,
+        ]),
+      );
       for (const [traceId, turn] of closed) rows.set(traceId, closedRow(turn, rows.get(traceId)));
       for (const turn of live.values()) {
-        if (!rows.has(turn.traceId)) rows.set(turn.traceId, openRow(turn));
+        rows.set(turn.traceId, {...rows.get(turn.traceId), ...openRow(turn, context.agentName)});
       }
       this.#set({loaded: true, turns: sortRows([...rows.values()]), box, context});
     } catch {
@@ -220,20 +228,24 @@ class Spectra {
   #turnOpened(data: LiveEvents['turn_opened']): void {
     const turn: LiveTurn = {...data, events: []};
     const live = new Map(this.#state.live).set(data.traceId, turn);
-    this.#set({live, turns: upsertRow(this.#state.turns, openRow(turn))});
+    const row = openRow(turn, this.#state.context?.agentName);
+    this.#set({live, turns: upsertRow(this.#state.turns, row)});
   }
 
-  #wireEvent({traceId, event}: LiveEvents['wire_event']): void {
+  #wireEvent({traceId, conversationId, event}: LiveEvents['wire_event']): void {
     const turn = this.#state.live.get(traceId);
     if (turn === undefined) return;
-    const updated = {...turn, events: [...turn.events, event]};
+    const updated: LiveTurn = {
+      ...turn,
+      ...(turn.conversationId === undefined && conversationId !== undefined && {conversationId}),
+      events: [...turn.events, event],
+    };
     const live = new Map(this.#state.live).set(traceId, updated);
     const row = this.#state.turns.find(row => row.traceId === traceId);
-    let turns = this.#state.turns;
-    if (row !== undefined && row.input === undefined && isWireInput(event)) {
-      const input = inputBrief(event);
-      if (input !== undefined) turns = upsertRow(turns, {...row, input});
-    }
+    const turns =
+      row === undefined
+        ? this.#state.turns
+        : upsertRow(this.#state.turns, openRow(updated, this.#state.context?.agentName));
     this.#set({live, turns});
   }
 
@@ -267,14 +279,18 @@ class Spectra {
   }
 }
 
-function openRow(turn: LiveTurn): ListedTurn {
+/** An open turn's row: the session's agent is the open turn's, and its duration runs to its newest event. */
+function openRow(turn: LiveTurn, agentName: string | undefined): ListedTurn {
   const wireInput = turn.events.find(isWireInput);
   const input = wireInput === undefined ? undefined : inputBrief(wireInput);
+  const {durationMs} = openFieldsOf(turn.events, Date.parse(turn.startTime));
   return {
     traceId: turn.traceId,
     ...(turn.conversationId !== undefined && {conversationId: turn.conversationId}),
     startTime: turn.startTime,
     open: true,
+    ...(agentName !== undefined && {agentName}),
+    ...(turn.events.length > 0 && {durationMs}),
     ...(input !== undefined && {input}),
   };
 }

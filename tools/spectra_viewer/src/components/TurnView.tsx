@@ -6,11 +6,12 @@ import {checkLinesOf, checkStateOf} from '@/model/check_state.ts';
 import {keptPick, nextProblem, pickForKey, stepInView} from '@/model/follow.ts';
 import {inputBriefOfTurn} from '@/model/input_brief.ts';
 import {pageKeyOf} from '@/model/keys.ts';
+import {agentMessages} from '@/model/messages.ts';
 import {onlyProblems, problemsOf} from '@/model/problems.ts';
 import {type Turn, type TurnRecordEvent, unixMillis} from '@/model/record.ts';
 import {replay} from '@/model/replay.ts';
 import {type Position, replyThrough, type TimelineRow, timelineOf} from '@/model/steps.ts';
-import {summaryOf} from '@/model/summary.ts';
+import {openFieldsOf, summaryOf} from '@/model/summary.ts';
 import {briefText} from '@/model/turn_groups.ts';
 import {detailOpenHeight, rememberedSize, rememberSize} from '@/state/layout.ts';
 import {type TurnView as TurnViewState, turnViewOf, useNeededRecords} from '@/state/selectors.ts';
@@ -183,6 +184,7 @@ function TurnBody({
     [earlier, events, whole, position],
   );
   const reply = useMemo(() => replyThrough(events, position), [events, position]);
+  const sentA2ui = useMemo(() => agentMessages(events).length > 0, [events]);
 
   // The page address holds the step selected, picked or landed on; a pick not in a closed turn gives way.
   const shownId = inView.selected ? selected?.id : undefined;
@@ -231,10 +233,14 @@ function TurnBody({
   const input = turn === undefined ? undefined : inputBriefOfTurn(turn);
   const title = briefText(input ?? row?.input) || 'A turn';
   const agent = summary?.agentName ?? row?.agentName ?? state.context?.agentName;
+  // An open turn's duration runs to its newest step, and its version is its first message's.
+  const sofar = open ? openFieldsOf(events, startMs) : undefined;
+  const durationMs = summary?.durationMs ?? sofar?.durationMs;
+  const protocolVersion = summary?.protocolVersion ?? sofar?.protocolVersion;
   const meta = [
     formatStart(startMs),
-    ...(summary === undefined ? [] : [formatDuration(summary.durationMs)]),
-    ...(summary?.protocolVersion === undefined ? [] : [`A2UI ${summary.protocolVersion}`]),
+    ...(durationMs === undefined ? [] : [formatDuration(durationMs)]),
+    ...(protocolVersion === undefined ? [] : [`A2UI ${protocolVersion}`]),
     ...(agent === undefined ? [] : [agent]),
   ];
 
@@ -310,6 +316,8 @@ function TurnBody({
                 replay={pane}
                 problemsBySurface={bySurface}
                 open={open}
+                sentA2ui={sentA2ui}
+                failed={summary?.outcome === 'failed'}
               />
             </ResizablePanel>
             <ResizableHandle />
@@ -381,7 +389,6 @@ function asOfLabel(
 ): string {
   if (row === undefined) return '';
   if (row.row === 'delivery') return `After the delivery at ${formatOffset(row.offsetMs)}`;
-  if (row.kind === 'outcome') return 'As the turn ended';
   const offset =
     row.offsetMs ??
     (row.position === undefined

@@ -59,7 +59,8 @@ export interface MessageBoxState {
 /** What the live stream sends, by event name. */
 export interface LiveEvents {
   turn_opened: {traceId: string; conversationId?: string; startTime: string};
-  wire_event: {traceId: string; event: WireEvent};
+  /** The conversation once the host's request or a reply has named it. */
+  wire_event: {traceId: string; conversationId?: string; event: WireEvent};
   turn_closed: {traceId: string; turn: Turn};
   heartbeat: Record<string, never>;
 }

@@ -37,6 +37,8 @@ export interface SurfaceView {
   touched: boolean;
   structure: SurfaceStructure;
   dataModel: unknown;
+  /** How many of the surface's `updateComponents` the processor rejected, when it has no components. */
+  rejectedUpdates?: number;
 }
 
 /**
@@ -103,7 +105,16 @@ export function replay(
     {validationConfig: RELAXED_VALIDATION},
   );
   try {
-    for (const {message} of earlier) feed(processor, message);
+    // Each surface's rejected updateComponents, the earlier turns' included.
+    const rejectedUpdates = new Map<string, number>();
+    const countRejected = (message: unknown, surfaceId: string | undefined) => {
+      if (surfaceId !== undefined && messageTypeOf(message) === 'updateComponents') {
+        rejectedUpdates.set(surfaceId, (rejectedUpdates.get(surfaceId) ?? 0) + 1);
+      }
+    };
+    for (const {message} of earlier) {
+      if (feed(processor, message) !== undefined) countRejected(message, surfaceIdOf(message));
+    }
     const touched: string[] = [];
     const deleted = new Set<string>();
     const rejections: Rejection[] = [];
@@ -112,6 +123,7 @@ export function replay(
       if (surfaceId !== undefined && !touched.includes(surfaceId)) touched.push(surfaceId);
       const error = feed(processor, message);
       if (error !== undefined) {
+        countRejected(message, surfaceId);
         rejections.push({key, ...(surfaceId !== undefined && {surfaceId}), ...error});
       } else if (surfaceId !== undefined && isDeleteSurface(message)) {
         deleted.add(surfaceId);
@@ -123,7 +135,9 @@ export function replay(
       ...live.filter(surface => !touched.includes(surface.id)),
     ];
     return {
-      surfaces: ordered.map(surface => viewOf(surface, touched.includes(surface.id), standInIds)),
+      surfaces: ordered.map(surface =>
+        viewOf(surface, touched.includes(surface.id), standInIds, rejectedUpdates.get(surface.id)),
+      ),
       deleted: [...deleted].filter(id => processor.getSurface(id) === undefined),
       rejections,
     };
@@ -302,13 +316,16 @@ function viewOf(
   surface: SurfaceModel,
   touched: boolean,
   standInIds: ReadonlySet<string>,
+  rejectedUpdates: number | undefined,
 ): SurfaceView {
+  const empty = [...surface.componentsModel.keys].length === 0;
   return {
     surfaceId: surface.id,
     ...(surface.defaultCatalog !== undefined && {catalogId: surface.defaultCatalog.id}),
     touched,
     structure: structureOf(surface, standInIds),
     dataModel: plain(surface.dataModel.get('/')),
+    ...(empty && rejectedUpdates !== undefined && {rejectedUpdates}),
   };
 }
 

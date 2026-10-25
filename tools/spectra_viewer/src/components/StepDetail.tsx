@@ -52,7 +52,10 @@ export function StepDetail({
           <>
             <Icon kind={row.icon} size={14} className={toneOf(row.icon)} />
             <span className="shrink-0 font-semibold">{row.label}</span>
-            <span className="min-w-0 truncate text-xs text-muted-foreground">{row.target}</span>
+            {/* A failed turn's reason is its problem block's sentence. */}
+            {!(row.kind === 'outcome' && row.outcome === 'failed') && (
+              <span className="min-w-0 truncate text-xs text-muted-foreground">{row.target}</span>
+            )}
           </>
         )}
         <div className="flex-1" />

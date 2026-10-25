@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import {readRecording} from '../testing/recordings.ts';
-import {type CheckEvent, type Finding, isTurnEvent, type Turn} from './record.ts';
-import {rowFieldsOf, schemaCheckOf, summaryOf} from './summary.ts';
+import {type CheckEvent, type Finding, isTurnEvent, type Turn, unixMillis} from './record.ts';
+import {openFieldsOf, rowFieldsOf, schemaCheckOf, summaryOf} from './summary.ts';
 
 /** A turn with a schema check event added. */
 function withCheck(turn: Turn, passed: boolean, findings: Finding[] = []): Turn {
@@ -46,6 +46,29 @@ describe('summaryOf', () => {
     const turn = readRecording('node_restaurant_finder/send_task_history_and_failed').turns[1];
     assert.equal(summaryOf(turn)?.outcome, 'failed');
     assert.equal(summaryOf(turn)?.statusReason, undefined);
+  });
+});
+
+describe('openFieldsOf', () => {
+  /** A closed turn's wire events, as an open turn has them, and its start. */
+  function sofar(turn: Turn) {
+    const startMs = unixMillis(turn.events.find(isTurnEvent)!.startTimeUnixNano);
+    return {events: turn.events.filter(event => !isTurnEvent(event)), startMs};
+  }
+
+  it("runs an open turn's duration to its newest event and reads its first message's version", () => {
+    const {events, startMs} = sofar(readRecording('ag2/stream_v1_0_function_call').turns[0]);
+    const newest = Math.max(...events.map(event => unixMillis(event.startTimeUnixNano)));
+    assert.deepEqual(openFieldsOf(events, startMs), {
+      durationMs: newest - startMs,
+      protocolVersion: 'v1.0',
+    });
+  });
+
+  it('names no version before an A2UI message has come', () => {
+    const {events, startMs} = sofar(readRecording('stub_agent/cancel_a2a_1_0').turns[0]);
+    assert.equal(openFieldsOf(events, startMs).protocolVersion, undefined);
+    assert.deepEqual(openFieldsOf([], startMs), {durationMs: 0});
   });
 });
 

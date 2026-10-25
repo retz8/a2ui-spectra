@@ -143,3 +143,8 @@ export function messagesOfPart(part: WirePart): unknown[] {
 export function unixMillis(unixNano: string): number {
   return Number(BigInt(unixNano) / 1_000_000n);
 }
+
+/** Whole milliseconds between two times in nanoseconds, as the listing counts a turn's duration. */
+export function millisBetween(startUnixNano: string, endUnixNano: string): number {
+  return Number((BigInt(endUnixNano) - BigInt(startUnixNano)) / 1_000_000n);
+}

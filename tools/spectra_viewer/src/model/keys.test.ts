@@ -9,6 +9,7 @@ const press = (key: string, fields: Partial<KeyPress> = {}, inside: string[] = [
   ctrlKey: false,
   metaKey: false,
   altKey: false,
+  shiftKey: false,
   target: {
     closest: (selector: string) => inside.some(tag => selector.includes(tag)) || null,
   } as unknown as EventTarget,
@@ -17,13 +18,23 @@ const press = (key: string, fields: Partial<KeyPress> = {}, inside: string[] = [
 
 describe('pageKeyOf', () => {
   it('reads the page’s keys of one character, Shift+n among them', () => {
-    for (const key of ['/', '?', 'n', 'N', 'l']) assert.equal(pageKeyOf(press(key)), key);
+    for (const key of ['/', '?', 'n', 'l']) assert.equal(pageKeyOf(press(key)), key);
+    assert.equal(pageKeyOf(press('?', {shiftKey: true})), '?');
+    assert.equal(pageKeyOf(press('N', {shiftKey: true})), 'N');
+  });
+
+  it('reads a letter by whether Shift is held, not by its case', () => {
+    assert.equal(pageKeyOf(press('n', {shiftKey: true})), 'N');
+    assert.equal(pageKeyOf(press('N')), 'n', 'Caps Lock on: n goes forwards.');
+    assert.equal(pageKeyOf(press('L')), 'l', 'Caps Lock on: l jumps to the latest step.');
   });
 
   it('reads no other key', () => {
-    for (const key of ['a', 'L', 'Enter', 'ArrowDown', 'Escape']) {
+    for (const key of ['a', 'Enter', 'ArrowDown', 'Escape']) {
       assert.equal(pageKeyOf(press(key)), undefined);
     }
+    assert.equal(pageKeyOf(press('l', {shiftKey: true})), undefined);
+    assert.equal(pageKeyOf(press('L', {shiftKey: true})), undefined);
   });
 
   it('does nothing with Ctrl, Cmd or Alt held', () => {

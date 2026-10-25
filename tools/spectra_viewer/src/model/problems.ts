@@ -64,10 +64,11 @@ export function problemsOf(
   const turn = events.find(isTurnEvent);
   if (turn?.attributes['a2ui.turn.outcome'] === 'failed') {
     const reason = turn.status?.message;
+    const given = reason !== undefined && reason !== '';
     problems.push({
       stepId: 'outcome',
-      sentence: reason !== undefined && reason !== '' ? reason : 'The turn failed.',
-      code: 'outcome failed',
+      sentence: given ? reason : 'The turn failed.',
+      code: given ? 'The reason the agent gave · outcome failed' : 'outcome failed',
     });
   }
   return problems;

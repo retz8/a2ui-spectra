@@ -20,6 +20,8 @@ export function ResultPane({
   replay,
   problemsBySurface,
   open,
+  sentA2ui,
+  failed,
 }: {
   reply: string;
   asOf: string;
@@ -28,6 +30,9 @@ export function ResultPane({
   problemsBySurface: ReadonlyMap<string, number>;
   /** Whether the turn is still open, so what is missing may yet come. */
   open: boolean;
+  /** Whether the agent sent any A2UI in the turn. */
+  sentA2ui: boolean;
+  failed: boolean;
 }) {
   const [picked, setPicked] = useState<string | undefined>();
   const surfaces = replay?.surfaces ?? [];
@@ -70,7 +75,11 @@ export function ResultPane({
             ? 'No surfaces yet.'
             : replay.deleted.length > 0
               ? 'No surfaces: the turn deleted every surface it had.'
-              : 'No surfaces: the agent sent no A2UI that builds one.'}
+              : sentA2ui
+                ? 'No surfaces: the agent sent no A2UI that builds one.'
+                : failed
+                  ? 'No surfaces: the turn failed before any A2UI arrived.'
+                  : 'No surfaces: the agent sent no A2UI in this turn.'}
         </Centered>
       ) : (
         <Structure key={surface.surfaceId} surface={surface} open={open} />
@@ -209,14 +218,22 @@ function Structure({surface, open}: {surface: SurfaceView; open: boolean}) {
     <div className="flex min-h-0 flex-1">
       <div className="min-w-0 flex-1 basis-1/2 overflow-auto border-r px-4 py-3">
         <div className="section-label mb-1.5">Tree</div>
-        {'tree' in structure && (
-          <TreeRows
-            node={structure.tree}
-            depth={0}
-            expanded={expanded}
-            onToggle={toggle}
-            open={open}
-          />
+        {surface.rejectedUpdates !== undefined ? (
+          <p className="my-2 text-muted-foreground">
+            {surface.rejectedUpdates === 1
+              ? 'No components: this surface’s only updateComponents was rejected.'
+              : `No components: each of this surface’s ${surface.rejectedUpdates} updateComponents was rejected.`}
+          </p>
+        ) : (
+          'tree' in structure && (
+            <TreeRows
+              node={structure.tree}
+              depth={0}
+              expanded={expanded}
+              onToggle={toggle}
+              open={open}
+            />
+          )
         )}
         {sections.map(section => (
           <Fragment key={section.label}>

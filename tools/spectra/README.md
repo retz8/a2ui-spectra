@@ -107,8 +107,8 @@ A turn's `input` is `{"text": …}`, the host's first text part that is not blan
 
 The live stream's events:
 
-- `turn_opened`: `{"traceId", "conversationId", "startTime"}`, the conversation id when the host's request names one.
-- `wire_event`: `{"traceId", "event"}`, each wire input and wire output event as it is captured.
+- `turn_opened`: `{"traceId", "conversationId", "startTime"}`, the conversation id when the host's request names one, or, for a subscriber catching up, once a reply has named it.
+- `wire_event`: `{"traceId", "conversationId", "event"}`, each wire input and wire output event as it is captured, the conversation id once the host's request or a reply has named it.
 - `turn_closed`: `{"traceId", "turn"}`, sent once the turn is checked and its write has finished, whether or not the write succeeded. `turn` is the turn's own events with its check event, as the record holds it.
 - `heartbeat`: `{}`, every two seconds, so a reader can tell a stream that went silent, such as one a proxy holds open after Spectra stopped, from one that is quiet.
 

@@ -111,6 +111,27 @@ describe('the turn hub', () => {
     assert.deepEqual(events.at(-1)?.type, 'turn_closed');
   });
 
+  it('gives an open turn the conversation a reply names after it opened', () => {
+    const hub = new TurnHub();
+    const events: HubEvent[] = [];
+    hub.subscribe(event => events.push(event));
+    open(hub, TRACE_A);
+    hub.onTurn({
+      type: 'wire_event',
+      traceId: TRACE_A,
+      conversationId: 'ctx-2',
+      event: wireInput(TRACE_A),
+    });
+    const last = events.at(-1);
+    assert.equal(last?.type === 'wire_event' && last.conversationId, 'ctx-2');
+    assert.equal(hub.openTurns()[0].conversationId, 'ctx-2');
+
+    const late: HubEvent[] = [];
+    hub.subscribe(event => late.push(event), {catchUp: true});
+    const [opened] = late;
+    assert.equal(opened.type === 'turn_opened' && opened.conversationId, 'ctx-2');
+  });
+
   it('stops passing events to a listener that unsubscribed', () => {
     const hub = new TurnHub();
     const events: HubEvent[] = [];

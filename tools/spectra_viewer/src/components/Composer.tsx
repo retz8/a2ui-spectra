@@ -2,6 +2,7 @@ import {
   type FormEvent,
   type KeyboardEvent,
   type RefObject,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -68,9 +69,20 @@ export function Composer({
   const label = turnOpen ? 'A turn is open' : labelOf(target);
   const disabled = view.waiting !== undefined || sending;
 
+  // Focus in the composer when it sends comes back to its field once it can send again, unless it has moved on.
+  const form = useRef<HTMLFormElement>(null);
+  const refocus = useRef(false);
+  useEffect(() => {
+    if (disabled || !refocus.current) return;
+    refocus.current = false;
+    const active = document.activeElement;
+    if (active === null || active === document.body) field.current?.focus();
+  }, [disabled, field]);
+
   const send = async (event?: FormEvent) => {
     event?.preventDefault();
     if (text.trim() === '' || disabled) return;
+    refocus.current = form.current?.contains(document.activeElement) ?? false;
     setSending(true);
     setError(undefined);
     try {
@@ -117,6 +129,7 @@ export function Composer({
         <p className="text-muted-foreground">{view.unavailable}</p>
       ) : (
         <form
+          ref={form}
           onSubmit={event => void send(event)}
           className={cn(
             'ease-quick flex min-h-10 items-end gap-2 rounded-[10px] border py-1 pr-[5px] pl-3',

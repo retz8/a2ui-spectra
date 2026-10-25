@@ -6,6 +6,8 @@ import {
   isTurnEvent,
   type Turn,
   type TurnOutcome,
+  millisBetween,
+  type TurnRecordEvent,
   unixMillis,
 } from './record.ts';
 
@@ -32,7 +34,7 @@ export function rowFieldsOf(turn: Turn): RowFields {
     ...(outcome !== undefined && {outcome}),
     ...(agentName !== undefined && {agentName}),
     ...(event !== undefined && {
-      durationMs: unixMillis(event.endTimeUnixNano) - unixMillis(event.startTimeUnixNano),
+      durationMs: millisBetween(event.startTimeUnixNano, event.endTimeUnixNano),
     }),
     ...(input !== undefined && {input}),
     ...(check !== undefined && {
@@ -41,6 +43,25 @@ export function rowFieldsOf(turn: Turn): RowFields {
         findings: check.attributes['a2ui.check.findings'].length,
       },
     }),
+  };
+}
+
+/** What the header and the turn list show of an open turn so far. */
+export interface OpenFields {
+  /** From the turn's start to its newest event. */
+  durationMs: number;
+  /** The version the agent's first A2UI message that names one names. */
+  protocolVersion?: string;
+}
+
+export function openFieldsOf(events: readonly TurnRecordEvent[], startMs: number): OpenFields {
+  const newest = Math.max(startMs, ...events.map(event => unixMillis(event.startTimeUnixNano)));
+  const version = agentMessages(events)
+    .map(({message}) => (message as {version?: unknown} | null)?.version)
+    .find((version): version is string => typeof version === 'string');
+  return {
+    durationMs: newest - startMs,
+    ...(version !== undefined && {protocolVersion: version}),
   };
 }
 
@@ -87,7 +108,7 @@ export function summaryOf(turn: Turn): TurnSummary | undefined {
     outcome,
     ...(reason !== undefined && reason !== '' && {statusReason: reason}),
     startTime,
-    durationMs: unixMillis(event.endTimeUnixNano) - startTime,
+    durationMs: millisBetween(event.startTimeUnixNano, event.endTimeUnixNano),
     ...(attributes['a2ui.turn.protocol_version'] !== undefined && {
       protocolVersion: attributes['a2ui.turn.protocol_version'],
     }),

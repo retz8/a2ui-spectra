@@ -19,7 +19,13 @@ export interface OpenTurn {
 /** What the live stream sends. */
 export type LiveEvent =
   | ({type: 'turn_opened'} & OpenTurn)
-  | {type: 'wire_event'; traceId: string; event: WireInputEvent | WireOutputEvent}
+  | {
+      type: 'wire_event';
+      traceId: string;
+      /** The turn's conversation, once a reply or the host's message has named it. */
+      conversationId?: string;
+      event: WireInputEvent | WireOutputEvent;
+    }
   /** The turn's own events with its check event, once its write has finished. */
   | {type: 'turn_closed'; traceId: string; turn: Turn};
 
@@ -60,9 +66,19 @@ export class TurnHub {
       const event: Open['wireEvents'][number] = {
         type: 'wire_event',
         traceId: notification.traceId,
+        ...(notification.conversationId !== undefined && {
+          conversationId: notification.conversationId,
+        }),
         event: notification.event,
       };
-      this.#open.get(notification.traceId)?.wireEvents.push(event);
+      const open = this.#open.get(notification.traceId);
+      if (open !== undefined) {
+        // A conversation a reply names after the turn opened is the open turn's from then on.
+        if (open.opened.conversationId === undefined && notification.conversationId !== undefined) {
+          open.opened = {...open.opened, conversationId: notification.conversationId};
+        }
+        open.wireEvents.push(event);
+      }
       this.#emit(event);
     }
   };

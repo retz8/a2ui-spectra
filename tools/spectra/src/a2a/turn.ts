@@ -31,7 +31,13 @@ export type TurnNotification =
       /** The `messageId` of the host's message, when it gave one. */
       messageId?: string;
     }
-  | {type: 'wire_event'; traceId: string; event: WireInputEvent | WireOutputEvent}
+  | {
+      type: 'wire_event';
+      traceId: string;
+      /** The turn's conversation, once a reply or the host's message has named it. */
+      conversationId?: string;
+      event: WireInputEvent | WireOutputEvent;
+    }
   /** The turn: its turn event, then its wire events in order. No check event. */
   | {type: 'turn_closed'; traceId: string; turn: Turn};
 
@@ -259,7 +265,12 @@ export class TurnCapture {
 
   #addWireEvent(event: WireInputEvent | WireOutputEvent): void {
     this.#wireEvents.push(event);
-    this.#notify({type: 'wire_event', traceId: this.#traceId, event});
+    this.#notify({
+      type: 'wire_event',
+      traceId: this.#traceId,
+      ...(this.#conversationId !== undefined && {conversationId: this.#conversationId}),
+      event,
+    });
   }
 
   #notify(notification: TurnNotification): void {

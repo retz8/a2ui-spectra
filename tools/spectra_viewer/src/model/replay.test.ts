@@ -147,6 +147,29 @@ describe('replay', () => {
     ]);
   });
 
+  it('counts the rejected updateComponents of a surface left with no components, and only then', () => {
+    const [booking] = replayRecord(readRecording('stub_agent/flawed_booking_a2a_1_0')).surfaces;
+    assert.equal(booking.surfaceId, 'booking');
+    assert.equal(booking.rejectedUpdates, 1);
+
+    const create = {version: 'v0.9', createSurface: {surfaceId: 's', catalogId: V09_BASIC}};
+    const bad = {
+      version: 'v0.9',
+      updateComponents: {
+        surfaceId: 's',
+        components: [{id: 'root', component: 'Text', text: 'Hi', colour: 'red'}],
+      },
+    };
+    const good = {
+      version: 'v0.9',
+      updateComponents: {surfaceId: 's', components: [{id: 'root', component: 'Text', text: 'Hi'}]},
+    };
+    const twice = replay([turnOf(create, bad)], turnOf(bad).events).surfaces[0];
+    assert.equal(twice.rejectedUpdates, 2, "An earlier turn's rejection counts.");
+    const filled = replay([], turnOf(create, bad, good).events).surfaces[0];
+    assert.equal(filled.rejectedUpdates, undefined, 'A surface with components has no count.');
+  });
+
   it("lists only the turn's own rejections, not those of earlier turns", () => {
     const result = replayRecord(readRecording('angular_client/python_restaurant_finder_booking'));
     assert.deepEqual(
