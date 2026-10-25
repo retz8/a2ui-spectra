@@ -66,11 +66,11 @@ While a turn is open, the timeline follows the newest step and the result shows 
 
 ### 14. Small screens
 
-The composer is one line until typing, then grows. The step's detail starts collapsed to its title line until a step is selected. Below about 1,300px wide, the turn list collapses to a strip of status icons that opens as an overlay. Every divider can be dragged, and its position is remembered in the browser.
+The composer is one line until typing, then grows, up to six lines. The step's detail starts collapsed to its title line until a step is selected. Below 1,280px wide, the turn list collapses to a strip of status icons, each selecting its turn, that opens as an overlay. Every divider can be dragged, and its position is remembered in the browser.
 
 ### 15. The keyboard and the page address
 
-The page address holds the turn and the selected step. The up and down arrows move through the turn list and through the timeline, each one Tab stop. A key goes to the next problem, with Shift for the previous one; `/` focuses the turn list's search; a key jumps to the latest step; Enter sends from the composer and Shift+Enter starts a new line; `?` lists the keys. The exact keys are settled in the build.
+The page address holds the turn and the selected step; changing the turn adds an entry to the browser's history, and changing the step replaces it. The up and down arrows move through the turn list and through the timeline, each one Tab stop, the turn list's groups opened and closed with the right and left arrows. `n` goes to the next problem, with Shift for the previous one; `/` focuses the turn list's search; `l` jumps to the latest step; Enter sends from the composer and Shift+Enter starts a new line; `?` lists the keys, as does a button at the foot of the rail.
 
 ### 16. The first screen
 
