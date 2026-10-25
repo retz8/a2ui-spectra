@@ -41,12 +41,18 @@ export interface SessionContext {
   examples: string[];
 }
 
-/** The message box's conversation. */
-export interface MessageBoxState {
+/** A conversation the message box started. */
+export interface BoxConversation {
   conversationId?: string;
   /** The trace ids of the turns the box sent in this conversation, oldest first. */
-  turns?: string[];
+  turns: string[];
   openTurn?: string;
+}
+
+/** The conversations the message box started while Spectra runs. */
+export interface MessageBoxState {
+  /** Oldest first. */
+  conversations: BoxConversation[];
   unavailable?: string;
 }
 
@@ -102,12 +108,12 @@ export function getMessageBox(): Promise<MessageBoxState> {
   return request<MessageBoxState>('/api/message-box');
 }
 
-export function sendMessage(text: string): Promise<{traceId: string; conversationId?: string}> {
-  return post('/api/message-box/messages', {text});
-}
-
-export function startNewConversation(): Promise<MessageBoxState> {
-  return post('/api/message-box/new-conversation', {});
+/** Sends a message from the box, continuing the conversation named, or else in a new one. */
+export function sendMessage(
+  text: string,
+  conversationId?: string,
+): Promise<{traceId: string; conversationId?: string}> {
+  return post('/api/message-box/messages', {text, conversationId});
 }
 
 export const STREAM_PATH = '/api/stream';

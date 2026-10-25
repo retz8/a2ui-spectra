@@ -130,9 +130,13 @@ describe('the message box', () => {
     const sent = await box.send('Hi');
     assert.deepEqual(sent, {traceId: proxy.sent[0].traceId});
     assert.equal(proxy.sent[0].url, URL_1_0);
-    assert.deepEqual(box.state(), {turns: [sent.traceId], openTurn: sent.traceId});
+    assert.deepEqual(box.state(), {
+      conversations: [{turns: [sent.traceId], openTurn: sent.traceId}],
+    });
     await proxy.close(sent.traceId);
-    assert.deepEqual(box.state(), {conversationId: 'ctx-1', turns: [sent.traceId]});
+    assert.deepEqual(box.state(), {
+      conversations: [{conversationId: 'ctx-1', turns: [sent.traceId]}],
+    });
     box.close();
   });
 
@@ -145,10 +149,10 @@ describe('the message box', () => {
       streamReply('TASK_STATE_COMPLETED', 't-2'),
     );
     await proxy.close((await box.send('Hi')).traceId);
-    const second = await box.send('Ada');
+    const second = await box.send('Ada', 'ctx-1');
     assert.equal(second.conversationId, 'ctx-1');
     await proxy.close(second.traceId);
-    await proxy.close((await box.send('Again')).traceId);
+    await proxy.close((await box.send('Again', 'ctx-1')).traceId);
 
     assert.equal(proxy.sent[0].message.contextId, undefined);
     assert.equal(proxy.sent[0].message.taskId, undefined);
@@ -156,6 +160,7 @@ describe('the message box', () => {
     assert.equal(proxy.sent[1].message.taskId, 't-1');
     assert.equal(proxy.sent[2].message.contextId, 'ctx-1');
     assert.equal(proxy.sent[2].message.taskId, undefined, 'A completed task is not sent back.');
+    assert.equal(box.state().conversations.length, 1);
     box.close();
   });
 
@@ -165,61 +170,108 @@ describe('the message box', () => {
     proxy.replies.push(brokenReply(), streamReply('TASK_STATE_COMPLETED'));
     const first = await box.send('Hi');
     await proxy.close(first.traceId, 'ctx-1');
-    assert.deepEqual(box.state(), {conversationId: 'ctx-1', turns: [first.traceId]});
-    await proxy.close((await box.send('Again')).traceId);
+    assert.deepEqual(box.state(), {
+      conversations: [{conversationId: 'ctx-1', turns: [first.traceId]}],
+    });
+    await proxy.close((await box.send('Again', 'ctx-1')).traceId);
     assert.equal(proxy.sent[1].message.contextId, 'ctx-1');
     box.close();
   });
 
-  it('lists the turns it sent in its conversation, one that names none included', async () => {
-    const proxy = new FakeProxy();
-    const box = boxOn(proxy);
-    proxy.replies.push(errorReply(), streamReply('TASK_STATE_COMPLETED'));
-    const first = await box.send('Hi');
-    await proxy.close(first.traceId);
-    assert.deepEqual(box.state(), {turns: [first.traceId]});
-    const second = await box.send('Again');
-    await proxy.close(second.traceId);
-    assert.deepEqual(box.state(), {
-      conversationId: 'ctx-1',
-      turns: [first.traceId, second.traceId],
-    });
-    assert.deepEqual(box.newConversation(), {});
-    box.close();
-  });
-
-  it('refuses a send while the last turn is open, until that turn closes', async () => {
-    const proxy = new FakeProxy();
-    const box = boxOn(proxy);
-    proxy.replies.push(streamReply('TASK_STATE_COMPLETED'), streamReply('TASK_STATE_COMPLETED'));
-    const first = await box.send('Hi');
-    await assert.rejects(box.send('Again'), (error: unknown) => {
-      assert.ok(error instanceof MessageBoxError);
-      assert.equal(error.status, 409);
-      assert.match(error.message, /A turn is still open in this conversation/);
-      return true;
-    });
-    await proxy.close(first.traceId);
-    await box.send('Again');
-    assert.equal(proxy.sent.length, 2);
-    box.close();
-  });
-
-  it('starts a new conversation at any time, which an earlier reply does not change', async () => {
+  it('holds each conversation apart, each with its own task, and continues an older one after a newer was sent in', async () => {
     const proxy = new FakeProxy();
     const box = boxOn(proxy);
     proxy.replies.push(
       streamReply('TASK_STATE_INPUT_REQUIRED'),
       streamReply('TASK_STATE_INPUT_REQUIRED', 't-2', 'ctx-2'),
+      streamReply('TASK_STATE_COMPLETED'),
+      streamReply('TASK_STATE_COMPLETED', 't-2', 'ctx-2'),
     );
-    const first = await box.send('Hi');
-    assert.deepEqual(box.newConversation(), {});
-    const second = await box.send('Hello again');
+    const first = await box.send('Top 3 Chinese restaurants');
+    const second = await box.send('Top 3 Italian restaurants');
+    assert.deepEqual(box.state(), {
+      conversations: [
+        {turns: [first.traceId], openTurn: first.traceId},
+        {turns: [second.traceId], openTurn: second.traceId},
+      ],
+    });
     await proxy.close(first.traceId);
-    assert.deepEqual(box.state(), {turns: [second.traceId], openTurn: second.traceId});
     await proxy.close(second.traceId);
-    assert.deepEqual(box.state(), {conversationId: 'ctx-2', turns: [second.traceId]});
-    assert.equal(proxy.sent[1].message.contextId, undefined);
+
+    const third = await box.send('Book the first one', 'ctx-1');
+    const fourth = await box.send('Book the second one', 'ctx-2');
+    assert.deepEqual(
+      proxy.sent.map(({message}) => [message.contextId, message.taskId]),
+      [
+        [undefined, undefined],
+        [undefined, undefined],
+        ['ctx-1', 't-1'],
+        ['ctx-2', 't-2'],
+      ],
+    );
+    await proxy.close(third.traceId);
+    await proxy.close(fourth.traceId);
+    assert.deepEqual(box.state(), {
+      conversations: [
+        {conversationId: 'ctx-1', turns: [first.traceId, third.traceId]},
+        {conversationId: 'ctx-2', turns: [second.traceId, fourth.traceId]},
+      ],
+    });
+    box.close();
+  });
+
+  it('starts a new conversation after a turn whose agent named none', async () => {
+    const proxy = new FakeProxy();
+    const box = boxOn(proxy);
+    proxy.replies.push(errorReply(), streamReply('TASK_STATE_COMPLETED'));
+    const first = await box.send('Hi');
+    await proxy.close(first.traceId);
+    assert.deepEqual(box.state(), {conversations: [{turns: [first.traceId]}]});
+    const second = await box.send('Again');
+    await proxy.close(second.traceId);
+    assert.deepEqual(box.state(), {
+      conversations: [{turns: [first.traceId]}, {conversationId: 'ctx-1', turns: [second.traceId]}],
+    });
+    box.close();
+  });
+
+  it("refuses a send while the conversation's turn is open, and only in that conversation", async () => {
+    const proxy = new FakeProxy();
+    const box = boxOn(proxy);
+    proxy.replies.push(
+      streamReply('TASK_STATE_COMPLETED'),
+      streamReply('TASK_STATE_COMPLETED'),
+      streamReply('TASK_STATE_COMPLETED', 't-2', 'ctx-2'),
+      streamReply('TASK_STATE_COMPLETED'),
+    );
+    await proxy.close((await box.send('Hi')).traceId);
+    const second = await box.send('Again', 'ctx-1');
+    await assert.rejects(box.send('And again', 'ctx-1'), (error: unknown) => {
+      assert.ok(error instanceof MessageBoxError);
+      assert.equal(error.status, 409);
+      assert.match(error.message, /A turn is still open in this conversation/);
+      return true;
+    });
+    const other = await box.send('Hello');
+    assert.deepEqual(
+      box.state().conversations.map(conversation => conversation.openTurn),
+      [second.traceId, other.traceId],
+    );
+    await proxy.close(second.traceId);
+    await box.send('And again', 'ctx-1');
+    assert.equal(proxy.sent.length, 4);
+    box.close();
+  });
+
+  it('refuses to continue a conversation it did not start', async () => {
+    const proxy = new FakeProxy();
+    const box = boxOn(proxy);
+    await assert.rejects(box.send('Hi', 'ctx-9'), {
+      status: 404,
+      message:
+        'The message box did not start this conversation while Spectra runs. Send without a conversation to start a new one.',
+    });
+    assert.equal(proxy.sent.length, 0);
     box.close();
   });
 
@@ -232,13 +284,13 @@ describe('the message box', () => {
       'The message box cannot send to this agent: its card lists A2A JSON-RPC only at version 2.0, ' +
       'and the box speaks A2A 0.3 and 1.0. Hosts pointed at the wire proxy are not affected.';
     assert.equal(box.unavailable, unavailable);
-    assert.deepEqual(box.state(), {unavailable});
+    assert.deepEqual(box.state(), {conversations: [], unavailable});
     await assert.rejects(box.send('Hi'), {status: 422, message: unavailable});
     assert.equal(proxy.sent.length, 0);
     box.close();
   });
 
-  it('reports a wire proxy it cannot reach, and stays free to send', async () => {
+  it('reports a wire proxy it cannot reach, keeping no conversation, and stays free to send', async () => {
     const turns = new TurnHub();
     let calls = 0;
     const box = new MessageBox({
@@ -255,6 +307,7 @@ describe('the message box', () => {
     });
     await assert.rejects(box.send('Hi'), {status: 502});
     assert.equal(calls, 2);
+    assert.deepEqual(box.state(), {conversations: []});
     box.close();
   });
 });

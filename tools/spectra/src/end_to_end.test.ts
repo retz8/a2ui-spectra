@@ -1,8 +1,8 @@
 /**
  * The end-to-end test: Spectra attached to the stub agent holding its canned
  * A2UI conversation, with a two-turn conversation sent through the message
- * box's API, once with the stub's card listing A2A 1.0 first and once A2A 0.3
- * first. It runs under Node by default, and against the binary when
+ * box's API and continued after a second conversation was started, once with
+ * the stub's card listing A2A 1.0 first and once A2A 0.3 first. It runs under Node by default, and against the binary when
  * SPECTRA_BINARY names one. The stub is built by the conformance workspace.
  */
 import assert from 'node:assert/strict';
@@ -119,23 +119,27 @@ async function getJson<T>(url: string): Promise<{status: number; body: T}> {
   return {status: response.status, body: (await response.json()) as T};
 }
 
-async function sendMessage(base: string, text: string): Promise<SentMessage> {
+async function sendMessage(
+  base: string,
+  text: string,
+  conversationId?: string,
+): Promise<SentMessage> {
   const response = await fetch(`${base}/api/message-box/messages`, {
     method: 'POST',
     headers: {'content-type': 'application/json'},
-    body: JSON.stringify({text}),
+    body: JSON.stringify({text, conversationId}),
   });
   const body = (await response.json()) as SentMessage & {error?: string};
   assert.equal(response.status, 200, body.error);
   return body;
 }
 
-/** Resolves with the box's state once its conversation has no open turn. */
+/** Resolves with the box's state once none of its conversations has an open turn. */
 async function boxSettled(base: string): Promise<MessageBoxState> {
   const deadline = Date.now() + 10_000;
   for (;;) {
     const {body} = await getJson<MessageBoxState>(`${base}/api/message-box`);
-    if (body.openTurn === undefined) return body;
+    if (body.conversations.every(conversation => conversation.openTurn === undefined)) return body;
     assert.ok(Date.now() < deadline, 'The message box kept its turn open.');
     await new Promise(resolve => setTimeout(resolve, 50));
   }
@@ -205,7 +209,7 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
     ['0.3', ['--a2a-0.3-first']],
   ] as const) {
     it(
-      `holds a two-turn conversation over A2A ${a2a}, each turn recorded, checked and streamed`,
+      `holds a two-turn conversation over A2A ${a2a}, continued after another was started, each turn recorded, checked and streamed`,
       {timeout: TIMEOUT},
       async () => {
         const [agentPort, port, proxyPort] = await Promise.all([
@@ -247,24 +251,37 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
           const first = await sendMessage(base, 'Hi');
           assert.equal(first.conversationId, undefined);
           const one = await checkTurn(base, cwd, live, first.traceId);
-          const afterFirst = await boxSettled(base);
-          assert.ok(afterFirst.conversationId);
+          const {conversationId} = (await boxSettled(base)).conversations[0];
+          assert.ok(conversationId);
 
-          const second = await sendMessage(base, 'Ada');
-          assert.equal(second.conversationId, afterFirst.conversationId);
+          // A second conversation, started while the first waits for input.
+          const started = await sendMessage(base, 'Hi');
+          assert.equal(started.conversationId, undefined);
+          const other = await checkTurn(base, cwd, live, started.traceId);
+          const afterOther = await boxSettled(base);
+          const otherId = turnEventOf(other.turn).attributes['gen_ai.conversation.id'];
+          assert.notEqual(otherId, conversationId);
+          assert.deepEqual(afterOther.conversations, [
+            {conversationId, turns: [first.traceId]},
+            {conversationId: otherId, turns: [started.traceId]},
+          ]);
+
+          const second = await sendMessage(base, 'Ada', conversationId);
+          assert.equal(second.conversationId, conversationId);
           const two = await checkTurn(base, cwd, live, second.traceId);
 
-          assert.equal(turnEventOf(one.turn).attributes['a2ui.turn.outcome'], 'waiting_for_input');
+          for (const {turn} of [one, other]) {
+            assert.equal(turnEventOf(turn).attributes['a2ui.turn.outcome'], 'waiting_for_input');
+          }
           assert.equal(
             turnEventOf(two.turn).attributes['a2ui.turn.outcome'],
             'completed',
             "The stub completes only a message carrying the waiting task's id.",
           );
           for (const {turn} of [one, two]) {
-            assert.equal(
-              turnEventOf(turn).attributes['gen_ai.conversation.id'],
-              afterFirst.conversationId,
-            );
+            assert.equal(turnEventOf(turn).attributes['gen_ai.conversation.id'], conversationId);
+          }
+          for (const {turn} of [one, other, two]) {
             assert.equal(turnEventOf(turn).attributes['a2ui.turn.protocol_version'], 'v1.0');
           }
           assert.deepEqual(

@@ -304,9 +304,9 @@ describe('the API', () => {
     assert.deepEqual(body, CONTEXT);
   });
 
-  it("serves the message box's conversation and its routes", async () => {
+  it("serves the message box's conversations and its routes", async () => {
     const {base} = await serve();
-    assert.deepEqual((await getJson(`${base}/api/message-box`)).body, {});
+    assert.deepEqual((await getJson(`${base}/api/message-box`)).body, {conversations: []});
 
     const empty = await post(`${base}/api/message-box/messages`, {text: ' '});
     assert.equal(empty.status, 400);
@@ -316,9 +316,21 @@ describe('the API', () => {
       error: 'The message box could not reach the wire proxy: No proxy in this test.',
     });
 
-    const fresh = await post(`${base}/api/message-box/new-conversation`, {});
-    assert.equal(fresh.status, 200);
-    assert.deepEqual(await fresh.json(), {});
+    const notString = await post(`${base}/api/message-box/messages`, {
+      text: 'Hi',
+      conversationId: 1,
+    });
+    assert.equal(notString.status, 400);
+    const unknown = await post(`${base}/api/message-box/messages`, {
+      text: 'Hi',
+      conversationId: 'ctx-9',
+    });
+    assert.equal(unknown.status, 404);
+    assert.deepEqual(await unknown.json(), {
+      error:
+        'The message box did not start this conversation while Spectra runs. Send without a conversation to start a new one.',
+    });
+    assert.equal((await post(`${base}/api/message-box/new-conversation`, {})).status, 404);
   });
 
   it('answers only JSON to its routes that change anything, and only known routes', async () => {

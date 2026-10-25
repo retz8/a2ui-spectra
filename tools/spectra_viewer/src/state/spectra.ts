@@ -1,7 +1,7 @@
 /**
  * What the page knows of Spectra: the turn listing, the open turns as the
  * live stream sends them, the records it has read, and the message box's
- * conversation. One store, which React reads through `useSpectra`.
+ * conversations. One store, which React reads through `useSpectra`.
  */
 import {useSyncExternalStore} from 'react';
 
@@ -15,7 +15,6 @@ import {
   type MessageBoxState,
   sendMessage,
   type SessionContext,
-  startNewConversation,
   STREAM_PATH,
 } from '../api.ts';
 import {inputBrief} from '../model/input_brief.ts';
@@ -80,7 +79,7 @@ class Spectra {
     live: new Map(),
     closed: new Map(),
     records: new Map(),
-    box: {},
+    box: {conversations: []},
   };
   readonly #listeners = new Set<() => void>();
   #started = false;
@@ -124,15 +123,14 @@ class Spectra {
     );
   }
 
-  /** Sends a message from the box; answers with the trace id of its turn, once it opens. */
-  async send(text: string): Promise<string> {
-    const {traceId} = await sendMessage(text);
+  /**
+   * Sends a message from the box, continuing the box's conversation named or
+   * else in a new one; answers with the trace id of its turn, once it opens.
+   */
+  async send(text: string, conversationId?: string): Promise<string> {
+    const {traceId} = await sendMessage(text, conversationId);
     await this.#refreshBox();
     return traceId;
-  }
-
-  async newConversation(): Promise<void> {
-    this.#set({box: await startNewConversation()});
   }
 
   #connect(): void {
@@ -247,14 +245,13 @@ class Spectra {
     this.#set({live, closed, turns: upsertRow(this.#state.turns, closedRow(turn, row))});
     // The listing counts the turn's rejections after the conversation's earlier turns.
     void this.#reload();
-    const {box} = this.#state;
     const conversationId = turn.events.find(isTurnEvent)?.attributes['gen_ai.conversation.id'];
-    if (
-      box.openTurn === traceId ||
-      (conversationId !== undefined && box.conversationId === conversationId)
-    ) {
-      void this.#refreshBox();
-    }
+    const held = this.#state.box.conversations.some(
+      conversation =>
+        conversation.turns.includes(traceId) ||
+        (conversationId !== undefined && conversation.conversationId === conversationId),
+    );
+    if (held) void this.#refreshBox();
   }
 
   #setRecord(traceId: string, state: RecordState | undefined): void {

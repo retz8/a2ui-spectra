@@ -1,47 +1,53 @@
 import {type FormEvent, type KeyboardEvent, type Ref, useState} from 'react';
 
 import {cn} from '@/lib/utils';
-import {composerOf} from '@/state/selectors.ts';
+import {type ComposerTarget, composerOf} from '@/state/selectors.ts';
 import {spectra, useSpectra} from '@/state/spectra.ts';
 
 import {STATUS_ICONS, toneOf} from './format.ts';
 import {Icon, type IconKind} from './icons.tsx';
 
 /**
- * The message box, docked under the turn view: it sends in the box's own
- * conversation, says which one that is, and offers a new conversation. Its
- * text is held by the turn view, which the first screen's examples fill.
+ * The message box, docked under the turn view: it continues the conversation
+ * of the turn in view when the box started it, and otherwise starts a new
+ * one, saying which and why; it says when the agent is waiting for input, and
+ * offers a new conversation. Its text is held by the turn view, which the
+ * first screen's examples fill.
  */
 export function Composer({
   text,
   onText,
   inputRef,
   onSent,
+  traceId,
+  startsNew,
+  onStartNew,
 }: {
   text: string;
   onText: (text: string) => void;
   inputRef?: Ref<HTMLInputElement>;
   onSent: (traceId: string) => void;
+  /** The turn in view. */
+  traceId: string | undefined;
+  /** Whether a new conversation was asked for while this turn is in view. */
+  startsNew: boolean;
+  onStartNew: () => void;
 }) {
   const state = useSpectra();
-  const view = composerOf(state);
+  const view = composerOf(state, {traceId, startsNew});
   const agent = state.context?.agentName ?? 'the agent';
   const [error, setError] = useState<string | undefined>();
   const [sending, setSending] = useState(false);
 
-  const continues = view.continues;
-  const icon: IconKind =
-    view.waiting === 'A turn is open'
-      ? 'open'
-      : continues === undefined
-        ? 'plus'
-        : STATUS_ICONS[continues.open ? 'open' : (continues.outcome ?? 'open')];
-  const label =
-    view.waiting === 'A turn is open'
-      ? 'A turn is open'
-      : continues === undefined
-        ? 'New conversation'
-        : `Continue “${continues.title}”`;
+  const {target} = view;
+  const turnOpen = view.waiting === 'A turn is open';
+  const waitsForInput = target.kind === 'continues' && target.outcome === 'waiting_for_input';
+  const icon: IconKind = turnOpen
+    ? 'open'
+    : target.kind === 'continues'
+      ? STATUS_ICONS[target.open ? 'open' : (target.outcome ?? 'open')]
+      : 'plus';
+  const label = turnOpen ? 'A turn is open' : labelOf(target);
   const disabled = view.waiting !== undefined || sending;
 
   const send = async (event?: FormEvent) => {
@@ -50,9 +56,12 @@ export function Composer({
     setSending(true);
     setError(undefined);
     try {
-      const traceId = await spectra.send(text);
+      const sent = await spectra.send(
+        text,
+        target.kind === 'continues' ? target.conversationId : undefined,
+      );
       onText('');
-      onSent(traceId);
+      onSent(sent);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
     } finally {
@@ -69,19 +78,14 @@ export function Composer({
         <Icon kind={icon} size={13} className={toneOf(icon)} />
         <span className="min-w-0 truncate">{label}</span>
         <div className="flex-1" />
-        {continues !== undefined && (
+        {target.kind !== 'new' && (
           <button
             type="button"
-            disabled={state.connected === false}
             onClick={() => {
               setError(undefined);
-              spectra
-                .newConversation()
-                .catch((caught: unknown) =>
-                  setError(caught instanceof Error ? caught.message : String(caught)),
-                );
+              onStartNew();
             }}
-            className="ease-quick inline-flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-md px-2 font-medium hover:bg-tint hover:text-foreground disabled:cursor-default disabled:opacity-50"
+            className="ease-quick inline-flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-md px-2 font-medium hover:bg-tint hover:text-foreground"
           >
             <Icon kind="plus" size={13} />
             New conversation
@@ -108,9 +112,9 @@ export function Composer({
             onKeyDown={onKeyDown}
             disabled={disabled}
             placeholder={
-              view.waiting === 'A turn is open'
+              turnOpen
                 ? 'Waiting for the turn to finish'
-                : (view.waiting ?? `Message ${agent}`)
+                : (view.waiting ?? (waitsForInput ? `Reply to ${agent}` : `Message ${agent}`))
             }
             className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:cursor-default"
           />
@@ -130,4 +134,18 @@ export function Composer({
       {error !== undefined && <p className="text-xs text-problem">{error}</p>}
     </div>
   );
+}
+
+/** What the composer's line says of where it sends. */
+function labelOf(target: ComposerTarget): string {
+  switch (target.kind) {
+    case 'continues':
+      return `Continue “${target.title}”${target.outcome === 'waiting_for_input' ? ' · the agent is waiting for input' : ''}`;
+    case 'new':
+      return 'New conversation';
+    case 'notStarted':
+      return 'Started by another host or in an earlier run · sending starts a new conversation';
+    case 'unnamed':
+      return 'The agent named no conversation · sending starts a new conversation';
+  }
 }

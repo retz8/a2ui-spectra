@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useSyncExternalStore} from 'react';
+import {useCallback, useEffect, useRef, useState, useSyncExternalStore} from 'react';
 
 import {ContextBar} from '@/components/ContextBar.tsx';
 import {Rail} from '@/components/Rail.tsx';
@@ -40,6 +40,14 @@ function useSelection(): [
 export function App() {
   const state = useSpectra();
   const [selected, select] = useSelection();
+  const [selections, setSelections] = useState(0);
+  const pick = useCallback(
+    (traceId: string) => {
+      setSelections(count => count + 1);
+      select(traceId);
+    },
+    [select],
+  );
   useEffect(() => {
     spectra.start();
   }, []);
@@ -64,12 +72,12 @@ export function App() {
               turns={state.turns}
               loaded={state.loaded}
               selected={selected}
-              onSelect={select}
+              onSelect={pick}
             />
           </ResizablePanel>
           <ResizableHandle className="w-2 bg-transparent" />
           <ResizablePanel minSize={640}>
-            <TurnView traceId={selected} onSelect={select} />
+            <TurnView traceId={selected} selection={selections} onSelect={select} />
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>

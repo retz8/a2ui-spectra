@@ -31,9 +31,12 @@ const DETAIL_OPEN = '38';
 /** The turn view: the selected turn, or the first screen with no turns, with the composer docked under it. */
 export function TurnView({
   traceId,
+  selection,
   onSelect,
 }: {
   traceId: string | undefined;
+  /** Counts the turn list's selections, so selecting the same turn again counts too. */
+  selection: number;
   onSelect: (traceId: string) => void;
 }) {
   const state = useSpectra();
@@ -43,6 +46,9 @@ export function TurnView({
   useNeededRecords(needs);
   const [draft, setDraft] = useState('');
   const input = useRef<HTMLInputElement>(null);
+  // A new conversation asked for holds until a turn is selected.
+  const selected = `${selection}:${traceId ?? ''}`;
+  const [newAt, setNewAt] = useState<string | undefined>();
 
   const first = traceId === undefined && state.loaded && state.turns.length === 0;
   useEffect(() => {
@@ -76,7 +82,18 @@ export function TurnView({
   return (
     <main className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl bg-panel shadow-panel">
       {body}
-      <Composer text={draft} onText={setDraft} inputRef={input} onSent={onSelect} />
+      <Composer
+        text={draft}
+        onText={setDraft}
+        inputRef={input}
+        onSent={onSelect}
+        traceId={traceId}
+        startsNew={newAt === selected}
+        onStartNew={() => {
+          setNewAt(selected);
+          input.current?.focus();
+        }}
+      />
     </main>
   );
 }

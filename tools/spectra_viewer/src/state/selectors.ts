@@ -97,39 +97,69 @@ export function turnViewOf(state: SpectraState, traceId: string, needs: string[]
   return {status: 'loading'};
 }
 
+/**
+ * Where the composer sends: on in a conversation the box started, or into a
+ * new conversation, because one was asked for, or because the conversation
+ * in view is not the box's or its agent named no conversation.
+ */
+export type ComposerTarget =
+  | {kind: 'continues'; conversationId: string; title: string; outcome?: TurnOutcome; open?: true}
+  | {kind: 'new'}
+  | {kind: 'notStarted'}
+  | {kind: 'unnamed'};
+
 /** What the composer says and whether it can send. */
 export interface ComposerView {
   /** Why the box cannot send to the agent; it takes the input's place. */
   unavailable?: string;
   /** Why the input waits. */
   waiting?: string;
-  /** The conversation the box continues: its first message, and how its newest turn ended. */
-  continues?: {title: string; outcome?: TurnOutcome; open?: true};
+  target: ComposerTarget;
 }
 
-/** The composer, from the message box's conversation and the turn list. */
-export function composerOf(state: SpectraState): ComposerView {
+/**
+ * The composer, for the turn in view: it continues that turn's conversation
+ * when the box started it, named by its first message, with how its newest
+ * turn ended; or it starts a new conversation, when one was asked for, with
+ * no turn in view, or with a conversation it cannot continue.
+ */
+export function composerOf(
+  state: SpectraState,
+  inView: {traceId?: string; startsNew?: boolean},
+): ComposerView {
   const {box, connected} = state;
-  if (box.unavailable !== undefined) return {unavailable: box.unavailable};
-  const sent = box.turns ?? [];
-  const rowOf = (traceId: string | undefined) => state.turns.find(turn => turn.traceId === traceId);
-  const first = rowOf(sent[0]);
-  const newest = rowOf(sent[sent.length - 1]);
+  if (box.unavailable !== undefined) return {unavailable: box.unavailable, target: {kind: 'new'}};
+  const notConnected = connected === false ? {waiting: 'Not connected to Spectra'} : {};
+  const {traceId} = inView;
+  if (inView.startsNew === true || traceId === undefined) {
+    return {...notConnected, target: {kind: 'new'}};
+  }
+  const conversationId = state.turns.find(turn => turn.traceId === traceId)?.conversationId;
+  const held = box.conversations.find(
+    conversation =>
+      conversation.turns.includes(traceId) ||
+      (conversationId !== undefined && conversation.conversationId === conversationId),
+  );
+  if (held === undefined) return {...notConnected, target: {kind: 'notStarted'}};
   const waiting =
-    connected === false
-      ? 'Not connected to Spectra'
-      : box.openTurn !== undefined
-        ? 'A turn is open'
-        : undefined;
+    notConnected.waiting ?? (held.openTurn !== undefined ? 'A turn is open' : undefined);
+  const withWaiting = waiting !== undefined ? {waiting} : {};
+  if (held.conversationId === undefined) return {...withWaiting, target: {kind: 'unnamed'}};
+  // Newest first: the box's turns, and any other host's in the same conversation.
+  const rows = state.turns.filter(
+    turn => held.turns.includes(turn.traceId) || turn.conversationId === held.conversationId,
+  );
+  const newest = rows[0];
+  const first = [...rows].reverse().find(turn => turn.input !== undefined);
   return {
-    ...(waiting !== undefined && {waiting}),
-    ...(first !== undefined && {
-      continues: {
-        title: briefText(first.input),
-        ...(newest?.outcome !== undefined && {outcome: newest.outcome}),
-        ...(newest?.open === true && {open: true}),
-      },
-    }),
+    ...withWaiting,
+    target: {
+      kind: 'continues',
+      conversationId: held.conversationId,
+      title: briefText(first?.input),
+      ...(newest?.outcome !== undefined && {outcome: newest.outcome}),
+      ...(newest?.open === true && {open: true}),
+    },
   };
 }
 

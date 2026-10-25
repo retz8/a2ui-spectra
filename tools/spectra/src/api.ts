@@ -59,9 +59,9 @@ const HEARTBEAT_MS = 2000;
  * - `GET /api/turns`: the turns, newest first.
  * - `GET /api/turns/<trace id>`: a closed turn's record.
  * - `GET /api/stream`: the live stream, as server-sent events.
- * - `GET /api/message-box`: the message box's conversation.
- * - `POST /api/message-box/messages`: sends `{"text": …}` in it.
- * - `POST /api/message-box/new-conversation`: starts a new one.
+ * - `GET /api/message-box`: the conversations the message box started.
+ * - `POST /api/message-box/messages`: sends `{"text": …}`, continuing one of them by its
+ *   `conversationId`, or else in a new conversation.
  */
 export function handleApi(api: Api, request: IncomingMessage, response: ServerResponse): boolean {
   const {pathname} = new URL(request.url ?? '/', 'http://localhost');
@@ -99,8 +99,6 @@ async function answer(
     sendJson(response, 200, api.box.state());
   } else if (route === 'POST /api/message-box/messages') {
     await sendMessage(api.box, request, response);
-  } else if (route === 'POST /api/message-box/new-conversation') {
-    sendJson(response, 200, api.box.newConversation());
   } else if (isRoute(pathname)) {
     sendJson(response, 405, {error: `${request.method} is not allowed here.`});
   } else {
@@ -111,13 +109,9 @@ async function answer(
 function isRoute(pathname: string): boolean {
   return (
     /^\/api\/turns(\/[0-9a-f]{32})?$/.test(pathname) ||
-    [
-      '/api/context',
-      '/api/stream',
-      '/api/message-box',
-      '/api/message-box/messages',
-      '/api/message-box/new-conversation',
-    ].includes(pathname)
+    ['/api/context', '/api/stream', '/api/message-box', '/api/message-box/messages'].includes(
+      pathname,
+    )
   );
 }
 
@@ -220,13 +214,20 @@ async function sendMessage(
     sendJson(response, 400, {error: 'The body is not JSON, or is too large.'});
     return;
   }
-  const text = typeof body === 'object' && body !== null ? (body as {text?: unknown}).text : '';
+  const {text, conversationId} =
+    typeof body === 'object' && body !== null
+      ? (body as {text?: unknown; conversationId?: unknown})
+      : {text: '', conversationId: undefined};
   if (typeof text !== 'string' || text.trim() === '') {
     sendJson(response, 400, {error: 'Send {"text": "<the message>"} with some text.'});
     return;
   }
+  if (conversationId !== undefined && typeof conversationId !== 'string') {
+    sendJson(response, 400, {error: 'A conversationId is a string.'});
+    return;
+  }
   try {
-    sendJson(response, 200, await box.send(text));
+    sendJson(response, 200, await box.send(text, conversationId));
   } catch (error) {
     if (error instanceof MessageBoxError) {
       sendJson(response, error.status, {error: error.message});

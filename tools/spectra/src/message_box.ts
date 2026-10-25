@@ -22,14 +22,20 @@ export class MessageBoxError extends Error {
   }
 }
 
-/** The box's conversation, as the read route returns it. */
-export interface MessageBoxState {
+/** A conversation the box started, as the read route returns it. */
+export interface BoxConversation {
   /** The conversation's id; none until the agent's first reply names one. */
   conversationId?: string;
   /** The trace ids of the turns the box sent in this conversation, oldest first. */
-  turns?: string[];
+  turns: string[];
   /** The trace id of the conversation's open turn, when it has one. */
   openTurn?: string;
+}
+
+/** What the read route returns. */
+export interface MessageBoxState {
+  /** The conversations the box started while Spectra runs, oldest first. */
+  conversations: BoxConversation[];
   /** Why the box cannot send to this agent, when it cannot. */
   unavailable?: string;
 }
@@ -38,6 +44,15 @@ export interface MessageBoxState {
 export interface SentMessage {
   traceId: string;
   conversationId?: string;
+}
+
+/** A conversation the box holds, with what it carries into the next send. */
+interface Conversation {
+  conversationId?: string;
+  taskId?: string;
+  turns: string[];
+  /** The open turn: true while its request is on its way, then its trace id. */
+  open?: string | true;
 }
 
 export interface MessageBoxOptions {
@@ -50,9 +65,10 @@ export interface MessageBoxOptions {
 
 /**
  * Spectra's message box as a host: an A2A client sending through the wire
- * proxy, holding one conversation. A send answers once the proxy opens its
- * turn; the reply is read in the background for the conversation and the
- * task to carry into the next send.
+ * proxy, holding each conversation it starts. A send starts a conversation or
+ * continues one of them, and answers once the proxy opens its turn; the reply
+ * is read in the background for the conversation and the task to carry into
+ * the conversation's next send.
  */
 export class MessageBox {
   readonly #target: InterfaceChoice;
@@ -65,13 +81,8 @@ export class MessageBox {
   readonly #opening = new Map<string, (traceId: string) => void>();
   readonly #closing = new Map<string, (turn: Turn) => void>();
   #requestId = 0;
-  /** Bumped by each new conversation, so an earlier conversation's reply changes nothing. */
-  #generation = 0;
-  #conversationId: string | undefined;
-  #taskId: string | undefined;
-  #sent: string[] = [];
-  /** The current conversation's open turn: true while its request is on its way, then its trace id. */
-  #open: string | true | undefined;
+  /** Oldest first; a new conversation joins once its first turn opens. */
+  readonly #conversations: Conversation[] = [];
 
   constructor(options: MessageBoxOptions) {
     this.#target = chooseInterface(options.card);
@@ -103,51 +114,58 @@ export class MessageBox {
   state(): MessageBoxState {
     const unavailable = this.unavailable;
     return {
-      ...(this.#conversationId !== undefined && {conversationId: this.#conversationId}),
-      ...(this.#sent.length > 0 && {turns: [...this.#sent]}),
-      ...(typeof this.#open === 'string' && {openTurn: this.#open}),
+      conversations: this.#conversations.map(conversation => ({
+        ...(conversation.conversationId !== undefined && {
+          conversationId: conversation.conversationId,
+        }),
+        turns: [...conversation.turns],
+        ...(typeof conversation.open === 'string' && {openTurn: conversation.open}),
+      })),
       ...(unavailable !== undefined && {unavailable}),
     };
   }
 
-  /** Starts a new conversation. A turn still open goes on, and changes nothing here. */
-  newConversation(): MessageBoxState {
-    this.#generation++;
-    this.#conversationId = undefined;
-    this.#taskId = undefined;
-    this.#sent = [];
-    this.#open = undefined;
-    return this.state();
-  }
-
   /**
-   * Sends a text message in the current conversation, and resolves with the
-   * turn the wire proxy opened for it.
+   * Sends a text message, continuing the conversation the box started with
+   * the id given, or else starting a new one, and resolves with the turn the
+   * wire proxy opened for it.
    */
-  async send(text: string): Promise<SentMessage> {
+  async send(text: string, conversationId?: string): Promise<SentMessage> {
     if (this.#target.kind !== 'found') {
       throw new MessageBoxError(422, this.unavailable ?? '');
     }
-    if (this.#open !== undefined) {
+    let conversation: Conversation = {turns: []};
+    if (conversationId !== undefined) {
+      const continued = this.#conversations.find(held => held.conversationId === conversationId);
+      if (continued === undefined) {
+        throw new MessageBoxError(
+          404,
+          'The message box did not start this conversation while Spectra runs. Send without a conversation to start a new one.',
+        );
+      }
+      conversation = continued;
+    }
+    if (conversation.open !== undefined) {
       throw new MessageBoxError(
         409,
         'A turn is still open in this conversation. Wait for it to close, or start a new conversation.',
       );
     }
     const target: BoxInterface = this.#target;
-    const generation = this.#generation;
     const messageId = this.#newMessageId();
     const request = boxRequest(
       target,
       {
         text,
         messageId,
-        ...(this.#conversationId !== undefined && {contextId: this.#conversationId}),
-        ...(this.#taskId !== undefined && {taskId: this.#taskId}),
+        ...(conversation.conversationId !== undefined && {
+          contextId: conversation.conversationId,
+        }),
+        ...(conversation.taskId !== undefined && {taskId: conversation.taskId}),
       },
       ++this.#requestId,
     );
-    this.#open = true;
+    conversation.open = true;
 
     const opened = new Promise<string>(resolve => this.#opening.set(messageId, resolve));
     const responding = this.#fetch(target.url, {
@@ -171,23 +189,24 @@ export class MessageBox {
         ),
       ]);
     } catch (error) {
-      if (generation === this.#generation) {
-        this.#open = undefined;
-      }
+      conversation.open = undefined;
       throw error;
     } finally {
       this.#opening.delete(messageId);
     }
 
     const closed = new Promise<Turn>(resolve => this.#closing.set(traceId, resolve));
-    if (generation === this.#generation) {
-      this.#open = traceId;
-      this.#sent.push(traceId);
+    conversation.open = traceId;
+    conversation.turns.push(traceId);
+    if (conversationId === undefined) {
+      this.#conversations.push(conversation);
     }
-    void this.#finish(generation, traceId, target, responding, closed);
+    void this.#finish(conversation, traceId, target, responding, closed);
     return {
       traceId,
-      ...(this.#conversationId !== undefined && {conversationId: this.#conversationId}),
+      ...(conversation.conversationId !== undefined && {
+        conversationId: conversation.conversationId,
+      }),
     };
   }
 
@@ -199,12 +218,12 @@ export class MessageBox {
 
   /**
    * Reads the reply to its end and waits for the turn to close, then carries
-   * the conversation on: its id, from the reply or else from the closed turn
+   * its conversation on: its id, from the reply or else from the closed turn
    * when the reply broke off, and the task when the turn ended waiting for
    * input.
    */
   async #finish(
-    generation: number,
+    conversation: Conversation,
     traceId: string,
     target: BoxInterface,
     responding: Promise<Response>,
@@ -218,13 +237,11 @@ export class MessageBox {
     }
     const turn = await closed;
     this.#closing.delete(traceId);
-    if (generation !== this.#generation) {
-      return;
-    }
     const turnEvent = turn.events.find((event): event is TurnEvent => isEventOfKind(event, 'turn'));
-    this.#conversationId ??= summary.contextId ?? turnEvent?.attributes['gen_ai.conversation.id'];
+    conversation.conversationId ??=
+      summary.contextId ?? turnEvent?.attributes['gen_ai.conversation.id'];
     const waiting = summary.state === 'input-required' || summary.state === 'auth-required';
-    this.#taskId = waiting ? summary.taskId : undefined;
-    this.#open = undefined;
+    conversation.taskId = waiting ? summary.taskId : undefined;
+    conversation.open = undefined;
   }
 }
