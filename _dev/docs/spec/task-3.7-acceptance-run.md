@@ -27,7 +27,7 @@ The three AG2 sessions run under `a2ui-spectra run`. Every other agent is attach
 
 ### 3. The store
 
-Before the first session, the store is moved aside to a dated folder, not deleted. The Python restaurant finder's session comes first, so Flow 1 starts on the first screen. The store then builds up across the sessions, each later session showing the earlier sessions' turns.
+The run starts from an empty store, in a folder of its own. The Python restaurant finder's session comes first, so Flow 1 starts on the first screen. The store then builds up across the sessions, each later session showing the earlier sessions' turns.
 
 ### 4. The boards
 
@@ -55,3 +55,22 @@ Each of the three flows is done once by the keyboard alone, in light at full wid
 ### 8. The step's detail at two window sizes
 
 The step's detail's Collapse and Expand, and `n` with the detail closed, are pressed at 1200 × 760 and on a tall window, as tall as the browser's screen allows. The done commit records the tall window's size.
+
+### 9. What the run fixed
+
+- An open turn's header shows its duration to its newest step, its A2UI version once a message names one, and its conversation once the host's request or a reply names it; its row shows the duration, and its group the session's agent. The live stream's `wire_event` carries the conversation id once it is known, and a subscriber catching up gets it on `turn_opened`.
+- Focus in the composer when it sends comes back to it when the turn closes, unless it has moved on.
+- A surface left with no components because its `updateComponents` were rejected reads "No components: this surface's only updateComponents was rejected."
+- Shift+`n` is read from the Shift key, not the letter's case, so Caps Lock changes nothing.
+- With no surfaces, a failed turn that sent no A2UI reads "No surfaces: the turn failed before any A2UI arrived.", and another turn that sent none "No surfaces: the agent sent no A2UI in this turn." A failed turn's reason is coded "The reason the agent gave · outcome failed", and its detail's title is "Turn failed" alone.
+- A turn's duration is counted as the listing counts it, so its row and its header agree.
+- The outcome step's result is labelled "After the step at" its time, as every other step's.
+
+### 10. The design canvas's amendments
+
+- The composer's send button is grey while nothing is typed.
+- The Failed turn board labels its result "After the step at +43 ms".
+
+### 11. A2UI findings
+
+Findings 22, AG2's v1.0 function call not in v1.0's shape, and 23, the file-upload summarizer creating the same surface twice in a turn, are recorded in `_dev/a2ui-findings.md`.
