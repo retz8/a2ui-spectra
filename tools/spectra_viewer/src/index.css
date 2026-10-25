@@ -110,6 +110,10 @@
     font-variant-numeric: tabular-nums;
     line-height: 1.45;
   }
+  /* The browser's own clear button on a search field; the design draws none. */
+  input[type='search']::-webkit-search-cancel-button {
+    appearance: none;
+  }
 }
 
 /* A small label in capitals, separating sections inside a panel. */

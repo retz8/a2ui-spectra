@@ -109,8 +109,11 @@ function StepBlocks({
     return (
       <>
         <JsonBlock label="Message" value={attributes['a2ui.wire.message']} />
-        <OptionalJson label="Capabilities" value={attributes['a2ui.wire.capabilities']} />
-        <OptionalJson label="Data model" value={attributes['a2ui.wire.data_model']} />
+        <OptionalJson
+          label="The host’s capabilities"
+          value={attributes['a2ui.wire.capabilities']}
+        />
+        <OptionalJson label="The host’s data model" value={attributes['a2ui.wire.data_model']} />
         {attributes['a2ui.wire.metadata'] !== undefined && (
           <JsonBlock label="Metadata" value={attributes['a2ui.wire.metadata']} />
         )}
