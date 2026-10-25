@@ -58,7 +58,7 @@ The message box is a composer docked under the turn view; there is no chat colum
 
 ### 12. The composer's conversation
 
-The composer continues the conversation in view when the message box started it. Otherwise, sending starts a new conversation, and the composer says so. The box knows the conversations it started while Spectra runs; a box conversation from an earlier run is not continued.
+The composer continues the conversation in view, whichever of its turns is selected, when the message box started it. Otherwise, sending starts a new conversation, and the composer says so. Starting a new conversation changes only the composer, until a turn is selected. An open turn holds the composer only in its own conversation. The box knows the conversations it started while Spectra runs; a box conversation from an earlier run, and a turn whose agent names no conversation, are not continued.
 
 ### 13. The live turn: following the newest step
 
