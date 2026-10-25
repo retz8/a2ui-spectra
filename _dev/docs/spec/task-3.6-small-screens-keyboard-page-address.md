@@ -25,11 +25,11 @@ The strip holds one status icon per turn, in the turn list's order with every gr
 
 ### 3. The overlay
 
-The overlay is a floating panel with no dimming: the full turn list, with its title, count, search and groups, at 296px beside the strip, over the turn view. It closes when a turn is selected, on Esc, on a click outside it, and when the strip's button is pressed again. Opened by the strip's button, it puts focus on the selected turn in its list; opened by `/`, in its search. Closing it puts focus back on the strip's button. When the window grows past 1,280px with the overlay open, the full turn list takes its place.
+The overlay is a floating panel with no dimming: the full turn list, with its title, count, search and groups, at 296px beside the strip, over the turn view. In it, the up and down arrows select the turn they land on, as in the turn list, and it stays open. It closes when a turn is pressed, on Enter on the turn reached, on Esc, on a click outside it, and when the strip's button is pressed again. Opened by the strip's button, it puts focus on the selected turn in its list; opened by `/`, in its search. Closing it from the keyboard, by a turn pressed or by the strip's button puts focus back on the strip's button; a click outside it leaves focus where the click put it. When the window grows past 1,280px with the overlay open, the full turn list takes its place.
 
 ### 4. The dividers
 
-Each divider — the turn list and the turn view, the timeline and the result, the result and the step's detail — is remembered in the browser: one position each, the same for every turn and in both layouts. For the step's detail, what is remembered is its height when open.
+Each divider — the turn list and the turn view, the timeline and the result, the result and the step's detail — is remembered in the browser: one position each, in pixels, the same for every turn and in both layouts. For the step's detail, what is remembered is its height when open, and it opens at that height, at most half the height it shares with the result. As the window is resized, the turn list, the timeline and the step's detail keep their size, and the result takes the change.
 
 ### 5. The step's detail closed by hand
 
@@ -45,7 +45,7 @@ The turn list is one Tab stop, and its group headers leave the Tab order. The up
 
 ### 8. The timeline's keys
 
-The timeline is one Tab stop. The up and down arrows select the row they land on, a delivery's row included; on an open turn, the first press stops following. Under the problems filter, they move only through the rows it keeps. Home selects the first row. End selects the last, and on an open turn resumes following, as Jump to latest does.
+The timeline is one Tab stop. The up and down arrows select the row they land on, a delivery's row included; on an open turn, Up or Home stops following, and Down does nothing while the newest step is followed. Under the problems filter, they move only through the rows it keeps. Home selects the first row. End selects the last, and on an open turn resumes following, as Jump to latest does.
 
 ### 9. Next problem
 
@@ -53,11 +53,11 @@ The timeline is one Tab stop. The up and down arrows select the row they land on
 
 ### 10. The other keys
 
-`l` jumps to the latest step, as Jump to latest does. `/` focuses the turn list's search; on a small window, it opens the overlay with its search focused. `?` opens the list of keys. Esc closes the overlay or the list of keys. A single-character key does nothing while typing in a field, or with Ctrl, Cmd or Alt held.
+`l` jumps to the latest step, as Jump to latest does; on a closed turn, it selects the last row, as End does. `/` focuses the turn list's search; on a small window, it opens the overlay with its search focused. `?` opens the list of keys. Esc closes the overlay or the list of keys. A single-character key does nothing while typing in a field, or with Ctrl, Cmd or Alt held.
 
 ### 11. The list of keys
 
-The list of keys is a small centred dialog, in sections: the turn list, the timeline, problems and the composer. `?` opens it, and so does a keyboard button at the foot of the rail, beside the theme switch. Esc or a click outside it closes it.
+The list of keys is a small centred dialog over a light scrim, in sections: the turn list, the timeline, problems and the composer. `?` opens it, and so does a keyboard button at the foot of the rail, beside the theme switch. Esc or a click outside it closes it.
 
 ### 12. The page address
 
@@ -65,11 +65,11 @@ The page address holds the turn and the selected step, picked or landed on, by t
 
 ### 13. The history
 
-Changing the turn — by a click, the arrows, the strip or the overlay — adds an entry to the browser's history; changing the step replaces it. Back walks through the turns viewed, each on the step it was left on. The viewer's own moves — following a new turn, landing on a problem, the filter moving a selection it hides — replace the entry.
+Changing the turn — by a click, the arrows, the strip or the overlay — adds an entry to the browser's history; changing the step replaces it. Back walks through the turns viewed, each on the step it was left on. Selecting the turn already in view leaves the address and the history as they are. The viewer's own moves — following a new turn, landing on a problem, the filter moving a selection it hides — replace the entry.
 
 ### 14. A step not in the turn
 
-An address whose step is not in its turn opens the turn as an address with only the turn does, and the step is dropped from the address, replacing the entry.
+An address whose step is not in its turn opens the turn as an address with only the turn does, and the step is dropped from the address, replacing the entry. On an open turn, the step waits until the turn closes: it is selected if it arrives, and dropped if the turn closes without it.
 
 ### 15. The design canvas's amendments
 
