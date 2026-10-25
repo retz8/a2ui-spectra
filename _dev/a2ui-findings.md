@@ -416,6 +416,8 @@ the catalog's braces before it goes into an ADK instruction.
 
 **Severity:** deviation from the v0.9 protocol.
 
+**Upstream:** PR #3272.
+
 ### Issue
 
 The v0.9 protocol says "It is an error to try to create a surface with a
@@ -423,11 +425,12 @@ The v0.9 protocol says "It is an error to try to create a surface with a
 (`specification/v0_9/docs/a2ui_protocol.md:180`). Over `message/stream`, every
 turn of the sample sends `createSurface` for its surface twice, with no
 `deleteSurface` between. ADK's streaming mode delivers the model's reply as
-partial chunks and then once more as one aggregated response
-(`google/adk/utils/streaming_utils.py:28-33`, `StreamingResponseAggregator`, in
-`google-adk` 2.3.0). The sample's `token_stream` passes on the text of every
-event without looking at `event.partial` (`agent.py:281-298`), so its streaming
-parser reads the whole reply a second time and emits its messages again.
+partial chunks and then once more as one aggregated response with
+`partial=False` (`StreamingResponseAggregator.close()`,
+`google/adk/utils/streaming_utils.py:348-412`, in `google-adk` 2.3.0). The
+sample's `token_stream` passes on the text of every event without looking at
+`event.partial` (`agent.py:281-298`), so its streaming parser reads the whole
+reply a second time and emits its messages again.
 
 ### Reproduction
 
