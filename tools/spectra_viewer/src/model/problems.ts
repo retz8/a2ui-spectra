@@ -2,7 +2,8 @@
  * A turn's problems, each on the step it belongs to: the checks' findings and
  * the processor's rejections on the A2UI message they name, and a failed
  * turn's reason on the outcome. A finding that names no message is a problem
- * of the whole turn, on the outcome too.
+ * of the whole turn, on the outcome too. The timeline narrowed to the steps
+ * with problems.
  */
 import {locateFinding} from './messages.ts';
 import {isCheck, isTurnEvent, type TurnRecordEvent} from './record.ts';
@@ -17,7 +18,7 @@ export interface Problem {
   /** The code, and who found it. */
   code: string;
   surfaceId?: string;
-  /** A JSON Pointer inside the step's message; empty for the message itself. */
+  /** A JSON Pointer inside the step's message, to the line it marks; empty for the message itself. */
   inner?: string;
 }
 
@@ -51,11 +52,13 @@ export function problemsOf(
     }
   }
   for (const rejection of rejections) {
+    const stepId = stepOfMessage.get(rejection.key);
     problems.push({
-      stepId: stepOfMessage.get(rejection.key) ?? turnLevel,
+      stepId: stepId ?? turnLevel,
       sentence: rejection.message,
       code: `${rejection.code} · A2UI web core`,
       ...(rejection.surfaceId !== undefined && {surfaceId: rejection.surfaceId}),
+      ...(rejection.inner !== undefined && stepId !== undefined && {inner: rejection.inner}),
     });
   }
   const turn = events.find(isTurnEvent);
@@ -68,6 +71,32 @@ export function problemsOf(
     });
   }
   return problems;
+}
+
+/**
+ * The timeline with only the steps that have problems, each delivery's row
+ * kept above the steps of it that stay.
+ */
+export function onlyProblems(
+  timeline: readonly TimelineRow[],
+  problems: ReadonlyMap<string, number>,
+): TimelineRow[] {
+  const kept: TimelineRow[] = [];
+  let delivery: TimelineRow | undefined;
+  for (const row of timeline) {
+    if (row.row === 'delivery') {
+      delivery = row;
+      continue;
+    }
+    if (!row.grouped) delivery = undefined;
+    if ((problems.get(row.id) ?? 0) === 0) continue;
+    if (row.grouped && delivery !== undefined) {
+      kept.push(delivery);
+      delivery = undefined;
+    }
+    kept.push(row);
+  }
+  return kept;
 }
 
 /** A turn's problem count, from what the listing gives: the findings, the rejections and a failed outcome. */

@@ -174,7 +174,7 @@ const STANDARD_V0_8 = 'https://a2ui.org/specification/v0_8/standard_catalog_defi
 const RESTAURANT_EXAMPLE = 'Find me the top 10 chinese restaurants in the US';
 
 describe('cardDetailsOf', () => {
-  it("reads the A2A versions, the A2UI extensions and each skill's first example of sub-task 2.3's cards", () => {
+  it("reads the A2A versions, the A2UI extensions and each skill's first example of the coverage roster's cards", () => {
     const expected: Record<string, CardDetails> = {
       'a2term_examplesvc/send_multipart_and_tagged_text.har': {
         a2aVersions: ['1.0'],
@@ -270,6 +270,11 @@ describe('cardDetailsOf', () => {
         a2aVersions: ['1.0', '0.3'],
         a2uiExtensions: [],
         examples: ['start'],
+      },
+      'stub_agent/flawed_booking_a2a_1_0.har': {
+        a2aVersions: ['1.0', '0.3'],
+        a2uiExtensions: [],
+        examples: ['Book a table for two at Han Il Kwan tonight'],
       },
     };
     const files = fs

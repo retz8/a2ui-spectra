@@ -17,24 +17,21 @@ export interface StepInView {
 
 /**
  * The step in view. A picked step stays until it is let go of, as Jump to
- * latest does. While the turn is open, the view follows its newest step. When
- * a turn the view followed closes, it lands on the first step with a problem,
- * or on the final state, the last step, when there is none; a turn opened
- * once closed shows its final state.
+ * latest does. While the turn is open, the view follows its newest step. A
+ * closed turn, whether the view followed it as it closed or it is opened
+ * once closed, lands on its first step with a problem, or on the final
+ * state, the last step, when there is none.
  */
 export function stepInView(
   rows: readonly TimelineRow[],
   {
     open,
     picked,
-    followed,
     problems,
   }: {
     open: boolean;
     /** The step picked, by its id. */
     picked: string | undefined;
-    /** Whether the view followed the turn while it was open. */
-    followed: boolean;
     /** How many problems each step has, by its id. */
     problems: ReadonlyMap<string, number>;
   },
@@ -43,9 +40,20 @@ export function stepInView(
   if (pickedRow !== undefined) return {row: pickedRow, following: false, selected: true};
   const last = rows[rows.length - 1];
   if (open) return {row: last, following: true, selected: false};
-  const problem = followed ? rows.find(row => (problems.get(row.id) ?? 0) > 0) : undefined;
+  const problem = rows.find(row => (problems.get(row.id) ?? 0) > 0);
   if (problem !== undefined) return {row: problem, following: false, selected: true};
   return {row: last, following: false, selected: false};
+}
+
+/**
+ * The pick that stays as the timeline narrows to the rows given: the picked
+ * row when they keep it, or none, so the view lands on the first problem.
+ */
+export function keptPick(
+  picked: string | undefined,
+  rows: readonly TimelineRow[],
+): string | undefined {
+  return picked !== undefined && rows.some(row => row.id === picked) ? picked : undefined;
 }
 
 /**

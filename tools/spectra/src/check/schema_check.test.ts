@@ -137,7 +137,7 @@ describe('the schema check on recorded turns', () => {
     }
   });
 
-  it("passes every agent's messages in sub-task 2.3's recordings but AG2's function call", () => {
+  it("passes every agent's messages in the recordings but AG2's function call and the flawed booking", () => {
     const failed: string[] = [];
     let checked = 0;
     for (const file of jsonFiles('test_data/a2a_capture/v0_1')) {
@@ -150,7 +150,10 @@ describe('the schema check on recorded turns', () => {
       }
     }
     assert.ok(checked >= 20, `only ${checked} turns checked`);
-    assert.deepEqual(failed, ['ag2/stream_v1_0_function_call.json#0']);
+    assert.deepEqual(failed, [
+      'ag2/stream_v1_0_function_call.json#0',
+      'stub_agent/flawed_booking_a2a_1_0.json#0',
+    ]);
 
     const [turn] = readRecord(
       'test_data/a2a_capture/v0_1/ag2/stream_v1_0_function_call.json',
@@ -166,6 +169,17 @@ describe('the schema check on recorded turns', () => {
     let value: unknown = turn;
     for (const key of pointer) value = (value as Record<string, unknown>)[key];
     assert.equal((value as {functionCallId?: string}).functionCallId, 'open-docs');
+
+    const [booking] = readRecord(
+      'test_data/a2a_capture/v0_1/stub_agent/flawed_booking_a2a_1_0.json',
+    ).turns;
+    assert.deepEqual(checkSchema(booking)?.findings, [
+      {
+        code: 'VALIDATION_FAILED',
+        path: '/events/2/attributes/a2ui.wire.message/parts/5/content/updateDataModel',
+        message: "must have required property 'surfaceId'",
+      },
+    ]);
   });
 });
 

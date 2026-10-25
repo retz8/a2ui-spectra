@@ -10,14 +10,17 @@ import {Icon} from './icons.tsx';
 
 /**
  * The turn's header: its input as the title, the outcome and the check state
- * beside it, and one quiet line of the start, the duration, the A2UI
- * version, the agent and the short ids.
+ * beside it, the problem count pressed to keep only the steps with problems,
+ * and one quiet line of the start, the duration, the A2UI version, the agent
+ * and the short ids.
  */
 export function TurnHeader({
   title,
   status,
   check,
   checks,
+  filtered,
+  onFilter,
   meta,
   traceId,
   conversationId,
@@ -27,6 +30,9 @@ export function TurnHeader({
   /** None while the turn is open: its checks run when it closes. */
   check: CheckState | undefined;
   checks: readonly CheckLine[];
+  /** Whether the timeline keeps only the steps with problems. */
+  filtered: boolean;
+  onFilter: () => void;
   meta: readonly string[];
   traceId: string;
   conversationId: string | undefined;
@@ -36,7 +42,9 @@ export function TurnHeader({
       <div className="flex min-w-0 items-center gap-3">
         <h1 className="min-w-0 truncate text-lg leading-[1.3] font-semibold">{title}</h1>
         <OutcomeBadge status={status} />
-        {check !== undefined && <CheckChip check={check} checks={checks} />}
+        {check !== undefined && (
+          <CheckChip check={check} checks={checks} filtered={filtered} onFilter={onFilter} />
+        )}
       </div>
       <div className="flex min-w-0 items-center gap-1.5 overflow-hidden text-xs whitespace-nowrap text-muted-foreground">
         {meta.map((part, index) => (
@@ -90,8 +98,22 @@ export function OutcomeBadge({status}: {status: TurnStatus}) {
   );
 }
 
-/** The problem count, or that there are none or no checks ran, with the checks that ran in its tooltip. */
-function CheckChip({check, checks}: {check: CheckState; checks: readonly CheckLine[]}) {
+/**
+ * The problem count, pressed to keep only the steps with problems, or that
+ * there are none or no checks ran, with the checks that ran in its tooltip.
+ */
+function CheckChip({
+  check,
+  checks,
+  filtered,
+  onFilter,
+}: {
+  check: CheckState;
+  checks: readonly CheckLine[];
+  filtered: boolean;
+  onFilter: () => void;
+}) {
+  const problems = check.state === 'problems';
   const label =
     check.state === 'problems'
       ? plural(check.count, 'problem')
@@ -104,11 +126,17 @@ function CheckChip({check, checks}: {check: CheckState; checks: readonly CheckLi
         <Tooltip.Trigger asChild>
           <button
             type="button"
+            {...(problems && {
+              'aria-pressed': filtered,
+              'aria-label': `${label}: show only the steps with problems`,
+              onClick: onFilter,
+            })}
             className={cn(
-              'inline-flex h-6 shrink-0 cursor-default items-center gap-1.5 rounded-full border pr-2.5 pl-2 text-xs',
-              check.state === 'problems'
-                ? 'font-semibold text-problem'
-                : 'font-medium text-muted-strong',
+              'ease-quick inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border pr-2.5 pl-2 text-xs',
+              problems
+                ? 'cursor-pointer font-semibold text-problem'
+                : 'cursor-default font-medium text-muted-strong',
+              problems && filtered && 'border-problem bg-problem-soft',
             )}
           >
             <Icon

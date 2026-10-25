@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import {readRecording} from '../testing/recordings.ts';
-import {followNewest, stepInView} from './follow.ts';
-import {problemsOf} from './problems.ts';
+import {followNewest, keptPick, stepInView} from './follow.ts';
+import {onlyProblems, problemsOf} from './problems.ts';
 import {
   isTurnEvent,
   isWireInput,
@@ -47,10 +47,11 @@ describe('stepInView', () => {
     const turn = turnOf('file_upload_summarizer/artifact_stream_and_send');
     for (let shown = 1; shown <= turn.wire; shown++) {
       const {rows, problems} = turn.open(shown);
-      assert.deepEqual(
-        stepInView(rows, {open: true, picked: undefined, followed: true, problems}),
-        {row: rows[rows.length - 1], following: true, selected: false},
-      );
+      assert.deepEqual(stepInView(rows, {open: true, picked: undefined, problems}), {
+        row: rows[rows.length - 1],
+        following: true,
+        selected: false,
+      });
     }
   });
 
@@ -62,7 +63,7 @@ describe('stepInView', () => {
       {...turn.open(turn.wire), open: true},
       {...turn.closed, open: false},
     ]) {
-      const view = stepInView(rows, {open, picked, followed: true, problems});
+      const view = stepInView(rows, {open, picked, problems});
       assert.equal(view.row?.id, picked);
       assert.equal(view.following, false);
       assert.equal(view.selected, true);
@@ -72,42 +73,59 @@ describe('stepInView', () => {
   it('follows the newest step again once the pick is let go of', () => {
     const turn = turnOf('file_upload_summarizer/artifact_stream_and_send');
     const {rows, problems} = turn.open(turn.wire);
-    assert.equal(
-      stepInView(rows, {open: true, picked: undefined, followed: true, problems}).following,
-      true,
-    );
+    assert.equal(stepInView(rows, {open: true, picked: undefined, problems}).following, true);
   });
 
-  it('lands on the first step with a problem when a followed turn closes', () => {
+  it('lands on the first step with a problem when the turn closes', () => {
     const {rows, problems} = turnOf('file_upload_summarizer/artifact_stream_and_send').closed;
-    const view = stepInView(rows, {open: false, picked: undefined, followed: true, problems});
+    const view = stepInView(rows, {open: false, picked: undefined, problems});
     assert.equal(view.row?.row === 'step' ? view.row.messageKey : undefined, '2.4');
     assert.equal(view.selected, true);
   });
 
   it("lands on a failed turn's outcome, its reason being its problem", () => {
     const {rows, problems} = turnOf('ag2/stream_v1_0_failed').closed;
-    const view = stepInView(rows, {open: false, picked: undefined, followed: true, problems});
+    const view = stepInView(rows, {open: false, picked: undefined, problems});
     assert.equal(view.row?.id, 'outcome');
     assert.equal(view.selected, true);
   });
 
-  it('lands on the final state, with no step selected, when a followed turn closes with no problems', () => {
+  it('lands on the final state, with no step selected, when the turn closes with no problems', () => {
     const {rows, problems} = turnOf('stub_agent/cancel_a2a_1_0').closed;
     assert.equal(problems.size, 0);
-    assert.deepEqual(stepInView(rows, {open: false, picked: undefined, followed: true, problems}), {
+    assert.deepEqual(stepInView(rows, {open: false, picked: undefined, problems}), {
       row: rows[rows.length - 1],
       following: false,
       selected: false,
     });
   });
 
-  it('shows the final state of a turn opened once closed, with no step selected', () => {
-    const {rows, problems} = turnOf('file_upload_summarizer/artifact_stream_and_send').closed;
-    assert.deepEqual(
-      stepInView(rows, {open: false, picked: undefined, followed: false, problems}),
-      {row: rows[rows.length - 1], following: false, selected: false},
-    );
+  it("opens the flawed booking's turn on its first problem, the booking form's updateComponents", () => {
+    const {rows, problems} = turnOf('stub_agent/flawed_booking_a2a_1_0').closed;
+    const view = stepInView(rows, {open: false, picked: undefined, problems});
+    assert.equal(view.row?.row === 'step' ? view.row.messageKey : undefined, '2.2');
+    assert.equal(view.selected, true);
+  });
+
+  it('lands on the first problem when the filter hides the step picked', () => {
+    const {rows, problems} = turnOf('stub_agent/flawed_booking_a2a_1_0').closed;
+    const kept = onlyProblems(rows, problems);
+    const input = rows[0].id;
+    assert.equal(keptPick(input, kept), undefined);
+    const view = stepInView(kept, {open: false, picked: keptPick(input, kept), problems});
+    assert.equal(view.row?.row === 'step' ? view.row.messageKey : undefined, '2.2');
+    assert.equal(view.selected, true);
+  });
+
+  it('keeps a pick the filter keeps, a delivery kept above its steps with problems included', () => {
+    const {rows, problems} = turnOf('stub_agent/flawed_booking_a2a_1_0').closed;
+    const kept = onlyProblems(rows, problems);
+    const delivery = rows.find(row => row.row === 'delivery');
+    const last = kept[kept.length - 1].id;
+    assert.ok(delivery);
+    assert.equal(keptPick(delivery.id, kept), delivery.id);
+    assert.equal(keptPick(last, kept), last);
+    assert.equal(keptPick(undefined, kept), undefined);
   });
 });
 

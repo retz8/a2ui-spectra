@@ -13,6 +13,12 @@
   traffic: "test_data/a2a_capture/v0_1/stub_agent/cancel_a2a_0_3.har"
   expect: "test_data/a2a_capture/v0_1/stub_agent/cancel_a2a_0_3.json"
 
+- name: stub_agent_flawed_booking_a2a_1_0
+  description: "The stub agent's flawed booking conversation over A2A 1.0, streamed: a completed task whose status message holds a v0.9 booking form, one message per part, with mistakes the checks and the processor find."
+  action: capture_a2a
+  traffic: "test_data/a2a_capture/v0_1/stub_agent/flawed_booking_a2a_1_0.har"
+  expect: "test_data/a2a_capture/v0_1/stub_agent/flawed_booking_a2a_1_0.json"
+
 - name: node_restaurant_finder_stream_v1_0_booking
   description: "Upstream's Node restaurant finder over A2A 0.3, streamed: a v1.0 list ending waiting for input with final true, then the submitted booking ending completed."
   action: capture_a2a

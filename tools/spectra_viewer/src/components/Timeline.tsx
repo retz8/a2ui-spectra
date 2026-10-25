@@ -10,7 +10,8 @@ import {ProblemMark} from './TurnList.tsx';
 /**
  * The turn's steps in the order they came, each delivery with several grouped
  * under its row. While the turn is open, the newest step is marked as
- * followed, and a picked step offers Jump to latest.
+ * followed, and a picked step offers Jump to latest. Narrowed to the steps
+ * with problems, it counts them out of all the turn's steps and offers Show all.
  */
 export function Timeline({
   rows,
@@ -18,9 +19,11 @@ export function Timeline({
   problems,
   live,
   following,
+  filter,
   onSelect,
   onJump,
 }: {
+  /** The rows shown: every row, or those the filter keeps. */
   rows: readonly TimelineRow[];
   selected: string;
   /** How many problems each step has, by its id. */
@@ -29,6 +32,8 @@ export function Timeline({
   live: boolean;
   /** Whether the view follows the newest step. */
   following: boolean;
+  /** While only the steps with problems are shown: how many steps the turn has, and turning it off. */
+  filter?: {steps: number; onShowAll: () => void};
   onSelect: (id: string) => void;
   /** Lets go of the picked step, to follow the newest again. */
   onJump: () => void;
@@ -46,8 +51,22 @@ export function Timeline({
     <section aria-label="Steps" className="relative flex h-full min-h-0 flex-col">
       <div className="flex h-10 shrink-0 items-center gap-2 pr-3 pl-4">
         <span className="section-label">Steps</span>
-        <span className="text-xs text-muted-foreground">{steps}</span>
+        <span className="text-xs text-muted-foreground">
+          {filter === undefined ? steps : `${steps} of ${filter.steps}`}
+        </span>
         <div className="flex-1" />
+        {filter !== undefined && (
+          <>
+            <span className="text-xs text-muted-foreground">Problems only</span>
+            <button
+              type="button"
+              onClick={filter.onShowAll}
+              className="cursor-pointer text-xs font-semibold text-brand hover:underline"
+            >
+              Show all
+            </button>
+          </>
+        )}
         {live && (
           <span className="inline-flex items-center gap-[5px] text-xs font-semibold text-brand">
             <Icon kind="dot" size={8} />

@@ -27,7 +27,7 @@ function readRecording(file: string): TurnRecord {
 }
 
 describe('rejectionCount', () => {
-  it("counts each turn's messages the processor rejects in sub-task 2.3's recordings", () => {
+  it("counts each turn's messages the processor rejects in the coverage roster's recordings", () => {
     const files = fs
       .readdirSync(RECORDINGS, {recursive: true, encoding: 'utf8'})
       .filter(file => file.endsWith('.json'))
@@ -53,6 +53,7 @@ describe('rejectionCount', () => {
       'strathweb_booking_wizard/send_then_stream.json': [0, 0],
       'stub_agent/cancel_a2a_0_3.json': [0],
       'stub_agent/cancel_a2a_1_0.json': [0],
+      'stub_agent/flawed_booking_a2a_1_0.json': [3],
     });
   });
 

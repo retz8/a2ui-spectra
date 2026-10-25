@@ -1,0 +1,191 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "973bef313f4a7ae67b6c3cde669ad2ae",
+          "spanId": "f67abe5eaa958863",
+          "name": "invoke_agent Flawed Booking Agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000003000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "Flawed Booking Agent",
+            "gen_ai.conversation.id": "72daa0ed-12ef-4bb6-b5ce-87ded1e38c57",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.protocol_version": "v0.9",
+            "a2ui.turn.capture_paths": [
+              "wire"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "973bef313f4a7ae67b6c3cde669ad2ae",
+          "spanId": "64c292a8381ad6da",
+          "parentSpanId": "f67abe5eaa958863",
+          "name": "wire_input",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000001000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_input",
+            "a2ui.wire.message": {
+              "role": "user",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Book a table for two at Han Il Kwan tonight"
+                }
+              ]
+            },
+            "a2ui.wire.capabilities": {
+              "v0.9": {
+                "supportedCatalogIds": [
+                  "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+                ]
+              },
+              "v0.9.1": {
+                "supportedCatalogIds": [
+                  "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+                ]
+              },
+              "v1.0": {
+                "supportedCatalogIds": [
+                  "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "traceId": "973bef313f4a7ae67b6c3cde669ad2ae",
+          "spanId": "7e9f5fb6024edfdd",
+          "parentSpanId": "f67abe5eaa958863",
+          "name": "wire_output",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000002000000",
+          "attributes": {
+            "a2ui.event.kind": "wire_output",
+            "a2ui.wire.message": {
+              "role": "assistant",
+              "parts": [
+                {
+                  "type": "text",
+                  "content": "Here is the booking form for Han Il Kwan.",
+                  "mime_type": "text/plain"
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "createSurface": {
+                      "surfaceId": "booking",
+                      "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"
+                    }
+                  }
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "booking",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Column",
+                          "children": [
+                            "title",
+                            "party",
+                            "time",
+                            "submit"
+                          ]
+                        },
+                        {
+                          "id": "title",
+                          "component": "Text",
+                          "text": "Book a table at Han Il Kwan",
+                          "variant": "h2"
+                        },
+                        {
+                          "id": "party",
+                          "component": "TextField",
+                          "label": "Party size",
+                          "value": {
+                            "path": "/booking/party"
+                          }
+                        },
+                        {
+                          "id": "submit",
+                          "component": "Button",
+                          "child": "submit_label",
+                          "action": {
+                            "event": {
+                              "name": "book"
+                            }
+                          },
+                          "colour": "primary"
+                        },
+                        {
+                          "id": "submit_label",
+                          "component": "Text",
+                          "text": "Book"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateDataModel": {
+                      "surfaceId": "booking",
+                      "path": "/booking",
+                      "value": {
+                        "party": "2"
+                      }
+                    }
+                  }
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateComponents": {
+                      "surfaceId": "confirmation",
+                      "components": [
+                        {
+                          "id": "root",
+                          "component": "Text",
+                          "text": "Your table is booked."
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "type": "a2ui",
+                  "content": {
+                    "version": "v0.9",
+                    "updateDataModel": {
+                      "path": "/booking/time"
+                    }
+                  }
+                }
+              ]
+            },
+            "a2ui.wire.metadata": {}
+          }
+        }
+      ]
+    }
+  ]
+}

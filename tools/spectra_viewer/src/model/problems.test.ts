@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import {readRecording} from '../testing/recordings.ts';
-import {listedProblemCount, problemsOf} from './problems.ts';
+import {listedProblemCount, onlyProblems, problemsOf} from './problems.ts';
 import {isTurnEvent, type Turn, type TurnRecordEvent, unixMillis} from './record.ts';
 import {replay} from './replay.ts';
 import {timelineOf} from './steps.ts';
@@ -20,7 +20,17 @@ function problemsOfRecording(name: string, extra: TurnRecordEvent[] = []) {
   );
 }
 
-function check(findings: Array<{code: string; message: string; path?: string}>): TurnRecordEvent {
+/** The schema check's finding on the flawed booking's turn, as the tool's schema check writes it. */
+const FLAWED_BOOKING_FINDING = {
+  code: 'VALIDATION_FAILED',
+  message: "must have required property 'surfaceId'",
+  path: '/events/2/attributes/a2ui.wire.message/parts/5/content/updateDataModel',
+};
+
+function check(
+  findings: Array<{code: string; message: string; path?: string}>,
+  version = 'v1.0',
+): TurnRecordEvent {
   return {
     traceId: '0'.repeat(32),
     spanId: '9'.repeat(16),
@@ -31,7 +41,7 @@ function check(findings: Array<{code: string; message: string; path?: string}>):
       'a2ui.event.kind': 'check',
       'a2ui.check.name': 'schema',
       'a2ui.check.passed': false,
-      'a2ui.check.protocol_version': 'v1.0',
+      'a2ui.check.protocol_version': version,
       'a2ui.check.findings': findings,
     },
   };
@@ -81,6 +91,78 @@ describe('problemsOf', () => {
         },
         {step: '4.1.2', code: 'VALIDATION_ERROR · A2UI web core', inner: undefined},
       ],
+    );
+  });
+});
+
+describe("the flawed booking's problems", () => {
+  it('marks where the schema check and web core say each message went wrong, its own branch of the union only', () => {
+    assert.deepEqual(
+      problemsOfRecording('stub_agent/flawed_booking_a2a_1_0', [
+        check([FLAWED_BOOKING_FINDING], 'v0.9'),
+      ]),
+      [
+        {
+          step: '2.5',
+          sentence: "must have required property 'surfaceId'",
+          code: 'VALIDATION_FAILED · schema check, A2UI v0.9',
+          inner: '/updateDataModel',
+        },
+        {
+          step: '2.2',
+          sentence:
+            "Validation failed for component 'Button' (submit): root: Unrecognized key(s) in object: 'colour'",
+          code: 'VALIDATION_ERROR · A2UI web core',
+          surfaceId: 'booking',
+          inner: '/updateComponents/components/3/colour',
+        },
+        {
+          step: '2.4',
+          sentence: 'Surface not found for message: confirmation',
+          code: 'INTEGRITY_ERROR · A2UI web core',
+          surfaceId: 'confirmation',
+        },
+        {
+          step: '2.5',
+          sentence:
+            'Invalid v0.9 message: updateDataModel.surfaceId: Expected string, received undefined',
+          code: 'VALIDATION_ERROR · A2UI web core',
+          inner: '/updateDataModel/surfaceId',
+        },
+      ],
+    );
+  });
+});
+
+describe('onlyProblems', () => {
+  it('keeps the steps with problems, under the row of the delivery they came in', () => {
+    const {turns} = readRecording('stub_agent/flawed_booking_a2a_1_0');
+    const events = [...turns[0].events, check([FLAWED_BOOKING_FINDING], 'v0.9')];
+    const start = events.find(isTurnEvent);
+    assert.ok(start);
+    const rows = timelineOf(events, unixMillis(start.startTimeUnixNano));
+    const problems = new Map<string, number>();
+    for (const {stepId} of problemsOf(events, rows, replay([], events).rejections)) {
+      problems.set(stepId, (problems.get(stepId) ?? 0) + 1);
+    }
+    const kept = onlyProblems(rows, problems);
+    assert.deepEqual(
+      kept.map(row => (row.row === 'delivery' ? 'delivery' : (row.messageKey ?? row.id))),
+      ['delivery', '2.2', '2.4', '2.5'],
+    );
+    assert.equal(kept.filter(row => row.row === 'step').length, 3);
+    assert.equal(rows.filter(row => row.row === 'step').length, 8);
+  });
+
+  it("keeps a failed turn's outcome, its reason being its problem", () => {
+    const {turns} = readRecording('ag2/stream_v1_0_failed');
+    const {events} = turns[0];
+    const start = events.find(isTurnEvent);
+    assert.ok(start);
+    const rows = timelineOf(events, unixMillis(start.startTimeUnixNano));
+    assert.deepEqual(
+      onlyProblems(rows, new Map([['outcome', 1]])).map(row => row.id),
+      ['outcome'],
     );
   });
 });

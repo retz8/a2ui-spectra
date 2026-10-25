@@ -1,7 +1,7 @@
 /**
  * JSON as the viewer shows it: one line per value, indented two spaces, and
  * each object or array with a line that folds it. A folded one is a single
- * line that says how many keys or items it holds.
+ * line that says how many keys or items it holds. The lines a problem marks.
  */
 
 export interface JsonLine {
@@ -55,4 +55,37 @@ export function jsonLines(value: unknown, folded: ReadonlySet<string> = new Set(
   };
   walk(value, 0, '', '', false);
   return lines;
+}
+
+/**
+ * The path of the value a JSON Pointer marks: the pointer's own value, or,
+ * when the pointer names something the JSON lacks, such as a missing
+ * property, the deepest value on the way to it.
+ */
+export function markedPath(value: unknown, pointer: string): string {
+  let path = '';
+  let at = value;
+  for (const segment of pointer.split('/').slice(1)) {
+    const key = segment.replace(/~1/g, '/').replace(/~0/g, '~');
+    if (at === null || typeof at !== 'object' || !Object.prototype.hasOwnProperty.call(at, key))
+      break;
+    at = (at as Record<string, unknown>)[key];
+    path += `/${segment}`;
+  }
+  return path;
+}
+
+/**
+ * The index of the line that shows a marked path: the line of its value, the
+ * opening line for an object or array, or the folded line that hides it.
+ */
+export function markedLine(lines: readonly JsonLine[], path: string): number {
+  return lines.findIndex(
+    line => line.path === path || (line.folded === true && path.startsWith(`${line.path}/`)),
+  );
+}
+
+/** The folded objects and arrays left once those that hide a marked path are unfolded. */
+export function unfoldedTo(folded: ReadonlySet<string>, path: string): Set<string> {
+  return new Set([...folded].filter(fold => !path.startsWith(`${fold}/`)));
 }

@@ -3,9 +3,9 @@ import {type PanelImperativeHandle, usePanelRef} from 'react-resizable-panels';
 
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
 import {checkLinesOf, checkStateOf} from '@/model/check_state.ts';
-import {stepInView} from '@/model/follow.ts';
+import {keptPick, stepInView} from '@/model/follow.ts';
 import {inputBriefOfTurn} from '@/model/input_brief.ts';
-import {problemsOf} from '@/model/problems.ts';
+import {onlyProblems, problemsOf} from '@/model/problems.ts';
 import {type Turn, type TurnRecordEvent, unixMillis} from '@/model/record.ts';
 import {replay} from '@/model/replay.ts';
 import {type Position, replyThrough, type TimelineRow, timelineOf} from '@/model/steps.ts';
@@ -118,9 +118,16 @@ function TurnBody({
   const bySurface = useMemo(() => countBy(problems, problem => problem.surfaceId), [problems]);
 
   const [picked, setPicked] = useState<string | undefined>();
-  // Whether the view watched the turn while it was open, to land on its first problem as it closes.
-  const [followed] = useState(open);
-  const inView = stepInView(timeline, {open, picked, followed, problems: byStep});
+  // The filter belongs to this turn: each turn opens with all its steps.
+  const [filtered, setFiltered] = useState(false);
+  const kept = useMemo(() => onlyProblems(timeline, byStep), [timeline, byStep]);
+  const shown = filtered ? kept : timeline;
+  const toggleFilter = () => {
+    // A pick the filter hides gives way to the first problem.
+    if (!filtered) setPicked(keptPick(picked, kept));
+    setFiltered(!filtered);
+  };
+  const inView = stepInView(shown, {open, picked, problems: byStep});
   const selected = inView.row;
   const position = useMemo(() => positionOf(selected), [selected]);
   const pane = useMemo(
@@ -160,6 +167,8 @@ function TurnBody({
         status={summary?.outcome ?? 'open'}
         check={turn === undefined ? undefined : checkStateOf(turn, problems.length)}
         checks={turn === undefined ? [] : checkLinesOf(turn)}
+        filtered={filtered}
+        onFilter={toggleFilter}
         meta={meta}
         traceId={traceId}
         conversationId={summary?.conversationId ?? (open ? view.live.conversationId : undefined)}
@@ -167,11 +176,17 @@ function TurnBody({
       <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
         <ResizablePanel defaultSize={340} minSize={240}>
           <Timeline
-            rows={timeline}
+            rows={shown}
             selected={selected?.id ?? ''}
             problems={byStep}
             live={open}
             following={inView.following}
+            {...(filtered && {
+              filter: {
+                steps: timeline.filter(row => row.row === 'step').length,
+                onShowAll: toggleFilter,
+              },
+            })}
             onSelect={setPicked}
             onJump={() => setPicked(undefined)}
           />

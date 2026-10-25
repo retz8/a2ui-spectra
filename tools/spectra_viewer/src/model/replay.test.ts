@@ -120,6 +120,33 @@ describe('replay', () => {
     );
   });
 
+  it("says where web core rejected the flawed booking's messages, its union failure cut to the message's own branch", () => {
+    const result = replayRecord(readRecording('stub_agent/flawed_booking_a2a_1_0'));
+    assert.deepEqual(result.rejections, [
+      {
+        key: messageKey(2, 2),
+        surfaceId: 'booking',
+        code: 'VALIDATION_ERROR',
+        message:
+          "Validation failed for component 'Button' (submit): root: Unrecognized key(s) in object: 'colour'",
+        inner: '/updateComponents/components/3/colour',
+      },
+      {
+        key: messageKey(2, 4),
+        surfaceId: 'confirmation',
+        code: 'INTEGRITY_ERROR',
+        message: 'Surface not found for message: confirmation',
+      },
+      {
+        key: messageKey(2, 5),
+        code: 'VALIDATION_ERROR',
+        message:
+          'Invalid v0.9 message: updateDataModel.surfaceId: Expected string, received undefined',
+        inner: '/updateDataModel/surfaceId',
+      },
+    ]);
+  });
+
   it("lists only the turn's own rejections, not those of earlier turns", () => {
     const result = replayRecord(readRecording('angular_client/python_restaurant_finder_booking'));
     assert.deepEqual(

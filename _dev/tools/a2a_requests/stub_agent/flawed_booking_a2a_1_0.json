@@ -1,0 +1,34 @@
+{
+  "card": {"headers": {"A2A-Version": "1.0"}},
+  "requests": [
+    {
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
+        "A2A-Version": "1.0",
+        "A2A-Extensions": "https://a2ui.org/a2a-extension/a2ui/v0.9, https://a2ui.org/a2a-extension/a2ui/v0.9.1, https://a2ui.org/a2a-extension/a2ui/v1.0"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "SendStreamingMessage",
+        "params": {
+          "message": {
+            "messageId": "stub-flawed-booking-a2a-1-0-user-1",
+            "role": "ROLE_USER",
+            "parts": [{"text": "Book a table for two at Han Il Kwan tonight"}],
+            "metadata": {
+              "a2uiClientCapabilities": {
+                "v0.9": {"supportedCatalogIds": ["https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"]},
+                "v0.9.1": {"supportedCatalogIds": ["https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json"]}
+              },
+              "a2uiRendererCapabilities": {
+                "v1.0": {"supportedCatalogIds": ["https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"]}
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

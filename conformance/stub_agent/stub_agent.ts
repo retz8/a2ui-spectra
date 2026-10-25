@@ -1,7 +1,7 @@
 /**
  * The stub agent: a small A2A agent on the A2A JavaScript SDK, serving A2A
  * 1.0 and, through the SDK's compatibility layer, A2A 0.3 on one JSON-RPC
- * endpoint. It runs one of two behaviours:
+ * endpoint. It runs one of three behaviours:
  *
  * - By default, it waits for a cancel: a message opens a task that sends a
  *   working status and stays open until the host cancels it, then delivers a
@@ -12,11 +12,18 @@
  *   completes. The A2UI version is the newest the host's capabilities name,
  *   read as the A2UI extension specs describe, and that version's extension
  *   is echoed in the reply's extensions header.
+ * - With `--flawed-booking`, it is the Flawed Booking Agent: a message gets a
+ *   completed task whose status message holds a booking form in A2UI v0.9,
+ *   each message its own part, with mistakes the checks and web core's
+ *   message processor find: a Button with a property its catalog does not
+ *   define, an `updateComponents` to a surface never created, and an
+ *   `updateDataModel` that names no surface.
  *
  * Options:
- *   --port <n>        The port to listen on, on 127.0.0.1. Default: $PORT, or 10013.
- *   --canned-a2ui     Hold the canned A2UI conversation instead of waiting for a cancel.
- *   --a2a-0.3-first   List the A2A 0.3 interface before the A2A 1.0 one in the card.
+ *   --port <n>          The port to listen on, on 127.0.0.1. Default: $PORT, or 10013.
+ *   --canned-a2ui       Hold the canned A2UI conversation instead of waiting for a cancel.
+ *   --flawed-booking    Be the Flawed Booking Agent instead of waiting for a cancel.
+ *   --a2a-0.3-first     List the A2A 0.3 interface before the A2A 1.0 one in the card.
  *
  * Run from conformance/ after `yarn build`: `node dist/stub_agent/stub_agent.js
  * --port 10013`.
@@ -81,6 +88,9 @@ const A2UI_VERSIONS = [
 
 type A2uiVersion = (typeof A2UI_VERSIONS)[number];
 
+/** The version the Flawed Booking Agent answers in, whatever the host offers. */
+const FLAWED_VERSION = A2UI_VERSIONS[2];
+
 /** The send and stream methods of A2A 0.3 and 1.0. */
 const TURN_METHODS = new Set([
   'message/send',
@@ -91,9 +101,11 @@ const TURN_METHODS = new Set([
 
 const SURFACE_ID = 'greeting';
 
+type Behaviour = 'wait-for-cancel' | 'canned-a2ui' | 'flawed-booking';
+
 interface Options {
   port: number;
-  cannedA2ui: boolean;
+  behaviour: Behaviour;
   a2a03First: boolean;
 }
 
@@ -103,6 +115,7 @@ function optionsFromArgs(args: string[]): Options {
     options: {
       port: {type: 'string'},
       'canned-a2ui': {type: 'boolean', default: false},
+      'flawed-booking': {type: 'boolean', default: false},
       'a2a-0.3-first': {type: 'boolean', default: false},
     },
   });
@@ -110,10 +123,58 @@ function optionsFromArgs(args: string[]): Options {
   if (!Number.isInteger(port) || port <= 0) {
     throw new Error('--port takes a port number.');
   }
-  return {port, cannedA2ui: values['canned-a2ui'], a2a03First: values['a2a-0.3-first']};
+  if (values['canned-a2ui'] && values['flawed-booking']) {
+    throw new Error('--canned-a2ui and --flawed-booking are two behaviours; pick one.');
+  }
+  const behaviour: Behaviour = values['canned-a2ui']
+    ? 'canned-a2ui'
+    : values['flawed-booking']
+      ? 'flawed-booking'
+      : 'wait-for-cancel';
+  return {port, behaviour, a2a03First: values['a2a-0.3-first']};
 }
 
-function agentCard({port, cannedA2ui, a2a03First}: Options): AgentCard {
+const SKILLS: Record<Behaviour, AgentCard['skills'][number]> = {
+  'wait-for-cancel': {
+    id: 'wait_for_cancel',
+    name: 'Wait for a cancel',
+    description: 'Keeps the task working until the host cancels it.',
+    tags: ['cancellation'],
+    examples: ['start'],
+    inputModes: ['text'],
+    outputModes: ['text'],
+    securityRequirements: [],
+  },
+  'canned-a2ui': {
+    id: 'canned_a2ui',
+    name: 'Canned A2UI',
+    description: 'Asks for a name on an A2UI surface, then greets the name it is sent.',
+    tags: ['a2ui'],
+    examples: ['Hello', 'Ada'],
+    inputModes: ['text'],
+    outputModes: ['text', A2UI_MIME_TYPE],
+    securityRequirements: [],
+  },
+  'flawed-booking': {
+    id: 'flawed_booking',
+    name: 'Flawed booking',
+    description: 'Answers with a booking form whose A2UI has mistakes in it.',
+    tags: ['a2ui'],
+    examples: ['Book a table for two at Han Il Kwan tonight'],
+    inputModes: ['text'],
+    outputModes: ['text', A2UI_MIME_TYPE],
+    securityRequirements: [],
+  },
+};
+
+const DESCRIPTIONS: Record<Behaviour, string> = {
+  'wait-for-cancel':
+    'Opens a task for each message and keeps its stream open until the host cancels it.',
+  'canned-a2ui': 'Asks for a name in A2UI, then greets it.',
+  'flawed-booking': 'Answers a booking request with a booking form whose A2UI has mistakes.',
+};
+
+function agentCard({port, behaviour, a2a03First}: Options): AgentCard {
   const interfaces = duplicateInterfacesForLegacy(
     [
       {
@@ -126,10 +187,8 @@ function agentCard({port, cannedA2ui, a2a03First}: Options): AgentCard {
     ['JSONRPC'],
   );
   return {
-    name: 'Spectra stub agent',
-    description: cannedA2ui
-      ? 'Asks for a name in A2UI, then greets it.'
-      : 'Opens a task for each message and keeps its stream open until the host cancels it.',
+    name: behaviour === 'flawed-booking' ? 'Flawed Booking Agent' : 'Spectra stub agent',
+    description: DESCRIPTIONS[behaviour],
     supportedInterfaces: a2a03First ? interfaces.reverse() : interfaces,
     provider: undefined,
     version: '0.0.1',
@@ -143,29 +202,7 @@ function agentCard({port, cannedA2ui, a2a03First}: Options): AgentCard {
     securityRequirements: [],
     defaultInputModes: ['text'],
     defaultOutputModes: ['text'],
-    skills: [
-      cannedA2ui
-        ? {
-            id: 'canned_a2ui',
-            name: 'Canned A2UI',
-            description: 'Asks for a name on an A2UI surface, then greets the name it is sent.',
-            tags: ['a2ui'],
-            examples: ['Hello', 'Ada'],
-            inputModes: ['text'],
-            outputModes: ['text', A2UI_MIME_TYPE],
-            securityRequirements: [],
-          }
-        : {
-            id: 'wait_for_cancel',
-            name: 'Wait for a cancel',
-            description: 'Keeps the task working until the host cancels it.',
-            tags: ['cancellation'],
-            examples: ['start'],
-            inputModes: ['text'],
-            outputModes: ['text'],
-            securityRequirements: [],
-          },
-    ],
+    skills: [SKILLS[behaviour]],
     documentationUrl: '',
     signatures: [],
   };
@@ -279,19 +316,22 @@ function isA2a03(requestedVersion: string | undefined): boolean {
   return requestedVersion === undefined || requestedVersion === '' || requestedVersion === '0.3';
 }
 
-/**
- * A2UI messages as data parts, the MIME type in each part's metadata: one
- * part holding the array in A2A 1.0, and one part per message in A2A 0.3,
- * whose data part holds an object.
- */
-function a2uiParts(messages: Array<Record<string, unknown>>, a2a03: boolean): Part[] {
-  const part = (data: unknown): Part => ({
+/** A2UI as a data part, the MIME type in the part's metadata. */
+function a2uiPart(data: unknown): Part {
+  return {
     content: {$case: 'data' as const, value: data},
     metadata: {mimeType: A2UI_MIME_TYPE},
     filename: '',
     mediaType: '',
-  });
-  return a2a03 ? messages.map(part) : [part(messages)];
+  };
+}
+
+/**
+ * A2UI messages as data parts: one part holding the array in A2A 1.0, and
+ * one part per message in A2A 0.3, whose data part holds an object.
+ */
+function a2uiParts(messages: Array<Record<string, unknown>>, a2a03: boolean): Part[] {
+  return a2a03 ? messages.map(a2uiPart) : [a2uiPart(messages)];
 }
 
 function askForName({version, catalogId}: A2uiVersion): Array<Record<string, unknown>> {
@@ -364,40 +404,127 @@ class CannedA2uiExecutor implements AgentExecutor {
   }
 }
 
+const BOOKING_SURFACE_ID = 'booking';
+
+/**
+ * The Flawed Booking Agent's A2UI: a booking form whose Button has a
+ * property the basic catalog does not define, then an `updateComponents` to
+ * a surface never created and an `updateDataModel` that names no surface.
+ */
+function flawedBooking({version, catalogId}: A2uiVersion): Array<Record<string, unknown>> {
+  return [
+    {version, createSurface: {surfaceId: BOOKING_SURFACE_ID, catalogId}},
+    {
+      version,
+      updateComponents: {
+        surfaceId: BOOKING_SURFACE_ID,
+        components: [
+          {id: 'root', component: 'Column', children: ['title', 'party', 'time', 'submit']},
+          {id: 'title', component: 'Text', text: 'Book a table at Han Il Kwan', variant: 'h2'},
+          {
+            id: 'party',
+            component: 'TextField',
+            label: 'Party size',
+            value: {path: '/booking/party'},
+          },
+          {
+            id: 'submit',
+            component: 'Button',
+            child: 'submit_label',
+            action: {event: {name: 'book'}},
+            colour: 'primary',
+          },
+          {id: 'submit_label', component: 'Text', text: 'Book'},
+        ],
+      },
+    },
+    {
+      version,
+      updateDataModel: {surfaceId: BOOKING_SURFACE_ID, path: '/booking', value: {party: '2'}},
+    },
+    {
+      version,
+      updateComponents: {
+        surfaceId: 'confirmation',
+        components: [{id: 'root', component: 'Text', text: 'Your table is booked.'}],
+      },
+    },
+    {version, updateDataModel: {path: '/booking/time'}},
+  ];
+}
+
+class FlawedBookingExecutor implements AgentExecutor {
+  cancelTask = async (_taskId: string, _eventBus: ExecutionEventBus): Promise<void> => {};
+
+  async execute(context: RequestContext, eventBus: ExecutionEventBus): Promise<void> {
+    const parts = [
+      textPart('Here is the booking form for Han Il Kwan.'),
+      ...flawedBooking(FLAWED_VERSION).map(a2uiPart),
+    ];
+    eventBus.publish(
+      AgentEvent.task({
+        ...newTask(context),
+        status: {
+          state: TaskState.TASK_STATE_COMPLETED,
+          timestamp: new Date().toISOString(),
+          message: agentMessage(context.taskId, context.contextId, parts),
+        },
+      }),
+    );
+  }
+}
+
 /**
  * Echoes the A2UI extension the stub answers with in the reply's extensions
- * header, named as the request's A2A version names it. Done ahead of the SDK,
- * which sets the header before a stream's events are produced.
+ * header, named as the request's A2A version names it: the version the
+ * message's capabilities offer, or the Flawed Booking Agent's own. Done ahead
+ * of the SDK, which sets the header before a stream's events are produced.
  */
-function echoA2uiExtension(request: Request, response: Response, next: NextFunction): void {
-  const body: unknown = request.body;
-  if (isObject(body) && typeof body.method === 'string' && TURN_METHODS.has(body.method)) {
-    const params = isObject(body.params) ? body.params : {};
-    const message = isObject(params.message) ? params.message : {};
-    const version = offeredVersion(message.metadata);
-    if (version !== undefined) {
-      response.setHeader(
-        isA2a03(request.header('A2A-Version')) ? 'X-A2A-Extensions' : 'A2A-Extensions',
-        version.extension,
-      );
+function echoA2uiExtension(
+  answers: (metadata: unknown) => A2uiVersion | undefined,
+): (request: Request, response: Response, next: NextFunction) => void {
+  return (request, response, next) => {
+    const body: unknown = request.body;
+    if (isObject(body) && typeof body.method === 'string' && TURN_METHODS.has(body.method)) {
+      const params = isObject(body.params) ? body.params : {};
+      const message = isObject(params.message) ? params.message : {};
+      const version = answers(message.metadata);
+      if (version !== undefined) {
+        response.setHeader(
+          isA2a03(request.header('A2A-Version')) ? 'X-A2A-Extensions' : 'A2A-Extensions',
+          version.extension,
+        );
+      }
     }
-  }
-  next();
+    next();
+  };
 }
+
+const EXECUTORS: Record<Behaviour, () => AgentExecutor> = {
+  'wait-for-cancel': () => new WaitForCancelExecutor(),
+  'canned-a2ui': () => new CannedA2uiExecutor(),
+  'flawed-booking': () => new FlawedBookingExecutor(),
+};
 
 const options = optionsFromArgs(process.argv.slice(2));
 const requestHandler = new DefaultRequestHandler(
   agentCard(options),
   new InMemoryTaskStore(),
-  options.cannedA2ui ? new CannedA2uiExecutor() : new WaitForCancelExecutor(),
+  EXECUTORS[options.behaviour](),
 );
 const app = express();
 app.use(
   `/${AGENT_CARD_PATH}`,
   agentCardHandler({agentCardProvider: requestHandler, legacyCompat: {enabled: true}}),
 );
-if (options.cannedA2ui) {
-  app.use(JSON_RPC_PATH, express.json(), echoA2uiExtension);
+if (options.behaviour === 'canned-a2ui') {
+  app.use(JSON_RPC_PATH, express.json(), echoA2uiExtension(offeredVersion));
+} else if (options.behaviour === 'flawed-booking') {
+  app.use(
+    JSON_RPC_PATH,
+    express.json(),
+    echoA2uiExtension(() => FLAWED_VERSION),
+  );
 }
 app.use(
   JSON_RPC_PATH,

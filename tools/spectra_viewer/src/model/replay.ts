@@ -12,7 +12,7 @@ import {basicCatalog as basicCatalogV09} from '@a2ui/web_core/v0_9/basic_catalog
 
 import {agentMessages, type AgentMessage} from './messages.ts';
 import type {Turn, TurnRecord, TurnRecordEvent} from './record.ts';
-import {isThrough, type Position} from './steps.ts';
+import {isThrough, messageTypeOf, type Position} from './steps.ts';
 
 export interface ComponentNode {
   id: string;
@@ -60,6 +60,8 @@ export interface Rejection {
   surfaceId?: string;
   code: string;
   message: string;
+  /** A JSON Pointer inside the message to where web core says it went wrong, when it says. */
+  inner?: string;
 }
 
 export interface Replay {
@@ -134,7 +136,10 @@ export function replay(
  * Feeds a copy of one message, since the processor keeps and changes the
  * objects it is given; returns the processor's error when it rejects it.
  */
-function feed(processor: Processor, message: unknown): {code: string; message: string} | undefined {
+function feed(
+  processor: Processor,
+  message: unknown,
+): {code: string; message: string; inner?: string} | undefined {
   try {
     processor.processMessages(
       structuredClone(message) as Parameters<Processor['processMessages']>[0],
@@ -143,10 +148,105 @@ function feed(processor: Processor, message: unknown): {code: string; message: s
   } catch (error) {
     if (error instanceof Error) {
       const code = (error as {code?: unknown}).code;
-      return {code: typeof code === 'string' ? code : error.name, message: error.message};
+      return {code: typeof code === 'string' ? code : error.name, ...rejectionOf(error, message)};
     }
     return {code: 'ERROR', message: String(error)};
   }
+}
+
+/** A Zod issue as web core's validation errors carry them. */
+interface ZodIssue {
+  code: string;
+  path: Array<string | number>;
+  keys?: string[];
+  unionErrors?: Array<{issues: ZodIssue[]}>;
+}
+
+const COMPONENT_FAILED = /^Validation failed for component '[^']*' \((.*)\): /;
+
+const MESSAGE_FAILED = /^(Invalid \S+ message: )([\s\S]*)$/;
+
+/**
+ * Web core's sentence for a rejection, and where in the message it says the
+ * message went wrong, from the Zod issues the error carries: a component that
+ * fails its catalog's schema at the property inside it, and a message that
+ * fails web core's own schema at the issue's path. When no branch of web
+ * core's message union fits, the sentence keeps only the issues of the
+ * branch of the message's own type.
+ */
+function rejectionOf(error: Error, message: unknown): {message: string; inner?: string} {
+  const details = (error as {details?: unknown}).details;
+  const issues = Array.isArray(details)
+    ? (details as ZodIssue[])
+    : ((details as {issues?: ZodIssue[]} | undefined)?.issues ?? []);
+  if (issues.length === 0) return {message: error.message};
+  const component = COMPONENT_FAILED.exec(error.message);
+  if (component !== null) {
+    const base = componentPointer(message, component[1]);
+    return {
+      message: error.message,
+      ...(base !== undefined && {inner: base + issuePointer(issues[0])}),
+    };
+  }
+  const failed = MESSAGE_FAILED.exec(error.message);
+  if (failed === null) return {message: error.message};
+  const leaves = issues.flatMap(issue => leavesOf(issue, messageTypeOf(message)));
+  const kept = leaves.filter(leaf => leaf.kept);
+  const pieces = failed[2].split('; ');
+  return {
+    message:
+      pieces.length === leaves.length && kept.length > 0
+        ? failed[1] + pieces.filter((_, index) => leaves[index].kept).join('; ')
+        : error.message,
+    ...(kept.length > 0 && {inner: issuePointer(kept[0].issue)}),
+  };
+}
+
+/**
+ * The issues web core's formatter writes for one issue, in its order: each
+ * branch's issues for a union, kept only for the branch of the message's own
+ * type when one is, its issues all under that type's key.
+ */
+function leavesOf(
+  issue: ZodIssue,
+  type: string | undefined,
+): Array<{issue: ZodIssue; kept: boolean}> {
+  const branches = issue.code === 'invalid_union' ? (issue.unionErrors ?? []) : [];
+  if (branches.every(branch => branch.issues.length === 0)) return [{issue, kept: true}];
+  const own = branches.find(
+    branch =>
+      branch.issues.length > 0 &&
+      branch.issues.every(({path}) => path[0] !== undefined && path[0] === type),
+  );
+  return branches.flatMap(branch =>
+    branch.issues
+      .flatMap(inner => leavesOf(inner, type))
+      .map(leaf => ({...leaf, kept: leaf.kept && (own === undefined || branch === own)})),
+  );
+}
+
+/** A Zod issue's path as a JSON Pointer, ending at the key for an unrecognized one. */
+function issuePointer(issue: ZodIssue): string {
+  const path =
+    issue.code === 'unrecognized_keys' && issue.keys?.length
+      ? [...issue.path, issue.keys[0]]
+      : issue.path;
+  return path
+    .map(segment => `/${String(segment).replace(/~/g, '~0').replace(/\//g, '~1')}`)
+    .join('');
+}
+
+/** The pointer to the component with an id in a message's `components`, under its one message type. */
+function componentPointer(message: unknown, id: string): string | undefined {
+  const type = messageTypeOf(message);
+  if (type === undefined) return undefined;
+  const components = ((message as Record<string, unknown>)[type] as {components?: unknown} | null)
+    ?.components;
+  if (!Array.isArray(components)) return undefined;
+  const index = components.findIndex(component => (component as {id?: unknown} | null)?.id === id);
+  return index === -1
+    ? undefined
+    : `/${type.replace(/~/g, '~0').replace(/\//g, '~1')}/components/${index}`;
 }
 
 /**

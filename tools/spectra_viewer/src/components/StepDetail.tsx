@@ -1,14 +1,19 @@
 import {useState} from 'react';
 
+import {markedPath} from '@/model/json_lines.ts';
 import type {Problem} from '@/model/problems.ts';
 import {isWireInput, type TurnRecordEvent, unixMillis, type WireEvent} from '@/model/record.ts';
 import {deliveryLabel, plural, type Step, type TimelineRow} from '@/model/steps.ts';
 
 import {formatOffset, toneOf} from './format.ts';
 import {Icon} from './icons.tsx';
-import {BlockLabel, JsonBlock} from './JsonBlock.tsx';
+import {BlockLabel, JsonBlock, type Reveal} from './JsonBlock.tsx';
 
-/** The selected step's detail: its problems, then what it holds, then the delivery it arrived in, folded. */
+/**
+ * The selected step's detail: its problems, then what it holds, then the
+ * delivery it arrived in, folded. A problem that marks a line in the step's
+ * message is pressed to bring the line into view.
+ */
 export function StepDetail({
   row,
   events,
@@ -25,6 +30,13 @@ export function StepDetail({
   onToggle: () => void;
 }) {
   const offset = offsetOf(row, events, startMs);
+  const [reveal, setReveal] = useState<Reveal>();
+  const message = row.row === 'step' && row.kind === 'message' ? row.message : undefined;
+  const markOf = (problem: Problem) =>
+    message === undefined || problem.inner === undefined
+      ? undefined
+      : markedPath(message, problem.inner);
+  const marks = problems.flatMap(problem => markOf(problem) ?? []);
   return (
     <section aria-label="The step's detail" className="flex h-full min-h-0 flex-col border-t">
       <div className="flex h-10 shrink-0 items-center gap-2 pr-2.5 pl-4">
@@ -59,26 +71,57 @@ export function StepDetail({
       </div>
       {!collapsed && (
         <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-auto px-4 pb-3.5">
-          {problems.map((problem, index) => (
-            <div
-              key={index}
-              className="flex items-start gap-2.5 rounded-[10px] bg-problem-soft px-3 py-2.5"
-            >
-              <Icon kind="failed" size={14} className="mt-0.5 text-problem" />
-              <div className="flex min-w-0 flex-col gap-0.5">
-                <span className="font-medium">{problem.sentence}</span>
-                <span className="text-xs text-muted-strong">{problem.code}</span>
+          {problems.map((problem, index) => {
+            const mark = markOf(problem);
+            return mark === undefined ? (
+              <div
+                key={index}
+                className="flex items-start gap-2.5 rounded-[10px] bg-problem-soft px-3 py-2.5"
+              >
+                <ProblemText problem={problem} />
               </div>
-            </div>
-          ))}
+            ) : (
+              <button
+                key={index}
+                type="button"
+                onClick={() => setReveal({path: mark})}
+                className="group ease-quick flex shrink-0 cursor-pointer items-start gap-2.5 rounded-[10px] bg-problem-soft px-3 py-2.5 text-left hover:shadow-[inset_0_0_0_1px_var(--problem)]"
+              >
+                <ProblemText problem={problem} />
+                <span className="ease-quick mt-px ml-auto inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-muted-foreground group-hover:text-brand">
+                  <Icon kind="jump" size={13} />
+                  Show line
+                </span>
+              </button>
+            );
+          })}
           {row.row === 'delivery' ? (
             <DeliveryBlocks event={events[row.eventIndex] as WireEvent} />
           ) : (
-            <StepBlocks step={row} events={events} startMs={startMs} />
+            <StepBlocks
+              step={row}
+              events={events}
+              startMs={startMs}
+              marks={marks}
+              reveal={reveal}
+            />
           )}
         </div>
       )}
     </section>
+  );
+}
+
+/** A problem's plain sentence, then its code. */
+function ProblemText({problem}: {problem: Problem}) {
+  return (
+    <>
+      <Icon kind="failed" size={14} className="mt-0.5 text-problem" />
+      <span className="flex min-w-0 flex-col gap-0.5">
+        <span className="font-medium">{problem.sentence}</span>
+        <span className="text-xs text-muted-strong">{problem.code}</span>
+      </span>
+    </>
   );
 }
 
@@ -97,10 +140,15 @@ function StepBlocks({
   step,
   events,
   startMs,
+  marks,
+  reveal,
 }: {
   step: Step;
   events: readonly TurnRecordEvent[];
   startMs: number;
+  /** The paths its message's problems mark. */
+  marks: readonly string[];
+  reveal: Reveal | undefined;
 }) {
   const event =
     step.position === undefined ? undefined : (events[step.position.eventIndex] as WireEvent);
@@ -134,7 +182,9 @@ function StepBlocks({
   const metadata = (step.part as {metadata?: unknown} | undefined)?.metadata;
   return (
     <>
-      {step.kind === 'message' && <JsonBlock label="Message" value={step.message} />}
+      {step.kind === 'message' && (
+        <JsonBlock label="Message" value={step.message} marks={marks} reveal={reveal} />
+      )}
       {step.kind === 'data' && <JsonBlock label="Data" value={step.part?.content} />}
       {step.kind === 'text' && (
         <section className="flex flex-col gap-1.5">
