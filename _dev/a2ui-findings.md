@@ -633,6 +633,8 @@ for example with a refinement that rejects `undefined`.
 
 **Severity:** sample defect: the two core Python samples do not start.
 
+**Upstream:** PR #3272, PR #3273.
+
 Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24), not at the
 commit above; at `020a9d6f` the samples run.
 
