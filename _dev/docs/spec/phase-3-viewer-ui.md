@@ -14,7 +14,7 @@ The viewer's frame, layout and visual design, drawn first as a design artifact t
 
 ### 1. The design artifact comes first
 
-The phase's first sub-task is a design artifact showing every screen and state of this spec. Every later sub-task follows it. The details the decisions below leave open, such as the exact teal, the drawing of the mark and the icon for each step type, are settled in it.
+The phase's first sub-task is a design artifact showing every screen and state of this spec: the Design canvas "Spectra viewer UI", https://claude.ai/artifact/EiYG8HSHhGhPfDkMaRexQ2. Every later sub-task follows it. The details the decisions below leave open, such as the exact teal, the drawing of the mark and the icon for each step type, are settled in it.
 
 ### 2. The character: a product, neat and clean, not a devtool
 
@@ -22,7 +22,7 @@ Monospace appears only inside JSON and code. Times, durations, message types and
 
 ### 3. The frame: a left rail and a context bar
 
-A left rail holds Spectra's mark and the sections: Turns, joined by Fixtures in Phase 7. A context bar above the turn list and the turn view shows the attached agent's name, the mode (`run` or `attach`), the live status and the wire proxy's address with a copy button. A popover on the agent's name holds the agent's URL, the A2A version, and the A2UI versions and catalogs its card advertises. The live status replaces the separate bar that says the live stream is down. From Phase 8, Restart and Logs sit on the right of the context bar, and the logs open as a drawer at the bottom of the page.
+A left rail holds Spectra's mark with its name under it, and the sections: Turns, joined by Fixtures in Phase 7. A context bar above the turn list and the turn view shows the attached agent's name, the mode (`run` or `attach`), the live status and the wire proxy's address with a copy button. A popover on the agent's name holds the agent's URL, the A2A version, and the A2UI versions and catalogs its card advertises. The live status replaces the separate bar that says the live stream is down. From Phase 8, Restart and Logs sit on the right of the context bar, and the logs open as a drawer at the bottom of the page.
 
 ### 4. The turn list: grouped by conversation
 
@@ -78,11 +78,11 @@ With no turns, the turn view shows, centred: the agent's name and its live statu
 
 ### 17. Identity: Spectra's own mark, A2UI's teal
 
-Spectra has its own mark: a prism splitting light into a spectrum. Its one accent is teal, the primary colour of A2UI's documentation site, used only for selection, focus, links and the main action.
+Spectra has its own mark: a card with a lens over its corner, the card solid outside the lens and see-through under it, a lens to view an agent that draws UI. Its one accent is teal, the primary colour of A2UI's documentation site, used only for selection, focus, links and the main action.
 
-### 18. Status: colour only for trouble
+### 18. Status: colour for trouble and for a completed turn's badge
 
-Each outcome (completed, waiting for input, failed, cancelled, open) has its own icon shape, in grey, with a neutral label. Red is kept for failed turns and problem counts. The open turn's spinner is teal.
+Each outcome (completed, waiting for input, failed, cancelled, open) has its own icon shape, in grey, with a neutral label. Red is kept for failed turns and problem counts. A completed turn's status badge is green. The open turn's spinner is teal.
 
 ### 19. Step types: shape, not colour
 
@@ -90,7 +90,7 @@ Each step type has its own icon shape, in grey. Only the selected row is teal, a
 
 ### 20. Type: compact, Inter
 
-The scale has five sizes: 18px for the turn's title, 15px for pane titles, 13px for body text and rows, 12px for metadata and monospace, and 11px for section labels in small capitals. List rows and steps are about 32px tall. The typeface is Inter, bundled with the viewer.
+The scale steps in 2px: 18px for the turn's title, 16px for pane titles, 14px for body text and rows, and 12px for metadata, monospace and section labels in small capitals. List rows and steps are about 32px tall. The typeface is Inter, bundled with the viewer.
 
 ### 21. Surfaces: raised panels on a soft canvas
 

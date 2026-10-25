@@ -17,6 +17,7 @@ Spectra is a dev tool for the developer of an A2UI agent: attach to the running 
 - **No guessed run commands.** Consult the README of the package in question for build, run and test steps.
 - **No disposition popups — always plain chat.** Never use `AskUserQuestion` to present decisions or choices. Lay out the options, tradeoffs and a recommendation as plain text.
 - **Local only.** Spectra runs as a local process. Nothing in this project is deployed, and there is no cloud for it.
+- **One design artifact for the viewer.** The viewer's UI is drawn in the Design canvas "Spectra viewer UI": https://claude.ai/artifact/EiYG8HSHhGhPfDkMaRexQ2. Every phase that adds to or changes the viewer's UI works on that canvas, by its link, never a new one, and the viewer's build follows it.
 
 ### Daily-work harness
 
