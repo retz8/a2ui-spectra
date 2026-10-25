@@ -24,7 +24,9 @@ export function MessageBoxPanel({onOpenTurn}: {onOpenTurn: (traceId: string) => 
   const lastEntry = entries[entries.length - 1];
   const lastSize = lastEntry === undefined ? 0 : lastEntry.replies.length + lastEntry.a2uiMessages;
 
-  useEffect(() => end.current?.scrollIntoView({block: 'end'}), [entries.length, lastSize]);
+  useEffect(() => {
+    end.current?.scrollIntoView({block: 'end'});
+  }, [entries.length, lastSize]);
 
   const turnOpen = box.openTurn !== undefined;
   const disabledReason =

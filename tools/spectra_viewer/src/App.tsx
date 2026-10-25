@@ -38,7 +38,9 @@ function useSelection(): [
 export function App() {
   const state = useSpectra();
   const [selected, select] = useSelection();
-  useEffect(() => spectra.start(), []);
+  useEffect(() => {
+    spectra.start();
+  }, []);
 
   // A page opened with no turn in its address selects the newest.
   const newest = state.turns[0]?.traceId;
