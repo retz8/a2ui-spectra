@@ -210,7 +210,14 @@ function TurnBody({
         </ResizablePanel>
         <ResizableHandle />
         <ResizablePanel minSize={360}>
-          <ResizablePanelGroup orientation="vertical">
+          <ResizablePanelGroup
+            orientation="vertical"
+            onLayoutChanged={() => {
+              // Read once the change is complete: during it, the panel's sizes can disagree.
+              const panel = detail.current;
+              if (panel !== null) setCollapsed(panel.isCollapsed());
+            }}
+          >
             <ResizablePanel minSize={160}>
               <ResultPane
                 reply={reply}
@@ -227,7 +234,6 @@ function TurnBody({
               minSize={120}
               collapsible
               collapsedSize={DETAIL_TITLE}
-              onResize={size => setCollapsed(size.inPixels <= DETAIL_TITLE + 1)}
             >
               {selected !== undefined && (
                 <StepDetail
