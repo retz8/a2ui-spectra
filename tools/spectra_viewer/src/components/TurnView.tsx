@@ -1,8 +1,9 @@
-import {type ReactNode, useMemo, useState} from 'react';
-import {usePanelRef} from 'react-resizable-panels';
+import {type ReactNode, useEffect, useMemo, useRef, useState} from 'react';
+import {type PanelImperativeHandle, usePanelRef} from 'react-resizable-panels';
 
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
 import {checkLinesOf, checkStateOf} from '@/model/check_state.ts';
+import {stepInView} from '@/model/follow.ts';
 import {inputBriefOfTurn} from '@/model/input_brief.ts';
 import {problemsOf} from '@/model/problems.ts';
 import {type Turn, type TurnRecordEvent, unixMillis} from '@/model/record.ts';
@@ -14,6 +15,7 @@ import {type TurnView as TurnViewState, turnViewOf, useNeededRecords} from '@/st
 import {useSpectra} from '@/state/spectra.ts';
 
 import {Composer} from './Composer.tsx';
+import {FirstScreen} from './FirstScreen.tsx';
 import {formatDuration, formatOffset, formatStart} from './format.ts';
 import {ResultPane} from './ResultPane.tsx';
 import {StepDetail} from './StepDetail.tsx';
@@ -23,7 +25,10 @@ import {TurnHeader} from './TurnHeader.tsx';
 /** The detail's height when collapsed to its title line, in pixels. */
 const DETAIL_TITLE = 41;
 
-/** The turn view: the selected turn, with the composer docked under it. */
+/** The detail's height when open with no size of its own yet, as a percentage of the pane. */
+const DETAIL_OPEN = '38';
+
+/** The turn view: the selected turn, or the first screen with no turns, with the composer docked under it. */
 export function TurnView({
   traceId,
   onSelect,
@@ -36,16 +41,29 @@ export function TurnView({
   const view: TurnViewState =
     traceId === undefined ? {status: 'none'} : turnViewOf(state, traceId, needs);
   useNeededRecords(needs);
+  const [draft, setDraft] = useState('');
+  const input = useRef<HTMLInputElement>(null);
+
+  const first = traceId === undefined && state.loaded && state.turns.length === 0;
+  useEffect(() => {
+    if (first) input.current?.focus();
+  }, [first]);
 
   let body: ReactNode;
-  if (traceId === undefined) {
+  if (first) {
     body = (
-      <Empty>
-        {state.loaded && state.turns.length === 0
-          ? 'No turns yet. Send a message to start one.'
-          : 'No turn selected.'}
-      </Empty>
+      <FirstScreen
+        context={state.context}
+        connected={state.connected}
+        canSend={state.box.unavailable === undefined}
+        onExample={example => {
+          setDraft(example);
+          input.current?.focus();
+        }}
+      />
     );
+  } else if (traceId === undefined) {
+    body = <Empty>No turn selected.</Empty>;
   } else if (view.status === 'loading') {
     body = <Empty>Reading the turn…</Empty>;
   } else if (view.status === 'error') {
@@ -58,7 +76,7 @@ export function TurnView({
   return (
     <main className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl bg-panel shadow-panel">
       {body}
-      <Composer onSent={onSelect} />
+      <Composer text={draft} onText={setDraft} inputRef={input} onSent={onSelect} />
     </main>
   );
 }
@@ -100,8 +118,10 @@ function TurnBody({
   const bySurface = useMemo(() => countBy(problems, problem => problem.surfaceId), [problems]);
 
   const [picked, setPicked] = useState<string | undefined>();
-  // Until a step is picked, the newest is selected.
-  const selected = timeline.find(row => row.id === picked) ?? timeline[timeline.length - 1];
+  // Whether the view watched the turn while it was open, to land on its first problem as it closes.
+  const [followed] = useState(open);
+  const inView = stepInView(timeline, {open, picked, followed, problems: byStep});
+  const selected = inView.row;
   const position = useMemo(() => positionOf(selected), [selected]);
   const pane = useMemo(
     () =>
@@ -115,7 +135,12 @@ function TurnBody({
   const reply = useMemo(() => replyThrough(events, position), [events, position]);
 
   const detail = usePanelRef();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(!inView.selected);
+  // The detail is collapsed to its title line until a step is selected.
+  useEffect(() => {
+    if (inView.selected) openDetail(detail.current);
+    else detail.current?.collapse();
+  }, [inView.selected, detail]);
 
   const row = state.turns.find(listed => listed.traceId === traceId);
   const input = turn === undefined ? undefined : inputBriefOfTurn(turn);
@@ -145,7 +170,10 @@ function TurnBody({
             rows={timeline}
             selected={selected?.id ?? ''}
             problems={byStep}
+            live={open}
+            following={inView.following}
             onSelect={setPicked}
+            onJump={() => setPicked(undefined)}
           />
         </ResizablePanel>
         <ResizableHandle />
@@ -154,7 +182,7 @@ function TurnBody({
             <ResizablePanel minSize={160}>
               <ResultPane
                 reply={reply}
-                asOf={asOfLabel(selected, events, startMs)}
+                asOf={inView.following ? 'Live' : asOfLabel(selected, events, startMs)}
                 replay={pane}
                 problemsBySurface={bySurface}
                 open={open}
@@ -163,7 +191,7 @@ function TurnBody({
             <ResizableHandle />
             <ResizablePanel
               panelRef={detail}
-              defaultSize="38"
+              defaultSize={inView.selected ? DETAIL_OPEN : DETAIL_TITLE}
               minSize={120}
               collapsible
               collapsedSize={DETAIL_TITLE}
@@ -178,7 +206,7 @@ function TurnBody({
                   problems={problems.filter(problem => problem.stepId === selected.id)}
                   collapsed={collapsed}
                   onToggle={() => {
-                    if (collapsed) detail.current?.expand();
+                    if (collapsed) openDetail(detail.current);
                     else detail.current?.collapse();
                   }}
                 />
@@ -189,6 +217,13 @@ function TurnBody({
       </ResizablePanelGroup>
     </>
   );
+}
+
+/** Opens the collapsed detail to its last size, or, when it started collapsed and has none, to its default. */
+function openDetail(panel: PanelImperativeHandle | null): void {
+  if (panel === null || !panel.isCollapsed()) return;
+  panel.expand();
+  if (panel.getSize().inPixels <= DETAIL_TITLE + 1) panel.resize(DETAIL_OPEN);
 }
 
 /** Where the surfaces stand for a row: after its step, or after its whole delivery; the outcome follows everything. */

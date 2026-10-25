@@ -7,13 +7,17 @@ import {isTurnEvent, type Turn, type TurnRecordEvent, unixMillis} from './record
 import {replay} from './replay.ts';
 import {timelineOf} from './steps.ts';
 
+/** A recording's last turn's problems, each step named by its message's key, or by its id when it has none. */
 function problemsOfRecording(name: string, extra: TurnRecordEvent[] = []) {
   const {turns} = readRecording(name);
   const turn: Turn = {events: [...turns[turns.length - 1].events, ...extra]};
   const start = turn.events.find(isTurnEvent);
   assert.ok(start);
   const rows = timelineOf(turn.events, unixMillis(start.startTimeUnixNano));
-  return problemsOf(turn.events, rows, replay(turns.slice(0, -1), turn.events).rejections);
+  const keys = new Map(rows.map(row => [row.id, row.row === 'step' ? row.messageKey : undefined]));
+  return problemsOf(turn.events, rows, replay(turns.slice(0, -1), turn.events).rejections).map(
+    ({stepId, ...problem}) => ({step: keys.get(stepId) ?? stepId, ...problem}),
+  );
 }
 
 function check(findings: Array<{code: string; message: string; path?: string}>): TurnRecordEvent {
@@ -37,7 +41,7 @@ describe('problemsOf', () => {
   it('puts a rejection on the step of the message the processor rejected', () => {
     assert.deepEqual(problemsOfRecording('file_upload_summarizer/artifact_stream_and_send'), [
       {
-        stepId: 'message-2.4',
+        step: '2.4',
         sentence: 'Surface file_upload_surface_b88930f6 already exists.',
         code: 'INTEGRITY_ERROR · A2UI web core',
         surfaceId: 'file_upload_surface_b88930f6',
@@ -47,7 +51,7 @@ describe('problemsOf', () => {
 
   it("puts a failed turn's reason on the outcome", () => {
     assert.deepEqual(problemsOfRecording('ag2/stream_v1_0_failed'), [
-      {stepId: 'outcome', sentence: 'The scripted model failed.', code: 'outcome failed'},
+      {step: 'outcome', sentence: 'The scripted model failed.', code: 'outcome failed'},
     ]);
   });
 
@@ -63,19 +67,19 @@ describe('problemsOf', () => {
       ]),
     ]);
     assert.deepEqual(
-      problems.map(({stepId, code, inner}) => ({stepId, code, inner})),
+      problems.map(({step, code, inner}) => ({step, code, inner})),
       [
         {
-          stepId: 'message-4.1.2',
+          step: '4.1.2',
           code: 'VALIDATION_FAILED · schema check, A2UI v1.0',
           inner: '/callFunction',
         },
         {
-          stepId: 'outcome',
+          step: 'outcome',
           code: 'SCHEMA_VERSIONS_MIXED · schema check, A2UI v1.0',
           inner: undefined,
         },
-        {stepId: 'message-4.1.2', code: 'VALIDATION_ERROR · A2UI web core', inner: undefined},
+        {step: '4.1.2', code: 'VALIDATION_ERROR · A2UI web core', inner: undefined},
       ],
     );
   });

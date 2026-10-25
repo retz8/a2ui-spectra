@@ -1,4 +1,4 @@
-import {type FormEvent, type KeyboardEvent, useState} from 'react';
+import {type FormEvent, type KeyboardEvent, type Ref, useState} from 'react';
 
 import {cn} from '@/lib/utils';
 import {composerOf} from '@/state/selectors.ts';
@@ -9,13 +9,23 @@ import {Icon, type IconKind} from './icons.tsx';
 
 /**
  * The message box, docked under the turn view: it sends in the box's own
- * conversation, says which one that is, and offers a new conversation.
+ * conversation, says which one that is, and offers a new conversation. Its
+ * text is held by the turn view, which the first screen's examples fill.
  */
-export function Composer({onSent}: {onSent: (traceId: string) => void}) {
+export function Composer({
+  text,
+  onText,
+  inputRef,
+  onSent,
+}: {
+  text: string;
+  onText: (text: string) => void;
+  inputRef?: Ref<HTMLInputElement>;
+  onSent: (traceId: string) => void;
+}) {
   const state = useSpectra();
   const view = composerOf(state);
   const agent = state.context?.agentName ?? 'the agent';
-  const [text, setText] = useState('');
   const [error, setError] = useState<string | undefined>();
   const [sending, setSending] = useState(false);
 
@@ -41,7 +51,7 @@ export function Composer({onSent}: {onSent: (traceId: string) => void}) {
     setError(undefined);
     try {
       const traceId = await spectra.send(text);
-      setText('');
+      onText('');
       onSent(traceId);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : String(caught));
@@ -90,10 +100,11 @@ export function Composer({onSent}: {onSent: (traceId: string) => void}) {
           )}
         >
           <input
+            ref={inputRef}
             type="text"
             aria-label="Message the agent"
             value={text}
-            onChange={event => setText(event.target.value)}
+            onChange={event => onText(event.target.value)}
             onKeyDown={onKeyDown}
             disabled={disabled}
             placeholder={

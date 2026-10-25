@@ -43,7 +43,11 @@ export interface Position {
 
 export interface Step {
   row: 'step';
-  /** Names the step within its turn. */
+  /**
+   * Names the step within its turn, by its event's span id, so it is the same
+   * while the turn is open, when only its wire events have come, and once it
+   * has closed.
+   */
   id: string;
   kind: 'input' | 'status' | 'text' | 'data' | 'file' | 'message' | 'outcome';
   icon: StepIcon;
@@ -69,6 +73,7 @@ export interface Step {
 /** A delivery that carries several steps. */
 export interface DeliveryRow {
   row: 'delivery';
+  /** Names the delivery within its turn, by its event's span id. */
   id: string;
   eventIndex: number;
   offsetMs: number;
@@ -107,7 +112,7 @@ export function timelineOf(events: readonly TurnRecordEvent[], startMs: number):
     const {parts} = event.attributes['a2ui.wire.message'];
     rows.push({
       row: 'delivery',
-      id: `delivery-${eventIndex}`,
+      id: `delivery-${event.spanId}`,
       eventIndex,
       offsetMs,
       parts: parts.length,
@@ -152,7 +157,7 @@ function stepsOfEvent(event: WireEvent, eventIndex: number): Step[] {
     return [
       {
         ...base,
-        id: `input-${eventIndex}`,
+        id: `input-${event.spanId}`,
         kind: 'input',
         icon: 'input',
         label: 'Input',
@@ -165,7 +170,7 @@ function stepsOfEvent(event: WireEvent, eventIndex: number): Step[] {
     return [
       {
         ...base,
-        id: `status-${eventIndex}`,
+        id: `status-${event.spanId}`,
         kind: 'status',
         icon: 'status',
         label: 'Status update',
@@ -186,7 +191,9 @@ function stepsOfEvent(event: WireEvent, eventIndex: number): Step[] {
         const type = messageTypeOf(message);
         return {
           ...base,
-          id: `message-${key}`,
+          id: array
+            ? `message-${event.spanId}.${partIndex}.${index}`
+            : `message-${event.spanId}.${partIndex}`,
           kind: 'message',
           icon: MESSAGE_ICONS.has(type as StepIcon) ? (type as StepIcon) : 'message',
           label: type ?? 'A2UI message',
@@ -197,7 +204,7 @@ function stepsOfEvent(event: WireEvent, eventIndex: number): Step[] {
         };
       });
     }
-    const id = `part-${eventIndex}.${partIndex}`;
+    const id = `part-${event.spanId}.${partIndex}`;
     if (part.type === 'text') {
       const text = typeof part.content === 'string' ? collapse(part.content) : '';
       return [

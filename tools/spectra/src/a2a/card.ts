@@ -80,6 +80,72 @@ export function checkTransport(card: Record<string, unknown>): TransportCheck {
   return {kind: 'no_jsonrpc', transports};
 }
 
+/** The start of each A2UI extension's URI, followed by its version. */
+const A2UI_EXTENSION = 'https://a2ui.org/a2a-extension/a2ui/';
+
+/** An A2UI extension the card advertises. */
+export interface A2uiExtension {
+  /** The version its URI names, such as `v0.9`. */
+  version: string;
+  /** Its `supportedCatalogIds`, in order. */
+  catalogIds: string[];
+}
+
+/** What the card states, as the viewer shows it. */
+export interface CardDetails {
+  /**
+   * The A2A versions the card states, in card order: in A2A 1.0, those of its
+   * JSON-RPC entries of `supportedInterfaces`; in A2A 0.3, its
+   * `protocolVersion`.
+   */
+  a2aVersions: string[];
+  /** The A2UI extensions in the card's `capabilities.extensions`, in card order. */
+  a2uiExtensions: A2uiExtension[];
+  /** The first example of each of the card's skills, in card order. */
+  examples: string[];
+}
+
+/** Reads what the viewer shows of the card. */
+export function cardDetailsOf(card: Record<string, unknown>): CardDetails {
+  const declared = Array.isArray(card.supportedInterfaces)
+    ? card.supportedInterfaces.flatMap(entry =>
+        isRecord(entry) && entry.protocolBinding === JSONRPC ? [entry.protocolVersion] : [],
+      )
+    : [card.protocolVersion];
+  const a2aVersions = [
+    ...new Set(declared.filter((version): version is string => isText(version))),
+  ];
+
+  const extensions =
+    isRecord(card.capabilities) && Array.isArray(card.capabilities.extensions)
+      ? card.capabilities.extensions
+      : [];
+  const a2uiExtensions = extensions.flatMap((extension): A2uiExtension[] => {
+    if (!isRecord(extension) || typeof extension.uri !== 'string') return [];
+    if (!extension.uri.startsWith(A2UI_EXTENSION)) return [];
+    const ids = isRecord(extension.params) ? extension.params.supportedCatalogIds : undefined;
+    return [
+      {
+        version: extension.uri.slice(A2UI_EXTENSION.length),
+        catalogIds: Array.isArray(ids) ? ids.filter(isText) : [],
+      },
+    ];
+  });
+
+  const skills = Array.isArray(card.skills) ? card.skills : [];
+  const examples = skills.flatMap(skill => {
+    const first =
+      isRecord(skill) && Array.isArray(skill.examples) ? skill.examples.find(isText) : undefined;
+    return typeof first === 'string' ? [first.trim()] : [];
+  });
+
+  return {a2aVersions, a2uiExtensions, examples};
+}
+
+function isText(value: unknown): value is string {
+  return typeof value === 'string' && value.trim() !== '';
+}
+
 function transportsOf(card: Record<string, unknown>): string[] {
   if (Array.isArray(card.supportedInterfaces)) {
     return card.supportedInterfaces.flatMap(entry =>

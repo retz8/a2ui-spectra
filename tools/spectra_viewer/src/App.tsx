@@ -1,10 +1,11 @@
-import {useCallback, useEffect, useSyncExternalStore} from 'react';
+import {useCallback, useEffect, useRef, useSyncExternalStore} from 'react';
 
 import {ContextBar} from '@/components/ContextBar.tsx';
 import {Rail} from '@/components/Rail.tsx';
 import {TurnList} from '@/components/TurnList.tsx';
 import {TurnView} from '@/components/TurnView.tsx';
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
+import {followNewest} from '@/model/follow.ts';
 import {spectra, useSpectra} from '@/state/spectra.ts';
 
 const TURN_HASH = /^#\/turns\/([0-9a-f]{32})$/;
@@ -43,12 +44,14 @@ export function App() {
     spectra.start();
   }, []);
 
-  // A page opened with no turn in its address selects the newest.
-  const newest = state.turns[0]?.traceId;
-  const pickNewest = state.loaded && selected === undefined && newest !== undefined;
+  // With no turn in the address, the newest is selected; while the newest is selected, a new turn is as it opens.
+  const newest = state.loaded ? state.turns[0]?.traceId : undefined;
+  const newestBefore = useRef<string | undefined>(undefined);
   useEffect(() => {
-    if (pickNewest && newest !== undefined) select(newest, {replace: true});
-  }, [pickNewest, newest, select]);
+    const next = followNewest(newestBefore.current, newest, selected);
+    newestBefore.current = newest;
+    if (next !== undefined) select(next, {replace: true});
+  }, [newest, selected, select]);
 
   return (
     <div className="flex h-screen min-w-[1080px] bg-canvas">

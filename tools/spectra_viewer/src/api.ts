@@ -18,12 +18,27 @@ export interface ListedTurn {
   rejections?: number;
 }
 
-/** The session, as the context bar shows it. */
+/** An A2UI extension the agent's card advertises. */
+export interface A2uiExtension {
+  /** The version its URI names, such as `v0.9`. */
+  version: string;
+  catalogIds: string[];
+}
+
+/** The session, as the context bar, the agent's popover and the first screen show it. */
 export interface SessionContext {
   agentName?: string;
+  /** The agent's own URL, the one Spectra was given. */
+  agentUrl: string;
   mode: 'run' | 'attach';
   /** The wire proxy's address, for a host app to point at. */
   proxyAddress: string;
+  /** The A2A versions the card states, in card order. */
+  a2aVersions: string[];
+  /** The A2UI extensions the card advertises, in card order. */
+  a2uiExtensions: A2uiExtension[];
+  /** The first example of each of the card's skills, in card order. */
+  examples: string[];
 }
 
 /** The message box's conversation. */

@@ -13,7 +13,7 @@ import {after, describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
 
 import {SseParser} from './a2a/sse.js';
-import type {ListedTurn} from './api.js';
+import type {ListedTurn, SessionContext} from './api.js';
 import type {MessageBoxState, SentMessage} from './message_box.js';
 import {
   type A2uiPart,
@@ -231,13 +231,15 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
         let live: LiveStream | undefined;
         try {
           await spectra.waitFor(/The viewer is at /);
-          const context = await getJson<{mode: string; agentName?: string; proxyAddress: string}>(
-            `${base}/api/context`,
-          );
+          const context = await getJson<SessionContext>(`${base}/api/context`);
           assert.deepEqual(context.body, {
             agentName: 'Spectra stub agent',
+            agentUrl: `http://127.0.0.1:${agentPort}/`,
             mode: 'attach',
             proxyAddress: `http://127.0.0.1:${proxyPort}/`,
+            a2aVersions: a2a === '1.0' ? ['1.0', '0.3'] : ['0.3', '1.0'],
+            a2uiExtensions: [],
+            examples: ['Hello'],
           });
           live = new LiveStream(`${base}/api/stream`);
           await live.ready;

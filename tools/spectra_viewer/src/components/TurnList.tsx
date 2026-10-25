@@ -35,6 +35,18 @@ export function TurnList({
   const groups = useMemo(() => groupTurns(turns), [turns]);
   const shown = useMemo(() => searchGroups(groups, query), [groups, query]);
 
+  // A group that gains the selection opens, even one closed by hand, as when following selects a new turn in it.
+  const [opened, setOpened] = useState(selected);
+  if (opened !== selected) {
+    setOpened(selected);
+    const holder = groups.find(group => group.turns.some(turn => turn.traceId === selected));
+    if (holder !== undefined && toggled.get(holder.key) === false) {
+      const next = new Map(toggled);
+      next.delete(holder.key);
+      setToggled(next);
+    }
+  }
+
   useEffect(() => {
     // `/` focuses the search, unless the key is typed into a field.
     const onKey = (event: KeyboardEvent) => {

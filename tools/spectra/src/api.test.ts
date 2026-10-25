@@ -6,7 +6,7 @@ import path from 'node:path';
 import {after, describe, it} from 'node:test';
 
 import {SseParser} from './a2a/sse.js';
-import type {ListedTurn} from './api.js';
+import type {ListedTurn, SessionContext} from './api.js';
 import {MessageBox} from './message_box.js';
 import type {Turn, TurnRecord, WireInputEvent, WirePart} from './record/turn_record.js';
 import {startViewerServer, type ViewerServer} from './server.js';
@@ -37,11 +37,20 @@ function freePort(): Promise<number> {
 
 const trace = (n: number) => String(n).padStart(32, '0');
 
-const CONTEXT = {
+const CONTEXT: SessionContext = {
   agentName: 'Restaurant Agent',
+  agentUrl: 'http://localhost:10002/',
   mode: 'run',
   proxyAddress: 'http://127.0.0.1:1/a2a',
-} as const;
+  a2aVersions: ['0.3.0'],
+  a2uiExtensions: [
+    {
+      version: 'v0.9',
+      catalogIds: ['https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json'],
+    },
+  ],
+  examples: ['Find me the top 10 chinese restaurants in the US'],
+};
 
 /** A closed turn: its turn event alone, starting n seconds after 2026-10-21T10:00:00Z. */
 function closedTurn(n: number, conversationId?: string): Turn {
@@ -288,7 +297,7 @@ describe('the API', () => {
     ]);
   });
 
-  it("serves the session's context: the agent's name, the mode and the wire proxy's address", async () => {
+  it("serves the session's context: the agent's name and URL, the mode, the wire proxy's address and the card's details", async () => {
     const {base} = await serve();
     const {status, body} = await getJson(`${base}/api/context`);
     assert.equal(status, 200);

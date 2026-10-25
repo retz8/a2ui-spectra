@@ -1,6 +1,6 @@
 import {constants} from 'node:os';
 
-import {checkTransport, rewriteCard} from './a2a/card.js';
+import {cardDetailsOf, checkTransport, rewriteCard} from './a2a/card.js';
 import {startWireProxy, type WireProxy} from './a2a/proxy.js';
 import {agentCardUrl, waitForAgentCard} from './agent_card.js';
 import {
@@ -154,8 +154,10 @@ export async function runSession(
           box,
           context: {
             ...(typeof card.name === 'string' && {agentName: card.name}),
+            agentUrl: options.agentUrl.href,
             mode: agentCommand === undefined ? 'attach' : 'run',
             proxyAddress: proxy.address,
+            ...cardDetailsOf(card),
           },
         },
       });

@@ -130,6 +130,13 @@ const PATHS = {
       <path d="M6 11l6-6 6 6" />
     </>
   ),
+  jump: (
+    <>
+      <path d="M12 4v11" />
+      <path d="M7 10.5l5 5 5-5" />
+      <path d="M5 20h14" />
+    </>
+  ),
   plus: <path d="M12 5v14M5 12h14" />,
   chevronRight: <path d="M9 6l6 6-6 6" />,
   chevronDown: <path d="M6 9l6 6 6-6" />,

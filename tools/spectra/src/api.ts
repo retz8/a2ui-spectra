@@ -1,14 +1,17 @@
 import type {IncomingMessage, ServerResponse} from 'node:http';
 
+import type {CardDetails} from './a2a/card.js';
 import {type ListingFields, listingFieldsOf} from './listing.js';
 import {type MessageBox, MessageBoxError} from './message_box.js';
 import type {StoredTurn, TurnStore} from './store/store.js';
 import type {HubEvent, TurnHub} from './turn_hub.js';
 
-/** What the context bar shows of the session. */
-export interface SessionContext {
+/** What the context bar, the agent's popover and the first screen show of the session. */
+export interface SessionContext extends CardDetails {
   /** The agent's name, from its card. */
   agentName?: string;
+  /** The agent's own URL, the one Spectra was given. */
+  agentUrl: string;
   mode: 'run' | 'attach';
   /** The wire proxy's address, for a host app to point at. */
   proxyAddress: string;
@@ -51,7 +54,8 @@ const HEARTBEAT_MS = 2000;
  * Answers a request under `/api/`. Returns false for any other path, which
  * the caller serves.
  *
- * - `GET /api/context`: the session: the agent's name, the mode and the wire proxy's address.
+ * - `GET /api/context`: the session: the agent's name and URL, the mode, the wire proxy's address,
+ *   and what the agent's card states.
  * - `GET /api/turns`: the turns, newest first.
  * - `GET /api/turns/<trace id>`: a closed turn's record.
  * - `GET /api/stream`: the live stream, as server-sent events.
