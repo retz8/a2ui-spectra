@@ -38,7 +38,7 @@ A step is one A2UI message, text part, data part, file part or status update. Wh
 
 ### 7. The step's detail: a split under the result
 
-The selected step's detail, its content and its problems, sits in a split under the result pane, resizable and collapsible. It ends with the delivery the step arrived in, folded: its parts in order, each with its metadata, and the delivery's metadata. A delivery's row is selectable and shows the same delivery. The Input step's detail is the request as sent, with the host's capabilities and data model. Every JSON block has a copy button and folds its objects and arrays.
+The selected step's detail, its content and its problems, sits in a split under the result pane, resizable and collapsible. It ends with the delivery the step arrived in, folded: its parts in order, each with its metadata, and the delivery's metadata. A delivery's row is selectable and shows the same delivery. The Input step's detail is the request as sent, with the host's capabilities and data model. Every JSON block has a copy button and folds its objects and arrays. A problem block that marks a line scrolls to it when pressed, and a folded line carries the mark of a line inside it.
 
 ### 8. The result pane: Preview and Structure
 
@@ -46,7 +46,7 @@ The result pane shows the agent's reply text in a strip above two tabs: Preview,
 
 ### 9. Problems: marks on the steps, one count, the count as a filter
 
-One count covers every source of problems: the checks' findings, the processor's rejections and a failed turn's reason, and later the parse errors, retries and the preview's render errors. It shows in the turn's header, and on its row when there are problems. With none, the header reads "No problems", or "Not checked" with the reason, and lists each check that ran with its protocol version and result. Each step with a problem carries a mark and its count. The header's count acts as a filter that narrows the timeline to the steps with problems. A problem of the whole turn, such as a failure reason, is the timeline's last step. A turn with problems opens on its first problem.
+One count covers every source of problems: the checks' findings, the processor's rejections and a failed turn's reason, and later the parse errors, retries and the preview's render errors. It shows in the turn's header, and on its row when there are problems. With none, the header reads "No problems", or "Not checked" with the reason, and lists each check that ran with its protocol version and result. Each step with a problem carries a mark and its count. The header's count acts as a filter that narrows the timeline of the turn in view to the steps with problems. A problem of the whole turn, such as a failure reason, is the timeline's last step. A turn with problems opens on its first problem. A problem that says where it is marks its line in the step's JSON.
 
 ### 10. The turn header: led by the input
 
