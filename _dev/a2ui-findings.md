@@ -700,3 +700,122 @@ with the `## 0.1.0` section of `python/a2ui_a2a/CHANGELOG.md` at `409ded29c`.
 ### Fix
 
 Move #3269's entries under `## Unreleased`.
+
+## 22. AG2's v1.0 function call is not in v1.0's shape
+
+**Component:** `ag2` 1.2.1 (`ag2ai/ag2`): `ag2/a2ui/v1_0/`, `ag2/a2ui/_types.py`,
+`ag2/a2ui/parser.py`, `ag2/a2ui/a2a/executor.py`.
+
+**Severity:** deviation from the v1.0 protocol.
+
+**Upstream:** `ag2ai/ag2` PR #3469, merged 2026-10-23, after the 1.2.1 release of
+2026-10-21; no release carries it yet.
+
+Checked in the `ag2` 1.2.1 wheel from PyPI; AG2 paths are inside it.
+
+### Issue
+
+v1.0 wraps an agent's call to a renderer function in `callRendererFunction`,
+holding `functionCallId` and a `callFunction` that names the function with
+`@call` and must carry its `catalogId`
+(`specification/v1_0/json/agent_to_renderer.json:170-205`,
+`specification/v1_0/json/common_types.json:215-228`,
+`specification/v1_0/docs/a2ui_protocol.md:298-310`). It has no `wantResponse`:
+"the renderer MUST always send a corresponding `rendererFunctionResponse`"
+(`a2ui_protocol.md:300`). AG2 1.2.1 vendors v1.0 from upstream's `d8af0c56`
+(2026-06-13), "an upstream **candidate**" (`ag2/a2ui/v1_0/spec/README.md:8-9`),
+whose `CallFunctionMessage` put `functionCallId`, `wantResponse` and a
+`callFunction` named by `call` at the top level
+(`ag2/a2ui/v1_0/spec/server_to_client.json:177-210`). Upstream replaced it with
+`callRendererFunction` in #2210 (`e4882a5af`, 2026-08-12;
+`specification/v1_0/docs/evolution_guide.md:71`) and renamed `call` to `@call`
+in #2891 (`ae0a5253b`, 2026-10-02). AG2 still:
+
+- asks the model for the draft's shape
+  (`ag2/a2ui/v1_0/prompt_message_types.md:6`, `:22-24`);
+- knows a message's type only by the draft's payload keys
+  (`ag2/a2ui/_types.py:93-104`, `:139-157`), so a reply holding v1.0's
+  `callRendererFunction` is "not an A2UI message" (`ag2/a2ui/parser.py:105-122`)
+  and, once the retries run out, the whole block is dropped from the reply,
+  surface messages included (`ag2/a2ui/middleware.py:208-219`, `:245-251`);
+- ends the task input-required only on a top-level `callFunction` with
+  `wantResponse` (`ag2/a2ui/a2a/executor.py:294-321`), and reads the renderer's
+  answer as `functionResponse` (`executor.py:379-401`,
+  `ag2/a2ui/incoming.py:181-188`), where v1.0 sends `rendererFunctionResponse`
+  (`specification/v1_0/json/renderer_to_agent.json:75`).
+
+So a v1.0 renderer receives
+`{"version":"v1.0","functionCallId":…,"wantResponse":true,"callFunction":{"call":…,"args":…}}`,
+which `agent_to_renderer.json` rejects.
+
+### Reproduction
+
+`_dev/tools/ag2_a2ui_server.py` in `a2ui-spectra` serves
+`A2UIAgentExecutor(agent, protocol_version="v1.0")` on AG2's scripted model.
+With `--reply function_call`, the scripted reply holds a card and a call in the
+shape AG2's prompt asks for (`ag2_a2ui_server.py:46-54`): the message's text is
+the script's, and AG2 validates it, sends it, and ends the task input-required on
+it. The A2A capture suite's recording
+`conformance/test_data/a2a_capture/v0_1/ag2/stream_v1_0_function_call.har` in
+`a2ui-spectra` holds the turn.
+
+### Fix
+
+Vendor upstream's current v1.0 and move the prompt, the message types, the
+input-required check and the reply parsing to `callRendererFunction` and
+`rendererFunctionResponse`, as #3469 does on `main`; release it.
+
+## 23. The file-upload summarizer creates the same surface twice in a turn
+
+**Component:** `samples/community/agent/adk/file_upload_summarizer/agent_executor.py`,
+on ADK's `A2aAgentExecutor` (`google-adk` 2.3.0, as `uv.lock:1674-1675` pins).
+
+**Severity:** deviation from the v0.9 protocol.
+
+### Issue
+
+The v0.9 protocol says "It is an error to try to create a surface with a
+`surfaceId` that already exists without first deleting it"
+(`specification/v0_9/docs/a2ui_protocol.md:180`). Asked for the uploader, the
+sample's `show_file_uploader_tool` returns `createSurface` and
+`updateComponents` for a new `file_upload_surface_<id>` and sets
+`skip_summarization`, so the turn ends on the tool's response
+(`samples/community/agent/adk/file_upload_summarizer/tools.py:33-94`).
+`A2uiEventConverter(bypass_tool_check=True)` (`agent_executor.py:47-50`) turns
+that response into a `working` status update holding the two messages
+(`python/a2ui_adk/src/a2ui/adk/a2a/part_converter.py:99-118`). ADK's
+`A2aAgentExecutor` keeps the last `working` status message
+(`google/adk/a2a/executor/task_result_aggregator.py:61-62`) and, when the run
+ends still working, publishes that message's parts again as the task's artifact,
+"as the final result according to a2a protocol"
+(`google/adk/a2a/executor/a2a_agent_executor.py:291-310`, in `google-adk`
+2.3.0). So every turn carries its surface's `createSurface` twice, with no
+`deleteSurface` between:
+
+- over `message/stream`, in a `status-update` and then in an `artifact-update`;
+- over `message/send`, in the returned task's `history`, where `a2a-sdk` 0.3.25
+  moves each earlier status message (`a2a/server/tasks/task_manager.py:139-147`),
+  and again in its `artifacts`.
+
+A host that applies every update, as upstream's Angular restaurant client
+forwards both kinds (`samples/client/angular/projects/restaurant/src/server.ts:162-166`),
+creates the surface a second time, and upstream's web core rejects it with
+`Surface file_upload_surface_… already exists.`
+(`typescript/core/web_core/src/processing/message-processor.ts:761`). The
+sample's own host sends with `message/send` and reads only the task's status
+message and artifacts
+(`samples/community/client/angular/projects/a2a-chat-canvas/src/lib/utils/a2a.ts:39-52`),
+so it sees one copy.
+
+### Reproduction
+
+Run the sample with a Gemini key, stream "Show me the file uploader" with the
+v0.9 extension requested, then send "Show me the file uploader again" in the
+same context. The A2A capture suite's recording
+`conformance/test_data/a2a_capture/v0_1/file_upload_summarizer/artifact_stream_and_send.har`
+in `a2ui-spectra` holds both turns.
+
+### Fix
+
+Send each turn's A2UI messages once: keep them out of either the `working`
+status update or the final artifact ADK's executor builds from it.
