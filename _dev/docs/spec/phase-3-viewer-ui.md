@@ -7,7 +7,7 @@ The viewer's frame, layout and visual design, drawn first as a design artifact t
 - The design artifact, the phase's first sub-task: every screen and state below, in light and dark.
 - The skeleton: the frame, the turn list, the turn view, the composer, the live turn, small screens, the keyboard and the page address, the first screen.
 - The visual design on top of it: identity, status, type, surfaces, step types, theme, motion.
-- The changes to the message box's server and the API that these decisions need: continuing the conversation in view, and the agent card's details and example prompts.
+- The changes to the message box's server and the API that these decisions need: continuing the conversation in view; the agent card's details and example prompts; each turn's agent name, duration and processor rejections in the listing, the rejections counted on the server; and the agent's name, the mode and the wire proxy's address for the context bar.
 - Not in scope: the features later phases bring. They take the places this phase makes: the preview in the result pane (Phase 4), model and tool calls on the timeline and tokens in the header (Phase 5), Fixtures in the rail and Save as fixture and Replay in the header (Phase 7), Re-run in the header and Restart and Logs in the context bar (Phase 8).
 
 ## Locked decisions
@@ -26,7 +26,7 @@ A left rail holds Spectra's mark with its name under it, and the sections: Turns
 
 ### 4. The turn list: grouped by conversation
 
-The turn list is a column grouped by conversation, newest first, each group titled by its first message and the agent, with its number of turns. Each row shows the turn's status, its time, its input, its duration and its problem count. The list follows the newest turn, has a search, and can be collapsed.
+The turn list is a column grouped by conversation, newest first, each group titled by its first message and the agent, with its number of turns. Each row shows the turn's status, its time, its input, its duration, and its problem count when it has problems. While the newest turn is selected, a new turn from any host is selected as it opens; selecting an older turn stops following, and selecting the newest again resumes it. The search matches each turn's input, its conversation's title and agent, and a trace or conversation id, whole or short. Each group collapses and expands.
 
 ### 5. The turn view: the result in view, the steps beside it
 
@@ -34,19 +34,19 @@ The turn view shows the timeline of the turn's steps beside the result pane. Sel
 
 ### 6. The steps
 
-A step is one A2UI message, text part or status update. When one delivery carries several, they are grouped under it with its arrival time. Phase 5's model calls and tool calls join the same timeline.
+A step is one A2UI message, text part, data part, file part or status update. When one delivery carries several, they are grouped under it with its arrival time. The turn's outcome is the last step. Phase 5's model calls and tool calls join the same timeline.
 
 ### 7. The step's detail: a split under the result
 
-The selected step's detail, its content and its problems, sits in a split under the result pane, resizable and collapsible.
+The selected step's detail, its content and its problems, sits in a split under the result pane, resizable and collapsible. It ends with the delivery the step arrived in, folded: its parts in order, each with its metadata, and the delivery's metadata. A delivery's row is selectable and shows the same delivery. The Input step's detail is the request as sent, with the host's capabilities and data model. Every JSON block has a copy button and folds its objects and arrays.
 
 ### 8. The result pane: Preview and Structure
 
-The result pane shows the agent's reply text in a strip above two tabs: Preview, and Structure, which shows the tree and the data model side by side. A surface switcher in the pane's header lists the surfaces the turn touched first, each with its problem mark. Until Phase 4's preview, Structure is the only tab.
+The result pane shows the agent's reply text in a strip above two tabs: Preview, and Structure, which shows the tree and the data model side by side. The tree's nodes expand to their properties; components no parent reaches, and a stand-in catalog's components in the order they came, are listed under their own labels. A surface switcher in the pane's header lists the surfaces the turn touched first and then those it did not change, each with its catalog id and its problem mark, and shows a surface the turn deleted as deleted. Until Phase 4's preview, Structure is the only tab.
 
 ### 9. Problems: marks on the steps, one count, the count as a filter
 
-One count covers every source of problems: the checks' findings, the processor's rejections and a failed turn's reason, and later the parse errors, retries and the preview's render errors. It shows on the turn's row and in its header. Each step with a problem carries a mark and its count. The header's count acts as a filter that narrows the timeline to the steps with problems. A problem of the whole turn, such as a failure reason, is the timeline's last step. A turn with problems opens on its first problem.
+One count covers every source of problems: the checks' findings, the processor's rejections and a failed turn's reason, and later the parse errors, retries and the preview's render errors. It shows in the turn's header, and on its row when there are problems. With none, the header reads "No problems", or "Not checked" with the reason, and lists each check that ran with its protocol version and result. Each step with a problem carries a mark and its count. The header's count acts as a filter that narrows the timeline to the steps with problems. A problem of the whole turn, such as a failure reason, is the timeline's last step. A turn with problems opens on its first problem.
 
 ### 10. The turn header: led by the input
 
