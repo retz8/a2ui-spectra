@@ -45,6 +45,7 @@ Unit tests under Node's test runner cover the box holding several conversations,
 
 - "The agent is waiting for your reply" becomes "the agent is waiting for input" on the Flow 3 row's first, second and fourth boards, the Screens row's turn with a problem in light and dark, and the Components and states board.
 - The Components and states board's "Started by another host · sending starts a new conversation" reads as decision 3 has it, and its composer states gain decision 4's.
+- The Turn view details page's boards of the booking wizard, the file uploader and the stub agent's cancelled turn, conversations the box did not start, read as decision 3 has it.
 
 ### 9. The Phase 3 spec's amendments
 
