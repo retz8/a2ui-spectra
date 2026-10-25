@@ -12,6 +12,7 @@ import {basicCatalog as basicCatalogV09} from '@a2ui/web_core/v0_9/basic_catalog
 
 import {agentMessages, type AgentMessage} from './messages.ts';
 import type {Turn, TurnRecord, TurnRecordEvent} from './record.ts';
+import {isThrough, type Position} from './steps.ts';
 
 export interface ComponentNode {
   id: string;
@@ -78,10 +79,20 @@ export function replayRecord(record: TurnRecord): Replay {
   return replay(record.turns.slice(0, -1), record.turns[record.turns.length - 1].events);
 }
 
-/** The replay of a turn's events after the conversation's earlier turns. */
-export function replay(earlierTurns: readonly Turn[], events: readonly TurnRecordEvent[]): Replay {
+/**
+ * The replay of a turn's events after the conversation's earlier turns: up to
+ * a position, as the surfaces stood right after the step there, or through
+ * the whole turn.
+ */
+export function replay(
+  earlierTurns: readonly Turn[],
+  events: readonly TurnRecordEvent[],
+  through?: Position,
+): Replay {
   const earlier = earlierTurns.flatMap(turn => agentMessages(turn.events));
-  const own = agentMessages(events);
+  const own = agentMessages(events).filter(
+    message => through === undefined || isThrough(message, through),
+  );
   const standIns = standInCatalogs([...earlier, ...own]);
   const standInIds = new Set(standIns.map(catalog => catalog.id));
   const processor = new MessageProcessor(
@@ -119,10 +130,15 @@ export function replay(earlierTurns: readonly Turn[], events: readonly TurnRecor
   }
 }
 
-/** Feeds one message; returns the processor's error when it rejects it. */
+/**
+ * Feeds a copy of one message, since the processor keeps and changes the
+ * objects it is given; returns the processor's error when it rejects it.
+ */
 function feed(processor: Processor, message: unknown): {code: string; message: string} | undefined {
   try {
-    processor.processMessages(message as Parameters<Processor['processMessages']>[0]);
+    processor.processMessages(
+      structuredClone(message) as Parameters<Processor['processMessages']>[0],
+    );
     return undefined;
   } catch (error) {
     if (error instanceof Error) {

@@ -1,10 +1,22 @@
-import {CheckIcon, MinusIcon, TriangleAlertIcon} from 'lucide-react';
+import {useEffect, useMemo, useRef, useState} from 'react';
 
 import type {ListedTurn} from '@/api.ts';
-import {cn} from '@/lib/utils.ts';
+import {cn} from '@/lib/utils';
+import {listedProblemCount} from '@/model/problems.ts';
+import {plural} from '@/model/steps.ts';
+import {briefText, groupTurns, searchGroups, type TurnGroup} from '@/model/turn_groups.ts';
 
-import {formatStart, inputBriefText, OUTCOME_LABELS, OUTCOME_TONES, shortId} from './format.ts';
+import {
+  formatClock,
+  formatDuration,
+  formatTime,
+  STATUS_ICONS,
+  type TurnStatus,
+  toneOf,
+} from './format.ts';
+import {Icon} from './icons.tsx';
 
+/** The turn list: the turns grouped by conversation, newest first, with a search. */
 export function TurnList({
   turns,
   loaded,
@@ -16,31 +28,149 @@ export function TurnList({
   selected: string | undefined;
   onSelect: (traceId: string) => void;
 }) {
+  const [query, setQuery] = useState('');
+  // Each group the user opened or closed; the others are open when they hold the selection or a search's match.
+  const [toggled, setToggled] = useState<ReadonlyMap<string, boolean>>(new Map());
+  const search = useRef<HTMLInputElement>(null);
+  const groups = useMemo(() => groupTurns(turns), [turns]);
+  const shown = useMemo(() => searchGroups(groups, query), [groups, query]);
+
+  useEffect(() => {
+    // `/` focuses the search, unless the key is typed into a field.
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (event.key !== '/' || target?.closest('input, textarea, [contenteditable]')) return;
+      event.preventDefault();
+      search.current?.focus();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
+  const isOpen = (group: TurnGroup<ListedTurn>) =>
+    toggled.get(group.key) ??
+    (query.trim() !== '' || group.turns.some(turn => turn.traceId === selected));
+
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex h-11 shrink-0 items-center justify-between border-b px-3">
-        <h2 className="text-sm font-semibold">Turns</h2>
-        {loaded && <span className="text-xs text-muted-foreground">{turns.length}</span>}
+    <section
+      aria-label="Turns"
+      className="flex h-full min-h-0 flex-col overflow-hidden rounded-xl bg-panel shadow-panel"
+    >
+      <div className="flex shrink-0 flex-col gap-2.5 px-3.5 pt-3.5 pb-2.5">
+        <div className="flex items-baseline gap-2">
+          <h2 className="text-base font-semibold">Turns</h2>
+          <span className="text-xs text-muted-foreground">{turns.length}</span>
+        </div>
+        <label className="flex h-8 items-center gap-2 rounded-lg bg-tint pr-2 pl-2.5 text-muted-foreground">
+          <Icon kind="search" size={14} />
+          <input
+            ref={search}
+            type="search"
+            value={query}
+            onChange={event => setQuery(event.target.value)}
+            placeholder="Search turns"
+            aria-label="Search turns"
+            className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+          />
+          <kbd className="rounded border px-[5px] text-xs leading-4 text-muted-foreground">/</kbd>
+        </label>
       </div>
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {loaded && turns.length === 0 && (
-          <p className="p-3 text-sm text-muted-foreground">
-            No turns yet. Send a message from the box, or point a host at the wire proxy.
-          </p>
-        )}
-        <ol>
-          {turns.map(turn => (
-            <li key={turn.traceId}>
-              <TurnRow turn={turn} selected={turn.traceId === selected} onSelect={onSelect} />
-            </li>
+      {groups.length === 0 && (
+        <p className="mx-4 my-6 text-muted-foreground">
+          {loaded ? 'No turns yet.' : 'Reading the turns…'}
+        </p>
+      )}
+      {groups.length > 0 && shown.length === 0 && (
+        <p className="mx-4 my-6 text-muted-foreground">No turn matches “{query.trim()}”.</p>
+      )}
+      <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-2">
+        {shown.map(group => (
+          <Group
+            key={group.key}
+            group={group}
+            open={isOpen(group)}
+            selected={selected}
+            onToggle={() => setToggled(new Map(toggled).set(group.key, !isOpen(group)))}
+            onSelect={onSelect}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function statusOf(turn: ListedTurn): TurnStatus {
+  return turn.open ? 'open' : (turn.outcome ?? 'open');
+}
+
+function Group({
+  group,
+  open,
+  selected,
+  onToggle,
+  onSelect,
+}: {
+  group: TurnGroup<ListedTurn>;
+  open: boolean;
+  selected: string | undefined;
+  onToggle: () => void;
+  onSelect: (traceId: string) => void;
+}) {
+  const newest = group.turns[0];
+  const icon = STATUS_ICONS[statusOf(newest)];
+  const meta = [group.agentName, plural(group.turns.length, 'turn')].filter(Boolean).join(' · ');
+  return (
+    <div className="fade-in-quick pt-0.5 pb-1">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={onToggle}
+        className="ease-quick flex w-full cursor-pointer items-start gap-2 rounded-lg px-2 pt-2 pb-1.5 text-left hover:bg-tint"
+      >
+        <Icon kind={icon} size={15} className={cn('mt-0.5', toneOf(icon))} />
+        <span className="min-w-0 flex-1">
+          <span className="flex items-baseline gap-2">
+            <span className="min-w-0 flex-1 truncate font-medium">
+              {briefText(group.title) || 'A turn'}
+            </span>
+            <span className="shrink-0 text-xs text-muted-foreground">
+              {formatClock(newest.startTime)}
+            </span>
+          </span>
+          <span className="mt-px flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="truncate">{meta}</span>
+            <ProblemMark count={group.problems} size={12} />
+          </span>
+        </span>
+        <Icon
+          kind={open ? 'chevronDown' : 'chevronRight'}
+          size={14}
+          className="mt-0.5 text-muted-foreground"
+        />
+      </button>
+      {open && (
+        <div
+          role="listbox"
+          aria-label={briefText(group.title)}
+          className="flex flex-col gap-px pl-3.5"
+        >
+          {group.turns.map(turn => (
+            <Row
+              key={turn.traceId}
+              turn={turn}
+              selected={turn.traceId === selected}
+              onSelect={onSelect}
+            />
           ))}
-        </ol>
-      </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function TurnRow({
+function Row({
   turn,
   selected,
   onSelect,
@@ -49,63 +179,43 @@ function TurnRow({
   selected: boolean;
   onSelect: (traceId: string) => void;
 }) {
-  const outcome = turn.open ? 'open' : turn.outcome;
+  const icon = STATUS_ICONS[statusOf(turn)];
   return (
     <button
       type="button"
+      role="option"
+      aria-selected={selected}
       onClick={() => onSelect(turn.traceId)}
-      aria-current={selected}
       className={cn(
-        'flex w-full flex-col gap-0.5 border-b px-3 py-2 text-left hover:bg-accent/60',
-        selected && 'bg-accent',
+        'ease-quick fade-in-quick flex h-8 w-full cursor-pointer items-center gap-2 rounded-lg px-2 text-left',
+        selected ? 'bg-brand-soft shadow-[inset_2px_0_0_var(--brand)]' : 'hover:bg-tint',
       )}
     >
-      <span className="flex items-center gap-2 text-xs">
-        <span className="tabular-nums text-muted-foreground">{formatStart(turn.startTime)}</span>
-        {outcome !== undefined && (
-          <span className={cn('font-medium', OUTCOME_TONES[outcome])}>
-            {outcome === 'open' ? 'open' : OUTCOME_LABELS[outcome]}
-          </span>
-        )}
-        <span className="ml-auto flex items-center gap-2">
-          <SchemaCheckMark check={turn.schemaCheck} open={turn.open === true} />
-          {turn.conversationId !== undefined && (
-            <span className="font-mono text-muted-foreground" title={turn.conversationId}>
-              {shortId(turn.conversationId)}
-            </span>
-          )}
+      <Icon kind={icon} size={14} className={toneOf(icon)} />
+      <span className="shrink-0 text-xs text-muted-foreground">{formatTime(turn.startTime)}</span>
+      <span className={cn('min-w-0 flex-1 truncate', selected && 'font-semibold')}>
+        {briefText(turn.input) || 'Waiting for its input'}
+      </span>
+      {turn.durationMs !== undefined && (
+        <span className="shrink-0 text-xs text-muted-foreground">
+          {formatDuration(turn.durationMs)}
         </span>
-      </span>
-      <span className={cn('truncate text-sm', turn.input === undefined && 'text-muted-foreground')}>
-        {turn.input === undefined ? '…' : inputBriefText(turn.input)}
-      </span>
+      )}
+      <ProblemMark count={listedProblemCount(turn)} size={12} />
     </button>
   );
 }
 
-function SchemaCheckMark({check, open}: {check: ListedTurn['schemaCheck']; open: boolean}) {
-  if (open) return null;
-  if (check === undefined) {
-    return (
-      <span title="No schema check" className="text-muted-foreground">
-        <MinusIcon className="size-3.5" />
-      </span>
-    );
-  }
-  if (check.passed) {
-    return (
-      <span title="Schema check passed" className="text-emerald-700 dark:text-emerald-400">
-        <CheckIcon className="size-3.5" />
-      </span>
-    );
-  }
+/** A problem count in red; nothing when there are none. */
+export function ProblemMark({count, size}: {count: number; size: number}) {
+  if (count === 0) return null;
   return (
     <span
-      title={`Schema check: ${check.findings} ${check.findings === 1 ? 'finding' : 'findings'}`}
-      className="flex items-center gap-0.5 text-destructive"
+      title={plural(count, 'problem')}
+      className="inline-flex shrink-0 items-center gap-[3px] text-xs font-semibold text-problem"
     >
-      <TriangleAlertIcon className="size-3.5" />
-      {check.findings}
+      <Icon kind="failed" size={size} />
+      {count}
     </span>
   );
 }

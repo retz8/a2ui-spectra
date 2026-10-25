@@ -75,12 +75,14 @@ describe('schemaCheckOf', () => {
 });
 
 describe('rowFieldsOf', () => {
-  it("gives a closed turn's outcome, input in brief and schema check, as the listing does", () => {
+  it("gives a closed turn's outcome, agent, duration, input in brief and schema check, as the listing does", () => {
     const [turn] = readRecording('strathweb_booking_wizard/send_then_stream').turns;
     assert.deepEqual(
       rowFieldsOf(withCheck(turn, false, [{code: 'VALIDATION_FAILED', message: 'Bad.'}])),
       {
         outcome: 'completed',
+        agentName: 'table-booking',
+        durationMs: 3,
         input: {text: 'Book a table'},
         schemaCheck: {passed: false, findings: 1},
       },
@@ -91,6 +93,8 @@ describe('rowFieldsOf', () => {
     const turn = readRecording('strathweb_booking_wizard/send_then_stream').turns[1];
     assert.deepEqual(rowFieldsOf(turn), {
       outcome: 'completed',
+      agentName: 'table-booking',
+      durationMs: 4,
       input: {action: 'next'},
     });
   });

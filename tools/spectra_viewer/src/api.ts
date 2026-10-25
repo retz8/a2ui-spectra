@@ -10,8 +10,20 @@ export interface ListedTurn {
   startTime: string;
   open?: true;
   outcome?: TurnOutcome;
+  agentName?: string;
+  durationMs?: number;
   input?: InputBrief;
   schemaCheck?: {passed: boolean; findings: number};
+  /** How many of the turn's A2UI messages web core's message processor rejects. */
+  rejections?: number;
+}
+
+/** The session, as the context bar shows it. */
+export interface SessionContext {
+  agentName?: string;
+  mode: 'run' | 'attach';
+  /** The wire proxy's address, for a host app to point at. */
+  proxyAddress: string;
 }
 
 /** The message box's conversation. */
@@ -57,6 +69,10 @@ function post<T>(path: string, body: unknown): Promise<T> {
     headers: {'content-type': 'application/json'},
     body: JSON.stringify(body),
   });
+}
+
+export function getContext(): Promise<SessionContext> {
+  return request<SessionContext>('/api/context');
 }
 
 export async function listTurns(): Promise<ListedTurn[]> {

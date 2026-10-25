@@ -1,6 +1,7 @@
 import {useCallback, useEffect, useSyncExternalStore} from 'react';
 
-import {MessageBoxPanel} from '@/components/MessageBoxPanel.tsx';
+import {ContextBar} from '@/components/ContextBar.tsx';
+import {Rail} from '@/components/Rail.tsx';
 import {TurnList} from '@/components/TurnList.tsx';
 import {TurnView} from '@/components/TurnView.tsx';
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
@@ -50,30 +51,25 @@ export function App() {
   }, [pickNewest, newest, select]);
 
   return (
-    <div className="flex h-screen flex-col">
-      {state.connected === false && (
-        <div role="status" className="shrink-0 bg-destructive px-3 py-1 text-sm text-white">
-          Not connected to Spectra
-        </div>
-      )}
-      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
-        <ResizablePanel defaultSize="22" minSize="12">
-          <TurnList
-            turns={state.turns}
-            loaded={state.loaded}
-            selected={selected}
-            onSelect={select}
-          />
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel defaultSize="53" minSize="25">
-          <TurnView traceId={selected} />
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel defaultSize="25" minSize="15">
-          <MessageBoxPanel onOpenTurn={select} />
-        </ResizablePanel>
-      </ResizablePanelGroup>
+    <div className="flex h-screen min-w-[1080px] bg-canvas">
+      <Rail />
+      <div className="flex min-w-0 flex-1 flex-col">
+        <ContextBar context={state.context} connected={state.connected} />
+        <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1 pr-2 pb-2">
+          <ResizablePanel defaultSize={296} minSize={240}>
+            <TurnList
+              turns={state.turns}
+              loaded={state.loaded}
+              selected={selected}
+              onSelect={select}
+            />
+          </ResizablePanel>
+          <ResizableHandle className="w-2 bg-transparent" />
+          <ResizablePanel minSize={640}>
+            <TurnView traceId={selected} onSelect={select} />
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </div>
     </div>
   );
 }

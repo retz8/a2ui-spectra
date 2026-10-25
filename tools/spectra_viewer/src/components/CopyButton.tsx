@@ -1,7 +1,8 @@
-import {CheckIcon, CopyIcon} from 'lucide-react';
-import {useState} from 'react';
+import {type ReactNode, useState} from 'react';
 
-import {Button} from '@/components/ui/button.tsx';
+import {cn} from '@/lib/utils';
+
+import {Icon} from './icons.tsx';
 
 /** Copies text, with the clipboard API where the page may use it. */
 async function copy(text: string): Promise<void> {
@@ -19,14 +20,30 @@ async function copy(text: string): Promise<void> {
   area.remove();
 }
 
-export function CopyButton({text, label}: {text: string; label: string}) {
+/** A button that copies text, its icon a check for a moment after. */
+export function CopyButton({
+  text,
+  label,
+  className,
+  children,
+}: {
+  text: string;
+  /** What the button copies, for its accessible name. */
+  label: string;
+  className?: string;
+  /** Shown before the icon; an icon alone without it. */
+  children?: ReactNode;
+}) {
   const [copied, setCopied] = useState(false);
   return (
-    <Button
-      variant="ghost"
-      size="icon-xs"
-      title={label}
+    <button
+      type="button"
       aria-label={label}
+      title={label}
+      className={cn(
+        'ease-quick inline-flex shrink-0 cursor-pointer items-center justify-center gap-1 rounded-[5px] text-muted-foreground hover:bg-tint hover:text-foreground',
+        className,
+      )}
       onClick={() => {
         void copy(text).then(() => {
           setCopied(true);
@@ -34,7 +51,8 @@ export function CopyButton({text, label}: {text: string; label: string}) {
         });
       }}
     >
-      {copied ? <CheckIcon /> : <CopyIcon />}
-    </Button>
+      {children}
+      <Icon kind={copied ? 'checked' : 'copy'} size={children === undefined ? 12 : 13} />
+    </button>
   );
 }

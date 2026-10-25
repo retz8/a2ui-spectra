@@ -1,26 +1,38 @@
-import type {InputBrief} from '@/model/input_brief.ts';
 import type {TurnOutcome} from '@/model/record.ts';
 
-export const OUTCOME_LABELS: Record<TurnOutcome, string> = {
+import type {IconKind} from './icons.tsx';
+
+export type TurnStatus = TurnOutcome | 'open';
+
+export const STATUS_LABELS: Record<TurnStatus, string> = {
+  completed: 'Completed',
+  waiting_for_input: 'Waiting for input',
+  failed: 'Failed',
+  cancelled: 'Cancelled',
+  open: 'Open',
+};
+
+export const STATUS_ICONS: Record<TurnStatus, IconKind> = {
   completed: 'completed',
-  waiting_for_input: 'waiting for input',
+  waiting_for_input: 'waiting',
   failed: 'failed',
   cancelled: 'cancelled',
+  open: 'open',
 };
 
-/** Text colour for each outcome, and for an open turn. */
-export const OUTCOME_TONES: Record<TurnOutcome | 'open', string> = {
-  completed: 'text-emerald-700 dark:text-emerald-400',
-  waiting_for_input: 'text-amber-700 dark:text-amber-400',
-  failed: 'text-destructive',
-  cancelled: 'text-muted-foreground',
-  open: 'text-sky-700 dark:text-sky-400',
-};
+/** An icon's colour: grey for its shape alone, red for trouble, teal for what is live. */
+export function toneOf(icon: IconKind): string {
+  if (icon === 'failed') return 'text-problem';
+  if (icon === 'open') return 'text-brand';
+  return 'text-muted-foreground';
+}
 
+// Times read on a 24-hour clock, as the design artifact sets them.
 const TIME = new Intl.DateTimeFormat(undefined, {
   hour: '2-digit',
   minute: '2-digit',
   second: '2-digit',
+  hourCycle: 'h23',
 });
 const DAY_AND_TIME = new Intl.DateTimeFormat(undefined, {
   month: 'short',
@@ -28,14 +40,34 @@ const DAY_AND_TIME = new Intl.DateTimeFormat(undefined, {
   hour: '2-digit',
   minute: '2-digit',
   second: '2-digit',
+  hourCycle: 'h23',
 });
+const CLOCK = new Intl.DateTimeFormat(undefined, {
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
+const DAY = new Intl.DateTimeFormat(undefined, {month: 'short', day: 'numeric'});
 
 /** A start time: the time of day for today, with the date for an earlier day. */
 export function formatStart(time: string | number): string {
   const date = new Date(time);
-  return date.toDateString() === new Date().toDateString()
-    ? TIME.format(date)
-    : DAY_AND_TIME.format(date);
+  return isToday(date) ? TIME.format(date) : DAY_AND_TIME.format(date);
+}
+
+/** A time of day alone, for a row under its conversation, which gives the day. */
+export function formatTime(time: string | number): string {
+  return TIME.format(new Date(time));
+}
+
+/** A conversation's time in the list: the hour and minute today, the day before. */
+export function formatClock(time: string | number): string {
+  const date = new Date(time);
+  return isToday(date) ? CLOCK.format(date) : DAY.format(date);
+}
+
+function isToday(date: Date): boolean {
+  return date.toDateString() === new Date().toDateString();
 }
 
 export function formatDuration(ms: number): string {
@@ -51,10 +83,4 @@ export function formatOffset(ms: number): string {
 
 export function shortId(id: string): string {
   return id.length > 8 ? id.slice(0, 8) : id;
-}
-
-export function inputBriefText(input: InputBrief): string {
-  if ('text' in input) return input.text;
-  if ('action' in input) return `action ${input.action}`;
-  return `${input.partType} part`;
 }

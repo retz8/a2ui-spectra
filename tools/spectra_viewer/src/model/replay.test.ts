@@ -54,6 +54,30 @@ function unnested(surface: SurfaceView): string[] {
 }
 
 describe('replay', () => {
+  it('leaves the record as it was, so a turn replays the same each time', () => {
+    const record = readRecording('strathweb_booking_wizard/send_then_stream');
+    const before = JSON.stringify(record);
+    const first = replayRecord(record);
+    assert.equal(JSON.stringify(record), before);
+    assert.deepEqual(replayRecord(record), first);
+    const [earlier] = record.turns;
+    assert.equal((replay([], earlier.events).surfaces[0].dataModel as {step: number}).step, 1);
+  });
+
+  it('stops at a position, as the surfaces stood right after the step there', () => {
+    const {turns} = readRecording('strathweb_booking_wizard/send_then_stream');
+    const [earlier, turn] = turns;
+    // After the input, the surface stands as the first turn left it.
+    const before = replay([earlier], turn.events, {eventIndex: 1});
+    assert.equal(before.surfaces[0].touched, false);
+    assert.deepEqual(nested(before.surfaces[0]).notUnderRoot, []);
+    // After the delivery's first message, the components are in but the data model is not.
+    const after = replay([earlier], turn.events, {eventIndex: 3, partIndex: 0, index: 0});
+    assert.equal(after.surfaces[0].touched, true);
+    assert.equal(nested(after.surfaces[0]).notUnderRoot.length, 4);
+    assert.equal((after.surfaces[0].dataModel as {step: number}).step, 1);
+  });
+
   it("builds the booking wizard's second turn on the surface its first turn created", () => {
     const result = replayRecord(readRecording('strathweb_booking_wizard/send_then_stream'));
     assert.deepEqual(result.rejections, []);

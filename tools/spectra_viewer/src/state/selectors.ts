@@ -4,8 +4,8 @@
  */
 import {useEffect} from 'react';
 
-import {type ChatEntry, chatEntryOf} from '../model/chat.ts';
-import {isTurnEvent, type Turn, type TurnRecordEvent} from '../model/record.ts';
+import type {Turn, TurnOutcome} from '../model/record.ts';
+import {briefText} from '../model/turn_groups.ts';
 import {type LiveTurn, spectra, type SpectraState} from './spectra.ts';
 
 /** A conversation's earlier turns, once their record has been read. */
@@ -97,42 +97,40 @@ export function turnViewOf(state: SpectraState, traceId: string, needs: string[]
   return {status: 'loading'};
 }
 
-/**
- * The message box's conversation as its chat: each turn the box sent, in
- * order, open from the live stream or closed from the stream or a record. A
- * record holds its conversation's turns up to its own, so the newest unknown
- * turn's record is read first.
- */
-export function boxChatOf(
-  state: SpectraState,
-  needs: string[],
-): {entries: ChatEntry[]; loading: boolean} {
-  const sent = state.box.turns ?? [];
-  const known = new Map<string, readonly TurnRecordEvent[]>();
-  for (const traceId of sent) {
-    const record = state.records.get(traceId);
-    if (record !== undefined && 'record' in record) {
-      for (const turn of record.record.turns) known.set(traceIdOf(turn), turn.events);
-    }
-  }
-  for (const [traceId, turn] of state.closed) known.set(traceId, turn.events);
-  for (const [traceId, turn] of state.live) known.set(traceId, turn.events);
-  const unknown = [...sent].reverse().find(traceId => {
-    const record = state.records.get(traceId);
-    return !known.has(traceId) && (record === undefined || !('error' in record));
-  });
-  if (unknown !== undefined) needs.push(unknown);
-  return {
-    entries: sent.flatMap(traceId => {
-      const events = known.get(traceId);
-      return events === undefined ? [] : [chatEntryOf(traceId, events)];
-    }),
-    loading: unknown !== undefined,
-  };
+/** What the composer says and whether it can send. */
+export interface ComposerView {
+  /** Why the box cannot send to the agent; it takes the input's place. */
+  unavailable?: string;
+  /** Why the input waits. */
+  waiting?: string;
+  /** The conversation the box continues: its first message, and how its newest turn ended. */
+  continues?: {title: string; outcome?: TurnOutcome; open?: true};
 }
 
-function traceIdOf(turn: Turn): string {
-  return turn.events.find(isTurnEvent)?.traceId ?? '';
+/** The composer, from the message box's conversation and the turn list. */
+export function composerOf(state: SpectraState): ComposerView {
+  const {box, connected} = state;
+  if (box.unavailable !== undefined) return {unavailable: box.unavailable};
+  const sent = box.turns ?? [];
+  const rowOf = (traceId: string | undefined) => state.turns.find(turn => turn.traceId === traceId);
+  const first = rowOf(sent[0]);
+  const newest = rowOf(sent[sent.length - 1]);
+  const waiting =
+    connected === false
+      ? 'Not connected to Spectra'
+      : box.openTurn !== undefined
+        ? 'A turn is open'
+        : undefined;
+  return {
+    ...(waiting !== undefined && {waiting}),
+    ...(first !== undefined && {
+      continues: {
+        title: briefText(first.input),
+        ...(newest?.outcome !== undefined && {outcome: newest.outcome}),
+        ...(newest?.open === true && {open: true}),
+      },
+    }),
+  };
 }
 
 /** Asks the store for the records a pane needs. */

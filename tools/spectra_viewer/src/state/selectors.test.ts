@@ -1,14 +1,9 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import type {MessageBoxState} from '../api.ts';
-import {chatEntryOf} from '../model/chat.ts';
-import {isTurnEvent, type Turn, type TurnRecord, type WireEvent} from '../model/record.ts';
-import {readRecording} from '../testing/recordings.ts';
-import {boxChatOf} from './selectors.ts';
-import type {RecordState, SpectraState} from './spectra.ts';
-
-const traceIdOf = (turn: Turn) => turn.events.find(isTurnEvent)!.traceId;
+import type {ListedTurn, MessageBoxState} from '../api.ts';
+import {composerOf} from './selectors.ts';
+import type {SpectraState} from './spectra.ts';
 
 function stateOf(
   box: MessageBoxState,
@@ -25,68 +20,44 @@ function stateOf(
   };
 }
 
-const loaded = (record: TurnRecord): RecordState => ({record});
+describe('composerOf', () => {
+  const row = (traceId: string, fields: Partial<ListedTurn> = {}): ListedTurn => ({
+    traceId,
+    startTime: '2026-10-24T09:00:00.000Z',
+    ...fields,
+  });
+  const turns = [
+    row('b', {outcome: 'waiting_for_input', input: {text: 'Book a table for 2'}}),
+    row('a', {outcome: 'waiting_for_input', input: {text: 'Top 3 Italian restaurants'}}),
+  ];
 
-describe('boxChatOf', () => {
-  const conversation = readRecording('node_restaurant_finder/send_task_history_and_failed');
-  const [first, second] = conversation.turns;
-  const failed = readRecording('ag2/stream_v1_0_failed');
-  const [failedTurn] = failed.turns;
-
-  it('shows each turn the box sent, in order, one that names no conversation included', () => {
-    const state = stateOf(
-      {turns: [traceIdOf(failedTurn), traceIdOf(first)], conversationId: 'ctx'},
-      {
-        records: new Map([[traceIdOf(failedTurn), loaded(failed)]]),
-        closed: new Map([[traceIdOf(first), first]]),
-      },
-    );
-    const needs: string[] = [];
-    assert.deepEqual(boxChatOf(state, needs), {
-      entries: [
-        chatEntryOf(traceIdOf(failedTurn), failedTurn.events),
-        chatEntryOf(traceIdOf(first), first.events),
-      ],
-      loading: false,
+  it("continues the box's conversation, named by its first message, with its newest turn's outcome", () => {
+    assert.deepEqual(composerOf({...stateOf({conversationId: 'c', turns: ['a', 'b']}), turns}), {
+      continues: {title: 'Top 3 Italian restaurants', outcome: 'waiting_for_input'},
     });
-    assert.deepEqual(needs, []);
   });
 
-  it("reads the newest turn's record, which holds the conversation's earlier turns", () => {
-    const box = {turns: [traceIdOf(first), traceIdOf(second)]};
-    const needs: string[] = [];
-    assert.deepEqual(boxChatOf(stateOf(box), needs), {entries: [], loading: true});
-    assert.deepEqual(needs, [traceIdOf(second)]);
-
-    const records = new Map([[traceIdOf(second), loaded(conversation)]]);
-    const after: string[] = [];
-    assert.deepEqual(
-      boxChatOf(stateOf(box, {records}), after).entries.map(entry => entry.traceId),
-      [traceIdOf(first), traceIdOf(second)],
-    );
-    assert.deepEqual(after, []);
+  it('starts a new conversation when the box has sent nothing', () => {
+    assert.deepEqual(composerOf(stateOf({})), {});
   });
 
-  it('shows an open turn from the live stream, and leaves out a turn whose record failed to read', () => {
+  it('waits while a turn is open or Spectra is not connected', () => {
     const open = {
-      traceId: traceIdOf(second),
-      startTime: '2026-10-24T09:00:00.000Z',
-      events: second.events.filter((event): event is WireEvent => !isTurnEvent(event)),
+      ...stateOf({turns: ['a'], openTurn: 'a'}),
+      turns: [row('a', {open: true, input: {text: 'Hi'}})],
     };
-    const state = stateOf(
-      {turns: [traceIdOf(first), traceIdOf(second)], openTurn: traceIdOf(second)},
-      {
-        live: new Map([[open.traceId, open]]),
-        records: new Map([[traceIdOf(first), {error: 'Not found.'}]]),
-      },
-    );
-    const needs: string[] = [];
-    const {entries, loading} = boxChatOf(state, needs);
-    assert.deepEqual(
-      entries.map(entry => [entry.traceId, entry.open]),
-      [[traceIdOf(second), true]],
-    );
-    assert.equal(loading, false);
-    assert.deepEqual(needs, []);
+    assert.deepEqual(composerOf(open), {
+      waiting: 'A turn is open',
+      continues: {title: 'Hi', open: true},
+    });
+    assert.deepEqual(composerOf({...stateOf({}), connected: false}), {
+      waiting: 'Not connected to Spectra',
+    });
+  });
+
+  it("gives the box's reason when it cannot send to the agent", () => {
+    assert.deepEqual(composerOf(stateOf({unavailable: 'No JSON-RPC interface.'})), {
+      unavailable: 'No JSON-RPC interface.',
+    });
   });
 });

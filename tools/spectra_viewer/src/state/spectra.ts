@@ -6,6 +6,7 @@
 import {useSyncExternalStore} from 'react';
 
 import {
+  getContext,
   getMessageBox,
   getRecord,
   type ListedTurn,
@@ -13,6 +14,7 @@ import {
   type LiveEvents,
   type MessageBoxState,
   sendMessage,
+  type SessionContext,
   startNewConversation,
   STREAM_PATH,
 } from '../api.ts';
@@ -50,6 +52,8 @@ export interface SpectraState {
   closed: ReadonlyMap<string, Turn>;
   records: ReadonlyMap<string, RecordState>;
   box: MessageBoxState;
+  /** The session, once read. */
+  context?: SessionContext;
 }
 
 /** How long to wait before opening the live stream again after it was dropped. */
@@ -193,7 +197,7 @@ class Spectra {
 
   async #reload(): Promise<void> {
     try {
-      const [turns, box] = await Promise.all([listTurns(), getMessageBox()]);
+      const [turns, box, context] = await Promise.all([listTurns(), getMessageBox(), getContext()]);
       // What the stream said while the listing was on its way is newer than the listing.
       const {live, closed} = this.#state;
       const rows = new Map(turns.map(turn => [turn.traceId, turn]));
@@ -201,7 +205,7 @@ class Spectra {
       for (const turn of live.values()) {
         if (!rows.has(turn.traceId)) rows.set(turn.traceId, openRow(turn));
       }
-      this.#set({loaded: true, turns: sortRows([...rows.values()]), box});
+      this.#set({loaded: true, turns: sortRows([...rows.values()]), box, context});
     } catch {
       // The check marks the page as not connected; the stream's next open reads again.
     }
@@ -241,6 +245,8 @@ class Spectra {
     const closed = new Map(this.#state.closed).set(traceId, turn);
     const row = this.#state.turns.find(row => row.traceId === traceId);
     this.#set({live, closed, turns: upsertRow(this.#state.turns, closedRow(turn, row))});
+    // The listing counts the turn's rejections after the conversation's earlier turns.
+    void this.#reload();
     const {box} = this.#state;
     const conversationId = turn.events.find(isTurnEvent)?.attributes['gen_ai.conversation.id'];
     if (
@@ -287,6 +293,7 @@ function closedRow(turn: Turn, row: ListedTurn | undefined): ListedTurn {
     ...(conversationId !== undefined && {conversationId}),
     startTime,
     ...rowFieldsOf(turn),
+    ...(row?.rejections !== undefined && {rejections: row.rejections}),
   };
 }
 

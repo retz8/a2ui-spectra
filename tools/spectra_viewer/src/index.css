@@ -1,11 +1,24 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
 
+/* The theme switch sets `dark` on the page's root; System follows the system's setting. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
-  --font-sans:
-    ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+  --color-canvas: var(--canvas);
+  --color-panel: var(--panel);
+  --color-tint: var(--tint);
+  --color-muted-strong: var(--muted-strong);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-on: var(--brand-on);
+  --color-problem: var(--problem);
+  --color-problem-soft: var(--problem-soft);
+  --color-success: var(--success);
+  --shadow-panel: var(--panel-shadow);
+  --shadow-float: var(--float-shadow);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -30,53 +43,62 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* shadcn/ui's neutral colours, as A2UI Composer sets them. */
+/*
+ * The design artifact's colours. The one accent is the teal of A2UI's
+ * documentation site, from Material Design's palette: 700 in light, 400 in
+ * dark. shadcn/ui's names point at them.
+ */
 :root {
   color-scheme: light;
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
+  --radius: 0.5rem;
+  --canvas: #eff0f3;
+  --panel: #ffffff;
+  --tint: #f5f6f8;
+  --muted-strong: #55595f;
+  --brand: #00796b;
+  --brand-soft: #e0f2f1;
+  --brand-on: #ffffff;
+  --problem: #c62828;
+  --problem-soft: #fcedec;
+  --success: #2e7d32;
+  --panel-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 0 0 1px rgba(16, 24, 40, 0.05);
+  --float-shadow: 0 8px 24px rgba(16, 24, 40, 0.14), 0 0 0 1px var(--border);
+  --background: var(--canvas);
+  --foreground: #16171a;
+  --card: var(--panel);
+  --card-foreground: var(--foreground);
+  --popover: var(--panel);
+  --popover-foreground: var(--foreground);
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-on);
+  --secondary: var(--tint);
+  --secondary-foreground: var(--foreground);
+  --muted: var(--tint);
+  --muted-foreground: #696d75;
+  --accent: var(--tint);
+  --accent-foreground: var(--foreground);
+  --destructive: var(--problem);
+  --border: #e5e7eb;
+  --input: var(--border);
+  --ring: var(--brand);
 }
 
-/* The dark colours follow the system's setting, as Tailwind's `dark:` variant does. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    color-scheme: dark;
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-  }
+:root.dark {
+  color-scheme: dark;
+  --canvas: #0e0f11;
+  --panel: #17181b;
+  --tint: #1e1f23;
+  --muted-strong: #aeb2b9;
+  --brand: #26a69a;
+  --brand-soft: #192f2f;
+  --brand-on: #06201d;
+  --problem: #f2726f;
+  --problem-soft: #3a1c1c;
+  --success: #66bb6a;
+  --panel-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --foreground: #ecedef;
+  --muted-foreground: #9a9ea6;
+  --border: #2a2c30;
 }
 
 @layer base {
@@ -84,11 +106,22 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background font-sans text-sm text-foreground antialiased;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.45;
   }
 }
 
-/* The element a link landed on, marked for a moment. */
-[data-landed='true'] {
-  @apply ring-2 ring-amber-400 transition-shadow;
+/* A small label in capitals, separating sections inside a panel. */
+@utility section-label {
+  @apply text-xs font-semibold tracking-[0.06em] text-muted-foreground uppercase;
+}
+
+/* Motion is brief, and stops when the system asks for reduced motion. */
+@utility ease-quick {
+  @apply transition-colors duration-150 ease-out motion-reduce:transition-none;
+}
+
+@utility fade-in-quick {
+  @apply animate-in duration-200 fade-in motion-reduce:animate-none;
 }

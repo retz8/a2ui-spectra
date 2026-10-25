@@ -9,19 +9,31 @@ import {
   unixMillis,
 } from './record.ts';
 
-/** The turn list's fields of a closed turn, as the listing gives them. */
+/**
+ * The turn list's fields of a closed turn, as the listing gives them, but
+ * for its rejections, which the listing counts after the conversation's
+ * earlier turns.
+ */
 export interface RowFields {
   outcome?: TurnOutcome;
+  agentName?: string;
+  durationMs?: number;
   input?: InputBrief;
   schemaCheck?: {passed: boolean; findings: number};
 }
 
 export function rowFieldsOf(turn: Turn): RowFields {
-  const outcome = turn.events.find(isTurnEvent)?.attributes['a2ui.turn.outcome'];
+  const event = turn.events.find(isTurnEvent);
+  const outcome = event?.attributes['a2ui.turn.outcome'];
+  const agentName = event?.attributes['gen_ai.agent.name'];
   const input = inputBriefOfTurn(turn);
   const check = schemaCheckEventOf(turn);
   return {
     ...(outcome !== undefined && {outcome}),
+    ...(agentName !== undefined && {agentName}),
+    ...(event !== undefined && {
+      durationMs: unixMillis(event.endTimeUnixNano) - unixMillis(event.startTimeUnixNano),
+    }),
     ...(input !== undefined && {input}),
     ...(check !== undefined && {
       schemaCheck: {

@@ -1,266 +1,226 @@
-import {useEffect, useMemo, useState, type ReactNode} from 'react';
+import {type ReactNode, useMemo, useState} from 'react';
+import {usePanelRef} from 'react-resizable-panels';
 
-import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs.tsx';
-import {locateFinding} from '@/model/messages.ts';
-import {
-  isCheck,
-  isWireInput,
-  isWireOutput,
-  type CheckEvent,
-  type TurnRecordEvent,
-  type WireEvent,
-} from '@/model/record.ts';
-import {replay as replayTurn} from '@/model/replay.ts';
-import {schemaCheckOf, summaryOf, type SchemaCheckState} from '@/model/summary.ts';
+import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
+import {checkLinesOf, checkStateOf} from '@/model/check_state.ts';
+import {inputBriefOfTurn} from '@/model/input_brief.ts';
+import {problemsOf} from '@/model/problems.ts';
+import {type Turn, type TurnRecordEvent, unixMillis} from '@/model/record.ts';
+import {replay} from '@/model/replay.ts';
+import {type Position, replyThrough, type TimelineRow, timelineOf} from '@/model/steps.ts';
+import {summaryOf} from '@/model/summary.ts';
+import {briefText} from '@/model/turn_groups.ts';
 import {type TurnView as TurnViewState, turnViewOf, useNeededRecords} from '@/state/selectors.ts';
 import {useSpectra} from '@/state/spectra.ts';
-import {cn} from '@/lib/utils.ts';
 
-import {ChecksTab} from './ChecksTab.tsx';
-import {CopyButton} from './CopyButton.tsx';
-import {formatDuration, formatStart, OUTCOME_LABELS, OUTCOME_TONES} from './format.ts';
-import {type GoTo, type MessageMarks, type TabName, targetIds} from './links.ts';
-import {SurfacesTab} from './SurfacesTab.tsx';
-import {WireEvents} from './WireEvents.tsx';
+import {Composer} from './Composer.tsx';
+import {formatDuration, formatOffset, formatStart} from './format.ts';
+import {ResultPane} from './ResultPane.tsx';
+import {StepDetail} from './StepDetail.tsx';
+import {Timeline} from './Timeline.tsx';
+import {TurnHeader} from './TurnHeader.tsx';
 
-/** How long the element a link landed on stays marked. */
-const LANDED_MS = 1500;
+/** The detail's height when collapsed to its title line, in pixels. */
+const DETAIL_TITLE = 41;
 
-/** How many frames a link waits for the element it lands on to mount. */
-const LANDING_FRAMES = 10;
-
-export function TurnView({traceId}: {traceId: string | undefined}) {
+/** The turn view: the selected turn, with the composer docked under it. */
+export function TurnView({
+  traceId,
+  onSelect,
+}: {
+  traceId: string | undefined;
+  onSelect: (traceId: string) => void;
+}) {
   const state = useSpectra();
   const needs: string[] = [];
   const view: TurnViewState =
     traceId === undefined ? {status: 'none'} : turnViewOf(state, traceId, needs);
   useNeededRecords(needs);
 
+  let body: ReactNode;
   if (traceId === undefined) {
-    return (
+    body = (
       <Empty>
-        {state.loaded && state.turns.length === 0 ? 'No turns yet.' : 'No turn selected.'}
+        {state.loaded && state.turns.length === 0
+          ? 'No turns yet. Send a message to start one.'
+          : 'No turn selected.'}
       </Empty>
     );
+  } else if (view.status === 'loading') {
+    body = <Empty>Reading the turn…</Empty>;
+  } else if (view.status === 'error') {
+    body = <Empty>{view.message}</Empty>;
+  } else if (view.status === 'none') {
+    body = <Empty>No turn has this trace id.</Empty>;
+  } else {
+    body = <TurnBody key={traceId} traceId={traceId} view={view} />;
   }
-  if (view.status === 'loading') return <Empty>Reading the turn…</Empty>;
-  if (view.status === 'error') return <Empty>{view.message}</Empty>;
-  if (view.status === 'none') return <Empty>No turn has this trace id.</Empty>;
-  return <TurnDetail key={traceId} traceId={traceId} view={view} />;
-}
-
-function TurnDetail({
-  traceId,
-  view,
-}: {
-  traceId: string;
-  view: Extract<TurnViewState, {status: 'open' | 'closed'}>;
-}) {
-  const open = view.status === 'open';
-  const events: readonly TurnRecordEvent[] = open ? view.live.events : view.turn.events;
-  const earlier = 'turns' in view.earlier ? view.earlier.turns : undefined;
-  // The earlier turns and the events keep their identity until they change, so the replay runs once per change.
-  const replay = useMemo(
-    () => (earlier === undefined ? undefined : replayTurn(earlier, events)),
-    [earlier, events],
-  );
-  const checks = useMemo(() => events.filter(isCheck), [events]);
-  const schemaCheck = useMemo(() => schemaCheckOf({events: [...events]}), [events]);
-  const marks = useMemo(
-    () => marksOf(events, checks, replay?.rejections ?? []),
-    [events, checks, replay],
-  );
-  const [tab, setTab] = useState<TabName>('surfaces');
-  const [landing, setLanding] = useState<string | undefined>();
-  const goTo: GoTo = (nextTab, targetId) => {
-    setTab(nextTab);
-    setLanding(targetId);
-  };
-  useEffect(() => {
-    if (landing === undefined) return;
-    let element: HTMLElement | null = null;
-    let frame = 0;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    // A tab's content mounts a render after the tab changes, so the element can be a frame or two away.
-    const land = (tries: number) => {
-      element = document.getElementById(landing);
-      if (element === null) {
-        if (tries < LANDING_FRAMES) frame = requestAnimationFrame(() => land(tries + 1));
-        else setLanding(undefined);
-        return;
-      }
-      element.scrollIntoView({block: 'center', behavior: 'smooth'});
-      element.dataset.landed = 'true';
-      timer = setTimeout(() => setLanding(undefined), LANDED_MS);
-    };
-    land(0);
-    return () => {
-      cancelAnimationFrame(frame);
-      clearTimeout(timer);
-      if (element !== null) delete element.dataset.landed;
-    };
-  }, [landing]);
-
-  const withIndex = (keep: (event: TurnRecordEvent) => event is WireEvent) =>
-    events.flatMap((event, index) => (keep(event) ? [{event, index}] : []));
-  const startTime = open ? Date.parse(view.live.startTime) : (summaryOf(view.turn)?.startTime ?? 0);
-
   return (
-    <div className="flex h-full flex-col">
-      <Header traceId={traceId} view={view} schemaCheck={schemaCheck} />
-      <Tabs
-        value={tab}
-        onValueChange={value => setTab(value as TabName)}
-        className="min-h-0 flex-1 gap-0"
-      >
-        <div className="border-b px-3 py-2">
-          <TabsList>
-            <TabsTrigger value="input">Input</TabsTrigger>
-            <TabsTrigger value="raw">Raw messages</TabsTrigger>
-            <TabsTrigger value="surfaces">Surfaces</TabsTrigger>
-            <TabsTrigger value="checks">Checks</TabsTrigger>
-          </TabsList>
-        </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-3">
-          <TabsContent value="input">
-            <WireEvents
-              events={withIndex(isWireInput)}
-              startTime={startTime}
-              goTo={goTo}
-              empty="The host's message has not arrived yet."
-            />
-          </TabsContent>
-          <TabsContent value="raw">
-            <WireEvents
-              events={withIndex(isWireOutput)}
-              startTime={startTime}
-              marks={marks}
-              goTo={goTo}
-              empty={open ? 'Nothing from the agent yet.' : 'The agent sent nothing back.'}
-            />
-          </TabsContent>
-          <TabsContent value="surfaces">
-            <SurfacesTab replay={replay} goTo={goTo} />
-          </TabsContent>
-          <TabsContent value="checks">
-            <ChecksTab
-              open={open}
-              events={events}
-              checks={checks}
-              schemaCheck={schemaCheck}
-              goTo={goTo}
-            />
-          </TabsContent>
-        </div>
-      </Tabs>
-    </div>
+    <main className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl bg-panel shadow-panel">
+      {body}
+      <Composer onSent={onSelect} />
+    </main>
   );
 }
 
-function Header({
-  traceId,
-  view,
-  schemaCheck,
-}: {
-  traceId: string;
-  view: Extract<TurnViewState, {status: 'open' | 'closed'}>;
-  schemaCheck: SchemaCheckState;
-}) {
-  const summary = view.status === 'closed' ? summaryOf(view.turn) : undefined;
-  const conversationId =
-    view.status === 'open' ? view.live.conversationId : summary?.conversationId;
-  const startTime = view.status === 'open' ? view.live.startTime : summary?.startTime;
+function Empty({children}: {children: string}) {
   return (
-    <header className="flex shrink-0 flex-col gap-1 border-b px-3 py-2">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        {summary === undefined ? (
-          <span className={cn('text-sm font-semibold', OUTCOME_TONES.open)}>open</span>
-        ) : (
-          <span className={cn('text-sm font-semibold', OUTCOME_TONES[summary.outcome])}>
-            {OUTCOME_LABELS[summary.outcome]}
-          </span>
-        )}
-        {summary?.statusReason !== undefined && (
-          <span className="text-sm">{summary.statusReason}</span>
-        )}
-        {startTime !== undefined && (
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {formatStart(startTime)}
-            {summary !== undefined && ` · ${formatDuration(summary.durationMs)}`}
-          </span>
-        )}
-        {summary?.protocolVersion !== undefined && (
-          <span className="text-xs">A2UI {summary.protocolVersion}</span>
-        )}
-        {summary !== undefined && <SchemaCheckText state={schemaCheck} />}
-        {summary?.agentName !== undefined && (
-          <span className="text-xs text-muted-foreground">{summary.agentName}</span>
-        )}
-      </div>
-      <div className="flex flex-wrap items-center gap-x-4 text-xs text-muted-foreground">
-        {conversationId !== undefined && <Id label="Conversation" value={conversationId} />}
-        <Id label="Trace" value={traceId} />
-      </div>
-    </header>
-  );
-}
-
-function SchemaCheckText({state}: {state: SchemaCheckState}) {
-  if (state.state === 'passed')
-    return (
-      <span className="text-xs text-emerald-700 dark:text-emerald-400">schema check passed</span>
-    );
-  if (state.state === 'findings') {
-    return (
-      <span className="text-xs text-destructive">
-        schema check: {state.count} {state.count === 1 ? 'finding' : 'findings'}
-      </span>
-    );
-  }
-  if (state.state === 'no_a2ui')
-    return <span className="text-xs text-muted-foreground">no A2UI in this turn</span>;
-  return <span className="text-xs text-muted-foreground">no schema check</span>;
-}
-
-function Id({label, value}: {label: string; value: string}) {
-  return (
-    <span className="flex items-center gap-1">
-      {label} <span className="font-mono">{value}</span>
-      <CopyButton text={value} label={`Copy the ${label.toLowerCase()} id`} />
-    </span>
-  );
-}
-
-function Empty({children}: {children: ReactNode}) {
-  return (
-    <div className="flex h-full items-center justify-center p-6 text-sm text-muted-foreground">
+    <div className="flex min-h-0 flex-1 items-center justify-center p-8 text-center text-muted-foreground">
       {children}
     </div>
   );
 }
 
-/** What links to each A2UI message: the findings that point into it and its rejection. */
-function marksOf(
-  events: readonly TurnRecordEvent[],
-  checks: readonly CheckEvent[],
-  rejections: ReadonlyArray<{key: string}>,
-): Map<string, MessageMarks> {
-  const marks = new Map<string, MessageMarks>();
-  const markOf = (key: string) => {
-    let mark = marks.get(key);
-    if (mark === undefined) {
-      mark = {findings: []};
-      marks.set(key, mark);
-    }
-    return mark;
-  };
-  checks.forEach((check, checkIndex) =>
-    check.attributes['a2ui.check.findings'].forEach((finding, findingIndex) => {
-      const location = locateFinding(events, finding.path);
-      if (location !== undefined)
-        markOf(location.key).findings.push(targetIds.finding(checkIndex, findingIndex));
-    }),
+function TurnBody({
+  traceId,
+  view,
+}: {
+  traceId: string;
+  view: Extract<TurnViewState, {status: 'open' | 'closed'}>;
+}) {
+  const state = useSpectra();
+  const open = view.status === 'open';
+  const events: readonly TurnRecordEvent[] = open ? view.live.events : view.turn.events;
+  const turn: Turn | undefined = open ? undefined : view.turn;
+  const summary = useMemo(() => (turn === undefined ? undefined : summaryOf(turn)), [turn]);
+  const startMs = open ? Date.parse(view.live.startTime) : (summary?.startTime ?? 0);
+  // The earlier turns and the events keep their identity until they change, so each replay runs once per change.
+  const earlier = 'turns' in view.earlier ? view.earlier.turns : undefined;
+
+  const timeline = useMemo(() => timelineOf(events, startMs), [events, startMs]);
+  const whole = useMemo(
+    () => (earlier === undefined ? undefined : replay(earlier, events)),
+    [earlier, events],
   );
-  for (const {key} of rejections) markOf(key).rejection = targetIds.rejection(key);
-  return marks;
+  const problems = useMemo(
+    () => problemsOf(events, timeline, whole?.rejections ?? []),
+    [events, timeline, whole],
+  );
+  const byStep = useMemo(() => countBy(problems, problem => problem.stepId), [problems]);
+  const bySurface = useMemo(() => countBy(problems, problem => problem.surfaceId), [problems]);
+
+  const [picked, setPicked] = useState<string | undefined>();
+  // Until a step is picked, the newest is selected.
+  const selected = timeline.find(row => row.id === picked) ?? timeline[timeline.length - 1];
+  const position = useMemo(() => positionOf(selected), [selected]);
+  const pane = useMemo(
+    () =>
+      earlier === undefined
+        ? undefined
+        : position === undefined
+          ? whole
+          : replay(earlier, events, position),
+    [earlier, events, whole, position],
+  );
+  const reply = useMemo(() => replyThrough(events, position), [events, position]);
+
+  const detail = usePanelRef();
+  const [collapsed, setCollapsed] = useState(false);
+
+  const row = state.turns.find(listed => listed.traceId === traceId);
+  const input = turn === undefined ? undefined : inputBriefOfTurn(turn);
+  const title = briefText(input ?? row?.input) || 'A turn';
+  const agent = summary?.agentName ?? row?.agentName ?? state.context?.agentName;
+  const meta = [
+    formatStart(startMs),
+    ...(summary === undefined ? [] : [formatDuration(summary.durationMs)]),
+    ...(summary?.protocolVersion === undefined ? [] : [`A2UI ${summary.protocolVersion}`]),
+    ...(agent === undefined ? [] : [agent]),
+  ];
+
+  return (
+    <>
+      <TurnHeader
+        title={title}
+        status={summary?.outcome ?? 'open'}
+        check={turn === undefined ? undefined : checkStateOf(turn, problems.length)}
+        checks={turn === undefined ? [] : checkLinesOf(turn)}
+        meta={meta}
+        traceId={traceId}
+        conversationId={summary?.conversationId ?? (open ? view.live.conversationId : undefined)}
+      />
+      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
+        <ResizablePanel defaultSize={340} minSize={240}>
+          <Timeline
+            rows={timeline}
+            selected={selected?.id ?? ''}
+            problems={byStep}
+            onSelect={setPicked}
+          />
+        </ResizablePanel>
+        <ResizableHandle />
+        <ResizablePanel minSize={360}>
+          <ResizablePanelGroup orientation="vertical">
+            <ResizablePanel minSize={160}>
+              <ResultPane
+                reply={reply}
+                asOf={asOfLabel(selected, events, startMs)}
+                replay={pane}
+                problemsBySurface={bySurface}
+                open={open}
+              />
+            </ResizablePanel>
+            <ResizableHandle />
+            <ResizablePanel
+              panelRef={detail}
+              defaultSize="38"
+              minSize={120}
+              collapsible
+              collapsedSize={DETAIL_TITLE}
+              onResize={size => setCollapsed(size.inPixels <= DETAIL_TITLE + 1)}
+            >
+              {selected !== undefined && (
+                <StepDetail
+                  key={selected.id}
+                  row={selected}
+                  events={events}
+                  startMs={startMs}
+                  problems={problems.filter(problem => problem.stepId === selected.id)}
+                  collapsed={collapsed}
+                  onToggle={() => {
+                    if (collapsed) detail.current?.expand();
+                    else detail.current?.collapse();
+                  }}
+                />
+              )}
+            </ResizablePanel>
+          </ResizablePanelGroup>
+        </ResizablePanel>
+      </ResizablePanelGroup>
+    </>
+  );
+}
+
+/** Where the surfaces stand for a row: after its step, or after its whole delivery; the outcome follows everything. */
+function positionOf(row: TimelineRow | undefined): Position | undefined {
+  if (row === undefined) return undefined;
+  return row.row === 'delivery' ? {eventIndex: row.eventIndex} : row.position;
+}
+
+function asOfLabel(
+  row: TimelineRow | undefined,
+  events: readonly TurnRecordEvent[],
+  startMs: number,
+): string {
+  if (row === undefined) return '';
+  if (row.row === 'delivery') return `After the delivery at ${formatOffset(row.offsetMs)}`;
+  if (row.kind === 'outcome') return 'As the turn ended';
+  const offset =
+    row.offsetMs ??
+    (row.position === undefined
+      ? undefined
+      : unixMillis(events[row.position.eventIndex].startTimeUnixNano) - startMs);
+  return offset === undefined ? '' : `After the step at ${formatOffset(offset)}`;
+}
+
+function countBy<T>(
+  items: readonly T[],
+  keyOf: (item: T) => string | undefined,
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const key = keyOf(item);
+    if (key !== undefined) counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
 }
