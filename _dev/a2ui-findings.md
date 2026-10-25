@@ -619,3 +619,79 @@ from `@a2ui/web_core/v1_0` returns `success: true`.
 
 Have the generator require a required property whose schema accepts any value,
 for example with a refinement that rejects `undefined`.
+
+## 20. The Python samples still call the `a2ui-a2a` functions #3269 removed or changed
+
+**Component:** `samples/agent/adk/restaurant_finder/agent.py`;
+`samples/agent/adk/custom-components-example/agent.py`;
+`samples/community/agent/adk/gemini_enterprise/v0_8/agent_engine/agent.py`;
+`samples/community/agent/adk/gemini_enterprise/v0_8/cloud_run/agent.py`;
+`samples/community/agent/adk/gemini_enterprise/v0_9/agent.py`.
+
+**Severity:** sample defect: the two core Python samples do not start.
+
+Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24), not at the
+commit above; at `020a9d6f` the samples run.
+
+### Issue
+
+#3269 (`803874bb3`, "make the Parser stateless; always validate; add
+ResponseStream") removed `parse_response_to_parts` from `a2ui.a2a`, whose
+`__all__` no longer lists it (`python/a2ui_a2a/src/a2ui/a2a/__init__.py:37-53`),
+and changed `stream_response_to_parts` to take a `ResponseStream` instead of a
+`Parser` (`python/a2ui_a2a/src/a2ui/a2a/parts.py:167-171`). The samples were not
+updated:
+
+- all five import `parse_response_to_parts` from `a2ui.a2a` (restaurant finder
+  `agent.py:42`, custom-components `agent.py:42`, the v0.8 Gemini Enterprise
+  samples `agent_engine/agent.py:29` and `cloud_run/agent.py:30`, the v0.9 one
+  `agent.py:30`), so each fails at import with
+  `ImportError: cannot import name 'parse_response_to_parts' from 'a2ui.a2a'`;
+- the restaurant finder, the custom-components sample and the v0.9 Gemini
+  Enterprise sample pass a `Parser` from `create_parser()` to
+  `stream_response_to_parts` (restaurant finder `agent.py:304-312`,
+  custom-components `agent.py:526-532`, v0.9 `agent.py:343-349`), so their
+  streaming path breaks once the import is fixed.
+
+### Reproduction
+
+At `409ded29c`, in `samples/agent/adk/restaurant_finder`, run `uv run .`: it
+exits with the `ImportError` above before serving its card. The same holds for
+`samples/agent/adk/custom-components-example`.
+
+### Fix
+
+Parse with `A2uiRequestProcessor.parse_response()` and convert with
+`to_a2a_parts`, as `a2ui-a2a`'s CHANGELOG directs, and stream through the
+`ResponseStream` from `open_stream()`. Running the samples in CI, at least to
+import, would catch the next such break.
+
+## 21. `a2ui-a2a`'s CHANGELOG lists #3269's breaking changes under the released 0.1.0
+
+**Component:** `python/a2ui_a2a/CHANGELOG.md`.
+
+**Severity:** release-notes defect.
+
+Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24).
+
+### Issue
+
+The CHANGELOG's `## Unreleased` section is empty (`CHANGELOG.md:1`), and #3269's
+entries — `stream_response_to_parts` taking a `ResponseStream`, and
+`parse_stream_chunk_to_parts` and `parse_response_to_parts` removed, all marked
+**BREAKING** — sit under `## 0.1.0 (2026-10-17)` (`CHANGELOG.md:3`, `:15-25`),
+with `to_a2a_parts` and `parse_content_to_parts`'s `state` after them
+(`:26-31`). The 0.1.0 release, tagged `python/a2ui-a2a/v0.1.0` at `c68db100a`,
+predates #3269: it still exports `parse_response_to_parts` and
+`parse_stream_chunk_to_parts` (`__init__.py:33`, `:51`), and its
+`stream_response_to_parts` takes a `Parser` (`parts.py:215-218`). A reader
+of the CHANGELOG is told 0.1.0 removed functions that 0.1.0 has.
+
+### Reproduction
+
+Compare `git show python/a2ui-a2a/v0.1.0:python/a2ui_a2a/src/a2ui/a2a/__init__.py`
+with the `## 0.1.0` section of `python/a2ui_a2a/CHANGELOG.md` at `409ded29c`.
+
+### Fix
+
+Move #3269's entries under `## Unreleased`.
