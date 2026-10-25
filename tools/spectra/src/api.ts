@@ -5,11 +5,21 @@ import {type MessageBox, MessageBoxError} from './message_box.js';
 import type {StoredTurn, TurnStore} from './store/store.js';
 import type {HubEvent, TurnHub} from './turn_hub.js';
 
+/** What the context bar shows of the session. */
+export interface SessionContext {
+  /** The agent's name, from its card. */
+  agentName?: string;
+  mode: 'run' | 'attach';
+  /** The wire proxy's address, for a host app to point at. */
+  proxyAddress: string;
+}
+
 /** What the API serves from. */
 export interface Api {
   store: TurnStore;
   turns: TurnHub;
   box: MessageBox;
+  context: SessionContext;
   /** How often the live stream sends its heartbeat. */
   heartbeatMs?: number;
 }
@@ -41,6 +51,7 @@ const HEARTBEAT_MS = 2000;
  * Answers a request under `/api/`. Returns false for any other path, which
  * the caller serves.
  *
+ * - `GET /api/context`: the session: the agent's name, the mode and the wire proxy's address.
  * - `GET /api/turns`: the turns, newest first.
  * - `GET /api/turns/<trace id>`: a closed turn's record.
  * - `GET /api/stream`: the live stream, as server-sent events.
@@ -72,7 +83,9 @@ async function answer(
   response: ServerResponse,
 ): Promise<void> {
   const turn = /^GET \/api\/turns\/([0-9a-f]{32})$/.exec(route);
-  if (route === 'GET /api/turns') {
+  if (route === 'GET /api/context') {
+    sendJson(response, 200, api.context);
+  } else if (route === 'GET /api/turns') {
     sendJson(response, 200, {turns: await listTurns(api)});
   } else if (turn !== null) {
     await sendRecord(api, turn[1], response);
@@ -95,6 +108,7 @@ function isRoute(pathname: string): boolean {
   return (
     /^\/api\/turns(\/[0-9a-f]{32})?$/.test(pathname) ||
     [
+      '/api/context',
       '/api/stream',
       '/api/message-box',
       '/api/message-box/messages',
@@ -136,7 +150,7 @@ async function storedFields(store: TurnStore, file: string): Promise<ListingFiel
   if (!cache.has(file)) {
     try {
       const {turns} = await store.read(file);
-      cache.set(file, listingFieldsOf(turns[turns.length - 1]));
+      cache.set(file, listingFieldsOf(turns[turns.length - 1], turns.slice(0, -1)));
     } catch {
       return undefined;
     }

@@ -2,7 +2,14 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import {inputBriefOf, listingFieldsOf} from './listing.js';
-import type {CheckEvent, Turn, TurnEvent, WireInputEvent, WirePart} from './record/turn_record.js';
+import type {
+  CheckEvent,
+  Turn,
+  TurnEvent,
+  WireInputEvent,
+  WireOutputEvent,
+  WirePart,
+} from './record/turn_record.js';
 
 const TRACE = '0'.repeat(32);
 const TURN_SPAN = '1'.repeat(16);
@@ -18,6 +25,29 @@ function input(...parts: WirePart[]): WireInputEvent {
     attributes: {'a2ui.event.kind': 'wire_input', 'a2ui.wire.message': {role: 'user', parts}},
   };
 }
+
+function output(...parts: WirePart[]): WireOutputEvent {
+  return {
+    traceId: TRACE,
+    spanId: '4'.repeat(16),
+    parentSpanId: TURN_SPAN,
+    name: 'wire_output',
+    kind: 1,
+    startTimeUnixNano: '1792800000500000000',
+    attributes: {'a2ui.event.kind': 'wire_output', 'a2ui.wire.message': {role: 'assistant', parts}},
+  };
+}
+
+const createSurface: WirePart = {
+  type: 'a2ui',
+  content: {
+    version: 'v0.9',
+    createSurface: {
+      surfaceId: 's1',
+      catalogId: 'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json',
+    },
+  },
+};
 
 const turnEvent: TurnEvent = {
   traceId: TRACE,
@@ -85,18 +115,38 @@ describe('inputBriefOf', () => {
 });
 
 describe('listingFieldsOf', () => {
-  it("lists a closed turn's outcome, input in brief and schema check", () => {
+  it("lists a closed turn's outcome, agent, duration, input in brief, schema check and rejections", () => {
     const turn: Turn = {
-      events: [turnEvent, input({type: 'text', content: 'Hi'}), check(false, 2)],
+      events: [
+        {
+          ...turnEvent,
+          attributes: {...turnEvent.attributes, 'gen_ai.agent.name': 'Restaurant Agent'},
+        },
+        input({type: 'text', content: 'Hi'}),
+        check(false, 2),
+      ],
     };
     assert.deepEqual(listingFieldsOf(turn), {
       outcome: 'waiting_for_input',
+      agentName: 'Restaurant Agent',
+      durationMs: 1000,
       input: {text: 'Hi'},
       schemaCheck: {passed: false, findings: 2},
+      rejections: 0,
     });
   });
 
+  it("counts the rejections after the conversation's earlier turns", () => {
+    const turn: Turn = {events: [turnEvent, output(createSurface)]};
+    assert.equal(listingFieldsOf(turn)?.rejections, 0);
+    assert.equal(listingFieldsOf(turn, [turn])?.rejections, 1);
+  });
+
   it('leaves out what a turn does not have', () => {
-    assert.deepEqual(listingFieldsOf({events: [turnEvent]}), {outcome: 'waiting_for_input'});
+    assert.deepEqual(listingFieldsOf({events: [turnEvent]}), {
+      outcome: 'waiting_for_input',
+      durationMs: 1000,
+      rejections: 0,
+    });
   });
 });

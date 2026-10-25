@@ -54,6 +54,9 @@
     },
     "build:binary": {
       "command": "bun build --compile --minify --sourcemap --no-compile-autoload-dotenv --no-compile-autoload-bunfig src/cli.ts --asset dist/viewer --outfile dist/a2ui-spectra",
+      "env": {
+        "NODE_ENV": "production"
+      },
       "dependencies": [
         "build:viewer"
       ],
@@ -90,6 +93,9 @@
     "clean": {
       "command": "rm -rf dist .wireit"
     }
+  },
+  "dependencies": {
+    "@a2ui/web_core": "0.14.0"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",

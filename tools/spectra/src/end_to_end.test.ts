@@ -178,6 +178,8 @@ async function checkTurn(
   const listed = listing.body.turns.find(turn => turn.traceId === traceId);
   assert.ok(listed, 'The listing shows the turn.');
   assert.equal(listed.open, undefined);
+  assert.equal(listed.agentName, 'Spectra stub agent');
+  assert.equal(listed.rejections, 0);
 
   const {status, body: record} = await getJson<TurnRecord>(`${base}/api/turns/${traceId}`);
   assert.equal(status, 200);
@@ -229,6 +231,14 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
         let live: LiveStream | undefined;
         try {
           await spectra.waitFor(/The viewer is at /);
+          const context = await getJson<{mode: string; agentName?: string; proxyAddress: string}>(
+            `${base}/api/context`,
+          );
+          assert.deepEqual(context.body, {
+            agentName: 'Spectra stub agent',
+            mode: 'attach',
+            proxyAddress: `http://127.0.0.1:${proxyPort}/`,
+          });
           live = new LiveStream(`${base}/api/stream`);
           await live.ready;
 

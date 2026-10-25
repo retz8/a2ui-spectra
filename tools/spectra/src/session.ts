@@ -148,7 +148,16 @@ export async function runSession(
         port: options.port,
         viewerDir,
         allowedHosts: options.allowedHosts,
-        api: {store, turns, box},
+        api: {
+          store,
+          turns,
+          box,
+          context: {
+            ...(typeof card.name === 'string' && {agentName: card.name}),
+            mode: agentCommand === undefined ? 'attach' : 'run',
+            proxyAddress: proxy.address,
+          },
+        },
       });
       out.info(`The viewer is at ${server.url}`);
       out.info(`Point a host at the wire proxy: ${proxy.address}`);

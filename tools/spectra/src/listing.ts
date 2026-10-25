@@ -1,4 +1,5 @@
 /** What the turn listing shows of each turn beyond the store's file names. */
+import {rejectionCount} from './check/rejections.js';
 import {
   isA2uiPart,
   isEventOfKind,
@@ -16,9 +17,13 @@ export type InputBrief = {text: string} | {action: string} | {partType: string};
 /** The listing's fields read from a closed turn. */
 export interface ListingFields {
   outcome: TurnOutcome;
+  agentName?: string;
+  durationMs: number;
   input?: InputBrief;
   /** The schema check, when the turn has one. */
   schemaCheck?: {passed: boolean; findings: number};
+  /** How many of the turn's A2UI messages web core's message processor rejects. */
+  rejections: number;
 }
 
 export function inputBriefOf(event: WireInputEvent): InputBrief | undefined {
@@ -39,14 +44,27 @@ export function inputBriefOf(event: WireInputEvent): InputBrief | undefined {
   return parts.length > 0 ? {partType: parts[0].type} : undefined;
 }
 
-/** The listing's fields of a closed turn; nothing for a turn with no turn event. */
-export function listingFieldsOf(turn: Turn): ListingFields | undefined {
-  let fields: ListingFields | undefined;
+/**
+ * The listing's fields of a closed turn, after the conversation's earlier
+ * turns its record holds; nothing for a turn with no turn event.
+ */
+export function listingFieldsOf(
+  turn: Turn,
+  earlierTurns: readonly Turn[] = [],
+): ListingFields | undefined {
+  let fields: Pick<ListingFields, 'outcome' | 'agentName' | 'durationMs'> | undefined;
   let input: InputBrief | undefined;
   let schemaCheck: ListingFields['schemaCheck'];
   for (const event of turn.events) {
     if (isEventOfKind(event, 'turn')) {
-      fields = {outcome: event.attributes['a2ui.turn.outcome']};
+      const agentName = event.attributes['gen_ai.agent.name'];
+      fields = {
+        outcome: event.attributes['a2ui.turn.outcome'],
+        ...(agentName !== undefined && {agentName}),
+        durationMs: Number(
+          (BigInt(event.endTimeUnixNano) - BigInt(event.startTimeUnixNano)) / 1_000_000n,
+        ),
+      };
     } else if (isEventOfKind(event, 'wire_input') && input === undefined) {
       input = inputBriefOf(event);
     } else if (isEventOfKind(event, 'check') && event.attributes['a2ui.check.name'] === 'schema') {
@@ -61,6 +79,7 @@ export function listingFieldsOf(turn: Turn): ListingFields | undefined {
       ...fields,
       ...(input !== undefined && {input}),
       ...(schemaCheck !== undefined && {schemaCheck}),
+      rejections: rejectionCount(turn, earlierTurns),
     }
   );
 }

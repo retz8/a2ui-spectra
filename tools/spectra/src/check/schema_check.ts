@@ -102,7 +102,7 @@ export interface SchemaCheckResult {
 }
 
 /** One A2UI message the agent sent, with the JSON Pointer to it from the turn. */
-interface AgentMessage {
+export interface AgentMessage {
   message: unknown;
   path: string;
 }
@@ -161,7 +161,7 @@ function turnEventOf(turn: Turn): TurnEvent | undefined {
 }
 
 /** The A2UI messages in the turn's wire outputs, in order, each element of an array on its own. */
-function agentMessages(turn: Turn): AgentMessage[] {
+export function agentMessages(turn: Turn): AgentMessage[] {
   const messages: AgentMessage[] = [];
   turn.events.forEach((event, eventIndex) => {
     if (!isEventOfKind(event, 'wire_output')) {

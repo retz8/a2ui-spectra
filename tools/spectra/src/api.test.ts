@@ -37,6 +37,12 @@ function freePort(): Promise<number> {
 
 const trace = (n: number) => String(n).padStart(32, '0');
 
+const CONTEXT = {
+  agentName: 'Restaurant Agent',
+  mode: 'run',
+  proxyAddress: 'http://127.0.0.1:1/a2a',
+} as const;
+
 /** A closed turn: its turn event alone, starting n seconds after 2026-10-21T10:00:00Z. */
 function closedTurn(n: number, conversationId?: string): Turn {
   return {
@@ -104,7 +110,7 @@ async function serve(heartbeatMs = 60_000) {
     port,
     viewerDir: dir,
     allowedHosts: [],
-    api: {store, turns, box, heartbeatMs},
+    api: {store, turns, box, heartbeatMs, context: CONTEXT},
   });
   servers.push(server);
   const base = `http://127.0.0.1:${port}`;
@@ -132,13 +138,21 @@ describe('the API', () => {
     assert.equal(status, 200);
     assert.deepEqual((body as {turns: ListedTurn[]}).turns, [
       {traceId: trace(4), startTime: '2026-10-21T10:00:04.000Z', open: true},
-      {traceId: trace(3), startTime: '2026-10-21T10:00:03.000Z', outcome: 'completed'},
+      {
+        traceId: trace(3),
+        startTime: '2026-10-21T10:00:03.000Z',
+        outcome: 'completed',
+        durationMs: 500,
+        rejections: 0,
+      },
       {traceId: trace(2), startTime: '2026-10-21T10:00:02.000Z', open: true},
       {
         traceId: trace(1),
         conversationId: 'ctx-1',
         startTime: '2026-10-21T10:00:01.000Z',
         outcome: 'completed',
+        durationMs: 500,
+        rejections: 0,
       },
     ]);
   });
@@ -183,8 +197,10 @@ describe('the API', () => {
         conversationId: 'ctx-1',
         startTime: '2026-10-21T10:00:01.000Z',
         outcome: 'completed',
+        durationMs: 500,
         input: {text: 'Book a table'},
         schemaCheck: {passed: false, findings: 1},
+        rejections: 0,
       },
     ]);
   });
@@ -270,6 +286,13 @@ describe('the API', () => {
       {event: 'heartbeat', data: {}},
       {event: 'heartbeat', data: {}},
     ]);
+  });
+
+  it("serves the session's context: the agent's name, the mode and the wire proxy's address", async () => {
+    const {base} = await serve();
+    const {status, body} = await getJson(`${base}/api/context`);
+    assert.equal(status, 200);
+    assert.deepEqual(body, CONTEXT);
   });
 
   it("serves the message box's conversation and its routes", async () => {
