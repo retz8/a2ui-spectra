@@ -22,7 +22,7 @@ Monospace appears only inside JSON and code. Times, durations, message types and
 
 ### 3. The frame: a left rail and a context bar
 
-A left rail holds Spectra's mark with its name under it, and the sections: Turns, joined by Fixtures in Phase 7. A context bar above the turn list and the turn view shows the attached agent's name, the mode (`run` or `attach`), the live status and the wire proxy's address with a copy button. A popover on the agent's name holds the agent's URL, the A2A version, and the A2UI versions and catalogs its card advertises. The live status replaces the separate bar that says the live stream is down. From Phase 8, Restart and Logs sit on the right of the context bar, and the logs open as a drawer at the bottom of the page.
+A left rail holds Spectra's mark with its name under it, and the sections: Turns, joined by Fixtures in Phase 7. A context bar above the turn list and the turn view shows the attached agent's name, the mode (`run` or `attach`), the live status and the wire proxy's address with a copy button. A popover on the agent's name holds the agent's URL, and every A2A version and A2UI extension its card states, in card order, each extension with its catalogs, or "None advertised" when the card states no A2UI extension. The live status replaces the separate bar that says the live stream is down. From Phase 8, Restart and Logs sit on the right of the context bar, and the logs open as a drawer at the bottom of the page.
 
 ### 4. The turn list: grouped by conversation
 
@@ -74,7 +74,7 @@ The page address holds the turn and the selected step. The up and down arrows mo
 
 ### 16. The first screen
 
-With no turns, the turn view shows, centred: the agent's name and its live status; the agent card's skill examples as prompts that fill the composer in one click; and the second route, the wire proxy's address to point a host app at, with a copy button. The composer is focused.
+With no turns, the turn view shows, centred: the agent's name and its live status; the first example of each of the agent card's skills, in card order, as prompts that fill the composer in one click; and the second route, the wire proxy's address to point a host app at, with a copy button. The composer is focused.
 
 ### 17. Identity: Spectra's own mark, A2UI's teal
 
