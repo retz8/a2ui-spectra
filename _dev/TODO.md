@@ -26,7 +26,7 @@ Spec: `_dev/docs/spec/phase-2-first-turn-on-screen.md`. The done line — the th
 The viewer's frame, layout and visual design, drawn first as a design artifact that the build follows: Spectra's mark and the attached agent's live status; turns grouped by conversation; the turn view as a timeline of the turn's steps beside its result, with the problems on the steps; the message box docked under the turn view.
 Spec: `_dev/docs/spec/phase-3-viewer-ui.md`.
 
-- [ ] **3.1** The design artifact — every screen and state of the phase spec, in light and dark, that the later sub-tasks follow.
+- [x] **3.1** The design artifact — every screen and state of the phase spec, in light and dark, that the later sub-tasks follow.
 
 ## Phase 4 — Checks and preview
 Catalog and structural checks; the preview protocol and its core; the built-in basic catalog preview; the React, Lit and Angular preview adapters; the preview you can press; preview widths; the message box sending the agent's credentials from the shell, never recorded.
