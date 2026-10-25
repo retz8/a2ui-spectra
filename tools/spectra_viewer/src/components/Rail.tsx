@@ -9,8 +9,8 @@ const THEMES: Array<{choice: ThemeChoice; icon: IconKind; label: string}> = [
   {choice: 'dark', icon: 'moon', label: 'Dark'},
 ];
 
-/** The left rail: Spectra's mark and name, the sections, and the theme switch at its foot. */
-export function Rail() {
+/** The left rail: Spectra's mark and name, the sections, and at its foot the list of keys and the theme switch. */
+export function Rail({keysOpen, onKeys}: {keysOpen: boolean; onKeys: () => void}) {
   const theme = useTheme();
   return (
     <nav
@@ -29,6 +29,22 @@ export function Rail() {
         <span className="text-xs font-semibold">Turns</span>
       </div>
       <div className="flex-1" />
+      <button
+        type="button"
+        aria-label="Keys"
+        title="Keys · ?"
+        aria-haspopup="dialog"
+        aria-expanded={keysOpen}
+        onClick={onKeys}
+        className={cn(
+          'ease-quick mb-0.5 flex h-[30px] w-[38px] cursor-pointer items-center justify-center rounded-lg',
+          keysOpen
+            ? 'bg-tint text-foreground'
+            : 'text-muted-foreground hover:bg-border hover:text-foreground',
+        )}
+      >
+        <Icon kind="keys" size={16} />
+      </button>
       <div
         role="group"
         aria-label="Theme"

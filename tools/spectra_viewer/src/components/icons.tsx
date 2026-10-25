@@ -138,6 +138,7 @@ const PATHS = {
     </>
   ),
   plus: <path d="M12 5v14M5 12h14" />,
+  close: <path d="M6 6l12 12M18 6L6 18" />,
   chevronRight: <path d="M9 6l6 6-6 6" />,
   chevronDown: <path d="M6 9l6 6 6-6" />,
   dot: <circle cx="12" cy="12" r="4.5" fill="currentColor" stroke="none" />,
@@ -154,6 +155,16 @@ const PATHS = {
     </>
   ),
   moon: <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />,
+  keys: (
+    <>
+      <rect x="2.5" y="6" width="19" height="12" rx="2.5" />
+      <path
+        d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M6.5 14h.01M17.5 14h.01"
+        strokeWidth="2.2"
+      />
+      <path d="M9.5 14h5" />
+    </>
+  ),
 } satisfies Record<string, ReactNode>;
 
 export type IconKind = keyof typeof PATHS;

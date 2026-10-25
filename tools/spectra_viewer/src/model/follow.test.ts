@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import {readRecording} from '../testing/recordings.ts';
-import {followNewest, keptPick, stepInView} from './follow.ts';
+import {followNewest, keptPick, nextProblem, pickForKey, stepInView} from './follow.ts';
 import {onlyProblems, problemsOf} from './problems.ts';
 import {
   isTurnEvent,
@@ -147,5 +147,95 @@ describe('followNewest', () => {
     assert.equal(followNewest('b', 'b', 'a'), undefined);
     assert.equal(followNewest('b', 'b', 'b'), undefined);
     assert.equal(followNewest(undefined, undefined, 'a'), undefined);
+  });
+});
+
+describe('pickForKey', () => {
+  const {rows} = turnOf('stub_agent/flawed_booking_a2a_1_0').closed;
+  const ids = rows.map(row => row.id);
+  const last = ids[ids.length - 1];
+
+  it('picks the row above or below the row in view, and stays at either end', () => {
+    assert.deepEqual(pickForKey(rows, ids[2], 'ArrowDown', {open: false, following: false}), {
+      pick: ids[3],
+    });
+    assert.deepEqual(pickForKey(rows, ids[2], 'ArrowUp', {open: false, following: false}), {
+      pick: ids[1],
+    });
+    assert.deepEqual(pickForKey(rows, ids[0], 'ArrowUp', {open: false, following: false}), {
+      pick: ids[0],
+    });
+    assert.deepEqual(pickForKey(rows, last, 'ArrowDown', {open: false, following: false}), {
+      pick: last,
+    });
+  });
+
+  it('picks a delivery’s row like a step’s', () => {
+    const delivery = rows.findIndex(row => row.row === 'delivery');
+    assert.ok(delivery > 0);
+    assert.deepEqual(
+      pickForKey(rows, ids[delivery - 1], 'ArrowDown', {open: false, following: false}),
+      {
+        pick: ids[delivery],
+      },
+    );
+  });
+
+  it('picks the first row with Home and the last with End', () => {
+    assert.deepEqual(pickForKey(rows, ids[3], 'Home', {open: false, following: false}), {
+      pick: ids[0],
+    });
+    assert.deepEqual(pickForKey(rows, ids[3], 'End', {open: false, following: false}), {
+      pick: last,
+    });
+  });
+
+  it('lets go of the pick with End on an open turn, to follow the newest step again', () => {
+    assert.deepEqual(pickForKey(rows, ids[3], 'End', {open: true, following: false}), {
+      pick: undefined,
+    });
+  });
+
+  it('moves nowhere with Down while the newest step is followed, and stops following with Up', () => {
+    assert.equal(pickForKey(rows, last, 'ArrowDown', {open: true, following: true}), undefined);
+    assert.deepEqual(pickForKey(rows, last, 'ArrowUp', {open: true, following: true}), {
+      pick: ids[ids.length - 2],
+    });
+  });
+
+  it('moves nowhere in an empty timeline', () => {
+    assert.equal(pickForKey([], undefined, 'ArrowDown', {open: true, following: false}), undefined);
+  });
+});
+
+describe('nextProblem', () => {
+  const {rows, problems} = turnOf('stub_agent/flawed_booking_a2a_1_0').closed;
+  const marked = rows.filter(row => (problems.get(row.id) ?? 0) > 0).map(row => row.id);
+  const first = rows[0].id;
+
+  it('goes through the steps with problems in timeline order, wrapping around at the end', () => {
+    assert.equal(marked.length, 3);
+    assert.equal(nextProblem(rows, problems, first, {backwards: false}), marked[0]);
+    assert.equal(nextProblem(rows, problems, marked[0], {backwards: false}), marked[1]);
+    assert.equal(nextProblem(rows, problems, marked[1], {backwards: false}), marked[2]);
+    assert.equal(nextProblem(rows, problems, marked[2], {backwards: false}), marked[0]);
+  });
+
+  it('goes backwards with Shift, wrapping around at the start', () => {
+    assert.equal(nextProblem(rows, problems, marked[2], {backwards: true}), marked[1]);
+    assert.equal(nextProblem(rows, problems, marked[0], {backwards: true}), marked[2]);
+    assert.equal(nextProblem(rows, problems, first, {backwards: true}), marked[2]);
+  });
+
+  it('starts from the first problem when no row is in view', () => {
+    assert.equal(nextProblem(rows, problems, undefined, {backwards: false}), marked[0]);
+    assert.equal(nextProblem(rows, problems, undefined, {backwards: true}), marked[2]);
+  });
+
+  it('stays on the only problem, and finds none in a turn without problems', () => {
+    const only = new Map([[marked[1], 1]]);
+    assert.equal(nextProblem(rows, only, marked[1], {backwards: false}), marked[1]);
+    assert.equal(nextProblem(rows, only, marked[1], {backwards: true}), marked[1]);
+    assert.equal(nextProblem(rows, new Map(), first, {backwards: false}), undefined);
   });
 });

@@ -3,16 +3,19 @@ import {type PanelImperativeHandle, usePanelRef} from 'react-resizable-panels';
 
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
 import {checkLinesOf, checkStateOf} from '@/model/check_state.ts';
-import {keptPick, stepInView} from '@/model/follow.ts';
+import {keptPick, nextProblem, pickForKey, stepInView} from '@/model/follow.ts';
 import {inputBriefOfTurn} from '@/model/input_brief.ts';
+import {pageKeyOf} from '@/model/keys.ts';
 import {onlyProblems, problemsOf} from '@/model/problems.ts';
 import {type Turn, type TurnRecordEvent, unixMillis} from '@/model/record.ts';
 import {replay} from '@/model/replay.ts';
 import {type Position, replyThrough, type TimelineRow, timelineOf} from '@/model/steps.ts';
 import {summaryOf} from '@/model/summary.ts';
 import {briefText} from '@/model/turn_groups.ts';
+import {detailOpenHeight, rememberedSize, rememberSize} from '@/state/layout.ts';
 import {type TurnView as TurnViewState, turnViewOf, useNeededRecords} from '@/state/selectors.ts';
 import {useSpectra} from '@/state/spectra.ts';
+import {useSmallWindow} from '@/state/window.ts';
 
 import {Composer} from './Composer.tsx';
 import {FirstScreen} from './FirstScreen.tsx';
@@ -28,16 +31,26 @@ const DETAIL_TITLE = 41;
 /** The detail's height when open with no size of its own yet, as a percentage of the pane. */
 const DETAIL_OPEN = '38';
 
+/** The timeline's width until its divider is dragged, in pixels: on a wide window and below 1,280px. */
+const TIMELINE_WIDE = 340;
+const TIMELINE_SMALL = 300;
+
 /** The turn view: the selected turn, or the first screen with no turns, with the composer docked under it. */
 export function TurnView({
   traceId,
+  stepId,
   selection,
   onSelect,
+  onStep,
 }: {
   traceId: string | undefined;
+  /** The step the page address holds. */
+  stepId: string | undefined;
   /** Counts the turn list's selections, so selecting the same turn again counts too. */
   selection: number;
   onSelect: (traceId: string) => void;
+  /** Selects a step of the turn, or none, putting it in the page address. */
+  onStep: (traceId: string, stepId: string | undefined) => void;
 }) {
   const state = useSpectra();
   const needs: string[] = [];
@@ -45,7 +58,7 @@ export function TurnView({
     traceId === undefined ? {status: 'none'} : turnViewOf(state, traceId, needs);
   useNeededRecords(needs);
   const [draft, setDraft] = useState('');
-  const input = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
   // A new conversation asked for holds until a turn is selected.
   const selected = `${selection}:${traceId ?? ''}`;
   const [newAt, setNewAt] = useState<string | undefined>();
@@ -77,7 +90,15 @@ export function TurnView({
   } else if (view.status === 'none') {
     body = <Empty>No turn has this trace id.</Empty>;
   } else {
-    body = <TurnBody key={traceId} traceId={traceId} view={view} />;
+    body = (
+      <TurnBody
+        key={traceId}
+        traceId={traceId}
+        view={view}
+        stepId={stepId}
+        onStep={next => onStep(traceId, next)}
+      />
+    );
   }
   return (
     <main className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl bg-panel shadow-panel">
@@ -109,11 +130,17 @@ function Empty({children}: {children: string}) {
 function TurnBody({
   traceId,
   view,
+  stepId: picked,
+  onStep: setPicked,
 }: {
   traceId: string;
   view: Extract<TurnViewState, {status: 'open' | 'closed'}>;
+  /** The step picked, as the page address holds it. */
+  stepId: string | undefined;
+  onStep: (stepId: string | undefined) => void;
 }) {
   const state = useSpectra();
+  const small = useSmallWindow();
   const open = view.status === 'open';
   const events: readonly TurnRecordEvent[] = open ? view.live.events : view.turn.events;
   const turn: Turn | undefined = open ? undefined : view.turn;
@@ -134,7 +161,6 @@ function TurnBody({
   const byStep = useMemo(() => countBy(problems, problem => problem.stepId), [problems]);
   const bySurface = useMemo(() => countBy(problems, problem => problem.surfaceId), [problems]);
 
-  const [picked, setPicked] = useState<string | undefined>();
   // The filter belongs to this turn: each turn opens with all its steps.
   const [filtered, setFiltered] = useState(false);
   const kept = useMemo(() => onlyProblems(timeline, byStep), [timeline, byStep]);
@@ -158,13 +184,48 @@ function TurnBody({
   );
   const reply = useMemo(() => replyThrough(events, position), [events, position]);
 
+  // The page address holds the step selected, picked or landed on; a pick not in a closed turn gives way.
+  const shownId = inView.selected ? selected?.id : undefined;
+  const arriving = open && picked !== undefined && !timeline.some(row => row.id === picked);
+  useEffect(() => {
+    if (shownId !== picked && !arriving) setPicked(shownId);
+  }, [shownId, picked, arriving, setPicked]);
+
   const detail = usePanelRef();
+  const timelinePanel = usePanelRef();
   const [collapsed, setCollapsed] = useState(!inView.selected);
   // The detail is collapsed to its title line until a step is selected.
   useEffect(() => {
     if (inView.selected) openDetail(detail.current);
     else detail.current?.collapse();
   }, [inView.selected, detail]);
+  // A detail open as the turn opens takes its remembered height, at most half the pane.
+  useEffect(() => {
+    const panel = detail.current;
+    if (panel === null || panel.isCollapsed()) return;
+    const height = rememberedHeight(panel);
+    if (height !== undefined && height < panel.getSize().inPixels) panel.resize(height);
+  }, [detail]);
+
+  // `n` and Shift+`n` go to the next and previous problem, opening the detail on it; `l` jumps to the latest step.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      const key = pageKeyOf(event);
+      if (key === 'n' || key === 'N') {
+        const next = nextProblem(shown, byStep, selected?.id, {backwards: key === 'N'});
+        if (next === undefined) return;
+        setPicked(next);
+        openDetail(detail.current);
+      } else if (key === 'l') {
+        const move = pickForKey(shown, selected?.id, 'End', {open, following: inView.following});
+        if (move !== undefined) setPicked(move.pick);
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [shown, byStep, selected, open, inView.following, setPicked, detail]);
 
   const row = state.turns.find(listed => listed.traceId === traceId);
   const input = turn === undefined ? undefined : inputBriefOfTurn(turn);
@@ -190,8 +251,21 @@ function TurnBody({
         traceId={traceId}
         conversationId={summary?.conversationId ?? (open ? view.live.conversationId : undefined)}
       />
-      <ResizablePanelGroup orientation="horizontal" className="min-h-0 flex-1">
-        <ResizablePanel defaultSize={340} minSize={240}>
+      <ResizablePanelGroup
+        orientation="horizontal"
+        className="min-h-0 flex-1"
+        onLayoutChanged={(_, {isUserInteraction}) => {
+          const panel = timelinePanel.current;
+          if (isUserInteraction && panel !== null)
+            rememberSize('timeline', panel.getSize().inPixels);
+        }}
+      >
+        <ResizablePanel
+          panelRef={timelinePanel}
+          defaultSize={rememberedSize('timeline') ?? (small ? TIMELINE_SMALL : TIMELINE_WIDE)}
+          minSize={240}
+          groupResizeBehavior="preserve-pixel-size"
+        >
           <Timeline
             rows={shown}
             selected={selected?.id ?? ''}
@@ -206,16 +280,27 @@ function TurnBody({
             })}
             onSelect={setPicked}
             onJump={() => setPicked(undefined)}
+            onKey={key => {
+              const move = pickForKey(shown, selected?.id, key, {
+                open,
+                following: inView.following,
+              });
+              if (move !== undefined) setPicked(move.pick);
+            }}
           />
         </ResizablePanel>
         <ResizableHandle />
         <ResizablePanel minSize={360}>
           <ResizablePanelGroup
             orientation="vertical"
-            onLayoutChanged={() => {
+            onLayoutChanged={(_, {isUserInteraction}) => {
               // Read once the change is complete: during it, the panel's sizes can disagree.
               const panel = detail.current;
-              if (panel !== null) setCollapsed(panel.isCollapsed());
+              if (panel === null) return;
+              setCollapsed(panel.isCollapsed());
+              if (isUserInteraction && !panel.isCollapsed()) {
+                rememberSize('detail', panel.getSize().inPixels);
+              }
             }}
           >
             <ResizablePanel minSize={160}>
@@ -230,9 +315,12 @@ function TurnBody({
             <ResizableHandle />
             <ResizablePanel
               panelRef={detail}
-              defaultSize={inView.selected ? DETAIL_OPEN : DETAIL_TITLE}
+              defaultSize={
+                inView.selected ? (rememberedSize('detail') ?? DETAIL_OPEN) : DETAIL_TITLE
+              }
               minSize={120}
               collapsible
+              groupResizeBehavior="preserve-pixel-size"
               collapsedSize={DETAIL_TITLE}
             >
               {selected !== undefined && (
@@ -257,11 +345,27 @@ function TurnBody({
   );
 }
 
-/** Opens the collapsed detail to its last size, or, when it started collapsed and has none, to its default. */
+/**
+ * Opens the collapsed detail to the height it was last dragged to, at most
+ * half the pane, or, with none, to its last size or its default.
+ */
 function openDetail(panel: PanelImperativeHandle | null): void {
   if (panel === null || !panel.isCollapsed()) return;
+  // Measured before expanding: until the page lays the panel out again, its size in pixels is the old one.
+  const height = rememberedHeight(panel);
   panel.expand();
-  if (panel.getSize().inPixels <= DETAIL_TITLE + 1) panel.resize(DETAIL_OPEN);
+  if (height !== undefined) panel.resize(height);
+  else if (panel.getSize().inPixels <= DETAIL_TITLE + 1) panel.resize(DETAIL_OPEN);
+}
+
+/** The detail's remembered height in the pane it shares with the result, if one is remembered. */
+function rememberedHeight(panel: PanelImperativeHandle): number | undefined {
+  const remembered = rememberedSize('detail');
+  if (remembered === undefined) return undefined;
+  const {inPixels, asPercentage} = panel.getSize();
+  return asPercentage > 0
+    ? detailOpenHeight(remembered, (inPixels * 100) / asPercentage)
+    : remembered;
 }
 
 /** Where the surfaces stand for a row: after its step, or after its whole delivery; the outcome follows everything. */

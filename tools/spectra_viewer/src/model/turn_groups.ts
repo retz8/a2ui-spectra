@@ -6,6 +6,7 @@
 import type {InputBrief} from './input_brief.ts';
 import {listedProblemCount} from './problems.ts';
 import type {TurnOutcome} from './record.ts';
+import {plural} from './steps.ts';
 
 /** The fields of a listed turn a group reads. */
 export interface GroupedTurn {
@@ -51,6 +52,31 @@ export function groupTurns<T extends GroupedTurn>(turns: readonly T[]): Array<Tu
       problems: members.reduce((sum, turn) => sum + listedProblemCount(turn), 0),
     };
   });
+}
+
+/** A turn in the strip that stands for the turn list on a small window. */
+export interface StripTurn<T extends GroupedTurn> {
+  turn: T;
+  problems: number;
+  /** Its input, and its problem count when it has problems. */
+  title: string;
+}
+
+/** The strip: every turn, in the turn list's order with every group open. */
+export function stripOf<T extends GroupedTurn>(
+  groups: ReadonlyArray<TurnGroup<T>>,
+): Array<StripTurn<T>> {
+  return groups.flatMap(group =>
+    group.turns.map(turn => {
+      const problems = listedProblemCount(turn);
+      const input = briefText(turn.input) || 'Waiting for its input';
+      return {
+        turn,
+        problems,
+        title: problems === 0 ? input : `${input} · ${plural(problems, 'problem')}`,
+      };
+    }),
+  );
 }
 
 /** An input in brief as the list reads it. */

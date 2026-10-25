@@ -70,3 +70,51 @@ export function followNewest(
   if (selected === undefined) return newest;
   return newest !== before && selected === before ? newest : undefined;
 }
+
+export type TimelineKey = 'ArrowUp' | 'ArrowDown' | 'Home' | 'End';
+
+/**
+ * The pick a key makes in the timeline, from the row in view: the row above
+ * or below it, the first row, or the last; End on an open turn lets go of the
+ * pick, to follow the newest step again. Nothing when the key moves nowhere,
+ * as Down does while the newest step is followed.
+ */
+export function pickForKey(
+  rows: readonly TimelineRow[],
+  current: string | undefined,
+  key: TimelineKey,
+  {open, following}: {open: boolean; following: boolean},
+): {pick: string | undefined} | undefined {
+  if (rows.length === 0 || (following && key === 'ArrowDown')) return undefined;
+  const index = rows.findIndex(row => row.id === current);
+  switch (key) {
+    case 'ArrowUp':
+      return {pick: rows[Math.max(index - 1, 0)].id};
+    case 'ArrowDown':
+      return {pick: rows[Math.min(index + 1, rows.length - 1)].id};
+    case 'Home':
+      return {pick: rows[0].id};
+    case 'End':
+      return open ? {pick: undefined} : {pick: rows[rows.length - 1].id};
+  }
+}
+
+/**
+ * The next step with a problem after the row in view, in timeline order, or
+ * the previous one going backwards, wrapping around at the ends; nothing when
+ * the turn has no step with a problem.
+ */
+export function nextProblem(
+  rows: readonly TimelineRow[],
+  problems: ReadonlyMap<string, number>,
+  current: string | undefined,
+  {backwards}: {backwards: boolean},
+): string | undefined {
+  const index = rows.findIndex(row => row.id === current);
+  const marked = rows.flatMap((row, at) => ((problems.get(row.id) ?? 0) > 0 ? [at] : []));
+  if (marked.length === 0) return undefined;
+  const at = backwards
+    ? ([...marked].reverse().find(at => index !== -1 && at < index) ?? marked[marked.length - 1])
+    : (marked.find(at => at > index) ?? marked[0]);
+  return rows[at].id;
+}

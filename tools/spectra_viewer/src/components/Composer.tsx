@@ -1,4 +1,11 @@
-import {type FormEvent, type KeyboardEvent, type Ref, useState} from 'react';
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  type RefObject,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 
 import {cn} from '@/lib/utils';
 import {type ComposerTarget, composerOf} from '@/state/selectors.ts';
@@ -12,7 +19,8 @@ import {Icon, type IconKind} from './icons.tsx';
  * of the turn in view when the box started it, and otherwise starts a new
  * one, saying which and why; it says when the agent is waiting for input, and
  * offers a new conversation. Its text is held by the turn view, which the
- * first screen's examples fill.
+ * first screen's examples fill. It is one line until typing, and grows with
+ * its text up to six lines; Enter sends, and Shift+Enter starts a new line.
  */
 export function Composer({
   text,
@@ -25,7 +33,7 @@ export function Composer({
 }: {
   text: string;
   onText: (text: string) => void;
-  inputRef?: Ref<HTMLInputElement>;
+  inputRef?: RefObject<HTMLTextAreaElement | null>;
   onSent: (traceId: string) => void;
   /** The turn in view. */
   traceId: string | undefined;
@@ -38,6 +46,16 @@ export function Composer({
   const agent = state.context?.agentName ?? 'the agent';
   const [error, setError] = useState<string | undefined>();
   const [sending, setSending] = useState(false);
+  const ownInput = useRef<HTMLTextAreaElement>(null);
+  const field = inputRef ?? ownInput;
+
+  // The field is as tall as its text, up to six lines, and scrolls past them.
+  useLayoutEffect(() => {
+    const element = field.current;
+    if (element === null) return;
+    element.style.height = 'auto';
+    element.style.height = `${Math.min(element.scrollHeight, FIELD_MAX)}px`;
+  }, [text, field]);
 
   const {target} = view;
   const turnOpen = view.waiting === 'A turn is open';
@@ -68,8 +86,11 @@ export function Composer({
       setSending(false);
     }
   };
-  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter' && event.nativeEvent.isComposing) event.preventDefault();
+  const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    // Enter while an input method is composing is the input method's.
+    if (event.key !== 'Enter' || event.shiftKey || event.nativeEvent.isComposing) return;
+    event.preventDefault();
+    void send();
   };
 
   return (
@@ -98,14 +119,14 @@ export function Composer({
         <form
           onSubmit={event => void send(event)}
           className={cn(
-            'ease-quick flex h-10 items-center gap-2 rounded-[10px] border pr-[5px] pl-3',
+            'ease-quick flex min-h-10 items-end gap-2 rounded-[10px] border py-1 pr-[5px] pl-3',
             'focus-within:border-brand focus-within:ring-[3px] focus-within:ring-brand-soft',
             disabled ? 'bg-tint' : 'bg-panel',
           )}
         >
-          <input
-            ref={inputRef}
-            type="text"
+          <textarea
+            ref={field}
+            rows={1}
             aria-label="Message the agent"
             value={text}
             onChange={event => onText(event.target.value)}
@@ -116,10 +137,10 @@ export function Composer({
                 ? 'Waiting for the turn to finish'
                 : (view.waiting ?? (waitsForInput ? `Reply to ${agent}` : `Message ${agent}`))
             }
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground disabled:cursor-default"
+            className="max-h-[130px] min-w-0 flex-1 resize-none bg-transparent py-[5px] text-sm leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-default"
           />
           {!disabled && (
-            <span className="shrink-0 text-xs text-muted-foreground">Enter to send</span>
+            <span className="shrink-0 pb-[7px] text-xs text-muted-foreground">Enter to send</span>
           )}
           <button
             type="submit"
@@ -149,3 +170,6 @@ function labelOf(target: ComposerTarget): string {
       return 'The agent named no conversation · sending starts a new conversation';
   }
 }
+
+/** The field's greatest height: six lines of 20px and its padding. */
+const FIELD_MAX = 130;

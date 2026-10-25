@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import {briefText, type GroupedTurn, groupTurns, searchGroups} from './turn_groups.ts';
+import {briefText, type GroupedTurn, groupTurns, searchGroups, stripOf} from './turn_groups.ts';
 
 const turn = (traceId: string, fields: Partial<GroupedTurn> = {}): GroupedTurn => ({
   traceId,
@@ -94,5 +94,27 @@ describe('searchGroups', () => {
 
   it('keeps everything for an empty search', () => {
     assert.equal(searchGroups(groups, '  ').length, 3);
+  });
+});
+
+describe('stripOf', () => {
+  it("lists every turn in the turn list's order, each titled by its input and its problems", () => {
+    assert.deepEqual(
+      stripOf(groupTurns(listing)).map(({turn, problems, title}) => ({
+        traceId: turn.traceId,
+        problems,
+        title,
+      })),
+      [
+        {traceId: 'cd2559ab0000', problems: 0, title: 'Book a table for 2'},
+        {traceId: '09b758f00000', problems: 1, title: 'Top 3 Italian restaurants · 1 problem'},
+        {
+          traceId: '776aef460000',
+          problems: 1,
+          title: 'Show me the file uploader again · 1 problem',
+        },
+        {traceId: '193e24d50000', problems: 1, title: 'Action “next” · 1 problem'},
+      ],
+    );
   });
 });

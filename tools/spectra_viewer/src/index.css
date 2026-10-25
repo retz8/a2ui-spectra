@@ -19,6 +19,8 @@
   --color-success: var(--success);
   --shadow-panel: var(--panel-shadow);
   --shadow-float: var(--float-shadow);
+  --shadow-overlay: var(--overlay-shadow);
+  --color-scrim: var(--scrim);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -63,6 +65,8 @@
   --success: #2e7d32;
   --panel-shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 0 0 1px rgba(16, 24, 40, 0.05);
   --float-shadow: 0 8px 24px rgba(16, 24, 40, 0.14), 0 0 0 1px var(--border);
+  --overlay-shadow: 0 12px 32px rgba(16, 24, 40, 0.16), 0 0 0 1px rgba(16, 24, 40, 0.06);
+  --scrim: rgba(16, 24, 40, 0.18);
   --background: var(--canvas);
   --foreground: #16171a;
   --card: var(--panel);
@@ -96,6 +100,8 @@
   --problem-soft: #3a1c1c;
   --success: #66bb6a;
   --panel-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --overlay-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --scrim: rgba(0, 0, 0, 0.5);
   --foreground: #ecedef;
   --muted-foreground: #9a9ea6;
   --border: #2a2c30;
