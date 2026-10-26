@@ -92,11 +92,11 @@ When a page is ready it tells Spectra which catalog ids and protocol versions it
 
 ### 16. The Preview tab
 
-It shows one surface, the switcher's, as it stood right after the selected step, as Structure shows it, and keeps up with a live turn step by step while following. The page receives the conversation's A2UI messages up to that step, the feed the replay uses, and runs them through its own processor with its real catalog implementation. Preview is the pane's first tab and its default; the tab last chosen is remembered in the browser.
+It shows one surface, the switcher's, as it stood right after the selected step, as Structure shows it, and keeps up with a live turn step by step while following. The page receives the conversation's A2UI messages up to that step, the feed the replay uses, and runs them through its own processor with its real catalog implementation. Preview and Structure are panes side by side, both shown by default, each hidden by its toggle, with a draggable divider between them; the toggles and the divider are remembered in the browser as the dividers are.
 
 ### 17. Widths
 
-Two presets, Narrow and Wide, switched in the Preview tab's header, the choice remembered in the browser as the dividers are. Narrow is a phone-like width and Wide is the pane's width; the numbers are settled on the design canvas. The frame scrolls when the surface is taller than the pane.
+Two presets, Narrow and Wide, switched in the Preview tab's header, the choice remembered in the browser as the dividers are. Narrow is a phone-like width and Wide is the Preview pane's width; the numbers are settled on the design canvas. The frame scrolls when the surface is taller than the pane.
 
 ### 18. Render errors
 
