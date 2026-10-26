@@ -66,7 +66,7 @@ While a turn is open, the timeline follows the newest step and the result shows 
 
 ### 14. Small screens
 
-The composer is one line until typing, then grows, up to six lines. The step's detail starts collapsed to its title line until a step is selected. Below 1,280px wide, the turn list collapses to a strip of status icons, each selecting its turn, that opens as an overlay. Every divider can be dragged, and its position is remembered in the browser.
+The composer is one line until typing, then grows, up to six lines. The step's detail starts collapsed to its title line until a step is selected. The turn list collapses to a strip of status icons, each selecting its turn: by a button in its header at any width, remembered in the browser, where the strip's button expands it back in place; and always below 1,280px wide, where the strip's button opens it as an overlay. Every divider can be dragged, and its position is remembered in the browser.
 
 ### 15. The keyboard and the page address
 
