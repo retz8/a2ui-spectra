@@ -42,7 +42,7 @@ The selected step's detail, its content and its problems, sits in a split under 
 
 ### 8. The result pane: Preview and Structure
 
-The result pane shows the agent's reply text in a strip above two panes side by side, Preview and Structure, each shown or hidden by its own toggle in the pane's header, with a draggable divider between them; Structure shows the tree and the data model side by side, or the tree above the data model when its pane is narrow. The tree's nodes expand to their properties; components no parent reaches, and a stand-in catalog's components in the order they came, are listed under their own labels. A surface switcher in the pane's header lists the surfaces the turn touched first and then those it did not change, each with its catalog id and its problem mark, and shows a surface the turn deleted as deleted. Until Phase 4's preview, Structure is the only pane.
+The result pane shows the agent's reply text in a strip above two panes side by side, Preview and Structure, each shown or hidden by its own toggle in the pane's header, with a draggable divider between them; Structure shows the tree above the data model. The tree's nodes expand to their properties; components no parent reaches, and a stand-in catalog's components in the order they came, are listed under their own labels. A surface switcher in the pane's header lists the surfaces the turn touched first and then those it did not change, each with its catalog id and its problem mark, and shows a surface the turn deleted as deleted. Until Phase 4's preview, Structure is the only pane.
 
 ### 9. Problems: marks on the steps, one count, the count as a filter
 
