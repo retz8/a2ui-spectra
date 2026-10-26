@@ -20,7 +20,7 @@ Narrow is 384px, Tailwind's `sm` container width, so the viewer draws the frame 
 
 ### 3. The render error
 
-On the Preview tab, a problem strip above the frame in Phase 3's problem-block style, the plain sentence first and the code second, one row per error, each naming the component id; the surface stays drawn under it as the renderer left it. In the step's detail, the error is one more problem block, headed "Preview" as the other blocks are headed by their check, with one quiet line reading "Reported by the preview page · not recorded".
+On the Preview tab, a compact strip above the frame: one 12px row per error, the problem mark and a plain sentence naming the component, such as "DateTimeInput dateTimeInput_fbfcc3af did not render."; the surface stays drawn under it as the renderer left it. In the step's detail, the error is one more problem block in Phase 3's form: the same plain sentence first, then the page's error text and the code on the quiet second line, such as "RangeError: Invalid time value · RENDER_ERROR · preview page", and one more quiet line reading "Reported by the preview page · not recorded".
 
 ### 4. The "No preview" state
 
