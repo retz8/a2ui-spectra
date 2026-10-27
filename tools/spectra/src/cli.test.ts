@@ -123,8 +123,9 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
   it('prints its help', {timeout: TIMEOUT}, async () => {
     const tool = await finished(['--help']);
     assert.equal(tool.code, 0);
-    assert.match(tool.output, /attach <agent-url>/);
-    assert.match(tool.output, /run --agent-url <url> \[options\] -- <command>/);
+    assert.match(tool.output, /attach \[<agent-url>\]/);
+    assert.match(tool.output, /run \[--agent-url <url>\] \[options\] -- <command>/);
+    assert.match(tool.output, /--config <path>/);
     const run = await finished(['run', '--help']);
     assert.equal(run.code, 0);
     assert.match(run.output, /--agent-url <url>/);
@@ -135,6 +136,27 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
     assert.equal(result.code, 2);
     assert.match(result.output, /after '--'/);
   });
+
+  it(
+    "stops without the agent's URL on the command line or in the config file",
+    {timeout: TIMEOUT},
+    async () => {
+      const result = await finished(['attach']);
+      assert.equal(result.code, 2);
+      assert.match(
+        result.output,
+        /attach needs the agent's URL: its <agent-url> argument, or agent\.url in a2ui-spectra\.json/,
+      );
+      const cwd = workingDir();
+      writeFileSync(path.join(cwd, 'a2ui-spectra.json'), '{"agent": {"url": "localhost:1"}}');
+      const bad = await finished(['attach'], cwd);
+      assert.equal(bad.code, 1);
+      assert.match(bad.output, /a2ui-spectra\.json: agent\.url must start with http/);
+      const missing = await finished(['attach', '--config', 'nowhere.json'], cwd);
+      assert.equal(missing.code, 1);
+      assert.match(missing.output, /nowhere\.json does not exist/);
+    },
+  );
 
   it('attach waits for the card, then serves the viewer', {timeout: TIMEOUT}, async () => {
     const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);

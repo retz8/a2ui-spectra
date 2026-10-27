@@ -7,7 +7,7 @@
  */
 import assert from 'node:assert/strict';
 import {type ChildProcess, spawn} from 'node:child_process';
-import {readFileSync} from 'node:fs';
+import {copyFileSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {after, describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
@@ -15,6 +15,8 @@ import {fileURLToPath} from 'node:url';
 import {SseParser} from './a2a/sse.js';
 import type {ListedTurn, SessionContext} from './api.js';
 import type {MessageBoxState, SentMessage} from './message_box.js';
+import type {CatalogListing} from './catalog/registry.js';
+import {CONFIG_FILE} from './config.js';
 import {
   type A2uiPart,
   type CheckEvent,
@@ -22,6 +24,7 @@ import {
   type Turn,
   type TurnEvent,
   type TurnRecord,
+  type WireInputEvent,
   type WireOutputEvent,
 } from './record/turn_record.js';
 import {folderOf} from './store/store.js';
@@ -31,6 +34,12 @@ import {turnRecordErrors} from './testing/turn_record_schema.js';
 const stubScript = fileURLToPath(
   new URL('../../../conformance/dist/stub_agent/stub_agent.js', import.meta.url),
 );
+const customCatalog = fileURLToPath(
+  new URL('../../../conformance/test_data/catalogs/custom_catalog_v1_0.json', import.meta.url),
+);
+const BASIC_V0_9 = 'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json';
+const BASIC_V0_9_1 = 'https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json';
+const BASIC_V1_0 = 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json';
 const TIMEOUT = 60_000;
 
 const stubs = new Set<ChildProcess>();
@@ -321,4 +330,118 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
       },
     );
   }
+});
+
+/** A working directory holding a config file naming the agent, a token header from the shell and a configured catalog. */
+function configuredDir(agentPort: number): string {
+  const cwd = workingDir();
+  mkdirSync(path.join(cwd, 'catalogs'));
+  copyFileSync(customCatalog, path.join(cwd, 'catalogs', 'custom.json'));
+  writeFileSync(
+    path.join(cwd, CONFIG_FILE),
+    JSON.stringify({
+      agent: {
+        url: `http://127.0.0.1:${agentPort}`,
+        headers: {Authorization: 'Bearer ${SPECTRA_STUB_TOKEN}'},
+      },
+      catalogs: ['./catalogs/custom.json'],
+    }),
+  );
+  return cwd;
+}
+
+describe(`the config file against the stub agent, ${binary ? 'the binary' : 'under Node'}`, () => {
+  it(
+    "reads the agent's URL, the token header and a catalog from a2ui-spectra.json, the token from the shell",
+    {timeout: TIMEOUT},
+    async () => {
+      const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+      const stub = await startStub(agentPort, ['--bearer-token', 't0k3n']);
+      const cwd = configuredDir(agentPort);
+      const spectra = new SpectraProcess(
+        ['attach', '--port', String(port), '--proxy-port', String(proxyPort), '--no-open'],
+        cwd,
+        {SPECTRA_STUB_TOKEN: 't0k3n'},
+      );
+      const base = `http://127.0.0.1:${port}`;
+      let live: LiveStream | undefined;
+      try {
+        await spectra.waitFor(/The viewer is at /);
+        assert.match(spectra.output, /Settings read from .*a2ui-spectra\.json/);
+        assert.match(spectra.output, /Catalogs configured: conformance\/custom/);
+        assert.doesNotMatch(spectra.output, /not set in Spectra's environment/);
+
+        const {body: listing} = await getJson<CatalogListing>(`${base}/api/catalogs`);
+        assert.deepEqual(
+          listing.catalogs.map(({id, source}) => [id, source]),
+          [
+            [BASIC_V0_9, 'built-in'],
+            [BASIC_V1_0, 'built-in'],
+            ['conformance/custom', 'configured'],
+          ],
+        );
+        const {body: box} = await getJson<MessageBoxState>(`${base}/api/message-box`);
+        assert.equal(box.unavailable, undefined);
+
+        live = new LiveStream(`${base}/api/stream`);
+        await live.ready;
+        const first = await sendMessage(base, 'Hi');
+        const {turn} = await checkTurn(base, cwd, live, first.traceId);
+        assert.equal(turnEventOf(turn).attributes['a2ui.turn.outcome'], 'waiting_for_input');
+        const input = turn.events.find((event): event is WireInputEvent =>
+          isEventOfKind(event, 'wire_input'),
+        );
+        assert.deepEqual(input?.attributes['a2ui.wire.capabilities'], {
+          'v0.9': {supportedCatalogIds: [BASIC_V0_9]},
+          'v0.9.1': {supportedCatalogIds: [BASIC_V0_9, BASIC_V0_9_1]},
+          'v1.0': {supportedCatalogIds: [BASIC_V1_0, 'conformance/custom']},
+        });
+      } finally {
+        live?.close();
+        spectra.signal('SIGTERM');
+        await spectra.exited;
+        stub.kill();
+      }
+    },
+  );
+
+  it(
+    'refuses the message box while the token variable is not set, saying so at start',
+    {timeout: TIMEOUT},
+    async () => {
+      const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+      const stub = await startStub(agentPort, ['--bearer-token', 't0k3n']);
+      const cwd = configuredDir(agentPort);
+      const spectra = new SpectraProcess(
+        ['attach', '--port', String(port), '--proxy-port', String(proxyPort), '--no-open'],
+        cwd,
+      );
+      const base = `http://127.0.0.1:${port}`;
+      try {
+        await spectra.waitFor(/The viewer is at /);
+        assert.match(
+          spectra.output,
+          /SPECTRA_STUB_TOKEN is not set in Spectra's environment, so the Authorization header is not sent and the message box cannot send\./,
+        );
+        const unavailable = "Can't send · SPECTRA_STUB_TOKEN is not set in Spectra's environment";
+        const {body: box} = await getJson<MessageBoxState>(`${base}/api/message-box`);
+        assert.deepEqual(box, {
+          conversations: [],
+          unavailable,
+          unsetVariables: ['SPECTRA_STUB_TOKEN'],
+        });
+        const response = await fetch(`${base}/api/message-box/messages`, {
+          method: 'POST',
+          headers: {'content-type': 'application/json'},
+          body: JSON.stringify({text: 'Hi'}),
+        });
+        assert.equal(response.status, 422);
+        assert.deepEqual(await response.json(), {error: unavailable});
+      } finally {
+        spectra.signal('SIGTERM');
+        await spectra.exited;
+        stub.kill();
+      }
+    },
+  );
 });

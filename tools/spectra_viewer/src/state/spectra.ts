@@ -6,9 +6,11 @@
 import {useSyncExternalStore} from 'react';
 
 import {
+  getCatalogs,
   getContext,
   getMessageBox,
   getRecord,
+  type KnownCatalog,
   type ListedTurn,
   listTurns,
   type LiveEvents,
@@ -53,6 +55,8 @@ export interface SpectraState {
   box: MessageBoxState;
   /** The session, once read. */
   context?: SessionContext;
+  /** The catalog definitions Spectra knows, once read; the same array until they change. */
+  catalogs?: KnownCatalog[];
 }
 
 /** How long to wait before opening the live stream again after it was dropped. */
@@ -195,7 +199,12 @@ class Spectra {
 
   async #reload(): Promise<void> {
     try {
-      const [turns, box, context] = await Promise.all([listTurns(), getMessageBox(), getContext()]);
+      const [turns, box, context, catalogs] = await Promise.all([
+        listTurns(),
+        getMessageBox(),
+        getContext(),
+        getCatalogs(),
+      ]);
       // What the stream said while the listing was on its way is newer than the listing.
       const {live, closed} = this.#state;
       // An open turn's agent is the session's.
@@ -211,7 +220,11 @@ class Spectra {
       for (const turn of live.values()) {
         rows.set(turn.traceId, {...rows.get(turn.traceId), ...openRow(turn, context.agentName)});
       }
-      this.#set({loaded: true, turns: sortRows([...rows.values()]), box, context});
+      const known =
+        JSON.stringify(catalogs) === JSON.stringify(this.#state.catalogs)
+          ? this.#state.catalogs
+          : catalogs;
+      this.#set({loaded: true, turns: sortRows([...rows.values()]), box, context, catalogs: known});
     } catch {
       // The check marks the page as not connected; the stream's next open reads again.
     }

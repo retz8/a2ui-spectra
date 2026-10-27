@@ -5,6 +5,7 @@ import {
   A2UI_CAPABILITIES,
   A2UI_EXTENSION_URIS,
   boxRequest,
+  capabilitiesFor,
   chooseInterface,
   readReplySummary,
 } from './client.js';
@@ -151,23 +152,63 @@ describe('boxRequest', () => {
     }
   });
 
-  it('offers v0.9, v0.9.1 and v1.0, each naming its basic catalog', () => {
+  it('offers v0.9, v0.9.1 and v1.0, each naming its basic catalog, both URLs under v0.9.1', () => {
     assert.deepEqual(A2UI_EXTENSION_URIS, [
       'https://a2ui.org/a2a-extension/a2ui/v0.9',
       'https://a2ui.org/a2a-extension/a2ui/v0.9.1',
       'https://a2ui.org/a2a-extension/a2ui/v1.0',
     ]);
-    const v09 = {
-      supportedCatalogIds: ['https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json'],
-    };
+    const basicV09 = 'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json';
+    const basicV091 = 'https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json';
     assert.deepEqual(A2UI_CAPABILITIES, {
-      a2uiClientCapabilities: {'v0.9': v09, 'v0.9.1': v09},
+      a2uiClientCapabilities: {
+        'v0.9': {supportedCatalogIds: [basicV09]},
+        'v0.9.1': {supportedCatalogIds: [basicV09, basicV091]},
+      },
       a2uiRendererCapabilities: {
         'v1.0': {
           supportedCatalogIds: ['https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json'],
         },
       },
     });
+  });
+
+  it("writes an offer of catalog ids as the capabilities, under each version's key", () => {
+    assert.deepEqual(
+      capabilitiesFor({
+        'v0.9': ['a'],
+        'v0.9.1': ['a', 'b'],
+        'v1.0': ['c'],
+      }),
+      {
+        a2uiClientCapabilities: {
+          'v0.9': {supportedCatalogIds: ['a']},
+          'v0.9.1': {supportedCatalogIds: ['a', 'b']},
+        },
+        a2uiRendererCapabilities: {'v1.0': {supportedCatalogIds: ['c']}},
+      },
+    );
+  });
+
+  it('sends the capabilities and the headers it is given, its own headers winning', () => {
+    const capabilities = capabilitiesFor({'v0.9': ['a'], 'v0.9.1': ['a'], 'v1.0': ['c']});
+    const request = boxRequest({version: '1.0', url: PROXY, streaming: false}, message, 2, {
+      capabilities,
+      headers: {Authorization: 'Bearer t0k3n', 'Content-Type': 'text/plain', 'X-Tenant': 'acme'},
+    });
+    assert.deepEqual(request.headers, {
+      authorization: 'Bearer t0k3n',
+      'x-tenant': 'acme',
+      'content-type': 'application/json',
+      accept: 'application/json',
+      'a2a-version': '1.0',
+      'a2a-extensions': A2UI_EXTENSION_URIS.join(', '),
+    });
+    assert.deepEqual(
+      (JSON.parse(request.body) as {params: {message: {metadata: unknown}}}).params.message
+        .metadata,
+      capabilities,
+    );
   });
 });
 

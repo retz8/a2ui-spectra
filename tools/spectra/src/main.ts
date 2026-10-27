@@ -1,4 +1,5 @@
-import {parseCommandLine, UsageError} from './args.js';
+import {agentUrlOf, parseCommandLine, UsageError} from './args.js';
+import {ConfigError, loadConfig} from './config.js';
 import {helpText} from './help.js';
 import type {Output} from './output.js';
 import {runSession} from './session.js';
@@ -15,11 +16,7 @@ export async function main(
     commandLine = parseCommandLine(argv);
   } catch (error) {
     if (error instanceof UsageError) {
-      out.error(error.message);
-      out.error(
-        `Run '${NAME} ${error.topic === undefined ? '' : `${error.topic} `}--help' for usage.`,
-      );
-      return 2;
+      return usage(error, out);
     }
     throw error;
   }
@@ -31,13 +28,40 @@ export async function main(
       out.print(VERSION);
       return 0;
     case 'attach':
-      return runSession(commandLine.options, undefined, out, viewerDir);
-    case 'run':
+    case 'run': {
+      let config;
+      try {
+        config = await loadConfig({cwd: process.cwd(), path: commandLine.options.config});
+      } catch (error) {
+        if (error instanceof ConfigError) {
+          out.error(error.message);
+          return 1;
+        }
+        throw error;
+      }
+      let agentUrl;
+      try {
+        agentUrl = agentUrlOf(commandLine.options, config, commandLine.name);
+      } catch (error) {
+        if (error instanceof UsageError) {
+          return usage(error, out);
+        }
+        throw error;
+      }
       return runSession(
-        commandLine.options,
-        {command: commandLine.command, args: commandLine.args},
+        {...commandLine.options, agentUrl, config},
+        commandLine.name === 'run'
+          ? {command: commandLine.command, args: commandLine.args}
+          : undefined,
         out,
         viewerDir,
       );
+    }
   }
+}
+
+function usage(error: UsageError, out: Output): number {
+  out.error(error.message);
+  out.error(`Run '${NAME} ${error.topic === undefined ? '' : `${error.topic} `}--help' for usage.`);
+  return 2;
 }

@@ -12,7 +12,9 @@ import {
 } from './agent_process.js';
 import type {SessionOptions} from './args.js';
 import {openBrowser} from './browser.js';
-import {MessageBox} from './message_box.js';
+import {CatalogRegistry} from './catalog/registry.js';
+import {ConfigError, type SpectraConfig, substituteVariables} from './config.js';
+import {MessageBox, unsetVariablesClause} from './message_box.js';
 import type {Output} from './output.js';
 import {TurnRecorder} from './recorder.js';
 import {PortTakenError, startViewerServer, type ViewerServer} from './server.js';
@@ -23,6 +25,12 @@ import {TurnHub} from './turn_hub.js';
 export interface AgentCommand {
   command: string;
   args: string[];
+}
+
+/** The session's settings: the command line's options with the agent's URL settled, and the config. */
+export interface SessionSettings extends Omit<SessionOptions, 'agentUrl' | 'config'> {
+  agentUrl: URL;
+  config: SpectraConfig;
 }
 
 const STOP_SIGNALS: NodeJS.Signals[] =
@@ -38,7 +46,7 @@ const STOP_SIGNALS: NodeJS.Signals[] =
  * for the turns still open when it stops. Resolves with Spectra's exit code.
  */
 export async function runSession(
-  options: SessionOptions,
+  options: SessionSettings,
   agentCommand: AgentCommand | undefined,
   out: Output,
   viewerDir: string,
@@ -49,6 +57,31 @@ export async function runSession(
   } catch (error) {
     out.error(error instanceof Error ? error.message : String(error));
     return 1;
+  }
+  let catalogs: CatalogRegistry;
+  try {
+    catalogs = await CatalogRegistry.load(options.config.catalogs);
+  } catch (error) {
+    if (error instanceof ConfigError) {
+      out.error(error.message);
+      return 1;
+    }
+    throw error;
+  }
+  if (options.config.file !== undefined) {
+    out.info(`Settings read from ${options.config.file}`);
+  }
+  const configured = catalogs.known.filter(catalog => catalog.source === 'configured');
+  if (configured.length > 0) {
+    out.info(`Catalogs configured: ${configured.map(catalog => catalog.id).join(', ')}`);
+  }
+  const {headers, unset} = substituteVariables(options.config.headers, process.env);
+  if (unset.length > 0) {
+    const left = Object.keys(options.config.headers).filter(name => !(name in headers));
+    out.error(
+      `${unsetVariablesClause(unset)}, so the ${left.join(', ')} header${left.length === 1 ? ' is' : 's are'} not sent ` +
+        'and the message box cannot send.',
+    );
   }
   const turns = new TurnHub();
   const recorder = new TurnRecorder(store, out, {onRecorded: turns.onRecorded});
@@ -97,12 +130,14 @@ export async function runSession(
     const cardUrl = agentCardUrl(options.agentUrl);
     const card = await waitForAgentCard(cardUrl, {
       signal: stop.signal,
-      onWaiting: () =>
+      headers,
+      onWaiting: reason =>
         out.info(
-          `Waiting for the agent's card at ${cardUrl.href}. ` +
+          `Waiting for the agent's card at ${cardUrl.href}: ${reason}. ` +
             (agentCommand === undefined
-              ? "The agent's URL is attach's <agent-url> argument."
-              : "Change the agent's URL with --agent-url."),
+              ? "The agent's URL is attach's <agent-url> argument, or agent.url in the config file."
+              : "Change the agent's URL with --agent-url, or agent.url in the config file.") +
+            (unset.length > 0 ? ` ${unsetVariablesClause(unset)}.` : ''),
         ),
     });
 
@@ -140,7 +175,13 @@ export async function runSession(
           turns.onTurn(notification);
         },
       });
-      box = new MessageBox({card: rewriteCard(card, proxy.origin), turns});
+      box = new MessageBox({
+        card: rewriteCard(card, proxy.origin),
+        turns,
+        headers,
+        unsetVariables: unset,
+        offer: catalogs.offer(),
+      });
       if (box.unavailable !== undefined) {
         out.info(box.unavailable);
       }
@@ -152,6 +193,7 @@ export async function runSession(
           store,
           turns,
           box,
+          catalogs,
           context: {
             ...(typeof card.name === 'string' && {agentName: card.name}),
             agentUrl: options.agentUrl.href,

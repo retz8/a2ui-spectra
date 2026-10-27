@@ -6,6 +6,7 @@ import {checkLinesOf, checkStateOf} from '@/model/check_state.ts';
 import {keptPick, nextProblem, pickForKey, stepInView} from '@/model/follow.ts';
 import {inputBriefOfTurn} from '@/model/input_brief.ts';
 import {pageKeyOf} from '@/model/keys.ts';
+import {catalogsOf} from '@/model/catalogs.ts';
 import {agentMessages} from '@/model/messages.ts';
 import {onlyProblems, problemsOf} from '@/model/problems.ts';
 import {type Turn, type TurnRecordEvent, unixMillis} from '@/model/record.ts';
@@ -151,9 +152,10 @@ function TurnBody({
   const earlier = 'turns' in view.earlier ? view.earlier.turns : undefined;
 
   const timeline = useMemo(() => timelineOf(events, startMs), [events, startMs]);
+  const catalogs = useMemo(() => catalogsOf(state.catalogs), [state.catalogs]);
   const whole = useMemo(
-    () => (earlier === undefined ? undefined : replay(earlier, events)),
-    [earlier, events],
+    () => (earlier === undefined ? undefined : replay(earlier, events, undefined, catalogs)),
+    [earlier, events, catalogs],
   );
   const problems = useMemo(
     () => problemsOf(events, timeline, whole?.rejections ?? []),
@@ -180,8 +182,8 @@ function TurnBody({
         ? undefined
         : position === undefined
           ? whole
-          : replay(earlier, events, position),
-    [earlier, events, whole, position],
+          : replay(earlier, events, position, catalogs),
+    [earlier, events, whole, position, catalogs],
   );
   const reply = useMemo(() => replyThrough(events, position), [events, position]);
   const sentA2ui = useMemo(() => agentMessages(events).length > 0, [events]);

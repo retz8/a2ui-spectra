@@ -15,37 +15,56 @@ export function agentCardUrl(agentUrl: URL): URL {
 
 export type AgentCard = Record<string, unknown>;
 
+/** One attempt at the card: the card, or why there is none, as a clause after the card's address. */
+export type CardAttempt =
+  {card: AgentCard; missing?: undefined} | {card?: undefined; missing: string};
+
+export interface FetchOptions {
+  signal?: AbortSignal;
+  /** Headers sent with the fetch, such as the configured credentials. */
+  headers?: Readonly<Record<string, string>>;
+  timeoutMs?: number;
+}
+
 /**
  * Fetches the agent's card once. Returns the card when the agent answers with
- * a JSON object, and nothing when it does not answer or answers otherwise.
+ * a JSON object, and else why not: the status it answered with, that its
+ * body is not a JSON object, or that it did not answer.
  */
 export async function fetchAgentCard(
   cardUrl: URL,
-  signal?: AbortSignal,
-  timeoutMs = 2000,
-): Promise<AgentCard | undefined> {
+  {signal, headers = {}, timeoutMs = 2000}: FetchOptions = {},
+): Promise<CardAttempt> {
   const timeout = AbortSignal.timeout(timeoutMs);
+  let response: Response;
   try {
-    const response = await fetch(cardUrl, {
-      headers: {accept: 'application/json'},
+    response = await fetch(cardUrl, {
+      headers: {...headers, accept: 'application/json'},
       signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
     });
-    if (!response.ok) {
-      await response.body?.cancel();
-      return undefined;
-    }
-    const card: unknown = await response.json();
-    return isObject(card) ? card : undefined;
-  } catch {
-    return undefined;
+  } catch (error) {
+    return {
+      missing: `it did not answer (${error instanceof Error ? error.message : String(error)})`,
+    };
   }
+  if (!response.ok) {
+    await response.body?.cancel();
+    return {missing: `it answered ${response.status}`};
+  }
+  let card: unknown;
+  try {
+    card = await response.json();
+  } catch {
+    return {missing: `it answered ${response.status} with no JSON object`};
+  }
+  return isObject(card) ? {card} : {missing: `it answered ${response.status} with no JSON object`};
 }
 
-export interface WaitOptions {
+export interface WaitOptions extends Omit<FetchOptions, 'signal'> {
   /** Ends the wait. */
   signal: AbortSignal;
-  /** Called once, when the first attempt finds no card. */
-  onWaiting?: () => void;
+  /** Called with why there is no card yet, on the first miss and again whenever the reason changes. */
+  onWaiting?: (reason: string) => void;
   intervalMs?: number;
 }
 
@@ -55,20 +74,20 @@ export interface WaitOptions {
  */
 export async function waitForAgentCard(
   cardUrl: URL,
-  {signal, onWaiting, intervalMs = 500}: WaitOptions,
+  {signal, headers, timeoutMs, onWaiting, intervalMs = 500}: WaitOptions,
 ): Promise<AgentCard | undefined> {
-  let waiting = false;
+  let reported: string | undefined;
   while (!signal.aborted) {
-    const card = await fetchAgentCard(cardUrl, signal);
-    if (card !== undefined) {
-      return card;
+    const attempt = await fetchAgentCard(cardUrl, {signal, headers, timeoutMs});
+    if (attempt.card !== undefined) {
+      return attempt.card;
     }
     if (signal.aborted) {
       break;
     }
-    if (!waiting) {
-      waiting = true;
-      onWaiting?.();
+    if (attempt.missing !== reported) {
+      reported = attempt.missing;
+      onWaiting?.(attempt.missing);
     }
     await sleep(intervalMs, signal);
   }

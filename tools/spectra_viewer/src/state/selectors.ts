@@ -112,6 +112,8 @@ export type ComposerTarget =
 export interface ComposerView {
   /** Why the box cannot send to the agent; it takes the input's place. */
   unavailable?: string;
+  /** The variables the configured headers name that are not set; the field stays, Send does not. */
+  refused?: string[];
   /** Why the input waits. */
   waiting?: string;
   target: ComposerTarget;
@@ -128,11 +130,14 @@ export function composerOf(
   inView: {traceId?: string; startsNew?: boolean},
 ): ComposerView {
   const {box, connected} = state;
-  if (box.unavailable !== undefined) return {unavailable: box.unavailable, target: {kind: 'new'}};
+  const refused = box.unsetVariables?.length ? {refused: [...box.unsetVariables]} : undefined;
+  if (refused === undefined && box.unavailable !== undefined) {
+    return {unavailable: box.unavailable, target: {kind: 'new'}};
+  }
   const notConnected = connected === false ? {waiting: 'Not connected to Spectra'} : {};
   const {traceId} = inView;
   if (inView.startsNew === true || traceId === undefined) {
-    return {...notConnected, target: {kind: 'new'}};
+    return {...refused, ...notConnected, target: {kind: 'new'}};
   }
   const conversationId = state.turns.find(turn => turn.traceId === traceId)?.conversationId;
   const held = box.conversations.find(
@@ -140,11 +145,13 @@ export function composerOf(
       conversation.turns.includes(traceId) ||
       (conversationId !== undefined && conversation.conversationId === conversationId),
   );
-  if (held === undefined) return {...notConnected, target: {kind: 'notStarted'}};
+  if (held === undefined) return {...refused, ...notConnected, target: {kind: 'notStarted'}};
   const waiting =
     notConnected.waiting ?? (held.openTurn !== undefined ? 'A turn is open' : undefined);
   const withWaiting = waiting !== undefined ? {waiting} : {};
-  if (held.conversationId === undefined) return {...withWaiting, target: {kind: 'unnamed'}};
+  if (held.conversationId === undefined) {
+    return {...refused, ...withWaiting, target: {kind: 'unnamed'}};
+  }
   // Newest first: the box's turns, and any other host's in the same conversation.
   const rows = state.turns.filter(
     turn => held.turns.includes(turn.traceId) || turn.conversationId === held.conversationId,
@@ -152,6 +159,7 @@ export function composerOf(
   const newest = rows[0];
   const first = [...rows].reverse().find(turn => turn.input !== undefined);
   return {
+    ...refused,
     ...withWaiting,
     target: {
       kind: 'continues',

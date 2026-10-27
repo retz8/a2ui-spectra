@@ -7,6 +7,8 @@ import {after, describe, it} from 'node:test';
 
 import {SseParser} from './a2a/sse.js';
 import type {ListedTurn, SessionContext} from './api.js';
+import {CatalogRegistry} from './catalog/registry.js';
+import {CONFIG_SCHEMA} from './config.js';
 import {MessageBox} from './message_box.js';
 import type {Turn, TurnRecord, WireInputEvent, WirePart} from './record/turn_record.js';
 import {startViewerServer, type ViewerServer} from './server.js';
@@ -119,7 +121,7 @@ async function serve(heartbeatMs = 60_000) {
     port,
     viewerDir: dir,
     allowedHosts: [],
-    api: {store, turns, box, heartbeatMs, context: CONTEXT},
+    api: {store, turns, box, heartbeatMs, context: CONTEXT, catalogs: CatalogRegistry.builtIn()},
   });
   servers.push(server);
   const base = `http://127.0.0.1:${port}`;
@@ -331,6 +333,44 @@ describe('the API', () => {
         'The message box did not start this conversation while Spectra runs. Send without a conversation to start a new one.',
     });
     assert.equal((await post(`${base}/api/message-box/new-conversation`, {})).status, 404);
+  });
+
+  it('serves the catalog definitions it knows, and the config schema', async () => {
+    const {base} = await serve();
+    const {status, body} = await getJson(`${base}/api/catalogs`);
+    assert.equal(status, 200);
+    const {catalogs} = body as {catalogs: Array<Record<string, unknown>>};
+    assert.deepEqual(
+      catalogs.map(({id, aliases, protocolVersion, source, title}) => ({
+        id,
+        aliases,
+        protocolVersion,
+        source,
+        title,
+      })),
+      [
+        {
+          id: 'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json',
+          aliases: ['https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json'],
+          protocolVersion: '0.9',
+          source: 'built-in',
+          title: 'A2UI Basic Catalog',
+        },
+        {
+          id: 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json',
+          aliases: [],
+          protocolVersion: '1.0',
+          source: 'built-in',
+          title: 'A2UI Basic Catalog',
+        },
+      ],
+    );
+    assert.equal(typeof (catalogs[0].definition as {components: unknown}).components, 'object');
+    const schema = await getJson(`${base}/api/config.schema.json`);
+    assert.equal(schema.status, 200);
+    assert.deepEqual(schema.body, CONFIG_SCHEMA);
+    const wrongMethod = await post(`${base}/api/catalogs`, {});
+    assert.equal(wrongMethod.status, 405);
   });
 
   it('answers only JSON to its routes that change anything, and only known routes', async () => {

@@ -30,12 +30,16 @@ export class SpectraProcess {
   readonly #child: ChildProcess;
   #listeners: Array<() => void> = [];
 
-  /** Spectra starts in `cwd`, by default a fresh directory, where it creates its store. */
-  constructor(args: string[], cwd: string = workingDir()) {
+  /**
+   * Spectra starts in `cwd`, by default a fresh directory, where it creates
+   * its store, with these variables added to its environment.
+   */
+  constructor(args: string[], cwd: string = workingDir(), env: Record<string, string> = {}) {
     const [command, ...prefix] = spectraCommand;
     this.#child = spawn(command, [...prefix, ...args], {
       stdio: ['ignore', 'pipe', 'pipe'],
       cwd,
+      env: {...process.env, ...env},
     });
     for (const stream of [this.#child.stdout, this.#child.stderr]) {
       stream?.setEncoding('utf8');

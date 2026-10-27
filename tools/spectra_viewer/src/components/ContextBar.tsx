@@ -3,6 +3,7 @@ import {Fragment} from 'react';
 
 import type {SessionContext} from '@/api.ts';
 import {catalogName, shownUrl, transportLine} from '@/model/agent_card.ts';
+import {useSpectra} from '@/state/spectra.ts';
 
 import {CopyButton} from './CopyButton.tsx';
 import {Icon} from './icons.tsx';
@@ -53,6 +54,7 @@ export function ContextBar({
 
 /** The agent's name, opening what its card states: its address, the transport, the A2UI it advertises and the mode. */
 function AgentPopover({context, name}: {context: SessionContext; name: string}) {
+  const {catalogs} = useSpectra();
   const rows: Array<[label: string, value: string]> = [
     ['Address', shownUrl(context.agentUrl)],
     ['Transport', transportLine(context.a2aVersions)],
@@ -60,7 +62,9 @@ function AgentPopover({context, name}: {context: SessionContext; name: string}) 
       ? [['A2UI', 'None advertised'] as [string, string]]
       : context.a2uiExtensions.flatMap(extension => [
           ['A2UI', extension.version] as [string, string],
-          ...extension.catalogIds.map(id => ['Catalog', catalogName(id)] as [string, string]),
+          ...extension.catalogIds.map(
+            id => ['Catalog', catalogName(id, catalogs)] as [string, string],
+          ),
         ])),
     [
       'Mode',

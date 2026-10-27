@@ -68,6 +68,8 @@ export function Composer({
       : 'plus';
   const label = turnOpen ? 'A turn is open' : labelOf(target);
   const disabled = view.waiting !== undefined || sending;
+  // A header's variable that is not set: the field stays, Send does not, and the reason takes the label's place.
+  const refused = view.refused;
 
   // Focus in the composer when it sends comes back to its field once it can send again, unless it has moved on.
   const form = useRef<HTMLFormElement>(null);
@@ -81,7 +83,7 @@ export function Composer({
 
   const send = async (event?: FormEvent) => {
     event?.preventDefault();
-    if (text.trim() === '' || disabled) return;
+    if (text.trim() === '' || disabled || refused !== undefined) return;
     refocus.current = form.current?.contains(document.activeElement) ?? false;
     setSending(true);
     setError(undefined);
@@ -108,8 +110,14 @@ export function Composer({
   return (
     <div className="flex shrink-0 flex-col gap-2 border-t px-4 pt-2.5 pb-3.5">
       <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-        <Icon kind={icon} size={13} className={toneOf(icon)} />
-        <span className="min-w-0 truncate">{label}</span>
+        {refused === undefined ? (
+          <>
+            <Icon kind={icon} size={13} className={toneOf(icon)} />
+            <span className="min-w-0 truncate">{label}</span>
+          </>
+        ) : (
+          <span className="min-w-0 truncate">{refusedLine(refused)}</span>
+        )}
         <div className="flex-1" />
         {target.kind !== 'new' && (
           <button
@@ -158,7 +166,7 @@ export function Composer({
           <button
             type="submit"
             aria-label="Send"
-            disabled={disabled || text.trim() === ''}
+            disabled={disabled || text.trim() === '' || refused !== undefined}
             className="ease-quick flex size-[30px] shrink-0 cursor-pointer items-center justify-center rounded-lg bg-brand text-brand-on disabled:cursor-default disabled:bg-border disabled:text-muted-foreground"
           >
             <Icon kind="send" size={15} />
@@ -167,6 +175,21 @@ export function Composer({
       )}
       {error !== undefined && <p className="text-xs text-problem">{error}</p>}
     </div>
+  );
+}
+
+/** The refusal, the variables in monospace: "Can't send · SPECTRA_AGENT_TOKEN is not set in Spectra's environment". */
+function refusedLine(variables: readonly string[]) {
+  const names = variables.map((variable, index) => (
+    <span key={variable}>
+      {index > 0 && (index === variables.length - 1 ? ' and ' : ', ')}
+      <code className="font-mono">{variable}</code>
+    </span>
+  ));
+  return (
+    <>
+      Can't send · {names} {variables.length === 1 ? 'is' : 'are'} not set in Spectra's environment
+    </>
   );
 }
 

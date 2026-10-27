@@ -1,7 +1,13 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import {DEFAULT_PROXY_PORT, DEFAULT_VIEWER_PORT, parseCommandLine, UsageError} from './args.js';
+import {
+  agentUrlOf,
+  DEFAULT_PROXY_PORT,
+  DEFAULT_VIEWER_PORT,
+  parseCommandLine,
+  UsageError,
+} from './args.js';
 
 function usageError(argv: string[], pattern: RegExp) {
   assert.throws(
@@ -28,11 +34,24 @@ describe('parseCommandLine', () => {
     const commandLine = parseCommandLine(['attach', 'http://localhost:10002']);
     assert.equal(commandLine.name, 'attach');
     assert.ok(commandLine.name === 'attach');
-    assert.equal(commandLine.options.agentUrl.href, 'http://localhost:10002/');
+    assert.equal(commandLine.options.agentUrl?.href, 'http://localhost:10002/');
     assert.equal(commandLine.options.port, DEFAULT_VIEWER_PORT);
     assert.equal(commandLine.options.proxyPort, DEFAULT_PROXY_PORT);
     assert.equal(commandLine.options.open, true);
     assert.deepEqual(commandLine.options.allowedHosts, []);
+    assert.equal(commandLine.options.config, undefined);
+  });
+
+  it("reads attach and run without the agent's URL, which the config file may then give", () => {
+    const attach = parseCommandLine(['attach', '--config', 'spectra/config.json']);
+    assert.ok(attach.name === 'attach');
+    assert.equal(attach.options.agentUrl, undefined);
+    assert.equal(attach.options.config, 'spectra/config.json');
+    const run = parseCommandLine(['run', '--', 'uv', 'run', '.']);
+    assert.ok(run.name === 'run');
+    assert.equal(run.options.agentUrl, undefined);
+    assert.equal(run.options.config, undefined);
+    assert.equal(run.command, 'uv');
   });
 
   it('reads every option', () => {
@@ -70,7 +89,7 @@ describe('parseCommandLine', () => {
       '10004',
     ]);
     assert.ok(commandLine.name === 'run');
-    assert.equal(commandLine.options.agentUrl.href, 'http://localhost:10004/');
+    assert.equal(commandLine.options.agentUrl?.href, 'http://localhost:10004/');
     assert.equal(commandLine.options.open, false);
     assert.equal(commandLine.options.port, DEFAULT_VIEWER_PORT);
     assert.equal(commandLine.command, 'uv');
@@ -81,7 +100,6 @@ describe('parseCommandLine', () => {
     usageError([], /No command/);
     usageError(['serve'], /Unknown command 'serve'/);
     usageError(['--verbose'], /Unknown option '--verbose'/);
-    usageError(['attach'], /needs the agent's URL/);
     usageError(['attach', 'http://a', 'http://b'], /Unexpected argument/);
     usageError(['attach', 'http://a', '--', 'uv'], /no command after '--'/);
     usageError(['attach', 'http://a', '--agent-url', 'http://b'], /agent-url/);
@@ -93,10 +111,45 @@ describe('parseCommandLine', () => {
       ['attach', 'http://a', '--allow-host', 'http://x.example'],
       /--allow-host takes a host name/,
     );
-    usageError(['run', '--', 'uv', 'run', '.'], /--agent-url/);
     usageError(['run', '--agent-url', 'http://a'], /after '--'/);
     usageError(['run', '--agent-url', 'http://a', '--'], /after '--'/);
     usageError(['run', '--agent-url', 'http://a', 'uv', 'run', '.'], /goes after '--'/);
+  });
+
+  it("takes the agent's URL from the command line first, then the config file", () => {
+    const config = {
+      agentUrl: new URL('http://localhost:10002/'),
+      headers: {},
+      catalogs: [],
+      preview: [],
+    };
+    const attach = parseCommandLine(['attach']);
+    assert.ok(attach.name === 'attach');
+    assert.equal(agentUrlOf(attach.options, config, 'attach').href, 'http://localhost:10002/');
+    const given = parseCommandLine(['attach', 'http://localhost:10004']);
+    assert.ok(given.name === 'attach');
+    assert.equal(agentUrlOf(given.options, config, 'attach').href, 'http://localhost:10004/');
+    const none = {headers: {}, catalogs: [], preview: []};
+    assert.throws(
+      () => agentUrlOf(attach.options, none, 'attach'),
+      (error: unknown) =>
+        error instanceof UsageError &&
+        error.topic === 'attach' &&
+        /attach needs the agent's URL: its <agent-url> argument, or agent\.url in a2ui-spectra\.json/.test(
+          error.message,
+        ),
+    );
+    const run = parseCommandLine(['run', '--', 'uv', 'run', '.']);
+    assert.ok(run.name === 'run');
+    assert.throws(
+      () => agentUrlOf(run.options, none, 'run'),
+      (error: unknown) =>
+        error instanceof UsageError &&
+        error.topic === 'run' &&
+        /run needs the agent's URL: --agent-url, or agent\.url in a2ui-spectra\.json/.test(
+          error.message,
+        ),
+    );
   });
 
   it('names the command whose help to show', () => {

@@ -107,6 +107,8 @@ interface Options {
   port: number;
   behaviour: Behaviour;
   a2a03First: boolean;
+  /** The bearer token each JSON-RPC request must carry; none when not given. */
+  bearerToken?: string;
 }
 
 function optionsFromArgs(args: string[]): Options {
@@ -117,6 +119,7 @@ function optionsFromArgs(args: string[]): Options {
       'canned-a2ui': {type: 'boolean', default: false},
       'flawed-booking': {type: 'boolean', default: false},
       'a2a-0.3-first': {type: 'boolean', default: false},
+      'bearer-token': {type: 'string'},
     },
   });
   const port = Number(values.port ?? process.env.PORT ?? 10013);
@@ -131,7 +134,25 @@ function optionsFromArgs(args: string[]): Options {
     : values['flawed-booking']
       ? 'flawed-booking'
       : 'wait-for-cancel';
-  return {port, behaviour, a2a03First: values['a2a-0.3-first']};
+  return {
+    port,
+    behaviour,
+    a2a03First: values['a2a-0.3-first'],
+    ...(values['bearer-token'] !== undefined && {bearerToken: values['bearer-token']}),
+  };
+}
+
+/** Answers 401 to a JSON-RPC request that does not carry the bearer token. */
+function requireBearerToken(
+  token: string,
+): (request: Request, response: Response, next: NextFunction) => void {
+  return (request, response, next) => {
+    if (request.header('authorization') !== `Bearer ${token}`) {
+      response.status(401).json({error: 'A bearer token is required.'});
+      return;
+    }
+    next();
+  };
 }
 
 const SKILLS: Record<Behaviour, AgentCard['skills'][number]> = {
@@ -517,6 +538,9 @@ app.use(
   `/${AGENT_CARD_PATH}`,
   agentCardHandler({agentCardProvider: requestHandler, legacyCompat: {enabled: true}}),
 );
+if (options.bearerToken !== undefined) {
+  app.use(JSON_RPC_PATH, requireBearerToken(options.bearerToken));
+}
 if (options.behaviour === 'canned-a2ui') {
   app.use(JSON_RPC_PATH, express.json(), echoA2uiExtension(offeredVersion));
 } else if (options.behaviour === 'flawed-booking') {

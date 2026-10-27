@@ -2,29 +2,32 @@
  * The processor's rejections of a turn: the agent's A2UI messages of the
  * conversation's earlier turns, then the turn's own, go one by one into
  * upstream web core's message processor in its relaxed validation mode, with
- * the v0.9 and v1.0 basic catalogs registered and a stand-in catalog with no
- * component schemas under any other catalog id the messages name. Each of
- * the turn's own messages the processor throws on is a rejection. The
- * viewer's conversation replay feeds the processor the same way, so the
+ * every catalog the registry knows registered, the catalogs the hosts of the
+ * conversation sent inline built from their messages, and a stand-in catalog
+ * with no component schemas under any other catalog id the messages name.
+ * Each of the turn's own messages the processor throws on is a rejection.
+ * The viewer's conversation replay feeds the processor the same way, so the
  * listing's count and the viewer's marks agree.
  */
 import {Catalog} from '@a2ui/web_core/catalog';
-import {basicCatalog as basicCatalogV10} from '@a2ui/web_core/catalogs/basic/v1';
 import {MessageProcessor, RELAXED_VALIDATION} from '@a2ui/web_core/processing';
-import {basicCatalog as basicCatalogV09} from '@a2ui/web_core/v0_9/basic_catalog';
 
-import type {Turn} from '../record/turn_record.js';
+import {CatalogRegistry, type ProcessorCatalog} from '../catalog/registry.js';
+import {isEventOfKind, type Turn} from '../record/turn_record.js';
 import {agentMessages} from './schema_check.js';
 
-const BASIC_CATALOG_IDS = new Set([basicCatalogV09.id, basicCatalogV10.id]);
-
 /** How many of a turn's own A2UI messages the processor rejects, after the conversation's earlier turns. */
-export function rejectionCount(turn: Turn, earlierTurns: readonly Turn[] = []): number {
+export function rejectionCount(
+  turn: Turn,
+  earlierTurns: readonly Turn[] = [],
+  registry: CatalogRegistry = CatalogRegistry.builtIn(),
+): number {
   const earlier = earlierTurns.flatMap(earlierTurn => agentMessages(earlierTurn));
   const own = agentMessages(turn);
   const messages = [...earlier, ...own].map(({message}) => message);
+  // The processor asks a schema-only catalog for no function here: it nests and validates only.
   const processor = new MessageProcessor(
-    [basicCatalogV09, basicCatalogV10, ...standInCatalogs(messages)],
+    processorCatalogs(registry, [...earlierTurns, turn], messages) as Array<Catalog<never>>,
     undefined,
     {validationConfig: RELAXED_VALIDATION},
   );
@@ -52,16 +55,44 @@ function rejects(processor: MessageProcessor, message: unknown): boolean {
 }
 
 /**
+ * The catalogs for the processor on a conversation: every catalog the
+ * registry knows, the catalogs its hosts sent inline, each id once, and a
+ * stand-in under each other catalog id the messages name.
+ */
+export function processorCatalogs(
+  registry: CatalogRegistry,
+  turns: readonly Turn[],
+  messages: readonly unknown[],
+): ProcessorCatalog[] {
+  const catalogs = registry.catalogs();
+  const known = new Set(catalogs.map(catalog => catalog.id));
+  for (const turn of turns) {
+    for (const event of turn.events) {
+      if (!isEventOfKind(event, 'wire_input')) continue;
+      for (const inline of registry.inlineCatalogs(event.attributes['a2ui.wire.capabilities'])) {
+        if (known.has(inline.id)) continue;
+        known.add(inline.id);
+        catalogs.push(inline);
+      }
+    }
+  }
+  return [...catalogs, ...standInCatalogs(messages, known)];
+}
+
+/**
  * A catalog with no component schemas under each catalog id the messages
- * name that is not a basic catalog's: a surface's, a component's or a
+ * name that no catalog is known under: a surface's, a component's or a
  * function call's. The relaxed mode lets any component and function through it.
  */
-function standInCatalogs(messages: readonly unknown[]): Array<Catalog<never>> {
+function standInCatalogs(
+  messages: readonly unknown[],
+  known: ReadonlySet<string>,
+): Array<Catalog<never>> {
   const versions = new Map<string, string>();
   for (const message of messages) {
     const version = versionOf(message)?.startsWith('v1.') ? '1.0' : '0.9';
     for (const id of catalogIdsIn(message)) {
-      if (!BASIC_CATALOG_IDS.has(id) && !versions.has(id)) versions.set(id, version);
+      if (!known.has(id) && !versions.has(id)) versions.set(id, version);
     }
   }
   return [...versions].map(([id, version]) => new Catalog<never>(id, version, [], []));

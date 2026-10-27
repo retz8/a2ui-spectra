@@ -1,5 +1,7 @@
 import {parseArgs} from 'node:util';
 
+import {CONFIG_FILE, type SpectraConfig} from './config.js';
+
 export const DEFAULT_VIEWER_PORT = 9820;
 export const DEFAULT_PROXY_PORT = 9821;
 
@@ -7,8 +9,10 @@ export type CommandName = 'attach' | 'run';
 
 /** What both commands take besides the agent's command. */
 export interface SessionOptions {
-  /** The agent's base address. */
-  agentUrl: URL;
+  /** The agent's base address, when the command line gives it; else the config file may. */
+  agentUrl?: URL;
+  /** The config file `--config` names; else the default file in the working directory. */
+  config?: string;
   /** The viewer's port. */
   port: number;
   /** The wire proxy's port. */
@@ -37,6 +41,7 @@ export class UsageError extends Error {
 }
 
 const sessionOptions = {
+  config: {type: 'string'},
   port: {type: 'string'},
   'proxy-port': {type: 'string'},
   'no-open': {type: 'boolean'},
@@ -87,9 +92,6 @@ function parseAttach(argv: string[]): CommandLine {
   if (tokens.some(token => token.kind === 'option-terminator')) {
     throw new UsageError("attach takes no command after '--'.", 'attach');
   }
-  if (positionals.length === 0) {
-    throw new UsageError("attach needs the agent's URL.", 'attach');
-  }
   if (positionals.length > 1) {
     throw new UsageError(`Unexpected argument '${positionals[1]}'.`, 'attach');
   }
@@ -122,9 +124,6 @@ function parseRun(argv: string[]): CommandLine {
   if (command.length === 0) {
     throw new UsageError("run needs the agent's command after '--'.", 'run');
   }
-  if (values['agent-url'] === undefined) {
-    throw new UsageError("run needs the agent's URL in --agent-url.", 'run');
-  }
   return {
     name: 'run',
     options: sessionOptionsFrom(values, values['agent-url'], 'run'),
@@ -149,14 +148,36 @@ function parse<T extends Options>(argv: string[], options: T, topic: CommandName
   }
 }
 
+/**
+ * The agent's URL: the command line's, else the config file's. Neither is a
+ * usage error naming both ways.
+ */
+export function agentUrlOf(
+  options: SessionOptions,
+  config: SpectraConfig,
+  topic: CommandName,
+): URL {
+  const url = options.agentUrl ?? config.agentUrl;
+  if (url === undefined) {
+    throw new UsageError(
+      topic === 'attach'
+        ? `attach needs the agent's URL: its <agent-url> argument, or agent.url in ${CONFIG_FILE}.`
+        : `run needs the agent's URL: --agent-url, or agent.url in ${CONFIG_FILE}.`,
+      topic,
+    );
+  }
+  return url;
+}
+
 function sessionOptionsFrom(
   values: {
+    config?: string;
     port?: string;
     'proxy-port'?: string;
     'no-open'?: boolean;
     'allow-host'?: string[];
   },
-  agentUrl: string,
+  agentUrl: string | undefined,
   topic: CommandName,
 ): SessionOptions {
   const port = parsePort(values.port, DEFAULT_VIEWER_PORT, '--port', topic);
@@ -168,7 +189,8 @@ function sessionOptionsFrom(
     );
   }
   return {
-    agentUrl: parseAgentUrl(agentUrl, topic),
+    ...(agentUrl !== undefined && {agentUrl: parseAgentUrl(agentUrl, topic)}),
+    ...(values.config !== undefined && {config: values.config}),
     port,
     proxyPort,
     open: !values['no-open'],

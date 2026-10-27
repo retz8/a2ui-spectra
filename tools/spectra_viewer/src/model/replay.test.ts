@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import {readRecording} from '../testing/recordings.ts';
+import {listingWithCircleci} from './catalogs.test.ts';
+import {catalogsOf} from './catalogs.ts';
 import {messageKey} from './messages.ts';
 import type {Turn, TurnRecordEvent} from './record.ts';
 import {
@@ -206,6 +208,100 @@ describe('replay', () => {
       'Heading#heading',
       'List#run-list',
     ]);
+  });
+
+  it("nests a surface on a configured catalog once the catalog's definition is known", () => {
+    const {turns} = readRecording('a2uiverse_circleci/runs_then_confirm_rerun');
+    const result = replay([], turns[0].events, undefined, catalogsOf(listingWithCircleci()));
+    assert.deepEqual(result.rejections, []);
+    const [surface] = result.surfaces;
+    const {tree, notUnderRoot} = nested(surface);
+    assert.deepEqual(outline(tree).slice(0, 3), [
+      'Panel#root',
+      '  Stack#body',
+      '    Heading#heading',
+    ]);
+    assert.deepEqual(notUnderRoot, []);
+  });
+
+  it('rejects a bad property on a configured catalog, and knows the v0.9 basic catalog under its v0.9.1 URL', () => {
+    const bad = (catalogId: string) => [
+      {version: 'v0.9', createSurface: {surfaceId: 's', catalogId}},
+      {
+        version: 'v0.9',
+        updateComponents: {
+          surfaceId: 's',
+          components: [{id: 'root', component: 'Text', text: 'Hi', colour: 'red'}],
+        },
+      },
+    ];
+    const circleci =
+      'https://github.com/retz8/a2uiverse-apps/blob/main/circleci/circleci-catalog/catalogs/v0.9.1/catalog.json';
+    const standIn = replay([], turnOf(...bad(circleci)).events);
+    assert.deepEqual(standIn.rejections, []);
+    unnested(standIn.surfaces[0]);
+    const known = replay(
+      [],
+      turnOf(...bad(circleci)).events,
+      undefined,
+      catalogsOf(listingWithCircleci()),
+    );
+    assert.equal(known.rejections.length, 1);
+    assert.match(known.rejections[0].message, /Unrecognized key\(s\) in object: 'colour'/);
+    const alias = 'https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json';
+    const aliased = replay([], turnOf(...bad(alias)).events);
+    assert.equal(aliased.rejections.length, 1);
+    assert.equal(aliased.surfaces[0].catalogId, alias);
+  });
+
+  it('builds the catalogs a host sent inline, from the turn and from earlier turns', () => {
+    const inline = {
+      'v0.9': {
+        supportedCatalogIds: [],
+        inlineCatalogs: [
+          {
+            catalogId: 'inline/notes',
+            components: {
+              Note: {
+                type: 'object',
+                properties: {component: {const: 'Note'}, text: {type: 'string'}},
+                additionalProperties: false,
+              },
+            },
+          },
+        ],
+      },
+    };
+    const withInput = (
+      capabilities: Record<string, unknown> | undefined,
+      ...messages: unknown[]
+    ): Turn => {
+      const turn = turnOf(...messages);
+      const input: TurnRecordEvent = {
+        traceId: '0'.repeat(32),
+        spanId: '4'.repeat(16),
+        parentSpanId: '2'.repeat(16),
+        name: 'wire_input',
+        kind: 1,
+        startTimeUnixNano: '1792800000000000000',
+        attributes: {
+          'a2ui.event.kind': 'wire_input',
+          'a2ui.wire.message': {role: 'user', parts: [{type: 'text', content: 'Hi'}]},
+          ...(capabilities !== undefined && {'a2ui.wire.capabilities': capabilities}),
+        },
+      };
+      return {events: [input, ...turn.events]};
+    };
+    const create = {version: 'v0.9', createSurface: {surfaceId: 's', catalogId: 'inline/notes'}};
+    const note = {
+      version: 'v0.9',
+      updateComponents: {surfaceId: 's', components: [{id: 'root', component: 'Note', text: 'Hi'}]},
+    };
+    const own = replay([], withInput(inline, create, note).events);
+    assert.deepEqual(outline(nested(own.surfaces[0]).tree), ['Note#root']);
+    unnested(replay([], withInput(undefined, create, note).events).surfaces[0]);
+    const later = replay([withInput(inline, create)], withInput(undefined, note).events);
+    assert.deepEqual(outline(nested(later.surfaces[0]).tree), ['Note#root']);
   });
 
   it('lists a basic surface unnested once a v1.0 component names a catalog that is not basic', () => {

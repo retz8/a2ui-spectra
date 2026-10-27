@@ -3,6 +3,7 @@
  * sends with Spectra's offer, and what it reads back from a reply.
  */
 
+import {type CatalogOffer, CatalogRegistry} from '../catalog/registry.js';
 import {JSONRPC} from './card.js';
 import {type A2aVersion, isRecord, readReply, type TaskState} from './protocol.js';
 import {SseParser} from './sse.js';
@@ -14,22 +15,26 @@ export const A2UI_EXTENSION_URIS: readonly string[] = [
   'https://a2ui.org/a2a-extension/a2ui/v1.0',
 ];
 
-const BASIC_CATALOG_V0_9 = 'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json';
-const BASIC_CATALOG_V1_0 = 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json';
-
 /**
- * The capabilities sent in every message's metadata: v0.9 and v0.9.1 under
- * v0.9's key, v1.0 under v1.0's, each naming its version's basic catalog.
+ * The capabilities for an offer of catalog ids: v0.9 and v0.9.1 under
+ * v0.9's key, v1.0 under v1.0's, each version naming the ids offered under it.
  */
-export const A2UI_CAPABILITIES: Readonly<Record<string, unknown>> = {
-  a2uiClientCapabilities: {
-    'v0.9': {supportedCatalogIds: [BASIC_CATALOG_V0_9]},
-    'v0.9.1': {supportedCatalogIds: [BASIC_CATALOG_V0_9]},
-  },
-  a2uiRendererCapabilities: {
-    'v1.0': {supportedCatalogIds: [BASIC_CATALOG_V1_0]},
-  },
-};
+export function capabilitiesFor(offer: CatalogOffer): Record<string, unknown> {
+  return {
+    a2uiClientCapabilities: {
+      'v0.9': {supportedCatalogIds: [...offer['v0.9']]},
+      'v0.9.1': {supportedCatalogIds: [...offer['v0.9.1']]},
+    },
+    a2uiRendererCapabilities: {
+      'v1.0': {supportedCatalogIds: [...offer['v1.0']]},
+    },
+  };
+}
+
+/** The capabilities sent when no catalog is configured: each version's basic catalog. */
+export const A2UI_CAPABILITIES: Readonly<Record<string, unknown>> = capabilitiesFor(
+  CatalogRegistry.builtIn().offer(),
+);
 
 /** Where the box sends, and how. */
 export interface BoxInterface {
@@ -108,20 +113,36 @@ export interface BoxRequest {
   body: string;
 }
 
+export interface RequestOptions {
+  /** The capabilities for the message's metadata; the basic catalogs alone when not given. */
+  capabilities?: Readonly<Record<string, unknown>>;
+  /** The configured headers, added to the request; the box's own transport headers win over them. */
+  headers?: Readonly<Record<string, string>>;
+}
+
 /**
  * The send or stream request for the interface's A2A version, with Spectra's
  * offer: every supported A2UI extension in the version's extensions header,
  * and the capabilities in the message's metadata.
  */
-export function boxRequest(target: BoxInterface, message: BoxMessage, id: number): BoxRequest {
+export function boxRequest(
+  target: BoxInterface,
+  message: BoxMessage,
+  id: number,
+  {capabilities = A2UI_CAPABILITIES, headers = {}}: RequestOptions = {},
+): BoxRequest {
   const extensions = A2UI_EXTENSION_URIS.join(', ');
   const conversation = {
     ...(message.contextId !== undefined && {contextId: message.contextId}),
     ...(message.taskId !== undefined && {taskId: message.taskId}),
   };
+  const configured = Object.fromEntries(
+    Object.entries(headers).map(([name, value]) => [name.toLowerCase(), value]),
+  );
   if (target.version === '0.3') {
     return {
       headers: {
+        ...configured,
         'content-type': 'application/json',
         accept: target.streaming ? 'text/event-stream' : 'application/json',
         'x-a2a-extensions': extensions,
@@ -137,7 +158,7 @@ export function boxRequest(target: BoxInterface, message: BoxMessage, id: number
             role: 'user',
             parts: [{kind: 'text', text: message.text}],
             ...conversation,
-            metadata: A2UI_CAPABILITIES,
+            metadata: capabilities,
           },
         },
       }),
@@ -145,6 +166,7 @@ export function boxRequest(target: BoxInterface, message: BoxMessage, id: number
   }
   return {
     headers: {
+      ...configured,
       'content-type': 'application/json',
       accept: target.streaming ? 'text/event-stream' : 'application/json',
       'a2a-version': '1.0',
@@ -161,7 +183,7 @@ export function boxRequest(target: BoxInterface, message: BoxMessage, id: number
           role: 'ROLE_USER',
           parts: [{text: message.text}],
           ...conversation,
-          metadata: A2UI_CAPABILITIES,
+          metadata: capabilities,
         },
       },
     }),

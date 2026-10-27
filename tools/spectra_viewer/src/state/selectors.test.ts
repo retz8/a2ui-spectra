@@ -121,4 +121,16 @@ describe('composerOf', () => {
       {unavailable: 'No JSON-RPC interface.', target: {kind: 'new'}},
     );
   });
+
+  it("refuses to send while a header's variable is not set, keeping the field and naming the variable", () => {
+    const refusing: MessageBoxState = {
+      ...box,
+      unavailable: "Can't send · SPECTRA_AGENT_TOKEN is not set in Spectra's environment",
+      unsetVariables: ['SPECTRA_AGENT_TOKEN'],
+    };
+    assert.deepEqual(composerOf({...stateOf(refusing), turns}, {traceId: 'b'}), {
+      refused: ['SPECTRA_AGENT_TOKEN'],
+      target: continues,
+    });
+  });
 });

@@ -5,13 +5,12 @@
  * processor in its relaxed validation mode.
  */
 import {Catalog} from '@a2ui/web_core/catalog';
-import {basicCatalog as basicCatalogV10} from '@a2ui/web_core/catalogs/basic/v1';
 import {MessageProcessor, RELAXED_VALIDATION} from '@a2ui/web_core/processing';
 import type {SurfaceModel} from '@a2ui/web_core/state';
-import {basicCatalog as basicCatalogV09} from '@a2ui/web_core/v0_9/basic_catalog';
 
+import {catalogsOf, inlineCatalogsOf, type ProcessorCatalog} from './catalogs.ts';
 import {agentMessages, type AgentMessage} from './messages.ts';
-import type {Turn, TurnRecord, TurnRecordEvent} from './record.ts';
+import {isWireInput, type Turn, type TurnRecord, type TurnRecordEvent} from './record.ts';
 import {isThrough, messageTypeOf, type Position} from './steps.ts';
 
 export interface ComponentNode {
@@ -76,31 +75,57 @@ export interface Replay {
 
 type Processor = MessageProcessor;
 
-const BASIC_CATALOG_IDS = new Set([basicCatalogV09.id, basicCatalogV10.id]);
+let builtIn: ProcessorCatalog[] | undefined;
+
+/** The catalogs when the server's listing is not known yet: the basic catalogs alone. */
+function builtInCatalogs(): ProcessorCatalog[] {
+  builtIn ??= catalogsOf(undefined);
+  return builtIn;
+}
 
 /** The replay of a record's turn, the last, after the conversation's earlier turns embedded with it. */
-export function replayRecord(record: TurnRecord): Replay {
-  return replay(record.turns.slice(0, -1), record.turns[record.turns.length - 1].events);
+export function replayRecord(record: TurnRecord, catalogs?: readonly ProcessorCatalog[]): Replay {
+  return replay(
+    record.turns.slice(0, -1),
+    record.turns[record.turns.length - 1].events,
+    undefined,
+    catalogs,
+  );
 }
 
 /**
  * The replay of a turn's events after the conversation's earlier turns: up to
  * a position, as the surfaces stood right after the step there, or through
- * the whole turn.
+ * the whole turn. The processor gets the catalogs given, the server's known
+ * definitions, the catalogs the hosts of the conversation sent inline, and a
+ * stand-in under any other catalog id the messages name.
  */
 export function replay(
   earlierTurns: readonly Turn[],
   events: readonly TurnRecordEvent[],
   through?: Position,
+  catalogs: readonly ProcessorCatalog[] = builtInCatalogs(),
 ): Replay {
   const earlier = earlierTurns.flatMap(turn => agentMessages(turn.events));
   const own = agentMessages(events).filter(
     message => through === undefined || isThrough(message, through),
   );
-  const standIns = standInCatalogs([...earlier, ...own]);
+  const known = new Set(catalogs.map(catalog => catalog.id));
+  const inline: ProcessorCatalog[] = [];
+  for (const turnEvents of [...earlierTurns.map(turn => turn.events), events]) {
+    for (const event of turnEvents) {
+      if (!isWireInput(event)) continue;
+      for (const catalog of inlineCatalogsOf(event.attributes['a2ui.wire.capabilities'], known)) {
+        known.add(catalog.id);
+        inline.push(catalog);
+      }
+    }
+  }
+  const standIns = standInCatalogs([...earlier, ...own], known);
   const standInIds = new Set(standIns.map(catalog => catalog.id));
+  // The processor asks a schema-only catalog for no function here: it nests and validates only.
   const processor = new MessageProcessor(
-    [basicCatalogV09, basicCatalogV10, ...standIns],
+    [...catalogs, ...inline, ...standIns] as Array<Catalog<never>>,
     undefined,
     {validationConfig: RELAXED_VALIDATION},
   );
@@ -265,15 +290,18 @@ function componentPointer(message: unknown, id: string): string | undefined {
 
 /**
  * A catalog with no component schemas under each catalog id the messages
- * name that is not a basic catalog's: a surface's, a component's or a
+ * name that no catalog is known under: a surface's, a component's or a
  * function call's. The relaxed mode lets any component and function through it.
  */
-function standInCatalogs(messages: readonly AgentMessage[]): Array<Catalog<never>> {
+function standInCatalogs(
+  messages: readonly AgentMessage[],
+  known: ReadonlySet<string>,
+): Array<Catalog<never>> {
   const versions = new Map<string, string>();
   for (const {message} of messages) {
     const version = versionOf(message)?.startsWith('v1.') ? '1.0' : '0.9';
     for (const id of catalogIdsIn(message)) {
-      if (!BASIC_CATALOG_IDS.has(id) && !versions.has(id)) versions.set(id, version);
+      if (!known.has(id) && !versions.has(id)) versions.set(id, version);
     }
   }
   return [...versions].map(([id, version]) => new Catalog<never>(id, version, [], []));

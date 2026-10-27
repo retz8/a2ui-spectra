@@ -1,6 +1,8 @@
 import type {IncomingMessage, ServerResponse} from 'node:http';
 
 import type {CardDetails} from './a2a/card.js';
+import type {CatalogRegistry} from './catalog/registry.js';
+import {CONFIG_SCHEMA} from './config.js';
 import {type ListingFields, listingFieldsOf} from './listing.js';
 import {type MessageBox, MessageBoxError} from './message_box.js';
 import type {StoredTurn, TurnStore} from './store/store.js';
@@ -22,6 +24,8 @@ export interface Api {
   store: TurnStore;
   turns: TurnHub;
   box: MessageBox;
+  /** The catalog definitions Spectra knows. */
+  catalogs: CatalogRegistry;
   context: SessionContext;
   /** How often the live stream sends its heartbeat. */
   heartbeatMs?: number;
@@ -62,6 +66,8 @@ const HEARTBEAT_MS = 2000;
  * - `GET /api/message-box`: the conversations the message box started.
  * - `POST /api/message-box/messages`: sends `{"text": …}`, continuing one of them by its
  *   `conversationId`, or else in a new conversation.
+ * - `GET /api/catalogs`: the catalog definitions Spectra knows.
+ * - `GET /api/config.schema.json`: the schema the config file is validated against.
  */
 export function handleApi(api: Api, request: IncomingMessage, response: ServerResponse): boolean {
   const {pathname} = new URL(request.url ?? '/', 'http://localhost');
@@ -99,6 +105,10 @@ async function answer(
     sendJson(response, 200, api.box.state());
   } else if (route === 'POST /api/message-box/messages') {
     await sendMessage(api.box, request, response);
+  } else if (route === 'GET /api/catalogs') {
+    sendJson(response, 200, api.catalogs.listing());
+  } else if (route === 'GET /api/config.schema.json') {
+    sendJson(response, 200, CONFIG_SCHEMA);
   } else if (isRoute(pathname)) {
     sendJson(response, 405, {error: `${request.method} is not allowed here.`});
   } else {
@@ -109,9 +119,14 @@ async function answer(
 function isRoute(pathname: string): boolean {
   return (
     /^\/api\/turns(\/[0-9a-f]{32})?$/.test(pathname) ||
-    ['/api/context', '/api/stream', '/api/message-box', '/api/message-box/messages'].includes(
-      pathname,
-    )
+    [
+      '/api/context',
+      '/api/stream',
+      '/api/message-box',
+      '/api/message-box/messages',
+      '/api/catalogs',
+      '/api/config.schema.json',
+    ].includes(pathname)
   );
 }
 
@@ -123,7 +138,7 @@ async function listTurns(api: Api): Promise<ListedTurn[]> {
         traceId,
         ...(conversationId !== undefined && {conversationId}),
         startTime,
-        ...(await storedFields(api.store, file)),
+        ...(await storedFields(api, file)),
       }),
     ),
   );
@@ -139,7 +154,10 @@ async function listTurns(api: Api): Promise<ListedTurn[]> {
 }
 
 /** The listing's fields of a stored turn, read from its record; none when it does not read as one. */
-async function storedFields(store: TurnStore, file: string): Promise<ListingFields | undefined> {
+async function storedFields(
+  {store, catalogs}: Api,
+  file: string,
+): Promise<ListingFields | undefined> {
   let cache = listingCache.get(store);
   if (cache === undefined) {
     cache = new Map();
@@ -148,7 +166,7 @@ async function storedFields(store: TurnStore, file: string): Promise<ListingFiel
   if (!cache.has(file)) {
     try {
       const {turns} = await store.read(file);
-      cache.set(file, listingFieldsOf(turns[turns.length - 1], turns.slice(0, -1)));
+      cache.set(file, listingFieldsOf(turns[turns.length - 1], turns.slice(0, -1), catalogs));
     } catch {
       return undefined;
     }

@@ -48,6 +48,19 @@ describe('fetching the card', () => {
           response.writeHead(200, {'content-type': 'text/html'});
           response.end('<html></html>');
           return;
+        case '/guarded/.well-known/agent-card.json':
+          if (request.headers.authorization !== 'Bearer t0k3n') {
+            response.writeHead(401);
+            response.end();
+          } else {
+            response.writeHead(200, {'content-type': 'application/json'});
+            response.end(JSON.stringify({name: 'Guarded', seen: request.headers['x-tenant']}));
+          }
+          return;
+        case '/changing/.well-known/agent-card.json':
+          response.writeHead(answers < 2 ? 503 : 401);
+          response.end();
+          return;
         default:
           response.writeHead(404);
           response.end();
@@ -67,28 +80,57 @@ describe('fetching the card', () => {
   const cardOf = (agentPath: string) => agentCardUrl(new URL(`${base}${agentPath}`));
 
   it('returns the card when the agent answers with a JSON object', async () => {
-    assert.deepEqual(await fetchAgentCard(cardOf('/ready')), {name: 'Ready'});
+    assert.deepEqual(await fetchAgentCard(cardOf('/ready')), {card: {name: 'Ready'}});
   });
 
-  it('returns nothing for an error, a non-JSON answer or no answer', async () => {
-    assert.equal(await fetchAgentCard(cardOf('/missing')), undefined);
-    assert.equal(await fetchAgentCard(cardOf('/html')), undefined);
-    assert.equal(
-      await fetchAgentCard(new URL('http://127.0.0.1:1/.well-known/agent-card.json')),
-      undefined,
+  it('names why there is no card: the status, a body that is not JSON, or no answer', async () => {
+    assert.deepEqual(await fetchAgentCard(cardOf('/missing')), {missing: 'it answered 404'});
+    assert.deepEqual(await fetchAgentCard(cardOf('/html')), {
+      missing: 'it answered 200 with no JSON object',
+    });
+    const unreachable = await fetchAgentCard(
+      new URL('http://127.0.0.1:1/.well-known/agent-card.json'),
+    );
+    assert.ok(unreachable.missing);
+    assert.match(unreachable.missing, /^it did not answer \(.+\)$/);
+  });
+
+  it('sends the headers it is given with the fetch', async () => {
+    assert.deepEqual(await fetchAgentCard(cardOf('/guarded')), {missing: 'it answered 401'});
+    assert.deepEqual(
+      await fetchAgentCard(cardOf('/guarded'), {
+        headers: {Authorization: 'Bearer t0k3n', 'X-Tenant': 'acme'},
+      }),
+      {card: {name: 'Guarded', seen: 'acme'}},
     );
   });
 
-  it('waits until the card answers, saying so once', async () => {
+  it('waits until the card answers, saying why it waits once', async () => {
     answers = 0;
-    let waitingMessages = 0;
+    const reasons: string[] = [];
     const card = await waitForAgentCard(cardOf('/late'), {
       signal: new AbortController().signal,
-      onWaiting: () => waitingMessages++,
+      onWaiting: reason => reasons.push(reason),
       intervalMs: 10,
     });
     assert.deepEqual(card, {name: 'Late'});
-    assert.equal(waitingMessages, 1);
+    assert.deepEqual(reasons, ['it answered 503']);
+  });
+
+  it('says so again when the reason changes', async () => {
+    answers = 0;
+    const stop = new AbortController();
+    const reasons: string[] = [];
+    const card = await waitForAgentCard(cardOf('/changing'), {
+      signal: stop.signal,
+      onWaiting: reason => {
+        reasons.push(reason);
+        if (reasons.length === 2) stop.abort();
+      },
+      intervalMs: 10,
+    });
+    assert.equal(card, undefined);
+    assert.deepEqual(reasons, ['it answered 503', 'it answered 401']);
   });
 
   it('stops waiting when its signal ends the wait', async () => {

@@ -3,11 +3,13 @@ import {randomUUID} from 'node:crypto';
 import {
   boxRequest,
   type BoxInterface,
+  capabilitiesFor,
   chooseInterface,
   type InterfaceChoice,
   readReplySummary,
   type ReplySummary,
 } from './a2a/client.js';
+import type {CatalogOffer} from './catalog/registry.js';
 import {isEventOfKind, type Turn, type TurnEvent} from './record/turn_record.js';
 import type {TurnHub} from './turn_hub.js';
 
@@ -38,6 +40,8 @@ export interface MessageBoxState {
   conversations: BoxConversation[];
   /** Why the box cannot send to this agent, when it cannot. */
   unavailable?: string;
+  /** The variables the configured headers name that are not set in Spectra's environment. */
+  unsetVariables?: string[];
 }
 
 /** What the send route answers with. */
@@ -59,6 +63,12 @@ export interface MessageBoxOptions {
   /** The agent's card, its JSON-RPC endpoints pointed at the wire proxy. */
   card: Record<string, unknown>;
   turns: TurnHub;
+  /** The configured headers, their variables replaced, added to every request. */
+  headers?: Readonly<Record<string, string>>;
+  /** The variables the configured headers name that are not set, which refuse every send. */
+  unsetVariables?: readonly string[];
+  /** The catalog ids to advertise under each version; the basic catalogs alone when not given. */
+  offer?: CatalogOffer;
   fetch?: typeof fetch;
   newMessageId?: () => string;
 }
@@ -73,6 +83,9 @@ export interface MessageBoxOptions {
 export class MessageBox {
   readonly #target: InterfaceChoice;
   readonly #turns: TurnHub;
+  readonly #headers: Readonly<Record<string, string>>;
+  readonly #unsetVariables: readonly string[];
+  readonly #capabilities: Readonly<Record<string, unknown>> | undefined;
   readonly #fetch: typeof fetch;
   readonly #newMessageId: () => string;
   readonly #stop = new AbortController();
@@ -87,6 +100,9 @@ export class MessageBox {
   constructor(options: MessageBoxOptions) {
     this.#target = chooseInterface(options.card);
     this.#turns = options.turns;
+    this.#headers = options.headers ?? {};
+    this.#unsetVariables = options.unsetVariables ?? [];
+    this.#capabilities = options.offer === undefined ? undefined : capabilitiesFor(options.offer);
     this.#fetch = options.fetch ?? fetch;
     this.#newMessageId = options.newMessageId ?? randomUUID;
     this.#unsubscribe = this.#turns.subscribe(event => {
@@ -98,17 +114,24 @@ export class MessageBox {
     });
   }
 
-  /** Why the box cannot send to this agent, or nothing when it can. */
+  /**
+   * Why the box cannot send to this agent, or nothing when it can: the card
+   * lists no JSON-RPC interface the box speaks, or a configured header names
+   * a variable that is not set in Spectra's environment.
+   */
   get unavailable(): string | undefined {
-    if (this.#target.kind === 'found') {
-      return undefined;
+    if (this.#target.kind !== 'found') {
+      const versions = this.#target.versions;
+      return (
+        'The message box cannot send to this agent: its card lists A2A JSON-RPC only at ' +
+        `${versions.length === 1 ? 'version' : 'versions'} ${versions.join(', ')}, and the box ` +
+        'speaks A2A 0.3 and 1.0. Hosts pointed at the wire proxy are not affected.'
+      );
     }
-    const versions = this.#target.versions;
-    return (
-      'The message box cannot send to this agent: its card lists A2A JSON-RPC only at ' +
-      `${versions.length === 1 ? 'version' : 'versions'} ${versions.join(', ')}, and the box ` +
-      'speaks A2A 0.3 and 1.0. Hosts pointed at the wire proxy are not affected.'
-    );
+    if (this.#unsetVariables.length > 0) {
+      return `Can't send · ${unsetVariablesClause(this.#unsetVariables)}`;
+    }
+    return undefined;
   }
 
   state(): MessageBoxState {
@@ -122,6 +145,7 @@ export class MessageBox {
         ...(typeof conversation.open === 'string' && {openTurn: conversation.open}),
       })),
       ...(unavailable !== undefined && {unavailable}),
+      ...(this.#unsetVariables.length > 0 && {unsetVariables: [...this.#unsetVariables]}),
     };
   }
 
@@ -131,8 +155,9 @@ export class MessageBox {
    * wire proxy opened for it.
    */
   async send(text: string, conversationId?: string): Promise<SentMessage> {
-    if (this.#target.kind !== 'found') {
-      throw new MessageBoxError(422, this.unavailable ?? '');
+    const unavailable = this.unavailable;
+    if (this.#target.kind !== 'found' || unavailable !== undefined) {
+      throw new MessageBoxError(422, unavailable ?? '');
     }
     let conversation: Conversation = {turns: []};
     if (conversationId !== undefined) {
@@ -164,6 +189,10 @@ export class MessageBox {
         ...(conversation.taskId !== undefined && {taskId: conversation.taskId}),
       },
       ++this.#requestId,
+      {
+        ...(this.#capabilities !== undefined && {capabilities: this.#capabilities}),
+        headers: this.#headers,
+      },
     );
     conversation.open = true;
 
@@ -244,4 +273,13 @@ export class MessageBox {
     conversation.taskId = waiting ? summary.taskId : undefined;
     conversation.open = undefined;
   }
+}
+
+/** "`A` is not set …" or "`A` and `B` are not set …", as the composer's line says it. */
+export function unsetVariablesClause(variables: readonly string[]): string {
+  const names =
+    variables.length <= 1
+      ? variables.join('')
+      : `${variables.slice(0, -1).join(', ')} and ${variables[variables.length - 1]}`;
+  return `${names} ${variables.length === 1 ? 'is' : 'are'} not set in Spectra's environment`;
 }

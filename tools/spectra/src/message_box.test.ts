@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
+import {capabilitiesFor} from './a2a/client.js';
 import {MessageBox, MessageBoxError} from './message_box.js';
 import type {Turn} from './record/turn_record.js';
 import {TurnHub} from './turn_hub.js';
@@ -112,13 +113,22 @@ function errorReply() {
     Response.json({jsonrpc: '2.0', id: 1, error: {code: -32603, message: 'Internal error'}});
 }
 
-function boxOn(proxy: FakeProxy, card: Record<string, unknown> = CARD_1_0): MessageBox {
+function boxOn(
+  proxy: FakeProxy,
+  card: Record<string, unknown> = CARD_1_0,
+  options: {
+    headers?: Record<string, string>;
+    unsetVariables?: string[];
+    offer?: {'v0.9': string[]; 'v0.9.1': string[]; 'v1.0': string[]};
+  } = {},
+): MessageBox {
   let ids = 0;
   return new MessageBox({
     card,
     turns: proxy.turns,
     fetch: proxy.fetch,
     newMessageId: () => `m-${++ids}`,
+    ...options,
   });
 }
 
@@ -288,6 +298,52 @@ describe('the message box', () => {
     await assert.rejects(box.send('Hi'), {status: 422, message: unavailable});
     assert.equal(proxy.sent.length, 0);
     box.close();
+  });
+
+  it('adds the configured headers to each request, its own transport headers winning', async () => {
+    const proxy = new FakeProxy();
+    const box = boxOn(proxy, CARD_1_0, {
+      headers: {Authorization: 'Bearer t0k3n', 'Content-Type': 'text/plain'},
+    });
+    proxy.replies.push(streamReply('TASK_STATE_COMPLETED'));
+    await proxy.close((await box.send('Hi')).traceId);
+    assert.equal(proxy.sent[0].headers.authorization, 'Bearer t0k3n');
+    assert.equal(proxy.sent[0].headers['content-type'], 'application/json');
+    box.close();
+  });
+
+  it('advertises the catalogs it is given, under each version', async () => {
+    const proxy = new FakeProxy();
+    const offer = {'v0.9': ['a'], 'v0.9.1': ['a', 'b'], 'v1.0': ['c']};
+    const box = boxOn(proxy, CARD_1_0, {offer});
+    proxy.replies.push(streamReply('TASK_STATE_COMPLETED'));
+    await proxy.close((await box.send('Hi')).traceId);
+    assert.deepEqual(proxy.sent[0].message.metadata, capabilitiesFor(offer));
+    box.close();
+  });
+
+  it("refuses every send while a header's variable is not set, naming it", async () => {
+    const proxy = new FakeProxy();
+    const box = boxOn(proxy, CARD_1_0, {
+      headers: {},
+      unsetVariables: ['SPECTRA_AGENT_TOKEN'],
+    });
+    const unavailable = "Can't send · SPECTRA_AGENT_TOKEN is not set in Spectra's environment";
+    assert.equal(box.unavailable, unavailable);
+    assert.deepEqual(box.state(), {
+      conversations: [],
+      unavailable,
+      unsetVariables: ['SPECTRA_AGENT_TOKEN'],
+    });
+    await assert.rejects(box.send('Hi'), {status: 422, message: unavailable});
+    assert.equal(proxy.sent.length, 0);
+    const two = boxOn(proxy, CARD_1_0, {unsetVariables: ['TOKEN', 'TENANT']});
+    assert.equal(
+      two.unavailable,
+      "Can't send · TOKEN and TENANT are not set in Spectra's environment",
+    );
+    box.close();
+    two.close();
   });
 
   it('reports a wire proxy it cannot reach, keeping no conversation, and stays free to send', async () => {

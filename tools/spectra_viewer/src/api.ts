@@ -1,6 +1,9 @@
 /** The server's API, as the tool's README describes it. */
+import type {KnownCatalog} from './model/catalogs.ts';
 import type {InputBrief} from './model/input_brief.ts';
 import type {Turn, TurnOutcome, TurnRecord, WireEvent} from './model/record.ts';
+
+export type {KnownCatalog};
 
 /** One entry of the turn listing. */
 export interface ListedTurn {
@@ -54,6 +57,8 @@ export interface MessageBoxState {
   /** Oldest first. */
   conversations: BoxConversation[];
   unavailable?: string;
+  /** The variables the configured headers name that are not set in Spectra's environment. */
+  unsetVariables?: string[];
 }
 
 /** What the live stream sends, by event name. */
@@ -107,6 +112,11 @@ export function getRecord(traceId: string): Promise<TurnRecord> {
 
 export function getMessageBox(): Promise<MessageBoxState> {
   return request<MessageBoxState>('/api/message-box');
+}
+
+/** The catalog definitions Spectra knows: the built-in and the configured ones. */
+export async function getCatalogs(): Promise<KnownCatalog[]> {
+  return (await request<{catalogs: KnownCatalog[]}>('/api/catalogs')).catalogs;
 }
 
 /** Sends a message from the box, continuing the conversation named, or else in a new one. */

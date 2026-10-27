@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Spectra config",
+  "description": "The settings of a2ui-spectra.json, the optional config file in the directory Spectra is launched from, or the file --config names.",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "This schema's address, for an editor. Spectra ignores it."
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "The agent Spectra attaches to.",
+      "properties": {
+        "url": {
+          "type": "string",
+          "description": "The agent's base address, starting with http:// or https://. With it, attach's <agent-url> argument and run's --agent-url option may be left out; given, they take precedence."
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {"type": "string"},
+          "description": "Headers the message box adds to every request it makes to the agent, the card fetch included. ${VAR} in a value is replaced from Spectra's environment, so the file holds variable names, never values. The box's own transport headers win over a header of the same name."
+        }
+      }
+    },
+    "catalogs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Paths of catalog definition files, each carrying its own catalogId. A relative path is relative to this file's directory. Read once at start; a change needs a restart."
+    },
+    "preview": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "The preview pages: the URL of each page built with a Spectra preview adapter, starting with http:// or https://."
+    }
+  }
+}

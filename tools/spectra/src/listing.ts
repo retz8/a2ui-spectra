@@ -1,4 +1,5 @@
 /** What the turn listing shows of each turn beyond the store's file names. */
+import type {CatalogRegistry} from './catalog/registry.js';
 import {rejectionCount} from './check/rejections.js';
 import {
   isA2uiPart,
@@ -51,6 +52,7 @@ export function inputBriefOf(event: WireInputEvent): InputBrief | undefined {
 export function listingFieldsOf(
   turn: Turn,
   earlierTurns: readonly Turn[] = [],
+  catalogs?: CatalogRegistry,
 ): ListingFields | undefined {
   let fields: Pick<ListingFields, 'outcome' | 'agentName' | 'durationMs'> | undefined;
   let input: InputBrief | undefined;
@@ -79,7 +81,7 @@ export function listingFieldsOf(
       ...fields,
       ...(input !== undefined && {input}),
       ...(schemaCheck !== undefined && {schemaCheck}),
-      rejections: rejectionCount(turn, earlierTurns),
+      rejections: rejectionCount(turn, earlierTurns, catalogs),
     }
   );
 }
