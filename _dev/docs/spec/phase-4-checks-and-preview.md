@@ -40,7 +40,7 @@ An optional `a2ui-spectra.json` in the working directory Spectra is launched fro
 
 ### 3. Catalog definitions
 
-A surface's catalog id is resolved in order: the basic catalogs built in; the catalogs configured by path, each carrying its own `catalogId`; the inline catalogs in the turn's own host message. The v0.9.1 basic catalog URL is a second id of the v0.9 basic catalog. A surface whose id resolves nowhere gets none of the three new checks, and is recorded and shown as not checked with the id as the reason. The API serves the definitions Spectra knows.
+A surface's catalog id is resolved in order: the basic catalogs built in; the catalogs configured by path, each carrying its own `catalogId`; the inline catalogs the hosts sent in the conversation's messages up to and including the turn. The v0.9.1 basic catalog URL is a second id of the v0.9 basic catalog. A surface whose id resolves nowhere gets none of the three new checks, and is recorded and shown as not checked with the id as the reason. The API serves the definitions Spectra knows.
 
 ### 4. The message box's offer
 
@@ -56,7 +56,7 @@ Per message, as the schema check runs. Each component the agent sent, in `update
 
 ### 7. The structural check
 
-At the turn's close, on the surfaces the turn touched, as they stand after the conversation's earlier turns and then this turn are fed through web core, the way the viewer's replay and the rejection count build them. For each touched surface: every child id resolves, exactly one component has the id `root`, nothing loops back on itself, no component is unreachable from the root, and in v1.0 the catalog's composition rules, `allowedParents` and `allowedChildren`, hold. The engine is web core's surface model. Surfaces the turn did not touch are not re-checked.
+At the turn's close, on the surfaces the turn touched, as they stand after the conversation's earlier turns and then this turn are fed through web core, the way the viewer's replay and the rejection count build them. For each touched surface: every child id resolves, a component has the id `root`, nothing loops back on itself, no id is given to two components in one message, no component is unreachable from the root, and in v1.0 the catalog's composition rules, `allowedParents` and `allowedChildren`, hold; and every surface a message names was created. The engine is web core's surface model: a walk over its child references for what it let into the state, and its own refusal, in its words, for what it did not, a cycle, a duplicate id and a broken composition rule. Surfaces the turn did not touch are not re-checked.
 
 ### 8. The binding check
 
@@ -64,11 +64,11 @@ On the same state as the structural check. Every path a touched surface's compon
 
 ### 9. The checks in the record
 
-Turn record v0.1 is amended in place. A check event states the surfaces it skipped, each with its reason. The catalog id becomes per surface, or is dropped in favour of the surfaces' own ids. Phase 1's full fixtures and the record's schema follow. The finding codes, paths and messages of the three checks are not fixed here.
+Turn record v0.1 is amended in place. A check event lists the surfaces it skipped, each with the catalog id it named and its reason, `no_definition` or `not_created`; the catalog id attribute is dropped. A finding's `path` is a JSON Pointer from the turn object to the offending value, one convention for all four checks, written into the prose with the code table of all four checks. Phase 1's full fixtures and the record's schema follow.
 
 ### 10. The checks in the viewer
 
-The findings of the three checks join the one problem count as Phase 3 has it, in Phase 3's problem blocks. The header's check list grows to the four checks, and shows the "Not checked" form with its reason for a surface with no definition.
+The findings of the three checks join the one problem count as Phase 3 has it, in Phase 3's problem blocks. A web core rejection of a message that a finding points into folds under the finding as a quiet line and is not counted; one on a message with no finding stays a counted problem. The header's check list grows to the four checks, and shows the "Not checked" form with its reason for a surface with no definition.
 
 ### 11. Structure and the rejection count on real catalogs
 

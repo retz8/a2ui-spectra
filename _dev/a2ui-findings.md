@@ -859,3 +859,86 @@ Add `"anyFunction": {"not": {}}` to each catalog's `$defs`, as `toJson`
 writes it, and fix `agent_functions_catalog_v1_0.json`'s `allowedCallers`; or
 relax the meta-schema to make `anyFunction` optional, and say so in the
 protocol doc.
+
+## 25. The custom-components sample's floor plan fails its own inline catalog
+
+**Component:** `samples/agent/adk/custom-components-example/a2ui_examples.py`;
+`samples/agent/adk/custom-components-example/inline_catalog_0.9.json`.
+
+**Severity:** the sample's own catalog rejects the sample's output; a renderer
+that validates against the catalog, web core included, refuses the floor plan.
+
+Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24).
+
+### Issue
+
+The sample's inline catalog defines `WebFrame` with
+`"required": ["component", "url"]` and `unevaluatedProperties: false`
+(`inline_catalog_0.9.json`, the `WebFrame` entry). The floor plan the sample
+sends for its `view_location` action writes the frame's content as `html`
+and no `url`: `a2ui_examples.py` builds the v0.9 component as
+`{"component": "WebFrame", ..., "html": html_content}` (lines 143-146), and
+`examples/0.9/floor_plan.json` holds the same shape. Web core's
+`PayloadValidator` rejects the `updateComponents` for the missing `url`, so
+the `location-surface` is created and stays empty.
+
+### Reproduction
+
+Validate the `WebFrame` component of `examples/0.9/floor_plan.json` against
+`inline_catalog_0.9.json`'s `components/WebFrame`: `url` is missing. Or feed
+the floor plan's messages to web core 0.14.0's `MessageProcessor` with the
+inline catalog registered: `Validation failed for component 'WebFrame'`.
+
+### Fix
+
+Either send the floor plan as `url` (a data URL, or a served page), or make
+`url` optional in the catalog with `html` as the alternative, and say which
+in the definition.
+
+## 26. Web core accepts a component whose v0.9 catalog definition rejects its own `id`
+
+**Component:** `typescript/core/web_core/src/validation/payload-validator.ts`
+(`PayloadValidator.validateComponent`); `specification/v0_9/json/server_to_client.json`.
+
+**Severity:** the reference processor and the protocol schema disagree on
+what a v0.9 catalog's component definition has to say about a component's
+envelope, so a catalog can pass one and fail the other.
+
+Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24) and
+`@a2ui/web_core` 0.14.0 on npm.
+
+### Issue
+
+The v0.9 protocol schema validates each component of `updateComponents`
+whole, `id` included, against the catalog: `components.items` is
+`catalog.json#/$defs/anyComponent` (`server_to_client.json`,
+`UpdateComponentsMessage`). Upstream's basic catalog therefore includes
+`common_types.json#/$defs/ComponentCommon` in every component's `allOf`,
+beside `"unevaluatedProperties": false`. Web core validates differently:
+`validateComponent` reads `id` and `component` off the payload, strips the
+`accessibility` and `metadata` envelope fields a component schema does not
+declare (`validateCommonEnvelopeFields`), and parses the remaining properties
+with the component's Zod schema. A catalog whose component definitions set
+`unevaluatedProperties: false` and leave out `ComponentCommon`, as
+A2UIVerse's CircleCI catalog does, passes web core and fails the protocol
+schema on every component, with `id` as an unevaluated property. Nothing in
+`specification/v0_9/docs/` says a component definition has to include the
+envelope.
+
+### Reproduction
+
+Define a v0.9 catalog with one component,
+`{"type": "object", "properties": {"component": {"const": "Note"}, "text": {"type": "string"}}, "unevaluatedProperties": false}`,
+listed under `$defs.anyComponent`. Validate
+`{"version": "v0.9", "updateComponents": {"surfaceId": "s", "components": [{"id": "root", "component": "Note", "text": "Hi"}]}}`
+against `server_to_client.json` with the catalog bound as `catalog.json`:
+`must NOT have unevaluated properties: id`. Feed the same message to web core
+0.14.0 with the catalog registered: accepted.
+
+### Fix
+
+Say in the v0.9 protocol doc that a component definition includes
+`ComponentCommon`, as the basic catalog does, and have web core validate the
+envelope too; or wrap the catalog's component in the protocol schema as v1.0
+does, with `ComponentCommon` outside the catalog's branch, so a definition
+need not repeat it.

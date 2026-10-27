@@ -76,3 +76,4 @@ The demo, with the restaurant finder in Python and in TypeScript producing the s
 - Prompt cache in the token display: the model call's cache read and cache write tokens the record already carries, and the hit ratio per model call and per turn. For the Phase 5 grill.
 - Token pricing: a dated price table of the main providers shipped with Spectra, overridable in the config, giving an estimated cost per model call and per turn, labelled with the table's date. Changes SPEC.md's feature list; for the Phase 5 grill.
 - The prompt prefix diff between consecutive model calls of a conversation, pointing at what broke the prompt cache. Changes SPEC.md's feature list; for the Phase 5 grill.
+- A2UIVerse's CircleCI catalog: each v0.9.1 component definition gains the protocol's `ComponentCommon` reference, as upstream's basic catalog has it, so its components' `id`s pass the catalog check; on A2UIVerse's side, before the 4.7 acceptance run.
