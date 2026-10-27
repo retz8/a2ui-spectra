@@ -8,7 +8,7 @@ import {inputBriefOfTurn} from '@/model/input_brief.ts';
 import {pageKeyOf} from '@/model/keys.ts';
 import {catalogsOf} from '@/model/catalogs.ts';
 import {agentMessages} from '@/model/messages.ts';
-import {onlyProblems, problemsOf} from '@/model/problems.ts';
+import {onlyProblems, turnProblemsOf} from '@/model/problems.ts';
 import {type Turn, type TurnRecordEvent, unixMillis} from '@/model/record.ts';
 import {replay} from '@/model/replay.ts';
 import {type Position, replyThrough, type TimelineRow, timelineOf} from '@/model/steps.ts';
@@ -157,8 +157,8 @@ function TurnBody({
     () => (earlier === undefined ? undefined : replay(earlier, events, undefined, catalogs)),
     [earlier, events, catalogs],
   );
-  const problems = useMemo(
-    () => problemsOf(events, timeline, whole?.rejections ?? []),
+  const {problems, folded} = useMemo(
+    () => turnProblemsOf(events, timeline, whole?.rejections ?? []),
     [events, timeline, whole],
   );
   const byStep = useMemo(() => countBy(problems, problem => problem.stepId), [problems]);
@@ -340,6 +340,9 @@ function TurnBody({
                   events={events}
                   startMs={startMs}
                   problems={problems.filter(problem => problem.stepId === selected.id)}
+                  folded={folded
+                    .filter(rejection => rejection.stepId === selected.id)
+                    .map(rejection => rejection.sentence)}
                   collapsed={collapsed}
                   onToggle={() => {
                     if (collapsed) openDetail(detail.current);

@@ -17,7 +17,7 @@ export interface GroupedTurn {
   outcome?: TurnOutcome;
   agentName?: string;
   input?: InputBrief;
-  schemaCheck?: {findings: number};
+  findings?: number;
   rejections?: number;
 }
 

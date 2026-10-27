@@ -16,8 +16,9 @@ export interface ListedTurn {
   agentName?: string;
   durationMs?: number;
   input?: InputBrief;
-  schemaCheck?: {passed: boolean; findings: number};
-  /** How many of the turn's A2UI messages web core's message processor rejects. */
+  /** The findings of the turn's checks together, when it has check events. */
+  findings?: number;
+  /** How many of the turn's A2UI messages web core's message processor rejects that no finding points into. */
   rejections?: number;
 }
 

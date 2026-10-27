@@ -14,14 +14,15 @@ import {
 /**
  * The turn list's fields of a closed turn, as the listing gives them, but
  * for its rejections, which the listing counts after the conversation's
- * earlier turns.
+ * earlier turns, folding those a finding points into.
  */
 export interface RowFields {
   outcome?: TurnOutcome;
   agentName?: string;
   durationMs?: number;
   input?: InputBrief;
-  schemaCheck?: {passed: boolean; findings: number};
+  /** The findings of the turn's checks together, when it has check events. */
+  findings?: number;
 }
 
 export function rowFieldsOf(turn: Turn): RowFields {
@@ -29,7 +30,7 @@ export function rowFieldsOf(turn: Turn): RowFields {
   const outcome = event?.attributes['a2ui.turn.outcome'];
   const agentName = event?.attributes['gen_ai.agent.name'];
   const input = inputBriefOfTurn(turn);
-  const check = schemaCheckEventOf(turn);
+  const checks = turn.events.filter(isCheck);
   return {
     ...(outcome !== undefined && {outcome}),
     ...(agentName !== undefined && {agentName}),
@@ -37,11 +38,11 @@ export function rowFieldsOf(turn: Turn): RowFields {
       durationMs: millisBetween(event.startTimeUnixNano, event.endTimeUnixNano),
     }),
     ...(input !== undefined && {input}),
-    ...(check !== undefined && {
-      schemaCheck: {
-        passed: check.attributes['a2ui.check.passed'],
-        findings: check.attributes['a2ui.check.findings'].length,
-      },
+    ...(checks.length > 0 && {
+      findings: checks.reduce(
+        (sum, check) => sum + check.attributes['a2ui.check.findings'].length,
+        0,
+      ),
     }),
   };
 }

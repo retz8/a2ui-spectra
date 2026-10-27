@@ -10,8 +10,9 @@ import {Icon} from './icons.tsx';
 import {BlockLabel, JsonBlock, type Reveal} from './JsonBlock.tsx';
 
 /**
- * The selected step's detail: its problems, then what it holds, then the
- * delivery it arrived in, folded. A problem that marks a line in the step's
+ * The selected step's detail: its problems, the rejections folded under
+ * them as quiet lines, then what it holds, then the delivery it arrived in,
+ * folded. A problem that marks a line in the step's
  * message is pressed to bring the line into view.
  */
 export function StepDetail({
@@ -19,6 +20,7 @@ export function StepDetail({
   events,
   startMs,
   problems,
+  folded,
   collapsed,
   onToggle,
 }: {
@@ -26,6 +28,8 @@ export function StepDetail({
   events: readonly TurnRecordEvent[];
   startMs: number;
   problems: readonly Problem[];
+  /** Web core's sentences for the rejections folded under this step's findings. */
+  folded: readonly string[];
   collapsed: boolean;
   onToggle: () => void;
 }) {
@@ -98,6 +102,11 @@ export function StepDetail({
               </button>
             );
           })}
+          {folded.map((sentence, index) => (
+            <p key={index} className="text-xs leading-relaxed text-muted-foreground">
+              A2UI web core also rejected this message · {sentence}
+            </p>
+          ))}
           {row.row === 'delivery' ? (
             <DeliveryBlocks event={events[row.eventIndex] as WireEvent} />
           ) : (

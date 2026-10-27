@@ -2,22 +2,35 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import {readRecording} from '../testing/recordings.ts';
-import {listedProblemCount, onlyProblems, problemsOf} from './problems.ts';
+import {listedProblemCount, onlyProblems, problemsOf, turnProblemsOf} from './problems.ts';
 import {isTurnEvent, type Turn, type TurnRecordEvent, unixMillis} from './record.ts';
 import {replay} from './replay.ts';
 import {timelineOf} from './steps.ts';
 
-/** A recording's last turn's problems, each step named by its message's key, or by its id when it has none. */
-function problemsOfRecording(name: string, extra: TurnRecordEvent[] = []) {
+/** A recording's last turn's problems and folded rejections, each step named by its message's key, or by its id when it has none. */
+function turnProblemsOfRecording(name: string, extra: TurnRecordEvent[] = []) {
   const {turns} = readRecording(name);
   const turn: Turn = {events: [...turns[turns.length - 1].events, ...extra]};
   const start = turn.events.find(isTurnEvent);
   assert.ok(start);
   const rows = timelineOf(turn.events, unixMillis(start.startTimeUnixNano));
   const keys = new Map(rows.map(row => [row.id, row.row === 'step' ? row.messageKey : undefined]));
-  return problemsOf(turn.events, rows, replay(turns.slice(0, -1), turn.events).rejections).map(
-    ({stepId, ...problem}) => ({step: keys.get(stepId) ?? stepId, ...problem}),
+  const {problems, folded} = turnProblemsOf(
+    turn.events,
+    rows,
+    replay(turns.slice(0, -1), turn.events).rejections,
   );
+  return {
+    problems: problems.map(({stepId, ...problem}) => ({
+      step: keys.get(stepId) ?? stepId,
+      ...problem,
+    })),
+    folded: folded.map(({stepId, sentence}) => ({step: keys.get(stepId) ?? stepId, sentence})),
+  };
+}
+
+function problemsOfRecording(name: string, extra: TurnRecordEvent[] = []) {
+  return turnProblemsOfRecording(name, extra).problems;
 }
 
 /** The schema check's finding on the flawed booking's turn, as the tool's schema check writes it. */
@@ -81,7 +94,7 @@ describe('problemsOf', () => {
   });
 
   it('puts a finding on the message its path names, with the path inside it, and one that names none on the outcome', () => {
-    const problems = problemsOfRecording('ag2/stream_v1_0_function_call', [
+    const {problems, folded} = turnProblemsOfRecording('ag2/stream_v1_0_function_call', [
       check([
         {
           code: 'VALIDATION_FAILED',
@@ -104,14 +117,28 @@ describe('problemsOf', () => {
           code: 'SCHEMA_VERSIONS_MIXED · schema check, A2UI v1.0',
           inner: undefined,
         },
-        {step: '4.1.2', code: 'VALIDATION_ERROR · A2UI web core', inner: undefined},
       ],
     );
+    // Web core's rejection of the same message folds under the finding.
+    assert.deepEqual(
+      folded.map(({step}) => step),
+      ['4.1.2'],
+    );
+  });
+
+  it('counts a rejection on a message no finding points into, and folds one on a message a finding does', () => {
+    // Without the check event, the rejection is a problem of its own.
+    const alone = turnProblemsOfRecording('ag2/stream_v1_0_function_call');
+    assert.deepEqual(
+      alone.problems.map(({step, code}) => ({step, code})),
+      [{step: '4.1.2', code: 'VALIDATION_ERROR · A2UI web core'}],
+    );
+    assert.deepEqual(alone.folded, []);
   });
 });
 
 describe("the flawed booking's problems", () => {
-  it('marks where the schema check and web core say each message went wrong, its own branch of the union only', () => {
+  it('marks where the schema check and web core say each message went wrong, its own branch of the union only, folding web core under a finding', () => {
     assert.deepEqual(
       problemsOfRecording('stub_agent/flawed_booking_a2a_1_0', [
         check([FLAWED_BOOKING_FINDING], 'v0.9'),
@@ -137,12 +164,18 @@ describe("the flawed booking's problems", () => {
           code: 'INTEGRITY_ERROR · A2UI web core',
           surfaceId: 'confirmation',
         },
+      ],
+    );
+    // The rejection of the same updateDataModel folds under the schema finding on its step.
+    assert.deepEqual(
+      turnProblemsOfRecording('stub_agent/flawed_booking_a2a_1_0', [
+        check([FLAWED_BOOKING_FINDING], 'v0.9'),
+      ]).folded,
+      [
         {
           step: '2.5',
           sentence:
             'Invalid v0.9 message: updateDataModel.surfaceId: Expected string, received undefined',
-          code: 'VALIDATION_ERROR · A2UI web core',
-          inner: '/updateDataModel/surfaceId',
         },
       ],
     );
@@ -184,10 +217,7 @@ describe('onlyProblems', () => {
 
 describe('listedProblemCount', () => {
   it('adds the findings, the rejections and a failed outcome', () => {
-    assert.equal(
-      listedProblemCount({outcome: 'failed', schemaCheck: {findings: 2}, rejections: 1}),
-      4,
-    );
+    assert.equal(listedProblemCount({outcome: 'failed', findings: 2, rejections: 1}), 4);
     assert.equal(listedProblemCount({outcome: 'completed'}), 0);
   });
 });

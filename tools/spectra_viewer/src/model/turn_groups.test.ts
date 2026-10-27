@@ -28,7 +28,7 @@ const listing: GroupedTurn[] = [
     agentName: 'Restaurant Agent',
     outcome: 'waiting_for_input',
     input: {text: 'Top 3 Italian restaurants'},
-    schemaCheck: {findings: 1},
+    findings: 1,
   }),
   turn('193e24d50000', {outcome: 'failed', input: {action: 'next'}}),
 ];

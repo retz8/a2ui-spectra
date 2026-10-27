@@ -93,13 +93,24 @@ export interface Finding {
   message: string;
 }
 
+export type CheckName = 'schema' | 'catalog' | 'structural' | 'binding';
+
+/** A surface a check could not judge, and why. */
+export interface SkippedSurface {
+  surfaceId: string;
+  /** The catalog id the surface named, when it named one. */
+  catalogId?: string;
+  reason: 'no_definition' | 'not_created';
+}
+
 export interface CheckAttributes {
   'a2ui.event.kind': 'check';
-  'a2ui.check.name': string;
+  'a2ui.check.name': CheckName;
   'a2ui.check.passed': boolean;
   'a2ui.check.protocol_version': string;
-  'a2ui.check.catalog_id'?: string;
   'a2ui.check.findings': Finding[];
+  /** On the catalog, structural and binding checks: empty when nothing was skipped. */
+  'a2ui.check.skipped'?: SkippedSurface[];
 }
 
 export type TurnEvent = EventFields<TurnAttributes> & {endTimeUnixNano: string};

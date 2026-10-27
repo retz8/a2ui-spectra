@@ -100,7 +100,8 @@ export function OutcomeBadge({status}: {status: TurnStatus}) {
 
 /**
  * The problem count, pressed to keep only the steps with problems, or that
- * there are none or no checks ran, with the checks that ran in its tooltip.
+ * there are none, none but a surface a check could not judge, or no checks
+ * ran, with the checks that ran in its tooltip.
  */
 function CheckChip({
   check,
@@ -119,7 +120,9 @@ function CheckChip({
       ? plural(check.count, 'problem')
       : check.state === 'clean'
         ? 'No problems'
-        : `Not checked · ${check.reason}`;
+        : check.state === 'partial'
+          ? 'No problems · not fully checked'
+          : `Not checked · ${check.reason}`;
   return (
     <Tooltip.Provider delayDuration={200}>
       <Tooltip.Root>
@@ -143,7 +146,7 @@ function CheckChip({
               kind={
                 check.state === 'problems'
                   ? 'failed'
-                  : check.state === 'clean'
+                  : check.state === 'clean' || check.state === 'partial'
                     ? 'checked'
                     : 'unchecked'
               }
@@ -161,11 +164,28 @@ function CheckChip({
           >
             <span className="section-label">Checks</span>
             {checks.map((line, index) => (
-              <div key={index} className="flex items-baseline gap-2">
-                <span className="shrink-0 font-medium">{line.name}</span>
-                <span className="shrink-0 text-muted-foreground">{line.version}</span>
-                <span className="flex-1" />
-                <span className="text-right text-muted-strong">{line.result}</span>
+              <div key={index} className="flex flex-col gap-px">
+                <div className="flex items-baseline gap-2">
+                  <span className="shrink-0 font-medium">{line.name}</span>
+                  <span className="shrink-0 text-muted-foreground">{line.version}</span>
+                  <span className="flex-1" />
+                  <span className="text-right text-muted-strong">
+                    {line.result.map((run, runIndex) =>
+                      run.mono ? (
+                        <code key={runIndex} className="font-mono">
+                          {run.text}
+                        </code>
+                      ) : (
+                        <span key={runIndex}>{run.text}</span>
+                      ),
+                    )}
+                  </span>
+                </div>
+                {line.notes.map(note => (
+                  <span key={note} className="text-right font-mono break-all text-muted-foreground">
+                    {note}
+                  </span>
+                ))}
               </div>
             ))}
           </Tooltip.Content>
