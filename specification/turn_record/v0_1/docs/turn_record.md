@@ -269,32 +269,63 @@ A `parse` event may also carry the received-span attributes.
 
 One check run on the turn. Each turn has at most one check event per check.
 
-| Attribute                     | Type              | Required | Meaning                                         |
-| ----------------------------- | ----------------- | -------- | ----------------------------------------------- |
-| `a2ui.event.kind`             | string            | yes      | `"check"`.                                      |
-| `a2ui.check.name`             | string            | yes      | `schema`, `catalog`, `structural` or `binding`. |
-| `a2ui.check.passed`           | boolean           | yes      | Whether the check passed.                       |
-| `a2ui.check.protocol_version` | string            | yes      | The A2UI protocol version checked against.      |
-| `a2ui.check.catalog_id`       | string            | no       | The catalog checked against.                    |
-| `a2ui.check.findings`         | array of findings | yes      | What the check found. Empty when it passed.     |
+| Attribute                     | Type                      | Required  | Meaning                                                                                                                                          |
+| ----------------------------- | ------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `a2ui.event.kind`             | string                    | yes       | `"check"`.                                                                                                                                       |
+| `a2ui.check.name`             | string                    | yes       | `schema`, `catalog`, `structural` or `binding`.                                                                                                  |
+| `a2ui.check.passed`           | boolean                   | yes       | Whether the check passed: it has no findings.                                                                                                    |
+| `a2ui.check.protocol_version` | string                    | yes       | The A2UI protocol version checked against.                                                                                                       |
+| `a2ui.check.findings`         | array of findings         | yes       | What the check found. Empty when it passed.                                                                                                      |
+| `a2ui.check.skipped`          | array of skipped surfaces | per check | The surfaces the check could not judge. Required on `catalog`, `structural` and `binding`, empty when none was skipped; not allowed on `schema`. |
 
 The checks:
 
-- **`schema`:** the response is A2UI and matches the schema of its protocol version.
-- **`catalog`:** the response matches the catalog.
-- **`structural`:** every child id points to an existing component, there is exactly one root, and nothing loops back on itself.
-- **`binding`:** every path the UI binds to is filled by the data model.
+- **`schema`:** each A2UI message the agent sent matches the schema of its protocol version.
+- **`catalog`:** each component the agent sent matches its catalog's definition, and so do the function calls and the theme the catalog defines.
+- **`structural`:** on each surface the turn touched, as it stands at the turn's close: every child id points to an existing component, a component has the id `root`, every component is reachable from it, nothing loops back on itself, no id is given to two components in one message, and the catalog's composition rules hold; and every surface a message names was created.
+- **`binding`:** on the same surfaces, every path the UI binds to has a value in the data model.
+
+A skipped surface is an object:
+
+| Field       | Type   | Required | Meaning                                                                                                                                                                   |
+| ----------- | ------ | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `surfaceId` | string | yes      | The surface.                                                                                                                                                              |
+| `catalogId` | string | no       | The catalog id the surface named, when it named one.                                                                                                                      |
+| `reason`    | string | yes      | `no_definition`: the catalog id resolves to no definition. `not_created`: the surface does not exist, for lack of a `createSurface` or because the processor rejected it. |
 
 A finding uses A2UI's error shape:
 
-| Field       | Type   | Required | Meaning                             |
-| ----------- | ------ | -------- | ----------------------------------- |
-| `code`      | string | yes      | The finding's code.                 |
-| `surfaceId` | string | no       | The surface it concerns.            |
-| `path`      | string | no       | A JSON path to the offending value. |
-| `message`   | string | yes      | What is wrong.                      |
+| Field       | Type   | Required | Meaning                                                     |
+| ----------- | ------ | -------- | ----------------------------------------------------------- |
+| `code`      | string | yes      | The finding's code.                                         |
+| `surfaceId` | string | no       | The surface it concerns.                                    |
+| `path`      | string | no       | A JSON Pointer from the turn object to the offending value. |
+| `message`   | string | yes      | What is wrong.                                              |
 
-A2UI's own codes are used where they fit: `VALIDATION_FAILED`, and in v1.0 `UNALLOWED_PARENT` and `UNALLOWED_CHILD`. Other codes are uppercase snake case, named by the check that reports them.
+`path` runs from the turn object through the wire output event, its part, the part's content and, for an array of messages, the message's index, such as `/events/9/attributes/a2ui.wire.message/parts/2/content/updateComponents/components/6/value`. It points at the offending value: a schema or catalog finding at the property, a dangling child at the child id itself, an unfilled binding at the binding object, an unreachable component at the component, a surface never created at the first message of the turn that names it. A finding about a whole surface, or about a component that an earlier turn's message carried, has no path and names the component and the surface in its message. Findings are ordered by the message and the component they point at; findings with no path come last.
+
+The codes:
+
+| Code                                  | Check               | When                                                                                                                                           |
+| ------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `VALIDATION_FAILED`                   | `schema`, `catalog` | A message fails its version's schema, or names no message type or several; a component, function call or theme fails its catalog's definition. |
+| `SCHEMA_VERSION_MISSING`              | `schema`            | A message with no `version` string.                                                                                                            |
+| `SCHEMA_VERSION_UNSUPPORTED`          | `schema`            | A `version` other than v0.9, v0.9.1 and v1.0.                                                                                                  |
+| `SCHEMA_NOT_AN_OBJECT`                | `schema`            | Content, or an element of an array, that is not a JSON object.                                                                                 |
+| `SCHEMA_VERSIONS_MIXED`               | `schema`            | The agent's messages in one turn declare more than one version.                                                                                |
+| `COMPONENT_UNKNOWN`                   | `catalog`           | A component type the catalog does not define.                                                                                                  |
+| `FUNCTION_UNKNOWN`                    | `catalog`           | A function the catalog does not define.                                                                                                        |
+| `CHILD_NOT_FOUND`                     | `structural`        | A child id with no component.                                                                                                                  |
+| `COMPONENT_UNREACHABLE`               | `structural`        | A component the root does not reach.                                                                                                           |
+| `ROOT_MISSING`                        | `structural`        | No component with the id `root`.                                                                                                               |
+| `CYCLIC_REFERENCE`                    | `structural`        | A component that reaches itself.                                                                                                               |
+| `DUPLICATE_COMPONENT_ID`              | `structural`        | An id given to two components in one message.                                                                                                  |
+| `SURFACE_NOT_CREATED`                 | `structural`        | A message names a surface that no `createSurface` created.                                                                                     |
+| `UNALLOWED_PARENT`, `UNALLOWED_CHILD` | `structural`        | A composition rule of a v1.0 catalog is broken; A2UI's own codes.                                                                              |
+| `BINDING_PATH_UNFILLED`               | `binding`           | A bound path with no value in the data model.                                                                                                  |
+| `BINDING_LIST_NOT_ARRAY`              | `binding`           | A template's list path whose value is not an array.                                                                                            |
+
+A2UI's own codes are used where they fit. The others are uppercase snake case, named by the check that reports them.
 
 No other attributes are allowed on check events.
 
@@ -352,8 +383,8 @@ Every attribute the record defines itself is in the `a2ui.` namespace, named `a2
 | `a2ui.check.name`                | string                    | `check`                                |
 | `a2ui.check.passed`              | boolean                   | `check`                                |
 | `a2ui.check.protocol_version`    | string                    | `check`                                |
-| `a2ui.check.catalog_id`          | string                    | `check`                                |
 | `a2ui.check.findings`            | array of findings         | `check`                                |
+| `a2ui.check.skipped`             | array of skipped surfaces | `check`                                |
 | `a2ui.received.attributes`       | object                    | events from the OpenTelemetry receiver |
 
 ## Rules

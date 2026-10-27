@@ -186,6 +186,23 @@
       "additionalProperties": false,
       "description": "One check finding, in A2UI's error shape."
     },
+    "SkippedSurface": {
+      "type": "object",
+      "properties": {
+        "surfaceId": {
+          "type": "string"
+        },
+        "catalogId": {
+          "type": "string"
+        },
+        "reason": {
+          "enum": ["no_definition", "not_created"]
+        }
+      },
+      "required": ["surfaceId", "reason"],
+      "additionalProperties": false,
+      "description": "A surface a check could not judge: the surface, the catalog id it named when it named one, and why."
+    },
     "Event": {
       "type": "object",
       "description": "One event, shaped as an OTLP span with attributes as an object.",
@@ -819,13 +836,16 @@
                   "a2ui.check.protocol_version": {
                     "$ref": "#/$defs/ProtocolVersion"
                   },
-                  "a2ui.check.catalog_id": {
-                    "type": "string"
-                  },
                   "a2ui.check.findings": {
                     "type": "array",
                     "items": {
                       "$ref": "#/$defs/Finding"
+                    }
+                  },
+                  "a2ui.check.skipped": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/SkippedSurface"
                     }
                   }
                 },
@@ -836,7 +856,22 @@
                   "a2ui.check.protocol_version",
                   "a2ui.check.findings"
                 ],
-                "additionalProperties": false
+                "additionalProperties": false,
+                "if": {
+                  "properties": {
+                    "a2ui.check.name": {
+                      "const": "schema"
+                    }
+                  }
+                },
+                "then": {
+                  "not": {
+                    "required": ["a2ui.check.skipped"]
+                  }
+                },
+                "else": {
+                  "required": ["a2ui.check.skipped"]
+                }
               }
             },
             "not": {

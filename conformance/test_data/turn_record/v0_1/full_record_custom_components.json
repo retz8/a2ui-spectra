@@ -3898,17 +3898,34 @@
         },
         {
           "traceId": "f64f8aae62dfdd0dcab9dd0ee0941c0e",
-          "spanId": "f7463754c137f48c",
+          "spanId": "c787d30fe3b96ca6",
           "parentSpanId": "e039bd63655ee7b1",
           "name": "check",
           "kind": 1,
           "startTimeUnixNano": "1792576809011000000",
           "attributes": {
             "a2ui.event.kind": "check",
+            "a2ui.check.name": "catalog",
+            "a2ui.check.passed": true,
+            "a2ui.check.protocol_version": "v0.9",
+            "a2ui.check.findings": [],
+            "a2ui.check.skipped": []
+          }
+        },
+        {
+          "traceId": "f64f8aae62dfdd0dcab9dd0ee0941c0e",
+          "spanId": "f7463754c137f48c",
+          "parentSpanId": "e039bd63655ee7b1",
+          "name": "check",
+          "kind": 1,
+          "startTimeUnixNano": "1792576809012000000",
+          "attributes": {
+            "a2ui.event.kind": "check",
             "a2ui.check.name": "structural",
             "a2ui.check.passed": true,
             "a2ui.check.protocol_version": "v0.9",
-            "a2ui.check.findings": []
+            "a2ui.check.findings": [],
+            "a2ui.check.skipped": []
           }
         },
         {
@@ -3917,7 +3934,7 @@
           "parentSpanId": "e039bd63655ee7b1",
           "name": "check",
           "kind": 1,
-          "startTimeUnixNano": "1792576809012000000",
+          "startTimeUnixNano": "1792576809013000000",
           "attributes": {
             "a2ui.event.kind": "check",
             "a2ui.check.name": "binding",
@@ -3927,10 +3944,11 @@
               {
                 "code": "BINDING_PATH_UNFILLED",
                 "surfaceId": "contact-card",
-                "path": "/components/32/action/event/context/contactId",
+                "path": "/events/11/attributes/a2ui.wire.message/parts/3/content/updateComponents/components/32/action/event/context/contactId",
                 "message": "The data model has no value at /id."
               }
-            ]
+            ],
+            "a2ui.check.skipped": []
           }
         }
       ]
@@ -5956,8 +5974,8 @@
             "a2ui.check.name": "catalog",
             "a2ui.check.passed": true,
             "a2ui.check.protocol_version": "v0.9",
-            "a2ui.check.catalog_id": "inline_catalog",
-            "a2ui.check.findings": []
+            "a2ui.check.findings": [],
+            "a2ui.check.skipped": []
           }
         },
         {
@@ -5972,7 +5990,24 @@
             "a2ui.check.name": "structural",
             "a2ui.check.passed": true,
             "a2ui.check.protocol_version": "v0.9",
-            "a2ui.check.findings": []
+            "a2ui.check.findings": [],
+            "a2ui.check.skipped": []
+          }
+        },
+        {
+          "traceId": "ff68e6e9f09389b0223f1dbc7894c0e5",
+          "spanId": "803c634c515f0e86",
+          "parentSpanId": "f4f04fa44ddc3e8e",
+          "name": "check",
+          "kind": 1,
+          "startTimeUnixNano": "1792576890153000000",
+          "attributes": {
+            "a2ui.event.kind": "check",
+            "a2ui.check.name": "binding",
+            "a2ui.check.passed": true,
+            "a2ui.check.protocol_version": "v0.9",
+            "a2ui.check.findings": [],
+            "a2ui.check.skipped": []
           }
         }
       ]

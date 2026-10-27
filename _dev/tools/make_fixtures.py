@@ -374,7 +374,7 @@ RT1, RT2 = trace_id("full received 1"), trace_id("full received 2")
 S = {name: span_id(f"full {name}") for name in [
     "turn 1", "wire input 1", "wire output 1a", "wire output 1b", "agent 1", "prompt 1",
     "proxy call 1a failed", "proxy call 1a", "received call 1a", "tool 1", "proxy call 1b", "received call 1b",
-    "parse 1", "check 1 schema", "check 1 structural",
+    "parse 1", "check 1 schema", "check 1 catalog", "check 1 structural", "check 1 binding",
     "turn 2", "wire input 2", "wire output 2", "agent 2",
     "proxy call 2a", "received call 2a", "parse 2a", "proxy call 2b", "received call 2b", "parse 2b",
     "check 2 schema", "check 2 catalog", "check 2 structural", "check 2 binding",
@@ -566,17 +566,23 @@ def turn(trace, span, start, end, agent="Restaurant Agent", conversation=None):
     )
 
 
-def check(trace, span, parent, time, name, passed, findings, catalog=None):
+def check(trace, span, parent, time, name, passed, findings, skipped=()):
     attributes = {
         "a2ui.event.kind": "check",
         "a2ui.check.name": name,
         "a2ui.check.passed": passed,
         "a2ui.check.protocol_version": "v0.9",
+        "a2ui.check.findings": findings,
     }
-    if catalog:
-        attributes["a2ui.check.catalog_id"] = catalog
-    attributes["a2ui.check.findings"] = findings
+    if name != "schema":
+        attributes["a2ui.check.skipped"] = list(skipped)
     return event(trace, span, "check", 1, time, attributes, parent=parent)
+
+
+def message_pointer(events, span, part):
+    """The JSON Pointer from the turn object to the A2UI message in one part of the wire output under `span`."""
+    index = next(i for i, e in enumerate(events) if e["spanId"] == span)
+    return f"/events/{index}/attributes/a2ui.wire.message/parts/{part}/content"
 
 
 ADK_METADATA = {
@@ -773,7 +779,9 @@ t1 = [
         parent=S["turn 1"],
     ),
     check(ST1, S["check 1 schema"], S["turn 1"], 5010, "schema", True, []),
+    check(ST1, S["check 1 catalog"], S["turn 1"], 5011, "catalog", True, []),
     check(ST1, S["check 1 structural"], S["turn 1"], 5012, "structural", True, []),
+    check(ST1, S["check 1 binding"], S["turn 1"], 5013, "binding", True, []),
 ]
 
 # The first request gets a 503, and google-genai retries it after its initial delay of 2 seconds.
@@ -991,8 +999,12 @@ t2 = [
         parent=S["turn 2"],
     ),
     check(ST2, S["check 2 schema"], S["turn 2"], B + 4590, "schema", True, []),
-    check(ST2, S["check 2 catalog"], S["turn 2"], B + 4591, "catalog", True, [], catalog=BASIC),
+    check(ST2, S["check 2 catalog"], S["turn 2"], B + 4591, "catalog", True, []),
     check(ST2, S["check 2 structural"], S["turn 2"], B + 4592, "structural", True, []),
+]
+# The booking form's components, in the wire output's third part.
+BOOKING_COMPONENTS = message_pointer(t2, S["wire output 2"], 2) + "/updateComponents/components"
+t2.append(
     check(
         ST2,
         S["check 2 binding"],
@@ -1004,18 +1016,18 @@ t2 = [
             {
                 "code": "BINDING_PATH_UNFILLED",
                 "surfaceId": "booking-form",
-                "path": f"/components/{DIETARY_FIELD}/value",
+                "path": f"{BOOKING_COMPONENTS}/{DIETARY_FIELD}/value",
                 "message": "The data model has no value at /dietary.",
             },
             {
                 "code": "BINDING_PATH_UNFILLED",
                 "surfaceId": "booking-form",
-                "path": f"/components/{SUBMIT_BUTTON}/action/event/context/dietary",
+                "path": f"{BOOKING_COMPONENTS}/{SUBMIT_BUTTON}/action/event/context/dietary",
                 "message": "The data model has no value at /dietary.",
             },
         ],
-    ),
-]
+    )
+)
 FULL = record(t1, t2)
 
 
@@ -1113,9 +1125,9 @@ CR1, CR2 = trace_id("custom received 1"), trace_id("custom received 2")
 CS = {name: span_id(f"custom {name}") for name in [
     "turn 1", "wire input 1", "wire output 1a", "wire output 1b", "agent 1", "prompt 1",
     "proxy call 1a", "received call 1a", "tool 1", "proxy call 1b", "received call 1b", "parse 1",
-    "check 1 schema", "check 1 structural", "check 1 binding",
+    "check 1 schema", "check 1 catalog", "check 1 structural", "check 1 binding",
     "turn 2", "wire input 2", "wire output 2", "mcp initialize", "mcp initialized", "mcp read", "parse 2",
-    "check 2 schema", "check 2 catalog", "check 2 structural",
+    "check 2 schema", "check 2 catalog", "check 2 structural", "check 2 binding",
 ]}
 
 C_GEMINI_USER_1 = {"role": "user", "parts": [{"text": C_Q1}]}
@@ -1290,17 +1302,22 @@ c1 = [
         parent=CS["turn 1"],
     ),
     check(CT1, CS["check 1 schema"], CS["turn 1"], 9010, "schema", True, []),
-    check(CT1, CS["check 1 structural"], CS["turn 1"], 9011, "structural", True, []),
+    check(CT1, CS["check 1 catalog"], CS["turn 1"], 9011, "catalog", True, []),
+    check(CT1, CS["check 1 structural"], CS["turn 1"], 9012, "structural", True, []),
+]
+# The contact card's components, in the wire output's fourth part.
+CARD_COMPONENTS = message_pointer(c1, CS["wire output 1b"], 3) + "/updateComponents/components"
+c1.append(
     check(
-        CT1, CS["check 1 binding"], CS["turn 1"], 9012, "binding", False,
+        CT1, CS["check 1 binding"], CS["turn 1"], 9013, "binding", False,
         [{
             "code": "BINDING_PATH_UNFILLED",
             "surfaceId": "contact-card",
-            "path": f"/components/{LOCATION_BUTTON}/action/event/context/contactId",
+            "path": f"{CARD_COMPONENTS}/{LOCATION_BUTTON}/action/event/context/contactId",
             "message": "The data model has no value at /id.",
         }],
-    ),
-]
+    )
+)
 
 C = 90_000
 initialize = {
@@ -1361,8 +1378,9 @@ c2 = [
         parent=CS["turn 2"],
     ),
     check(CT2, CS["check 2 schema"], CS["turn 2"], C + 150, "schema", True, []),
-    check(CT2, CS["check 2 catalog"], CS["turn 2"], C + 151, "catalog", True, [], catalog="inline_catalog"),
+    check(CT2, CS["check 2 catalog"], CS["turn 2"], C + 151, "catalog", True, []),
     check(CT2, CS["check 2 structural"], CS["turn 2"], C + 152, "structural", True, []),
+    check(CT2, CS["check 2 binding"], CS["turn 2"], C + 153, "binding", True, []),
 ]
 FULL_CUSTOM = record(c1, c2)
 
@@ -1396,11 +1414,23 @@ def chunk_with_id(r):
     ]
 
 
+def check_with_skipped_surfaces(r):
+    attrs(r).update({
+        "a2ui.check.name": "catalog",
+        "a2ui.check.skipped": [
+            {"surfaceId": "booking", "catalogId": "example.com:shop", "reason": "no_definition"},
+            {"surfaceId": "confirmation", "reason": "not_created"},
+        ],
+    })
+
+
 EXTRA_PASS = [
     ("prompt_generation_failed", "prompt_generation", prompt_generation_failed,
      "A prompt generation that failed, with its error type, for a catalog that carries its own version."),
     ("chunk_with_id", "model_call", chunk_with_id,
      "A model call whose streamed chunks carry the server-sent event's event and id fields."),
+    ("check_with_skipped_surfaces", "check", check_with_skipped_surfaces,
+     "A catalog check that could not judge two surfaces: one whose catalog has no definition, one never created."),
 ]
 
 
@@ -1506,6 +1536,21 @@ def must_fail():
 
     case("finding_without_code", "check", finding_without_code,
          "A check finding has no code.", ("/turns/0/events/1/attributes/a2ui.check.findings/0", "required"))
+    case("check_with_catalog_id", "check", lambda r: attrs(r).update({"a2ui.check.catalog_id": BASIC}),
+         "A check event carries a catalog id.", ("/turns/0/events/1/attributes", "additionalProperties"))
+    case("check_skipped_on_schema", "check", lambda r: attrs(r).update({"a2ui.check.skipped": []}),
+         "A schema check event carries a skipped list.", ("/turns/0/events/1/attributes", "not"))
+    case("check_without_skipped", "check", lambda r: attrs(r).update({"a2ui.check.name": "catalog"}),
+         "A catalog check event has no skipped list.", ("/turns/0/events/1/attributes", "required"))
+
+    def skipped(entry):
+        return lambda r: attrs(r).update({"a2ui.check.name": "structural", "a2ui.check.skipped": [entry]})
+
+    case("skipped_surface_without_surface_id", "check", skipped({"reason": "not_created"}),
+         "A skipped surface names no surface.", ("/turns/0/events/1/attributes/a2ui.check.skipped/0", "required"))
+    case("skipped_surface_unknown_reason", "check", skipped({"surfaceId": "booking", "reason": "no_renderer"}),
+         "A skipped surface gives a reason the record does not define.",
+         ("/turns/0/events/1/attributes/a2ui.check.skipped/0/reason", "enum"))
     case("framework_span_without_received_attributes", "framework_span",
          lambda r: attrs(r).pop("a2ui.received.attributes"),
          "A framework span has no received attributes.", ("/turns/0/events/1/attributes", "required"))

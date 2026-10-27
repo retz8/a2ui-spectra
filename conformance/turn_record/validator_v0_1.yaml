@@ -66,6 +66,11 @@
   action: validate_turn_record
   fixture: "test_data/turn_record/v0_1/chunk_with_id.json"
 
+- name: check_with_skipped_surfaces
+  description: "A catalog check that could not judge two surfaces: one whose catalog has no definition, one never created."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/check_with_skipped_surfaces.json"
+
 - name: version_not_v0_1
   description: "The record declares a version other than v0.1."
   action: validate_turn_record
@@ -325,6 +330,56 @@
     details:
       - path: "/turns/0/events/1/attributes/a2ui.check.findings/0"
         code: required
+
+- name: check_with_catalog_id
+  description: "A check event carries a catalog id."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/check_with_catalog_id.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes"
+        code: additionalProperties
+
+- name: check_skipped_on_schema
+  description: "A schema check event carries a skipped list."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/check_skipped_on_schema.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes"
+        code: not
+
+- name: check_without_skipped
+  description: "A catalog check event has no skipped list."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/check_without_skipped.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes"
+        code: required
+
+- name: skipped_surface_without_surface_id
+  description: "A skipped surface names no surface."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/skipped_surface_without_surface_id.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes/a2ui.check.skipped/0"
+        code: required
+
+- name: skipped_surface_unknown_reason
+  description: "A skipped surface gives a reason the record does not define."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/skipped_surface_unknown_reason.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes/a2ui.check.skipped/0/reason"
+        code: enum
 
 - name: framework_span_without_received_attributes
   description: "A framework span has no received attributes."

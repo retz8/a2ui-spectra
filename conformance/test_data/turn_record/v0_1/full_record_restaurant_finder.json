@@ -1565,6 +1565,22 @@
         },
         {
           "traceId": "b573274bef9042e64dc49a8f6d014d92",
+          "spanId": "0388e94e962899dd",
+          "parentSpanId": "952ef8bd079a1373",
+          "name": "check",
+          "kind": 1,
+          "startTimeUnixNano": "1792576807011000000",
+          "attributes": {
+            "a2ui.event.kind": "check",
+            "a2ui.check.name": "catalog",
+            "a2ui.check.passed": true,
+            "a2ui.check.protocol_version": "v0.9",
+            "a2ui.check.findings": [],
+            "a2ui.check.skipped": []
+          }
+        },
+        {
+          "traceId": "b573274bef9042e64dc49a8f6d014d92",
           "spanId": "b2af20ec6620ecca",
           "parentSpanId": "952ef8bd079a1373",
           "name": "check",
@@ -1575,7 +1591,24 @@
             "a2ui.check.name": "structural",
             "a2ui.check.passed": true,
             "a2ui.check.protocol_version": "v0.9",
-            "a2ui.check.findings": []
+            "a2ui.check.findings": [],
+            "a2ui.check.skipped": []
+          }
+        },
+        {
+          "traceId": "b573274bef9042e64dc49a8f6d014d92",
+          "spanId": "b00559b10c7e7801",
+          "parentSpanId": "952ef8bd079a1373",
+          "name": "check",
+          "kind": 1,
+          "startTimeUnixNano": "1792576807013000000",
+          "attributes": {
+            "a2ui.event.kind": "check",
+            "a2ui.check.name": "binding",
+            "a2ui.check.passed": true,
+            "a2ui.check.protocol_version": "v0.9",
+            "a2ui.check.findings": [],
+            "a2ui.check.skipped": []
           }
         }
       ]
@@ -3131,8 +3164,8 @@
             "a2ui.check.name": "catalog",
             "a2ui.check.passed": true,
             "a2ui.check.protocol_version": "v0.9",
-            "a2ui.check.catalog_id": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
-            "a2ui.check.findings": []
+            "a2ui.check.findings": [],
+            "a2ui.check.skipped": []
           }
         },
         {
@@ -3147,7 +3180,8 @@
             "a2ui.check.name": "structural",
             "a2ui.check.passed": true,
             "a2ui.check.protocol_version": "v0.9",
-            "a2ui.check.findings": []
+            "a2ui.check.findings": [],
+            "a2ui.check.skipped": []
           }
         },
         {
@@ -3166,16 +3200,17 @@
               {
                 "code": "BINDING_PATH_UNFILLED",
                 "surfaceId": "booking-form",
-                "path": "/components/6/value",
+                "path": "/events/9/attributes/a2ui.wire.message/parts/2/content/updateComponents/components/6/value",
                 "message": "The data model has no value at /dietary."
               },
               {
                 "code": "BINDING_PATH_UNFILLED",
                 "surfaceId": "booking-form",
-                "path": "/components/7/action/event/context/dietary",
+                "path": "/events/9/attributes/a2ui.wire.message/parts/2/content/updateComponents/components/7/action/event/context/dietary",
                 "message": "The data model has no value at /dietary."
               }
-            ]
+            ],
+            "a2ui.check.skipped": []
           }
         }
       ]
