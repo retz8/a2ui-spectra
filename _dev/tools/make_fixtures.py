@@ -1378,8 +1378,29 @@ c2 = [
         parent=CS["turn 2"],
     ),
     check(CT2, CS["check 2 schema"], CS["turn 2"], C + 150, "schema", True, []),
-    check(CT2, CS["check 2 catalog"], CS["turn 2"], C + 151, "catalog", True, []),
-    check(CT2, CS["check 2 structural"], CS["turn 2"], C + 152, "structural", True, []),
+]
+# The floor plan's WebFrame writes html where the sample's own inline catalog requires url, so web
+# core refuses the batch and the surface stands empty at the close.
+FLOOR_PLAN_COMPONENT = message_pointer(c2, CS["wire output 2"], 2) + "/updateComponents/components/0"
+c2 += [
+    check(
+        CT2, CS["check 2 catalog"], CS["turn 2"], C + 151, "catalog", False,
+        [{
+            "code": "VALIDATION_FAILED",
+            "surfaceId": "location-surface",
+            "path": FLOOR_PLAN_COMPONENT,
+            "message": "must have required property 'url'",
+        }],
+    ),
+    check(
+        CT2, CS["check 2 structural"], CS["turn 2"], C + 152, "structural", False,
+        [{
+            "code": "ROOT_MISSING",
+            "surfaceId": "location-surface",
+            "message": "The surface 'location-surface' has no component with the id 'root':"
+                       " web core refused the updateComponents that carried one.",
+        }],
+    ),
     check(CT2, CS["check 2 binding"], CS["turn 2"], C + 153, "binding", True, []),
 ]
 FULL_CUSTOM = record(c1, c2)
