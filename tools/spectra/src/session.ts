@@ -84,7 +84,7 @@ export async function runSession(
     );
   }
   const turns = new TurnHub();
-  const recorder = new TurnRecorder(store, out, {onRecorded: turns.onRecorded});
+  const recorder = new TurnRecorder(store, out, {onRecorded: turns.onRecorded, catalogs});
 
   const stop = new AbortController();
   let stoppedBy: NodeJS.Signals | undefined;

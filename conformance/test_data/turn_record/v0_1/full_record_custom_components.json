@@ -5972,9 +5972,16 @@
           "attributes": {
             "a2ui.event.kind": "check",
             "a2ui.check.name": "catalog",
-            "a2ui.check.passed": true,
+            "a2ui.check.passed": false,
             "a2ui.check.protocol_version": "v0.9",
-            "a2ui.check.findings": [],
+            "a2ui.check.findings": [
+              {
+                "code": "VALIDATION_FAILED",
+                "surfaceId": "location-surface",
+                "path": "/events/6/attributes/a2ui.wire.message/parts/2/content/updateComponents/components/0",
+                "message": "must have required property 'url'"
+              }
+            ],
             "a2ui.check.skipped": []
           }
         },
@@ -5988,9 +5995,15 @@
           "attributes": {
             "a2ui.event.kind": "check",
             "a2ui.check.name": "structural",
-            "a2ui.check.passed": true,
+            "a2ui.check.passed": false,
             "a2ui.check.protocol_version": "v0.9",
-            "a2ui.check.findings": [],
+            "a2ui.check.findings": [
+              {
+                "code": "ROOT_MISSING",
+                "surfaceId": "location-surface",
+                "message": "The surface 'location-surface' has no component with the id 'root': web core refused the updateComponents that carried one."
+              }
+            ],
             "a2ui.check.skipped": []
           }
         },

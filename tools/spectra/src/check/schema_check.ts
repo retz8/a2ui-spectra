@@ -20,6 +20,7 @@ import {
   type Turn,
   type TurnEvent,
 } from '../record/turn_record.js';
+import {checkEvent} from './check_event.js';
 import v0_9 from './schemas/v0_9/server_to_client.json' with {type: 'json'};
 import v0_9_1 from './schemas/v0_9_1/server_to_client.json' with {type: 'json'};
 import v1_0 from './schemas/v1_0/agent_to_renderer.json' with {type: 'json'};
@@ -137,23 +138,9 @@ export function checkSchema(turn: Turn): SchemaCheckResult | undefined {
 export function schemaCheckEvent(
   turnEvent: TurnEvent,
   result: SchemaCheckResult,
-  {spanId, timeUnixNano}: {spanId: string; timeUnixNano: bigint},
+  ids: {spanId: string; timeUnixNano: bigint},
 ): CheckEvent {
-  return {
-    traceId: turnEvent.traceId,
-    spanId,
-    parentSpanId: turnEvent.spanId,
-    name: 'check',
-    kind: 1,
-    startTimeUnixNano: timeUnixNano.toString(),
-    attributes: {
-      'a2ui.event.kind': 'check',
-      'a2ui.check.name': 'schema',
-      'a2ui.check.passed': result.passed,
-      'a2ui.check.protocol_version': result.protocolVersion,
-      'a2ui.check.findings': result.findings,
-    },
-  };
+  return checkEvent(turnEvent, 'schema', result.protocolVersion, {findings: result.findings}, ids);
 }
 
 function turnEventOf(turn: Turn): TurnEvent | undefined {
@@ -231,8 +218,8 @@ function messageFindings(message: unknown, path: string): Finding[] {
   );
 }
 
-/** The JSON Pointer inside the message to the offending value: the extra property itself, for one. */
-function errorPath(error: ErrorObject): string {
+/** The JSON Pointer inside the validated value to the offending one: the extra property itself, for one. */
+export function errorPath(error: ErrorObject): string {
   const property = extraProperty(error);
   return property === undefined
     ? error.instancePath
@@ -240,7 +227,7 @@ function errorPath(error: ErrorObject): string {
 }
 
 /** Ajv's text, naming the property for an additional or unevaluated one. */
-function errorText(error: ErrorObject): string {
+export function errorText(error: ErrorObject): string {
   const text = error.message ?? `fails ${error.keyword}`;
   const property = extraProperty(error);
   return property === undefined ? text : `${text}: ${property}`;

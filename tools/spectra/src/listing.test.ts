@@ -115,7 +115,7 @@ describe('inputBriefOf', () => {
 });
 
 describe('listingFieldsOf', () => {
-  it("lists a closed turn's outcome, agent, duration, input in brief, schema check and rejections", () => {
+  it("lists a closed turn's outcome, agent, duration, input in brief, findings and rejections", () => {
     const turn: Turn = {
       events: [
         {
@@ -131,9 +131,39 @@ describe('listingFieldsOf', () => {
       agentName: 'Restaurant Agent',
       durationMs: 1000,
       input: {text: 'Hi'},
-      schemaCheck: {passed: false, findings: 2},
+      findings: 2,
       rejections: 0,
     });
+  });
+
+  it('folds a rejection under a finding that points into its message, and counts the rest', () => {
+    const noSurface: WirePart = {
+      type: 'a2ui',
+      content: {version: 'v0.9', updateDataModel: {path: '/x', value: 1}},
+    };
+    const unfolded: Turn = {events: [turnEvent, output(createSurface, noSurface)]};
+    assert.deepEqual(
+      [listingFieldsOf(unfolded)?.findings, listingFieldsOf(unfolded)?.rejections],
+      [undefined, 1],
+    );
+    const found: CheckEvent = {
+      ...check(false, 1),
+      attributes: {
+        ...check(false, 1).attributes,
+        'a2ui.check.findings': [
+          {
+            code: 'VALIDATION_FAILED',
+            path: '/events/1/attributes/a2ui.wire.message/parts/1/content/updateDataModel',
+            message: "must have required property 'surfaceId'",
+          },
+        ],
+      },
+    };
+    const folded: Turn = {events: [turnEvent, output(createSurface, noSurface), found]};
+    assert.deepEqual(
+      [listingFieldsOf(folded)?.findings, listingFieldsOf(folded)?.rejections],
+      [1, 0],
+    );
   });
 
   it("counts the rejections after the conversation's earlier turns", () => {

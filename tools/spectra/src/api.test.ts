@@ -210,7 +210,7 @@ describe('the API', () => {
         outcome: 'completed',
         durationMs: 500,
         input: {text: 'Book a table'},
-        schemaCheck: {passed: false, findings: 1},
+        findings: 1,
         rejections: 0,
       },
     ]);

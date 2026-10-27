@@ -105,12 +105,19 @@ export class TurnStore {
    * from the conversation's latest file, then the turn. The file is written
    * once, atomically. When the write fails, the record is kept for this run
    * and the error is thrown.
+   *
+   * `finish` is given the earlier turns once they are read, after the
+   * conversation's previous write, and returns the turn as it is written:
+   * the checks run there, so they see every earlier turn.
    */
-  write(turn: Turn): Promise<{stored: StoredTurn; record: TurnRecord}> {
+  write(
+    turn: Turn,
+    finish: (earlierTurns: readonly Turn[]) => Turn = () => turn,
+  ): Promise<{stored: StoredTurn; record: TurnRecord}> {
     const stored = storedTurnOf(turn);
     const folder = path.posix.dirname(stored.file);
     const previous = this.#writing.get(folder) ?? Promise.resolve();
-    const written = previous.catch(() => {}).then(() => this.#write(turn, stored, folder));
+    const written = previous.catch(() => {}).then(() => this.#write(stored, folder, finish));
     this.#writing.set(folder, written);
     void written.then(
       () => this.#forget(folder, written),
@@ -152,21 +159,21 @@ export class TurnStore {
   }
 
   async #write(
-    turn: Turn,
     stored: StoredTurn,
     folder: string,
+    finish: (earlierTurns: readonly Turn[]) => Turn,
   ): Promise<{stored: StoredTurn; record: TurnRecord}> {
     const target = this.#pathOf(stored.file);
     const temporary = path.join(
       path.dirname(target),
       `.${path.basename(target)}.${randomBytes(4).toString('hex')}.tmp`,
     );
-    let record: TurnRecord = {version: 'v0.1', turns: [turn]};
+    const earlier: readonly Turn[] =
+      stored.conversationId === undefined ? [] : await this.#latestTurns(folder);
+    const turn = finish(earlier);
+    const turns: Turn[] = [...earlier, turn];
+    const record: TurnRecord = {version: 'v0.1', turns: turns as TurnRecord['turns']};
     try {
-      if (stored.conversationId !== undefined) {
-        const turns: Turn[] = [...(await this.#latestTurns(folder)), turn];
-        record = {version: 'v0.1', turns: turns as TurnRecord['turns']};
-      }
       await mkdir(path.dirname(target), {recursive: true});
       await writeFile(temporary, `${JSON.stringify(record, null, 2)}\n`);
       await rename(temporary, target);

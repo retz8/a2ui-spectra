@@ -210,14 +210,29 @@ export interface Finding {
   message: string;
 }
 
+/** Why a check could not judge a surface. */
+export type SkipReason = 'no_definition' | 'not_created';
+
+/** A surface a check could not judge. */
+export interface SkippedSurface {
+  surfaceId: string;
+  /** The catalog id the surface named, when it named one. */
+  catalogId?: string;
+  reason: SkipReason;
+}
+
 export interface CheckAttributes {
   'a2ui.event.kind': 'check';
   'a2ui.check.name': CheckName;
   'a2ui.check.passed': boolean;
   'a2ui.check.protocol_version': ProtocolVersion;
-  'a2ui.check.catalog_id'?: string;
   /** Empty when the check passed. */
   'a2ui.check.findings': Finding[];
+  /**
+   * The surfaces the check could not judge: on the catalog, structural and
+   * binding checks, empty when none was skipped; never on the schema check.
+   */
+  'a2ui.check.skipped'?: SkippedSurface[];
 }
 
 export type CheckEvent = PointUnderTurn<CheckAttributes>;

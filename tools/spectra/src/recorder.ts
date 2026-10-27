@@ -1,31 +1,36 @@
 import {randomBytes} from 'node:crypto';
 
 import type {TurnListener, TurnNotification} from './a2a/turn.js';
-import {checkSchema, schemaCheckEvent} from './check/schema_check.js';
+import type {CatalogRegistry} from './catalog/registry.js';
+import {checkEvents, checkTurn} from './check/checks.js';
 import type {Output} from './output.js';
 import {isEventOfKind, type Turn, type TurnEvent} from './record/turn_record.js';
 import type {TurnStore} from './store/store.js';
 
 export interface TurnRecorderOptions {
   /**
-   * Called with each closed turn and its check event once its write has
+   * Called with each closed turn and its check events once its write has
    * finished, whether or not the write succeeded.
    */
   onRecorded?: (turn: Turn) => void;
+  /** The catalogs the checks judge against; the built-in ones when not given. */
+  catalogs?: CatalogRegistry;
   /** Nanoseconds since the Unix epoch. */
   now?: () => bigint;
   newSpanId?: () => string;
 }
 
 /**
- * Takes the adapter's turn notifications: each closed turn gets its schema
- * check event and is written to the store. A failed write is reported and
- * the turn stays in the store's memory for this run. Either way, the checked
- * turn is then handed on.
+ * Takes the adapter's turn notifications: each closed turn gets its four
+ * check events, the schema, catalog, structural and binding checks run once
+ * the store has read the conversation's earlier turns, and is written to the
+ * store. A failed write is reported and the turn stays in the store's memory
+ * for this run. Either way, the checked turn is then handed on.
  */
 export class TurnRecorder {
   readonly #store: TurnStore;
   readonly #out: Output;
+  readonly #catalogs: CatalogRegistry | undefined;
   readonly #now: () => bigint;
   readonly #newSpanId: () => string;
   readonly #onRecorded: (turn: Turn) => void;
@@ -36,6 +41,7 @@ export class TurnRecorder {
   constructor(store: TurnStore, out: Output, options: TurnRecorderOptions = {}) {
     this.#store = store;
     this.#out = out;
+    this.#catalogs = options.catalogs;
     this.#now = options.now ?? nowUnixNano;
     this.#newSpanId = options.newSpanId ?? (() => randomBytes(8).toString('hex'));
     this.#onRecorded = options.onRecorded ?? (() => {});
@@ -59,22 +65,12 @@ export class TurnRecorder {
   }
 
   #record(turn: Turn): void {
-    const turnEvent = turn.events.find((event): event is TurnEvent => isEventOfKind(event, 'turn'));
-    const result = checkSchema(turn);
-    const checked: Turn =
-      turnEvent === undefined || result === undefined
-        ? turn
-        : {
-            events: [
-              ...turn.events,
-              schemaCheckEvent(turnEvent, result, {
-                spanId: this.#newSpanId(),
-                timeUnixNano: this.#now(),
-              }),
-            ],
-          };
+    let checked = turn;
     const writing: Promise<void> = this.#store
-      .write(checked)
+      .write(turn, earlierTurns => {
+        checked = this.#check(turn, earlierTurns);
+        return checked;
+      })
       .then(
         () => {},
         (error: unknown) => {
@@ -90,6 +86,27 @@ export class TurnRecorder {
       this.#writing.delete(writing);
       this.#checkIdle();
     });
+  }
+
+  /** The turn with its check events; the turn as it came when it has no protocol version, or when the checks fail. */
+  #check(turn: Turn, earlierTurns: readonly Turn[]): Turn {
+    const turnEvent = turn.events.find((event): event is TurnEvent => isEventOfKind(event, 'turn'));
+    if (turnEvent === undefined) return turn;
+    try {
+      const checks = checkTurn(turn, earlierTurns, this.#catalogs);
+      if (checks === undefined) return turn;
+      const events = checkEvents(turnEvent, checks, () => ({
+        spanId: this.#newSpanId(),
+        timeUnixNano: this.#now(),
+      }));
+      return {events: [...turn.events, ...events]};
+    } catch (error) {
+      this.#out.error(
+        `The checks failed on turn ${turnEvent.traceId}: ${error instanceof Error ? error.message : String(error)}. ` +
+          'The turn is written unchecked.',
+      );
+      return turn;
+    }
   }
 
   #checkIdle(): void {

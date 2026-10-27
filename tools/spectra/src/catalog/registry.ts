@@ -55,6 +55,15 @@ export type CatalogOffer = Record<OfferedVersion, string[]>;
 /** A catalog as web core's processor takes it. */
 export type ProcessorCatalog = Catalog<ComponentApi, FunctionApi>;
 
+/** A catalog a host sent inline: its definition as sent, and the catalog built from it. */
+export interface InlineDefinition {
+  id: string;
+  /** `0.9` or `1.0`, from the capabilities key the item sat under. */
+  protocolVersion: string;
+  definition: Record<string, unknown>;
+  catalog: ProcessorCatalog;
+}
+
 let builtInRegistry: CatalogRegistry | undefined;
 
 const validateDefinition = new Ajv2020({strict: false, allErrors: true})
@@ -168,7 +177,12 @@ export class CatalogRegistry {
    * is one with no id or one web core cannot load.
    */
   inlineCatalogs(capabilities: Record<string, unknown> | undefined): ProcessorCatalog[] {
-    const inline: ProcessorCatalog[] = [];
+    return this.inlineDefinitions(capabilities).map(({catalog}) => catalog);
+  }
+
+  /** The inline catalogs of `inlineCatalogs`, each with the definition it was built from. */
+  inlineDefinitions(capabilities: Record<string, unknown> | undefined): InlineDefinition[] {
+    const inline: InlineDefinition[] = [];
     const seen = new Set<string>();
     for (const [key, value] of Object.entries(capabilities ?? {})) {
       const version = key.startsWith('v1.') ? '1.0' : key.startsWith('v0.') ? '0.9' : undefined;
@@ -180,7 +194,12 @@ export class CatalogRegistry {
         const id = item.catalogId;
         if (this.#byId.has(id) || seen.has(id)) continue;
         try {
-          inline.push(Catalog.fromJson(item, version));
+          inline.push({
+            id,
+            protocolVersion: version,
+            definition: item,
+            catalog: Catalog.fromJson(item, version),
+          });
           seen.add(id);
         } catch {
           // The host's inline definition is the host's; an unloadable one is as if not sent.

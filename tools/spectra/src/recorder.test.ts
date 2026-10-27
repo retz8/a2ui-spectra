@@ -81,7 +81,7 @@ const SURFACE: WirePart = {
 };
 
 describe('the turn recorder', () => {
-  it('writes each closed turn with its schema check event', async () => {
+  it('writes each closed turn with its four check events', async () => {
     const store = await storeIn();
     const recorder = new TurnRecorder(store, collect(), {
       now: () => 1792576862000000000n,
@@ -99,13 +99,56 @@ describe('the turn recorder', () => {
     const [stored] = await store.list();
     const record = await store.read(stored.file);
     assert.deepEqual(turnRecordErrors(record), []);
-    const check = record.turns[0].events.at(-1) as CheckEvent;
-    assert.ok(isEventOfKind(check, 'check'));
+    const checks = record.turns[0].events.filter((event): event is CheckEvent =>
+      isEventOfKind(event, 'check'),
+    );
+    assert.deepEqual(
+      checks.map(check => check.attributes['a2ui.check.name']),
+      ['schema', 'catalog', 'structural', 'binding'],
+    );
+    const [check] = checks;
     assert.equal(check.spanId, 'cccccccccccccccc');
     assert.equal(check.parentSpanId, TURN_SPAN);
     assert.equal(check.startTimeUnixNano, '1792576862000000000');
     assert.equal(check.attributes['a2ui.check.passed'], true);
     assert.equal(check.attributes['a2ui.check.protocol_version'], 'v0.9');
+  });
+
+  it("checks a turn after the conversation's earlier turns, read from the store", async () => {
+    const store = await storeIn();
+    const recorder = new TurnRecorder(store, collect());
+    const second: Turn = {
+      events: turnOf([
+        {
+          type: 'a2ui',
+          content: {
+            version: 'v0.9',
+            updateComponents: {
+              surfaceId: 's1',
+              components: [{id: 'root', component: 'Text', text: 'Hi'}],
+            },
+          },
+        },
+      ]).events.map(event => ({...event, traceId: '1af7651916cd43dd8448eb211c80319c'})),
+    };
+    (second.events[0] as TurnEvent).startTimeUnixNano = '1792576870000000000';
+    (second.events[0] as TurnEvent).endTimeUnixNano = '1792576871000000000';
+    recorder.onTurn({type: 'turn_closed', traceId: TRACE_ID, turn: turnOf([SURFACE])});
+    recorder.onTurn({type: 'turn_closed', traceId: second.events[0].traceId, turn: second});
+    await recorder.idle();
+    const [latest] = await store.list();
+    const record = await store.read(latest.file);
+    assert.equal(record.turns.length, 2);
+    const structural = record.turns[1].events.find(
+      (event): event is CheckEvent =>
+        isEventOfKind(event, 'check') && event.attributes['a2ui.check.name'] === 'structural',
+    );
+    // The surface the first turn created is known, so the second turn's update is no surface never
+    // created; its catalog id has no definition, so the surface is skipped rather than walked.
+    assert.deepEqual(structural?.attributes['a2ui.check.findings'], []);
+    assert.deepEqual(structural?.attributes['a2ui.check.skipped'], [
+      {surfaceId: 's1', catalogId: 'basic', reason: 'no_definition'},
+    ]);
   });
 
   it('writes a turn with no protocol version without a check event', async () => {
