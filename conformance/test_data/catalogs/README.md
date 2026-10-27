@@ -1,0 +1,9 @@
+# Catalog definitions
+
+Catalog definitions the tool's tests configure, as an adopter would through `a2ui-spectra.json`. They are not cases of a suite.
+
+| File                             | Copied from                                                                                                                              | Note                                                                                                                                                          |
+| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `a2uiverse_circleci_v0_9_1.json` | A2UIVerse's `circleci/circleci-catalog/catalogs/v0.9.1/catalog.json`, in `a2uiverse-apps` at 2663991 (2026-09-27)                        | The catalog of the coverage roster's CircleCI recording, `a2a_capture/v0_1/a2uiverse_circleci/`, a 0.9 definition                                             |
+| `custom_catalog_v1_0.json`       | `conformance/test_data/catalogs/custom_catalog_v1_0.json` in `a2ui-project/a2ui` at `409ded29ccac3eebc541979ae5320771703248e8`           | A 1.0 definition with two components and a function                                                                                                           |
+| `composition_catalog_v1_0.json`  | `conformance/test_data/catalogs/composition_catalog_v1_0.json` in `a2ui-project/a2ui` at `409ded29ccac3eebc541979ae5320771703248e8`      | A 1.0 definition with `allowedParents` and `allowedChildren`. `$defs.anyFunction` is added as `{"not": {}}`, which upstream's file lacks and its catalog definition meta-schema requires; see `_dev/a2ui-findings.md`, finding 24 |

@@ -274,7 +274,7 @@ The viewer's own stack is not visible to the adopter.
 
 - One repo holds every package: the CLI and local server, the viewer, the preview core and adapters, the Python and TypeScript wrappers, and the turn record spec with its shared test data.
 - Shaped like an upstream tool from the first commit: Yarn workspaces built with `wireit`, with upstream's standard script targets (`build`, `lint`, `lint:fix`, `test`, `format`, `format:check`). The Python wrapper is a uv project, as upstream's Python packages are. The layout follows upstream's monorepo conventions.
-- **Upstream reference** (`upstream/main` at 020a9d6f): Yarn 4.13.0 with the `node-modules` linker; CI on Node 22; `tools/inspector` and `tools/editor` are `@a2ui/<tool>` workspaces marked `private` and built with `wireit`.
+- **Upstream reference** (`upstream/main` at 409ded29c): Yarn 4.13.0 with the `node-modules` linker; CI on Node 22; `tools/inspector` and `tools/editor` are `@a2ui/<tool>` workspaces marked `private` and built with `wireit`.
 
 ### Distribution and names
 

@@ -819,3 +819,43 @@ in `a2ui-spectra` holds both turns.
 
 Send each turn's A2UI messages once: keep them out of either the `working`
 status update or the final artifact ADK's executor builds from it.
+
+## 24. Upstream's own v1.0 catalogs fail the v1.0 catalog definition meta-schema
+
+**Component:** `specification/v1_0/json/catalog_definition.json`;
+`conformance/test_data/catalogs/`.
+
+**Severity:** the meta-schema and the test data disagree; a validator that
+follows the meta-schema refuses upstream's own catalogs.
+
+Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24).
+
+### Issue
+
+`catalog_definition.json` requires both unions under `$defs`
+(`"required": ["anyComponent", "anyFunction"]`, with
+`additionalProperties: false`), and `specification/v1_0/docs/a2ui_protocol.md`
+says a catalog's `$defs` holds only those two. Six of upstream's conformance
+catalogs declare `"protocolVersion": "1.0"` and have no `anyFunction`:
+`composition_catalog_v1_0.json`, `agent_functions_catalog_v1_0.json` (which
+also sets `allowedCallers` to a value outside the meta-schema's enum), and the
+four under `peer_matching/`. Web core's `Catalog.fromJson` loads them, since it
+reads the unions only to filter entries, and `Catalog.toJson` writes an empty
+union as `{"not": {}}` (`typescript/core/web_core/src/catalog/schema_serializer.ts`,
+`EMPTY_UNION`), so the form the meta-schema wants for "no functions" exists
+but the test data does not use it.
+
+### Reproduction
+
+Validate each `conformance/test_data/catalogs/*_v1_0.json` and
+`peer_matching/**/*.json` against `specification/v1_0/json/catalog_definition.json`
+with `common_types.json` loaded, under JSON Schema 2020-12. Spectra's catalog
+registry does this for a configured definition naming protocol version 1.0,
+and refuses the six.
+
+### Fix
+
+Add `"anyFunction": {"not": {}}` to each catalog's `$defs`, as `toJson`
+writes it, and fix `agent_functions_catalog_v1_0.json`'s `allowedCallers`; or
+relax the meta-schema to make `anyFunction` optional, and say so in the
+protocol doc.
