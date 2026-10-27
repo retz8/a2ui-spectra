@@ -273,15 +273,18 @@ describe('the wire proxy', () => {
       body: jsonRpc('message/stream', {message: userMessage}),
       onData: () => (sawFirstChunk = true),
     });
+    // The relayed bytes and the notification take separate paths, so under load either may land first.
     const deadline = Date.now() + 5000;
-    while (!notifications.some(n => n.type === 'wire_event' && n.event.name === 'wire_output')) {
+    while (
+      !sawFirstChunk ||
+      !notifications.some(n => n.type === 'wire_event' && n.event.name === 'wire_output')
+    ) {
       assert.ok(
         Date.now() < deadline,
-        'The first wire output never arrived while the stream was open.',
+        'The first chunk and its wire output never arrived while the stream was open.',
       );
       await new Promise(resolve => setTimeout(resolve, 10));
     }
-    assert.ok(sawFirstChunk);
     assert.equal(
       notifications.some(n => n.type === 'turn_closed'),
       false,
