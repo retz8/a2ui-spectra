@@ -65,7 +65,7 @@ A definition naming protocol version "1.0" is validated against upstream's catal
 
 ### 13. The inline branch's two shapes
 
-Under v1.0 an inline catalog is a full definition and is built as a file is. Under v0.9 and v0.9.1 the legacy shape that upstream's capabilities schema fixes, with `functions` as an array and a `theme` map and no `$defs`, is normalised into the file shape before `fromJson`: the functions into a map, the theme under `$defs`, and `anyComponent` and `anyFunction` synthesised from the maps. An inline item that already carries `$defs` passes as it is.
+Under v1.0 an inline catalog is a full definition and is built as a file is. Under v0.9 and v0.9.1 the legacy shape that upstream's capabilities schema fixes, with `functions` as an array and a `theme` map and no `$defs`, loads with every entry it names: web core 0.14.0's `fromJson` reads the list of functions and the top-level theme itself, and filters entries only against a `$defs` union the item carries, so an item with no `$defs` loses none, and no normalisation of Spectra's own is needed. An inline item that carries `$defs` passes as it is.
 
 ### 14. The alias on both faces
 
