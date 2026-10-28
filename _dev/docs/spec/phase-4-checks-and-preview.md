@@ -88,11 +88,11 @@ The basic catalog previews through a page of Spectra's own, served by Spectra an
 
 ### 15. Routing a surface to a page
 
-When a page is ready it tells Spectra which catalog ids and protocol versions it renders. A surface goes to the page that claims its catalog id, the built-in page for the basic catalog ids and the v0.9.1 alias. A surface no page claims shows "No preview for catalog <id>", with how to add one. The config's preview setting is a list of pages.
+When a page is ready it tells Spectra which catalog ids and protocol versions it renders, taken from the catalogs it passes to its renderer; the built-in page claims the basic catalog ids and the v0.9.1 alias. A surface goes to the first page, configured pages in config order and the built-in page last, whose claims cover the catalog ids its messages name, at its protocol version as web core's compatibility rule matches it. A surface no page claims shows "No preview for catalog <id>", with how to add one, and names each page that has not answered. The config's preview setting is a list of pages.
 
 ### 16. The Preview tab
 
-It shows one surface, the switcher's, as it stood right after the selected step, as Structure shows it, and keeps up with a live turn step by step while following. The page receives the conversation's A2UI messages up to that step, the feed the replay uses, and runs them through its own processor with its real catalog implementation. Preview and Structure are panes side by side, both shown by default, each hidden by its toggle, with a draggable divider between them; the toggles and the divider are remembered in the browser as the dividers are.
+It shows one surface, the switcher's, as it stood right after the selected step, as Structure shows it, and keeps up with a live turn step by step while following. The page receives the A2UI messages that name the surface, the conversation's earlier turns' and the turn's own up to that step, and runs them through its own processor with its real catalog implementation. Preview and Structure are panes side by side, both shown by default, each hidden by its toggle, with a draggable divider between them; the toggles and the divider are remembered in the browser as the dividers are.
 
 ### 17. Widths
 
@@ -100,7 +100,7 @@ Two presets, Narrow and Wide, switched in the Preview tab's header, the choice r
 
 ### 18. Render errors
 
-A render error the page reports is a problem of the turn in view: located on the step whose message carried the component, counted in the header and on the turn's row while the turn is in view, reachable with `n`, and shown on the Preview tab. It is not recorded.
+The page reports three kinds of render error: a component that throws while drawing, an error web core reports on the surface, and a message the page's processor refuses. Each is a problem of the turn in view: a component failure on the step whose message carried the component, a refused message on that message's step, a web core error on the component's step or else the outcome step; counted in the header and on the turn's row while the turn is in view, reachable with `n`, and shown on the Preview tab. A component failure always counts; a refused message or a web core error on a step with a problem of the viewer's own folds under it as a quiet line. It is not recorded.
 
 ### 19. Pressing a control
 

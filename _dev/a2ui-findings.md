@@ -942,3 +942,86 @@ Say in the v0.9 protocol doc that a component definition includes
 envelope too; or wrap the catalog's component in the protocol schema as v1.0
 does, with `ComponentCommon` outside the catalog's branch, so a definition
 need not repeat it.
+
+## 27. The React renderer catches no component's failure, and a basic catalog component that throws names nothing
+
+**Component:** `typescript/renderers/react/src/node-view.tsx`;
+`typescript/renderers/react/src/web_component_node.tsx`;
+`typescript/core/web_core/src/universal/a2ui-lit-element.ts`.
+
+**Severity:** a host cannot keep a surface drawn around a component that fails,
+nor tell which component failed.
+
+Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24),
+`@a2ui/react` 0.14.0 and `@a2ui/web_core` 0.14.0 on npm, with Lit 3.3.3.
+
+### Issue
+
+The React renderer has no error boundary: nothing under
+`typescript/renderers/react/src/` implements `componentDidCatch` or
+`getDerivedStateFromError`. Both basic catalogs, v0.9's included, are drawn
+through web core's universal elements: the v0.9 basic catalog's entries are
+universal Lit elements (`typescript/core/web_core/src/v0_9/basic_catalog/catalog.ts`),
+which React mounts through `WebComponentNode`. A throw inside such an element's
+update is caught by Lit's `ReactiveElement.performUpdate`, which marks the
+element updated and rethrows from its asynchronous update loop, so it reaches
+the page only as an unhandled promise rejection carrying the error, with
+nothing that names the element or its component. Web core's error channel is
+not told. A React implementation that throws while rendering meets no boundary
+of the renderer's, and React unmounts the host's whole root.
+
+### Reproduction
+
+Render a v0.9 surface of the basic catalog with a `Text` component through
+`@a2ui/react` 0.14.0's `A2uiSurface`, after replacing
+`customElements.get('a2ui-basic-text').prototype.render` with a function that
+throws a `RangeError`. The window receives an `unhandledrejection` whose reason
+is the `RangeError`; `surface.onError` receives nothing; no report names
+`Text` or the component's id.
+
+### Fix
+
+Catch per component in the renderer: an error boundary around each React
+implementation's view, and a catch around `A2uiLitElement`'s update that
+dispatches the error through the surface's error channel with the component's
+id and type and leaves the element as a placeholder, so the rest of the
+surface stays drawn.
+
+## 28. Web core's error channel names the component only inside its sentence
+
+**Component:** `typescript/core/web_core/src/resolution/node-resolver.ts`
+(`NodeResolver.dispatchOnce`); `typescript/core/web_core/src/state/surface-model.ts`
+(`A2uiErrorPayload`); `typescript/renderers/react/src/node-view.tsx`
+(`UnresolvedChildReference`).
+
+**Severity:** a host or a tool that receives a surface's errors cannot tie one
+to its component without parsing the English sentence.
+
+Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24) and
+`@a2ui/web_core` 0.14.0 on npm.
+
+### Issue
+
+`NodeResolver.dispatchOnce(code, componentId, dataPath, message)` receives the
+component's id and data path, uses them to dispatch each error once, and
+dispatches `{code, message}` only (`node-resolver.ts`, lines 140-156). Its two
+callers, `UNKNOWN_COMPONENT_TYPE` and `CYCLIC_REFERENCE`, put the component's
+id only into the message text. `A2uiErrorPayload` carries `code`, `message`,
+`surfaceId`, `expression` and `details`, and no field for a component
+(`surface-model.ts`, lines 63-75). The React renderer reports an unresolved
+child reference the same way, as
+`{code: 'UNRESOLVED_CHILD_REFERENCE', message}` (`node-view.tsx`, line 104).
+
+### Reproduction
+
+Feed web core 0.14.0's `MessageProcessor` a v0.9 surface holding a component
+whose type its catalog does not define, render it with `@a2ui/react` 0.14.0's
+`A2uiSurface`, and subscribe to `surface.onError`: the payload is
+`{code: 'UNKNOWN_COMPONENT_TYPE', message: "Component '<id>' has type '<type>', which is not in catalog '<catalog id>'.", surfaceId}`,
+with the component's id in the sentence alone.
+
+### Fix
+
+Add `componentId`, and the data path for a component inside a template, to
+`A2uiErrorPayload`, and pass them from `dispatchOnce` and from the renderer's
+unresolved-reference report.
