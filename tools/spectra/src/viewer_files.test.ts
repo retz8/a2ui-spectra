@@ -14,6 +14,9 @@ describe('resolveViewerFile', () => {
     writeFileSync(path.join(dir, 'index.html'), '<html></html>');
     mkdirSync(path.join(dir, 'assets'));
     writeFileSync(path.join(dir, 'assets', 'index.js'), '');
+    mkdirSync(path.join(dir, 'preview', 'assets'), {recursive: true});
+    writeFileSync(path.join(dir, 'preview', 'index.html'), '<html></html>');
+    writeFileSync(path.join(dir, 'preview', 'assets', 'index.js'), '');
   });
 
   after(() => rmSync(dir, {recursive: true, force: true}));
@@ -31,6 +34,21 @@ describe('resolveViewerFile', () => {
     assert.deepEqual(resolveViewerFile(dir, '/turns/abc'), index);
     assert.deepEqual(resolveViewerFile(dir, '/assets'), index);
     assert.deepEqual(resolveViewerFile(dir, '/assets/missing.js'), index);
+  });
+
+  it("answers a path under preview/ with the built-in preview page's file, or its index.html", () => {
+    const index = {kind: 'index', path: path.join(dir, 'preview', 'index.html')};
+    assert.deepEqual(resolveViewerFile(dir, '/preview/'), index);
+    assert.deepEqual(resolveViewerFile(dir, '/preview'), index);
+    assert.deepEqual(resolveViewerFile(dir, '/preview/missing.js'), index);
+    assert.deepEqual(resolveViewerFile(dir, '/preview/assets/index.js'), {
+      kind: 'file',
+      path: path.join(dir, 'preview', 'assets', 'index.js'),
+    });
+    assert.deepEqual(resolveViewerFile(dir, '/previews'), {
+      kind: 'index',
+      path: path.join(dir, 'index.html'),
+    });
   });
 
   it('never leaves the viewer directory', () => {

@@ -43,9 +43,10 @@
       "clean": "if-file-deleted"
     },
     "build:viewer": {
-      "command": "node -e \"const fs=require('fs');fs.rmSync('dist/viewer',{recursive:true,force:true});fs.cpSync('../spectra_viewer/dist','dist/viewer',{recursive:true})\"",
+      "command": "node -e \"const fs=require('fs');fs.rmSync('dist/viewer',{recursive:true,force:true});fs.cpSync('../spectra_viewer/dist','dist/viewer',{recursive:true});fs.cpSync('../spectra_basic_preview/dist','dist/viewer/preview',{recursive:true})\"",
       "dependencies": [
-        "../spectra_viewer:build"
+        "../spectra_viewer:build",
+        "../spectra_basic_preview:build"
       ],
       "files": [],
       "output": [

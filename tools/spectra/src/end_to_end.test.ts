@@ -250,6 +250,7 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
             agentUrl: `http://127.0.0.1:${agentPort}/`,
             mode: 'attach',
             proxyAddress: `http://127.0.0.1:${proxyPort}/`,
+            previewPages: [],
             a2aVersions: a2a === '1.0' ? ['1.0', '0.3'] : ['0.3', '1.0'],
             a2uiExtensions: [],
             examples: ['Hello'],

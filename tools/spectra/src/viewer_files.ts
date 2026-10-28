@@ -27,13 +27,17 @@ export function viewerDirFor(codeDir: string): string {
   return path.join(codeDir, 'viewer');
 }
 
+/** Where the built-in preview page sits in the viewer's files, and its address. */
+export const PREVIEW_DIR = 'preview';
+
 export type ViewerFile =
   {kind: 'file'; path: string} | {kind: 'index'; path: string} | {kind: 'outside'};
 
 /**
  * Which file answers a URL path: the file itself when it exists in the
- * viewer's directory, the viewer's `index.html` for any other path inside it,
- * and nothing for a path that leads outside it.
+ * viewer's directory; for any other path inside it, the built-in preview
+ * page's `index.html` under `preview/`, and the viewer's own elsewhere; and
+ * nothing for a path that leads outside it.
  */
 export function resolveViewerFile(viewerDir: string, urlPath: string): ViewerFile {
   const root = path.resolve(viewerDir);
@@ -45,7 +49,8 @@ export function resolveViewerFile(viewerDir: string, urlPath: string): ViewerFil
   if (relative !== '' && isFile(target)) {
     return {kind: 'file', path: target};
   }
-  return {kind: 'index', path: path.join(root, 'index.html')};
+  const preview = relative === PREVIEW_DIR || relative.startsWith(PREVIEW_DIR + path.sep);
+  return {kind: 'index', path: path.join(root, ...(preview ? [PREVIEW_DIR] : []), 'index.html')};
 }
 
 /** Answers a GET or HEAD request from the viewer's files. */
@@ -77,7 +82,7 @@ export function serveViewerFile(
     sendText(
       response,
       500,
-      "The viewer's files are missing. Build the tool, which copies the viewer's build beside it.\n",
+      "The viewer's files are missing. Build the tool, which copies the viewer's build and the built-in preview page beside it.\n",
     );
     return;
   }

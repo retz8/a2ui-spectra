@@ -44,6 +44,7 @@ const CONTEXT: SessionContext = {
   agentUrl: 'http://localhost:10002/',
   mode: 'run',
   proxyAddress: 'http://127.0.0.1:1/a2a',
+  previewPages: ['http://localhost:5174/spectra-preview'],
   a2aVersions: ['0.3.0'],
   a2uiExtensions: [
     {
@@ -299,7 +300,7 @@ describe('the API', () => {
     ]);
   });
 
-  it("serves the session's context: the agent's name and URL, the mode, the wire proxy's address and the card's details", async () => {
+  it("serves the session's context: the agent's name and URL, the mode, the wire proxy's address, the preview pages and the card's details", async () => {
     const {base} = await serve();
     const {status, body} = await getJson(`${base}/api/context`);
     assert.equal(status, 200);

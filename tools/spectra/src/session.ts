@@ -199,6 +199,7 @@ export async function runSession(
             agentUrl: options.agentUrl.href,
             mode: agentCommand === undefined ? 'attach' : 'run',
             proxyAddress: proxy.address,
+            previewPages: options.config.preview,
             ...cardDetailsOf(card),
           },
         },

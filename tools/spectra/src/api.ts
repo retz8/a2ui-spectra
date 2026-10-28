@@ -17,6 +17,8 @@ export interface SessionContext extends CardDetails {
   mode: 'run' | 'attach';
   /** The wire proxy's address, for a host app to point at. */
   proxyAddress: string;
+  /** The config file's preview pages, in config order. */
+  previewPages: string[];
 }
 
 /** What the API serves from. */
@@ -59,7 +61,7 @@ const HEARTBEAT_MS = 2000;
  * the caller serves.
  *
  * - `GET /api/context`: the session: the agent's name and URL, the mode, the wire proxy's address,
- *   and what the agent's card states.
+ *   the configured preview pages, and what the agent's card states.
  * - `GET /api/turns`: the turns, newest first.
  * - `GET /api/turns/<trace id>`: a closed turn's record.
  * - `GET /api/stream`: the live stream, as server-sent events.
