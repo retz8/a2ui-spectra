@@ -6,6 +6,11 @@
       "packages": ["**"],
       "dependencies": ["typescript"],
       "pinVersion": "5.9.3"
+    },
+    {
+      "label": "Peer dependency ranges",
+      "dependencyTypes": ["peer"],
+      "isIgnored": true
     }
   ]
 }
