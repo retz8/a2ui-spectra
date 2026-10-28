@@ -79,3 +79,43 @@ export function locateFinding(
   if (index === null || Number(index[1]) >= part.content.length) return undefined;
   return {key: messageKey(eventIndex, partIndex, Number(index[1])), inner: index[2] ?? ''};
 }
+
+/** The surface a message names: the `surfaceId` of its one message type. */
+export function surfaceIdOf(message: unknown): string | undefined {
+  if (typeof message !== 'object' || message === null) return undefined;
+  for (const [key, body] of Object.entries(message)) {
+    if (key === 'version' || typeof body !== 'object' || body === null) continue;
+    const surfaceId = (body as {surfaceId?: unknown}).surfaceId;
+    if (typeof surfaceId === 'string') return surfaceId;
+  }
+  return undefined;
+}
+
+/** Every string under a `catalogId` key, at any depth. */
+export function catalogIdsIn(value: unknown, found: string[] = []): string[] {
+  if (Array.isArray(value)) {
+    for (const item of value) catalogIdsIn(item, found);
+  } else if (typeof value === 'object' && value !== null) {
+    for (const [key, item] of Object.entries(value)) {
+      if (key === 'catalogId' && typeof item === 'string') found.push(item);
+      else catalogIdsIn(item, found);
+    }
+  }
+  return found;
+}
+
+/** The pointer to the component with an id in a message's `components`, under its one message type. */
+export function componentPointer(message: unknown, id: string): string | undefined {
+  const type =
+    typeof message === 'object' && message !== null
+      ? Object.keys(message).find(key => key !== 'version')
+      : undefined;
+  if (type === undefined) return undefined;
+  const components = ((message as Record<string, unknown>)[type] as {components?: unknown} | null)
+    ?.components;
+  if (!Array.isArray(components)) return undefined;
+  const index = components.findIndex(component => (component as {id?: unknown} | null)?.id === id);
+  return index === -1
+    ? undefined
+    : `/${type.replace(/~/g, '~0').replace(/\//g, '~1')}/components/${index}`;
+}

@@ -9,7 +9,13 @@ import {MessageProcessor, RELAXED_VALIDATION} from '@a2ui/web_core/processing';
 import type {SurfaceModel} from '@a2ui/web_core/state';
 
 import {catalogsOf, inlineCatalogsOf, type ProcessorCatalog} from './catalogs.ts';
-import {agentMessages, type AgentMessage} from './messages.ts';
+import {
+  agentMessages,
+  type AgentMessage,
+  catalogIdsIn,
+  componentPointer,
+  surfaceIdOf,
+} from './messages.ts';
 import {isWireInput, type Turn, type TurnRecord, type TurnRecordEvent} from './record.ts';
 import {isThrough, messageTypeOf, type Position} from './steps.ts';
 
@@ -275,19 +281,6 @@ function issuePointer(issue: ZodIssue): string {
     .join('');
 }
 
-/** The pointer to the component with an id in a message's `components`, under its one message type. */
-function componentPointer(message: unknown, id: string): string | undefined {
-  const type = messageTypeOf(message);
-  if (type === undefined) return undefined;
-  const components = ((message as Record<string, unknown>)[type] as {components?: unknown} | null)
-    ?.components;
-  if (!Array.isArray(components)) return undefined;
-  const index = components.findIndex(component => (component as {id?: unknown} | null)?.id === id);
-  return index === -1
-    ? undefined
-    : `/${type.replace(/~/g, '~0').replace(/\//g, '~1')}/components/${index}`;
-}
-
 /**
  * A catalog with no component schemas under each catalog id the messages
  * name that no catalog is known under: a surface's, a component's or a
@@ -307,33 +300,9 @@ function standInCatalogs(
   return [...versions].map(([id, version]) => new Catalog<never>(id, version, [], []));
 }
 
-/** Every string under a `catalogId` key, at any depth. */
-function catalogIdsIn(value: unknown, found: string[] = []): string[] {
-  if (Array.isArray(value)) {
-    for (const item of value) catalogIdsIn(item, found);
-  } else if (typeof value === 'object' && value !== null) {
-    for (const [key, item] of Object.entries(value)) {
-      if (key === 'catalogId' && typeof item === 'string') found.push(item);
-      else catalogIdsIn(item, found);
-    }
-  }
-  return found;
-}
-
 function versionOf(message: unknown): string | undefined {
   const version = (message as {version?: unknown} | null)?.version;
   return typeof version === 'string' ? version : undefined;
-}
-
-/** The surface a message names: the `surfaceId` of its one message type. */
-function surfaceIdOf(message: unknown): string | undefined {
-  if (typeof message !== 'object' || message === null) return undefined;
-  for (const [key, body] of Object.entries(message)) {
-    if (key === 'version' || typeof body !== 'object' || body === null) continue;
-    const surfaceId = (body as {surfaceId?: unknown}).surfaceId;
-    if (typeof surfaceId === 'string') return surfaceId;
-  }
-  return undefined;
 }
 
 function isDeleteSurface(message: unknown): boolean {

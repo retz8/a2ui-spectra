@@ -135,3 +135,36 @@
 @utility fade-in-quick {
   @apply animate-in duration-200 fade-in motion-reduce:animate-none;
 }
+
+/* The turn list's strip, fading in over the list as it collapses, and away as it expands. */
+@utility strip-arrive {
+  animation: strip-arrive 200ms ease-in both;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@utility strip-leave {
+  animation: strip-leave 200ms ease-out both;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+}
+
+@keyframes strip-arrive {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes strip-leave {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}

@@ -26,6 +26,7 @@ export function TurnList({
   searchRef,
   autoFocus,
   onChoose,
+  onCollapse,
   className,
 }: {
   turns: readonly ListedTurn[];
@@ -39,6 +40,8 @@ export function TurnList({
   autoFocus?: 'list' | 'search';
   /** Enter on a turn: the overlay closes on the turn reached. */
   onChoose?: () => void;
+  /** Collapses the list to its strip, on a wide window. */
+  onCollapse?: () => void;
   className?: string;
 }) {
   const [query, setQuery] = useState('');
@@ -120,6 +123,17 @@ export function TurnList({
         <div className="flex items-baseline gap-2">
           <h2 className="text-base font-semibold">Turns</h2>
           <span className="text-xs text-muted-foreground">{turns.length}</span>
+          {onCollapse !== undefined && (
+            <button
+              type="button"
+              aria-label="Collapse the turn list"
+              title="Collapse the turn list"
+              onClick={onCollapse}
+              className="ease-quick ml-auto flex size-[26px] cursor-pointer items-center justify-center self-center rounded-md text-muted-foreground hover:bg-tint hover:text-foreground"
+            >
+              <Icon kind="chevronLeft" size={14} />
+            </button>
+          )}
         </div>
         <label className="flex h-8 items-center gap-2 rounded-lg bg-tint pr-2 pl-2.5 text-muted-foreground">
           <Icon kind="search" size={14} />

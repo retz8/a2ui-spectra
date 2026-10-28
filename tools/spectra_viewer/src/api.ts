@@ -20,6 +20,8 @@ export interface ListedTurn {
   findings?: number;
   /** How many of the turn's A2UI messages web core's message processor rejects that no finding points into. */
   rejections?: number;
+  /** The render errors the preview counts, set by the viewer while the turn is in view. */
+  renderErrors?: number;
 }
 
 /** An A2UI extension the agent's card advertises. */
@@ -37,6 +39,8 @@ export interface SessionContext {
   mode: 'run' | 'attach';
   /** The wire proxy's address, for a host app to point at. */
   proxyAddress: string;
+  /** The config file's preview pages, in config order. */
+  previewPages?: string[];
   /** The A2A versions the card states, in card order. */
   a2aVersions: string[];
   /** The A2UI extensions the card advertises, in card order. */

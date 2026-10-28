@@ -10,8 +10,9 @@ import {Icon} from './icons.tsx';
 /**
  * The turn list on a small window: a strip of each turn's status icon, in
  * the list's order, each selecting its turn, a dot on a turn with problems;
- * its button opens the full list over the turn view. The icons are one Tab
- * stop, and the up and down arrows select their turns.
+ * its button opens the full list over the turn view, or, on a wide window
+ * where the list was collapsed, expands it back in place. The icons are one
+ * Tab stop, and the up and down arrows select their turns.
  */
 export function Strip({
   turns,
@@ -20,6 +21,7 @@ export function Strip({
   open,
   onOpen,
   buttonRef,
+  expands = false,
 }: {
   turns: readonly ListedTurn[];
   selected: string | undefined;
@@ -28,6 +30,8 @@ export function Strip({
   open: boolean;
   onOpen: () => void;
   buttonRef: RefObject<HTMLButtonElement | null>;
+  /** Whether the button expands the list in place rather than opening it over the turn view. */
+  expands?: boolean;
 }) {
   const strip = useMemo(() => stripOf(groupTurns(turns)), [turns]);
   const list = useRef<HTMLDivElement>(null);
@@ -55,8 +59,8 @@ export function Strip({
       <button
         ref={buttonRef}
         type="button"
-        aria-label="Open the turn list"
-        title="Open the turn list"
+        aria-label={expands ? 'Expand the turn list' : 'Open the turn list'}
+        title={expands ? 'Expand the turn list' : 'Open the turn list'}
         aria-expanded={open}
         onClick={onOpen}
         className={cn(

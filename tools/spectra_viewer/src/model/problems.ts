@@ -22,12 +22,19 @@ export interface Problem {
   surfaceId?: string;
   /** A JSON Pointer inside the step's message, to the line it marks; empty for the message itself. */
   inner?: string;
+  /** A third, quiet line: where a problem that is not recorded came from. */
+  note?: string;
 }
 
-/** A rejection folded under a step's findings: web core's sentence, on the step. */
+/**
+ * A rejection folded under a step's findings: web core's sentence, on the
+ * step, after what folded it, web core's own rejection unless a lead says.
+ */
 export interface FoldedRejection {
   stepId: string;
   sentence: string;
+  /** What reported it, when it is not the viewer's web core: the preview page. */
+  lead?: string;
 }
 
 /** The problems and the folded rejections of a turn together. */
@@ -130,11 +137,21 @@ export function onlyProblems(
   return kept;
 }
 
-/** A turn's problem count, from what the listing gives: the findings, the unfolded rejections and a failed outcome. */
+/**
+ * A turn's problem count, from what the listing gives: the findings, the
+ * unfolded rejections and a failed outcome; and, while the turn is in view,
+ * the render errors its preview counts.
+ */
 export function listedProblemCount(turn: {
   outcome?: string;
   findings?: number;
   rejections?: number;
+  renderErrors?: number;
 }): number {
-  return (turn.findings ?? 0) + (turn.rejections ?? 0) + (turn.outcome === 'failed' ? 1 : 0);
+  return (
+    (turn.findings ?? 0) +
+    (turn.rejections ?? 0) +
+    (turn.outcome === 'failed' ? 1 : 0) +
+    (turn.renderErrors ?? 0)
+  );
 }

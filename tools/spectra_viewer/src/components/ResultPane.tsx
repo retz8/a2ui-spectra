@@ -1,23 +1,42 @@
 import {Popover} from 'radix-ui';
 import {Fragment, useState} from 'react';
+import {usePanelRef} from 'react-resizable-panels';
 
+import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
 import {cn} from '@/lib/utils';
 import {bindingOf} from '@/model/bindings.ts';
+import type {Route} from '@/model/preview.ts';
 import type {ComponentNode, Replay, SurfaceView, TreeNode} from '@/model/replay.ts';
+import {rememberedSize, rememberSize} from '@/state/layout.ts';
+import {setViewSetting, useViewSettings} from '@/state/view_settings.ts';
 
 import {Icon} from './icons.tsx';
 import {JsonBlock} from './JsonBlock.tsx';
+import {NARROW, PreviewPane, WidthSwitch} from './PreviewPane.tsx';
 import {ProblemMark} from './TurnList.tsx';
 
+/** The Preview pane's width beside Structure at Narrow: the frame and the canvas's padding around it. */
+const PREVIEW_AT_NARROW = NARROW + 32;
+
+/** The preview of the surface in view: where it is routed, and what its page reported. */
+export interface PreviewView {
+  route: Route;
+  lines: readonly string[];
+}
+
 /**
- * The result: the agent's reply text in a strip, then the Structure tab with
- * the surface switcher, showing the surfaces as they stood after the step
- * selected.
+ * The result: the agent's reply text in a strip, then the Preview and
+ * Structure panes side by side, each shown or hidden by its toggle, with
+ * the surface switcher, showing the surface picked as it stood after the
+ * step selected.
  */
 export function ResultPane({
   reply,
   asOf,
   replay,
+  surface,
+  onPick,
+  preview,
   problemsBySurface,
   open,
   sentA2ui,
@@ -27,6 +46,11 @@ export function ResultPane({
   asOf: string;
   /** None until the conversation's earlier turns have been read. */
   replay: Replay | undefined;
+  /** The surface in view, picked in the switcher or the first. */
+  surface: SurfaceView | undefined;
+  onPick: (surfaceId: string) => void;
+  /** None until a surface is in view. */
+  preview: PreviewView | undefined;
   problemsBySurface: ReadonlyMap<string, number>;
   /** Whether the turn is still open, so what is missing may yet come. */
   open: boolean;
@@ -34,9 +58,15 @@ export function ResultPane({
   sentA2ui: boolean;
   failed: boolean;
 }) {
-  const [picked, setPicked] = useState<string | undefined>();
-  const surfaces = replay?.surfaces ?? [];
-  const surface = surfaces.find(view => view.surfaceId === picked) ?? surfaces[0];
+  const settings = useViewSettings();
+  // At least one pane shows: Structure when both are toggled off.
+  const showPreview = settings.preview;
+  const showStructure = settings.structure || !settings.preview;
+  const toggles = [
+    {label: 'Preview', on: showPreview, key: 'preview' as const, other: showStructure},
+    {label: 'Structure', on: showStructure, key: 'structure' as const, other: showPreview},
+  ];
+  const drawn = showPreview && preview?.route.kind === 'page' ? preview.route.page : undefined;
   return (
     <section aria-label="Result" className="flex h-full min-h-0 flex-col">
       {reply !== '' && (
@@ -46,24 +76,46 @@ export function ResultPane({
         </div>
       )}
       <div className="flex h-11 shrink-0 items-center gap-3 border-b px-4">
-        <div role="tablist" aria-label="Result views" className="flex gap-4 self-stretch">
-          <button
-            type="button"
-            role="tab"
-            aria-selected="true"
-            className="px-0.5 text-sm font-semibold shadow-[inset_0_-2px_0_var(--brand)]"
-          >
-            Structure
-          </button>
+        <div role="group" aria-label="Result panes" className="flex gap-4 self-stretch">
+          {toggles.map(toggle => (
+            <button
+              key={toggle.key}
+              type="button"
+              aria-pressed={toggle.on}
+              // The only pane shown stays: hiding it would leave none.
+              onClick={() => {
+                if (!toggle.on || toggle.other) setViewSetting(toggle.key, !toggle.on);
+              }}
+              className={cn(
+                'ease-quick cursor-pointer px-0.5 text-sm',
+                toggle.on
+                  ? 'font-semibold text-foreground shadow-[inset_0_-2px_0_var(--brand)]'
+                  : 'font-medium text-muted-foreground hover:text-foreground',
+              )}
+            >
+              {toggle.label}
+            </button>
+          ))}
         </div>
-        <span className="text-xs text-muted-foreground">{asOf}</span>
+        <span className="min-w-0 truncate text-xs text-muted-foreground">{asOf}</span>
         <div className="flex-1" />
+        {drawn !== undefined && (
+          <>
+            <span
+              title={drawn.label === 'built-in' ? 'Spectra’s built-in preview page' : drawn.label}
+              className="max-w-[220px] min-w-0 truncate text-xs text-muted-foreground"
+            >
+              {drawn.label}
+            </span>
+            <WidthSwitch width={settings.width} />
+          </>
+        )}
         {surface !== undefined && (
           <SurfaceSwitcher
             replay={replay!}
             current={surface}
             problemsBySurface={problemsBySurface}
-            onPick={setPicked}
+            onPick={onPick}
           />
         )}
       </div>
@@ -82,9 +134,61 @@ export function ResultPane({
                   : 'No surfaces: the agent sent no A2UI in this turn.'}
         </Centered>
       ) : (
-        <Structure key={surface.surfaceId} surface={surface} open={open} />
+        <Panes
+          surface={surface}
+          open={open}
+          preview={showPreview ? preview : undefined}
+          showStructure={showStructure}
+          width={settings.width}
+        />
       )}
     </section>
+  );
+}
+
+/** The Preview and Structure panes, side by side with a divider when both show. */
+function Panes({
+  surface,
+  open,
+  preview,
+  showStructure,
+  width,
+}: {
+  surface: SurfaceView;
+  open: boolean;
+  /** None while the Preview pane is hidden. */
+  preview: PreviewView | undefined;
+  showStructure: boolean;
+  width: 'narrow' | 'wide';
+}) {
+  const previewPanel = usePanelRef();
+  const structure = <Structure key={surface.surfaceId} surface={surface} open={open} />;
+  const drawing = preview === undefined ? undefined : <PreviewPane {...preview} width={width} />;
+  if (drawing === undefined) return structure;
+  if (!showStructure) return <div className="flex min-h-0 flex-1">{drawing}</div>;
+  const divider = width === 'narrow' ? 'previewNarrow' : 'previewWide';
+  return (
+    <ResizablePanelGroup
+      // A new width starts from its own divider position.
+      key={width}
+      orientation="horizontal"
+      className="min-h-0 flex-1"
+      onLayoutChanged={(_, {isUserInteraction}) => {
+        const panel = previewPanel.current;
+        if (isUserInteraction && panel !== null) rememberSize(divider, panel.getSize().inPixels);
+      }}
+    >
+      <ResizablePanel
+        panelRef={previewPanel}
+        defaultSize={rememberedSize(divider) ?? (width === 'narrow' ? PREVIEW_AT_NARROW : '50')}
+        minSize={240}
+        groupResizeBehavior="preserve-pixel-size"
+      >
+        <div className="flex h-full min-h-0">{drawing}</div>
+      </ResizablePanel>
+      <ResizableHandle />
+      <ResizablePanel minSize={240}>{structure}</ResizablePanel>
+    </ResizablePanelGroup>
   );
 }
 
@@ -119,7 +223,7 @@ function SurfaceSwitcher({
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="ease-quick inline-flex h-7 cursor-pointer items-center gap-1.5 rounded-lg border bg-panel pr-2 pl-2.5 text-xs hover:bg-tint"
+          className="ease-quick inline-flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border bg-panel pr-2 pl-2.5 text-xs whitespace-nowrap hover:bg-tint"
         >
           <span className="text-muted-foreground">Surface</span>
           <span className="font-semibold">{current.surfaceId}</span>
@@ -194,7 +298,7 @@ function SurfaceSwitcher({
   );
 }
 
-/** A surface's tree and its data model, side by side. */
+/** A surface's tree above its data model. */
 function Structure({surface, open}: {surface: SurfaceView; open: boolean}) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const toggle = (key: string) => {
@@ -215,8 +319,8 @@ function Structure({surface, open}: {surface: SurfaceView; open: boolean}) {
     data !== null &&
     !(typeof data === 'object' && Object.keys(data as object).length === 0);
   return (
-    <div className="flex min-h-0 flex-1">
-      <div className="min-w-0 flex-1 basis-1/2 overflow-auto border-r px-4 py-3">
+    <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-auto">
+      <div className="min-w-0 shrink-0 border-b px-4 py-3">
         <div className="section-label mb-1.5">Tree</div>
         {surface.rejectedUpdates !== undefined ? (
           <p className="my-2 text-muted-foreground">
@@ -251,7 +355,7 @@ function Structure({surface, open}: {surface: SurfaceView; open: boolean}) {
           </Fragment>
         ))}
       </div>
-      <div className="min-w-0 flex-1 basis-1/2 overflow-auto px-4 py-3">
+      <div className="min-w-0 shrink-0 px-4 py-3">
         {hasData ? (
           <JsonBlock label="Data model" value={data} />
         ) : (

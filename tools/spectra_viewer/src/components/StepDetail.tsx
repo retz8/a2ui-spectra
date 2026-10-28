@@ -28,7 +28,7 @@ export function StepDetail({
   events: readonly TurnRecordEvent[];
   startMs: number;
   problems: readonly Problem[];
-  /** Web core's sentences for the rejections folded under this step's findings. */
+  /** The quiet lines folded under this step's problems: web core's rejections and the preview page's reports. */
   folded: readonly string[];
   collapsed: boolean;
   onToggle: () => void;
@@ -102,9 +102,9 @@ export function StepDetail({
               </button>
             );
           })}
-          {folded.map((sentence, index) => (
+          {folded.map((line, index) => (
             <p key={index} className="text-xs leading-relaxed text-muted-foreground">
-              A2UI web core also rejected this message · {sentence}
+              {line}
             </p>
           ))}
           {row.row === 'delivery' ? (
@@ -132,6 +132,9 @@ function ProblemText({problem}: {problem: Problem}) {
       <span className="flex min-w-0 flex-col gap-0.5">
         <span className="font-medium">{problem.sentence}</span>
         <span className="text-xs text-muted-strong">{problem.code}</span>
+        {problem.note !== undefined && (
+          <span className="text-xs text-muted-foreground">{problem.note}</span>
+        )}
       </span>
     </>
   );

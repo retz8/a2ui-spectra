@@ -8,13 +8,16 @@ import {inputBriefOfTurn} from '@/model/input_brief.ts';
 import {pageKeyOf} from '@/model/keys.ts';
 import {catalogsOf} from '@/model/catalogs.ts';
 import {agentMessages} from '@/model/messages.ts';
-import {onlyProblems, turnProblemsOf} from '@/model/problems.ts';
+import {previewProblemsOf, routeOf, surfaceFeedOf, targetOf} from '@/model/preview.ts';
+import {type Problem, onlyProblems, turnProblemsOf} from '@/model/problems.ts';
 import {type Turn, type TurnRecordEvent, unixMillis} from '@/model/record.ts';
 import {replay} from '@/model/replay.ts';
 import {type Position, replyThrough, type TimelineRow, timelineOf} from '@/model/steps.ts';
 import {openFieldsOf, summaryOf} from '@/model/summary.ts';
 import {briefText} from '@/model/turn_groups.ts';
 import {detailOpenHeight, rememberedSize, rememberSize} from '@/state/layout.ts';
+import {previewHost, renderKeyOf, usePreviewPages} from '@/state/preview_host.ts';
+import {setRenderErrorsInView} from '@/state/render_errors.ts';
 import {type TurnView as TurnViewState, turnViewOf, useNeededRecords} from '@/state/selectors.ts';
 import {useSpectra} from '@/state/spectra.ts';
 import {useSmallWindow} from '@/state/window.ts';
@@ -26,6 +29,9 @@ import {ResultPane} from './ResultPane.tsx';
 import {StepDetail} from './StepDetail.tsx';
 import {Timeline} from './Timeline.tsx';
 import {TurnHeader} from './TurnHeader.tsx';
+
+/** No reports: what a render the page has not answered for holds. */
+const NO_REPORTS: [] = [];
 
 /** The detail's height when collapsed to its title line, in pixels. */
 const DETAIL_TITLE = 41;
@@ -157,23 +163,34 @@ function TurnBody({
     () => (earlier === undefined ? undefined : replay(earlier, events, undefined, catalogs)),
     [earlier, events, catalogs],
   );
-  const {problems, folded} = useMemo(
+  // The record's problems: the checks' findings, web core's rejections and a failed outcome.
+  const recorded = useMemo(
     () => turnProblemsOf(events, timeline, whole?.rejections ?? []),
     [events, timeline, whole],
   );
-  const byStep = useMemo(() => countBy(problems, problem => problem.stepId), [problems]);
-  const bySurface = useMemo(() => countBy(problems, problem => problem.surfaceId), [problems]);
+  const recordedByStep = useMemo(
+    () => countBy(recorded.problems, problem => problem.stepId),
+    [recorded],
+  );
 
   // The filter belongs to this turn: each turn opens with all its steps.
+  // It keeps the record's problems and every step a render error has been on while the turn is in
+  // view; a turn lands on the record's problems only, since the preview's depend on the step in view.
   const [filtered, setFiltered] = useState(false);
-  const kept = useMemo(() => onlyProblems(timeline, byStep), [timeline, byStep]);
+  const [renderErrorSteps, setRenderErrorSteps] = useState<ReadonlySet<string>>(() => new Set());
+  const filterByStep = useMemo(() => {
+    const counts = new Map(recordedByStep);
+    for (const stepId of renderErrorSteps) counts.set(stepId, (counts.get(stepId) ?? 0) + 1);
+    return counts;
+  }, [recordedByStep, renderErrorSteps]);
+  const kept = useMemo(() => onlyProblems(timeline, filterByStep), [timeline, filterByStep]);
   const shown = filtered ? kept : timeline;
   const toggleFilter = () => {
     // A pick the filter hides gives way to the first problem.
     if (!filtered) setPicked(keptPick(picked, kept));
     setFiltered(!filtered);
   };
-  const inView = stepInView(shown, {open, picked, problems: byStep});
+  const inView = stepInView(shown, {open, picked, problems: recordedByStep});
   const selected = inView.row;
   const position = useMemo(() => positionOf(selected), [selected]);
   const pane = useMemo(
@@ -186,6 +203,72 @@ function TurnBody({
     [earlier, events, whole, position, catalogs],
   );
   const reply = useMemo(() => replyThrough(events, position), [events, position]);
+
+  // The surface in view, and its preview: its list goes to the page it is routed to.
+  const [pickedSurface, setPickedSurface] = useState<string | undefined>();
+  const surfaces = pane?.surfaces ?? [];
+  const surface = surfaces.find(view => view.surfaceId === pickedSurface) ?? surfaces[0];
+  const surfaceId = surface?.surfaceId;
+  const feed = useMemo(
+    () =>
+      earlier === undefined || surfaceId === undefined
+        ? undefined
+        : surfaceFeedOf(earlier, events, position, surfaceId),
+    [earlier, events, position, surfaceId],
+  );
+  const feedMessages = useMemo(() => feed?.map(({message}) => message), [feed]);
+  const feedKey = useMemo(
+    () =>
+      surfaceId === undefined || feedMessages === undefined
+        ? undefined
+        : renderKeyOf(surfaceId, feedMessages),
+    [surfaceId, feedMessages],
+  );
+  const pages = usePreviewPages();
+  const route = useMemo(
+    () => (feed === undefined ? undefined : routeOf(pages, targetOf(feed))),
+    [feed, pages],
+  );
+  const routed = route?.kind === 'page' ? route.page : undefined;
+  const routedId = routed?.id;
+  useEffect(() => {
+    if (routedId !== undefined && surfaceId !== undefined && feedMessages !== undefined) {
+      previewHost.render(routedId, surfaceId, feedMessages);
+    }
+  }, [routedId, surfaceId, feedMessages]);
+  // A page's reports hold for the render of this very list.
+  const reports = routed !== undefined && routed.sentKey === feedKey ? routed.reports : NO_REPORTS;
+  const fromPreview = useMemo(
+    () =>
+      feed === undefined || surfaceId === undefined
+        ? undefined
+        : previewProblemsOf(reports, feed, surfaceId, timeline, recorded.problems),
+    [reports, feed, surfaceId, timeline, recorded],
+  );
+  const problems: Problem[] = useMemo(
+    () => [...recorded.problems, ...(fromPreview?.problems ?? [])],
+    [recorded, fromPreview],
+  );
+  const folded = useMemo(
+    () => [...recorded.folded, ...(fromPreview?.folded ?? [])],
+    [recorded, fromPreview],
+  );
+  const byStep = useMemo(() => countBy(problems, problem => problem.stepId), [problems]);
+  const bySurface = useMemo(() => countBy(problems, problem => problem.surfaceId), [problems]);
+  const renderErrors = fromPreview?.problems.length ?? 0;
+  useEffect(() => {
+    setRenderErrorsInView({traceId, count: renderErrors});
+  }, [traceId, renderErrors]);
+  // The steps a render error has been on grow as the page reports, for the filter.
+  const errorSteps = (fromPreview?.problems ?? []).map(problem => problem.stepId);
+  if (errorSteps.some(stepId => !renderErrorSteps.has(stepId))) {
+    setRenderErrorSteps(new Set([...renderErrorSteps, ...errorSteps]));
+  }
+  useEffect(() => {
+    return () => {
+      setRenderErrorsInView(undefined);
+    };
+  }, []);
   const sentA2ui = useMemo(() => agentMessages(events).length > 0, [events]);
 
   // The page address holds the step selected, picked or landed on; a pick not in a closed turn gives way.
@@ -316,6 +399,9 @@ function TurnBody({
                 reply={reply}
                 asOf={inView.following ? 'Live' : asOfLabel(selected, events, startMs)}
                 replay={pane}
+                surface={surface}
+                onPick={setPickedSurface}
+                preview={route === undefined ? undefined : {route, lines: fromPreview?.lines ?? []}}
                 problemsBySurface={bySurface}
                 open={open}
                 sentA2ui={sentA2ui}
@@ -342,7 +428,10 @@ function TurnBody({
                   problems={problems.filter(problem => problem.stepId === selected.id)}
                   folded={folded
                     .filter(rejection => rejection.stepId === selected.id)
-                    .map(rejection => rejection.sentence)}
+                    .map(
+                      rejection =>
+                        `${rejection.lead ?? 'A2UI web core also rejected this message'} · ${rejection.sentence}`,
+                    )}
                   collapsed={collapsed}
                   onToggle={() => {
                     if (collapsed) openDetail(detail.current);
