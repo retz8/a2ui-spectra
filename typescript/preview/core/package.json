@@ -1,0 +1,62 @@
+{
+  "name": "a2ui-spectra-preview",
+  "private": true,
+  "version": "0.0.1",
+  "description": "The preview protocol of Spectra for A2UI and its framework-free core, for a catalog's preview page.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "wireit",
+    "test": "wireit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "clean": "wireit",
+    "format": "prettier --ignore-path ../../../.prettierignore --write .",
+    "format:check": "prettier --ignore-path ../../../.prettierignore --check ."
+  },
+  "wireit": {
+    "build": {
+      "command": "tsc -b --pretty",
+      "env": {
+        "FORCE_COLOR": "1"
+      },
+      "files": [
+        "src/**/*.ts",
+        "tsconfig.json"
+      ],
+      "output": [
+        "dist/**"
+      ],
+      "clean": "if-file-deleted"
+    },
+    "test": {
+      "command": "node --test --enable-source-maps --test-reporter spec \"dist/**/*.test.js\"",
+      "dependencies": [
+        "build"
+      ],
+      "files": [],
+      "output": []
+    },
+    "clean": {
+      "command": "rm -rf dist .wireit"
+    }
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "eslint": "^10.4.1",
+    "gts": "^7.0.0",
+    "prettier": "^3.8.4",
+    "typescript": "5.9.3",
+    "wireit": "^0.15.0-pre.2"
+  }
+}
