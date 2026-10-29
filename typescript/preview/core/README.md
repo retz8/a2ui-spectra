@@ -4,14 +4,15 @@ The preview protocol of Spectra for A2UI, and its framework-free core. A catalog
 
 ## The protocol
 
-A message set that names no carrier: A2UI messages go in; render errors and actions come out. The web adapters carry it over `postMessage` between the viewer and the page in an iframe.
+A message set that names no carrier: A2UI messages go in; render errors, the shown surface's data model and actions come out. The web adapters carry it over `postMessage` between the viewer and the page in an iframe.
 
-| Message  | From   | What it carries                                                                                                                                                                                                                                                                        |
-| -------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ready`  | page   | The protocol's version, `1`, and the page's claims: each catalog it renders, by its id and the protocol version its definition targets, taken from the catalog objects the page passes to its renderer.                                                                                |
-| `render` | viewer | A running number, a surface id, and every A2UI message that names the surface, the conversation's earlier turns' and the turn's own up to the step selected, in order.                                                                                                                 |
-| `report` | page   | The number of the render it belongs to, and one report: a component that threw while drawing, with its id and type when the page knows them; an error web core reported on the surface, with its code; or a message the page's processor refused, with its index in the render's list. |
-| `action` | page   | The number of the current render, web core's action payload, and the surface's data model at that moment.                                                                                                                                                                              |
+| Message      | From   | What it carries                                                                                                                                                                                                                                                                        |
+| ------------ | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ready`      | page   | The protocol's version, `1`, and the page's claims: each catalog it renders, by its id and the protocol version its definition targets, taken from the catalog objects the page passes to its renderer.                                                                                |
+| `render`     | viewer | A running number, a surface id, and every A2UI message that names the surface, the conversation's earlier turns' and the turn's own up to the step selected, in order.                                                                                                                 |
+| `report`     | page   | The number of the render it belongs to, and one report: a component that threw while drawing, with its id and type when the page knows them; an error web core reported on the surface, with its code; or a message the page's processor refused, with its index in the render's list. |
+| `data-model` | page   | The number of the render it belongs to, the shown surface's id, and its data model as the agent's messages and the user's typing left it: sent whenever it changes, and once more for each render that leaves it as it was.                                                            |
+| `action`     | page   | The number of the current render, web core's action payload, and the surface's data model at that moment.                                                                                                                                                                              |
 
 The screenshot's message type is reserved; no adapter produces it yet.
 
@@ -22,7 +23,7 @@ The screenshot's message type is reserved; no adapter produces it yet.
 
 ## The core
 
-`startPreviewPage` runs the page's side of the protocol. An adapter gives it four things: making a processor from the catalogs, feeding it one message, mounting a surface, and tearing down. The processor's surfaces report actions, web core's errors and component failures through the events the core hands to the processor it asks for. `windowTransport` and `windowErrors` are the web carrier. `guardElementUpdates` guards a custom element class's updates, for components drawn as web components, such as web core's universal elements, which an error boundary of the page's framework does not see.
+`startPreviewPage` runs the page's side of the protocol. An adapter gives it four things: making a processor from the catalogs, feeding it one message, mounting a surface, and tearing down. The processor's surfaces report actions, their data models as they change, web core's errors and component failures through the events the core hands to the processor it asks for. `windowTransport` and `windowErrors` are the web carrier. `guardElementUpdates` guards a custom element class's updates, for components drawn as web components, such as web core's universal elements, which an error boundary of the page's framework does not see.
 
 ## Commands
 

@@ -119,6 +119,12 @@ describe('errorText', () => {
   });
 });
 
+function modelsOf(sent: readonly PageMessage[]) {
+  return sent.flatMap(message =>
+    message.type === 'a2ui-spectra-preview/data-model' ? [message] : [],
+  );
+}
+
 describe('startPreviewPage', () => {
   it('says it is ready with the protocol and the claims of its catalogs', () => {
     const {sent} = start();
@@ -294,5 +300,47 @@ describe('startPreviewPage', () => {
     assert.equal(processors[0].disposed, true);
     deliver(render(2, [create, update]));
     assert.equal(processors.length, 1);
+  });
+
+  it("sends the shown surface's data model as it changes, tagged with its render, and once more for a render that leaves it as it was", () => {
+    const {deliver, processors, sent} = start();
+    deliver(render(1, [create]));
+    const events = processors[0].events;
+    events.dataModel('main', {});
+    events.dataModel('other', {name: 'not shown'});
+    events.dataModel('main', {name: 'Ada'});
+    deliver(render(2, [create, update]));
+    events.dataModel('main', {name: 'Ada Lovelace'});
+    deliver(render(3, [create, update, data]));
+    assert.deepEqual(
+      modelsOf(sent).map(({render, surfaceId, dataModel}) => ({render, surfaceId, dataModel})),
+      [
+        {render: 1, surfaceId: 'main', dataModel: {}},
+        {render: 1, surfaceId: 'main', dataModel: {name: 'Ada'}},
+        {render: 2, surfaceId: 'main', dataModel: {name: 'Ada'}},
+        {render: 2, surfaceId: 'main', dataModel: {name: 'Ada Lovelace'}},
+        {render: 3, surfaceId: 'main', dataModel: {name: 'Ada Lovelace'}},
+      ],
+    );
+  });
+
+  it("sends a recreated processor's data model, not the one it replaced", () => {
+    const {deliver, processors, sent} = start();
+    deliver(render(1, [create]));
+    processors[0].events.dataModel('main', {name: 'Ada'});
+    deliver(render(2, [update]));
+    processors[0].events.dataModel('main', {name: 'late'});
+    assert.deepEqual(
+      modelsOf(sent).map(({render}) => render),
+      [1],
+      'A render that recreates the processor waits for its own data model.',
+    );
+    processors[1].events.dataModel('main', {});
+    assert.deepEqual(modelsOf(sent).at(-1), {
+      type: 'a2ui-spectra-preview/data-model',
+      render: 2,
+      surfaceId: 'main',
+      dataModel: {},
+    });
   });
 });

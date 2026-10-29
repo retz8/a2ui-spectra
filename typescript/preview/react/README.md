@@ -31,6 +31,7 @@ The catalogs are read once, as the component mounts. They are the page's claims:
 - **A component that throws while drawing**, with its id and type. Each React implementation in the catalogs is wrapped in an error boundary of its own, and web core's universal elements, which both basic catalogs are drawn with, are guarded at their updates; either way the rest of the surface stays drawn.
 - **An error web core reports on the surface** through its error channel, such as an unknown component type.
 - **A message the page's processor refuses.**
+- **The surface's data model**, as it is created and whenever the agent's messages or typing in the page change it.
 - **An action**, with the surface's data model at that moment, when a control is pressed.
 
 ## Commands

@@ -1,7 +1,7 @@
 /**
  * The preview protocol: the messages between Spectra's viewer and a preview
- * page. It names no carrier. A2UI messages go in; render errors and actions
- * come out. The web adapters carry it over `postMessage` between the viewer
+ * page. It names no carrier. A2UI messages go in; render errors, the shown
+ * surface's data model and actions come out. The web adapters carry it over `postMessage` between the viewer
  * and the page in an iframe.
  */
 
@@ -90,6 +90,18 @@ export interface PreviewAction {
   [key: string]: unknown;
 }
 
+/**
+ * The shown surface's data model, as the agent's messages and the user's
+ * typing left it: sent whenever it changes, and once more for each render
+ * that leaves it as it was, tagged with the render it belongs to.
+ */
+export interface DataModelMessage {
+  type: 'a2ui-spectra-preview/data-model';
+  render: number;
+  surfaceId: string;
+  dataModel: unknown;
+}
+
 /** A control was pressed: the action, and the surface's data model at that moment. */
 export interface ActionMessage {
   type: 'a2ui-spectra-preview/action';
@@ -107,11 +119,12 @@ export const SCREENSHOT_TYPE = 'a2ui-spectra-preview/screenshot';
 
 export type ViewerMessage = RenderMessage;
 
-export type PageMessage = ReadyMessage | ReportMessage | ActionMessage;
+export type PageMessage = ReadyMessage | ReportMessage | DataModelMessage | ActionMessage;
 
 const PAGE_TYPES: ReadonlySet<string> = new Set([
   'a2ui-spectra-preview/ready',
   'a2ui-spectra-preview/report',
+  'a2ui-spectra-preview/data-model',
   'a2ui-spectra-preview/action',
 ]);
 

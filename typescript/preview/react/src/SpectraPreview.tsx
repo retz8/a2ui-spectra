@@ -92,6 +92,11 @@ export function SpectraPreview({catalogs}: SpectraPreviewProps) {
             });
           });
           held.stops.push(() => errors.unsubscribe());
+          // The data model as messages and typing change it, for the message box to send.
+          const report = () => events.dataModel(surface.id, plain(surface.dataModel.get('/')));
+          const model = surface.dataModel.subscribe('/', report);
+          held.stops.push(() => model.unsubscribe());
+          report();
           if (surface.id === held.surfaceId && shown === held) show(held);
         });
         held.stops.push(() => created.unsubscribe());

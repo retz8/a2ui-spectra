@@ -2,7 +2,8 @@
  * The page's side of the preview protocol, for every adapter. The page says
  * it is ready with its claims; each render it receives is applied as the
  * render difference says, one message at a time, a refused message reported
- * with its index; every report is tagged with the render it belongs to. An
+ * with its index; every report, and the shown surface's data model, is
+ * tagged with the render it belongs to. An
  * adapter gives the core four things: making a processor from the catalogs,
  * feeding it one message, mounting a surface, and tearing down.
  */
@@ -33,6 +34,8 @@ export interface ErrorSource {
 export interface PageEvents {
   /** A control was pressed; the data model is the surface's at that moment. */
   action(action: PreviewAction, dataModel: unknown): void;
+  /** A surface's data model, once it is created and whenever it changes. */
+  dataModel(surfaceId: string, dataModel: unknown): void;
   /** Web core reported an error on the surface through its error channel. */
   surfaceError(error: {code: string; message: string; componentId?: string}): void;
   /** A component threw while drawing. */
@@ -115,6 +118,11 @@ export function startPreviewPage<P>({
   /** What the current processor's surfaces have reported, each once, for every later render too. */
   let reports: Report[] = [];
   let seen = new Set<string>();
+  /** The surface the current render shows. */
+  let shown: string | undefined;
+  /** The current processor's last data model of each surface, and the render it was last sent for. */
+  let models = new Map<string, unknown>();
+  let modelSentFor: number | undefined;
 
   const send = (report: Report) => {
     if (current !== undefined) {
@@ -127,6 +135,16 @@ export function startPreviewPage<P>({
     seen.add(key);
     reports.push(report);
     send(report);
+  };
+  const sendModel = () => {
+    if (current === undefined || shown === undefined || !models.has(shown)) return;
+    modelSentFor = current;
+    transport.send({
+      type: 'a2ui-spectra-preview/data-model',
+      render: current,
+      surfaceId: shown,
+      dataModel: models.get(shown),
+    });
   };
   const failed = (failure: {componentId?: string; componentType?: string; error: unknown}) => {
     add({
@@ -141,6 +159,11 @@ export function startPreviewPage<P>({
       if (made !== generation || current === undefined) return;
       transport.send({type: 'a2ui-spectra-preview/action', render: current, action, dataModel});
     },
+    dataModel: (surfaceId, dataModel) => {
+      if (made !== generation) return;
+      models.set(surfaceId, dataModel);
+      if (surfaceId === shown) sendModel();
+    },
     surfaceError: ({code, message, componentId}) => {
       if (made !== generation) return;
       add({kind: 'surface', code, error: message, ...(componentId !== undefined && {componentId})});
@@ -152,6 +175,7 @@ export function startPreviewPage<P>({
 
   const apply = (render: RenderMessage) => {
     current = render.render;
+    shown = render.surfaceId;
     const keys = keysOf(render.messages);
     const difference = differenceOf(applied, {surfaceId: render.surfaceId, keys});
     let from = 0;
@@ -160,6 +184,7 @@ export function startPreviewPage<P>({
       generation += 1;
       reports = [];
       seen = new Set();
+      models = new Map();
       processor = adapter.createProcessor(eventsFor(generation));
     } else {
       from = difference.from;
@@ -176,6 +201,8 @@ export function startPreviewPage<P>({
     });
     applied = {surfaceId: render.surfaceId, keys};
     adapter.mount(target, render.surfaceId);
+    // A render that left the data model as it was still gets it, under its own number.
+    if (modelSentFor !== current) sendModel();
   };
 
   const stopListening = transport.listen(message => {
