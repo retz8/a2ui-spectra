@@ -80,7 +80,7 @@ A message set that names no carrier: A2UI messages go in; render errors, the sho
 
 ### 13. The core and the adapters
 
-A framework-free core holding the protocol, with thin React, Lit and Angular adapters that take the renderer as a peer dependency at the versions of decision 1. They are workspaces in this repo, named with the `a2ui-spectra` prefix, and ship in Phase 9.
+A framework-free core holding the protocol, with thin React, Lit and Angular adapters that take the renderer as a peer dependency at the versions of decision 1. The core takes web core as a peer dependency and holds, on an entry of its own, the processor setup the three adapters share: the action handler, each surface's errors and data model, and the guard on web core's universal elements; each adapter makes its own processor. The Angular adapter reads the page's own `provideA2Ui` config, and is built as upstream builds `@a2ui/angular`, with the ng-packagr builder in partial compilation. They are workspaces in this repo, named with the `a2ui-spectra` prefix, and ship in Phase 9.
 
 ### 14. The built-in preview
 
@@ -108,7 +108,7 @@ Typing in the preview changes the page's own data model, and pressing fires the 
 
 ### 20. The sample catalog apps and the proof
 
-One sample catalog app per framework in this repo: a tiny custom catalog with one custom component beside the basic catalog, its implementation, and the preview page SPEC.md's adopter path describes. Each is started by the end-to-end test and doubles as the adopter's worked example. The React adapter is also proven on one A2UIVerse catalog in the acceptance run, with a preview page added on A2UIVerse's side.
+One sample catalog, shared by one sample catalog app per framework under `samples/preview/`: a v0.9 definition holding the basic catalog's components and functions and one custom component, upstream's `CustomSlider`, implemented once per framework, each app with the preview page SPEC.md's adopter path describes and its own committed `a2ui-spectra.json`. Each is started by the end-to-end test and doubles as the adopter's worked example. The React adapter is also proven on one A2UIVerse catalog in the acceptance run, with a preview page added on A2UIVerse's side.
 
 ### 21. The design artifact comes first
 
@@ -116,7 +116,7 @@ The phase's first sub-task draws Phase 4's boards on the existing Design canvas 
 
 ### 22. Tests
 
-Unit tests of the checks over Phase 1's full fixtures, which carry the expected catalog, structural and binding events and serve as the oracle, a fixture corrected only where it is wrong against the specs; over the recordings, the flawed booking conversation with its known mistakes and the restaurant finders passing; and over hand-written cases for each finding code. A2UIVerse's CircleCI recording gets its catalog definition copied into the test data. Unit tests of the core's protocol. The end-to-end test starts the three sample catalog apps, previews a turn through each, presses a control, sends the action and sees the turn land. The conformance action is unchanged: its expected records carry no check events.
+Unit tests of the checks over Phase 1's full fixtures, which carry the expected catalog, structural and binding events and serve as the oracle, a fixture corrected only where it is wrong against the specs; over the recordings, the flawed booking conversation with its known mistakes and the restaurant finders passing; and over hand-written cases for each finding code. A2UIVerse's CircleCI recording gets its catalog definition copied into the test data. Unit tests of the core's protocol. The browser end-to-end test, on Playwright's Chromium, starts the three sample catalog apps one at a time, each with its own config file, on one A2A version, against the stub agent picking the sample catalog by negotiation; it previews a turn through each, presses a control, sends the action and sees the turn land. The conformance action is unchanged: its expected records carry no check events.
 
 ### 23. The acceptance run
 

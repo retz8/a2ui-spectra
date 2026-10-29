@@ -1069,3 +1069,57 @@ finds nothing.
 
 Have the sample clients send `getRendererDataModel(version)` under the
 version's key with every message, an action or a text, as the protocol has it.
+
+## 30. Neither the Lit nor the Angular renderer catches a component's failure
+
+**Component:** `typescript/renderers/lit/src/surface/a2ui-surface.ts`;
+`typescript/renderers/angular/src/core/component-host.component.ts`;
+`typescript/core/web_core/src/universal/a2ui-lit-element.ts`.
+
+**Severity:** a host cannot keep a surface drawn around a component that fails,
+nor tell which component failed.
+
+Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24),
+`@a2ui/lit` 0.14.0, `@a2ui/angular` 0.13.0 and `@a2ui/web_core` 0.14.0 on npm,
+with Lit 3.3.3 and Angular 21.2.
+
+### Issue
+
+Lit: every component the Lit renderer draws, the basic catalog's and a host's
+own, is one of web core's universal elements, an `A2uiLitElement`, whose update
+has no catch (finding 27). `<a2ui-surface>`'s `render()` has a try/catch, but it
+covers only creating the root's context and calling `renderA2uiNode`, which
+returns a directive; each element below renders in its own Lit update cycle,
+outside it.
+
+Angular: the renderer's native components are Angular components hosted by
+`ComponentHostComponent` through `*ngComponentOutlet`, with no error handling
+around them; a component type missing from the catalog only gets a
+`console.error`. A component whose template throws while drawing reaches the
+application's `ErrorHandler` through Angular's change detection, which hands
+over the error alone, with nothing that names the component or its surface.
+Web core's error channel is not told.
+
+### Reproduction
+
+Lit: render a v0.9 surface of the basic catalog plus a custom component, an
+`A2uiLitElement` subclass, through `@a2ui/lit` 0.14.0's `<a2ui-surface>`, then
+replace the custom element's `render` with a function that throws a
+`RangeError` and change a value it binds. The window receives an
+`unhandledrejection` whose reason is the `RangeError`; `surface.onError`
+receives nothing.
+
+Angular: render the same surface through `@a2ui/angular` 0.13.0's
+`<a2ui-v09-surface>`, with a native custom component made with
+`createComponentImplementation` whose template calls a function that throws,
+then change a value it binds. The application's `ErrorHandler.handleError` receives
+the `RangeError` alone; `surface.onError` receives nothing.
+
+### Fix
+
+Catch per component in each renderer and dispatch the error through the
+surface's error channel with the component's id and type, leaving a
+placeholder so the rest of the surface stays drawn: in web core's
+`A2uiLitElement` update, as finding 27 gives it, which covers the Lit renderer
+and the Angular renderer's universal components; and in the Angular renderer's
+`ComponentHostComponent`, around the native component it hosts.
