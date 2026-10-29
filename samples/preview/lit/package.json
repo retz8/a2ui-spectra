@@ -1,0 +1,52 @@
+{
+  "name": "a2ui-spectra-sample-preview-lit",
+  "private": true,
+  "version": "0.0.1",
+  "description": "The Lit sample catalog app of Spectra for A2UI: the sample catalog's Lit implementation and its preview page, built with the Lit preview adapter.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "wireit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "clean": "wireit",
+    "format": "prettier --ignore-path ../../../.prettierignore --write .",
+    "format:check": "prettier --ignore-path ../../../.prettierignore --check ."
+  },
+  "wireit": {
+    "build": {
+      "command": "tsc -b && vite build",
+      "dependencies": [
+        "../../../typescript/preview/lit:build"
+      ],
+      "files": [
+        "src/**/*",
+        "index.html",
+        "tsconfig.json",
+        "vite.config.*"
+      ],
+      "output": [
+        "dist/"
+      ]
+    },
+    "clean": {
+      "command": "rm -rf dist .wireit"
+    }
+  },
+  "dependencies": {
+    "@a2ui/lit": "0.14.0",
+    "@a2ui/web_core": "0.14.0",
+    "a2ui-spectra-preview-lit": "workspace:^",
+    "lit": "^3.3.3",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "eslint": "^10.4.1",
+    "gts": "^7.0.0",
+    "prettier": "^3.8.4",
+    "typescript": "5.9.3",
+    "vite": "^8.0.16",
+    "wireit": "^0.15.0-pre.2"
+  }
+}

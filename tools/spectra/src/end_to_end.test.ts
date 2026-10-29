@@ -7,10 +7,9 @@
  * SPECTRA_BINARY names one. The stub is built by the conformance workspace.
  */
 import assert from 'node:assert/strict';
-import {type ChildProcess, spawn} from 'node:child_process';
 import {copyFileSync, mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
-import {after, describe, it} from 'node:test';
+import {describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
 
 import {SseParser} from './a2a/sse.js';
@@ -31,11 +30,9 @@ import {
 } from './record/turn_record.js';
 import {folderOf} from './store/store.js';
 import {binary, freePort, SpectraProcess, workingDir} from './testing/spectra_process.js';
+import {startStub} from './testing/stub_agent.js';
 import {turnRecordErrors} from './testing/turn_record_schema.js';
 
-const stubScript = fileURLToPath(
-  new URL('../../../conformance/dist/stub_agent/stub_agent.js', import.meta.url),
-);
 const customCatalog = fileURLToPath(
   new URL('../../../conformance/test_data/catalogs/custom_catalog_v1_0.json', import.meta.url),
 );
@@ -43,31 +40,6 @@ const BASIC_V0_9 = 'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.j
 const BASIC_V0_9_1 = 'https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json';
 const BASIC_V1_0 = 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json';
 const TIMEOUT = 60_000;
-
-const stubs = new Set<ChildProcess>();
-after(() => {
-  for (const stub of stubs) stub.kill('SIGKILL');
-});
-
-/** Starts the stub agent and resolves once it listens. */
-function startStub(port: number, flags: string[]): Promise<ChildProcess> {
-  const stub = spawn(
-    process.execPath,
-    [stubScript, '--port', String(port), '--canned-a2ui', ...flags],
-    {stdio: ['ignore', 'pipe', 'pipe']},
-  );
-  stubs.add(stub);
-  return new Promise((resolve, reject) => {
-    let output = '';
-    const onData = (chunk: Buffer) => {
-      output += chunk.toString('utf8');
-      if (output.includes('Spectra stub agent at')) resolve(stub);
-    };
-    stub.stdout.on('data', onData);
-    stub.stderr.on('data', onData);
-    stub.once('exit', code => reject(new Error(`The stub agent exited with ${code}:\n${output}`)));
-  });
-}
 
 interface LiveEvent {
   event: string;

@@ -9,6 +9,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./web-core": {
+      "types": "./dist/web_core.d.ts",
+      "default": "./dist/web_core.js"
     }
   },
   "files": [
@@ -52,11 +56,15 @@
     }
   },
   "devDependencies": {
+    "@a2ui/web_core": "0.14.0",
     "@types/node": "^25.9.3",
     "eslint": "^10.4.1",
     "gts": "^7.0.0",
     "prettier": "^3.8.4",
     "typescript": "5.9.3",
     "wireit": "^0.15.0-pre.2"
+  },
+  "peerDependencies": {
+    "@a2ui/web_core": "^0.14.0"
   }
 }

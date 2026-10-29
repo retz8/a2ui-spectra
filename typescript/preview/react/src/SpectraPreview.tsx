@@ -16,9 +16,14 @@ import {
   windowErrors,
   windowTransport,
 } from 'a2ui-spectra-preview';
+import {
+  actionHandlerFor,
+  guardUniversalElements,
+  watchProcessor,
+} from 'a2ui-spectra-preview/web-core';
 import {useEffect, useState} from 'react';
 
-import {guardCatalog, guardUniversalElements, reportFailuresTo} from './boundaries.js';
+import {guardCatalog, reportFailuresTo} from './boundaries.js';
 
 export interface SpectraPreviewProps {
   /**
@@ -30,11 +35,11 @@ export interface SpectraPreviewProps {
   catalogs: ReadonlyArray<Catalog<ReactCatalogComponent>>;
 }
 
-/** A processor the core made, and what it subscribed to. */
+/** A processor the core made, and the way to stop watching it. */
 interface Held {
   processor: MessageProcessor<ReactCatalogComponent>;
   generation: number;
-  stops: Array<() => void>;
+  stopWatching: () => void;
   surfaceId?: string;
 }
 
@@ -42,11 +47,6 @@ interface Held {
 interface Drawn {
   generation: number;
   surface: SurfaceModel<ReactCatalogComponent>;
-}
-
-/** A plain copy of a data model, holding none of the processor's live state. */
-function plain(value: unknown): unknown {
-  return value === undefined ? null : JSON.parse(JSON.stringify(value));
 }
 
 export function SpectraPreview({catalogs}: SpectraPreviewProps) {
@@ -57,7 +57,6 @@ export function SpectraPreview({catalogs}: SpectraPreviewProps) {
   useEffect(() => {
     if (origin === undefined) return;
     for (const catalog of pageCatalogs) guardCatalog(catalog);
-    guardUniversalElements();
     let made = 0;
     let shown: Held | undefined;
     const show = (held: Held) => {
@@ -75,31 +74,20 @@ export function SpectraPreview({catalogs}: SpectraPreviewProps) {
     const adapter: PreviewAdapter<Held> = {
       createProcessor: (events: PageEvents) => {
         reportFailuresTo(events.componentFailed);
+        guardUniversalElements(events.componentFailed);
         const processor: MessageProcessor<ReactCatalogComponent> =
-          new MessageProcessor<ReactCatalogComponent>([...pageCatalogs], action => {
-            const surface = processor.getSurface(action.surfaceId);
-            events.action(action, plain(surface?.dataModel.get('/')));
-          });
+          new MessageProcessor<ReactCatalogComponent>(
+            [...pageCatalogs],
+            actionHandlerFor(events, () => processor),
+          );
         made += 1;
-        const held: Held = {processor, generation: made, stops: []};
-        const created = processor.onSurfaceCreated(surface => {
-          const errors = surface.onError.subscribe(error => {
-            const componentId = (error as {componentId?: unknown}).componentId;
-            events.surfaceError({
-              code: error.code,
-              message: error.message,
-              ...(typeof componentId === 'string' && {componentId}),
-            });
-          });
-          held.stops.push(() => errors.unsubscribe());
-          // The data model as messages and typing change it, for the message box to send.
-          const report = () => events.dataModel(surface.id, plain(surface.dataModel.get('/')));
-          const model = surface.dataModel.subscribe('/', report);
-          held.stops.push(() => model.unsubscribe());
-          report();
-          if (surface.id === held.surfaceId && shown === held) show(held);
-        });
-        held.stops.push(() => created.unsubscribe());
+        const held: Held = {
+          processor,
+          generation: made,
+          stopWatching: watchProcessor(processor, events, surface => {
+            if (surface.id === held.surfaceId && shown === held) show(held);
+          }),
+        };
         return held;
       },
       feed: (held, message) => {
@@ -112,7 +100,7 @@ export function SpectraPreview({catalogs}: SpectraPreviewProps) {
         show(held);
       },
       teardown: held => {
-        for (const stop of held.stops) stop();
+        held.stopWatching();
         held.processor.dispose();
         if (shown === held) {
           shown = undefined;

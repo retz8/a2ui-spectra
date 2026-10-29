@@ -28,7 +28,7 @@ The catalogs are read once, as the component mounts. They are the page's claims:
 
 ## What it reports
 
-- **A component that throws while drawing**, with its id and type. Each React implementation in the catalogs is wrapped in an error boundary of its own, and web core's universal elements, which both basic catalogs are drawn with, are guarded at their updates; either way the rest of the surface stays drawn.
+- **A component that throws while drawing**, with its id and type. Each React implementation in the catalogs is wrapped in an error boundary of its own, and web core's universal elements, which both basic catalogs are drawn with, are guarded at their updates through the core's web core part; either way the rest of the surface stays drawn.
 - **An error web core reports on the surface** through its error channel, such as an unknown component type.
 - **A message the page's processor refuses.**
 - **The surface's data model**, as it is created and whenever the agent's messages or typing in the page change it.
@@ -42,4 +42,4 @@ From `typescript/preview/react/`:
 - `yarn lint` and `yarn lint:fix`: ESLint with the root ESLint preset and React's hooks rules.
 - `yarn format` and `yarn format:check`: Prettier, with the root `.prettierignore`.
 
-The adapter has no unit tests of its own; the end-to-end test through the React sample catalog app covers it.
+The adapter has no unit tests of its own. What it shares with the Lit and Angular adapters, the processor's action handler, its surfaces' errors and data models and the guard on web core's universal elements, is the core's web core part, unit-tested there; the browser end-to-end test, `tools/spectra/src/samples_end_to_end.test.ts`, covers the rest through the React sample catalog app in [`../../../samples/preview/react/`](../../../samples/preview/react).

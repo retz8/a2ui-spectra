@@ -4,6 +4,7 @@
   "packageManager": "yarn@4.13.0",
   "workspaces": [
     "conformance",
+    "samples/preview/*",
     "tools/*",
     "typescript/preview/*"
   ],

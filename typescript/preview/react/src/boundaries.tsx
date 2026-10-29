@@ -7,12 +7,8 @@
  */
 import type {ReactCatalogComponent} from '@a2ui/react/v0_9';
 import type {Catalog} from '@a2ui/web_core/v0_9';
-import {A2uiLitElement} from '@a2ui/web_core/v0_9/universal';
-import {
-  guardElementUpdates,
-  type PageEvents,
-  type UpdatingElementClass,
-} from 'a2ui-spectra-preview';
+import type {PageEvents} from 'a2ui-spectra-preview';
+import {identityOf} from 'a2ui-spectra-preview/web-core';
 import {Component, type FC, type ReactNode} from 'react';
 
 /** The component a failure belongs to. */
@@ -64,19 +60,6 @@ function withBoundary<Props extends object>(
   return Guarded;
 }
 
-/** What a component's model gives its identity. */
-interface ModelLike {
-  id?: unknown;
-  type?: unknown;
-}
-
-function identityOf(model: ModelLike | undefined): Identity {
-  return {
-    ...(typeof model?.id === 'string' && {componentId: model.id}),
-    ...(typeof model?.type === 'string' && {componentType: model.type}),
-  };
-}
-
 const guarded = new WeakSet<object>();
 
 /**
@@ -100,22 +83,4 @@ export function guardCatalog(catalog: Catalog<ReactCatalogComponent>): void {
       }),
     });
   }
-}
-
-/** What a web core element knows of the component it draws. */
-interface ElementLike {
-  node?: {componentId?: unknown; type?: unknown};
-  context?: {componentModel?: ModelLike};
-}
-
-/** Guards web core's universal elements, reporting a throw in an update with the component. */
-export function guardUniversalElements(): void {
-  guardElementUpdates(A2uiLitElement as unknown as UpdatingElementClass, (element, error) => {
-    const {node, context} = element as ElementLike;
-    const identity =
-      node !== undefined
-        ? identityOf({id: node.componentId, type: node.type})
-        : identityOf(context?.componentModel);
-    reportTo?.({...identity, error});
-  });
 }

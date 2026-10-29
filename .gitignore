@@ -16,6 +16,9 @@ CLAUDE.local.md
 dist
 *.tsbuildinfo
 
+# The Angular CLI's cache
+.angular
+
 # Yarn Modern
 .yarn/*
 !.yarn/patches

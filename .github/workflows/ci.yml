@@ -30,6 +30,8 @@ jobs:
         run: yarn lint:all
       - name: Format check
         run: yarn format:check:all
+      - name: Install Playwright's Chromium
+        run: npx playwright@1.58.1 install --with-deps chromium chromium-headless-shell
       - name: Test
         run: yarn test:all
       - name: Test against the binary

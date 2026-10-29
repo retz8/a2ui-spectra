@@ -3,6 +3,7 @@
 **/build
 **/lib
 **/.wireit
+**/.angular
 **/*.tsbuildinfo
 **/.playwright
 .git

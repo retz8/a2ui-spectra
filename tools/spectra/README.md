@@ -6,6 +6,7 @@ The `a2ui-spectra` command: it attaches to a running A2UI agent over A2A, puts a
 
 1. [Node.js](https://nodejs.org/en) 22.
 2. Yarn, through Corepack: `corepack enable`.
+3. For the browser end-to-end test only, Playwright's Chromium, once: `npx playwright@1.58.1 install chromium chromium-headless-shell`.
 
 ## Usage
 
@@ -151,6 +152,7 @@ The live stream's events:
 - `src/`: the TypeScript source, with each unit test beside its source as `*.test.ts`.
 - `src/cli.test.ts`: the command-line test, which starts Spectra as a process.
 - `src/end_to_end.test.ts`: the end-to-end test, which starts Spectra against the conformance workspace's stub agent and holds a two-turn conversation through the message box's API, continued after a second conversation was started, which goes on with an action, the data model sent with each, on A2A 1.0 and on A2A 0.3; and starts it again from a working directory holding a config file with the agent's URL, a token header read from the shell and a configured catalog, against the stub requiring the token, once with the variable set and once without.
+- `src/samples_end_to_end.test.ts`: the browser end-to-end test through the sample catalog apps in [`../../samples/preview/`](../../samples/preview). For the React, Lit and Angular samples in turn, it starts the stub agent, the sample's dev server on the port its `a2ui-spectra.json` names, and Spectra with that file, and drives the viewer in Chromium through Playwright: the stub answers in the sample catalog, the sample's page draws the surface in the Preview pane, the custom slider is moved and the Button pressed, the pending action is sent, and the turn lands with the stub's reply echoing the volume from the action's context and in the data model. It runs on one A2A version, the stub's default.
 - `src/config.ts`: the config file, and `src/config.schema.json`, its schema.
 - `src/catalog/`: the catalog registry.
 - `src/a2a/`: the A2A adapter: the wire proxy, the card rewrite and the turns it captures.
@@ -162,7 +164,8 @@ The live stream's events:
 - `src/listing.ts`: what the turn listing reads from each turn.
 - `src/message_box.ts` and `src/a2a/client.ts`: the message box and its A2A client.
 - `src/testing/fake_agent.ts`: a small A2A agent the command-line test runs.
-- `src/testing/spectra_process.ts`: Spectra as a process, for the command-line test and the end-to-end test.
+- `src/testing/spectra_process.ts`: Spectra as a process, for the command-line test and the end-to-end tests.
+- `src/testing/stub_agent.ts`: the conformance workspace's stub agent with its canned A2UI conversation, for the end-to-end tests.
 - `src/testing/turn_record_schema.ts`: validates the records tests produce against turn record v0.1's schema.
 - `src/testing/turns.ts`: the turns the checks' tests build.
 - `src/record/turn_record.ts`: the types for turn record v0.1.
@@ -174,8 +177,8 @@ From `tools/spectra/`:
 
 - `yarn build`: compiles `src/` into `dist/` and copies the viewer's build into `dist/viewer/` and the built-in preview page's into `dist/viewer/preview/`, building both first.
 - `yarn build:binary`: compiles the binary into `dist/a2ui-spectra`.
-- `yarn test`: builds the tool and the conformance workspace, whose stub agent the end-to-end test runs, then runs the unit tests, the command-line test and the end-to-end test under Node's test runner.
-- `SPECTRA_BINARY=dist/a2ui-spectra yarn test`: runs the same tests with the command-line test and the end-to-end test against the binary.
+- `yarn test`: builds the tool, the conformance workspace, whose stub agent the end-to-end tests run, and the three preview adapters, which the sample catalog apps' dev servers serve from their builds, then runs the unit tests, the command-line test and the end-to-end tests under Node's test runner. The browser end-to-end test needs Playwright's Chromium, as under [Prerequisites](#prerequisites).
+- `SPECTRA_BINARY=dist/a2ui-spectra yarn test`: runs the same tests with the command-line test and the end-to-end tests against the binary.
 - `yarn lint` and `yarn lint:fix`: ESLint with the root ESLint preset.
 - `yarn format` and `yarn format:check`: Prettier, with the root `.prettierignore`.
 - `node dist/cli.js <command>`: runs the built tool under Node.

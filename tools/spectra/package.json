@@ -75,7 +75,10 @@
       "command": "node --test --enable-source-maps --test-reporter spec \"dist/**/*.test.js\"",
       "dependencies": [
         "build",
-        "../../conformance:build"
+        "../../conformance:build",
+        "../../typescript/preview/react:build",
+        "../../typescript/preview/lit:build",
+        "../../typescript/preview/angular:build"
       ],
       "env": {
         "SPECTRA_BINARY": {
@@ -87,7 +90,14 @@
         "../../conformance/test_data/turn_record/v0_1/full_record_*.json",
         "../../conformance/a2a_capture/**",
         "../../conformance/test_data/a2a_capture/**",
-        "../../specification/turn_record/v0_1/json/*.json"
+        "../../specification/turn_record/v0_1/json/*.json",
+        "../../samples/preview/catalog.json",
+        "../../samples/preview/*/a2ui-spectra.json",
+        "../../samples/preview/*/src/**",
+        "../../samples/preview/*/index.html",
+        "../../samples/preview/*/vite.config.ts",
+        "../../samples/preview/angular/angular.json",
+        "../../samples/preview/*/package.json"
       ],
       "output": []
     },
@@ -106,6 +116,7 @@
     "eslint": "^10.4.1",
     "gts": "^7.0.0",
     "js-yaml": "^4.3.0",
+    "playwright": "1.58.1",
     "prettier": "^3.8.4",
     "typescript": "5.9.3",
     "wireit": "^0.15.0-pre.2"

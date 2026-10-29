@@ -1,0 +1,65 @@
+{
+  "name": "a2ui-spectra-preview-lit",
+  "private": true,
+  "version": "0.0.1",
+  "description": "The Lit preview adapter of Spectra for A2UI: one custom element for a catalog's preview page, on upstream's Lit renderer.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "wireit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "clean": "wireit",
+    "format": "prettier --ignore-path ../../../.prettierignore --write .",
+    "format:check": "prettier --ignore-path ../../../.prettierignore --check ."
+  },
+  "wireit": {
+    "build": {
+      "command": "tsc -b --pretty",
+      "env": {
+        "FORCE_COLOR": "1"
+      },
+      "dependencies": [
+        "../core:build"
+      ],
+      "files": [
+        "src/**/*.ts",
+        "tsconfig.json"
+      ],
+      "output": [
+        "dist/**"
+      ],
+      "clean": "if-file-deleted"
+    },
+    "clean": {
+      "command": "rm -rf dist .wireit"
+    }
+  },
+  "dependencies": {
+    "a2ui-spectra-preview": "workspace:^"
+  },
+  "devDependencies": {
+    "@a2ui/lit": "0.14.0",
+    "@a2ui/web_core": "0.14.0",
+    "eslint": "^10.4.1",
+    "gts": "^7.0.0",
+    "lit": "^3.3.3",
+    "prettier": "^3.8.4",
+    "typescript": "5.9.3",
+    "wireit": "^0.15.0-pre.2"
+  },
+  "peerDependencies": {
+    "@a2ui/lit": "^0.14.0",
+    "@a2ui/web_core": "^0.14.0",
+    "lit": "^3.3.3"
+  }
+}

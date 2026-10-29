@@ -1,0 +1,5 @@
+{
+  "$schema": "http://localhost:9820/api/config.schema.json",
+  "catalogs": ["../catalog.json"],
+  "preview": ["http://localhost:9832/"]
+}

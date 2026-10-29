@@ -11,7 +11,10 @@
  *   input, and a message carrying that task's id answers with the name and
  *   completes. The A2UI version is the newest the host's capabilities name,
  *   read as the A2UI extension specs describe, and that version's extension
- *   is echoed in the reply's extensions header.
+ *   is echoed in the reply's extensions header. When the capabilities offer
+ *   the sample catalog of Spectra's preview samples, the surface is in that
+ *   catalog instead, at the newest version that offers it: a custom slider
+ *   setting a volume, which the answer carries.
  * - With `--flawed-booking`, it is the Flawed Booking Agent: a message gets a
  *   completed task whose status message holds a booking form in A2UI v0.9,
  *   each message its own part, with mistakes the checks and web core's
@@ -103,6 +106,12 @@ const TURN_METHODS = new Set([
 ]);
 
 const SURFACE_ID = 'greeting';
+
+/** The sample catalog of Spectra's preview samples, `samples/preview/catalog.json`. */
+const SAMPLE_CATALOG_ID =
+  'https://github.com/retz8/a2ui-spectra/blob/main/samples/preview/catalog.json';
+
+const SAMPLE_SURFACE_ID = 'volume';
 
 type Behaviour = 'wait-for-cancel' | 'canned-a2ui' | 'flawed-booking';
 
@@ -335,6 +344,19 @@ function offeredVersion(metadata: unknown): A2uiVersion | undefined {
   });
 }
 
+/** The newest A2UI version under which a message's capabilities offer the sample catalog. */
+function sampleVersion(metadata: unknown): A2uiVersion | undefined {
+  if (!isObject(metadata)) {
+    return undefined;
+  }
+  return A2UI_VERSIONS.find(entry => {
+    const capabilities = metadata[entry.capabilitiesKey];
+    const offered = isObject(capabilities) ? capabilities[entry.version] : undefined;
+    const ids = isObject(offered) ? offered.supportedCatalogIds : undefined;
+    return Array.isArray(ids) && ids.includes(SAMPLE_CATALOG_ID);
+  });
+}
+
 /** Whether a request is A2A 0.3, as the SDK reads it: no `A2A-Version`, or 0.3. */
 function isA2a03(requestedVersion: string | undefined): boolean {
   return requestedVersion === undefined || requestedVersion === '' || requestedVersion === '0.3';
@@ -402,6 +424,63 @@ function greet({version}: A2uiVersion, name: string): Array<Record<string, unkno
   ];
 }
 
+/**
+ * A surface in the sample catalog, which sends its data model: the custom
+ * slider bound to the volume, and a button whose action carries it.
+ */
+function askForVolume({version}: A2uiVersion): Array<Record<string, unknown>> {
+  return [
+    {
+      version,
+      createSurface: {
+        surfaceId: SAMPLE_SURFACE_ID,
+        catalogId: SAMPLE_CATALOG_ID,
+        sendDataModel: true,
+      },
+    },
+    {
+      version,
+      updateComponents: {
+        surfaceId: SAMPLE_SURFACE_ID,
+        components: [
+          {id: 'root', component: 'Column', children: ['question', 'volume', 'set', 'result']},
+          {id: 'question', component: 'Text', text: 'How loud?'},
+          {
+            id: 'volume',
+            component: 'CustomSlider',
+            label: 'Volume',
+            value: bound(version, '/volume'),
+            min: 0,
+            max: 100,
+          },
+          {
+            id: 'set',
+            component: 'Button',
+            child: 'set_label',
+            action: {event: {name: 'setVolume', context: {volume: bound(version, '/volume')}}},
+          },
+          {id: 'set_label', component: 'Text', text: 'Set the volume'},
+          {id: 'result', component: 'Text', text: bound(version, '/result')},
+        ],
+      },
+    },
+    {version, updateDataModel: {surfaceId: SAMPLE_SURFACE_ID, value: {volume: 50, result: ''}}},
+  ];
+}
+
+function setVolume({version}: A2uiVersion, volume: string): Array<Record<string, unknown>> {
+  return [
+    {
+      version,
+      updateDataModel: {
+        surfaceId: SAMPLE_SURFACE_ID,
+        path: '/result',
+        value: `Volume set to ${volume}.`,
+      },
+    },
+  ];
+}
+
 /** The A2UI action a message carries: in a data part's message, or in its list of messages. */
 function actionOf(parts: readonly Part[]): Record<string, unknown> | undefined {
   for (const part of parts) {
@@ -423,6 +502,15 @@ function nameOf(parts: readonly Part[]): string {
   return name.trim() === '' ? 'there' : name.trim();
 }
 
+/** The volume the second message gives: its action's context's, or else its text. */
+function volumeOf(parts: readonly Part[]): string {
+  const given = actionOf(parts)?.context;
+  const fromAction =
+    isObject(given) && given.volume !== undefined ? String(given.volume) : undefined;
+  const text = parts.find(part => part.content?.$case === 'text')?.content;
+  return fromAction ?? (text?.$case === 'text' ? text.value.trim() : '');
+}
+
 class CannedA2uiExecutor implements AgentExecutor {
   cancelTask = async (_taskId: string, _eventBus: ExecutionEventBus): Promise<void> => {};
 
@@ -442,7 +530,8 @@ class CannedA2uiExecutor implements AgentExecutor {
             },
       ),
     );
-    const version = offeredVersion(context.userMessage.metadata);
+    const sample = sampleVersion(context.userMessage.metadata);
+    const version = sample ?? offeredVersion(context.userMessage.metadata);
     if (version === undefined) {
       publishStatus(eventBus, context, TaskState.TASK_STATE_COMPLETED, [
         textPart('Offer A2UI capabilities in the message metadata to get an answer in A2UI.'),
@@ -452,18 +541,29 @@ class CannedA2uiExecutor implements AgentExecutor {
     const a2a03 = isA2a03(context.context.requestedVersion);
     if (context.task?.status?.state !== TaskState.TASK_STATE_INPUT_REQUIRED) {
       publishStatus(eventBus, context, TaskState.TASK_STATE_INPUT_REQUIRED, [
-        textPart("What's your name?"),
-        ...a2uiParts(askForName(version), a2a03),
+        textPart(sample === undefined ? "What's your name?" : 'How loud?'),
+        ...a2uiParts(sample === undefined ? askForName(version) : askForVolume(version), a2a03),
+      ]);
+      return;
+    }
+    // The data model the host sent, echoed so a test sees it arrived.
+    const metadata = context.userMessage.metadata;
+    const dataModel = isObject(metadata) ? metadata[version.dataModelKey] : undefined;
+    const echo =
+      dataModel === undefined ? [] : [textPart(`Data model: ${JSON.stringify(dataModel)}`)];
+    if (sample !== undefined) {
+      const volume = volumeOf(context.userMessage.parts);
+      publishStatus(eventBus, context, TaskState.TASK_STATE_COMPLETED, [
+        textPart(`Volume set to ${volume}.`),
+        ...echo,
+        ...a2uiParts(setVolume(version, volume), a2a03),
       ]);
       return;
     }
     const name = nameOf(context.userMessage.parts);
-    // The data model the host sent, echoed so a test sees it arrived.
-    const metadata = context.userMessage.metadata;
-    const dataModel = isObject(metadata) ? metadata[version.dataModelKey] : undefined;
     publishStatus(eventBus, context, TaskState.TASK_STATE_COMPLETED, [
       textPart(`Hello, ${name}!`),
-      ...(dataModel === undefined ? [] : [textPart(`Data model: ${JSON.stringify(dataModel)}`)]),
+      ...echo,
       ...a2uiParts(greet(version, name), a2a03),
     ]);
   }
