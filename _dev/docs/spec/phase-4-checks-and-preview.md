@@ -76,7 +76,7 @@ The viewer's replay and the server's rejection count register a real catalog, bu
 
 ### 12. The preview protocol
 
-A message set that names no carrier: A2UI messages go in; render errors and actions come out. The screenshot message is reserved in the protocol, produced by no adapter of this phase and asked for by no viewer of this phase; it arrives with the first adapter that cannot be embedded. The web adapters carry the protocol over `postMessage` between the viewer and the page in an iframe.
+A message set that names no carrier: A2UI messages go in; render errors, the shown surface's data model and actions come out. The screenshot message is reserved in the protocol, produced by no adapter of this phase and asked for by no viewer of this phase; it arrives with the first adapter that cannot be embedded. The web adapters carry the protocol over `postMessage` between the viewer and the page in an iframe.
 
 ### 13. The core and the adapters
 
@@ -104,7 +104,7 @@ The page reports three kinds of render error: a component that throws while draw
 
 ### 19. Pressing a control
 
-Typing in the preview changes the page's own data model, and pressing fires the renderer's action handler; the adapter reports the action with the page's data model at that moment. The viewer shows the exact wire message the agent would receive, in the turn's protocol version: the `action` envelope with its name, surface id, source component id, timestamp and resolved context, v1.0's `userMessage` when the component has one, and the surface's data model snapshot under the version's metadata key. It lands in the composer as a pending action in place of text, its JSON shown, with Send and Discard. The composer's rules from Phase 3 hold unchanged: it sends only in a conversation the message box started, says why when it cannot, and is held while a turn is open; sending from an older turn's state is allowed. Sent, it is one host message carrying the action as an A2UI part, with the box's capabilities, and the data model in the metadata when the surface was created with `sendDataModel`. It opens a turn like any other, its row's input the action's name.
+Typing in the preview changes the page's own data model, and pressing fires the renderer's action handler; the adapter reports the action with the page's data model at that moment. The viewer shows the exact wire message the agent would receive, in the turn's protocol version: the `action` envelope with its name, surface id, source component id, timestamp and resolved context, v1.0's `userMessage` when the component has one, and the data models under the version's metadata key. It lands in the composer as a pending action in place of text, its JSON shown in the turn record's form, with Send and Discard. The composer's rules from Phase 3 hold unchanged: it sends only in a conversation the message box started, says why when it cannot, and is held while a turn is open; sending from an older turn's state is allowed. Sent, it is one host message carrying the action as an A2UI part, with the box's capabilities. It opens a turn like any other, its row's input the action's name. Every host message the box sends, a text as an action, carries in its metadata the data models of every active surface created with `sendDataModel`, as the surfaces stand at the step in view, the shown surface's from its preview page.
 
 ### 20. The sample catalog apps and the proof
 

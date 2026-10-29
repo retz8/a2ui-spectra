@@ -329,6 +329,11 @@ part that follows the extension specs does not validate as an A2A 0.3 part, and
 Python's SDK rejects it. Under A2A 1.0, whose `Part.data` is a `google.protobuf.Value`,
 "object, array, string, number, boolean, or null" (`specification/a2a.proto` at
 A2A's `v1.0.1`), the array is carried: `filipw/strathweb-a2ui`, `muncus/a2term` and AG2 send one.
+Upstream's own concepts page already draws the line the extension specs lack:
+"The use of a **list** in the `data` field was introduced in **A2A v1.0**.
+Earlier versions of the A2A protocol expect the `data` field to contain a single
+JSON object." (`docs/public/concepts/actions.md:265`, the same at
+`409ded29ccac3eebc541979ae5320771703248e8`).
 
 ### Reproduction
 
@@ -1025,3 +1030,42 @@ with the component's id in the sentence alone.
 Add `componentId`, and the data path for a component inside a template, to
 `A2uiErrorPayload`, and pass them from `dispatchOnce` and from the renderer's
 unresolved-reference report.
+
+## 29. No sample client sends the data model a surface asks for
+
+**Component:** `samples/client/react/shell/middleware/a2a.ts`;
+`samples/client/lit/shell/client.ts`;
+`samples/client/angular/projects/restaurant/src/server.ts`.
+
+**Severity:** deviation from the protocol: an agent that creates a surface with
+`sendDataModel` gets no data model from any of upstream's hosts.
+
+Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24).
+
+### Issue
+
+`createSurface`'s `sendDataModel` says "If true, the client will send the full
+data model of this surface in the metadata of every message sent to the server"
+(`specification/v0_9/docs/a2ui_protocol.md:189`), as `a2uiClientDataModel` in
+v0.9 and v0.9.1 and `a2uiRendererDataModel` in v1.0, each a map of surface ids
+to data models (`client_data_model.json`, `renderer_data_model.json`). Web core
+builds that map, `MessageProcessor.getRendererDataModel`
+(`typescript/core/web_core/src/processing/message-processor.ts:399`), and no
+sample client calls it: each sets the message's metadata to its capabilities
+alone (`samples/client/react/shell/middleware/a2a.ts:127`,
+`samples/client/lit/shell/client.ts:102`,
+`samples/client/angular/projects/restaurant/src/server.ts:125`). No sample agent sets
+`sendDataModel`, so nothing in the repo sends or reads the data model. The
+clients' actions themselves differ from the extension specs and from each other
+in shape, as findings 1, 4 and 12 record.
+
+### Reproduction
+
+Read the cited lines: each client's message metadata is its capabilities and
+nothing else, whatever surfaces it holds; `git grep sendDataModel -- samples/agent`
+finds nothing.
+
+### Fix
+
+Have the sample clients send `getRendererDataModel(version)` under the
+version's key with every message, an action or a text, as the protocol has it.
