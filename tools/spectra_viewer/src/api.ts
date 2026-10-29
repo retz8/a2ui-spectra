@@ -1,5 +1,6 @@
 /** The server's API, as the tool's README describes it. */
 import type {KnownCatalog} from './model/catalogs.ts';
+import type {A2aVersion, ActionMessage, DataModelMap} from './model/host_message.ts';
 import type {InputBrief} from './model/input_brief.ts';
 import type {Turn, TurnOutcome, TurnRecord, WireEvent} from './model/record.ts';
 
@@ -64,6 +65,8 @@ export interface MessageBoxState {
   unavailable?: string;
   /** The variables the configured headers name that are not set in Spectra's environment. */
   unsetVariables?: string[];
+  /** The A2A version of the interface the box sends to, when the card lists one it speaks. */
+  a2aVersion?: A2aVersion;
 }
 
 /** What the live stream sends, by event name. */
@@ -124,12 +127,21 @@ export async function getCatalogs(): Promise<KnownCatalog[]> {
   return (await request<{catalogs: KnownCatalog[]}>('/api/catalogs')).catalogs;
 }
 
-/** Sends a message from the box, continuing the conversation named, or else in a new one. */
+/**
+ * What the box sends: a text, or an A2UI action message, with the data model
+ * map when a surface asked for it.
+ */
+export type BoxInput = ({text: string} | {action: ActionMessage}) & {dataModel?: DataModelMap};
+
+/**
+ * Sends a message from the box, continuing the conversation named, or else in
+ * a new one; an action only continues a conversation.
+ */
 export function sendMessage(
-  text: string,
+  input: BoxInput,
   conversationId?: string,
 ): Promise<{traceId: string; conversationId?: string}> {
-  return post('/api/message-box/messages', {text, conversationId});
+  return post('/api/message-box/messages', {...input, conversationId});
 }
 
 export const STREAM_PATH = '/api/stream';

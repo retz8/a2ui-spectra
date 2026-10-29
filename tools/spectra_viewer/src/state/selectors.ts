@@ -171,6 +171,22 @@ export function composerOf(
   };
 }
 
+/**
+ * Why an action cannot be sent where the composer stands, which takes the
+ * line's place: an action only continues a conversation the box started.
+ */
+export function actionRefusalOf(target: ComposerTarget): string | undefined {
+  switch (target.kind) {
+    case 'continues':
+      return undefined;
+    case 'unnamed':
+      return 'The agent named no conversation · an action can only be sent in a conversation the agent named';
+    case 'notStarted':
+    case 'new':
+      return 'Started by another host or in an earlier run · an action can only be sent in a conversation the message box started';
+  }
+}
+
 /** Asks the store for the records a pane needs. */
 export function useNeededRecords(needs: readonly string[]): void {
   const key = needs.join(',');

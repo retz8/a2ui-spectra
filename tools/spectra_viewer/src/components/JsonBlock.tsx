@@ -1,7 +1,7 @@
 import {type ReactNode, useEffect, useMemo, useRef, useState} from 'react';
 
 import {cn} from '@/lib/utils';
-import {jsonLines, markedLine, unfoldedTo} from '@/model/json_lines.ts';
+import {type JsonLine, jsonLines, markedLine, unfoldedTo} from '@/model/json_lines.ts';
 
 import {CopyButton} from './CopyButton.tsx';
 import {Icon} from './icons.tsx';
@@ -52,11 +52,7 @@ export function JsonBlock({
       behavior: reduce ? 'auto' : 'smooth',
     });
   }, [reveal, lines]);
-  const toggle = (path: string) => {
-    const next = new Set(folded);
-    if (!next.delete(path)) next.add(path);
-    setFolded(next);
-  };
+  const toggle = (path: string) => setFolded(toggled(folded, path));
   return (
     <section className="flex min-w-0 flex-col gap-1.5">
       <BlockLabel label={label} meta={meta}>
@@ -73,31 +69,77 @@ export function JsonBlock({
         className="overflow-x-auto rounded-lg bg-tint py-2 font-mono text-xs leading-[1.6]"
       >
         {lines.map((line, index) => (
-          <div
-            key={index}
-            className={cn(
-              'flex w-max min-w-full pr-3 pl-1 whitespace-pre',
-              marked.has(index) && 'bg-problem-soft',
-            )}
-          >
-            <span className="flex w-[18px] shrink-0 items-center justify-center">
-              {line.fold !== undefined && (
-                <button
-                  type="button"
-                  aria-label={line.folded ? 'Unfold' : 'Fold'}
-                  aria-expanded={!line.folded}
-                  onClick={() => toggle(line.fold!)}
-                  className="flex size-4 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-border hover:text-foreground"
-                >
-                  <Icon kind={line.folded ? 'chevronRight' : 'chevronDown'} size={11} />
-                </button>
-              )}
-            </span>
-            <span>{line.text}</span>
-          </div>
+          <LineRow key={index} line={line} marked={marked.has(index)} onToggle={toggle} />
         ))}
       </div>
     </section>
+  );
+}
+
+/**
+ * JSON as lines on a tinted block, each object and array foldable, the paths
+ * given folded at first; for a block with no label of its own.
+ */
+export function JsonLines({
+  value,
+  folded: foldedAtFirst = [],
+  className,
+}: {
+  value: unknown;
+  folded?: readonly string[];
+  className?: string;
+}) {
+  const [folded, setFolded] = useState<ReadonlySet<string>>(() => new Set(foldedAtFirst));
+  const lines = useMemo(() => jsonLines(value, folded), [value, folded]);
+  return (
+    <div
+      className={cn(
+        'overflow-auto rounded-lg bg-tint py-1.5 font-mono text-xs leading-[1.6]',
+        className,
+      )}
+    >
+      {lines.map((line, index) => (
+        <LineRow key={index} line={line} onToggle={path => setFolded(toggled(folded, path))} />
+      ))}
+    </div>
+  );
+}
+
+function toggled(folded: ReadonlySet<string>, path: string): ReadonlySet<string> {
+  const next = new Set(folded);
+  if (!next.delete(path)) next.add(path);
+  return next;
+}
+
+/** One line of JSON, with its fold button when it opens an object or an array. */
+function LineRow({
+  line,
+  marked = false,
+  onToggle,
+}: {
+  line: JsonLine;
+  marked?: boolean;
+  onToggle: (path: string) => void;
+}) {
+  return (
+    <div
+      className={cn('flex w-max min-w-full pr-3 pl-1 whitespace-pre', marked && 'bg-problem-soft')}
+    >
+      <span className="flex w-[18px] shrink-0 items-center justify-center">
+        {line.fold !== undefined && (
+          <button
+            type="button"
+            aria-label={line.folded ? 'Unfold' : 'Fold'}
+            aria-expanded={!line.folded}
+            onClick={() => onToggle(line.fold!)}
+            className="flex size-4 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-border hover:text-foreground"
+          >
+            <Icon kind={line.folded ? 'chevronRight' : 'chevronDown'} size={11} />
+          </button>
+        )}
+      </span>
+      <span>{line.text}</span>
+    </div>
   );
 }
 

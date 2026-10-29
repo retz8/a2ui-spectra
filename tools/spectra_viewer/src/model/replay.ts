@@ -42,6 +42,10 @@ export interface SurfaceView {
   touched: boolean;
   structure: SurfaceStructure;
   dataModel: unknown;
+  /** Whether its `createSurface` asked for the data model with every host message. */
+  sendDataModel?: true;
+  /** Its `createSurface`'s version, such as `v0.9.1`. */
+  version?: string;
   /** How many of the surface's `updateComponents` the processor rejected, when it has no components. */
   rejectedUpdates?: number;
 }
@@ -143,7 +147,16 @@ export function replay(
         rejectedUpdates.set(surfaceId, (rejectedUpdates.get(surfaceId) ?? 0) + 1);
       }
     };
+    // Each surface's version, as its `createSurface` names it.
+    const versions = new Map<string, string>();
+    const noteVersion = (message: unknown, surfaceId: string | undefined) => {
+      const version = versionOf(message);
+      if (surfaceId !== undefined && version !== undefined && isCreateSurface(message)) {
+        versions.set(surfaceId, version);
+      }
+    };
     for (const {message} of earlier) {
+      noteVersion(message, surfaceIdOf(message));
       if (feed(processor, message) !== undefined) countRejected(message, surfaceIdOf(message));
     }
     const touched: string[] = [];
@@ -152,6 +165,7 @@ export function replay(
     for (const {key, message} of own) {
       const surfaceId = surfaceIdOf(message);
       if (surfaceId !== undefined && !touched.includes(surfaceId)) touched.push(surfaceId);
+      noteVersion(message, surfaceId);
       const error = feed(processor, message);
       if (error !== undefined) {
         countRejected(message, surfaceId);
@@ -167,7 +181,13 @@ export function replay(
     ];
     return {
       surfaces: ordered.map(surface =>
-        viewOf(surface, touched.includes(surface.id), standInIds, rejectedUpdates.get(surface.id)),
+        viewOf(
+          surface,
+          touched.includes(surface.id),
+          standInIds,
+          rejectedUpdates.get(surface.id),
+          versions.get(surface.id),
+        ),
       ),
       deleted: [...deleted].filter(id => processor.getSurface(id) === undefined),
       rejections,
@@ -305,6 +325,10 @@ function versionOf(message: unknown): string | undefined {
   return typeof version === 'string' ? version : undefined;
 }
 
+function isCreateSurface(message: unknown): boolean {
+  return typeof message === 'object' && message !== null && 'createSurface' in message;
+}
+
 function isDeleteSurface(message: unknown): boolean {
   return typeof message === 'object' && message !== null && 'deleteSurface' in message;
 }
@@ -314,6 +338,7 @@ function viewOf(
   touched: boolean,
   standInIds: ReadonlySet<string>,
   rejectedUpdates: number | undefined,
+  version: string | undefined,
 ): SurfaceView {
   const empty = [...surface.componentsModel.keys].length === 0;
   return {
@@ -322,6 +347,8 @@ function viewOf(
     touched,
     structure: structureOf(surface, standInIds),
     dataModel: plain(surface.dataModel.get('/')),
+    ...(surface.sendDataModel && {sendDataModel: true}),
+    ...(version !== undefined && {version}),
     ...(empty && rejectedUpdates !== undefined && {rejectedUpdates}),
   };
 }

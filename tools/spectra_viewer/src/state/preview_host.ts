@@ -10,7 +10,9 @@
  * ready message within a few seconds is unanswered, and is reloaded every
  * few seconds until it answers. A render goes to a page's window with the
  * page's origin as its target, and only a message from one of the viewer's
- * own iframes, at that page's origin, is taken.
+ * own iframes, at that page's origin, is taken. Each render keeps the turn
+ * and step it was asked for, so a press, which names its render, goes on as
+ * pressed there even after a newer render went out.
  */
 import {
   isPageMessage,
@@ -24,6 +26,8 @@ import {useSyncExternalStore} from 'react';
 
 import type {PreviewPageState} from '@/model/preview.ts';
 
+import type {Press, RenderContext} from './press.ts';
+
 /** The built-in page's id and label. */
 export const BUILT_IN = 'built-in';
 
@@ -33,11 +37,16 @@ const BUILT_IN_PATH = '/preview/';
 /** How long a page has to say it is ready, and how often an unanswered page is reloaded. */
 const ANSWER_MS = 5000;
 
+/** How many of a page's latest renders keep their turn and step, for a press that comes late. */
+const KEPT_RENDERS = 50;
+
 export interface PageSnapshot extends PreviewPageState {
   /** The render last sent, by its surface and its messages. */
   sentKey?: string;
   /** What the page reported for the render last sent. */
   reports: Report[];
+  /** The shown surface's data model, as the page sent it for the render last sent. */
+  dataModel?: {surfaceId: string; dataModel: unknown};
 }
 
 /** A place on the screen, in the viewport's pixels. */
@@ -58,7 +67,9 @@ interface Page {
   render: number;
   timer?: ReturnType<typeof setTimeout>;
   /** The render asked for last, sent once the page is ready. */
-  wanted?: {key: string; surfaceId: string; messages: unknown[]};
+  wanted?: {key: string; surfaceId: string; messages: unknown[]; context?: RenderContext};
+  /** The turn and step of each of the latest renders, by its number. */
+  contexts: Map<number, RenderContext>;
   seen: Set<string>;
 }
 
@@ -84,6 +95,7 @@ class PreviewHost {
   #renders = 0;
   #shown: string | undefined;
   #started = false;
+  #presses = new Set<(press: Press) => void>();
 
   subscribe = (listener: () => void): (() => void) => {
     this.#listeners.add(listener);
@@ -91,6 +103,12 @@ class PreviewHost {
   };
 
   getSnapshot = (): readonly PageSnapshot[] => this.#snapshot;
+
+  /** Calls back with each press a page reports, with the turn and step of its render. */
+  onPress = (listener: (press: Press) => void): (() => void) => {
+    this.#presses.add(listener);
+    return () => this.#presses.delete(listener);
+  };
 
   /** Loads the pages: the configured ones, in order, and the built-in one last. */
   configure(configured: readonly string[]): void {
@@ -126,6 +144,7 @@ class PreviewHost {
         origin: url.origin,
         iframe,
         render: 0,
+        contexts: new Map(),
         seen: new Set(),
       };
       iframe.src = page.url;
@@ -137,16 +156,24 @@ class PreviewHost {
   }
 
   /**
-   * Asks a page to draw a surface from its list of messages. A render the
-   * page already has is not sent again; one asked of a page not ready yet is
-   * sent once it is.
+   * Asks a page to draw a surface from its list of messages, for a turn and
+   * step. A render the page already has is not sent again, and takes the
+   * turn and step asked for last; one asked of a page not ready yet is sent
+   * once it is.
    */
-  render(pageId: string, surfaceId: string, messages: readonly unknown[]): void {
+  render(
+    pageId: string,
+    surfaceId: string,
+    messages: readonly unknown[],
+    context?: RenderContext,
+  ): void {
     const page = this.#pages.find(candidate => candidate.state.id === pageId);
     if (page === undefined) return;
     const key = renderKeyOf(surfaceId, messages);
-    page.wanted = {key, surfaceId, messages: [...messages]};
-    if (page.state.status === 'ready' && page.state.sentKey !== key) this.#send(page);
+    page.wanted = {key, surfaceId, messages: [...messages], ...(context && {context})};
+    if (page.state.status !== 'ready') return;
+    if (page.state.sentKey !== key) this.#send(page);
+    else if (context !== undefined) page.contexts.set(page.render, context);
   }
 
   /** Lays the iframe of a page over a place on the screen, hiding every other; none hides them all. */
@@ -213,7 +240,7 @@ class PreviewHost {
       if (page.timer !== undefined) clearTimeout(page.timer);
       page.timer = undefined;
       // A page that is ready again, reloaded, holds nothing: the render asked for last goes again.
-      const {sentKey: _sent, protocol: _protocol, ...rest} = page.state;
+      const {sentKey: _sent, protocol: _protocol, dataModel: _dataModel, ...rest} = page.state;
       page.state = {...rest, status: 'ready', claims: message.claims, reports: []};
       page.seen = new Set();
       if (page.wanted !== undefined) this.#send(page);
@@ -224,8 +251,18 @@ class PreviewHost {
       if (page.seen.has(key)) return;
       page.seen.add(key);
       this.#update(page, {reports: [...page.state.reports, message.report]});
+    } else if (message.type === 'a2ui-spectra-preview/data-model') {
+      if (message.render !== page.render) return;
+      this.#update(page, {
+        dataModel: {surfaceId: message.surfaceId, dataModel: message.dataModel},
+      });
+    } else {
+      // A press goes on as pressed in its own render, whatever went out since.
+      const context = page.contexts.get(message.render);
+      if (context === undefined) return;
+      const press: Press = {action: message.action, dataModel: message.dataModel, context};
+      for (const listener of this.#presses) listener(press);
     }
-    // An action is the next sub-task's: pressing sends it into the composer.
   }
 
   #send(page: Page): void {
@@ -234,6 +271,10 @@ class PreviewHost {
     this.#renders += 1;
     page.render = this.#renders;
     page.seen = new Set();
+    if (wanted.context !== undefined) page.contexts.set(page.render, wanted.context);
+    for (const number of page.contexts.keys()) {
+      if (number <= page.render - KEPT_RENDERS) page.contexts.delete(number);
+    }
     const render: RenderMessage = {
       type: 'a2ui-spectra-preview/render',
       render: page.render,
@@ -241,6 +282,8 @@ class PreviewHost {
       messages: wanted.messages,
     };
     page.iframe.contentWindow?.postMessage(render, page.origin);
+    const {dataModel: _dataModel, ...rest} = page.state;
+    page.state = rest;
     this.#update(page, {sentKey: wanted.key, reports: []});
   }
 

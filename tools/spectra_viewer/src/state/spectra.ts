@@ -6,6 +6,7 @@
 import {useSyncExternalStore} from 'react';
 
 import {
+  type BoxInput,
   getCatalogs,
   getContext,
   getMessageBox,
@@ -128,11 +129,12 @@ class Spectra {
   }
 
   /**
-   * Sends a message from the box, continuing the box's conversation named or
-   * else in a new one; answers with the trace id of its turn, once it opens.
+   * Sends a text or an action from the box, continuing the box's conversation
+   * named or else in a new one; answers with the trace id of its turn, once
+   * it opens.
    */
-  async send(text: string, conversationId?: string): Promise<string> {
-    const {traceId} = await sendMessage(text, conversationId);
+  async send(input: BoxInput, conversationId?: string): Promise<string> {
+    const {traceId} = await sendMessage(input, conversationId);
     await this.#refreshBox();
     return traceId;
   }

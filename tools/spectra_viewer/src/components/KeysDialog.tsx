@@ -34,6 +34,7 @@ const SECTIONS: Array<{title: string; rows: Array<{label: string; keys: string[]
     rows: [
       {label: 'Send', keys: ['Enter']},
       {label: 'New line', keys: ['Shift', 'Enter']},
+      {label: 'Discard the action', keys: ['Esc']},
     ],
   },
 ];

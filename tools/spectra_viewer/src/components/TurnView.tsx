@@ -7,6 +7,7 @@ import {keptPick, nextProblem, pickForKey, stepInView} from '@/model/follow.ts';
 import {inputBriefOfTurn} from '@/model/input_brief.ts';
 import {pageKeyOf} from '@/model/keys.ts';
 import {catalogsOf} from '@/model/catalogs.ts';
+import {dataModelMapOf, dataModelVersionOf} from '@/model/host_message.ts';
 import {agentMessages} from '@/model/messages.ts';
 import {previewProblemsOf, routeOf, surfaceFeedOf, targetOf} from '@/model/preview.ts';
 import {type Problem, onlyProblems, turnProblemsOf} from '@/model/problems.ts';
@@ -17,6 +18,14 @@ import {openFieldsOf, summaryOf} from '@/model/summary.ts';
 import {briefText} from '@/model/turn_groups.ts';
 import {detailOpenHeight, rememberedSize, rememberSize} from '@/state/layout.ts';
 import {previewHost, renderKeyOf, usePreviewPages} from '@/state/preview_host.ts';
+import {
+  keepsPending,
+  pendingOf,
+  setDataModelInView,
+  setPendingAction,
+  useDataModelInView,
+  usePendingAction,
+} from '@/state/press.ts';
 import {setRenderErrorsInView} from '@/state/render_errors.ts';
 import {type TurnView as TurnViewState, turnViewOf, useNeededRecords} from '@/state/selectors.ts';
 import {useSpectra} from '@/state/spectra.ts';
@@ -32,6 +41,9 @@ import {TurnHeader} from './TurnHeader.tsx';
 
 /** No reports: what a render the page has not answered for holds. */
 const NO_REPORTS: [] = [];
+
+/** No surfaces, kept the same from render to render. */
+const NO_SURFACES: [] = [];
 
 /** The detail's height when collapsed to its title line, in pixels. */
 const DETAIL_TITLE = 41;
@@ -70,6 +82,26 @@ export function TurnView({
   // A new conversation asked for holds until a turn is selected.
   const selected = `${selection}:${traceId ?? ''}`;
   const [newAt, setNewAt] = useState<string | undefined>();
+
+  const startsNew = newAt === selected;
+  // A press in the preview lands in the composer, which goes back to the turn's conversation.
+  const pending = usePendingAction();
+  useEffect(() => {
+    const stop = previewHost.onPress(press => {
+      setNewAt(undefined);
+      setPendingAction(pendingOf(press));
+    });
+    return () => {
+      stop();
+    };
+  }, []);
+  // It stays only while its conversation is in view.
+  useEffect(() => {
+    if (pending !== undefined && !keepsPending(state, pending, {traceId, startsNew})) {
+      setPendingAction(undefined);
+    }
+  }, [pending, state, traceId, startsNew]);
+  const inView = useDataModelInView();
 
   const first = traceId === undefined && state.loaded && state.turns.length === 0;
   useEffect(() => {
@@ -117,11 +149,16 @@ export function TurnView({
         inputRef={input}
         onSent={onSelect}
         traceId={traceId}
-        startsNew={newAt === selected}
+        startsNew={startsNew}
         onStartNew={() => {
           setNewAt(selected);
           input.current?.focus();
         }}
+        pending={pending}
+        onDiscard={() => setPendingAction(undefined)}
+        dataModel={
+          inView !== undefined && inView.traceId === traceId ? inView.dataModel : undefined
+        }
       />
     </main>
   );
@@ -206,7 +243,7 @@ function TurnBody({
 
   // The surface in view, and its preview: its list goes to the page it is routed to.
   const [pickedSurface, setPickedSurface] = useState<string | undefined>();
-  const surfaces = pane?.surfaces ?? [];
+  const surfaces = pane?.surfaces ?? NO_SURFACES;
   const surface = surfaces.find(view => view.surfaceId === pickedSurface) ?? surfaces[0];
   const surfaceId = surface?.surfaceId;
   const feed = useMemo(
@@ -231,13 +268,37 @@ function TurnBody({
   );
   const routed = route?.kind === 'page' ? route.page : undefined;
   const routedId = routed?.id;
+  const version = useMemo(
+    () => (feed === undefined ? undefined : targetOf(feed).protocolVersion),
+    [feed],
+  );
+  const stepId = selected?.id;
+  // Each render keeps the turn and step it is for, with the surfaces there, for a press made in it.
   useEffect(() => {
     if (routedId !== undefined && surfaceId !== undefined && feedMessages !== undefined) {
-      previewHost.render(routedId, surfaceId, feedMessages);
+      previewHost.render(routedId, surfaceId, feedMessages, {
+        traceId,
+        ...(stepId !== undefined && {stepId}),
+        surfaces,
+        ...(version !== undefined && {version}),
+      });
     }
-  }, [routedId, surfaceId, feedMessages]);
-  // A page's reports hold for the render of this very list.
-  const reports = routed !== undefined && routed.sentKey === feedKey ? routed.reports : NO_REPORTS;
+  }, [routedId, surfaceId, feedMessages, traceId, stepId, surfaces, version]);
+  // A page's reports and its data model hold for the render of this very list.
+  const current = routed !== undefined && routed.sentKey === feedKey;
+  const reports = current ? routed.reports : NO_REPORTS;
+  const shownModel =
+    current && routed.dataModel?.surfaceId === surfaceId ? routed.dataModel : undefined;
+  // What a text sent now carries: the shown surface's data model from its page, the others' at the step.
+  const textModel = useMemo(() => {
+    const modelVersion = dataModelVersionOf(surfaces);
+    return modelVersion === undefined
+      ? undefined
+      : dataModelMapOf(surfaces, modelVersion, shownModel);
+  }, [surfaces, shownModel]);
+  useEffect(() => {
+    setDataModelInView({traceId, ...(textModel !== undefined && {dataModel: textModel})});
+  }, [traceId, textModel]);
   const fromPreview = useMemo(
     () =>
       feed === undefined || surfaceId === undefined
@@ -267,6 +328,7 @@ function TurnBody({
   useEffect(() => {
     return () => {
       setRenderErrorsInView(undefined);
+      setDataModelInView(undefined);
     };
   }, []);
   const sentA2ui = useMemo(() => agentMessages(events).length > 0, [events]);
