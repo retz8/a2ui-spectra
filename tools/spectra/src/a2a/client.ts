@@ -5,6 +5,7 @@
 
 import {type CatalogOffer, CatalogRegistry} from '../catalog/registry.js';
 import {JSONRPC} from './card.js';
+import {dataModelKeyFor} from './metadata.js';
 import {type A2aVersion, isRecord, readReply, type TaskState} from './protocol.js';
 import {SseParser} from './sse.js';
 
@@ -99,13 +100,24 @@ function majorMinor(version: string): string | undefined {
   return /^(\d+\.\d+)(?:\.\d+)?$/.exec(version.trim())?.[1];
 }
 
-/** The text message the box sends, and the conversation it continues. */
-export interface BoxMessage {
-  text: string;
+/** The MIME type of a data part that carries A2UI, as the extension specification gives it. */
+export const A2UI_MIME_TYPE = 'application/a2ui+json';
+
+/**
+ * What a host message carries: a text, or one A2UI action message,
+ * `{version, action}`, with the data model map, `{version, surfaces}`, when
+ * a surface asked for it.
+ */
+export type BoxInput = ({text: string} | {action: Record<string, unknown>}) & {
+  dataModel?: Record<string, unknown>;
+};
+
+/** The message the box sends, and the conversation it continues. */
+export type BoxMessage = BoxInput & {
   messageId: string;
   contextId?: string;
   taskId?: string;
-}
+};
 
 /** One JSON-RPC request, ready to post. */
 export interface BoxRequest {
@@ -123,7 +135,11 @@ export interface RequestOptions {
 /**
  * The send or stream request for the interface's A2A version, with Spectra's
  * offer: every supported A2UI extension in the version's extensions header,
- * and the capabilities in the message's metadata.
+ * and the capabilities in the message's metadata, beside the data model
+ * under its version's key. An action is one data part with A2UI's MIME
+ * type: under A2A 0.3 its data is the message and the type is in the part's
+ * metadata; under A2A 1.0 its data is a list of the one message and the type
+ * is the part's media type.
  */
 export function boxRequest(
   target: BoxInterface,
@@ -139,6 +155,12 @@ export function boxRequest(
   const configured = Object.fromEntries(
     Object.entries(headers).map(([name, value]) => [name.toLowerCase(), value]),
   );
+  const metadata = {
+    ...capabilities,
+    ...(message.dataModel !== undefined && {
+      [dataModelKeyFor(message.dataModel.version)]: message.dataModel,
+    }),
+  };
   if (target.version === '0.3') {
     return {
       headers: {
@@ -156,9 +178,13 @@ export function boxRequest(
             kind: 'message',
             messageId: message.messageId,
             role: 'user',
-            parts: [{kind: 'text', text: message.text}],
+            parts: [
+              'text' in message
+                ? {kind: 'text', text: message.text}
+                : {kind: 'data', data: message.action, metadata: {mimeType: A2UI_MIME_TYPE}},
+            ],
             ...conversation,
-            metadata: capabilities,
+            metadata,
           },
         },
       }),
@@ -181,9 +207,13 @@ export function boxRequest(
         message: {
           messageId: message.messageId,
           role: 'ROLE_USER',
-          parts: [{text: message.text}],
+          parts: [
+            'text' in message
+              ? {text: message.text}
+              : {data: [message.action], mediaType: A2UI_MIME_TYPE},
+          ],
           ...conversation,
-          metadata: capabilities,
+          metadata,
         },
       },
     }),

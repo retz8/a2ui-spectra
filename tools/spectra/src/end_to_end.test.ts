@@ -1,8 +1,9 @@
 /**
  * The end-to-end test: Spectra attached to the stub agent holding its canned
  * A2UI conversation, with a two-turn conversation sent through the message
- * box's API and continued after a second conversation was started, once with
- * the stub's card listing A2A 1.0 first and once A2A 0.3 first. It runs under Node by default, and against the binary when
+ * box's API and continued after a second conversation was started, which
+ * goes on with an action, the data model sent with each, once with the
+ * stub's card listing A2A 1.0 first and once A2A 0.3 first. It runs under Node by default, and against the binary when
  * SPECTRA_BINARY names one. The stub is built by the conformance workspace.
  */
 import assert from 'node:assert/strict';
@@ -23,6 +24,7 @@ import {
   isEventOfKind,
   type Turn,
   type TurnEvent,
+  type TextPart,
   type TurnRecord,
   type WireInputEvent,
   type WireOutputEvent,
@@ -130,13 +132,18 @@ async function getJson<T>(url: string): Promise<{status: number; body: T}> {
 
 async function sendMessage(
   base: string,
-  text: string,
+  input: string | {action: Record<string, unknown>},
   conversationId?: string,
+  dataModel?: Record<string, unknown>,
 ): Promise<SentMessage> {
   const response = await fetch(`${base}/api/message-box/messages`, {
     method: 'POST',
     headers: {'content-type': 'application/json'},
-    body: JSON.stringify({text, conversationId}),
+    body: JSON.stringify({
+      ...(typeof input === 'string' ? {text: input} : input),
+      conversationId,
+      dataModel,
+    }),
   });
   const body = (await response.json()) as SentMessage & {error?: string};
   assert.equal(response.status, 200, body.error);
@@ -161,6 +168,23 @@ function turnEventOf(turn: Turn): TurnEvent {
 }
 
 /** The A2UI parts of the turn's wire outputs. */
+/** The texts of the agent's replies in a turn. */
+function textsOf(turn: Turn): unknown[] {
+  return turn.events
+    .filter((event): event is WireOutputEvent => isEventOfKind(event, 'wire_output'))
+    .flatMap(event => event.attributes['a2ui.wire.message'].parts)
+    .filter((part): part is TextPart => part.type === 'text')
+    .map(part => part.content);
+}
+
+function inputOf(turn: Turn): WireInputEvent {
+  const input = turn.events.find((event): event is WireInputEvent =>
+    isEventOfKind(event, 'wire_input'),
+  );
+  assert.ok(input, 'The turn records its host message.');
+  return input;
+}
+
 function a2uiPartsOf(turn: Turn): A2uiPart[] {
   return turn.events
     .filter((event): event is WireOutputEvent => isEventOfKind(event, 'wire_output'))
@@ -218,7 +242,7 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
     ['0.3', ['--a2a-0.3-first']],
   ] as const) {
     it(
-      `holds a two-turn conversation over A2A ${a2a}, continued after another was started, each turn recorded, checked and streamed`,
+      `holds a two-turn conversation over A2A ${a2a}, continued after another was started, which goes on with an action, the data model sent with each, each turn recorded, checked and streamed`,
       {timeout: TIMEOUT},
       async () => {
         const [agentPort, port, proxyPort] = await Promise.all([
@@ -276,9 +300,48 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
             {conversationId: otherId, turns: [started.traceId]},
           ]);
 
-          const second = await sendMessage(base, 'Ada', conversationId);
+          // The text carries the surface's data model, which the stub echoes.
+          const typed = {version: 'v1.0', surfaces: {greeting: {greeting: 'Hello!', name: 'Ada'}}};
+          const second = await sendMessage(base, 'Ada', conversationId, typed);
           assert.equal(second.conversationId, conversationId);
           const two = await checkTurn(base, cwd, live, second.traceId);
+          assert.deepEqual(inputOf(two.turn).attributes['a2ui.wire.data_model'], typed);
+          assert.deepEqual(textsOf(two.turn), [
+            'Hello, Ada!',
+            `Data model: ${JSON.stringify(typed)}`,
+          ]);
+
+          // The other conversation goes on with its Button's action: one A2UI part, an object in A2A 0.3, a list in 1.0.
+          const action = {
+            version: 'v1.0',
+            action: {
+              name: 'greet',
+              surfaceId: 'greeting',
+              sourceComponentId: 'greet',
+              timestamp: '2026-10-29T10:00:00.000Z',
+              context: {name: 'Grace'},
+            },
+          };
+          const pressedModel = {
+            version: 'v1.0',
+            surfaces: {greeting: {greeting: 'Hello!', name: 'Grace'}},
+          };
+          const pressed = await sendMessage(base, {action}, otherId, pressedModel);
+          const three = await checkTurn(base, cwd, live, pressed.traceId);
+          assert.equal(turnEventOf(three.turn).attributes['a2ui.turn.outcome'], 'completed');
+          const pressedInput = inputOf(three.turn).attributes;
+          assert.deepEqual(
+            pressedInput['a2ui.wire.message'].parts.map(part => ({
+              type: part.type,
+              content: (part as A2uiPart).content,
+            })),
+            [{type: 'a2ui', content: a2a === '1.0' ? [action] : action}],
+          );
+          assert.deepEqual(pressedInput['a2ui.wire.data_model'], pressedModel);
+          assert.deepEqual(textsOf(three.turn), [
+            'Hello, Grace!',
+            `Data model: ${JSON.stringify(pressedModel)}`,
+          ]);
 
           for (const {turn} of [one, other]) {
             assert.equal(turnEventOf(turn).attributes['a2ui.turn.outcome'], 'waiting_for_input');
@@ -430,6 +493,7 @@ describe(`the config file against the stub agent, ${binary ? 'the binary' : 'und
           conversations: [],
           unavailable,
           unsetVariables: ['SPECTRA_STUB_TOKEN'],
+          a2aVersion: '1.0',
         });
         const response = await fetch(`${base}/api/message-box/messages`, {
           method: 'POST',

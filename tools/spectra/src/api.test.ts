@@ -309,10 +309,36 @@ describe('the API', () => {
 
   it("serves the message box's conversations and its routes", async () => {
     const {base} = await serve();
-    assert.deepEqual((await getJson(`${base}/api/message-box`)).body, {conversations: []});
+    assert.deepEqual((await getJson(`${base}/api/message-box`)).body, {
+      conversations: [],
+      a2aVersion: '1.0',
+    });
 
     const empty = await post(`${base}/api/message-box/messages`, {text: ' '});
     assert.equal(empty.status, 400);
+    const action = {version: 'v0.9', action: {name: 'book', surfaceId: 's', context: {}}};
+    for (const body of [
+      {},
+      {text: 'Hi', action},
+      {action: {version: 'v0.9'}},
+      {action: {action: {}}},
+      {text: 'Hi', dataModel: {version: 'v0.9'}},
+      {text: 'Hi', dataModel: []},
+    ]) {
+      assert.equal((await post(`${base}/api/message-box/messages`, body)).status, 400);
+    }
+    const startsNone = await post(`${base}/api/message-box/messages`, {action});
+    assert.equal(startsNone.status, 400);
+    assert.deepEqual(await startsNone.json(), {
+      error:
+        'An action continues a conversation the message box started. Send it with that conversationId.',
+    });
+    const withModel = await post(`${base}/api/message-box/messages`, {
+      action,
+      dataModel: {version: 'v0.9', surfaces: {s: {}}},
+      conversationId: 'ctx-9',
+    });
+    assert.equal(withModel.status, 404);
     const unreachable = await post(`${base}/api/message-box/messages`, {text: 'Hi'});
     assert.equal(unreachable.status, 502);
     assert.deepEqual(await unreachable.json(), {

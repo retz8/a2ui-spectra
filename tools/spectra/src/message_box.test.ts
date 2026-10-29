@@ -141,10 +141,12 @@ describe('the message box', () => {
     assert.deepEqual(sent, {traceId: proxy.sent[0].traceId});
     assert.equal(proxy.sent[0].url, URL_1_0);
     assert.deepEqual(box.state(), {
+      a2aVersion: '1.0',
       conversations: [{turns: [sent.traceId], openTurn: sent.traceId}],
     });
     await proxy.close(sent.traceId);
     assert.deepEqual(box.state(), {
+      a2aVersion: '1.0',
       conversations: [{conversationId: 'ctx-1', turns: [sent.traceId]}],
     });
     box.close();
@@ -181,6 +183,7 @@ describe('the message box', () => {
     const first = await box.send('Hi');
     await proxy.close(first.traceId, 'ctx-1');
     assert.deepEqual(box.state(), {
+      a2aVersion: '1.0',
       conversations: [{conversationId: 'ctx-1', turns: [first.traceId]}],
     });
     await proxy.close((await box.send('Again', 'ctx-1')).traceId);
@@ -200,6 +203,7 @@ describe('the message box', () => {
     const first = await box.send('Top 3 Chinese restaurants');
     const second = await box.send('Top 3 Italian restaurants');
     assert.deepEqual(box.state(), {
+      a2aVersion: '1.0',
       conversations: [
         {turns: [first.traceId], openTurn: first.traceId},
         {turns: [second.traceId], openTurn: second.traceId},
@@ -222,6 +226,7 @@ describe('the message box', () => {
     await proxy.close(third.traceId);
     await proxy.close(fourth.traceId);
     assert.deepEqual(box.state(), {
+      a2aVersion: '1.0',
       conversations: [
         {conversationId: 'ctx-1', turns: [first.traceId, third.traceId]},
         {conversationId: 'ctx-2', turns: [second.traceId, fourth.traceId]},
@@ -236,10 +241,11 @@ describe('the message box', () => {
     proxy.replies.push(errorReply(), streamReply('TASK_STATE_COMPLETED'));
     const first = await box.send('Hi');
     await proxy.close(first.traceId);
-    assert.deepEqual(box.state(), {conversations: [{turns: [first.traceId]}]});
+    assert.deepEqual(box.state(), {a2aVersion: '1.0', conversations: [{turns: [first.traceId]}]});
     const second = await box.send('Again');
     await proxy.close(second.traceId);
     assert.deepEqual(box.state(), {
+      a2aVersion: '1.0',
       conversations: [{turns: [first.traceId]}, {conversationId: 'ctx-1', turns: [second.traceId]}],
     });
     box.close();
@@ -282,6 +288,41 @@ describe('the message box', () => {
         'The message box did not start this conversation while Spectra runs. Send without a conversation to start a new one.',
     });
     assert.equal(proxy.sent.length, 0);
+    box.close();
+  });
+
+  it('sends an action with the data model in a conversation it started, and refuses one that would start a conversation', async () => {
+    const proxy = new FakeProxy();
+    const box = boxOn(proxy);
+    proxy.replies.push(
+      streamReply('TASK_STATE_INPUT_REQUIRED'),
+      streamReply('TASK_STATE_COMPLETED'),
+    );
+    await proxy.close((await box.send('Book a table')).traceId);
+    const action = {
+      version: 'v1.0',
+      action: {
+        name: 'submit_booking',
+        surfaceId: 'booking',
+        sourceComponentId: 'submit',
+        timestamp: '2026-10-29T10:00:00.000Z',
+        context: {partySize: 2},
+      },
+    };
+    const dataModel = {version: 'v1.0', surfaces: {booking: {partySize: 2}}};
+    await assert.rejects(box.send({action}), {status: 400});
+    assert.equal(proxy.sent.length, 1);
+    const sent = await box.send({action, dataModel}, 'ctx-1');
+    await proxy.close(sent.traceId);
+    assert.deepEqual(proxy.sent[1].message.parts, [
+      {data: [action], mediaType: 'application/a2ui+json'},
+    ]);
+    assert.equal(proxy.sent[1].message.contextId, 'ctx-1');
+    assert.equal(proxy.sent[1].message.taskId, 't-1');
+    assert.deepEqual(
+      (proxy.sent[1].message.metadata as Record<string, unknown>).a2uiRendererDataModel,
+      dataModel,
+    );
     box.close();
   });
 
@@ -331,6 +372,7 @@ describe('the message box', () => {
     const unavailable = "Can't send · SPECTRA_AGENT_TOKEN is not set in Spectra's environment";
     assert.equal(box.unavailable, unavailable);
     assert.deepEqual(box.state(), {
+      a2aVersion: '1.0',
       conversations: [],
       unavailable,
       unsetVariables: ['SPECTRA_AGENT_TOKEN'],
@@ -363,7 +405,7 @@ describe('the message box', () => {
     });
     await assert.rejects(box.send('Hi'), {status: 502});
     assert.equal(calls, 2);
-    assert.deepEqual(box.state(), {conversations: []});
+    assert.deepEqual(box.state(), {a2aVersion: '1.0', conversations: []});
     box.close();
   });
 });

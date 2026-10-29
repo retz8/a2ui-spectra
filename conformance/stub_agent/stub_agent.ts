@@ -61,26 +61,29 @@ const JSON_RPC_PATH = '/a2a/jsonrpc';
 const A2UI_MIME_TYPE = 'application/a2ui+json';
 
 /**
- * The A2UI versions the stub answers in, newest first, with the metadata key
- * each version's extension spec sends capabilities under, its extension URI
- * and its basic catalog.
+ * The A2UI versions the stub answers in, newest first, with the metadata keys
+ * each version's extension spec sends capabilities and the data model under,
+ * its extension URI and its basic catalog.
  */
 const A2UI_VERSIONS = [
   {
     version: 'v1.0',
     capabilitiesKey: 'a2uiRendererCapabilities',
+    dataModelKey: 'a2uiRendererDataModel',
     extension: 'https://a2ui.org/a2a-extension/a2ui/v1.0',
     catalogId: 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json',
   },
   {
     version: 'v0.9.1',
     capabilitiesKey: 'a2uiClientCapabilities',
+    dataModelKey: 'a2uiClientDataModel',
     extension: 'https://a2ui.org/a2a-extension/a2ui/v0.9.1',
     catalogId: 'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json',
   },
   {
     version: 'v0.9',
     capabilitiesKey: 'a2uiClientCapabilities',
+    dataModelKey: 'a2uiClientDataModel',
     extension: 'https://a2ui.org/a2a-extension/a2ui/v0.9',
     catalogId: 'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json',
   },
@@ -355,21 +358,38 @@ function a2uiParts(messages: Array<Record<string, unknown>>, a2a03: boolean): Pa
   return a2a03 ? messages.map(a2uiPart) : [a2uiPart(messages)];
 }
 
+/** A binding to a data model path, in the version's form: v1.0's `@path`, v0.9's `path`. */
+function bound(version: A2uiVersion['version'], path: string): Record<string, string> {
+  return version === 'v1.0' ? {'@path': path} : {path};
+}
+
+/**
+ * A surface asking for a name, which sends its data model: a field bound to
+ * the name, and a button whose action carries it.
+ */
 function askForName({version, catalogId}: A2uiVersion): Array<Record<string, unknown>> {
   return [
-    {version, createSurface: {surfaceId: SURFACE_ID, catalogId}},
+    {version, createSurface: {surfaceId: SURFACE_ID, catalogId, sendDataModel: true}},
     {
       version,
       updateComponents: {
         surfaceId: SURFACE_ID,
         components: [
-          {id: 'root', component: 'Column', children: ['question', 'greeting']},
+          {id: 'root', component: 'Column', children: ['question', 'name', 'greet', 'greeting']},
           {id: 'question', component: 'Text', text: "What's your name?"},
-          {id: 'greeting', component: 'Text', text: {path: '/greeting'}},
+          {id: 'name', component: 'TextField', label: 'Your name', value: bound(version, '/name')},
+          {
+            id: 'greet',
+            component: 'Button',
+            child: 'greet_label',
+            action: {event: {name: 'greet', context: {name: bound(version, '/name')}}},
+          },
+          {id: 'greet_label', component: 'Text', text: 'Greet me'},
+          {id: 'greeting', component: 'Text', text: bound(version, '/greeting')},
         ],
       },
     },
-    {version, updateDataModel: {surfaceId: SURFACE_ID, path: '/greeting', value: 'Hello!'}},
+    {version, updateDataModel: {surfaceId: SURFACE_ID, value: {greeting: 'Hello!', name: ''}}},
   ];
 }
 
@@ -380,6 +400,27 @@ function greet({version}: A2uiVersion, name: string): Array<Record<string, unkno
       updateDataModel: {surfaceId: SURFACE_ID, path: '/greeting', value: `Hello, ${name}!`},
     },
   ];
+}
+
+/** The A2UI action a message carries: in a data part's message, or in its list of messages. */
+function actionOf(parts: readonly Part[]): Record<string, unknown> | undefined {
+  for (const part of parts) {
+    if (part.content?.$case !== 'data') continue;
+    const value: unknown = part.content.value;
+    for (const message of Array.isArray(value) ? value : [value]) {
+      if (isObject(message) && isObject(message.action)) return message.action;
+    }
+  }
+  return undefined;
+}
+
+/** The name the second message gives: its action's context's, or else its text. */
+function nameOf(parts: readonly Part[]): string {
+  const given = actionOf(parts)?.context;
+  const fromAction = isObject(given) && typeof given.name === 'string' ? given.name : undefined;
+  const text = parts.find(part => part.content?.$case === 'text')?.content;
+  const name = fromAction ?? (text?.$case === 'text' ? text.value : '');
+  return name.trim() === '' ? 'there' : name.trim();
 }
 
 class CannedA2uiExecutor implements AgentExecutor {
@@ -416,10 +457,13 @@ class CannedA2uiExecutor implements AgentExecutor {
       ]);
       return;
     }
-    const text = context.userMessage.parts.find(part => part.content?.$case === 'text')?.content;
-    const name = text?.$case === 'text' && text.value.trim() !== '' ? text.value.trim() : 'there';
+    const name = nameOf(context.userMessage.parts);
+    // The data model the host sent, echoed so a test sees it arrived.
+    const metadata = context.userMessage.metadata;
+    const dataModel = isObject(metadata) ? metadata[version.dataModelKey] : undefined;
     publishStatus(eventBus, context, TaskState.TASK_STATE_COMPLETED, [
       textPart(`Hello, ${name}!`),
+      ...(dataModel === undefined ? [] : [textPart(`Data model: ${JSON.stringify(dataModel)}`)]),
       ...a2uiParts(greet(version, name), a2a03),
     ]);
   }

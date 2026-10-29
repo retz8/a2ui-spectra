@@ -210,6 +210,55 @@ describe('boxRequest', () => {
       capabilities,
     );
   });
+
+  it("sends an action as one A2UI data part, an object in A2A 0.3's and a list in 1.0's, with the data model under its key", () => {
+    const action = {
+      version: 'v0.9',
+      action: {
+        name: 'book',
+        surfaceId: 'default',
+        sourceComponentId: 'book_button',
+        timestamp: '2026-10-29T10:00:00.000Z',
+        context: {restaurantName: 'Han Dynasty'},
+      },
+    };
+    const dataModel = {version: 'v0.9', surfaces: {default: {partySize: 2}}};
+    const partsAndMetadata = (version: '0.3' | '1.0') =>
+      (
+        JSON.parse(
+          boxRequest(
+            {version, url: PROXY, streaming: false},
+            {action, dataModel, messageId: 'm-2', contextId: 'ctx-1'},
+            3,
+          ).body,
+        ) as {params: {message: {parts: unknown; metadata: unknown}}}
+      ).params.message;
+    assert.deepEqual(partsAndMetadata('0.3'), {
+      kind: 'message',
+      messageId: 'm-2',
+      role: 'user',
+      parts: [{kind: 'data', data: action, metadata: {mimeType: 'application/a2ui+json'}}],
+      contextId: 'ctx-1',
+      metadata: {...A2UI_CAPABILITIES, a2uiClientDataModel: dataModel},
+    });
+    assert.deepEqual(partsAndMetadata('1.0'), {
+      messageId: 'm-2',
+      role: 'ROLE_USER',
+      parts: [{data: [action], mediaType: 'application/a2ui+json'}],
+      contextId: 'ctx-1',
+      metadata: {...A2UI_CAPABILITIES, a2uiClientDataModel: dataModel},
+    });
+  });
+
+  it("sends a text's data model too, v1.0's under v1.0's key", () => {
+    const dataModel = {version: 'v1.0', surfaces: {form: {name: 'Ada'}}};
+    const {metadata} = (
+      JSON.parse(
+        boxRequest({version: '1.0', url: PROXY, streaming: false}, {...message, dataModel}, 4).body,
+      ) as {params: {message: {metadata: unknown}}}
+    ).params.message;
+    assert.deepEqual(metadata, {...A2UI_CAPABILITIES, a2uiRendererDataModel: dataModel});
+  });
 });
 
 describe('readReplySummary', () => {

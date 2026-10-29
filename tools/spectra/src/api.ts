@@ -234,12 +234,30 @@ async function sendMessage(
     sendJson(response, 400, {error: 'The body is not JSON, or is too large.'});
     return;
   }
-  const {text, conversationId} =
-    typeof body === 'object' && body !== null
-      ? (body as {text?: unknown; conversationId?: unknown})
-      : {text: '', conversationId: undefined};
-  if (typeof text !== 'string' || text.trim() === '') {
+  const {text, action, dataModel, conversationId} = (isObject(body) ? body : {}) as {
+    text?: unknown;
+    action?: unknown;
+    dataModel?: unknown;
+    conversationId?: unknown;
+  };
+  if (action !== undefined && text !== undefined) {
+    sendJson(response, 400, {error: 'Send a text or an action, not both.'});
+    return;
+  }
+  if (action !== undefined && !isA2uiMessage(action, 'action')) {
+    sendJson(response, 400, {
+      error: 'An action is an A2UI action message: {"version": "<its version>", "action": {…}}.',
+    });
+    return;
+  }
+  if (action === undefined && (typeof text !== 'string' || text.trim() === '')) {
     sendJson(response, 400, {error: 'Send {"text": "<the message>"} with some text.'});
+    return;
+  }
+  if (dataModel !== undefined && !isA2uiMessage(dataModel, 'surfaces')) {
+    sendJson(response, 400, {
+      error: 'A dataModel is an A2UI data model: {"version": "<its version>", "surfaces": {…}}.',
+    });
     return;
   }
   if (conversationId !== undefined && typeof conversationId !== 'string') {
@@ -247,7 +265,12 @@ async function sendMessage(
     return;
   }
   try {
-    sendJson(response, 200, await box.send(text, conversationId));
+    const content = action === undefined ? {text: text as string} : {action};
+    sendJson(
+      response,
+      200,
+      await box.send({...content, ...(dataModel !== undefined && {dataModel})}, conversationId),
+    );
   } catch (error) {
     if (error instanceof MessageBoxError) {
       sendJson(response, error.status, {error: error.message});
@@ -255,6 +278,15 @@ async function sendMessage(
       throw error;
     }
   }
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/** An A2UI message of the kind its key names: a string `version`, and an object under the key. */
+function isA2uiMessage(value: unknown, key: string): value is Record<string, unknown> {
+  return isObject(value) && typeof value.version === 'string' && isObject(value[key]);
 }
 
 /** The request's body as JSON; nothing when it is not JSON or is too large. */

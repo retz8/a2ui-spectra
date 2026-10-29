@@ -1,6 +1,7 @@
 import {randomUUID} from 'node:crypto';
 
 import {
+  type BoxInput,
   boxRequest,
   type BoxInterface,
   capabilitiesFor,
@@ -9,6 +10,7 @@ import {
   readReplySummary,
   type ReplySummary,
 } from './a2a/client.js';
+import type {A2aVersion} from './a2a/protocol.js';
 import type {CatalogOffer} from './catalog/registry.js';
 import {isEventOfKind, type Turn, type TurnEvent} from './record/turn_record.js';
 import type {TurnHub} from './turn_hub.js';
@@ -42,6 +44,8 @@ export interface MessageBoxState {
   unavailable?: string;
   /** The variables the configured headers name that are not set in Spectra's environment. */
   unsetVariables?: string[];
+  /** The A2A version of the interface the box sends to, when the card lists one it speaks. */
+  a2aVersion?: A2aVersion;
 }
 
 /** What the send route answers with. */
@@ -146,18 +150,27 @@ export class MessageBox {
       })),
       ...(unavailable !== undefined && {unavailable}),
       ...(this.#unsetVariables.length > 0 && {unsetVariables: [...this.#unsetVariables]}),
+      ...(this.#target.kind === 'found' && {a2aVersion: this.#target.version}),
     };
   }
 
   /**
-   * Sends a text message, continuing the conversation the box started with
-   * the id given, or else starting a new one, and resolves with the turn the
-   * wire proxy opened for it.
+   * Sends a text, or an A2UI action, with the data model when one is given,
+   * continuing the conversation the box started with the id given, or else
+   * starting a new one, and resolves with the turn the wire proxy opened for
+   * it. An action only continues a conversation.
    */
-  async send(text: string, conversationId?: string): Promise<SentMessage> {
+  async send(input: string | BoxInput, conversationId?: string): Promise<SentMessage> {
     const unavailable = this.unavailable;
     if (this.#target.kind !== 'found' || unavailable !== undefined) {
       throw new MessageBoxError(422, unavailable ?? '');
+    }
+    const content: BoxInput = typeof input === 'string' ? {text: input} : input;
+    if ('action' in content && conversationId === undefined) {
+      throw new MessageBoxError(
+        400,
+        'An action continues a conversation the message box started. Send it with that conversationId.',
+      );
     }
     let conversation: Conversation = {turns: []};
     if (conversationId !== undefined) {
@@ -181,7 +194,7 @@ export class MessageBox {
     const request = boxRequest(
       target,
       {
-        text,
+        ...content,
         messageId,
         ...(conversation.conversationId !== undefined && {
           contextId: conversation.conversationId,
