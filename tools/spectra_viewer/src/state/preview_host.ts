@@ -13,6 +13,10 @@
  * own iframes, at that page's origin, is taken. Each render keeps the turn
  * and step it was asked for, so a press, which names its render, goes on as
  * pressed there even after a newer render went out.
+ *
+ * The iframes come after the viewer's tree, so a sentinel on each side of
+ * them hands focus that leaves a page back beside the Preview pane, whose
+ * own stop hands focus to the shown page.
  */
 import {
   isPageMessage,
@@ -24,6 +28,7 @@ import {
 } from 'a2ui-spectra-preview';
 import {useSyncExternalStore} from 'react';
 
+import {type Side, stopBeside} from '@/model/frame_focus.ts';
 import type {PreviewPageState} from '@/model/preview.ts';
 
 import type {Press, RenderContext} from './press.ts';
@@ -78,6 +83,10 @@ export function renderKeyOf(surfaceId: string, messages: readonly unknown[]): st
   return `${surfaceId}\n${JSON.stringify(messages)}`;
 }
 
+/** What Tab can stop at. */
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), iframe, [tabindex]';
+
 const HIDDEN: Partial<CSSStyleDeclaration> = {
   visibility: 'hidden',
   left: '-10000px',
@@ -96,6 +105,9 @@ class PreviewHost {
   #shown: string | undefined;
   #started = false;
   #presses = new Set<(press: Press) => void>();
+  /** The Preview pane's stop, which takes the shown page's place in the tab order. */
+  #entry: HTMLElement | undefined;
+  #after: HTMLElement | undefined;
 
   subscribe = (listener: () => void): (() => void) => {
     this.#listeners.add(listener);
@@ -148,7 +160,7 @@ class PreviewHost {
         seen: new Set(),
       };
       iframe.src = page.url;
-      this.#container!.append(iframe);
+      this.#container!.insertBefore(iframe, this.#after!);
       this.#arm(page);
       return page;
     });
@@ -202,6 +214,15 @@ class PreviewHost {
     Object.assign(container.style, {position: 'fixed', left: '0', top: '0', zIndex: '10'});
     document.body.append(container);
     this.#container = container;
+    const sentinel = (side: Side) => {
+      const element = document.createElement('span');
+      element.tabIndex = 0;
+      element.setAttribute('aria-hidden', 'true');
+      element.addEventListener('focus', event => this.#leave(side, event.relatedTarget));
+      return element;
+    };
+    this.#after = sentinel('after');
+    container.append(sentinel('before'), this.#after);
     window.addEventListener('message', event => this.#receive(event));
     // A divider dragged across a frame would lose the pointer to the page; frames ignore it until it is let go.
     const pass = (on: boolean) => {
@@ -295,6 +316,35 @@ class PreviewHost {
   #publish(): void {
     this.#snapshot = this.#pages.map(page => page.state);
     for (const listener of this.#listeners) listener();
+  }
+
+  /** Sets the Preview pane's stop, or clears it when the pane goes. */
+  setEntry(element: HTMLElement | undefined): void {
+    this.#entry = element;
+  }
+
+  /** Gives focus to the shown page. */
+  focusShown(): void {
+    this.#pages.find(page => page.state.id === this.#shown)?.iframe.focus();
+  }
+
+  /**
+   * Hands focus that reached a sentinel to the viewer's stop beside the
+   * Preview pane. Focus that leaves a page comes from no element of the
+   * viewer's, or from the page's iframe; focus from one of the viewer's own
+   * elements came by Tab past its last stop.
+   */
+  #leave(side: Side, from: EventTarget | null): void {
+    const container = this.#container!;
+    const stops = [...document.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+      element =>
+        element.tabIndex >= 0 &&
+        !container.contains(element) &&
+        element.getClientRects().length > 0,
+    );
+    const fromViewer = from instanceof Node && !container.contains(from);
+    const entry = this.#shown === undefined ? undefined : this.#entry;
+    stopBeside(stops, entry, side, fromViewer)?.focus();
   }
 
   /** Whether a page's iframe is laid over the Preview pane now. */

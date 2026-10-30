@@ -79,6 +79,11 @@ export function PreviewPane({
 /** The frame the page's iframe is laid over, kept in place as the layout moves. */
 function Frame({pageId, width}: {pageId: string; width: ViewSettings['width']}) {
   const slot = useRef<HTMLDivElement>(null);
+  const entry = useRef<HTMLSpanElement>(null);
+  useLayoutEffect(() => {
+    previewHost.setEntry(entry.current ?? undefined);
+    return () => previewHost.setEntry(undefined);
+  }, []);
   useLayoutEffect(() => {
     let frame = 0;
     let last = '';
@@ -102,6 +107,14 @@ function Frame({pageId, width}: {pageId: string; width: ViewSettings['width']}) 
   }, [pageId]);
   return (
     <div className="flex min-h-0 flex-1 justify-center overflow-hidden bg-tint p-4">
+      {/* The shown page's place in the tab order: its iframe sits outside the viewer's tree. */}
+      <span
+        ref={entry}
+        tabIndex={0}
+        aria-hidden="true"
+        onFocus={() => previewHost.focusShown()}
+        className="sr-only"
+      />
       <div
         ref={slot}
         style={width === 'narrow' ? {width: NARROW} : undefined}
