@@ -46,7 +46,7 @@ Spec: `_dev/docs/spec/phase-4-checks-and-preview.md`.
 - [x] **4.6** The Lit and Angular adapters and the sample catalog apps — the three samples with their preview pages, the end-to-end test through them; the adapters reporting the data model as it changes, as sub-task 4.5 has it. Spec: `_dev/docs/spec/task-4.6-lit-and-angular-adapters-and-samples.md` (after 4.4, parallel with 4.5)
 - [x] **4.7** The acceptance run — the restaurant finders in the built-in preview through the three flows, pressing and submitting; the flawed booking conversation across the four checks; A2UIVerse's CircleCI agent with its configured catalog, its credentials and a preview page on its side for the React adapter; the Lit and Angular samples by hand; every new board in light and dark; what it finds fixed within the sub-task. Spec: `_dev/docs/spec/task-4.7-acceptance-run.md`. (after 4.5 and 4.6)
 
-## Phase 5 — Inside the turn
+## Phase 5 — Inside the turn [WIP]
 The model proxy (Gemini read in full, other providers recorded raw) and the tool proxy (MCP over both HTTP transports), reached by redirection, with credentials stripped; the OTLP/HTTP receiver translating each producer's dialect; the exact model request, tokens and the timeline. `full_record_custom_components.json` in the shared test data records MCP over HTTP+SSE as one `tool_call` event per JSON-RPC request, its exchange the POST and its reply from the `GET /sse` stream an `event: message` chunk on it, with the stream's `endpoint` event a chunk on `initialize`.
 
 ## Phase 6 — The A2UI step
