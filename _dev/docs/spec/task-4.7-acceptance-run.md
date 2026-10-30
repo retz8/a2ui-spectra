@@ -123,6 +123,24 @@ Through A2UIVerse's page, at Narrow and Wide, in light and dark: the recent runs
 - This spec gains what the run fixed, the design canvas's amendments and the A2UI findings recorded, as sub-task 3.7's did.
 - The done commit names the boards not checked, the tall window's size and the A2UIVerse commit the CircleCI session ran against.
 
+### 21. What the run fixed
+
+- The preview page's refusal of an earlier turn's message folds as a quiet line on the turn's last step, uncounted, since the earlier turn counts it; every later turn of the conversation counted it again, on its Input step while open and its outcome once closed.
+- A render error marks the line of its component's id, as the render error board draws it.
+- The preview page's controls take the Preview pane's place in the Tab order: a stop in the pane hands focus to the shown page, and focus leaving a page by Tab or Shift+Tab comes back beside the pane; the iframes sit outside the viewer's tree, after the composer.
+
+### 22. The design canvas
+
+No board is amended. The boards that draw the result pane with Preview toggled off, a state the viewer reaches by its toggle, are checked in that state and named in the done commit.
+
+### 23. A2UI findings
+
+No new finding. The Python restaurant finder creating its surface again in a streamed turn is finding 14, and the Node restaurant finder's stub creating `stub-notice` again in every turn is finding 17.
+
+### 24. Components left unreachable by a repaint
+
+A surface an agent repaints in place with a new `root`, as the Python restaurant finder's second turn and the CircleCI agent's rerun proposal do, leaves its earlier components unreachable, and the structural check reports them on every turn that touches the surface. It is content in this run. Whether those components are judged, and judged again on each later turn, goes to the backlog.
+
 ## Invariants
 
 - Nothing committed in A2UIVerse depends on this repo.
