@@ -20,7 +20,9 @@
  *   each message its own part, with mistakes the checks and web core's
  *   message processor find: a Button with a property its catalog does not
  *   define, an `updateComponents` to a surface never created, and an
- *   `updateDataModel` that names no surface.
+ *   `updateDataModel` that names no surface. A later message in the same
+ *   conversation gets a completed task holding a booking summary, a new
+ *   surface whose Text binds a path its data model never fills.
  *
  * Options:
  *   --port <n>          The port to listen on, on 127.0.0.1. Default: $PORT, or 10013.
@@ -618,14 +620,47 @@ function flawedBooking({version, catalogId}: A2uiVersion): Array<Record<string, 
   ];
 }
 
+const SUMMARY_SURFACE_ID = 'summary';
+
+/**
+ * The Flawed Booking Agent's later reply: a booking summary on a new surface
+ * whose Text binds a path the surface's data model never fills.
+ */
+function unfilledSummary({version, catalogId}: A2uiVersion): Array<Record<string, unknown>> {
+  return [
+    {version, createSurface: {surfaceId: SUMMARY_SURFACE_ID, catalogId}},
+    {
+      version,
+      updateComponents: {
+        surfaceId: SUMMARY_SURFACE_ID,
+        components: [
+          {id: 'root', component: 'Column', children: ['heading', 'deposit']},
+          {id: 'heading', component: 'Text', text: 'Your booking at Han Il Kwan', variant: 'h2'},
+          {id: 'deposit', component: 'Text', text: {path: '/summary/deposit'}},
+        ],
+      },
+    },
+  ];
+}
+
 class FlawedBookingExecutor implements AgentExecutor {
+  /** The conversations already sent the booking form, by context id. */
+  readonly #answered = new Set<string>();
+
   cancelTask = async (_taskId: string, _eventBus: ExecutionEventBus): Promise<void> => {};
 
   async execute(context: RequestContext, eventBus: ExecutionEventBus): Promise<void> {
-    const parts = [
-      textPart('Here is the booking form for Han Il Kwan.'),
-      ...flawedBooking(FLAWED_VERSION).map(a2uiPart),
-    ];
+    const later = this.#answered.has(context.contextId);
+    this.#answered.add(context.contextId);
+    const parts = later
+      ? [
+          textPart('Here is your booking summary.'),
+          ...unfilledSummary(FLAWED_VERSION).map(a2uiPart),
+        ]
+      : [
+          textPart('Here is the booking form for Han Il Kwan.'),
+          ...flawedBooking(FLAWED_VERSION).map(a2uiPart),
+        ];
     eventBus.publish(
       AgentEvent.task({
         ...newTask(context),

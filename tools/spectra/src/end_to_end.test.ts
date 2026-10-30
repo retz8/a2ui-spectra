@@ -3,7 +3,9 @@
  * A2UI conversation, with a two-turn conversation sent through the message
  * box's API and continued after a second conversation was started, which
  * goes on with an action, the data model sent with each, once with the
- * stub's card listing A2A 1.0 first and once A2A 0.3 first. It runs under Node by default, and against the binary when
+ * stub's card listing A2A 1.0 first and once A2A 0.3 first; and the stub's
+ * flawed booking conversation continued, its later turn binding a path its
+ * data model never fills. It runs under Node by default, and against the binary when
  * SPECTRA_BINARY names one. The stub is built by the conformance workspace.
  */
 import assert from 'node:assert/strict';
@@ -475,6 +477,67 @@ describe(`the config file against the stub agent, ${binary ? 'the binary' : 'und
         assert.equal(response.status, 422);
         assert.deepEqual(await response.json(), {error: unavailable});
       } finally {
+        spectra.signal('SIGTERM');
+        await spectra.exited;
+        stub.kill();
+      }
+    },
+  );
+});
+
+describe(`the flawed booking conversation against the stub agent, ${binary ? 'the binary' : 'under Node'}`, () => {
+  it(
+    'answers a later message in the conversation with a surface whose bound path the binding check finds unfilled',
+    {timeout: TIMEOUT},
+    async () => {
+      const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+      const stub = await startStub(agentPort, [], '--flawed-booking');
+      const spectra = new SpectraProcess(
+        [
+          'attach',
+          `http://127.0.0.1:${agentPort}`,
+          '--port',
+          String(port),
+          '--proxy-port',
+          String(proxyPort),
+          '--no-open',
+        ],
+        workingDir(),
+      );
+      const base = `http://127.0.0.1:${port}`;
+      let live: LiveStream | undefined;
+      try {
+        await spectra.waitFor(/The viewer is at /);
+        live = new LiveStream(`${base}/api/stream`);
+        await live.ready;
+
+        const first = await sendMessage(base, 'Book a table');
+        await live.closed(first.traceId);
+        const {conversationId} = (await boxSettled(base)).conversations[0];
+        const later = await sendMessage(base, 'Show my booking', conversationId);
+        const turn = await live.closed(later.traceId);
+
+        assert.equal(turnEventOf(turn).attributes['gen_ai.conversation.id'], conversationId);
+        assert.deepEqual(textsOf(turn), ['Here is your booking summary.']);
+        const findings = Object.fromEntries(
+          turn.events
+            .filter((event): event is CheckEvent => isEventOfKind(event, 'check'))
+            .map(check => [
+              check.attributes['a2ui.check.name'],
+              check.attributes['a2ui.check.findings'].map(({code, surfaceId}) => ({
+                code,
+                surfaceId,
+              })),
+            ]),
+        );
+        assert.deepEqual(findings, {
+          schema: [],
+          catalog: [],
+          structural: [],
+          binding: [{code: 'BINDING_PATH_UNFILLED', surfaceId: 'summary'}],
+        });
+      } finally {
+        live?.close();
         spectra.signal('SIGTERM');
         await spectra.exited;
         stub.kill();
