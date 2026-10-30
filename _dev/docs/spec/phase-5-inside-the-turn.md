@@ -97,7 +97,7 @@ Turn record v0.1 is amended in place: its provider rule reads the four APIs of d
 
 ### 18. The design artifact comes first
 
-Phase 5's boards are drawn first on the design canvas "Spectra viewer UI", in light and dark, alongside the server work: a model call read in full, with its exact request, its response, its tokens, cache use and hit ratio, its estimated cost and its prefix break; a call recorded raw; tool calls, MCP and HTTP; received spans and their links to the proxies' events; and the timeline, with the time to the first token, the time to the first component and each tool call's duration.
+Phase 5's boards are drawn first on the design canvas "Spectra viewer UI", in light and dark, alongside the server work: a model call read in full, with its exact request, its response, its tokens, cache use and hit ratio, its estimated cost and its prefix break; a call recorded raw; tool calls, MCP and HTTP; received spans and their links to the proxies' events; the timeline, with the time to the first token, the time to the first component and each tool call's duration; and the first screen under `a2ui-spectra attach`, with the variables to set in the agent's shell.
 
 ### 19. The acceptance run
 
