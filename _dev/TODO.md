@@ -34,7 +34,7 @@ Spec: `_dev/docs/spec/phase-3-viewer-ui.md`.
 - [x] **3.6** Small screens, the keyboard and the page address — the turn list's strip and overlay below 1,280px, draggable dividers remembered in the browser, the composer growing as you type; the keys and the list of keys; the page address holding the turn and the step. Spec: `_dev/docs/spec/task-3.6-small-screens-keyboard-page-address.md`. Done when the design artifact's small-window boards, the overlay and the list of keys work in the viewer, and the keys and the page address work as the spec has them. (after 3.5)
 - [x] **3.7** The acceptance run — the real viewer with the restaurant finder, the stub agent's flawed booking conversation and AG2's agent through the three flows and the artifact's other boards, in light and dark, at the small window size and with the keyboard, pressing the step's detail's Collapse and Expand and `n` with the detail closed, at the small window size and on a tall one; what it finds is fixed within the sub-task. Spec: `_dev/docs/spec/task-3.7-acceptance-run.md`. (after 3.6)
 
-## Phase 4 — Checks and preview [WIP]
+## Phase 4 — Checks and preview [done]
 Catalog and structural checks; the preview protocol and its core; the built-in basic catalog preview; the React, Lit and Angular preview adapters; the preview you can press; preview widths; the message box sending the agent's credentials from the shell, never recorded.
 Spec: `_dev/docs/spec/phase-4-checks-and-preview.md`.
 
