@@ -173,7 +173,7 @@ describe('routeOf', () => {
 });
 
 describe('previewProblemsOf', () => {
-  it("puts a component's failure on the step whose message last carried it, marking its line", () => {
+  it("puts a component's failure on the step whose message last carried it, marking its id's line", () => {
     const {events, timeline, stepOf} = turnOf('node_restaurant_finder/stream_v1_0_booking');
     const feed = surfaceFeedOf([], events, undefined, 'confirmation');
     const report: Report = {
@@ -197,7 +197,7 @@ describe('previewProblemsOf', () => {
         code: 'TypeError: Failed to construct URL',
         note: 'Preview page · not recorded',
         surfaceId: 'confirmation',
-        inner: '/updateComponents/components/3',
+        inner: '/updateComponents/components/3/id',
       },
     ]);
     assert.deepEqual(folded, []);
@@ -277,6 +277,37 @@ describe('previewProblemsOf', () => {
       },
     ]);
     assert.equal(lines.length, 2);
+  });
+
+  it('folds a refused message of an earlier turn on the last step, uncounted, as that turn counts it', () => {
+    const {earlier, events, timeline} = turnOf('node_restaurant_finder/stream_v1_0_booking');
+    const feed = surfaceFeedOf(earlier, events, undefined, 'stub-notice');
+    const last = timeline[timeline.length - 1].id;
+    const index = feed.findIndex(({key}) => key === undefined);
+    assert.ok(index >= 0, "The feed carries an earlier turn's message.");
+    const {problems, folded, lines} = previewProblemsOf(
+      [
+        {
+          kind: 'refused',
+          index,
+          code: 'INTEGRITY_ERROR',
+          error: 'Surface stub-notice already exists.',
+        },
+      ],
+      feed,
+      'stub-notice',
+      timeline,
+      [],
+    );
+    assert.deepEqual(problems, []);
+    assert.deepEqual(folded, [
+      {
+        stepId: last,
+        sentence: 'Surface stub-notice already exists.',
+        lead: "The preview page also refused an earlier turn's message",
+      },
+    ]);
+    assert.deepEqual(lines, ['The preview page refused this message.']);
   });
 
   it("puts web core's error on the surface on the last step, folded when the viewer has a problem there", () => {

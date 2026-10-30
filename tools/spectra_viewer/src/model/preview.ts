@@ -12,7 +12,8 @@
  * message on that message's step, an error web core reported on the
  * component's step or the outcome. A component failure always counts; a
  * refused message or a web core error on a step with a problem of the
- * viewer's own folds under it as a quiet line.
+ * viewer's own folds under it as a quiet line, and a refused message of an
+ * earlier turn, which that turn counts, folds on the last step.
  */
 import {isCatalogVersionCompatible} from '@a2ui/web_core/adapters';
 import type {Claim, Report} from 'a2ui-spectra-preview';
@@ -181,14 +182,14 @@ export function previewProblemsOf(
   const withProblems = new Set(existing.map(problem => problem.stepId));
   const result: PreviewProblems = {problems: [], folded: [], lines: []};
 
-  /** The step of the turn's own message that last carried a component, and the component's line in it. */
+  /** The step of the turn's own message that last carried a component, and the line of the component's id in it. */
   const componentStep = (componentId: string): {stepId: string; inner?: string} => {
     for (let index = feed.length - 1; index >= 0; index -= 1) {
       const {message, key} = feed[index];
-      const inner = componentPointer(message, componentId);
-      if (inner === undefined) continue;
+      const pointer = componentPointer(message, componentId);
+      if (pointer === undefined) continue;
       const stepId = key === undefined ? undefined : stepOfMessage.get(key);
-      return stepId === undefined ? {stepId: turnLevel} : {stepId, inner};
+      return stepId === undefined ? {stepId: turnLevel} : {stepId, inner: `${pointer}/id`};
     }
     return {stepId: turnLevel};
   };
@@ -217,7 +218,14 @@ export function previewProblemsOf(
       const stepId = (key === undefined ? undefined : stepOfMessage.get(key)) ?? turnLevel;
       const sentence = 'The preview page refused this message.';
       result.lines.push(sentence);
-      if (withProblems.has(stepId)) {
+      if (key === undefined) {
+        // An earlier turn's message: that turn counts the refusal.
+        result.folded.push({
+          stepId,
+          sentence: report.error,
+          lead: "The preview page also refused an earlier turn's message",
+        });
+      } else if (withProblems.has(stepId)) {
         result.folded.push({
           stepId,
           sentence: report.error,

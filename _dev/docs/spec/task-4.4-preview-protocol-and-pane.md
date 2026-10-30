@@ -46,7 +46,7 @@ Each render carries a running number, and the page tags every report with the nu
 
 ### 6. Where a report is placed
 
-The viewer places a report from what it carries. A component failure carries the component's id and type, and sits on the step whose message carried that component, the turn's own message that last carried it in the render's list, marking the component's line. A refused message carries its index in the render's list, and sits on that message's step. A web core error carries its code and text, and the component id when web core gives one; it sits on that component's step, or on the outcome step when it names none. A report whose message is an earlier turn's sits on the outcome step.
+The viewer places a report from what it carries. A component failure carries the component's id and type, and sits on the step whose message carried that component, the turn's own message that last carried it in the render's list, marking the line of the component's id. A refused message carries its index in the render's list, and sits on that message's step. A web core error carries its code and text, and the component id when web core gives one; it sits on that component's step, or on the outcome step when it names none. A report whose message is an earlier turn's sits on the outcome step; a refused message of an earlier turn, which that turn counts, folds there as a quiet line.
 
 ### 7. Loading the pages
 
