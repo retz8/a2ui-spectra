@@ -21,10 +21,10 @@ Spec for sub-task 5.7 of Phase 5 — Inside the turn (`_dev/docs/spec/phase-5-in
 
 - Upstream's Node restaurant finder, on Gemini through `@google/genai`.
 - Upstream's custom-components example, across the four APIs through LiteLLM, with its floor plan server over HTTP+SSE, and under OpenInference and OpenLLMetry.
-- A2UIVerse's Linear agent in its stub mode, on Gemini through ADK's Gemini class, its tools canned in the agent's process.
-- A2UIVerse's CircleCI agent in its stub mode, on Claude, `anthropic/claude-haiku-5-5` through ADK's Anthropic class with the kit's default effort, its tools canned in the agent's process.
+- A2UIVerse's Linear agent in its live mode, on Gemini, with Linear's hosted MCP server over streamable HTTP.
+- A2UIVerse's CircleCI agent in its live mode, on Claude, `anthropic/claude-haiku-5-5` through ADK's Anthropic class with the kit's default effort, with CircleCI's MCP server over streamable HTTP.
 
-The rule behind the list is coverage of agent stacks. The two A2UIVerse agents' live modes, with their hosted MCP servers over streamable HTTP, are the open item below. The Python restaurant finder is not a target; it appears only as the subject of decision 14's first check. Decision 19 of the Phase 5 spec is amended in place to this list and this rule.
+The rule behind the list is coverage of agent stacks. The Python restaurant finder is not a target; it appears only as the subject of decision 14's first check. Decision 19 of the Phase 5 spec is amended in place to this list and this rule.
 
 ### 2. `run` and `attach`
 
@@ -37,8 +37,8 @@ The run starts from an empty store, in a folder of its own. Every Spectra start 
 1. The Node restaurant finder under `attach`: nothing set — the first screen with the variables block, and one wire-only turn; restarted with the five model variables set — its Gemini calls read in full.
 2. The custom-components example under `attach`, with the agent's spans as decision 8 has it: the receiver's exports alone — span-only model and tool rows; restarted with every printed variable set — the full picture, and Flow 5's conversation: two turns, a line of the example's prompt changed, the agent restarted, a third turn.
 3. The custom-components example under `run`: on Gemini with its floor plan server; on Anthropic; on Chat Completions and on Responses against the stand-in; under OpenInference and under OpenLLMetry on Gemini.
-4. The Linear agent in stub mode on Gemini under `run`.
-5. The CircleCI agent in stub mode on Claude under `run`.
+4. The Linear agent live on Gemini under `run`.
+5. The CircleCI agent live on Claude under `run`.
 
 ### 4. The tunnel and the preview
 
@@ -55,7 +55,6 @@ Flows 1 to 4 are walked once each on the Node finder's session, Flow 4 on the bu
 - A call recorded raw: one more turn of the custom-components example on Chat Completions with `SPECTRA_PROVIDER_STAND_IN` unset, so the stand-in is another host.
 - An HTTP tool: Spectra's own tool server from `conformance/`, named in the session's config as a tool server, and one request sent by hand to its tool proxy port while a turn of the Node finder is open, `GET /api/json`.
 - A failed call as a problem: a second request sent the same way, to a path the tool server answers `404`.
-- `tools/call` over streamable HTTP: one of the tool capture suite's client scenarios run by hand against the same tool server through its tool proxy port while a turn is open.
 
 ### 7. The example's four legs
 
@@ -72,13 +71,13 @@ The sessions launched under `opentelemetry-instrument` follow 5.4's recipe — t
 
 - the custom-components example's `attach` session and its Gemini `run` leg, with ADK's own dialect; the full `attach` restart with `OTEL_SEMCONV_STABILITY_OPT_IN=gen_ai_latest_experimental`, so the `gen_ai.client.inference.operation.details` log record is seen as a span event;
 - the OpenInference and OpenLLMetry legs on Gemini, with the instrumentations at 5.4's versions, `openinference-instrumentation-litellm` 0.1.52 and `opentelemetry-instrumentation-litellm` 0.62.4;
-- the Linear and CircleCI agents, with the bootstrap set for their own environments; their canned tools are ADK's `execute_tool` spans.
+- the Linear and CircleCI agents, with the bootstrap set for their own environments.
 
 The Node finder and the Anthropic, Chat Completions and Responses legs run with no instrumentation; their rows come from the proxies alone.
 
-### 9. The A2UIVerse agents' turns
+### 9. The live agents' turns
 
-Two typed, read-only turns in one conversation each: the Linear agent "Show my open issues", then an issue opened by its key; the CircleCI agent "Show me the recent runs", then the latest run opened. Each agent is signed in as its fake account through its own sign-in, with its sign-in store in a scratch folder; the live stores and the vault are not touched.
+Two typed, read-only turns in one conversation each: the Linear agent "Show my open issues", then an issue opened by its key; the CircleCI agent "Show me the recent runs", then the latest run opened. Each agent is signed in through a scratch copy of its sign-in store; the live store and the vault are only read.
 
 ### 10. The keyboard
 
@@ -124,8 +123,4 @@ One attribute, `a2ui.mcp.stream.url`: the HTTP+SSE session's `GET` stream URL, c
 - Every finding has gone where decision 13 sends it.
 - The unit tests, the three capture suites with the rewritten HTTP+SSE records, and both end-to-end tests pass after the fixes, under Node and against the binary, locally and in CI.
 - This spec carries decision 16's last item.
-- The done commit names the boards not checked, the open item's legs not run, the tall window's height, the fork's ref `825beac28` with google-adk 2.3.0, LiteLLM 1.90.1 and the two instrumentations' versions, the a2uiverse-apps commit the live sessions ran against, and the Claude model.
-
-## Open items
-
-- The Linear and CircleCI agents in their live modes, with their hosted MCP servers over streamable HTTP and a live bearer token stripped, in a session where their sign-ins can be made: the sign-in pages take a loopback return address, so they need a browser on the dev machine.
+- The done commit names the boards not checked, the tall window's height, the fork's ref `825beac28` with google-adk 2.3.0, LiteLLM 1.90.1 and the two instrumentations' versions, the a2uiverse-apps commit the live sessions ran against, and the Claude model.
