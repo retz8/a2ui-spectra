@@ -20,13 +20,35 @@ interface TurnRecordCase {
   expectError?: {category: 'ValidationError'; details: ExpectedDetail[]};
 }
 
-/** A case of the A2A capture suite, or of the model capture suite, whose expected record is a turn record. */
-interface CaptureCase {
-  name: string;
-  description: string;
-  action: 'capture_a2a' | 'capture_model';
-  traffic: string;
-  expect: string;
+/**
+ * A case of the A2A capture suite or the model capture suite, with its
+ * recording and its expected record, or of the tool capture suite, with an
+ * expected record per transport its scenario runs over.
+ */
+type CaptureCase =
+  | {
+      name: string;
+      description: string;
+      action: 'capture_a2a' | 'capture_model';
+      traffic: string;
+      expect: string;
+    }
+  | {
+      name: string;
+      description: string;
+      action: 'capture_tool';
+      scenario: string;
+      expect: Record<string, string>;
+    };
+
+/** The expected records a case names. */
+function expectedRecords(c: CaptureCase): string[] {
+  return typeof c.expect === 'string' ? [c.expect] : Object.values(c.expect);
+}
+
+/** Every file a case names: its recording, when it has one, and its expected records. */
+function namedFiles(c: CaptureCase): string[] {
+  return [...('traffic' in c ? [c.traffic] : []), ...expectedRecords(c)];
 }
 
 interface TurnRecord {
@@ -60,6 +82,11 @@ const CAPTURE_SUITES = [
     title: 'model capture v0.1',
     suite: path.join(CONFORMANCE_DIR, 'model_capture/capture_v0_1.yaml'),
     root: path.join(CONFORMANCE_DIR, 'test_data/model_capture'),
+  },
+  {
+    title: 'tool capture v0.1',
+    suite: path.join(CONFORMANCE_DIR, 'tool_capture/capture_v0_1.yaml'),
+    root: path.join(CONFORMANCE_DIR, 'test_data/tool_capture'),
   },
 ];
 
@@ -216,16 +243,16 @@ for (const {title, suite, root} of CAPTURE_SUITES) {
   describe(`${title} expected records`, () => {
     for (const c of captureCases) {
       it(c.name, () => {
-        const record = readJson(path.join(CONFORMANCE_DIR, c.expect));
-        assert.ok(validate(record), `${c.expect} must validate:\n${formatErrors(validate.errors)}`);
+        for (const file of expectedRecords(c)) {
+          const record = readJson(path.join(CONFORMANCE_DIR, file));
+          assert.ok(validate(record), `${file} must validate:\n${formatErrors(validate.errors)}`);
+        }
       });
     }
 
     it('every recording and expected record is named by a case', () => {
       const named = new Set(
-        captureCases.flatMap(c =>
-          [c.traffic, c.expect].map(file => path.join(CONFORMANCE_DIR, file)),
-        ),
+        captureCases.flatMap(c => namedFiles(c).map(file => path.join(CONFORMANCE_DIR, file))),
       );
       assert.deepEqual(
         (fs.existsSync(root) ? listFiles(root) : [])

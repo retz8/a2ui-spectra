@@ -105,6 +105,20 @@ A scripted Gemini cache read on a repeated long prefix reported no hit and was n
 
 `conformance_schema.json` at the root is the JSON schema that validates the structure of the YAML case files. The harness validates each case file against it before running any case.
 
+### Tool capture (`tool_capture/`)
+
+- `tool_capture/capture_v0_1.yaml`: runs client scenarios through the tool proxy to [Spectra's own tool server](#the-tool-server), and compares the `tool_call` events the proxy writes with the expected record. Every case uses `action: capture_tool`. The expected records are under `test_data/tool_capture/v0_1/<scenario>/<transport>.json`, each a turn record v0.1 file holding one turn with a stand-in turn event and the scenario's tool calls. No HAR is recorded for tools.
+- A harness starts the tool server, and for each case runs its named scenario over each transport the case names, with the TypeScript MCP SDK's own client, or with plain HTTP requests for the routes, through the tool proxy with one turn open. It closes the turn and compares the tool calls it holds with the transport's expected record, after times, span ids, session ids, JSON-RPC request ids and the server's port are normalised and the headers the HTTP client and server add on their own are left out; it checks instead that each call is under the turn event, ends after it starts and went to the tool server. Spectra's harness is `tools/spectra/src/tool_proxy/capture.conformance.test.ts`.
+
+| Transport              | The tool server's endpoint                             |
+| ---------------------- | ------------------------------------------------------ |
+| `streamable_http`      | `/mcp`, MCP over streamable HTTP, each reply a stream  |
+| `streamable_http_json` | `/mcp/json`, MCP over streamable HTTP, each reply JSON |
+| `http_sse`             | `/sse` and `/messages`, MCP over HTTP+SSE              |
+| `http`                 | The plain HTTP routes                                  |
+
+The expected records were written by the harness from its first capture, with `SPECTRA_WRITE_TOOL_CAPTURE=1`, and checked by hand against the rules of `_dev/docs/spec/task-5.3-tool-proxy.md`.
+
 ## The stub agent
 
 [`stub_agent/stub_agent.ts`](stub_agent/stub_agent.ts) is a small A2A agent on `@a2a-js/sdk` 1.3.0, serving A2A 1.0 and, through the SDK's compatibility layer, A2A 0.3 on one JSON-RPC endpoint. Run it from `conformance/` after `yarn build`, as `node dist/stub_agent/stub_agent.js`.
@@ -131,6 +145,21 @@ Without `--canned-a2ui` or `--flawed-booking`, the stub waits for a cancel, the 
 It answers each request with the next recorded response, sends a stream in pieces, and answers a request it did not expect with a `599` naming what it expected. A request is expected when its method and path match the next recorded request's, the parameters that carry credentials left out of both. A response recorded with HAR's `_brokenOff` breaks off after its bytes.
 
 Spectra reads the stand-in as the provider's own host when the test-only environment variable `SPECTRA_PROVIDER_STAND_IN` names its origin: a call forwarded there is read as the own host of the API its path names. The variable is for the tests and the acceptance run; it is not in the tool's usage or help. The model capture suite sets it for each case, and the acceptance run drives the custom-components example against the stand-in playing `openai_chat/custom_components_conversation.har` or `openai_responses/custom_components_conversation.har`, with `OPENAI_BASE_URL` pointed at the stand-in in Spectra's environment and the variable set to its origin.
+
+## The tool server
+
+[`tool_server/tool_server.ts`](tool_server/tool_server.ts) is Spectra's own tool server, on the TypeScript MCP SDK's low-level server, serving MCP over streamable HTTP and over HTTP+SSE and a few plain HTTP routes on one port. Run it from `conformance/` after `yarn build`, as `node dist/tool_server/tool_server.js --port 9831`; `--port` defaults to `$PORT`, or 9831.
+
+| Route                                       | What it serves                                                                     |
+| ------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `POST`, `GET` and `DELETE` `/mcp`           | MCP over streamable HTTP, stateful, each reply a stream of server-sent events      |
+| `POST`, `GET` and `DELETE` `/mcp/json`      | The same, each reply JSON                                                          |
+| `GET /sse`, `POST /messages?sessionId=<id>` | MCP over HTTP+SSE, the endpoint relative                                           |
+| `GET` and `POST` `/api/json`                | A JSON route echoing the method, the query and the body                            |
+| `GET /api/events`                           | A server-sent-event route: two `tick` events with ids, then one with no event name |
+| Anything else                               | `404`                                                                              |
+
+Its MCP side is the same over every transport: the tools `echo`, answering with its arguments; `fail`, answering with `isError`; `progress`, sending `notifications/progress` when the request asks for progress and `notifications/message` while it runs; and `ask`, asking the client through `sampling/createMessage` and answering with the client's text; a JSON-RPC error, `-32602`, for any other tool; the resource `spectra://tool-server/readme`; and the prompt `greet`, taking `name`.
 
 ## Writing cases for `validate_turn_record`
 
@@ -197,18 +226,39 @@ The harness validates with Ajv 8's draft 2020-12 build in strict mode, with Ajv'
   expect: 'test_data/model_capture/v0_1/anthropic/cache_write_then_read.json'
 ```
 
+## Writing cases for `capture_tool`
+
+| Field         | Required | Meaning                                                                                                                                                    |
+| ------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | yes      | Unique name of the case.                                                                                                                                   |
+| `description` | yes      | What the scenario does and what its records verify.                                                                                                        |
+| `action`      | yes      | `capture_tool`.                                                                                                                                            |
+| `scenario`    | yes      | The client scenario the harness runs, by name.                                                                                                             |
+| `expect`      | yes      | The expected record of each transport the scenario runs over, `streamable_http`, `streamable_http_json`, `http_sse` or `http`, relative to `conformance/`. |
+
+```yaml
+- name: session_end
+  description: "MCP's session end under streamable HTTP: a DELETE carrying Mcp-Session-Id, named DELETE, with the session and no method."
+  action: capture_tool
+  scenario: session_end
+  expect:
+    streamable_http: 'test_data/tool_capture/v0_1/session_end/streamable_http.json'
+```
+
+A new scenario is written in the harness, which runs it with the MCP SDK's client against the tool server; its expected records are written with `SPECTRA_WRITE_TOOL_CAPTURE=1` and checked by hand.
+
 ## Checks on the test data as a whole
 
 - Every kind the schema defines appears in at least one must-pass fixture.
 - Every file under `test_data/turn_record/` is named by a case.
-- Every expected record of the A2A capture suite and of the model capture suite validates against the turn record schema.
-- Every file under `test_data/a2a_capture/` and under `test_data/model_capture/` is named by a case.
+- Every expected record of the A2A, model and tool capture suites validates against the turn record schema.
+- Every file under `test_data/a2a_capture/`, `test_data/model_capture/` and `test_data/tool_capture/` is named by a case.
 
 ## Commands
 
 From `conformance/`:
 
-- `yarn build`: compiles the harness in `tests/`, the stub agent in `stub_agent/` and the stand-in provider in `stand_in_provider/` into `dist/`.
+- `yarn build`: compiles the harness in `tests/`, the stub agent in `stub_agent/`, the stand-in provider in `stand_in_provider/` and the tool server in `tool_server/` into `dist/`.
 - `yarn test`: builds, then runs the suites with Node's test runner.
 - `yarn lint` and `yarn lint:fix`: ESLint with the root ESLint preset.
 - `yarn format` and `yarn format:check`: Prettier, with the root `.prettierignore`.

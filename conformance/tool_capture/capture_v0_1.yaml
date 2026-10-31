@@ -1,0 +1,52 @@
+# The tool capture path: each client scenario run with the MCP SDK's own
+# client, or with plain HTTP requests, through the tool proxy to Spectra's own
+# tool server, over each transport the case names, and the tool call events
+# the proxy writes compared with that transport's expected record.
+
+- name: tools
+  description: "initialize and notifications/initialized, tools/list, tools/call echo with its arguments and result, tools/call fail answering isError as a tool error with the status kept, and tools/call of an unknown tool answering a JSON-RPC error as a failed call."
+  action: capture_tool
+  scenario: tools
+  expect:
+    streamable_http: "test_data/tool_capture/v0_1/tools/streamable_http.json"
+    streamable_http_json: "test_data/tool_capture/v0_1/tools/streamable_http_json.json"
+    http_sse: "test_data/tool_capture/v0_1/tools/http_sse.json"
+
+- name: resources_and_prompts
+  description: "resources/list, resources/read named by its URI, prompts/list, and prompts/get named by its prompt with gen_ai.prompt.name."
+  action: capture_tool
+  scenario: resources_and_prompts
+  expect:
+    streamable_http: "test_data/tool_capture/v0_1/resources_and_prompts/streamable_http.json"
+    streamable_http_json: "test_data/tool_capture/v0_1/resources_and_prompts/streamable_http_json.json"
+    http_sse: "test_data/tool_capture/v0_1/resources_and_prompts/http_sse.json"
+
+- name: progress_and_logging
+  description: "tools/call progress asking for progress: under streamable HTTP, notifications/progress and notifications/message are chunks on the POST event; under HTTP+SSE, the progress attaches to the request by its token and the log message is an event of its own the server initiated."
+  action: capture_tool
+  scenario: progress_and_logging
+  expect:
+    streamable_http: "test_data/tool_capture/v0_1/progress_and_logging/streamable_http.json"
+    http_sse: "test_data/tool_capture/v0_1/progress_and_logging/http_sse.json"
+
+- name: sampling
+  description: "tools/call ask, which asks the client through sampling/createMessage: under streamable HTTP, the server's request is a chunk on the POST event and the client's response an event named response; under HTTP+SSE, the server's request is an event of its own the server initiated, ending at the client's response with its exchange."
+  action: capture_tool
+  scenario: sampling
+  expect:
+    streamable_http: "test_data/tool_capture/v0_1/sampling/streamable_http.json"
+    http_sse: "test_data/tool_capture/v0_1/sampling/http_sse.json"
+
+- name: session_end
+  description: "MCP's session end under streamable HTTP: a DELETE carrying Mcp-Session-Id, named DELETE, with the session and no method."
+  action: capture_tool
+  scenario: session_end
+  expect:
+    streamable_http: "test_data/tool_capture/v0_1/session_end/streamable_http.json"
+
+- name: http_routes
+  description: "HTTP tools on the same server, recorded raw: a JSON route by GET with a query and by POST with a body, a server-sent-event route as one chunk per event, and a 404 as a failed call."
+  action: capture_tool
+  scenario: http_routes
+  expect:
+    http: "test_data/tool_capture/v0_1/http_routes/http.json"

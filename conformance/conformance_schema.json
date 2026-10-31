@@ -14,6 +14,9 @@
       },
       {
         "$ref": "#/$defs/CaptureModelTest"
+      },
+      {
+        "$ref": "#/$defs/CaptureToolTest"
       }
     ]
   },
@@ -137,6 +140,53 @@
         }
       },
       "required": ["name", "description", "action", "traffic", "expect"],
+      "additionalProperties": false
+    },
+    "CaptureToolTest": {
+      "type": "object",
+      "description": "Runs one client scenario with the MCP SDK's own client, or plain HTTP requests, through the tool proxy to Spectra's own tool server, over each transport the case names, and compares the tool call events the proxy writes with the expected turn record of that transport.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique name of the test case."
+        },
+        "description": {
+          "type": "string",
+          "description": "What the scenario does and what its records verify."
+        },
+        "action": {
+          "const": "capture_tool"
+        },
+        "scenario": {
+          "type": "string",
+          "description": "The name of the client scenario the harness runs."
+        },
+        "expect": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "description": "The expected turn record of each transport the scenario runs over, relative to conformance/.",
+          "properties": {
+            "streamable_http": {
+              "type": "string",
+              "description": "MCP over streamable HTTP, each reply a stream of server-sent events."
+            },
+            "streamable_http_json": {
+              "type": "string",
+              "description": "MCP over streamable HTTP, each reply JSON."
+            },
+            "http_sse": {
+              "type": "string",
+              "description": "MCP over HTTP+SSE."
+            },
+            "http": {
+              "type": "string",
+              "description": "Plain HTTP requests to the server's routes."
+            }
+          }
+        }
+      },
+      "required": ["name", "description", "action", "scenario", "expect"],
       "additionalProperties": false
     }
   }

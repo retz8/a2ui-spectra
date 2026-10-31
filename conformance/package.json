@@ -28,6 +28,7 @@
         "tests/**/*.ts",
         "stub_agent/**/*.ts",
         "stand_in_provider/**/*.ts",
+        "tool_server/**/*.ts",
         "tsconfig.json"
       ],
       "output": [
@@ -48,7 +49,9 @@
         "test_data/a2a_capture/**",
         "test_data/model_capture/**",
         "test_data/turn_record/**",
-        "../specification/turn_record/**/json/*.json"
+        "../specification/turn_record/**/json/*.json",
+        "tool_capture/**",
+        "test_data/tool_capture/**"
       ],
       "output": []
     },
@@ -58,6 +61,7 @@
   },
   "devDependencies": {
     "@a2a-js/sdk": "1.3.0",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@types/express": "^5.0.0",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.9.3",

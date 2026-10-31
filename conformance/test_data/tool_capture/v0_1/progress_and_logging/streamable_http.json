@@ -1,0 +1,290 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "cccccccccccccccccccccccccccccccc",
+          "spanId": "dddddddddddddddd",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792577000000000000",
+          "endTimeUnixNano": "1792577001000000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "wire",
+              "tool_proxy"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "cccccccccccccccccccccccccccccccc",
+          "spanId": "0000000000000001",
+          "parentSpanId": "dddddddddddddddd",
+          "name": "initialize",
+          "kind": 3,
+          "attributes": {
+            "a2ui.event.kind": "tool_call",
+            "mcp.method.name": "initialize",
+            "jsonrpc.request.id": "<id-1>",
+            "http.request.method": "POST",
+            "url.full": "<origin>/mcp",
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.accept": [
+              "application/json, text/event-stream"
+            ],
+            "server.address": "127.0.0.1",
+            "a2ui.http.request.body": {
+              "method": "initialize",
+              "params": {
+                "protocolVersion": "2025-11-25",
+                "capabilities": {
+                  "sampling": {}
+                },
+                "clientInfo": {
+                  "name": "spectra-tool-capture",
+                  "version": "0.0.1"
+                }
+              },
+              "jsonrpc": "2.0",
+              "id": "<id-1>"
+            },
+            "mcp.session.id": "<session-1>",
+            "mcp.protocol.version": "2025-11-25",
+            "http.response.header.cache-control": [
+              "no-cache, no-transform"
+            ],
+            "http.response.header.content-type": [
+              "text/event-stream"
+            ],
+            "http.response.header.mcp-session-id": [
+              "<session-1>"
+            ],
+            "http.response.header.x-accel-buffering": [
+              "no"
+            ],
+            "http.response.status_code": 200
+          },
+          "events": [
+            {
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "result": {
+                    "protocolVersion": "2025-11-25",
+                    "capabilities": {
+                      "tools": {},
+                      "resources": {},
+                      "prompts": {},
+                      "logging": {}
+                    },
+                    "serverInfo": {
+                      "name": "spectra-tool-server",
+                      "version": "0.0.1"
+                    }
+                  },
+                  "jsonrpc": "2.0",
+                  "id": "<id-1>"
+                },
+                "a2ui.http.response.chunk.event": "message"
+              },
+              "timeUnixNano": "1792577000100000000"
+            }
+          ],
+          "status": {
+            "code": 1
+          },
+          "startTimeUnixNano": "1792577000100000000",
+          "endTimeUnixNano": "1792577000105000000"
+        },
+        {
+          "traceId": "cccccccccccccccccccccccccccccccc",
+          "spanId": "0000000000000002",
+          "parentSpanId": "dddddddddddddddd",
+          "name": "notifications/initialized",
+          "kind": 3,
+          "attributes": {
+            "a2ui.event.kind": "tool_call",
+            "mcp.method.name": "notifications/initialized",
+            "mcp.session.id": "<session-1>",
+            "mcp.protocol.version": "2025-11-25",
+            "http.request.method": "POST",
+            "url.full": "<origin>/mcp",
+            "http.request.header.mcp-session-id": [
+              "<session-1>"
+            ],
+            "http.request.header.mcp-protocol-version": [
+              "2025-11-25"
+            ],
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.accept": [
+              "application/json, text/event-stream"
+            ],
+            "server.address": "127.0.0.1",
+            "a2ui.http.request.body": {
+              "method": "notifications/initialized",
+              "jsonrpc": "2.0"
+            },
+            "http.response.status_code": 202
+          },
+          "status": {
+            "code": 1
+          },
+          "startTimeUnixNano": "1792577000110000000",
+          "endTimeUnixNano": "1792577000115000000"
+        },
+        {
+          "traceId": "cccccccccccccccccccccccccccccccc",
+          "spanId": "0000000000000003",
+          "parentSpanId": "dddddddddddddddd",
+          "name": "tools/call progress",
+          "kind": 3,
+          "attributes": {
+            "a2ui.event.kind": "tool_call",
+            "mcp.method.name": "tools/call",
+            "jsonrpc.request.id": "<id-2>",
+            "gen_ai.operation.name": "execute_tool",
+            "gen_ai.tool.name": "progress",
+            "gen_ai.tool.call.arguments": {},
+            "mcp.session.id": "<session-1>",
+            "mcp.protocol.version": "2025-11-25",
+            "http.request.method": "POST",
+            "url.full": "<origin>/mcp",
+            "http.request.header.mcp-session-id": [
+              "<session-1>"
+            ],
+            "http.request.header.mcp-protocol-version": [
+              "2025-11-25"
+            ],
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.accept": [
+              "application/json, text/event-stream"
+            ],
+            "server.address": "127.0.0.1",
+            "a2ui.http.request.body": {
+              "method": "tools/call",
+              "params": {
+                "name": "progress",
+                "arguments": {},
+                "_meta": {
+                  "progressToken": "<id-2>"
+                }
+              },
+              "jsonrpc": "2.0",
+              "id": "<id-2>"
+            },
+            "http.response.header.cache-control": [
+              "no-cache, no-transform"
+            ],
+            "http.response.header.content-type": [
+              "text/event-stream"
+            ],
+            "http.response.header.mcp-session-id": [
+              "<session-1>"
+            ],
+            "http.response.header.x-accel-buffering": [
+              "no"
+            ],
+            "http.response.status_code": 200,
+            "gen_ai.tool.call.result": {
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Done."
+                }
+              ]
+            }
+          },
+          "events": [
+            {
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "method": "notifications/progress",
+                  "params": {
+                    "progressToken": "<id-2>",
+                    "progress": 1,
+                    "total": 2
+                  },
+                  "jsonrpc": "2.0"
+                },
+                "a2ui.http.response.chunk.event": "message"
+              },
+              "timeUnixNano": "1792577000120000000"
+            },
+            {
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "method": "notifications/message",
+                  "params": {
+                    "level": "info",
+                    "logger": "progress",
+                    "data": "Halfway there."
+                  },
+                  "jsonrpc": "2.0"
+                },
+                "a2ui.http.response.chunk.event": "message"
+              },
+              "timeUnixNano": "1792577000120000000"
+            },
+            {
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "method": "notifications/progress",
+                  "params": {
+                    "progressToken": "<id-2>",
+                    "progress": 2,
+                    "total": 2
+                  },
+                  "jsonrpc": "2.0"
+                },
+                "a2ui.http.response.chunk.event": "message"
+              },
+              "timeUnixNano": "1792577000120000000"
+            },
+            {
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "result": {
+                    "content": [
+                      {
+                        "type": "text",
+                        "text": "Done."
+                      }
+                    ]
+                  },
+                  "jsonrpc": "2.0",
+                  "id": "<id-2>"
+                },
+                "a2ui.http.response.chunk.event": "message"
+              },
+              "timeUnixNano": "1792577000120000000"
+            }
+          ],
+          "status": {
+            "code": 1
+          },
+          "startTimeUnixNano": "1792577000120000000",
+          "endTimeUnixNano": "1792577000125000000"
+        }
+      ]
+    }
+  ]
+}

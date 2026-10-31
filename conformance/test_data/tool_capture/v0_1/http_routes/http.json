@@ -1,0 +1,186 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "cccccccccccccccccccccccccccccccc",
+          "spanId": "dddddddddddddddd",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792577000000000000",
+          "endTimeUnixNano": "1792577001000000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "wire",
+              "tool_proxy"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "cccccccccccccccccccccccccccccccc",
+          "spanId": "0000000000000001",
+          "parentSpanId": "dddddddddddddddd",
+          "name": "GET /api/json",
+          "kind": 3,
+          "attributes": {
+            "a2ui.event.kind": "tool_call",
+            "http.request.method": "GET",
+            "url.full": "<origin>/api/json?q=1",
+            "http.request.header.accept": [
+              "*/*"
+            ],
+            "server.address": "127.0.0.1",
+            "http.response.header.content-type": [
+              "application/json"
+            ],
+            "http.response.status_code": 200,
+            "a2ui.http.response.body": {
+              "method": "GET",
+              "query": {
+                "q": "1"
+              }
+            }
+          },
+          "status": {
+            "code": 1
+          },
+          "startTimeUnixNano": "1792577000100000000",
+          "endTimeUnixNano": "1792577000105000000"
+        },
+        {
+          "traceId": "cccccccccccccccccccccccccccccccc",
+          "spanId": "0000000000000002",
+          "parentSpanId": "dddddddddddddddd",
+          "name": "POST /api/json",
+          "kind": 3,
+          "attributes": {
+            "a2ui.event.kind": "tool_call",
+            "http.request.method": "POST",
+            "url.full": "<origin>/api/json",
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.accept": [
+              "*/*"
+            ],
+            "server.address": "127.0.0.1",
+            "a2ui.http.request.body": {
+              "x": 1
+            },
+            "http.response.header.content-type": [
+              "application/json"
+            ],
+            "http.response.status_code": 200,
+            "a2ui.http.response.body": {
+              "method": "POST",
+              "query": {},
+              "body": {
+                "x": 1
+              }
+            }
+          },
+          "status": {
+            "code": 1
+          },
+          "startTimeUnixNano": "1792577000110000000",
+          "endTimeUnixNano": "1792577000115000000"
+        },
+        {
+          "traceId": "cccccccccccccccccccccccccccccccc",
+          "spanId": "0000000000000003",
+          "parentSpanId": "dddddddddddddddd",
+          "name": "GET /api/events",
+          "kind": 3,
+          "attributes": {
+            "a2ui.event.kind": "tool_call",
+            "http.request.method": "GET",
+            "url.full": "<origin>/api/events",
+            "http.request.header.accept": [
+              "*/*"
+            ],
+            "server.address": "127.0.0.1",
+            "http.response.header.content-type": [
+              "text/event-stream"
+            ],
+            "http.response.header.cache-control": [
+              "no-cache"
+            ],
+            "http.response.status_code": 200
+          },
+          "events": [
+            {
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "n": 1
+                },
+                "a2ui.http.response.chunk.event": "tick",
+                "a2ui.http.response.chunk.id": "1"
+              },
+              "timeUnixNano": "1792577000120000000"
+            },
+            {
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "n": 2
+                },
+                "a2ui.http.response.chunk.event": "tick",
+                "a2ui.http.response.chunk.id": "2"
+              },
+              "timeUnixNano": "1792577000120000000"
+            },
+            {
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": "done"
+              },
+              "timeUnixNano": "1792577000120000000"
+            }
+          ],
+          "status": {
+            "code": 1
+          },
+          "startTimeUnixNano": "1792577000120000000",
+          "endTimeUnixNano": "1792577000125000000"
+        },
+        {
+          "traceId": "cccccccccccccccccccccccccccccccc",
+          "spanId": "0000000000000004",
+          "parentSpanId": "dddddddddddddddd",
+          "name": "GET /missing",
+          "kind": 3,
+          "attributes": {
+            "a2ui.event.kind": "tool_call",
+            "http.request.method": "GET",
+            "url.full": "<origin>/missing",
+            "http.request.header.accept": [
+              "*/*"
+            ],
+            "server.address": "127.0.0.1",
+            "http.response.header.content-type": [
+              "text/plain"
+            ],
+            "http.response.status_code": 404,
+            "a2ui.http.response.body": "Not found",
+            "error.type": "404"
+          },
+          "status": {
+            "code": 2
+          },
+          "startTimeUnixNano": "1792577000130000000",
+          "endTimeUnixNano": "1792577000135000000"
+        }
+      ]
+    }
+  ]
+}
