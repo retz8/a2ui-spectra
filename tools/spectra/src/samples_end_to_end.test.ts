@@ -21,6 +21,7 @@ import {fileURLToPath} from 'node:url';
 import {type Browser, chromium} from 'playwright';
 
 import type {ListedTurn} from './api.js';
+import {VARIABLES} from './model_proxy/redirection.js';
 import {
   type A2uiPart,
   isEventOfKind,
@@ -161,6 +162,14 @@ describe(`the sample catalog apps in Chromium, ${binary ? 'the binary' : 'under 
         try {
           await spectra.waitFor(/The viewer is at /);
           await page.goto(base);
+
+          // Under attach, the first screen lists the variables to set in the agent's shell.
+          await page.getByText('set these in the agent’s shell').waitFor();
+          for (const name of VARIABLES) {
+            await page
+              .getByText(`${name}=http://127.0.0.1:${modelProxyPort}/${name}`, {exact: true})
+              .waitFor();
+          }
 
           // The first turn, from the composer: the stub answers in the sample catalog.
           await page.getByRole('textbox', {name: 'Message the agent'}).fill('Hi');

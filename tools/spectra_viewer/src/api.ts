@@ -2,7 +2,7 @@
 import type {KnownCatalog} from './model/catalogs.ts';
 import type {A2aVersion, ActionMessage, DataModelMap} from './model/host_message.ts';
 import type {InputBrief} from './model/input_brief.ts';
-import type {Turn, TurnOutcome, TurnRecord, WireEvent} from './model/record.ts';
+import type {OtherEvent, Turn, TurnOutcome, TurnRecord, WireEvent} from './model/record.ts';
 
 export type {KnownCatalog};
 
@@ -42,6 +42,8 @@ export interface SessionContext {
   proxyAddress: string;
   /** The config file's preview pages, in config order. */
   previewPages?: string[];
+  /** Under `attach`, the variables and values to set in the agent's shell, as `attach` prints them. */
+  variables?: Array<{name: string; value: string}>;
   /** The A2A versions the card states, in card order. */
   a2aVersions: string[];
   /** The A2UI extensions the card advertises, in card order. */
@@ -69,11 +71,24 @@ export interface MessageBoxState {
   a2aVersion?: A2aVersion;
 }
 
+/** One response chunk of a call, as the record holds it: a span event named `a2ui.http.response.chunk`. */
+export interface CallChunk {
+  timeUnixNano: string;
+  name: string;
+  attributes?: Record<string, unknown>;
+}
+
 /** What the live stream sends, by event name. */
 export interface LiveEvents {
   turn_opened: {traceId: string; conversationId?: string; startTime: string};
   /** The conversation once the host's request or a reply has named it. */
   wire_event: {traceId: string; conversationId?: string; event: WireEvent};
+  /** A call placed in an open turn: its event so far, with its start, its request and the names read from it. */
+  call_started: {traceId: string; event: OtherEvent};
+  /** One response chunk of a call, as it arrives. */
+  call_chunk: {traceId: string; spanId: string; chunk: CallChunk};
+  /** The call's complete event, as the record holds it. */
+  call_ended: {traceId: string; event: OtherEvent};
   turn_closed: {traceId: string; turn: Turn};
   heartbeat: Record<string, never>;
 }

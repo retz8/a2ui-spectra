@@ -7,8 +7,9 @@ import {Icon, Mark} from './icons.tsx';
 
 /**
  * The turn view with no turns: the agent and its live status, the first
- * example of each of its card's skills as prompts that fill the composer, and
- * the wire proxy's address to point a host app at.
+ * example of each of its card's skills as prompts that fill the composer, the
+ * wire proxy's address to point a host app at, and under `attach` the
+ * variables to set in the agent's shell, with one copy button for all.
  */
 export function FirstScreen({
   context,
@@ -23,6 +24,7 @@ export function FirstScreen({
   onExample: (text: string) => void;
 }) {
   const examples = canSend ? (context?.examples ?? []) : [];
+  const variables = context?.mode === 'attach' ? (context.variables ?? []) : [];
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3.5 overflow-y-auto p-8 text-center">
       <Mark size={40} />
@@ -59,6 +61,29 @@ export function FirstScreen({
           >
             {addressOf(context.proxyAddress)}
           </CopyButton>
+        </div>
+      )}
+      {variables.length > 0 && (
+        <div className="mt-2.5 flex w-[600px] max-w-full flex-col gap-2 text-left">
+          <div className="flex items-center gap-2">
+            <span className="flex-1 text-xs text-muted-foreground">
+              To see model and tool calls, set these in the agent’s shell
+            </span>
+            <CopyButton
+              text={variables.map(({name, value}) => `export ${name}=${value}`).join('\n')}
+              label="Copy the variables"
+              className="h-[26px] gap-1.5 rounded-lg border bg-panel pr-2 pl-2.5 text-xs text-foreground hover:bg-panel"
+            >
+              Copy
+            </CopyButton>
+          </div>
+          <div className="overflow-x-auto rounded-lg bg-tint px-3 py-2 font-mono text-xs leading-[1.7]">
+            {variables.map(({name, value}) => (
+              <div key={name} className="whitespace-pre">
+                {name}={value}
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
