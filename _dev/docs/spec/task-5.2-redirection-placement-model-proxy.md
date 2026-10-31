@@ -114,7 +114,7 @@ Each case is recorded with the span status `code` `2`:
 | A 2xx stream carrying an error: Anthropic's `event: error`, OpenAI Responses' `response.failed`, an error object in a Gemini stream | The stream, unchanged | The error's own type, such as `overloaded_error` | The chunks so far, and the error's message |
 | The provider cannot be reached | A `502` from the proxy, with a plain-text line naming the host and the error, as the wire proxy answers when it cannot reach the agent | The error's code, such as `ECONNREFUSED` | No response attributes |
 | The provider's stream breaks partway | The break, passed on | The error's code | The chunks so far |
-| The agent closes the connection before the response ends | — | `aborted` | The chunks so far, the end time at the close |
+| The agent closes the connection before the response ends, and the reply, read on, does not end within five seconds | — | `aborted` | The chunks before the close, the end time at the close. A reply that ends within the five seconds is complete, read in full: an agent may leave once it has the content, before the stream's last event, as the ADK samples do through LiteLLM |
 
 ### 17. A body neither JSON nor text
 
