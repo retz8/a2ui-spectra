@@ -42,6 +42,7 @@ import {
 import {setRenderErrorsInView} from '@/state/render_errors.ts';
 import {type TurnView as TurnViewState, turnViewOf, useNeededRecords} from '@/state/selectors.ts';
 import {useSpectra} from '@/state/spectra.ts';
+import {requestTimelineFocus} from '@/state/timeline_focus.ts';
 import {useSmallWindow} from '@/state/window.ts';
 
 import {Composer} from './Composer.tsx';
@@ -400,7 +401,10 @@ function TurnBody({
   const onEarlier = (found: Exclude<PrefixBreak, {form: 'first'}>) => {
     const {traceId: turnOf, call} = found.earlier;
     if (turnOf === traceId) setPicked(call.spanId);
-    else onOther(turnOf, call.spanId);
+    else {
+      requestTimelineFocus();
+      onOther(turnOf, call.spanId);
+    }
   };
 
   // The page address holds the step selected, picked or landed on; a pick not in a closed turn gives way.

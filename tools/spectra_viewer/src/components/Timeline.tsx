@@ -4,6 +4,7 @@ import {cn} from '@/lib/utils';
 import type {TimelineKey} from '@/model/follow.ts';
 import {type Lane, lanesOf, shareOf} from '@/model/lanes.ts';
 import {deliveryLabel, type TimelineRow} from '@/model/steps.ts';
+import {takeTimelineFocusRequest} from '@/state/timeline_focus.ts';
 
 import {formatDurationCompact, formatOffsetCompact, toneOf} from './format.ts';
 import {Icon} from './icons.tsx';
@@ -70,6 +71,9 @@ export function Timeline({
     list.current
       ?.querySelector('[aria-selected="true"]')
       ?.scrollIntoView({block: 'nearest', behavior: reduce ? 'auto' : 'smooth'});
+    // A selection made from a link in the step's detail, such as the earlier call a prefix break names,
+    // hands focus to the list, so the keys go on from the selected row.
+    if (takeTimelineFocusRequest()) list.current?.focus({preventScroll: true});
   }, [selected]);
   return (
     <section aria-label="Steps" className="relative flex h-full min-h-0 flex-col">
