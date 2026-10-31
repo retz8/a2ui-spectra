@@ -16,8 +16,9 @@ A request file is a JSON object:
         {
           "headers": {...},                 # the request's headers
           "body": {...},                    # its JSON-RPC request
-          "whileOpen": {"headers": {...}, "body": {...}}
+          "whileOpen": {"headers": {...}, "body": {...}},
                                             # optional: sent once the stream's first event arrives
+          "pauseBefore": 6                  # optional: seconds to wait before sending it
         }
       ]
     }
@@ -33,6 +34,7 @@ import json
 import os
 import re
 import sys
+import time
 from urllib.parse import urlsplit
 
 PLACEHOLDER = re.compile(r"\$\{(contextId|taskId)\}")
@@ -60,6 +62,7 @@ def main():
     print(f"card: {status}, JSON-RPC at {endpoint}", flush=True)
 
     for index, item in enumerate(plan["requests"]):
+        time.sleep(item.get("pauseBefore", 0))
         body = fill(item["body"], ids)
         while_open = item.get("whileOpen")
 

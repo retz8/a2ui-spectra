@@ -1,0 +1,74 @@
+{
+  "card": {
+    "headers": {
+      "X-A2A-Extensions": "https://a2ui.org/a2a-extension/a2ui/v0.9"
+    }
+  },
+  "requests": [
+    {
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
+        "X-A2A-Extensions": "https://a2ui.org/a2a-extension/a2ui/v0.9"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "message/stream",
+        "params": {
+          "message": {
+            "kind": "message",
+            "messageId": "custom-components-floor-plan-1",
+            "role": "user",
+            "parts": [
+              {
+                "kind": "text",
+                "text": "Who is Alex Jordan?"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "pauseBefore": 8,
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
+        "X-A2A-Extensions": "https://a2ui.org/a2a-extension/a2ui/v0.9"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "message/stream",
+        "params": {
+          "message": {
+            "kind": "message",
+            "messageId": "custom-components-floor-plan-2",
+            "role": "user",
+            "contextId": "${contextId}",
+            "parts": [
+              {
+                "kind": "data",
+                "data": {
+                  "userAction": {
+                    "name": "view_location",
+                    "surfaceId": "contact-card",
+                    "sourceComponentId": "location-button",
+                    "timestamp": "2026-10-31T09:00:00Z",
+                    "context": {
+                      "contactId": "1"
+                    }
+                  }
+                },
+                "metadata": {
+                  "mimeType": "application/a2ui+json"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
