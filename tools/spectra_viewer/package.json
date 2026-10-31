@@ -44,6 +44,8 @@
         "tsconfig.json",
         "tsconfig.test.json",
         "../../conformance/test_data/a2a_capture/**",
+        "../../conformance/test_data/tool_capture/**",
+        "../../conformance/test_data/receiver_capture/**",
         "../spectra/src/prices/*.json"
       ],
       "output": [],

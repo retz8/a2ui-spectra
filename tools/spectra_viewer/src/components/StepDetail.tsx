@@ -12,6 +12,7 @@ import {formatOffset, toneOf} from './format.ts';
 import {Icon} from './icons.tsx';
 import {BlockLabel, JsonBlock, type Reveal} from './JsonBlock.tsx';
 import {callTitleOf, ModelCallBlocks} from './ModelCallDetail.tsx';
+import {ToolCallBlocks} from './ToolCallDetail.tsx';
 
 /**
  * The selected step's detail: its problems, the rejections folded under
@@ -19,7 +20,9 @@ import {callTitleOf, ModelCallBlocks} from './ModelCallDetail.tsx';
  * folded. A problem that marks a line in the step's
  * message is pressed to bring the line into view. A model call's detail
  * holds its usage, its prefix break, its request, its response and its
- * exchange. Maximize gives the detail the result pane's height.
+ * exchange; a tool call's its arguments, its result and its exchange; and
+ * either the agent's spans linked to it. Maximize gives the detail the
+ * result pane's height.
  */
 export function StepDetail({
   row,
@@ -52,7 +55,8 @@ export function StepDetail({
   onEarlier: (found: Exclude<PrefixBreak, {form: 'first'}>) => void;
 }) {
   const call = row.row === 'step' ? row.call : undefined;
-  const title = call === undefined ? undefined : callTitleOf(call, events, startMs);
+  const title =
+    call === undefined || row.row !== 'step' ? undefined : callTitleOf(call, row.target, startMs);
   const offset = offsetOf(row, events, startMs);
   const [reveal, setReveal] = useState<Reveal>();
   const message = row.row === 'step' && row.kind === 'message' ? row.message : undefined;
@@ -78,7 +82,7 @@ export function StepDetail({
             <span className="shrink-0 font-semibold">{row.label}</span>
             {/* A failed turn's reason is its problem block's sentence. */}
             {!(row.kind === 'outcome' && row.outcome === 'failed') && (
-              <span className="min-w-0 truncate text-xs text-muted-foreground">
+              <span className="min-w-0 shrink-[100] truncate text-xs text-muted-foreground">
                 {title?.target ?? row.target}
               </span>
             )}
@@ -86,7 +90,10 @@ export function StepDetail({
         )}
         <div className="flex-1" />
         {title !== undefined ? (
-          <span className="shrink-0 text-xs text-muted-foreground">{title.times}</span>
+          // On a narrow detail, the times give way after the target, so the buttons stay in view.
+          <span className="min-w-0 truncate text-xs text-muted-foreground" title={title.times}>
+            {title.times}
+          </span>
         ) : (
           offset !== undefined && (
             <span className="shrink-0 text-xs text-muted-foreground">{formatOffset(offset)}</span>
@@ -150,8 +157,17 @@ export function StepDetail({
           ))}
           {row.row === 'delivery' ? (
             <DeliveryBlocks event={events[row.eventIndex] as WireEvent} />
-          ) : call !== undefined ? (
-            <ModelCallBlocks call={call} prices={prices} prefix={prefix} onEarlier={onEarlier} />
+          ) : call?.kind === 'model' ? (
+            <ModelCallBlocks
+              row={call}
+              events={events}
+              startMs={startMs}
+              prices={prices}
+              prefix={prefix}
+              onEarlier={onEarlier}
+            />
+          ) : call?.kind === 'tool' ? (
+            <ToolCallBlocks row={call} events={events} startMs={startMs} />
           ) : (
             <StepBlocks
               step={row}

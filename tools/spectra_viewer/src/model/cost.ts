@@ -3,7 +3,7 @@
  * it or from the config's price for the model, and how cost and token counts
  * read. Computed when shown; the record does not carry it.
  */
-import {isReadInFull, type Usage, usageOf} from './model_calls.ts';
+import {type Usage, usageOf} from './model_calls.ts';
 import type {ModelCallEvent} from './record.ts';
 
 /** A model's price from the config, in USD per million tokens. */
@@ -41,6 +41,7 @@ export type CallPrice =
 /** The record's provider names, as LiteLLM's table names them. */
 const TABLE_PROVIDERS: Record<string, string> = {
   'gcp.gemini': 'gemini',
+  'gcp.gen_ai': 'gemini',
   openai: 'openai',
   anthropic: 'anthropic',
 };
@@ -48,8 +49,10 @@ const TABLE_PROVIDERS: Record<string, string> = {
 /**
  * The price for a call: the config's for the model id as requested, first;
  * then, among the table's entries of the call's provider, the one whose key,
- * less the `gemini/` prefix, is the model id as requested, else as the
- * response named it. Nothing is stripped from or added to a model id.
+ * as written or less the `gemini/` prefix, is the model id as requested,
+ * else as the response named it, so that a LiteLLM span's
+ * `gemini/gemini-3.6-flash` meets its own key. Nothing is stripped from or
+ * added to a model id.
  */
 export function priceOf(call: ModelCallEvent, prices: Prices): CallPrice {
   const requested = call.attributes['gen_ai.request.model'];
@@ -63,7 +66,10 @@ export function priceOf(call: ModelCallEvent, prices: Prices): CallPrice {
   for (const id of ids) {
     if (id === undefined || provider === undefined) continue;
     for (const [key, entry] of Object.entries(prices.entries)) {
-      if (entry.litellm_provider === provider && key.replace(/^gemini\//, '') === id) {
+      if (
+        entry.litellm_provider === provider &&
+        (key === id || key.replace(/^gemini\//, '') === id)
+      ) {
         return {source: 'table', entry};
       }
     }
@@ -176,10 +182,14 @@ export type CallCost =
   /** No usage to price: a call recorded raw, or one with no input tokens, such as a failed call. */
   | {kind: 'none'};
 
+/**
+ * A call's estimate from its usage: none for a call with no input tokens,
+ * such as one recorded raw; unpriced for one whose model no price matches,
+ * a call read from spans that name no provider among them.
+ */
 export function callCostOf(call: ModelCallEvent, prices: Prices | undefined): CallCost {
   const usage = usageOf(call);
-  if (!isReadInFull(call) || usage.input === undefined || prices === undefined)
-    return {kind: 'none'};
+  if (usage.input === undefined || prices === undefined) return {kind: 'none'};
   const price = priceOf(call, prices);
   if (price.source === 'none') return {kind: 'unpriced', model: price.model};
   return {kind: 'priced', usd: costOf(usage, price), source: price.source};

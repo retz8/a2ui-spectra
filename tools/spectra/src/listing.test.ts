@@ -1,5 +1,8 @@
 import assert from 'node:assert/strict';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import {describe, it} from 'node:test';
+import {fileURLToPath} from 'node:url';
 
 import {inputBriefOf, listingFieldsOf} from './listing.js';
 import type {
@@ -7,10 +10,22 @@ import type {
   ModelCallEvent,
   Turn,
   TurnEvent,
+  TurnRecord,
   WireInputEvent,
   WireOutputEvent,
   WirePart,
 } from './record/turn_record.js';
+
+/** A record of the shared test data, by its path under `conformance/test_data/`. */
+function readTestData(file: string): TurnRecord {
+  let dir = path.dirname(fileURLToPath(import.meta.url));
+  while (!fs.existsSync(path.join(dir, 'conformance', 'conformance_schema.json'))) {
+    dir = path.dirname(dir);
+  }
+  return JSON.parse(
+    fs.readFileSync(path.join(dir, 'conformance', 'test_data', file), 'utf8'),
+  ) as TurnRecord;
+}
 
 const TRACE = '0'.repeat(32);
 const TURN_SPAN = '1'.repeat(16);
@@ -173,36 +188,70 @@ describe('listingFieldsOf', () => {
     assert.equal(listingFieldsOf(turn, [turn])?.rejections, 1);
   });
 
-  it("counts the model proxy's failed calls, and not a failed span the receiver placed", () => {
-    const call = (spanId: string, code: 1 | 2, received = false): ModelCallEvent => ({
-      traceId: TRACE,
-      spanId,
-      parentSpanId: TURN_SPAN,
-      name: 'generate_content gemini-3.6-flash',
-      kind: 3,
-      startTimeUnixNano: '1792576800100000000',
-      endTimeUnixNano: '1792576800200000000',
-      attributes: {
-        'a2ui.event.kind': 'model_call',
-        ...(code === 2 && {'error.type': '429'}),
-        ...(received && {'a2ui.received.attributes': {}}),
-      },
-      status: {code},
-    });
+  it('counts the failed call rows, model and tool, proxy and span-only, each row once', () => {
+    const call = (
+      spanId: string,
+      code: 1 | 2,
+      options: {
+        kind?: 'model_call' | 'tool_call';
+        received?: boolean;
+        parentSpanId?: string;
+        links?: string[];
+      } = {},
+    ): ModelCallEvent =>
+      ({
+        traceId: TRACE,
+        spanId,
+        parentSpanId: options.parentSpanId ?? TURN_SPAN,
+        name: 'generate_content gemini-3.6-flash',
+        kind: options.received === true ? 1 : 3,
+        startTimeUnixNano: '1792576800100000000',
+        endTimeUnixNano: '1792576800200000000',
+        attributes: {
+          'a2ui.event.kind': options.kind ?? 'model_call',
+          ...(code === 2 && {'error.type': '429'}),
+          ...(options.received === true && {'a2ui.received.attributes': {}}),
+        },
+        ...(options.links !== undefined && {
+          links: options.links.map(spanId => ({traceId: TRACE, spanId})),
+        }),
+        status: {code},
+      }) as ModelCallEvent;
+    const [a, b, c, d, e, f, g] = ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map(x => x.repeat(16));
     const fields = listingFieldsOf({
       events: [
         turnEvent,
-        call('a'.repeat(16), 2),
-        call('b'.repeat(16), 1),
-        call('c'.repeat(16), 2),
-        call('d'.repeat(16), 2, true),
+        // A failed proxy call, and one that did not fail.
+        call(a, 2),
+        call(b, 1),
+        // A failed tool call.
+        call(c, 2, {kind: 'tool_call'}),
+        // A failed proxy call whose linked chain failed too: one row.
+        call(d, 2, {links: [e]}),
+        call(e, 2, {received: true, links: [d]}),
+        // A chain of two spans with no exchange, its inner span failed: one row.
+        call(f, 1, {received: true}),
+        call(g, 2, {received: true, parentSpanId: f}),
       ],
     });
-    assert.equal(fields?.failedModelCalls, 2);
-    assert.equal(
-      listingFieldsOf({events: [turnEvent, call('b'.repeat(16), 1)]})?.failedModelCalls,
-      undefined,
-    );
+    assert.equal(fields?.failedCalls, 4);
+    assert.equal(listingFieldsOf({events: [turnEvent, call(b, 1)]})?.failedCalls, undefined);
+  });
+
+  it('counts the failed rows of the tool and receiver capture suites as the viewer does', () => {
+    const count = (file: string, turn = -1) => {
+      const {turns} = readTestData(file);
+      return listingFieldsOf(turns.at(turn)!)?.failedCalls;
+    };
+    // tools/call missing answered a JSON-RPC error; tools/call fail is the tool's own isError.
+    assert.equal(count('tool_capture/v0_1/tools/streamable_http.json'), 1);
+    assert.equal(count('tool_capture/v0_1/tools/http_sse.json'), 1);
+    // GET /missing answered 404.
+    assert.equal(count('tool_capture/v0_1/http_routes/http.json'), 1);
+    assert.equal(count('tool_capture/v0_1/sampling/http_sse.json'), undefined);
+    // The 503 the SDK retried inside one generate_content span: the failed exchange's row alone.
+    assert.equal(count('receiver_capture/v0_1/several_exchanges/expected.json', 0), 1);
+    assert.equal(count('receiver_capture/v0_1/openinference/expected.json'), undefined);
   });
 
   it('leaves out what a turn does not have', () => {

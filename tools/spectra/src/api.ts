@@ -48,8 +48,15 @@ export interface ListedTurn extends Partial<ListingFields> {
   open?: true;
 }
 
-/** The listing's fields of each record file read so far, by store and file. A file is written once. */
-const listingCache = new WeakMap<TurnStore, Map<string, ListingFields | undefined>>();
+/**
+ * The listing's fields of each record file read so far, by store and file,
+ * with the store's revision of the file they were read at: a file the
+ * receiver's spans amend is read again.
+ */
+const listingCache = new WeakMap<
+  TurnStore,
+  Map<string, {revision: number; fields: ListingFields | undefined}>
+>();
 
 /** The largest request body the API reads. */
 const MAX_BODY_BYTES = 64 * 1024;
@@ -174,15 +181,17 @@ async function storedFields(
     cache = new Map();
     listingCache.set(store, cache);
   }
-  if (!cache.has(file)) {
-    try {
-      const {turns} = await store.read(file);
-      cache.set(file, listingFieldsOf(turns[turns.length - 1], turns.slice(0, -1), catalogs));
-    } catch {
-      return undefined;
-    }
+  const revision = store.revisionOf(file);
+  const cached = cache.get(file);
+  if (cached !== undefined && cached.revision === revision) return cached.fields;
+  try {
+    const {turns} = await store.read(file);
+    const fields = listingFieldsOf(turns[turns.length - 1], turns.slice(0, -1), catalogs);
+    cache.set(file, {revision, fields});
+    return fields;
+  } catch {
+    return undefined;
   }
-  return cache.get(file);
 }
 
 async function sendRecord(api: Api, traceId: string, response: ServerResponse): Promise<void> {

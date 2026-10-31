@@ -158,3 +158,131 @@ export function byStart(...events: TurnRecordEvent[]): TurnRecordEvent[] {
     BigInt(a.startTimeUnixNano) < BigInt(b.startTimeUnixNano) ? -1 : 1,
   );
 }
+
+export interface SpanOptions {
+  spanId: string;
+  parentSpanId?: string;
+  name: string;
+  kind?: 'model_call' | 'tool_call' | 'framework_span';
+  start: number;
+  end: number;
+  dialect?: 'adk' | 'openinference' | 'genai';
+  scope?: {name: string; version?: string};
+  /** The translated names. */
+  names?: Record<string, unknown>;
+  /** Linked as the same call to these events' span ids. */
+  links?: string[];
+  status?: {code: 0 | 1 | 2; message?: string};
+  events?: Array<{ms: number; name: string; attributes?: Record<string, unknown>}>;
+  traceId?: string;
+}
+
+/** A span the receiver placed, in the record's shape: its translated names and every attribute as received. */
+export function receivedSpan(options: SpanOptions): TurnRecordEvent {
+  const {
+    spanId,
+    parentSpanId = '0'.repeat(16),
+    name,
+    kind = 'model_call',
+    start,
+    end,
+    dialect = 'adk',
+    scope = {name: 'gcp.vertex.agent', version: '2.3.0'},
+    names = {},
+    links,
+    status = {code: 0},
+    events,
+    traceId = TRACE,
+  } = options;
+  return {
+    traceId,
+    spanId,
+    parentSpanId,
+    name,
+    kind: 1,
+    startTimeUnixNano: at(start),
+    endTimeUnixNano: at(end),
+    attributes: {
+      'a2ui.event.kind': kind,
+      'otel.scope.name': scope.name,
+      ...(scope.version !== undefined && {'otel.scope.version': scope.version}),
+      'a2ui.received.dialect': dialect,
+      ...names,
+      'a2ui.received.attributes': {...names, 'span.name': name},
+    },
+    ...(events !== undefined && {
+      events: events.map(event => ({
+        timeUnixNano: at(event.ms),
+        name: event.name,
+        ...(event.attributes !== undefined && {attributes: event.attributes}),
+      })),
+    }),
+    ...(links !== undefined && {links: links.map(id => ({traceId, spanId: id}))}),
+    status,
+  } as TurnRecordEvent;
+}
+
+/** A model call or tool call with its links to the received spans given. */
+export function linked<E extends TurnRecordEvent>(event: E, ...spanIds: string[]): E {
+  return {...event, links: spanIds.map(spanId => ({traceId: event.traceId, spanId}))};
+}
+
+export interface ToolCallOptions {
+  spanId: string;
+  start: number;
+  end?: number;
+  /** The MCP method; none for an HTTP tool. */
+  method?: string;
+  tool?: string;
+  arguments?: unknown;
+  result?: unknown;
+  url?: string;
+  status?: {code: 0 | 1 | 2; message?: string};
+  attributes?: Record<string, unknown>;
+}
+
+/** A tool call the tool proxy recorded: an MCP request, or an HTTP tool when no method is given. */
+export function toolCall(options: ToolCallOptions): TurnRecordEvent {
+  const {
+    spanId,
+    start,
+    end,
+    method,
+    tool,
+    url = 'http://127.0.0.1:8000/messages/',
+    status,
+  } = options;
+  return {
+    traceId: TRACE,
+    spanId,
+    parentSpanId: '0'.repeat(16),
+    name:
+      method === undefined
+        ? `POST /tables/lookup`
+        : tool === undefined
+          ? method
+          : `${method} ${tool}`,
+    kind: 3,
+    startTimeUnixNano: at(start),
+    ...(end !== undefined && {endTimeUnixNano: at(end)}),
+    attributes: {
+      'a2ui.event.kind': 'tool_call',
+      ...(method !== undefined && {
+        'mcp.method.name': method,
+        'mcp.session.id': 'session-1',
+        'jsonrpc.request.id': '1',
+      }),
+      ...(tool !== undefined && {
+        'gen_ai.tool.name': tool,
+        'gen_ai.operation.name': 'execute_tool',
+      }),
+      ...(options.arguments !== undefined && {'gen_ai.tool.call.arguments': options.arguments}),
+      ...(options.result !== undefined && {'gen_ai.tool.call.result': options.result}),
+      'http.request.method': 'POST',
+      'url.full': url,
+      ...(end !== undefined && {'http.response.status_code': 200}),
+      ...options.attributes,
+    },
+    ...(end !== undefined && {status: status ?? {code: 1}}),
+  } as TurnRecordEvent;
+}

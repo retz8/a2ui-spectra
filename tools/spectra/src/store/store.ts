@@ -69,6 +69,8 @@ export class TurnStore {
   readonly #writing = new Map<string, Promise<unknown>>();
   /** The turns this run wrote, by trace id, so a turn can be amended. */
   readonly #written = new Map<string, StoredTurn>();
+  /** How many times this run has written each file, by file. */
+  readonly #revisions = new Map<string, number>();
 
   private constructor(dir: string) {
     this.dir = dir;
@@ -214,6 +216,15 @@ export class TurnStore {
       .concat([...this.#unwritten.keys()].filter(file => path.posix.dirname(file) === folder));
   }
 
+  /**
+   * How many times this run has written a file, its record kept in memory
+   * after a failed write included: 0 for a file this run has not written,
+   * and one more each time a turn in it is amended.
+   */
+  revisionOf(file: string): number {
+    return this.#revisions.get(file) ?? 0;
+  }
+
   /** Writes one record file once, atomically; on failure keeps the record for this run and throws. */
   async #writeFile(file: string, record: TurnRecord): Promise<void> {
     const target = this.#pathOf(file);
@@ -226,8 +237,10 @@ export class TurnStore {
       await writeFile(temporary, `${JSON.stringify(record, null, 2)}\n`);
       await rename(temporary, target);
       this.#unwritten.delete(file);
+      this.#revisions.set(file, this.revisionOf(file) + 1);
     } catch (error) {
       this.#unwritten.set(file, record);
+      this.#revisions.set(file, this.revisionOf(file) + 1);
       await rm(temporary, {force: true}).catch(() => {});
       throw new StoreWriteError(target, reasonOf(error));
     }

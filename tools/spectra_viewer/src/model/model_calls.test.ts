@@ -4,7 +4,8 @@ import {describe, it} from 'node:test';
 import {a2uiDelivery, byStart, modelCall, rawCall, T0} from '../testing/model_calls.ts';
 import type {Prices} from './cost.ts';
 import {failureOf, figuresOf, hitRatioOf, rowTextOf, usageOf} from './model_calls.ts';
-import {problemsOf, failedModelCallsOf} from './problems.ts';
+import {failedCallsOf} from './call_rows.ts';
+import {problemsOf} from './problems.ts';
 import {timelineOf} from './steps.ts';
 import {insideLineOf} from './turn_calls.ts';
 
@@ -48,14 +49,20 @@ describe('a model call’s row', () => {
     assert.equal(inFlight.position, undefined);
   });
 
-  it('leaves out a span the receiver placed', () => {
+  it('gives a span the receiver placed with no exchange a row of its own, read from spans only', () => {
     const span = modelCall({
       spanId: 'a'.repeat(16),
       start: 0,
       end: 1,
-      attributes: {'a2ui.received.attributes': {}},
+      provider: 'gcp.gemini',
+      model: 'gemini-3.6-flash',
+      attributes: {'a2ui.received.attributes': {}, 'a2ui.received.dialect': 'adk'},
     });
-    assert.deepEqual(timelineOf([span], START), []);
+    const rows = timelineOf([span], START);
+    assert.deepEqual(
+      rows.map(row => (row.row === 'step' ? [row.id, row.label, row.target] : [])),
+      [['a'.repeat(16), 'gemini-3.6-flash', 'Gemini · ADK spans']],
+    );
   });
 });
 
@@ -146,7 +153,7 @@ describe('a failed model call', () => {
       problems.map(problem => problem.stepId),
       ['a'.repeat(16)],
     );
-    assert.equal(failedModelCallsOf(events), 1);
+    assert.equal(failedCallsOf(events), 1);
   });
 });
 

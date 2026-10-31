@@ -1,16 +1,24 @@
 /**
  * A turn's problems, each on the step it belongs to: the checks' findings on
  * the message each points into, the processor's rejections on the A2UI
- * message they name, a failed model call on its row, and a failed turn's
- * reason on the outcome. A finding
+ * message they name, a failed call on its row, one problem per row whichever
+ * of its sources failed, and a failed turn's reason on the outcome. A finding
  * that names no message is a problem of the whole turn, on the outcome too.
  * A rejection of a message that a finding already points into is not a
  * problem of its own: it folds under that step's findings as a quiet line
  * and is not counted. The timeline narrowed to the steps with problems.
  */
+import {type CallRow, sourceOfSpan} from './call_rows.ts';
 import {locateFinding} from './messages.ts';
-import {failureOf, isProxyModelCall} from './model_calls.ts';
-import {isCheck, isTurnEvent, type TurnRecordEvent} from './record.ts';
+import {type CallFailure, failureOf} from './model_calls.ts';
+import {
+  isCheck,
+  isModelCall,
+  isTurnEvent,
+  type ModelCallEvent,
+  type TurnRecordEvent,
+} from './record.ts';
+import {toolFailureOf} from './tool_calls.ts';
 import type {Rejection} from './replay.ts';
 import type {TimelineRow} from './steps.ts';
 
@@ -105,7 +113,7 @@ export function turnProblemsOf(
   }
   for (const row of timeline) {
     if (row.row !== 'step' || row.call === undefined) continue;
-    const failure = failureOf(row.call);
+    const failure = rowFailureOf(row.call);
     if (failure !== undefined) problems.push({stepId: row.id, ...failure});
   }
   const turn = events.find(isTurnEvent);
@@ -148,27 +156,58 @@ export function onlyProblems(
 }
 
 /**
+ * How a failed call row reads: its proxy's failure when the proxy's event
+ * failed, a failed span's status message joining the third line; else, when
+ * a span of its chain failed, that the agent's span ended in error. Nothing
+ * for a row none of whose sources failed. A framework span above the call is
+ * not one of its sources.
+ */
+export function rowFailureOf(row: CallRow): CallFailure | undefined {
+  const failedSpans = row.spans.filter(span => span.status?.code === 2);
+  const spanNotes = failedSpans.flatMap(span =>
+    span.status?.message !== undefined && span.status.message !== '' ? [span.status.message] : [],
+  );
+  const proxyFailure =
+    row.proxy === undefined
+      ? undefined
+      : isModelCall(row.proxy)
+        ? failureOf(row.proxy as ModelCallEvent)
+        : toolFailureOf(row.proxy);
+  if (proxyFailure !== undefined) {
+    const notes = [...(proxyFailure.note !== undefined ? [proxyFailure.note] : []), ...spanNotes];
+    return {
+      sentence: proxyFailure.sentence,
+      code: proxyFailure.code,
+      ...(notes.length > 0 && {note: notes.join(' · ')}),
+    };
+  }
+  if (failedSpans.length === 0) return undefined;
+  // The innermost failed span names the source.
+  const failed = failedSpans[failedSpans.length - 1];
+  return {
+    sentence: "The agent's span ended in error.",
+    code: `Span status error · ${sourceOfSpan(failed)}`,
+    ...(spanNotes.length > 0 && {note: spanNotes.join(' · ')}),
+  };
+}
+
+/**
  * A turn's problem count, from what the listing gives: the findings, the
- * unfolded rejections, the failed model calls and a failed outcome; and,
+ * unfolded rejections, the failed call rows and a failed outcome; and,
  * while the turn is in view, the render errors its preview counts.
  */
 export function listedProblemCount(turn: {
   outcome?: string;
   findings?: number;
   rejections?: number;
-  failedModelCalls?: number;
+  failedCalls?: number;
   renderErrors?: number;
 }): number {
   return (
     (turn.findings ?? 0) +
     (turn.rejections ?? 0) +
-    (turn.failedModelCalls ?? 0) +
+    (turn.failedCalls ?? 0) +
     (turn.outcome === 'failed' ? 1 : 0) +
     (turn.renderErrors ?? 0)
   );
-}
-
-/** How many of the model proxy's calls in a turn failed. */
-export function failedModelCallsOf(events: readonly TurnRecordEvent[]): number {
-  return events.filter(event => isProxyModelCall(event) && event.status?.code === 2).length;
 }

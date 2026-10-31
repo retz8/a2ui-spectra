@@ -1,31 +1,40 @@
 /**
  * The turn header's second line: the time to the first token and to the
- * first component, the model calls, their tokens, the share read from the
- * cache and the estimated cost, from the calls the turn holds so far.
+ * first component, the model calls and the tool calls, their tokens, the
+ * share read from the cache and the estimated cost, from the timeline's call
+ * rows so far. A call read from spans only counts with its tokens; the tool
+ * calls counted are the full rows, housekeeping left out.
  */
+import {type CallRow, callRowsOf, modelReadingOf, timedEventOf} from './call_rows.ts';
 import {callCostOf, formatCost, formatShare, formatTokensBrief, type Prices} from './cost.ts';
-import {firstChunkMs, isProxyModelCall, isReadInFull, timesOf, usageOf} from './model_calls.ts';
+import {firstChunkMs, isReadInFull, usageOf} from './model_calls.ts';
 import {isWireOutput, type ModelCallEvent, type TurnRecordEvent, unixMillis} from './record.ts';
 import {plural} from './steps.ts';
+import {isFullToolRow} from './tool_calls.ts';
 
-/** The second line's parts, in order, or none for a turn with no model call. */
+/** The second line's parts, in order, or none for a turn with no model call and no tool call. */
 export function insideLineOf(
   events: readonly TurnRecordEvent[],
   startMs: number,
   prices: Prices | undefined,
 ): string[] | undefined {
-  const calls = events.filter(isProxyModelCall);
-  if (calls.length === 0) return undefined;
+  const rows = callRowsOf(events);
+  const models = rows.filter(row => row.kind === 'model');
+  const tools = rows.filter(row => row.kind === 'tool' && isFullToolRow(row));
+  if (models.length === 0 && tools.length === 0) return undefined;
   const parts: string[] = [];
-  const firstToken = firstTokenMs(calls);
+  const firstToken = firstTokenMs(models);
   if (firstToken !== undefined) parts.push(`First token ${seconds(firstToken - startMs)}`);
   const firstComponent = firstComponentMs(events);
   if (firstComponent !== undefined)
     parts.push(`First component ${seconds(firstComponent - startMs)}`);
-  parts.push(plural(calls.length, 'model call'));
+  if (models.length > 0) parts.push(plural(models.length, 'model call'));
+  if (tools.length > 0) parts.push(plural(tools.length, 'tool call'));
 
   // A call in flight counts among the calls; its tokens and cost join once it ends.
-  const ended = calls.filter(call => call.endTimeUnixNano !== undefined);
+  const ended = models
+    .filter(row => timedEventOf(row).endTimeUnixNano !== undefined)
+    .map(row => modelReadingOf(row).event);
   const usages = ended.map(usageOf).filter(usage => usage.input !== undefined);
   if (usages.length > 0) {
     const input = usages.reduce((sum, usage) => sum + (usage.input ?? 0), 0);
@@ -48,21 +57,26 @@ export function insideLineOf(
         : `LiteLLM prices ${prices?.date ?? ''}`,
     );
   }
-  const raw = calls.filter(call => !isReadInFull(call)).length;
+  const raw = models.filter(
+    row => row.proxy !== undefined && !isReadInFull(row.proxy as ModelCallEvent),
+  ).length;
   if (raw > 0) parts.push(`${plural(raw, 'call')} recorded raw`);
   return parts;
 }
 
 /**
- * When the first model call gave its first token: its first chunk when it
- * streamed, its end when it did not; nothing while it is in flight with no
- * chunk yet.
+ * When the first model call gave its first token: its first chunk when the
+ * model proxy saw it stream, its end when it did not or when it is read from
+ * spans only; nothing while it is in flight with no chunk yet.
  */
-function firstTokenMs(calls: readonly ModelCallEvent[]): number | undefined {
-  const first = [...calls].sort((a, b) =>
-    BigInt(a.startTimeUnixNano) < BigInt(b.startTimeUnixNano) ? -1 : 1,
+function firstTokenMs(rows: readonly CallRow[]): number | undefined {
+  const first = [...rows].sort((a, b) =>
+    BigInt(timedEventOf(a).startTimeUnixNano) < BigInt(timedEventOf(b).startTimeUnixNano) ? -1 : 1,
   )[0];
-  return firstChunkMs(first) ?? timesOf(first).endMs;
+  if (first === undefined) return undefined;
+  const chunk = first.proxy === undefined ? undefined : firstChunkMs(first.proxy as ModelCallEvent);
+  const end = timedEventOf(first).endTimeUnixNano;
+  return chunk ?? (end === undefined ? undefined : unixMillis(end));
 }
 
 /** When the agent's first A2UI message came. */

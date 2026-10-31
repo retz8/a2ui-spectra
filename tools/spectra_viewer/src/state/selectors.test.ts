@@ -15,6 +15,7 @@ function stateOf(
     live: new Map(),
     closed: new Map(),
     records: new Map(),
+    pending: new Map(),
     box,
     ...parts,
   };

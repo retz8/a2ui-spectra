@@ -118,3 +118,19 @@ export function nextProblem(
     : (marked.find(at => at > index) ?? marked[0]);
   return rows[at].id;
 }
+
+/**
+ * The row a pick names: the row of that id, else the row that holds it now
+ * among its span ids, as a span-only row does once it merges into its
+ * proxy's row as their link arrives; else the pick as it is, for a row yet
+ * to come.
+ */
+export function pickedRowId(
+  picked: string | undefined,
+  rows: readonly TimelineRow[],
+): string | undefined {
+  if (picked === undefined || rows.some(row => row.id === picked)) return picked;
+  return (
+    rows.find(row => row.row === 'step' && row.aliases?.includes(picked) === true)?.id ?? picked
+  );
+}

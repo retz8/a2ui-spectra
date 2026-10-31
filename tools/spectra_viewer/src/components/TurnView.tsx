@@ -3,20 +3,22 @@ import {type PanelImperativeHandle, usePanelRef} from 'react-resizable-panels';
 
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
 import {checkLinesOf, checkStateOf} from '@/model/check_state.ts';
-import {keptPick, nextProblem, pickForKey, stepInView} from '@/model/follow.ts';
+import {keptPick, nextProblem, pickedRowId, pickForKey, stepInView} from '@/model/follow.ts';
 import {inputBriefOfTurn} from '@/model/input_brief.ts';
 import {pageKeyOf} from '@/model/keys.ts';
 import {catalogsOf} from '@/model/catalogs.ts';
 import {dataModelMapOf, dataModelVersionOf} from '@/model/host_message.ts';
 import {agentMessages} from '@/model/messages.ts';
 import {previewProblemsOf, routeOf, surfaceFeedOf, targetOf} from '@/model/preview.ts';
-import {isProxyModelCall} from '@/model/model_calls.ts';
+import {timedEventOf} from '@/model/call_rows.ts';
+import {isProxyModelCall, isReadInFull} from '@/model/model_calls.ts';
 import {candidatesFor, type PrefixBreak, prefixBreakOf} from '@/model/prefix.ts';
 import {type Problem, onlyProblems, turnProblemsOf} from '@/model/problems.ts';
 import {
   isTurnEvent,
   isWireInput,
   isWireOutput,
+  type ModelCallEvent,
   type Turn,
   type TurnRecordEvent,
   unixMillis,
@@ -65,8 +67,8 @@ const RESULT_TITLE = 45;
 const DETAIL_OPEN = '38';
 
 /** The timeline's width until its divider is dragged, in pixels: on a wide window and below 1,280px. */
-const TIMELINE_WIDE = 340;
-const TIMELINE_SMALL = 300;
+const TIMELINE_WIDE = 380;
+const TIMELINE_SMALL = 340;
 
 /** The turn view: the selected turn, or the first screen with no turns, with the composer docked under it. */
 export function TurnView({
@@ -218,6 +220,9 @@ function TurnBody({
   const turn: Turn | undefined = open ? undefined : view.turn;
   const summary = useMemo(() => (turn === undefined ? undefined : summaryOf(turn)), [turn]);
   const startMs = open ? Date.parse(view.live.startTime) : (summary?.startTime ?? 0);
+  // A closed turn's lanes run to its end and every row's; a live turn's to the present.
+  const turnEndMs =
+    open || summary === undefined ? undefined : summary.startTime + summary.durationMs;
   // The earlier turns and the events keep their identity until they change, so each replay runs once per change.
   const earlier = 'turns' in view.earlier ? view.earlier.turns : undefined;
 
@@ -250,13 +255,16 @@ function TurnBody({
     return counts;
   }, [recordedByStep, renderErrorSteps]);
   const kept = useMemo(() => onlyProblems(timeline, filterByStep), [timeline, filterByStep]);
+  // A row picked by an id it no longer goes by, such as a span-only row merged into its proxy's row
+  // as its link arrived, is the row that holds that id now.
+  const pickedId = useMemo(() => pickedRowId(picked, timeline), [picked, timeline]);
   const shown = filtered ? kept : timeline;
   const toggleFilter = () => {
     // A pick the filter hides gives way to the first problem.
-    if (!filtered) setPicked(keptPick(picked, kept));
+    if (!filtered) setPicked(keptPick(pickedId, kept));
     setFiltered(!filtered);
   };
-  const inView = stepInView(shown, {open, picked, problems: recordedByStep});
+  const inView = stepInView(shown, {open, picked: pickedId, problems: recordedByStep});
   const selected = inView.row;
   const position = useMemo(() => positionOf(selected), [selected]);
   const pane = useMemo(
@@ -368,7 +376,14 @@ function TurnBody({
     () => insideLineOf(events, startMs, state.prices),
     [events, startMs, state.prices],
   );
-  const selectedCall = selected?.row === 'step' ? selected.call : undefined;
+  // Only a call the model proxy read in full is compared for the prefix break.
+  const selectedRow = selected?.row === 'step' ? selected.call : undefined;
+  const selectedCall =
+    selectedRow?.kind === 'model' &&
+    selectedRow.proxy !== undefined &&
+    isReadInFull(selectedRow.proxy as ModelCallEvent)
+      ? (selectedRow.proxy as ModelCallEvent)
+      : undefined;
   const prefix = useMemo(() => {
     if (selectedCall === undefined || earlier === undefined) return undefined;
     const turns = [
@@ -388,7 +403,7 @@ function TurnBody({
 
   // The page address holds the step selected, picked or landed on; a pick not in a closed turn gives way.
   const shownId = inView.selected ? selected?.id : undefined;
-  const arriving = open && picked !== undefined && !timeline.some(row => row.id === picked);
+  const arriving = open && pickedId !== undefined && !timeline.some(row => row.id === pickedId);
   useEffect(() => {
     if (shownId !== picked && !arriving) setPicked(shownId);
   }, [shownId, picked, arriving, setPicked]);
@@ -502,6 +517,9 @@ function TurnBody({
         >
           <Timeline
             rows={shown}
+            allRows={timeline}
+            startMs={startMs}
+            endMs={turnEndMs}
             selected={selected?.id ?? ''}
             problems={byStep}
             live={open}
@@ -559,6 +577,7 @@ function TurnBody({
                 open={open}
                 sentA2ui={sentA2ui}
                 failed={summary?.outcome === 'failed'}
+                later={position !== undefined && (whole?.surfaces.length ?? 0) > 0}
                 folded={folding}
               />
             </ResizablePanel>
@@ -646,7 +665,7 @@ function asOfLabel(
   if (row === undefined) return '';
   if (row.row === 'delivery') return `After the delivery at ${formatOffset(row.offsetMs)}`;
   if (row.call !== undefined) {
-    const end = row.call.endTimeUnixNano;
+    const end = timedEventOf(row.call).endTimeUnixNano;
     return end === undefined
       ? 'Live · the call is in flight'
       : `At the end of the call, ${formatOffset(unixMillis(end) - startMs)}`;

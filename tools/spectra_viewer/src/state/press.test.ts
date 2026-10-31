@@ -14,6 +14,7 @@ function stateOf(turns: ListedTurn[], live: SpectraState['live'] = new Map()): S
     live,
     closed: new Map(),
     records: new Map(),
+    pending: new Map(),
     box: {conversations: [{conversationId: 'c', turns: ['a', 'b']}]},
   };
 }
@@ -127,6 +128,7 @@ describe('keepsPending', () => {
           events: [],
           wire: [],
           calls: new Map(),
+          received: new Map(),
         },
       ],
     ]);

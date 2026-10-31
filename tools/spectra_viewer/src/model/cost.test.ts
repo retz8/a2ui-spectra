@@ -70,7 +70,7 @@ describe('priceOf', () => {
     assert.equal(priceOf(responded, pricesOf(entries)).source, 'table');
   });
 
-  it('strips and adds nothing to a model id, and names the model it has no price for', () => {
+  it('strips and adds nothing to a model id, and names the model it has no price for; a key as written meets its own id', () => {
     const versioned = modelCall({
       spanId: 'a'.repeat(16),
       start: 0,
@@ -89,7 +89,42 @@ describe('priceOf', () => {
       provider: 'gcp.gemini',
       model: 'gemini/gemini-3.6-flash',
     });
-    assert.equal(priceOf(prefixed, pricesOf(entries)).source, 'none');
+    // A LiteLLM span's `gemini/gemini-3.6-flash` meets its own key.
+    assert.deepEqual(priceOf(prefixed, pricesOf(entries)), {
+      source: 'table',
+      entry: entries['gemini/gemini-3.6-flash'],
+    });
+    const anthropicPrefixed = modelCall({
+      spanId: 'c'.repeat(16),
+      start: 0,
+      end: 1,
+      provider: 'anthropic',
+      model: 'gemini/gemini-3.6-flash',
+    });
+    assert.equal(priceOf(anthropicPrefixed, pricesOf(entries)).source, 'none');
+  });
+
+  it('prices a call from spans whose provider is gcp.gen_ai as gemini, and none without a provider', () => {
+    const fromSpans = modelCall({
+      spanId: 'a'.repeat(16),
+      start: 0,
+      end: 1,
+      model: 'gemini/gemini-3.6-flash',
+      attributes: {'gen_ai.provider.name': 'gcp.gen_ai'},
+    });
+    assert.equal(priceOf(fromSpans, pricesOf(entries)).source, 'table');
+    const noProvider = modelCall({
+      spanId: 'b'.repeat(16),
+      start: 0,
+      end: 1,
+      model: 'gemini-3.6-flash',
+      usage: {input: 10, output: 2},
+      attributes: {'gen_ai.provider.name': undefined},
+    });
+    assert.deepEqual(callCostOf(noProvider, pricesOf(entries)), {
+      kind: 'unpriced',
+      model: 'gemini-3.6-flash',
+    });
   });
 });
 

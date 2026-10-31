@@ -1,4 +1,7 @@
-/** Sub-task 2.3's recordings, as the records the A2A capture path writes from them. */
+/**
+ * Sub-task 2.3's recordings, as the records the A2A capture path writes from
+ * them, and the tool and receiver capture suites' expected records.
+ */
 import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -34,4 +37,11 @@ export function readCatalog(name: string): Record<string, unknown> {
     string,
     unknown
   >;
+}
+
+const TEST_DATA_DIR = path.join(findConformanceDir(), 'test_data');
+
+/** A record of the shared test data, by its path under `conformance/test_data/`. */
+export function readTestData(file: string): TurnRecord {
+  return JSON.parse(fs.readFileSync(path.join(TEST_DATA_DIR, file), 'utf8')) as TurnRecord;
 }

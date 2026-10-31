@@ -1,22 +1,33 @@
-import {type KeyboardEvent, useEffect, useRef} from 'react';
+import {type KeyboardEvent, useEffect, useMemo, useRef, useState} from 'react';
 
 import {cn} from '@/lib/utils';
 import type {TimelineKey} from '@/model/follow.ts';
+import {type Lane, lanesOf, shareOf} from '@/model/lanes.ts';
 import {deliveryLabel, type TimelineRow} from '@/model/steps.ts';
 
-import {formatOffset, toneOf} from './format.ts';
+import {formatDuration, formatOffset, toneOf} from './format.ts';
 import {Icon} from './icons.tsx';
 import {ProblemMark} from './TurnList.tsx';
 
+/** How often an in-flight call's duration and bar move, in milliseconds. */
+const TICK_MS = 100;
+
 /**
- * The turn's steps in the order they came, each delivery with several grouped
- * under its row. While the turn is open, the newest step is marked as
- * followed, and a picked step offers Jump to latest. Narrowed to the steps
- * with problems, it counts them out of all the turn's steps and offers Show all.
- * It is one Tab stop: the up and down arrows, Home and End move through it.
+ * The turn's steps and calls by start time, each delivery with several
+ * grouped under its row, an MCP housekeeping request drawn as small as a
+ * delivery. Every row ends in a narrow lane drawn against the length of the
+ * whole turn, a call's bar or a step's dot, with a call's duration beside
+ * it. While the turn is open, the newest row is marked as followed, an
+ * in-flight call's duration counts up and its bar grows, and a picked step
+ * offers Jump to latest. Narrowed to the steps with problems, it counts them
+ * out of all the turn's steps and offers Show all. It is one Tab stop: the
+ * up and down arrows, Home and End move through it.
  */
 export function Timeline({
   rows,
+  allRows,
+  startMs,
+  endMs,
   selected,
   problems,
   live,
@@ -28,6 +39,12 @@ export function Timeline({
 }: {
   /** The rows shown: every row, or those the filter keeps. */
   rows: readonly TimelineRow[];
+  /** Every row of the turn, which the lanes are drawn against. */
+  allRows: readonly TimelineRow[];
+  /** The turn's start, in milliseconds since the Unix epoch. */
+  startMs: number;
+  /** A closed turn's end; a live turn's lanes run to the present. */
+  endMs: number | undefined;
   selected: string;
   /** How many problems each step has, by its id. */
   problems: ReadonlyMap<string, number>;
@@ -43,6 +60,11 @@ export function Timeline({
   onKey: (key: TimelineKey) => void;
 }) {
   const steps = rows.filter(row => row.row === 'step').length;
+  const now = useNow(live);
+  const lanes = useMemo(
+    () => lanesOf(allRows, startMs, endMs ?? now),
+    [allRows, startMs, endMs, now],
+  );
   const list = useRef<HTMLDivElement>(null);
   useEffect(() => {
     // The step in view is scrolled to as following or landing moves it; a step clicked is in view already.
@@ -112,7 +134,21 @@ export function Timeline({
               list.current?.focus({preventScroll: true});
             },
           };
-          if (row.row === 'delivery') {
+          const count = problems.get(row.id) ?? 0;
+          const lane = lanes.byRow.get(row.id);
+          const end = (
+            <>
+              <span className="w-[46px] shrink-0 text-right text-xs font-normal whitespace-nowrap text-muted-foreground">
+                {lane?.kind === 'bar' ? formatDuration(lane.end - lane.start) : ''}
+              </span>
+              <LaneMark
+                lane={lane}
+                total={lanes.total}
+                tone={isSelected ? 'brand' : count > 0 ? 'problem' : 'muted'}
+              />
+            </>
+          );
+          if (row.row === 'delivery' || row.housekeeping === true) {
             return (
               <button
                 key={row.id}
@@ -126,13 +162,25 @@ export function Timeline({
                   isSelected ? 'font-semibold' : 'text-muted-foreground',
                 )}
               >
-                <span className="w-[52px] shrink-0 text-right">{formatOffset(row.offsetMs)}</span>
-                <Icon kind="delivery" size={14} className="text-muted-foreground" />
-                <span className="truncate">{deliveryLabel(row)}</span>
+                <span className="w-[52px] shrink-0 text-right">
+                  {row.offsetMs === undefined ? '' : formatOffset(row.offsetMs)}
+                </span>
+                <Icon
+                  kind={row.row === 'delivery' ? 'delivery' : 'tool'}
+                  size={14}
+                  className={following && isSelected ? 'text-brand' : 'text-muted-foreground'}
+                />
+                <span className="min-w-0 truncate">
+                  {row.row === 'delivery' ? deliveryLabel(row) : row.label}
+                </span>
+                <span className="min-w-0 flex-1 truncate">
+                  {row.row === 'delivery' ? '' : row.target}
+                </span>
+                {row.row === 'step' && <ProblemMark count={count} size={13} />}
+                {end}
               </button>
             );
           }
-          const count = problems.get(row.id) ?? 0;
           return (
             <button
               key={row.id}
@@ -165,6 +213,7 @@ export function Timeline({
                 {row.target}
               </span>
               <ProblemMark count={count} size={13} />
+              {end}
             </button>
           );
         })}
@@ -182,6 +231,75 @@ export function Timeline({
         </div>
       )}
     </section>
+  );
+}
+
+/** The present, moving every tick while `running`, so an in-flight call's duration counts up. */
+function useNow(running: boolean): number {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!running) return;
+    const timer = setInterval(() => setNow(Date.now()), TICK_MS);
+    return () => clearInterval(timer);
+  }, [running]);
+  return now;
+}
+
+/**
+ * A row's lane: a narrow track with a call's bar from its start to its end,
+ * lighter until a streamed model call's first token and darker after, or a
+ * step's or a delivery's dot at its moment. Grey at rest, teal on the
+ * selected or followed row, red for a row with a problem.
+ */
+function LaneMark({
+  lane,
+  total,
+  tone,
+}: {
+  lane: Lane | undefined;
+  total: number;
+  tone: 'brand' | 'problem' | 'muted';
+}) {
+  const colour =
+    tone === 'brand'
+      ? 'var(--brand)'
+      : tone === 'problem'
+        ? 'var(--problem)'
+        : 'var(--muted-foreground)';
+  const at = (ms: number) => `${shareOf(ms, total).toFixed(2)}%`;
+  const width = (from: number, to: number) => `max(3px, ${shareOf(to - from, total).toFixed(2)}%)`;
+  return (
+    <span aria-hidden="true" className="relative h-3 w-12 shrink-0">
+      <span className="absolute inset-x-0 top-[5px] h-0.5 rounded-[1px] bg-border" />
+      {lane?.kind === 'bar' && (
+        <>
+          <span
+            className="absolute top-0.5 h-2 rounded-[2px]"
+            style={{
+              left: at(lane.start),
+              width: width(lane.start, lane.end),
+              background: `color-mix(in srgb, ${colour} 32%, transparent)`,
+            }}
+          />
+          {!lane.waitsForToken && (
+            <span
+              className="absolute top-0.5 h-2 rounded-[2px]"
+              style={{
+                left: at(lane.firstToken ?? lane.start),
+                width: width(lane.firstToken ?? lane.start, lane.end),
+                background: colour,
+              }}
+            />
+          )}
+        </>
+      )}
+      {lane?.kind === 'dot' && (
+        <span
+          className="absolute top-[3px] -ml-[3px] size-1.5 rounded-full"
+          style={{left: at(lane.at), background: colour}}
+        />
+      )}
+    </span>
   );
 }
 

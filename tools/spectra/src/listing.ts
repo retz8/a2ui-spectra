@@ -1,4 +1,5 @@
 /** What the turn listing shows of each turn beyond the store's file names. */
+import {failedCallsOf} from './call_rows.js';
 import type {CatalogRegistry} from './catalog/registry.js';
 import {feedConversation} from './check/conversation.js';
 import {unfoldedRejections} from './check/rejections.js';
@@ -30,8 +31,11 @@ export interface ListingFields {
    * rejects, leaving out the messages a finding already points into.
    */
   rejections: number;
-  /** How many of the model proxy's calls in the turn failed, when any did. */
-  failedModelCalls?: number;
+  /**
+   * How many of the turn's call rows failed, when any did: model and tool,
+   * proxy and span-only, a row counted once whichever of its sources failed.
+   */
+  failedCalls?: number;
 }
 
 export function inputBriefOf(event: WireInputEvent): InputBrief | undefined {
@@ -64,7 +68,6 @@ export function listingFieldsOf(
   let fields: Pick<ListingFields, 'outcome' | 'agentName' | 'durationMs'> | undefined;
   let input: InputBrief | undefined;
   let findings: Finding[] | undefined;
-  let failedModelCalls = 0;
   for (const event of turn.events) {
     if (isEventOfKind(event, 'turn')) {
       const agentName = event.attributes['gen_ai.agent.name'];
@@ -79,16 +82,11 @@ export function listingFieldsOf(
       input = inputBriefOf(event);
     } else if (isEventOfKind(event, 'check')) {
       findings = [...(findings ?? []), ...event.attributes['a2ui.check.findings']];
-    } else if (
-      isEventOfKind(event, 'model_call') &&
-      event.status?.code === 2 &&
-      !('a2ui.received.attributes' in event.attributes)
-    ) {
-      // A failed call is a problem on its row; a span the receiver placed has no row of its own yet.
-      failedModelCalls += 1;
     }
   }
   if (fields === undefined) return undefined;
+  // A failed call is one problem on its row, as the viewer's timeline rows it.
+  const failedCalls = failedCallsOf(turn.events);
   const conversation = feedConversation(turn, earlierTurns, catalogs);
   try {
     return {
@@ -96,7 +94,7 @@ export function listingFieldsOf(
       ...(input !== undefined && {input}),
       ...(findings !== undefined && {findings: findings.length}),
       rejections: unfoldedRejections(conversation, findings ?? []),
-      ...(failedModelCalls > 0 && {failedModelCalls}),
+      ...(failedCalls > 0 && {failedCalls}),
     };
   } finally {
     conversation.dispose();

@@ -246,6 +246,19 @@ describe('the store', () => {
     assert.equal(await store.amend('9'.repeat(32), turn => turn), undefined);
   });
 
+  it('counts each write of a file this run, so a file an amendment wrote again is read again', async () => {
+    const store = await TurnStore.open(workingDir());
+    await store.write(turnOf('1', T0, 'ctx-1'));
+    const [own] = await store.list();
+    assert.equal(store.revisionOf(own.file), 1);
+    await store.write(turnOf('2', T0 + 1000, 'ctx-1'));
+    const [later] = await store.list();
+    await store.amend('1'.repeat(32), turn => turn);
+    assert.equal(store.revisionOf(own.file), 2);
+    assert.equal(store.revisionOf(later.file), 2);
+    assert.equal(store.revisionOf('ctx-9/none.json'), 0);
+  });
+
   it('amends a turn once the writes queued before it have finished', async () => {
     const store = await TurnStore.open(workingDir());
     const writing = store.write(turnOf('1', T0, 'ctx-1'));

@@ -186,3 +186,40 @@ export function unixMillis(unixNano: string): number {
 export function millisBetween(startUnixNano: string, endUnixNano: string): number {
   return Number((BigInt(endUnixNano) - BigInt(startUnixNano)) / 1_000_000n);
 }
+
+function keyOfEvent(event: {traceId: string; spanId: string}): string {
+  return `${event.traceId}:${event.spanId}`;
+}
+
+/** Whether an event came from the receiver. */
+function isReceivedEvent(event: TurnRecordEvent): boolean {
+  return 'a2ui.received.attributes' in event.attributes;
+}
+
+/**
+ * A turn with the events a `turn_amended` sent: each replaces the event of
+ * its span id, or is added. As the receiver assembles a turn, the turn's own
+ * events keep their places, the received events follow them in start order,
+ * and the check events come last, so no event a finding points at moves.
+ */
+export function amendedTurn(turn: Turn, events: readonly TurnRecordEvent[]): Turn {
+  const byKey = new Map(events.map(event => [keyOfEvent(event), event]));
+  const replaced = new Set<string>();
+  const kept = turn.events.map(event => {
+    const next = byKey.get(keyOfEvent(event));
+    if (next === undefined) return event;
+    replaced.add(keyOfEvent(event));
+    return next;
+  });
+  const added = events.filter(event => !replaced.has(keyOfEvent(event)));
+  const own = [
+    ...kept.filter(event => !isReceivedEvent(event) && !isCheck(event)),
+    ...added.filter(event => !isReceivedEvent(event) && !isCheck(event)),
+  ];
+  const received = [...kept.filter(isReceivedEvent), ...added.filter(isReceivedEvent)]
+    .map((event, index) => ({event, index, start: BigInt(event.startTimeUnixNano)}))
+    .sort((a, b) => (a.start === b.start ? a.index - b.index : a.start < b.start ? -1 : 1))
+    .map(({event}) => event);
+  const checks = kept.filter(event => !isReceivedEvent(event) && isCheck(event));
+  return {events: [...own, ...received, ...checks]};
+}

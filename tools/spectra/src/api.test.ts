@@ -226,6 +226,37 @@ describe('the API', () => {
     ]);
   });
 
+  it("lists a turn's failed calls as its record stands, once the receiver's spans amend it", async () => {
+    const {store, base} = await serve();
+    const turn = closedTurn(1);
+    await store.write(turn);
+    const listed = async () =>
+      ((await getJson(`${base}/api/turns`)).body as {turns: ListedTurn[]}).turns[0];
+    assert.equal((await listed()).failedCalls, undefined);
+    // A span the receiver placed after the turn was written, read from spans only, ended in error.
+    await store.amend(trace(1), stored => ({
+      events: [
+        ...stored.events,
+        {
+          traceId: trace(1),
+          spanId: '0000000000000005',
+          parentSpanId: '0000000000000000',
+          name: 'execute_tool get_restaurants',
+          kind: 1,
+          startTimeUnixNano: `${1792576801}200000000`,
+          endTimeUnixNano: `${1792576801}300000000`,
+          attributes: {
+            'a2ui.event.kind': 'tool_call',
+            'otel.scope.name': 'gcp.vertex.agent',
+            'a2ui.received.attributes': {},
+          },
+          status: {code: 2},
+        },
+      ],
+    }));
+    assert.equal((await listed()).failedCalls, 1);
+  });
+
   it("returns a closed turn's record, and says an open turn has none", async () => {
     const {store, turns, base} = await serve();
     await store.write(closedTurn(1, 'ctx-1'));

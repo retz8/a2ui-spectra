@@ -1,7 +1,8 @@
 /**
- * The model calls of a turn as the model proxy recorded them: what a call's
- * row and title say, its tokens and hit ratio, and how a failed one reads as
- * a problem. A span the receiver placed has no row of its own yet.
+ * The model calls of a turn: what a call's row and title say, its tokens
+ * and hit ratio, and how a failed one reads as a problem. The proxy's
+ * events and the spans the receiver placed join into rows in
+ * `call_rows.ts`.
  */
 import {isModelCall, type ModelCallEvent, type TurnRecordEvent} from './record.ts';
 
@@ -15,17 +16,37 @@ export function isReadInFull(call: ModelCallEvent): boolean {
   return typeof call.attributes['gen_ai.provider.name'] === 'string';
 }
 
-/** The record's provider names, as a row names the provider. */
+/** The record's provider names, as a row names the provider; any other shows as written. */
 const PROVIDERS: Record<string, string> = {
   'gcp.gemini': 'Gemini',
+  'gcp.gen_ai': 'Google',
   openai: 'OpenAI',
   anthropic: 'Anthropic',
 };
 
-/** The provider a call read in full went to: Gemini, OpenAI or Anthropic. */
+/** The provider a call went to, such as Gemini, OpenAI or Anthropic, as written for any other. */
 export function providerOf(call: ModelCallEvent): string | undefined {
   const name = call.attributes['gen_ai.provider.name'];
   return typeof name === 'string' ? (PROVIDERS[name] ?? name) : undefined;
+}
+
+/**
+ * The API a call read from spans implies, since a span does not say which
+ * API was called: "Gemini API", "Anthropic Messages", "OpenAI" or "Google".
+ */
+export function spanApiOf(call: ModelCallEvent): string | undefined {
+  switch (call.attributes['gen_ai.provider.name']) {
+    case 'gcp.gemini':
+      return 'Gemini API';
+    case 'gcp.gen_ai':
+      return 'Google';
+    case 'anthropic':
+      return 'Anthropic Messages';
+    case 'openai':
+      return 'OpenAI';
+    default:
+      return undefined;
+  }
 }
 
 /** The API a call read in full used, such as "Anthropic Messages". */

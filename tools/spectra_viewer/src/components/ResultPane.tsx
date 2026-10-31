@@ -41,6 +41,7 @@ export function ResultPane({
   open,
   sentA2ui,
   failed,
+  later = false,
   folded = false,
 }: {
   reply: string;
@@ -58,6 +59,8 @@ export function ResultPane({
   /** Whether the agent sent any A2UI in the turn. */
   sentA2ui: boolean;
   failed: boolean;
+  /** Whether the turn has surfaces after the step in view, none of which stood yet at it. */
+  later?: boolean;
   /** Folded to its header line, while the step's detail is maximized. */
   folded?: boolean;
 }) {
@@ -129,13 +132,15 @@ export function ResultPane({
         <Centered icon>
           {open
             ? 'No surfaces yet.'
-            : replay.deleted.length > 0
-              ? 'No surfaces: the turn deleted every surface it had.'
-              : sentA2ui
-                ? 'No surfaces: the agent sent no A2UI that builds one.'
-                : failed
-                  ? 'No surfaces: the turn failed before any A2UI arrived.'
-                  : 'No surfaces: the agent sent no A2UI in this turn.'}
+            : later
+              ? 'No surfaces yet at this step.'
+              : replay.deleted.length > 0
+                ? 'No surfaces: the turn deleted every surface it had.'
+                : sentA2ui
+                  ? 'No surfaces: the agent sent no A2UI that builds one.'
+                  : failed
+                    ? 'No surfaces: the turn failed before any A2UI arrived.'
+                    : 'No surfaces: the agent sent no A2UI in this turn.'}
         </Centered>
       ) : (
         <Panes

@@ -3,7 +3,14 @@ import type {KnownCatalog} from './model/catalogs.ts';
 import type {Prices} from './model/cost.ts';
 import type {A2aVersion, ActionMessage, DataModelMap} from './model/host_message.ts';
 import type {InputBrief} from './model/input_brief.ts';
-import type {OtherEvent, Turn, TurnOutcome, TurnRecord, WireEvent} from './model/record.ts';
+import type {
+  OtherEvent,
+  Turn,
+  TurnOutcome,
+  TurnRecord,
+  TurnRecordEvent,
+  WireEvent,
+} from './model/record.ts';
 
 export type {KnownCatalog};
 
@@ -22,8 +29,8 @@ export interface ListedTurn {
   findings?: number;
   /** How many of the turn's A2UI messages web core's message processor rejects that no finding points into. */
   rejections?: number;
-  /** How many of the model proxy's calls in the turn failed, when any did. */
-  failedModelCalls?: number;
+  /** How many of the turn's call rows failed, model and tool, proxy and span-only, when any did. */
+  failedCalls?: number;
   /** The render errors the preview counts, set by the viewer while the turn is in view. */
   renderErrors?: number;
 }
@@ -95,6 +102,13 @@ export interface LiveEvents {
   /** The call's complete event, as the record holds it. */
   call_ended: {traceId: string; event: OtherEvent};
   turn_closed: {traceId: string; turn: Turn};
+  /**
+   * The events one export to the receiver added to a turn or changed in it,
+   * open or written, in the record's shape: the spans placed, the proxies'
+   * calls whose links grew, the turn event when its capture paths changed.
+   * Each replaces the event of its span id, or is added.
+   */
+  turn_amended: {traceId: string; events: TurnRecordEvent[]};
   heartbeat: Record<string, never>;
 }
 

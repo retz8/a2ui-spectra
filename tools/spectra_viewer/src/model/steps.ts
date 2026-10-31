@@ -1,13 +1,23 @@
 /**
  * The turn's timeline: a step for each A2UI message, text part, data part,
- * file part and status update, and a row for each model call the model proxy
- * recorded, in the order they came, with the input first and the outcome
- * last. The steps of one delivery that carries several are grouped under a
- * row for the delivery.
+ * file part and status update, and a row for each model call and tool call,
+ * by start time, with the input first and the outcome last. The steps of one
+ * delivery that carries several are grouped under a row for the delivery.
+ * An MCP request other than a tool called, a resource read or a prompt got
+ * is a housekeeping row, drawn as small as a delivery's.
  */
+import {
+  type CallRow,
+  callRowsOf,
+  idsOf,
+  modelReadingOf,
+  sourceOfNames,
+  timedEventOf,
+} from './call_rows.ts';
 import {inputBrief} from './input_brief.ts';
 import {messageKey} from './messages.ts';
-import {isProxyModelCall, rowTextOf} from './model_calls.ts';
+import {modelOf, providerOf, rowTextOf} from './model_calls.ts';
+import {isFullToolRow, toolRowTextOf} from './tool_calls.ts';
 import {
   isTurnEvent,
   isWireInput,
@@ -34,6 +44,7 @@ export type StepIcon =
   | 'deleteSurface'
   | 'message'
   | 'model'
+  | 'tool'
   | OutcomeIcon;
 
 export type OutcomeIcon = 'completed' | 'waiting' | 'failed' | 'cancelled';
@@ -76,8 +87,16 @@ export interface Step {
   part?: WirePart;
   /** The outcome, for the outcome step. */
   outcome?: TurnOutcome;
-  /** The model call, for a call's row. */
-  call?: ModelCallEvent;
+  /** The call, for a call's row: its proxy's event and the received spans of its chain. */
+  call?: CallRow;
+  /** A housekeeping row: an MCP request other than a tool called, a resource read or a prompt got. */
+  housekeeping?: boolean;
+  /**
+   * For a call's row, every span id it holds, its own id among them: a row
+   * picked by an id it no longer goes by, such as a span-only row merged
+   * into its proxy's row, is found by them.
+   */
+  aliases?: string[];
 }
 
 /** A delivery that carries several steps. */
@@ -110,30 +129,44 @@ const MESSAGE_ICONS = new Set<StepIcon>([
 
 /** The timeline of a turn's events, timed from its start. */
 export function timelineOf(events: readonly TurnRecordEvent[], startMs: number): TimelineRow[] {
-  const rows: TimelineRow[] = [];
+  // Each wire event and each call is a unit of rows, placed by its start; a delivery keeps its steps under it.
+  const units: Array<{start: bigint; index: number; rows: TimelineRow[]}> = [];
+  const indexOf = new Map(events.map((event, index) => [event, index]));
   events.forEach((event, eventIndex) => {
-    if (isProxyModelCall(event)) {
-      rows.push(callStep(event, events, startMs));
-      return;
-    }
     if (!isWireInput(event) && !isWireOutput(event)) return;
+    const start = BigInt(event.startTimeUnixNano);
     const offsetMs = unixMillis(event.startTimeUnixNano) - startMs;
     const steps = stepsOfEvent(event, eventIndex);
     if (steps.length === 1) {
-      rows.push({...steps[0], offsetMs});
+      units.push({start, index: eventIndex, rows: [{...steps[0], offsetMs}]});
       return;
     }
     const {parts} = event.attributes['a2ui.wire.message'];
-    rows.push({
+    const delivery: DeliveryRow = {
       row: 'delivery',
       id: `delivery-${event.spanId}`,
       eventIndex,
       offsetMs,
       parts: parts.length,
       messages: steps.filter(step => step.kind === 'message').length,
+    };
+    units.push({
+      start,
+      index: eventIndex,
+      rows: [delivery, ...steps.map(step => ({...step, grouped: true}))],
     });
-    rows.push(...steps.map(step => ({...step, grouped: true})));
   });
+  for (const call of callRowsOf(events)) {
+    const timed = timedEventOf(call);
+    units.push({
+      start: BigInt(timed.startTimeUnixNano),
+      index: indexOf.get(timed) ?? events.length,
+      rows: [callStep(call, events, startMs)],
+    });
+  }
+  // By start time, the record's order among equals.
+  units.sort((a, b) => (a.start === b.start ? a.index - b.index : a.start < b.start ? -1 : 1));
+  const rows: TimelineRow[] = units.flatMap(unit => unit.rows);
   const turn = events.find(isTurnEvent);
   if (turn !== undefined) {
     const outcome = turn.attributes['a2ui.turn.outcome'];
@@ -156,30 +189,55 @@ export function timelineOf(events: readonly TurnRecordEvent[], startMs: number):
 }
 
 /**
- * A model call's row, named by its span id: the model id as requested and
- * the provider, or the host and the method and path for a call recorded raw.
+ * A call's row, named by its proxy's span id, else its innermost span's. A
+ * model call says its model id as requested and its provider, or its host
+ * and its method and path when recorded raw; one read from spans only adds
+ * its source to its provider. A tool call says what `toolRowTextOf` says.
  */
-function callStep(call: ModelCallEvent, events: readonly TurnRecordEvent[], startMs: number): Step {
-  const {label, target} = rowTextOf(call);
-  // The surfaces as they stood at the call's end: after every event that started by then.
+function callStep(call: CallRow, events: readonly TurnRecordEvent[], startMs: number): Step {
+  const timed = timedEventOf(call);
+  const {label, target} = call.kind === 'model' ? modelRowTextOf(call) : toolRowTextOf(call);
+  // The surfaces as they stood at the call's end: after every wire event that started by then.
   let through: number | undefined;
-  if (call.endTimeUnixNano !== undefined) {
-    const end = BigInt(call.endTimeUnixNano);
+  if (timed.endTimeUnixNano !== undefined) {
+    const end = BigInt(timed.endTimeUnixNano);
     events.forEach((event, index) => {
-      if (BigInt(event.startTimeUnixNano) <= end) through = index;
+      if ((isWireInput(event) || isWireOutput(event)) && BigInt(event.startTimeUnixNano) <= end) {
+        through = index;
+      }
     });
   }
+  const housekeeping = call.kind === 'tool' && !isFullToolRow(call);
   return {
     row: 'step',
-    id: call.spanId,
+    id: call.id,
     kind: 'call',
-    icon: 'model',
+    icon: call.kind === 'model' ? 'model' : 'tool',
     label,
     target,
-    offsetMs: unixMillis(call.startTimeUnixNano) - startMs,
+    offsetMs: unixMillis(timed.startTimeUnixNano) - startMs,
     grouped: false,
     ...(through !== undefined && {position: {eventIndex: through}}),
     call,
+    ...(housekeeping && {housekeeping}),
+    aliases: idsOf(call),
+  };
+}
+
+/**
+ * A model row's text: the proxy's call as `rowTextOf` says it, linked or
+ * not; a call read from spans only with its model id as the agent requested
+ * it, its provider and its source, or its source alone when its spans name
+ * no provider.
+ */
+function modelRowTextOf(call: CallRow): {label: string; target: string} {
+  if (call.proxy !== undefined) return rowTextOf(call.proxy as ModelCallEvent);
+  const {event} = modelReadingOf(call);
+  const provider = providerOf(event);
+  const source = sourceOfNames(call, ['gen_ai.provider.name']) ?? '';
+  return {
+    label: modelOf(event) ?? event.name,
+    target: provider === undefined ? source : `${provider} · ${source}`,
   };
 }
 

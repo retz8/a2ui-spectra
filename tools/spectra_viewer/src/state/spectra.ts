@@ -22,36 +22,23 @@ import {
   STREAM_PATH,
 } from '../api.ts';
 import type {Prices} from '../model/cost.ts';
-import {inputBrief} from '../model/input_brief.ts';
+import {isTurnEvent, type Turn, type TurnRecordEvent} from '../model/record.ts';
 import {
-  isTurnEvent,
-  isWireInput,
-  type OtherEvent,
-  type Turn,
-  type TurnRecord,
-  type TurnRecordEvent,
-  unixMillis,
-  type WireEvent,
-} from '../model/record.ts';
-import {openFieldsOf, rowFieldsOf} from '../model/summary.ts';
+  callChanged,
+  closedRow,
+  type LiveTurn,
+  openRow,
+  type RecordState,
+  recordRead,
+  rowFromRecord,
+  sortRows,
+  turnAmended,
+  turnClosed,
+  turnOpened,
+  wireEvent,
+} from './live.ts';
 
-/** An open turn, as the live stream has sent it so far. */
-export interface LiveTurn {
-  traceId: string;
-  conversationId?: string;
-  startTime: string;
-  /** Its wire events and its calls, by start time, as the record will hold them. */
-  events: TurnRecordEvent[];
-  wire: WireEvent[];
-  /**
-   * The calls placed in it, by span id: each as its event stood at its start,
-   * with its chunks and its progress so far, until it ends complete.
-   */
-  calls: ReadonlyMap<string, OtherEvent>;
-}
-
-/** A record the page has asked for. */
-export type RecordState = {loading: true} | {record: TurnRecord} | {error: string};
+export type {LiveTurn, RecordState};
 
 export interface SpectraState {
   /** Whether the live stream is open; unknown until it has opened or failed once. */
@@ -64,6 +51,8 @@ export interface SpectraState {
   /** The turns that closed while the page was open, as the stream sent them. */
   closed: ReadonlyMap<string, Turn>;
   records: ReadonlyMap<string, RecordState>;
+  /** Amendments of turns whose record is on its way, by trace id, applied when it comes. */
+  pending: ReadonlyMap<string, readonly TurnRecordEvent[]>;
   box: MessageBoxState;
   /** The session, once read. */
   context?: SessionContext;
@@ -97,6 +86,7 @@ class Spectra {
     live: new Map(),
     closed: new Map(),
     records: new Map(),
+    pending: new Map(),
     box: {conversations: []},
   };
   readonly #listeners = new Set<() => void>();
@@ -126,11 +116,14 @@ class Spectra {
   }
 
   /** Reads a closed turn's record, once. A turn still open is asked for again later. */
-  ensureRecord(traceId: string): void {
+  ensureRecord(traceId: string, {row = false}: {row?: boolean} = {}): void {
     if (this.#state.records.has(traceId)) return;
     this.#setRecord(traceId, {loading: true});
     getRecord(traceId).then(
-      record => this.#setRecord(traceId, {record}),
+      record => {
+        const read = recordRead(this.#state, traceId, record);
+        this.#replace(row ? rowFromRecord(read, traceId) : read);
+      },
       (error: unknown) => {
         if ((error as {status?: number}).status === 409) {
           this.#setRecord(traceId, undefined);
@@ -175,25 +168,42 @@ class Spectra {
         this.#heard(source);
         handle(JSON.parse((event as MessageEvent<string>).data) as LiveEvents[Name]);
       });
-    on('turn_opened', data => this.#turnOpened(data));
-    on('wire_event', data => this.#wireEvent(data));
-    on('call_started', ({traceId, event}) => this.#call(traceId, event.spanId, () => event));
+    const agent = () => this.#state.context?.agentName;
+    on('turn_opened', data => this.#replace(turnOpened(this.#state, data, agent())));
+    on('wire_event', data => this.#replace(wireEvent(this.#state, data, agent())));
+    on('call_started', ({traceId, event}) =>
+      this.#replace(callChanged(this.#state, traceId, event.spanId, () => event)),
+    );
     on('call_chunk', ({traceId, spanId, chunk}) =>
-      this.#call(
-        traceId,
-        spanId,
-        call => call && {...call, events: [...(call.events ?? []), chunk]},
+      this.#replace(
+        callChanged(
+          this.#state,
+          traceId,
+          spanId,
+          call => call && {...call, events: [...(call.events ?? []), chunk]},
+        ),
       ),
     );
     on('call_progress', ({traceId, spanId, attributes}) =>
-      this.#call(
-        traceId,
-        spanId,
-        call => call && {...call, attributes: {...call.attributes, ...attributes}},
+      this.#replace(
+        callChanged(
+          this.#state,
+          traceId,
+          spanId,
+          call => call && {...call, attributes: {...call.attributes, ...attributes}},
+        ),
       ),
     );
-    on('call_ended', ({traceId, event}) => this.#call(traceId, event.spanId, () => event));
+    on('call_ended', ({traceId, event}) =>
+      this.#replace(callChanged(this.#state, traceId, event.spanId, () => event)),
+    );
     on('turn_closed', data => this.#turnClosed(data));
+    on('turn_amended', data => {
+      const {state, fetch} = turnAmended(this.#state, data);
+      this.#replace(state);
+      // A turn the page holds in no form: its record is read once, and its list row from it.
+      if (fetch !== undefined) this.ensureRecord(fetch, {row: true});
+    });
     on('heartbeat', () => {});
   }
 
@@ -278,53 +288,9 @@ class Spectra {
     }
   }
 
-  #turnOpened(data: LiveEvents['turn_opened']): void {
-    const turn: LiveTurn = {...data, events: [], wire: [], calls: new Map()};
-    const live = new Map(this.#state.live).set(data.traceId, turn);
-    const row = openRow(turn, this.#state.context?.agentName);
-    this.#set({live, turns: upsertRow(this.#state.turns, row)});
-  }
-
-  #wireEvent({traceId, conversationId, event}: LiveEvents['wire_event']): void {
-    const turn = this.#state.live.get(traceId);
-    if (turn === undefined) return;
-    const wire = [...turn.wire, event];
-    const updated: LiveTurn = {
-      ...turn,
-      ...(turn.conversationId === undefined && conversationId !== undefined && {conversationId}),
-      wire,
-      events: byStart(wire, turn.calls),
-    };
-    const live = new Map(this.#state.live).set(traceId, updated);
-    const row = this.#state.turns.find(row => row.traceId === traceId);
-    const turns =
-      row === undefined
-        ? this.#state.turns
-        : upsertRow(this.#state.turns, openRow(updated, this.#state.context?.agentName));
-    this.#set({live, turns});
-  }
-
-  /** Changes a call of an open turn: it starts, gains a chunk or its progress, or ends. */
-  #call(
-    traceId: string,
-    spanId: string,
-    change: (call: OtherEvent | undefined) => OtherEvent | undefined,
-  ): void {
-    const turn = this.#state.live.get(traceId);
-    if (turn === undefined) return;
-    const call = change(turn.calls.get(spanId));
-    if (call === undefined) return;
-    const calls = new Map(turn.calls).set(spanId, call);
-    const updated: LiveTurn = {...turn, calls, events: byStart(turn.wire, calls)};
-    this.#set({live: new Map(this.#state.live).set(traceId, updated)});
-  }
-
-  #turnClosed({traceId, turn}: LiveEvents['turn_closed']): void {
-    const live = new Map(this.#state.live);
-    live.delete(traceId);
-    const closed = new Map(this.#state.closed).set(traceId, turn);
-    const row = this.#state.turns.find(row => row.traceId === traceId);
-    this.#set({live, closed, turns: upsertRow(this.#state.turns, closedRow(turn, row))});
+  #turnClosed(data: LiveEvents['turn_closed']): void {
+    const {traceId, turn} = data;
+    this.#replace(turnClosed(this.#state, data));
     // The listing counts the turn's rejections after the conversation's earlier turns.
     void this.#reload();
     const conversationId = turn.events.find(isTurnEvent)?.attributes['gen_ai.conversation.id'];
@@ -343,64 +309,14 @@ class Spectra {
     this.#set({records});
   }
 
+  #replace(state: SpectraState): void {
+    if (state !== this.#state) this.#set(state);
+  }
+
   #set(changes: Partial<SpectraState>): void {
     this.#state = {...this.#state, ...changes};
     for (const listener of this.#listeners) listener();
   }
-}
-
-/** The wire events and the calls together by start time, as the record joins them; the wire's first on a tie. */
-function byStart(
-  wire: readonly WireEvent[],
-  calls: ReadonlyMap<string, OtherEvent>,
-): TurnRecordEvent[] {
-  if (calls.size === 0) return [...wire];
-  return [...wire, ...calls.values()]
-    .map((event, index) => ({event, index, start: BigInt(event.startTimeUnixNano)}))
-    .sort((a, b) => (a.start === b.start ? a.index - b.index : a.start < b.start ? -1 : 1))
-    .map(({event}) => event);
-}
-
-/** An open turn's row: the session's agent is the open turn's, and its duration runs to its newest event. */
-function openRow(turn: LiveTurn, agentName: string | undefined): ListedTurn {
-  const wireInput = turn.events.find(isWireInput);
-  const input = wireInput === undefined ? undefined : inputBrief(wireInput);
-  const {durationMs} = openFieldsOf(turn.events, Date.parse(turn.startTime));
-  return {
-    traceId: turn.traceId,
-    ...(turn.conversationId !== undefined && {conversationId: turn.conversationId}),
-    startTime: turn.startTime,
-    open: true,
-    ...(agentName !== undefined && {agentName}),
-    ...(turn.events.length > 0 && {durationMs}),
-    ...(input !== undefined && {input}),
-  };
-}
-
-function closedRow(turn: Turn, row: ListedTurn | undefined): ListedTurn {
-  const event = turn.events.find(isTurnEvent);
-  const conversationId = event?.attributes['gen_ai.conversation.id'] ?? row?.conversationId;
-  const startTime =
-    row?.startTime ??
-    new Date(event === undefined ? Date.now() : unixMillis(event.startTimeUnixNano)).toISOString();
-  return {
-    traceId: event?.traceId ?? row?.traceId ?? '',
-    ...(conversationId !== undefined && {conversationId}),
-    startTime,
-    ...rowFieldsOf(turn),
-    ...(row?.rejections !== undefined && {rejections: row.rejections}),
-  };
-}
-
-function upsertRow(turns: readonly ListedTurn[], row: ListedTurn): ListedTurn[] {
-  return sortRows([...turns.filter(turn => turn.traceId !== row.traceId), row]);
-}
-
-/** Newest first; turns that started in the same millisecond keep their order. */
-function sortRows(turns: ListedTurn[]): ListedTurn[] {
-  return turns.sort((a, b) =>
-    a.startTime === b.startTime ? 0 : a.startTime < b.startTime ? 1 : -1,
-  );
 }
 
 export const spectra = new Spectra();

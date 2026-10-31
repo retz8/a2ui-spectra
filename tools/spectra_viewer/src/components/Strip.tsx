@@ -78,7 +78,9 @@ export function Strip({
         tabIndex={strip.length > 0 ? 0 : -1}
         aria-activedescendant={index === -1 ? undefined : domIdOf(strip[index].turn.traceId)}
         onKeyDown={onKeyDown}
-        className="group/strip flex min-h-0 flex-col items-center gap-1 overflow-y-auto px-[9px] outline-none"
+        // The list fits the strip and scrolls with no scrollbar of its own, which a classic
+        // scrollbar would push outside the strip; the selected turn is scrolled into view.
+        className="group/strip flex min-h-0 w-full flex-col items-center gap-1 overflow-y-auto px-[9px] outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {strip.map(({turn, problems, title}) => {
           const isSelected = turn.traceId === selected;

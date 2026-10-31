@@ -1,6 +1,6 @@
 import {type InputBrief, inputBriefOfTurn} from './input_brief.ts';
 import {agentMessages} from './messages.ts';
-import {failedModelCallsOf} from './problems.ts';
+import {failedCallsOf} from './call_rows.ts';
 import {
   type CheckEvent,
   isCheck,
@@ -24,8 +24,8 @@ export interface RowFields {
   input?: InputBrief;
   /** The findings of the turn's checks together, when it has check events. */
   findings?: number;
-  /** How many of the model proxy's calls failed, when any did. */
-  failedModelCalls?: number;
+  /** How many of its call rows failed, model and tool, proxy and span-only, when any did. */
+  failedCalls?: number;
 }
 
 export function rowFieldsOf(turn: Turn): RowFields {
@@ -34,7 +34,7 @@ export function rowFieldsOf(turn: Turn): RowFields {
   const agentName = event?.attributes['gen_ai.agent.name'];
   const input = inputBriefOfTurn(turn);
   const checks = turn.events.filter(isCheck);
-  const failedModelCalls = failedModelCallsOf(turn.events);
+  const failedCalls = failedCallsOf(turn.events);
   return {
     ...(outcome !== undefined && {outcome}),
     ...(agentName !== undefined && {agentName}),
@@ -48,7 +48,7 @@ export function rowFieldsOf(turn: Turn): RowFields {
         0,
       ),
     }),
-    ...(failedModelCalls > 0 && {failedModelCalls}),
+    ...(failedCalls > 0 && {failedCalls}),
   };
 }
 
