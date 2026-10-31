@@ -1123,3 +1123,95 @@ placeholder so the rest of the surface stays drawn: in web core's
 `A2uiLitElement` update, as finding 27 gives it, which covers the Lit renderer
 and the Angular renderer's universal components; and in the Angular renderer's
 `ComponentHostComponent`, around the native component it hosts.
+
+## 31. The Python restaurant finder retries its model call on `Surface default already exists`
+
+**Component:** `samples/agent/adk/restaurant_finder/agent.py`, with the agent
+SDK's `ResponseStream`.
+
+**Severity:** an extra model call in every streamed turn, and a surface built
+three times. Seen at upstream `825beac28` with `google-adk` 2.3.0.
+
+### Issue
+
+Finding 14's cause stands: `token_stream` passes on the text of every ADK event
+without looking at `event.partial` (`agent.py:286-302`), so the aggregated
+response ADK's streaming mode appends reaches the parser after the partial
+chunks that already made the whole reply. At `825beac28` the sample reads the
+reply through the agent SDK's stream, `processor.open_stream()` fed by
+`stream_response_to_parts` (`agent.py:307-308`), and the stream applies each
+block to a renderer state as it comes. The aggregated copy's `createSurface`
+for `default` then meets the surface the partial chunks created, and the
+message processor rejects it:
+`Surface default already exists.`
+(`python/a2ui_core/src/a2ui/core/processing/message_processor.py:678`). The
+sample takes the `ValueError` as a bad response, marks the stream failed
+(`agent.py:326`) and retries the model with "Your previous response was
+invalid" (`agent.py:398`). The retry is read whole, not streamed, and passes.
+
+So a turn that needed two model calls, the tool round and the answer, makes
+three; and the surface is created once by the first attempt's stream, then
+deleted and created twice more as the retry's reply arrives, its streamed and
+its aggregated copy. The retry's request repeats the whole prompt, so the
+extra call costs as much as the one it repeats.
+
+### Reproduction
+
+Run the sample with a Gemini key and send "Top 3 Chinese restaurants in New
+York" over `message/stream`. The sample logs
+`A2UI stream failed: Surface default already exists. (Attempt 1)` and
+`Retrying... (1/2)`. Under `a2ui-spectra run`, the turn's record holds three
+`model_call` events, the third's request carrying the retry prompt, and on the
+wire one `createSurface default`, then `deleteSurface` and `createSurface`
+twice. Seen in two conversations in the Phase 5 acceptance run, traces
+`9e94333e102bd3b80aa935a6360e45f2` and `a81c164e3082ef3c3bcddf3187490c55`.
+
+### Fix
+
+Finding 14's: skip partial events, or the final aggregated one, in
+`token_stream`, so each piece of text reaches the stream once.
+
+## 32. The custom-components example prompts with examples in a catalog the host did not negotiate
+
+**Component:** `samples/agent/adk/custom-components-example/agent.py` and
+`a2ui_examples.py`.
+
+**Severity:** an extra model call in every turn with a host that names its
+catalogs, and the turn's second surface lost. Seen at upstream `825beac28`.
+
+### Issue
+
+The example builds the processor of each request from the host's
+capabilities: `create_processor` takes the client's `supportedCatalogIds`
+(`agent.py:159-167`, from `agent_executor.py:167`), so a host that offers the
+basic catalog alone gets a processor whose only active catalog is the basic
+one. The prompt's examples do not follow: `floor_plan`, `org_chart` and
+`multi_surface` under `examples/0.9/` create their surfaces with
+`"catalogId": "inline_catalog"`, and `a2ui_examples.py:134` and `:194` build
+the same by hand. Asked about a contact, the model answers as the examples
+show, with an org chart in `inline_catalog`, and the processor rejects the
+reply: `Catalog not found: inline_catalog`
+(`python/a2ui_core/src/a2ui/core/processing/message_processor.py:668-671`).
+The example retries once with "Validation failed: Catalog not found:
+inline_catalog" (`agent.py:540-564`), the model answers the same way, and the
+example gives up with "I'm sorry, I'm having trouble generating the interface
+for that request right now." So every turn makes three model calls where two
+would do, and the org chart never arrives. A host that sends no capabilities
+gets every catalog of the agent and sees none of this.
+
+### Reproduction
+
+Send "Who is Alex Jordan?" from a host whose capabilities name the basic
+catalog only, such as Spectra's message box. The example logs
+`A2UI stream failed: Catalog not found: inline_catalog (Attempt 2)` and
+`Max retries exhausted. Sending text-only error.` Under `a2ui-spectra run`, the
+turn's record holds three `model_call` events, the third's request carrying
+the retry prompt. Seen in every message-box turn of the Phase 5 acceptance run
+on Gemini, Anthropic and both OpenAI APIs, among them traces
+`54d0bbb3b13b9831…`, `7c7ad7a3617a52c…` and `5d62d220c67d7d3…`.
+
+### Fix
+
+Give the model only the examples of the catalogs the request's processor
+holds, or negotiate the inline catalog with hosts that accept inline catalogs
+before prompting with it.
