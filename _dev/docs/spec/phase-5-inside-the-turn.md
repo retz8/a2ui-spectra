@@ -53,7 +53,7 @@ The model proxy's tests run against a stand-in provider for the four APIs, read 
 
 ### 8. The tool proxy
 
-The tool proxy covers MCP over streamable HTTP and over HTTP+SSE. Traffic to a configured tool server that is not MCP is an HTTP tool, recorded raw as one tool call event per HTTP request. The targets:
+The tool proxy covers MCP over streamable HTTP and over HTTP+SSE. The config's `tools` key lists the tool servers, each `{variable, url}`: the variable the agent reads the server's URL from and the original URL, which the value of the variable in Spectra's own environment replaces when it is set. Each tool server has its own port on loopback, the first `--tool-proxy-port` and each further one the next. Traffic on a tool server's port is read per request, by its content: a request that is not MCP is an HTTP tool, recorded raw as one tool call event per HTTP request. The targets:
 
 - MCP over HTTP+SSE: the custom-components example's floor plan server.
 - MCP over streamable HTTP: an MCP server of Spectra's own in `conformance/`, for the tests; A2UIVerse's CircleCI agent in its live mode, by hand in the acceptance run, its MCP URL read from a variable, a change made in `a2uiverse-apps` from this phase.
@@ -127,5 +127,6 @@ The last sub-task, through the tunnel, under `run` and `attach`, across every bo
 
 - No credential is ever in the record: model API keys and MCP's `Authorization` tokens, in headers and in URLs alike.
 - The proxies forward requests and responses unchanged, and pass a streamed response on chunk by chunk as it arrives. The trace context on A2A requests is the one change Spectra makes to traffic.
+- An HTTP+SSE server's absolute endpoint URL is passed on unchanged, and the terminal says once that the server's calls do not pass through the tool proxy.
 - A record states what happened. Cost, the hit ratio and the prefix break are computed when shown.
 - Nothing committed in A2UIVerse depends on this repo.

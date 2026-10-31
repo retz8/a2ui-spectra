@@ -185,17 +185,28 @@ A model call event may also carry the exchange attributes and the received-span 
 
 ### `tool_call`
 
-A tool call event lasts from the request to the response. A proxy's event has the turn event as parent and `kind` `3`.
+A tool call event lasts from the request to the response, whichever side asks. A proxy's event has the turn event as parent and `kind` `3`; an event for an operation the server initiated has `kind` `4`, the client's view of a server-initiated operation in the pinned MCP conventions.
 
-| Attribute                                                                                                                                                        | Type                              |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| `gen_ai.operation.name`, `gen_ai.tool.name`, `gen_ai.tool.call.id`, `gen_ai.tool.type`, `gen_ai.tool.description`, `gen_ai.agent.name`, `gen_ai.conversation.id` | string                            |
-| `gen_ai.tool.call.arguments`                                                                                                                                     | `gen-ai-tool-call-arguments.json` |
-| `gen_ai.tool.call.result`                                                                                                                                        | `gen-ai-tool-call-result.json`    |
-| `mcp.method.name`, `mcp.session.id`, `mcp.protocol.version`, `mcp.resource.uri`, `jsonrpc.request.id`                                                            | string                            |
-| `error.type`                                                                                                                                                     | string                            |
+| Attribute                                                                                                                                                                              | Type                              |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `gen_ai.operation.name`, `gen_ai.tool.name`, `gen_ai.tool.call.id`, `gen_ai.tool.type`, `gen_ai.tool.description`, `gen_ai.prompt.name`, `gen_ai.agent.name`, `gen_ai.conversation.id` | string                            |
+| `gen_ai.tool.call.arguments`                                                                                                                                                           | `gen-ai-tool-call-arguments.json` |
+| `gen_ai.tool.call.result`                                                                                                                                                              | `gen-ai-tool-call-result.json`    |
+| `mcp.method.name`, `mcp.session.id`, `mcp.protocol.version`, `mcp.resource.uri`, `jsonrpc.request.id`, `rpc.response.status_code`                                                      | string                            |
+| `error.type`                                                                                                                                                                           | string                            |
 
 An MCP call carries the `mcp.` attributes. A tool call event may also carry the exchange attributes and the received-span attributes below.
+
+The tool proxy writes one event per MCP message:
+
+- **The name.** `{mcp.method.name} {target}`, the target the tool name of a `tools/call`, the prompt name of a `prompts/get` or the resource URI of a `resources/read`; `{mcp.method.name}` alone otherwise.
+- **The attributes.** `mcp.method.name`, the JSON-RPC method; `jsonrpc.request.id`, the id as a string, on a request; `mcp.session.id`, the `Mcp-Session-Id` under streamable HTTP, or the HTTP+SSE endpoint URL's `session_id` or `sessionId` parameter; `mcp.protocol.version`, the version the session's `initialize` result negotiated, else the request's `MCP-Protocol-Version` header. A `tools/call` carries `gen_ai.operation.name` `execute_tool`, `gen_ai.tool.name`, `gen_ai.tool.call.arguments` when the params' `arguments` is an object, and `gen_ai.tool.call.result`, the JSON-RPC `result`. A `resources/read` carries `mcp.resource.uri`, and a `prompts/get` `gen_ai.prompt.name`. `server.address` and `server.port` are the original server's.
+- **A client's request or notification** is its POST's exchange. Under streamable HTTP, the reply is on the POST: a JSON body is the response body, and a stream is the event's chunks. Under HTTP+SSE, the exchange is the POST with its `202 Accepted`, and the reply, arriving on the session's `GET` stream, is a chunk on the event. The session's `initialize` event starts when its `GET` stream opens, and the stream's `endpoint` event is its first chunk.
+- **A message the server sends on its own,** on a `GET` stream: a JSON-RPC response is a chunk on the event of the request with that id in its session; a `notifications/progress` whose `progressToken` is a pending request's `_meta.progressToken` is a chunk on that request's event; any other notification is an event of its own, starting and ending at its arrival, with the message as its one chunk and no exchange; a request is an event of its own, from its arrival, with the message as a chunk, to the arrival of the client's POST carrying the response with that id, that POST's exchange recorded on it. A message inside a POST's own streamed reply is a chunk on that POST's event, whatever its method. A response no pending request is waiting for is an event of its own named `response`, with no `mcp.method.name`; so is a client's POST carrying a response that answers no server request event.
+- **The session's end,** a `DELETE` carrying `Mcp-Session-Id`, is a housekeeping event named `DELETE`, with `mcp.session.id` and the exchange and no `mcp.method.name`.
+- **A failed call.** A JSON-RPC error is status `code` `2`, the error's code as a string in both `error.type` and `rpc.response.status_code`, and its `message` as the status message. A `tools/call` result with `isError` is `error.type` `tool_error` with status `code` `1`, and carries no `gen_ai.tool.call.result`. A request the client cancels with `notifications/cancelled` ends at the notification with `error.type` `cancelled`; one whose `GET` stream closes before its reply ends then with `error.type` `aborted`.
+
+A request to a tool server that is not an MCP message is an HTTP tool request: a `tool_call` event with the exchange only, named `{method} {path}`, the path without its query.
 
 ### The exchange
 

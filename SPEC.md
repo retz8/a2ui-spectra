@@ -128,7 +128,7 @@ Capture works at three depths. Each depth adds to the view, and each works witho
 - `a2ui-spectra attach` prints the same variables and values at start, to set in the agent's shell before restarting it, and the viewer's first screen shows them with one copy button.
 - The wire proxy adds a W3C `traceparent` carrying the turn's trace id to each A2A turn request, the message box's included; a host's own is kept, and the turn adopts its trace id, unless another turn has it. A model call, a tool call or a received span carrying a turn's trace id belongs to that turn; without trace context, or with a trace id that names no turn, one that starts while exactly one turn is open belongs to that turn. A call that cannot be placed is not recorded, and the terminal says why.
 - An agent that hardcodes its model endpoint needs a line of config.
-- MCP defines no standard variable for a server's URL. For each tool server, the adopter names in Spectra's config the variable their agent reads the URL from. `a2ui-spectra run` points it at the tool proxy, which forwards to the original URL. A URL hardcoded in code needs a small change to read from a variable.
+- MCP defines no standard variable for a server's URL. For each tool server, the adopter names in Spectra's config the variable their agent reads the URL from, and the server's URL. `a2ui-spectra run` points the variable at the tool proxy, on a port of its own for each server, which forwards to the original URL. A URL hardcoded in code needs a small change to read from a variable.
 - Tools that are plain functions in the agent's process are not seen at the network edge. They run live during replay, and are seen through OpenTelemetry where the framework emits spans for them. A tool server that redirection does not reach behaves the same way.
 - **HTTPS interception** comes after v1, as the fallback for what redirection cannot reach: Spectra as a forward proxy for the agent's outgoing HTTPS, with a locally trusted certificate, as mitmproxy does.
 
@@ -221,7 +221,7 @@ What Spectra needs to know, and where it comes from:
 | The catalog schema, for the checks               | The catalog id. The basic catalog is built in; a custom catalog is a path to its `catalog.json`.                                                                                                |
 | The catalog's look, for the preview              | The URL of the preview page the catalog's dev server serves with the preview adapter.                                                                                                           |
 | Model providers                                  | Redirected through the base-URL variables. An agent that hardcodes its endpoint needs a line of config.                                                                                         |
-| Tool servers                                     | The variable the agent reads each server's URL from.                                                                                                                                            |
+| Tool servers                                     | The variable the agent reads each server's URL from, and the URL.                                                                                                                               |
 
 Settings beyond the defaults go in an optional config file committed in the repo.
 

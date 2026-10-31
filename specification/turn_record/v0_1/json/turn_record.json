@@ -631,6 +631,9 @@
                   "gen_ai.conversation.id": {
                     "type": "string"
                   },
+                  "gen_ai.prompt.name": {
+                    "type": "string"
+                  },
                   "mcp.method.name": {
                     "type": "string"
                   },
@@ -644,6 +647,9 @@
                     "type": "string"
                   },
                   "jsonrpc.request.id": {
+                    "type": "string"
+                  },
+                  "rpc.response.status_code": {
                     "type": "string"
                   },
                   "http.request.method": {

@@ -438,3 +438,34 @@ around line 175.
 Add a Gemini page under `docs/gen-ai/` that fixes the operation name, and make the
 reference scenario write it; or drop `generate_content` from the registry if
 `chat` is meant to cover Gemini.
+
+## 19. The MCP transport table ties HTTP with SSE to protocol versions that current SDKs do not keep to
+
+**Component:** `docs/gen-ai/mcp.md` ("Recording MCP transport").
+
+**Severity:** documentation bug: consumers misclassify a transport.
+
+### Issue
+
+The table gives HTTP with SSE the `mcp.protocol.version` "`2024-11-05` or older",
+and its comment says "`mcp.protocol.version` distinguishes streamable HTTP from
+SSE". The MCP SDKs negotiate the protocol version independently of the
+transport: MCP's Python SDK 1.28.1, as client (`mcp.client.sse.sse_client`) and
+as server (`mcp.server.sse.SseServerTransport`), negotiates `2025-11-25` over
+HTTP with SSE. A consumer following the table reads such a session as streamable
+HTTP. Finding 7 faults the same table's streamable HTTP row.
+
+### Reproduction
+
+Run upstream A2UI's `samples/agent/adk/custom-components-example/floor_plan_server.py`
+with `mcp` 1.28.1, and connect with `mcp.client.sse.sse_client` to its `/sse`
+endpoint: the client's `initialize` request, POSTed to the endpoint the `GET /sse`
+stream announces, carries `"protocolVersion": "2025-11-25"`, and the `initialize`
+result on the stream answers `"protocolVersion": "2025-11-25"`.
+
+### Fix
+
+Drop the version ranges from the HTTP rows, and tell the HTTP transports apart by
+what the transport carries: an `Mcp-Session-Id` header and POST replies with the
+response for streamable HTTP, a `GET` stream announcing an `endpoint` event for
+HTTP with SSE.
