@@ -5,7 +5,7 @@ import type {TimelineKey} from '@/model/follow.ts';
 import {type Lane, lanesOf, shareOf} from '@/model/lanes.ts';
 import {deliveryLabel, type TimelineRow} from '@/model/steps.ts';
 
-import {formatDuration, formatOffset, toneOf} from './format.ts';
+import {formatDurationCompact, formatOffsetCompact, toneOf} from './format.ts';
 import {Icon} from './icons.tsx';
 import {ProblemMark} from './TurnList.tsx';
 import {useNow} from './use_now.ts';
@@ -137,7 +137,7 @@ export function Timeline({
           const end = (
             <>
               <span className="w-[46px] shrink-0 text-right text-xs font-normal whitespace-nowrap text-muted-foreground">
-                {lane?.kind === 'bar' ? formatDuration(lane.end - lane.start) : ''}
+                {lane?.kind === 'bar' ? formatDurationCompact(lane.end - lane.start) : ''}
               </span>
               <LaneMark
                 lane={lane}
@@ -161,7 +161,7 @@ export function Timeline({
                 )}
               >
                 <span className="w-[52px] shrink-0 text-right">
-                  {row.offsetMs === undefined ? '' : formatOffset(row.offsetMs)}
+                  {row.offsetMs === undefined ? '' : formatOffsetCompact(row.offsetMs)}
                 </span>
                 <Icon
                   kind={row.row === 'delivery' ? 'delivery' : 'tool'}
@@ -194,7 +194,7 @@ export function Timeline({
                   row.grouped ? 'w-[38px]' : 'w-[52px]',
                 )}
               >
-                {row.offsetMs === undefined ? '' : formatOffset(row.offsetMs)}
+                {row.offsetMs === undefined ? '' : formatOffsetCompact(row.offsetMs)}
               </span>
               <Icon
                 kind={row.icon}

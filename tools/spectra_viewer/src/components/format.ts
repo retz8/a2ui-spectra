@@ -81,6 +81,20 @@ export function formatOffset(ms: number): string {
   return `+${formatDuration(Math.max(0, ms))}`;
 }
 
+/**
+ * A duration for the timeline's narrow columns: as `formatDuration` under a
+ * minute, and `1m 27s` from a minute on, where `1 min 27 s` would wrap.
+ */
+export function formatDurationCompact(ms: number): string {
+  if (ms < 60_000) return formatDuration(ms);
+  return `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`;
+}
+
+/** A time since the turn's start for the timeline's offset column, such as `+1m 30s`. */
+export function formatOffsetCompact(ms: number): string {
+  return `+${formatDurationCompact(Math.max(0, ms))}`;
+}
+
 export function shortId(id: string): string {
   return id.length > 8 ? id.slice(0, 8) : id;
 }
