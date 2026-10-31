@@ -76,6 +76,33 @@ A recording is made once, at the entry's pinned commit or version. At each move 
 
 All fixtures are located in `test_data/`, under `test_data/<area>/<version>/`, and are exempt from Prettier. [`test_data/catalogs/`](test_data/catalogs/) holds catalog definitions the tool's tests configure, named in its README; they are not cases of a suite. The turn record v0.1 fixtures and their case list are written by [`_dev/tools/make_fixtures.py`](../_dev/tools/make_fixtures.py), which reads upstream's samples at 059b8d34 and computes the full records' component ranges, timings and repeated content.
 
+### Model capture (`model_capture/`)
+
+- `model_capture/capture_v0_1.yaml`: replays model API traffic through the model proxy, with [the stand-in provider](#the-stand-in-provider) in the provider's place, and compares the `model_call` events it writes with the expected record. Every case uses `action: capture_model`. The data is under `test_data/model_capture/v0_1/<entry>/`: each recording as `<conversation>.har`, HAR 1.2, and its expected record as `<conversation>.json`, a turn record v0.1 file holding one turn with a stand-in turn event and one model call per exchange.
+- A harness starts the stand-in with the recording, opens one turn, sends each recorded request through the model proxy under the prefix of the provider's variable, checks that the agent's side received each response as recorded, closes the turn, and compares the calls the turn holds with the expected record. The comparison takes exact values for everything the traffic determines. The trace ids, span ids, times, the time to the first chunk, where the request went and the headers the replay adds are Spectra's own: the expected record carries schema-valid stand-ins or leaves them out, the comparison skips them, and the harness checks instead that each call is under the turn event, ends after it starts and went to the stand-in. A case with `readInFull: false` leaves the stand-in unnamed, so every call is recorded raw, as a call to a host that is not a provider's is. Spectra's harness is `tools/spectra/src/model_proxy/capture.conformance.test.ts`.
+
+#### The recordings
+
+The real recordings were made at upstream `23789301a` (the merge-base of the fork's checkout), with google-genai 2.10.0, google-adk 2.3.0, LiteLLM 1.90.1, a2ui-adk 0.1.1.dev63 and a2ui-agent-sdk 0.9.1.dev128 on Python 3.14.3, the models `gemini-3.6-flash` and `claude-haiku-5-5`, each agent run with its base-URL variable pointed at the recording proxy and sent one conversation by [`_dev/tools/send_a2a_requests.py`](../_dev/tools/send_a2a_requests.py) from [`_dev/tools/a2a_requests/`](../_dev/tools/a2a_requests/).
+
+| Case                                               | Source                                                                                                                                                                                                                                                                                                                                  | Recording                                                                                                                     |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| google-genai's request shape and auth, under ADK   | Upstream's Python restaurant finder (`samples/agent/adk/restaurant_finder`), `GOOGLE_GEMINI_BASE_URL`: a list then a booking, three streamed calls, the `get_restaurants` tool call and the request carrying its result among them                                                                                                      | `gemini/restaurant_finder_google_genai`                                                                                       |
+| LiteLLM's `gemini/` route                          | Upstream's custom-components example (`samples/agent/adk/custom-components-example`), `GEMINI_API_BASE`: "Who is Alex Jordan?", three streamed calls under the API version LiteLLM's custom base leaves out, the `get_contact_info` call, its result, and the example's validation retry, whose call reads from Gemini's implicit cache | `gemini/custom_components_litellm`                                                                                            |
+| LiteLLM's `anthropic/` route                       | The same example with `LITELLM_MODEL=anthropic/claude-haiku-5-5` and `ANTHROPIC_API_BASE`: the same conversation, three streamed Messages calls                                                                                                                                                                                         | `anthropic/custom_components_litellm`                                                                                         |
+| Anthropic's cache write, then read                 | Scripted, [`_dev/tools/model_requests/anthropic/cache_write_then_read.json`](../_dev/tools/model_requests/anthropic/cache_write_then_read.json): two calls with `cache_control` on the same long system prompt                                                                                                                          | `anthropic/cache_write_then_read`                                                                                             |
+| An unknown model's 404 on each provider            | Scripted: `claude-does-not-exist` and `gemini-does-not-exist`                                                                                                                                                                                                                                                                           | `anthropic/unknown_model`, `gemini/unknown_model_and_count_tokens`                                                            |
+| Another request on a provider's host, recorded raw | Scripted: Gemini's `countTokens`, in the same recording                                                                                                                                                                                                                                                                                 | `gemini/unknown_model_and_count_tokens`                                                                                       |
+| A call recorded raw on another host                | The Gemini 429 played at an origin the test-only variable does not name, `readInFull: false`                                                                                                                                                                                                                                            | `gemini/rate_limited` with `rate_limited_raw.json`                                                                            |
+| Built from the providers' published shapes         | [`_dev/tools/build_model_traffic.py`](../_dev/tools/build_model_traffic.py): OpenAI's Chat Completions and Responses from its API reference, not streamed, streamed, a tool call and its result, `cached_tokens`, an unknown model's 404 and an error inside a 2xx stream; Anthropic's `overloaded_error` stream event; the Gemini 429  | `openai_chat/reference_examples`, `openai_responses/reference_examples`, `anthropic/overloaded_stream`, `gemini/rate_limited` |
+| The acceptance run's OpenAI traffic                | The same builder: the custom-components example's conversation on each OpenAI API, in the API reference's shapes, carrying the example's own replies and token counts from its Gemini recording                                                                                                                                         | `openai_chat/custom_components_conversation`, `openai_responses/custom_components_conversation`                               |
+
+A scripted Gemini cache read on a repeated long prefix reported no hit and was not kept; the custom-components recording's third call carries one.
+
+- [`_dev/tools/record_model_traffic.py`](../_dev/tools/record_model_traffic.py) is the recording proxy: it relays each exchange between the agent and the provider's origin and writes it as the provider answered it, reading the provider's reply to its end when the agent leaves early, as LiteLLM does at a stream's last chunk. It keeps the request's headers except the connection's own, `Host` and `Content-Length`, and the response's `Content-Type`, and replaces every credential before writing: the value of a header or URL parameter that carries one becomes `RECORDED-CREDENTIAL`, its name kept, so the suite sends the request through the model proxy and sees the name recorded as `REMOVED`. It shares no code with Spectra.
+- [`_dev/tools/send_model_requests.py`](../_dev/tools/send_model_requests.py) sends a request file's calls through the recording proxy, for the scripted recordings, a key read from the environment.
+- [`_dev/tools/write_model_capture_records.py`](../_dev/tools/write_model_capture_records.py) writes each expected record from its recording, by the rules of `_dev/docs/spec/task-5.2-redirection-placement-model-proxy.md`, with its own reading of the four APIs, sharing no code with the model proxy; `--raw` writes `<conversation>_raw.json` with every call recorded raw.
+
 `conformance_schema.json` at the root is the JSON schema that validates the structure of the YAML case files. The harness validates each case file against it before running any case.
 
 ## The stub agent
@@ -91,6 +118,19 @@ All fixtures are located in `test_data/`, under `test_data/<area>/<version>/`, a
 | `--bearer-token <token>` | Answers `401` to a JSON-RPC request that does not carry `Authorization: Bearer <token>`. The card stays public. Spectra's end-to-end test runs it with a token read from the config file's headers through the shell.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 
 Without `--canned-a2ui` or `--flawed-booking`, the stub waits for a cancel, the behaviour its roster row records: a message opens a task that sends a working status and stays open until the host cancels it, then gets a canceled status on the open stream. Spectra's end-to-end test, `tools/spectra/src/end_to_end.test.ts`, runs it with `--canned-a2ui`, once as it is and once with `--a2a-0.3-first`, and with `--flawed-booking`, continuing the conversation for its booking summary; the browser end-to-end test, `tools/spectra/src/samples_end_to_end.test.ts`, runs it with `--canned-a2ui` and the sample catalog offered.
+
+## The stand-in provider
+
+[`stand_in_provider/stand_in_provider.ts`](stand_in_provider/stand_in_provider.ts) is a server that replays recorded model API traffic at one origin, for the four APIs the model proxy reads in full and for any other call. Run it from `conformance/` after `yarn build`, as `node dist/stand_in_provider/stand_in_provider.js --port 9830 --har <file>`.
+
+| Option         | Meaning                                                                                  |
+| -------------- | ---------------------------------------------------------------------------------------- |
+| `--port <n>`   | The port to listen on, on 127.0.0.1. Default: `$PORT`, or 9830.                          |
+| `--har <file>` | A HAR 1.2 file to play. Can be repeated; the files play in order, the exchanges in each. |
+
+It answers each request with the next recorded response, sends a stream in pieces, and answers a request it did not expect with a `599` naming what it expected. A request is expected when its method and path match the next recorded request's, the parameters that carry credentials left out of both. A response recorded with HAR's `_brokenOff` breaks off after its bytes.
+
+Spectra reads the stand-in as the provider's own host when the test-only environment variable `SPECTRA_PROVIDER_STAND_IN` names its origin: a call forwarded there is read as the own host of the API its path names. The variable is for the tests and the acceptance run; it is not in the tool's usage or help. The model capture suite sets it for each case, and the acceptance run drives the custom-components example against the stand-in playing `openai_chat/custom_components_conversation.har` or `openai_responses/custom_components_conversation.har`, with `OPENAI_BASE_URL` pointed at the stand-in in Spectra's environment and the variable set to its origin.
 
 ## Writing cases for `validate_turn_record`
 
@@ -138,18 +178,37 @@ The harness validates with Ajv 8's draft 2020-12 build in strict mode, with Ajv'
   expect: 'test_data/a2a_capture/v0_1/stub_agent/cancel_a2a_1_0.json'
 ```
 
+## Writing cases for `capture_model`
+
+| Field         | Required | Meaning                                                                                                                         |
+| ------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | yes      | Unique name of the case.                                                                                                        |
+| `description` | yes      | The client, the API and what the recording verifies.                                                                            |
+| `action`      | yes      | `capture_model`.                                                                                                                |
+| `traffic`     | yes      | Path of the HAR recording, relative to `conformance/`.                                                                          |
+| `expect`      | yes      | Path of the expected record, relative to `conformance/`.                                                                        |
+| `readInFull`  | no       | Whether the stand-in is read as the providers' own hosts. `true` by default; `false` records every call raw, as another host's. |
+
+```yaml
+- name: anthropic_cache_write_then_read
+  description: "Anthropic's Messages API, scripted: two calls with cache_control on the same long system prompt, the first writing the cache and the second reading it."
+  action: capture_model
+  traffic: 'test_data/model_capture/v0_1/anthropic/cache_write_then_read.har'
+  expect: 'test_data/model_capture/v0_1/anthropic/cache_write_then_read.json'
+```
+
 ## Checks on the test data as a whole
 
 - Every kind the schema defines appears in at least one must-pass fixture.
 - Every file under `test_data/turn_record/` is named by a case.
-- Every expected record of the A2A capture suite validates against the turn record schema.
-- Every file under `test_data/a2a_capture/` is named by a case.
+- Every expected record of the A2A capture suite and of the model capture suite validates against the turn record schema.
+- Every file under `test_data/a2a_capture/` and under `test_data/model_capture/` is named by a case.
 
 ## Commands
 
 From `conformance/`:
 
-- `yarn build`: compiles the harness in `tests/` and the stub agent in `stub_agent/` into `dist/`.
+- `yarn build`: compiles the harness in `tests/`, the stub agent in `stub_agent/` and the stand-in provider in `stand_in_provider/` into `dist/`.
 - `yarn test`: builds, then runs the suites with Node's test runner.
 - `yarn lint` and `yarn lint:fix`: ESLint with the root ESLint preset.
 - `yarn format` and `yarn format:check`: Prettier, with the root `.prettierignore`.

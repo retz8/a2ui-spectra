@@ -403,3 +403,38 @@ reports `unknown format "binary" ignored in schema at path
 
 Generate `"contentEncoding": "base64"` for `BlobPart.content` in place of
 `"format": "binary"`.
+
+## 18. Gemini has no normative document, and the registry and the reference scenario name its operation differently
+
+**Component:** `model/gen-ai/registry.yaml` (`gen_ai.operation.name`, around line
+653); `reference/scenarios/google-genai/scenario.py` and `README.md`.
+
+**Severity:** documentation gap and inconsistency: an instrumentation cannot tell
+which operation name a Gemini call takes.
+
+### Issue
+
+The registry defines the operation name `generate_content` as a "Multimodal
+content generation operation such as [Gemini Generate Content]", beside `chat`
+for "Chat completion operation such as [OpenAI Chat API]". No normative page
+under `docs/gen-ai/` covers Gemini, where `docs/gen-ai/openai.md`,
+`docs/gen-ai/anthropic.md` and others cover their providers. The repository's own
+reference instrumentation of Google's `google-genai` client,
+`reference/scenarios/google-genai/scenario.py`, writes
+`"gen_ai.operation.name": "chat"` on every `generate_content` and
+`generate_content_stream` call (lines 175, 225, 258, 344, 402, 485, 543 and 596),
+and its `README.md` lists the client's inference operation as `chat`. The
+registry's own example for Gemini is thus not what the reference scenario
+produces.
+
+### Reproduction
+
+Compare `model/gen-ai/registry.yaml` at `id: generate_content` with the value of
+`gen_ai.operation.name` set in `reference/scenarios/google-genai/scenario.py`
+around line 175.
+
+### Fix
+
+Add a Gemini page under `docs/gen-ai/` that fixes the operation name, and make the
+reference scenario write it; or drop `generate_content` from the registry if
+`chat` is meant to cover Gemini.

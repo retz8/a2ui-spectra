@@ -163,7 +163,7 @@ No other attributes are allowed on wire events.
 
 A model call event lasts from the request to the end of the response. A proxy's event has the turn event as parent and `kind` `3`.
 
-The model proxy reads Gemini in full, into the GenAI names below. For every other provider it records the raw exchange only. Every GenAI inference attribute a source can fill may be present, the opt-in content attributes included. The schema types these:
+The model proxy reads four APIs in full, into the GenAI names below, on the providers' own hosts: Google's Gemini API, OpenAI's Chat Completions and Responses, and Anthropic's Messages. Every other call, on those hosts or any other, is recorded as the raw exchange only. Every GenAI inference attribute a source can fill may be present, the opt-in content attributes included. The schema types these:
 
 | Attribute                                                                                                                                                                          | Type                              |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
@@ -201,18 +201,20 @@ An MCP call carries the `mcp.` attributes. A tool call event may also carry the 
 
 A proxy records the HTTP exchange on its `model_call` or `tool_call` event.
 
-| Attribute                       | Type            | Meaning                                                              |
-| ------------------------------- | --------------- | -------------------------------------------------------------------- |
-| `http.request.method`           | string          | The request method.                                                  |
-| `url.full`                      | string          | The request URL, with credentials removed.                           |
-| `http.request.header.<name>`    | array of string | One request header, `<name>` in lowercase, with credentials removed. |
-| `http.response.header.<name>`   | array of string | One response header, `<name>` in lowercase.                          |
-| `http.response.status_code`     | integer         | The response status.                                                 |
-| `server.address`, `server.port` | string, integer | The server the request went to.                                      |
-| `a2ui.http.request.body`        | any             | The request body.                                                    |
-| `a2ui.http.response.body`       | any             | The response body, when it was not streamed.                         |
+| Attribute                       | Type            | Meaning                                                                           |
+| ------------------------------- | --------------- | --------------------------------------------------------------------------------- |
+| `http.request.method`           | string          | The request method.                                                               |
+| `url.full`                      | string          | The request URL, with credentials removed.                                        |
+| `http.request.header.<name>`    | array of string | One request header, `<name>` in lowercase, with credentials removed.              |
+| `http.response.header.<name>`   | array of string | One response header, `<name>` in lowercase, with credentials removed.             |
+| `http.response.status_code`     | integer         | The response status.                                                              |
+| `server.address`, `server.port` | string, integer | The server the request went to.                                                   |
+| `a2ui.http.request.body`        | any             | The request body, when it is JSON, text or form-encoded.                          |
+| `a2ui.http.response.body`       | any             | The response body, when it was not streamed and it is JSON, text or form-encoded. |
 
-A body is the parsed JSON value when it is JSON, and its text otherwise. Replay matches requests on JSON content, ignoring whitespace and key order.
+A body is the parsed JSON value when it is JSON, and its text otherwise. A body whose `content-type` is not JSON (`application/json` or `*+json`), not `text/*` and not form-encoded is left out of the exchange; its `content-type` and `content-length` headers stay. Replay matches requests on JSON content, ignoring whitespace and key order.
+
+A removed credential keeps its place: the header, or the URL parameter, stays under its name with the value `REMOVED`, and a URL's `user:pass@` becomes `REMOVED@`.
 
 A streamed response is recorded as span events in `events`, one per server-sent event, in arrival order. Each is named `a2ui.http.response.chunk`, with its arrival time in `timeUnixNano` and these attributes:
 
@@ -389,7 +391,7 @@ Every attribute the record defines itself is in the `a2ui.` namespace, named `a2
 
 ## Rules
 
-- **No credential is ever in a record.** Credentials are removed from headers and URLs before anything is written.
+- **No credential is ever in a record.** Credentials are removed from headers and URLs before anything is written: the value becomes `REMOVED`, the name is kept.
 - **Nothing in a record is transport-specific.** Wire content is written in GenAI's message and part shape, and transport envelopes are not kept.
 - **A record states what happened, and check events judge it.** A2UI part content, `a2ui.parse.messages`, the `a2ui.http.` bodies and `a2ui.received.attributes` are not validated against any A2UI or provider schema. A record of a turn whose agent sent invalid A2UI is a valid record.
 - **GenAI content attributes validate against the copied schemas.** A value that does not fit, such as a tool result that is not a JSON object, is left out of the GenAI attribute. It remains in the exchange body or in `a2ui.received.attributes`.
