@@ -215,8 +215,9 @@ export function Body({value}: {value: unknown}) {
 
 /**
  * What a tool call's folded exchange adds after its status: that its reply
- * came on the server's SSE stream, as an HTTP+SSE request's does; its chunks
- * when its own response streamed; else its response's media type.
+ * came on the server's `GET` stream, named by its path, as an HTTP+SSE
+ * request's does; its chunks when its own response streamed; else its
+ * response's media type.
  */
 function toolTail(attributes: Record<string, unknown>, chunks: number): string[] {
   const type = headersOf(attributes, 'response').find(({key}) => key === 'content-type')?.value;
@@ -224,9 +225,20 @@ function toolTail(attributes: Record<string, unknown>, chunks: number): string[]
   if (chunks > 0) {
     return mediaType === 'text/event-stream'
       ? [plural(chunks, 'chunk')]
-      : ['reply on the SSE stream'];
+      : [`reply on GET ${streamPathOf(attributes) ?? 'the SSE stream'}`];
   }
   return mediaType === undefined || mediaType === '' ? [] : [mediaType];
+}
+
+/** The path of an HTTP+SSE session's `GET` stream, from `a2ui.mcp.stream.url`; none on a record without it. */
+function streamPathOf(attributes: Record<string, unknown>): string | undefined {
+  const url = attributes['a2ui.mcp.stream.url'];
+  if (typeof url !== 'string') return undefined;
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return url;
+  }
 }
 
 /** The headers of one side of the exchange, a removed credential by its name. */

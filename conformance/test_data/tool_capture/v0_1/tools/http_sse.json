@@ -36,6 +36,7 @@
             "mcp.method.name": "initialize",
             "jsonrpc.request.id": "<id-1>",
             "mcp.session.id": "<session-1>",
+            "a2ui.mcp.stream.url": "<origin>/sse",
             "http.request.method": "POST",
             "url.full": "<origin>/messages?sessionId=<session-1>",
             "http.request.header.content-type": [
@@ -114,6 +115,7 @@
             "mcp.method.name": "notifications/initialized",
             "mcp.session.id": "<session-1>",
             "mcp.protocol.version": "2025-11-25",
+            "a2ui.mcp.stream.url": "<origin>/sse",
             "http.request.method": "POST",
             "url.full": "<origin>/messages?sessionId=<session-1>",
             "http.request.header.mcp-protocol-version": [
@@ -150,6 +152,7 @@
             "jsonrpc.request.id": "<id-2>",
             "mcp.session.id": "<session-1>",
             "mcp.protocol.version": "2025-11-25",
+            "a2ui.mcp.stream.url": "<origin>/sse",
             "http.request.method": "POST",
             "url.full": "<origin>/messages?sessionId=<session-1>",
             "http.request.header.mcp-protocol-version": [
@@ -249,6 +252,7 @@
             },
             "mcp.session.id": "<session-1>",
             "mcp.protocol.version": "2025-11-25",
+            "a2ui.mcp.stream.url": "<origin>/sse",
             "http.request.method": "POST",
             "url.full": "<origin>/messages?sessionId=<session-1>",
             "http.request.header.mcp-protocol-version": [
@@ -324,6 +328,7 @@
             "gen_ai.tool.call.arguments": {},
             "mcp.session.id": "<session-1>",
             "mcp.protocol.version": "2025-11-25",
+            "a2ui.mcp.stream.url": "<origin>/sse",
             "http.request.method": "POST",
             "url.full": "<origin>/messages?sessionId=<session-1>",
             "http.request.header.mcp-protocol-version": [
@@ -391,6 +396,7 @@
             "gen_ai.tool.call.arguments": {},
             "mcp.session.id": "<session-1>",
             "mcp.protocol.version": "2025-11-25",
+            "a2ui.mcp.stream.url": "<origin>/sse",
             "http.request.method": "POST",
             "url.full": "<origin>/messages?sessionId=<session-1>",
             "http.request.header.mcp-protocol-version": [

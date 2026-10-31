@@ -4,7 +4,8 @@
  * the tool proxy to the conformance workspace's tool server, over each
  * transport its case names. The `tool_call` events the proxy writes into the
  * turn must match the transport's expected record once times, span ids,
- * session ids, request ids and the server's port are normalised.
+ * session ids, request ids, the server's port and its origin in `url.full` and
+ * `a2ui.mcp.stream.url` are normalised.
  *
  * With `SPECTRA_WRITE_TOOL_CAPTURE=1` the harness writes each expected record
  * from what it captures instead of comparing, for a case being added; the
@@ -229,7 +230,7 @@ function comparable(events: ToolCallEvent[]): unknown[] {
       Object.entries(event.attributes)
         .filter(([name]) => !GENERATED_ATTRIBUTES.has(name))
         .map(([name, value]) =>
-          name === 'url.full' && typeof value === 'string'
+          (name === 'url.full' || name === 'a2ui.mcp.stream.url') && typeof value === 'string'
             ? [name, value.replace(/^https?:\/\/[^/]+/, '<origin>')]
             : [name, value],
         ),

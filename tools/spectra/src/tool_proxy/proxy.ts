@@ -142,6 +142,8 @@ interface Session {
   carriers: number;
   /** HTTP+SSE: the carrier's opening and its `endpoint` event, where the session's `initialize` starts. */
   opening?: {at: bigint; endpoint: {event: SseEvent; at: bigint}; posted: boolean};
+  /** HTTP+SSE: the session's `GET` stream URL on the original server, credentials removed, `a2ui.mcp.stream.url`. */
+  streamUrl?: string;
 }
 
 /** One listener, for one tool server. */
@@ -696,7 +698,7 @@ function sessionOf(listener: Listener, request: IncomingMessage, target: URL): S
   return listener.sessions.get(`endpoint:${target.pathname}${target.search}`) ?? listener.loose;
 }
 
-/** The session's attributes on an event: its id, and its protocol version, else the request's header. */
+/** The session's attributes on an event: its id, its protocol version, else the request's header, and under HTTP+SSE its `GET` stream's URL. */
 function sessionAttributes(session: Session, request?: IncomingMessage): Record<string, unknown> {
   const version =
     session.protocolVersion ??
@@ -704,6 +706,7 @@ function sessionAttributes(session: Session, request?: IncomingMessage): Record<
   return {
     ...(session.id !== undefined && {'mcp.session.id': session.id}),
     ...(version !== undefined && {'mcp.protocol.version': version}),
+    ...(session.streamUrl !== undefined && {'a2ui.mcp.stream.url': session.streamUrl}),
   };
 }
 
@@ -1004,6 +1007,7 @@ function getRequest(call: Call): void {
       serverRequests: new Map(),
       carriers: 0,
       opening: {at: call.start, endpoint: {event, at}, posted: false},
+      streamUrl: removeFromUrl(target.href),
     };
     listener.sessions.set(key, session);
     becomeCarrier(session);

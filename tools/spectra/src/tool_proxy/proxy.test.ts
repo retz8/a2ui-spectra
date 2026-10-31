@@ -555,6 +555,13 @@ describe('the tool proxy over HTTP+SSE', () => {
 
     assert.equal(initialize.name, 'initialize');
     assert.equal(initialize.attributes['mcp.session.id'], 'abc');
+    for (const event of [initialize, initialized, read]) {
+      assert.equal(
+        event.attributes['a2ui.mcp.stream.url'],
+        `http://127.0.0.1:${setup.serverPort}/sse`,
+        `${event.name} names the GET stream`,
+      );
+    }
     assert.equal(initialize.attributes['mcp.protocol.version'], '2025-11-25');
     assert.equal(initialize.attributes['http.response.status_code'], 202);
     assert.equal(initialize.attributes['a2ui.http.response.body'], 'Accepted');

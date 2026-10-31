@@ -91,7 +91,7 @@ The title line holds the host, the method and the path, the status, the duration
 
 ### 16. A tool call's detail
 
-The model call's order, with Arguments and Result in place of the usage, the request and the response: the title line, with the tool's name or the method, "MCP" or "HTTP" and the host, the duration and the sources; Arguments as a JSON block; Result, a text block as text and every other block as JSON, labelled "Error" when `isError` is set or the reply is a JSON-RPC error, the tool's own text first; the exchange; and "From the agent's spans" when a span is linked, the only content under the title for a tool seen through the agent's spans only. A housekeeping request shows its params and its result in the same places. An image block in a result is shown as JSON.
+The model call's order, with Arguments and Result in place of the usage, the request and the response: the title line, with the tool's name or the method, "MCP" or "HTTP" and the host, the duration and the sources; Arguments as a JSON block; Result, a text block as text and every other block as JSON, labelled "Error" when `isError` is set or the reply is a JSON-RPC error, the tool's own text first; the exchange; and "From the agent's spans" when a span is linked, the only content under the title for a tool seen through the agent's spans only. A housekeeping request shows its params and its result in the same places. An image block in a result is shown as JSON. The folded exchange's line names an HTTP+SSE reply's stream by its `GET` path, "reply on GET /sse", from the record's `a2ui.mcp.stream.url`.
 
 ### 17. The agent's spans
 

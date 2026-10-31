@@ -654,6 +654,9 @@
                   "mcp.session.id": {
                     "type": "string"
                   },
+                  "a2ui.mcp.stream.url": {
+                    "type": "string"
+                  },
                   "mcp.protocol.version": {
                     "type": "string"
                   },
