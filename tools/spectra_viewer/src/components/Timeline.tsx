@@ -1,4 +1,4 @@
-import {type KeyboardEvent, useEffect, useMemo, useRef, useState} from 'react';
+import {type KeyboardEvent, useEffect, useMemo, useRef} from 'react';
 
 import {cn} from '@/lib/utils';
 import type {TimelineKey} from '@/model/follow.ts';
@@ -8,9 +8,7 @@ import {deliveryLabel, type TimelineRow} from '@/model/steps.ts';
 import {formatDuration, formatOffset, toneOf} from './format.ts';
 import {Icon} from './icons.tsx';
 import {ProblemMark} from './TurnList.tsx';
-
-/** How often an in-flight call's duration and bar move, in milliseconds. */
-const TICK_MS = 100;
+import {useNow} from './use_now.ts';
 
 /**
  * The turn's steps and calls by start time, each delivery with several
@@ -232,17 +230,6 @@ export function Timeline({
       )}
     </section>
   );
-}
-
-/** The present, moving every tick while `running`, so an in-flight call's duration counts up. */
-function useNow(running: boolean): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!running) return;
-    const timer = setInterval(() => setNow(Date.now()), TICK_MS);
-    return () => clearInterval(timer);
-  }, [running]);
-  return now;
 }
 
 /**

@@ -2,7 +2,14 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import {readRecording} from '../testing/recordings.ts';
-import {type CheckEvent, type Finding, isTurnEvent, type Turn, unixMillis} from './record.ts';
+import {
+  type CheckEvent,
+  type Finding,
+  isTurnEvent,
+  type Turn,
+  type TurnRecordEvent,
+  unixMillis,
+} from './record.ts';
 import {openFieldsOf, rowFieldsOf, schemaCheckOf, summaryOf} from './summary.ts';
 
 /** A turn with a schema check event added. */
@@ -63,6 +70,34 @@ describe('openFieldsOf', () => {
       durationMs: newest - startMs,
       protocolVersion: 'v1.0',
     });
+  });
+
+  it("runs to a call's end, and to the present while a call is in flight", () => {
+    const {events, startMs} = sofar(readRecording('ag2/stream_v1_0_function_call').turns[0]);
+    const newest = Math.max(...events.map(event => unixMillis(event.startTimeUnixNano)));
+    const call = (start: number, end: number | undefined): TurnRecordEvent => ({
+      traceId: '0'.repeat(32),
+      spanId: '7'.repeat(16),
+      name: 'generate_content gemini-3.6-flash',
+      kind: 3,
+      startTimeUnixNano: String(BigInt(start) * 1000000n),
+      ...(end !== undefined && {endTimeUnixNano: String(BigInt(end) * 1000000n)}),
+      attributes: {'a2ui.event.kind': 'model_call'},
+    });
+    // A finished call that outlasts the newest step ends the duration.
+    assert.equal(
+      openFieldsOf([...events, call(newest - 100, newest + 2500)], startMs).durationMs,
+      newest + 2500 - startMs,
+    );
+    // An in-flight call runs to the present, and to its start alone without one.
+    assert.equal(
+      openFieldsOf([...events, call(newest + 50, undefined)], startMs, newest + 9000).durationMs,
+      newest + 9000 - startMs,
+    );
+    assert.equal(
+      openFieldsOf([...events, call(newest + 50, undefined)], startMs).durationMs,
+      newest + 50 - startMs,
+    );
   });
 
   it('names no version before an A2UI message has come', () => {

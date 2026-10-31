@@ -231,11 +231,15 @@ function spansByStart(received: ReadonlyMap<string, TurnRecordEvent>): TurnRecor
     .map(({event}) => event);
 }
 
-/** An open turn's row: the session's agent is the open turn's, and its duration runs to its newest event. */
+/**
+ * An open turn's row: the session's agent is the open turn's, and its
+ * duration runs to its newest event, or to the present at the row's last
+ * update while a call is in flight.
+ */
 export function openRow(turn: LiveTurn, agentName: string | undefined): ListedTurn {
   const wireInput = turn.events.find(isWireInput);
   const input = wireInput === undefined ? undefined : inputBrief(wireInput);
-  const {durationMs} = openFieldsOf(turn.events, Date.parse(turn.startTime));
+  const {durationMs} = openFieldsOf(turn.events, Date.parse(turn.startTime), Date.now());
   return {
     traceId: turn.traceId,
     ...(turn.conversationId !== undefined && {conversationId: turn.conversationId}),

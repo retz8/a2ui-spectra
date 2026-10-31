@@ -151,6 +151,12 @@ export type ModelCallEvent = EventFields<{
   [name: string]: unknown;
 }>;
 
+/** A model call or a tool call, a proxy's event or a received span. */
+export function isCallEvent(event: TurnRecordEvent): boolean {
+  const kind = event.attributes['a2ui.event.kind'];
+  return kind === 'model_call' || kind === 'tool_call';
+}
+
 export function isModelCall(event: TurnRecordEvent): event is ModelCallEvent {
   return event.attributes['a2ui.event.kind'] === 'model_call';
 }

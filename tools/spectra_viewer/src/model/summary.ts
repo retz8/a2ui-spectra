@@ -3,6 +3,7 @@ import {agentMessages} from './messages.ts';
 import {failedCallsOf} from './call_rows.ts';
 import {
   type CheckEvent,
+  isCallEvent,
   isCheck,
   isTurnEvent,
   type Turn,
@@ -54,14 +55,34 @@ export function rowFieldsOf(turn: Turn): RowFields {
 
 /** What the header and the turn list show of an open turn so far. */
 export interface OpenFields {
-  /** From the turn's start to its newest event. */
+  /**
+   * From the turn's start to the latest of its newest event, each call's
+   * end and, while a call is in flight, the present.
+   */
   durationMs: number;
   /** The version the agent's first A2UI message that names one names. */
   protocolVersion?: string;
 }
 
-export function openFieldsOf(events: readonly TurnRecordEvent[], startMs: number): OpenFields {
-  const newest = Math.max(startMs, ...events.map(event => unixMillis(event.startTimeUnixNano)));
+/**
+ * `nowMs` is the present, which a call still in flight runs to; without it an
+ * in-flight call counts to its start alone.
+ */
+export function openFieldsOf(
+  events: readonly TurnRecordEvent[],
+  startMs: number,
+  nowMs?: number,
+): OpenFields {
+  const ends = events.flatMap(event => {
+    if (!isCallEvent(event)) return [];
+    if (event.endTimeUnixNano !== undefined) return [unixMillis(event.endTimeUnixNano)];
+    return nowMs === undefined ? [] : [nowMs];
+  });
+  const newest = Math.max(
+    startMs,
+    ...events.map(event => unixMillis(event.startTimeUnixNano)),
+    ...ends,
+  );
   const version = agentMessages(events)
     .map(({message}) => (message as {version?: unknown} | null)?.version)
     .find((version): version is string => typeof version === 'string');

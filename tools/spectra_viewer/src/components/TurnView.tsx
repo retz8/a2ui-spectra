@@ -15,6 +15,7 @@ import {isProxyModelCall, isReadInFull} from '@/model/model_calls.ts';
 import {candidatesFor, type PrefixBreak, prefixBreakOf} from '@/model/prefix.ts';
 import {type Problem, onlyProblems, turnProblemsOf} from '@/model/problems.ts';
 import {
+  isCallEvent,
   isTurnEvent,
   isWireInput,
   isWireOutput,
@@ -50,6 +51,7 @@ import {ResultPane} from './ResultPane.tsx';
 import {StepDetail} from './StepDetail.tsx';
 import {Timeline} from './Timeline.tsx';
 import {TurnHeader} from './TurnHeader.tsx';
+import {useNow} from './use_now.ts';
 
 /** No reports: what a render the page has not answered for holds. */
 const NO_REPORTS: [] = [];
@@ -475,8 +477,12 @@ function TurnBody({
   const input = turn === undefined ? undefined : inputBriefOfTurn(turn);
   const title = briefText(input ?? row?.input) || 'A turn';
   const agent = summary?.agentName ?? row?.agentName ?? state.context?.agentName;
-  // An open turn's duration runs to its newest step, and its version is its first message's.
-  const sofar = open ? openFieldsOf(events, startMs) : undefined;
+  // An open turn's duration runs to its newest step, or to the present while a call is in
+  // flight, as the lanes do; its version is its first message's.
+  const inFlight =
+    open && events.some(event => isCallEvent(event) && event.endTimeUnixNano === undefined);
+  const now = useNow(inFlight);
+  const sofar = open ? openFieldsOf(events, startMs, now) : undefined;
   const durationMs = summary?.durationMs ?? sofar?.durationMs;
   const protocolVersion = summary?.protocolVersion ?? sofar?.protocolVersion;
   const meta = [
