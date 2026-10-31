@@ -1575,6 +1575,19 @@ def must_fail():
     case("framework_span_without_received_attributes", "framework_span",
          lambda r: attrs(r).pop("a2ui.received.attributes"),
          "A framework span has no received attributes.", ("/turns/0/events/1/attributes", "required"))
+    case("framework_span_unknown_dialect", "framework_span",
+         lambda r: attrs(r).update({"a2ui.received.dialect": "openllmetry"}),
+         "A received span names a dialect the record does not define.",
+         ("/turns/0/events/1/attributes/a2ui.received.dialect", "enum"))
+
+    def log_event(r):
+        event = events_of(r)[1]
+        event["events"] = [{"timeUnixNano": event["startTimeUnixNano"], "name": "gen_ai.choice",
+                            "attributes": {"a2ui.received.log.severity_number": "INFO"}}]
+
+    case("received_log_severity_not_integer", "framework_span", log_event,
+         "A received log record's severity number is not an integer.",
+         ("/turns/0/events/1/events/0/attributes/a2ui.received.log.severity_number", "type"))
     return cases
 
 

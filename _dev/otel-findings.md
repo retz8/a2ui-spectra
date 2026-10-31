@@ -469,3 +469,134 @@ Drop the version ranges from the HTTP rows, and tell the HTTP transports apart b
 what the transport carries: an `Mcp-Session-Id` header and POST replies with the
 response for streamable HTTP, a `GET` stream announcing an `endpoint` event for
 HTTP with SSE.
+
+## 20. The Python conventions package names the cache write `cache_creation`, where the conventions name it `cache_write`
+
+**Component:** `model/gen-ai/registry.yaml` (`gen_ai.usage.cache_write.input_tokens`, around
+line 308), against `opentelemetry-semantic-conventions` 0.63b1 on PyPI
+(`opentelemetry/semconv/_incubating/attributes/gen_ai_attributes.py`, line 392) and the
+producers that follow it.
+
+**Severity:** naming inconsistency: a consumer of the pinned conventions finds no cache write
+count on spans from Python instrumentations.
+
+### Issue
+
+The pinned registry defines `gen_ai.usage.cache_write.input_tokens`, "The number of input
+tokens written to a provider-managed cache", and defines no `cache_creation` name. The Python
+conventions package 0.63b1 defines `GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS =
+"gen_ai.usage.cache_creation.input_tokens"`, with the same description, and no `cache_write`
+constant. Producers that take their names from Python follow it: OpenLLMetry's
+`opentelemetry-semantic-conventions-ai` 0.5.1 (`opentelemetry/semconv_ai/__init__.py`, line 68)
+defines the same `gen_ai.usage.cache_creation.input_tokens`, and LiteLLM 1.90.1 writes it
+(`litellm/integrations/opentelemetry_utils/gen_ai_semconv.py`, line 73). The cache read name,
+`gen_ai.usage.cache_read.input_tokens`, is the same in all of them.
+
+### Reproduction
+
+Search `model/gen-ai/registry.yaml` for `cache_creation`: there is no match, and
+`gen_ai.usage.cache_write.input_tokens` is defined. Install `opentelemetry-semantic-conventions`
+0.63b1 and print
+`opentelemetry.semconv._incubating.attributes.gen_ai_attributes.GEN_AI_USAGE_CACHE_CREATION_INPUT_TOKENS`.
+
+### Fix
+
+Regenerate the Python package from the conventions that define `cache_write`, keeping
+`cache_creation` as a deprecated alias, so that instrumentations built on it write the name the
+conventions define.
+
+## 21. The content capture variable is named only as an example, with no values
+
+**Component:** `model/gen-ai/registry.yaml` (the notes on `gen_ai.input.messages`,
+`gen_ai.output.messages` and the other content attributes, such as around lines 839 and 853);
+`docs/gen-ai/gen-ai-spans.md` (around lines 656 and 662).
+
+**Severity:** specification gap: instrumentations read one variable with incompatible values.
+
+### Issue
+
+The conventions gate content capture "by an explicit user opt-in, for example
+`OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT`", in a note on each content attribute.
+They define no values for the variable, and nothing about where the content goes once it is
+on. Producers read it differently: ADK 2.3.0 reads `true` and `1` as `EVENT_ONLY`, content in
+log records, and also takes `NO_CONTENT`, `EVENT_ONLY`, `SPAN_ONLY` and `SPAN_AND_EVENT`
+(`google/adk/telemetry/context.py`, `resolved_content_capturing_mode`);
+`opentelemetry-instrumentation-openai-v2` 2.4b0 reads it as a boolean, content captured for
+`true` (`opentelemetry/instrumentation/openai_v2/utils.py`, `is_content_enabled`);
+`opentelemetry-util-genai` 0.4b0, under the experimental opt-in, takes only the four mode names
+and reads `true` as `NO_CONTENT`, with a warning (`opentelemetry/util/genai/utils.py`,
+`get_content_capturing_mode`); and the conventions' own reference scenario sets
+`SPAN_AND_EVENT` (`reference/scenarios/anthropic/scenario.py`, line 484). A user setting
+`true` cannot know whether, or where, the content will be.
+
+### Reproduction
+
+Search `model/gen-ai/registry.yaml` and `docs/gen-ai/` for
+`OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT`: every match is the "for example" note,
+and no file lists its values.
+
+### Fix
+
+Define the variable and its values, the four modes and the boolean values' reading, in the
+conventions, or name it only in prose as one possible opt-in.
+
+## 22. ADK writes the literal `gcp.vertex.agent` as `gen_ai.system`, and the deprecated name only
+
+**Component:** a producer, Google's ADK 2.3.0 (`google/adk/telemetry/tracing.py`), against
+`model/gen-ai/registry.yaml` (`gen_ai.provider.name`).
+
+**Severity:** producer bug: `call_llm` names a provider that does not exist, and no ADK span
+carries `gen_ai.provider.name`.
+
+### Issue
+
+`trace_call_llm` sets `span.set_attribute("gen_ai.system", "gcp.vertex.agent")` on every
+`call_llm` span (line 338), the framework's instrumentation scope rather than the provider
+the call went to, which for the restaurant finder is `gemini`. The `generate_content {model}`
+span sets `GEN_AI_SYSTEM` to `gemini` or `vertex_ai` (line 733), the deprecated `gen_ai.system`
+with the older values. Neither span sets `gen_ai.provider.name`, which the pinned conventions
+require on inference spans, with the values `gcp.gemini` and `gcp.vertex_ai`.
+
+### Reproduction
+
+Run upstream A2UI's `samples/agent/adk/restaurant_finder` with ADK 2.3.0 under
+`opentelemetry-instrument` and an OTLP exporter, and send it a message: its `call_llm` span
+carries `gen_ai.system: gcp.vertex.agent`, its `generate_content gemini-3.6-flash` span
+`gen_ai.system: gemini`, and neither carries `gen_ai.provider.name`.
+
+### Fix
+
+Set `gen_ai.provider.name` to `gcp.gemini` or `gcp.vertex_ai` on both spans, and drop the
+literal `gcp.vertex.agent` from `call_llm`.
+
+## 23. a2a-sdk does not read an incoming `traceparent`
+
+**Component:** a producer, the A2A Python SDK, `a2a-sdk` 0.3.25 (`a2a/utils/telemetry.py` and
+`a2a/server/`), against OpenTelemetry's context propagation, which the conventions' agent
+invocation spans rely on.
+
+**Severity:** producer gap: without a separate HTTP server instrumentation, an A2A server's
+spans start a new trace on every request, and a client's trace stops at the server.
+
+### Issue
+
+The SDK creates spans for its request handlers, event queues and task store through
+`trace_function` and `trace_class`, under the context that is current. Nothing in the package
+extracts the W3C trace context of an incoming request: it has no call to a propagator's
+`extract` and no mention of `traceparent`. Behind an ASGI server with no OpenTelemetry
+instrumentation, its JSON-RPC handler's span is the root of a new trace, though the request
+carried a `traceparent`. With `opentelemetry-instrumentation-starlette` installed, the
+server span reads it and the SDK's spans join the client's trace.
+
+### Reproduction
+
+Search the installed `a2a` package for `propagat`, `extract(` and `traceparent`: there is no
+match. Run the restaurant finder under `opentelemetry-instrument` with the distro and the OTLP
+exporter alone, and send it a `message/stream` carrying a `traceparent`: the span
+`a2a.server.request_handlers.jsonrpc_handler.JSONRPCHandler.on_message_send_stream` has no
+parent and a trace id of its own.
+
+### Fix
+
+Extract the incoming context in the SDK's server applications, or document that an HTTP
+server instrumentation is needed for an A2A server's spans to join the client's trace.

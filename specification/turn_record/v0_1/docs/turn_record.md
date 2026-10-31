@@ -97,15 +97,17 @@ Events come from three capture depths, and each works without the others.
 
 - **The wire.** The transport adapter writes the turn event and the wire events.
 - **The network edge.** The model proxy and the tool proxy write `model_call` and `tool_call` events under the turn event.
-- **OpenTelemetry.** The receiver writes the spans the agent's process sends: `model_call` and `tool_call` events seen from inside the agent, `prompt_generation` and `parse` events from the A2UI wrapper or a native SDK hook, and `framework_span` events for the rest. These keep their own `traceId` and their own parents. The root of such a tree may have no parent.
+- **OpenTelemetry.** The receiver writes the spans the agent's process sends: `model_call` and `tool_call` events seen from inside the agent, `prompt_generation` and `parse` events from the A2UI wrapper or a native SDK hook, and `framework_span` events for the rest. These keep their own `traceId` and their own parents. The root of such a tree may have no parent; under trace propagation, a tree carrying the turn's `traceId` has the turn event as its root's parent. A span already in its turn, by its `traceId` and `spanId`, is not written again.
 
 Events written at the wire and the network edge share the turn event's `traceId`.
 
-An event that came from the receiver carries `otel.scope.name`, and `otel.scope.version` when the producer gave one. It also carries `a2ui.received.attributes`: every attribute of the span exactly as received. Beside it, the event carries the GenAI and `a2ui.` names the receiver translated from the producer's dialect.
+An event that came from the receiver carries `otel.scope.name`, and `otel.scope.version` when the producer gave one. It also carries `a2ui.received.attributes`: every attribute of the span exactly as received. Beside it, the event carries the GenAI and `a2ui.` names the receiver translated from the producer's dialect, and `a2ui.received.dialect`, the dialect they were read from: `adk`, ADK's own names; `openinference`, OpenInference's; or `genai`, the current GenAI conventions. A span of none of them has no `a2ui.received.dialect`: it is a `framework_span` with nothing translated.
+
+A log record the agent's process sends with span context is kept as one of its span's span events, at the log's time. The span event is named by the log's event name, else by its severity text. Its attributes are the log's attributes as received, with its body under `a2ui.received.log.body` and its severity under `a2ui.received.log.severity_number` and `a2ui.received.log.severity_text`. The receiver translates a span together with the log records attached to it.
 
 ### Links
 
-- **The same call.** A call seen both by a proxy and by the receiver is two events, one per capture path. When the two are known to be the same call, each links to the other.
+- **The same call.** A call seen both by a proxy and by the receiver is two events, one per capture path. When the two are known to be the same call, each links to the other. A call may be several events on either side: nested spans that each contain the next, such as a framework's model call span around an instrumented client's, are one chain, and each of them links to the proxy's event and it to each; and a span links to every proxy event its client sent inside it, such as a retry.
 - **A retry.** A `model_call` that retries after a failed parse links to the `parse` event whose error caused it, and carries `a2ui.retry.attempt`.
 
 A link to a `parse` event is a retry link. A link between two `model_call` events, or between two `tool_call` events, is a same-call link.
@@ -351,54 +353,68 @@ A span received from the agent that is none of the other kinds, such as a framew
 | `a2ui.event.kind`          | string | yes      | `"framework_span"`.                               |
 | `otel.scope.name`          | string | yes      | The instrumentation scope that produced the span. |
 | `otel.scope.version`       | string | no       | Its version.                                      |
+| `a2ui.received.dialect`    | string | no       | The dialect its translated names were read from.  |
 | `a2ui.received.attributes` | object | yes      | Every attribute of the span, exactly as received. |
 
 A framework span may also carry names the receiver translated.
 
 ### Received-span attributes
 
-| Attribute                  | Type   | Meaning                                           |
-| -------------------------- | ------ | ------------------------------------------------- |
-| `otel.scope.name`          | string | The instrumentation scope that produced the span. |
-| `otel.scope.version`       | string | Its version.                                      |
-| `a2ui.received.attributes` | object | Every attribute of the span, exactly as received. |
+| Attribute                  | Type   | Meaning                                                                  |
+| -------------------------- | ------ | ------------------------------------------------------------------------ |
+| `otel.scope.name`          | string | The instrumentation scope that produced the span.                        |
+| `otel.scope.version`       | string | Its version.                                                             |
+| `a2ui.received.dialect`    | string | `adk`, `openinference` or `genai`, the dialect its names were read from. |
+| `a2ui.received.attributes` | object | Every attribute of the span, exactly as received.                        |
+
+A span event that is a received log record carries:
+
+| Attribute                           | Type    | Meaning                            |
+| ----------------------------------- | ------- | ---------------------------------- |
+| `a2ui.received.log.body`            | any     | The log record's body.             |
+| `a2ui.received.log.severity_number` | integer | Its severity number, from 1 to 24. |
+| `a2ui.received.log.severity_text`   | string  | Its severity text.                 |
 
 ## The `a2ui.` attributes
 
 Every attribute the record defines itself is in the `a2ui.` namespace, named `a2ui.<area>.<name>` under OpenTelemetry's naming rules.
 
-| Attribute                        | Type                      | On                                     |
-| -------------------------------- | ------------------------- | -------------------------------------- |
-| `a2ui.event.kind`                | string                    | every event                            |
-| `a2ui.turn.outcome`              | string                    | `turn`                                 |
-| `a2ui.turn.protocol_version`     | string                    | `turn`                                 |
-| `a2ui.turn.capture_paths`        | array of string           | `turn`                                 |
-| `a2ui.turn.writer.name`          | string                    | `turn`                                 |
-| `a2ui.turn.writer.version`       | string                    | `turn`                                 |
-| `a2ui.wire.message`              | object                    | `wire_input`, `wire_output`            |
-| `a2ui.wire.data_model`           | object                    | `wire_input`                           |
-| `a2ui.wire.capabilities`         | object                    | `wire_input`                           |
-| `a2ui.wire.metadata`             | object                    | `wire_input`, `wire_output`            |
-| `a2ui.http.request.body`         | any                       | `model_call`, `tool_call`              |
-| `a2ui.http.response.body`        | any                       | `model_call`, `tool_call`              |
-| `a2ui.http.response.chunk.body`  | any                       | `a2ui.http.response.chunk` span events |
-| `a2ui.http.response.chunk.event` | string                    | `a2ui.http.response.chunk` span events |
-| `a2ui.http.response.chunk.id`    | string                    | `a2ui.http.response.chunk` span events |
-| `a2ui.prompt.ui_section`         | string                    | `prompt_generation`                    |
-| `a2ui.prompt.inference_format`   | string                    | `prompt_generation`                    |
-| `a2ui.prompt.catalog_id`         | string                    | `prompt_generation`                    |
-| `a2ui.prompt.catalog_version`    | string                    | `prompt_generation`                    |
-| `a2ui.parse.input`               | string                    | `parse`                                |
-| `a2ui.parse.inference_format`    | string                    | `parse`                                |
-| `a2ui.parse.messages`            | array                     | `parse`                                |
-| `a2ui.parse.components`          | array of component ranges | `parse`                                |
-| `a2ui.retry.attempt`             | integer                   | `model_call`                           |
-| `a2ui.check.name`                | string                    | `check`                                |
-| `a2ui.check.passed`              | boolean                   | `check`                                |
-| `a2ui.check.protocol_version`    | string                    | `check`                                |
-| `a2ui.check.findings`            | array of findings         | `check`                                |
-| `a2ui.check.skipped`             | array of skipped surfaces | `check`                                |
-| `a2ui.received.attributes`       | object                    | events from the OpenTelemetry receiver |
+| Attribute                           | Type                      | On                                     |
+| ----------------------------------- | ------------------------- | -------------------------------------- |
+| `a2ui.event.kind`                   | string                    | every event                            |
+| `a2ui.turn.outcome`                 | string                    | `turn`                                 |
+| `a2ui.turn.protocol_version`        | string                    | `turn`                                 |
+| `a2ui.turn.capture_paths`           | array of string           | `turn`                                 |
+| `a2ui.turn.writer.name`             | string                    | `turn`                                 |
+| `a2ui.turn.writer.version`          | string                    | `turn`                                 |
+| `a2ui.wire.message`                 | object                    | `wire_input`, `wire_output`            |
+| `a2ui.wire.data_model`              | object                    | `wire_input`                           |
+| `a2ui.wire.capabilities`            | object                    | `wire_input`                           |
+| `a2ui.wire.metadata`                | object                    | `wire_input`, `wire_output`            |
+| `a2ui.http.request.body`            | any                       | `model_call`, `tool_call`              |
+| `a2ui.http.response.body`           | any                       | `model_call`, `tool_call`              |
+| `a2ui.http.response.chunk.body`     | any                       | `a2ui.http.response.chunk` span events |
+| `a2ui.http.response.chunk.event`    | string                    | `a2ui.http.response.chunk` span events |
+| `a2ui.http.response.chunk.id`       | string                    | `a2ui.http.response.chunk` span events |
+| `a2ui.prompt.ui_section`            | string                    | `prompt_generation`                    |
+| `a2ui.prompt.inference_format`      | string                    | `prompt_generation`                    |
+| `a2ui.prompt.catalog_id`            | string                    | `prompt_generation`                    |
+| `a2ui.prompt.catalog_version`       | string                    | `prompt_generation`                    |
+| `a2ui.parse.input`                  | string                    | `parse`                                |
+| `a2ui.parse.inference_format`       | string                    | `parse`                                |
+| `a2ui.parse.messages`               | array                     | `parse`                                |
+| `a2ui.parse.components`             | array of component ranges | `parse`                                |
+| `a2ui.retry.attempt`                | integer                   | `model_call`                           |
+| `a2ui.check.name`                   | string                    | `check`                                |
+| `a2ui.check.passed`                 | boolean                   | `check`                                |
+| `a2ui.check.protocol_version`       | string                    | `check`                                |
+| `a2ui.check.findings`               | array of findings         | `check`                                |
+| `a2ui.check.skipped`                | array of skipped surfaces | `check`                                |
+| `a2ui.received.dialect`             | string                    | events from the OpenTelemetry receiver |
+| `a2ui.received.attributes`          | object                    | events from the OpenTelemetry receiver |
+| `a2ui.received.log.body`            | any                       | received log records' span events      |
+| `a2ui.received.log.severity_number` | integer                   | received log records' span events      |
+| `a2ui.received.log.severity_text`   | string                    | received log records' span events      |
 
 ## Rules
 

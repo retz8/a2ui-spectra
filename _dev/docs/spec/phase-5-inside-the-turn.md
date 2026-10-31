@@ -37,11 +37,15 @@ The wire proxy adds a W3C `traceparent` to each A2A turn request, the message bo
 
 ### 4. Placing a call or a span in its turn
 
-A model call, a tool call or a received span carrying a turn's trace id belongs to that turn. Without trace context, one that starts while exactly one turn is open belongs to that turn. A model call or a tool call whose trace id names no turn is placed as one without trace context is.
+A model call, a tool call or a received span carrying a turn's trace id belongs to that turn. Without trace context, a model call or a tool call that starts while exactly one turn is open belongs to that turn. A model call or a tool call whose trace id names no turn is placed as one without trace context is.
+
+A received span carrying a turn's trace id belongs to it whether the turn is open, waiting for its calls or written. Any other received span belongs to the turn of this run whose time range holds the span's start, when exactly one does: a turn's range runs from its start to the agent's last reply, and an open turn's to the present. The turns of this run are remembered with their ranges until Spectra stops; a turn an earlier run left in the store is never amended. A span placed in a written turn amends the record in the store; the turn's end time stays the agent's last reply and its checks are not run again.
 
 ### 5. What cannot be placed
 
 A call or span that cannot be placed, because two turns are open or none is, is not recorded. The terminal logs one line for it: what it was, when, and why it was not placed.
+
+For received spans and log records, the line is one per export request and reason, counting the spans and log records not recorded, with their scopes and the span of time they started in: a span whose start falls in no turn's range or in two, with its log records, and a log record without span context.
 
 ### 6. The model proxy's test agents
 
@@ -61,7 +65,7 @@ The tool proxy covers MCP over streamable HTTP and over HTTP+SSE. The config's `
 
 ### 9. The receiver's signals
 
-The receiver takes traces and logs. A log record is attached to its span as one of the span's events and translated with it. Metrics are accepted and dropped.
+The receiver takes traces and logs. A log record is attached to its span as one of the span's events and translated with it: at the log's time, named by its event name, else by its severity text, with the log's attributes as received and its body and severity under `a2ui.received.log.` names. Metrics are accepted and dropped.
 
 ### 10. The dialects
 
@@ -69,11 +73,11 @@ The receiver translates the three dialects SPEC.md names: ADK's own names, OpenI
 
 ### 11. Content capture
 
-`a2ui-spectra run` switches the GenAI conventions' content capture on, unless the adopter has set it. ADK's, OpenInference's and OpenLLMetry's own switches keep their defaults. Under `attach`, the variable is printed with the others.
+`a2ui-spectra run` switches the GenAI conventions' content capture on, `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT` set to `true`, unless Spectra's own environment sets it. ADK's, OpenInference's and OpenLLMetry's own switches keep their defaults. Under `attach`, the variable is printed with the others.
 
 ### 12. One call seen by two capture paths
 
-A proxy event and a received span are linked as the same call through trace context. Without it, a proxied exchange that falls inside exactly one received model call span of the same turn is linked to it, and a tool proxy exchange to exactly one tool call span. When none or several contain it, they stay unlinked.
+A proxy event and a received span are linked as the same call through trace context. Without it, a proxied exchange is linked to the received model call span of the same turn whose time range holds the exchange's start, and a tool proxy exchange to the tool call span. Nested spans that each contain the next, such as ADK's `call_llm` around its `generate_content {model}` around an OpenInference or OpenLLMetry LiteLLM span, are one chain and count as one: the exchange is linked to each span of the chain and each to it. When no span holds the exchange, or two that are not one chain do, it stays unlinked. One span is linked to every exchange whose start it holds, as when the agent's SDK retried inside it.
 
 ### 13. Prompt cache use
 
@@ -118,10 +122,14 @@ The last sub-task, through the tunnel, under `run` and `attach`, across every bo
   - The roadmap's Phase 5 line.
 - The turn record prose and schema carry decision 17.
 - `_dev/TODO.md`: the Phase 5 line names this spec; the backlog's three items for the Phase 5 grill are removed; the backlog gains a recording of real OpenAI traffic once there is an OpenAI key.
-- `_dev/otel-findings.md` gains what this phase finds in the GenAI conventions and their producers, each checked against the pinned conventions first; ADK 2.8.0 writing `gen_ai.usage.cache_creation.input_tokens` where turn record v0.1 has `gen_ai.usage.cache_write.input_tokens` is the first to check.
+- `_dev/otel-findings.md` gains what this phase finds in the GenAI conventions and their producers, each checked against the pinned conventions first; the first is the Python conventions package naming the cache write `gen_ai.usage.cache_creation.input_tokens`, which OpenLLMetry and LiteLLM follow, where the pinned conventions name it `gen_ai.usage.cache_write.input_tokens`.
 - `_dev/a2ui-findings.md` gains what this phase finds in A2UI.
 - The READMEs: the tool's, for `run`'s variables, what `attach` prints and the receiver; `conformance/README.md`, for the stand-in provider, the MCP server and the HTTP endpoint.
 - A2UIVerse: only the CircleCI agent's MCP URL read from a variable.
+
+### 21. The receiver's port and the replaced variables
+
+The receiver has its own listener on loopback, on `--receiver-port`, default 9823, under the rules the other ports follow; the tool proxy's ports come after it, the first on `--tool-proxy-port`, default 9824. `a2ui-spectra run` sets `OTEL_EXPORTER_OTLP_ENDPOINT` to the listener's origin and `OTEL_EXPORTER_OTLP_PROTOCOL` to `http/protobuf`. An endpoint or protocol variable Spectra's own environment sets to another value, the generic one or a signal-specific one, is replaced in the agent's environment, and the terminal says once at start which variables were replaced and from what. Exports are not passed on to the adopter's own collector.
 
 ## Invariants
 

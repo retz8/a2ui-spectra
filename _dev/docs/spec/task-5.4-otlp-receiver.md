@@ -21,7 +21,7 @@ Out of scope: tool calls, spans and the timeline in the viewer, sub-task 5.6; th
 
 ### 1. The receiver's address
 
-The receiver has its own listener on loopback, on `--receiver-port`, default 9824, under the rules the other ports follow: command line only, a taken port an error at start, no two of Spectra's ports the same. `OTEL_EXPORTER_OTLP_ENDPOINT` is the listener's origin; the exporters append the signal paths themselves.
+The receiver has its own listener on loopback, on `--receiver-port`, default 9823, under the rules the other ports follow: command line only, a taken port an error at start, no two of Spectra's ports the same. The tool proxy's ports come after it, the first on `--tool-proxy-port`, default 9824, so that any number of tool servers takes ports no other default holds. `OTEL_EXPORTER_OTLP_ENDPOINT` is the listener's origin; the exporters append the signal paths themselves.
 
 ### 2. What the receiver accepts
 
@@ -110,7 +110,7 @@ A log whose span has not arrived is held in memory, with no cap, until the span 
 
 ### 11. Links
 
-A proxy's event and a received span are the same call through trace context when the exchange's `traceparent` names a received span: the same call is that span when it is a model call span, or a tool call span for a tool proxy exchange, else its nearest such ancestor, and every such span above it in the chain. Without trace context, the same call is the model call span, or tool call span, of the same turn whose time range holds the exchange's start time. Nested spans that each contain the next, such as ADK's `call_llm` around its `generate_content {model}` around an OpenInference or OpenLLMetry LiteLLM span, are one chain and count as one; the exchange links to every model call span in the chain and each links back. Two containing spans that are not ancestor and descendant leave the exchange unlinked. Every exchange whose start a span's range holds links to it, so one span links back to several exchanges when the agent's SDK retried inside it. The record's `links` holds them all; a span's own links as received stay beside them.
+A proxy's event and a received span are the same call through trace context when the exchange's `traceparent` names a received span: the same call is that span when it is a model call span, or a tool call span for a tool proxy exchange, else its nearest such ancestor, and every such span above it in the chain, and every span of the kind nested in that nearest one whose time range holds the exchange's start, such as a LiteLLM span its instrumentation did not make current around the request, when they all stay one chain. Without trace context, the same call is the model call span, or tool call span, of the same turn whose time range holds the exchange's start time. Nested spans that each contain the next, such as ADK's `call_llm` around its `generate_content {model}` around an OpenInference or OpenLLMetry LiteLLM span, are one chain and count as one; the exchange links to every model call span in the chain and each links back. Two containing spans that are not ancestor and descendant leave the exchange unlinked. Every exchange whose start a span's range holds links to it, so one span links back to several exchanges when the agent's SDK retried inside it. The record's `links` holds them all; a span's own links as received stay beside them.
 
 ### 12. The capture path
 

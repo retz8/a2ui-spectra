@@ -390,3 +390,23 @@
     details:
       - path: "/turns/0/events/1/attributes"
         code: required
+
+- name: framework_span_unknown_dialect
+  description: "A received span names a dialect the record does not define."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/framework_span_unknown_dialect.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes/a2ui.received.dialect"
+        code: enum
+
+- name: received_log_severity_not_integer
+  description: "A received log record's severity number is not an integer."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/received_log_severity_not_integer.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/events/0/attributes/a2ui.received.log.severity_number"
+        code: type

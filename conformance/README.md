@@ -119,6 +119,30 @@ A scripted Gemini cache read on a repeated long prefix reported no hit and was n
 
 The expected records were written by the harness from its first capture, with `SPECTRA_WRITE_TOOL_CAPTURE=1`, and checked by hand against the rules of `_dev/docs/spec/task-5.3-tool-proxy.md`.
 
+### Receiver capture (`receiver_capture/`)
+
+- `receiver_capture/capture_v0_1.yaml`: posts the OTLP/JSON export requests recorded from a live run to the OTLP/HTTP receiver, and compares the turns it writes with the expected record. Every case uses `action: capture_receiver`. The data is under `test_data/receiver_capture/v0_1/<case>/`: `exports.json`, the run's export requests to `/v1/traces` and `/v1/logs` in arrival order, each with its path, its arrival time and its OTLP/JSON body; and `expected.json`, a turn record v0.1 file holding the turns the case opens, each with its turn event, its proxies' calls and the events the receiver wrote, its wire and check events left out.
+- A harness starts the receiver's listener, opens each turn of the expected record at its start, places its proxies' calls in it without their links, and posts each export in order, closing each turn before the first export that arrived after the turn's end, so that what arrived after a turn closed amends the written turn, as it did live. Once every export is read and every turn written, it compares each turn as the store holds it with the expected record's, exactly, and the receiver's lines with the case's `log`. Spectra's harness is `tools/spectra/src/receiver/capture.conformance.test.ts`.
+
+#### The recordings
+
+Each live case was run with Spectra's binary under `run`, the agent's command started under `opentelemetry-instrument` with the packages added to the run alone, from upstream `23789301a` with google-adk 2.3.0, a2a-sdk 0.3.25, LiteLLM 1.90.1, OpenTelemetry's SDK 1.42.1, the distro 0.63b1 and the OTLP HTTP exporter 1.42.1 on Python 3.14.3, on `gemini-3.6-flash`, and sent one conversation by [`_dev/tools/send_a2a_requests.py`](../_dev/tools/send_a2a_requests.py) through the wire proxy. The bootstrap set is what `opentelemetry-bootstrap -a requirements` lists for the samples' environment, run with `OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=click`.
+
+| Case                    | Agent and conversation                                                                | Added to the run                                                                                                                                                              |
+| ----------------------- | ------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `adk_time_window`       | The Python restaurant finder, `python_restaurant_finder/list_then_booking.json`       | The distro and the exporter                                                                                                                                                   |
+| `adk_trace_context`     | The same                                                                              | The bootstrap set                                                                                                                                                             |
+| `adk_operation_details` | The same                                                                              | The bootstrap set, with `OTEL_SEMCONV_STABILITY_OPT_IN=gen_ai_latest_experimental`                                                                                            |
+| `openinference`         | The custom-components example, `custom_components/contact_lookup.json`                | The bootstrap set and `openinference-instrumentation-litellm` 0.1.52                                                                                                          |
+| `openllmetry`           | The same                                                                              | The bootstrap set and OpenLLMetry's `opentelemetry-instrumentation-litellm` 0.62.4                                                                                            |
+| `nesting_chain`         | The same                                                                              | The distro, the exporter and `openinference-instrumentation-litellm` 0.1.52                                                                                                   |
+| `several_exchanges`     | The restaurant finder, `list_then_booking.json`, its first Gemini call answered `503` | The distro and the exporter; [`_dev/tools/fail_first_call.py`](../_dev/tools/fail_first_call.py) as `GOOGLE_GEMINI_BASE_URL`'s original, named by `SPECTRA_PROVIDER_STAND_IN` |
+| `logs_before_span`      | Derived from `adk_time_window`                                                        |                                                                                                                                                                               |
+| `unplaced`              | Derived from `adk_time_window`                                                        |                                                                                                                                                                               |
+
+- [`_dev/tools/record_otlp_exports.py`](../_dev/tools/record_otlp_exports.py) is the recording proxy: it passes each export request on to Spectra's receiver unchanged and writes it as OTLP/JSON, decoded from protobuf with the `opentelemetry-proto` package, every trace and span id turned into hex. Under `run`, it goes in front of the receiver from the agent's own command, `-- env OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:<port> <command>`. It shares no code with Spectra.
+- [`_dev/tools/write_receiver_capture_records.py`](../_dev/tools/write_receiver_capture_records.py) writes a live case's expected record from the record `GET /api/turns/<trace id>` served for the run's last turn, and with `--derive` writes `logs_before_span` and `unplaced` from `adk_time_window`'s exports and expected record. The derived cases' expected records were then written by the harness with `SPECTRA_WRITE_RECEIVER_CAPTURE=1` and checked by hand; the live cases' are the records Spectra served, which the harness reproduces, and their `log` is the lines Spectra printed in the run.
+
 ## The stub agent
 
 [`stub_agent/stub_agent.ts`](stub_agent/stub_agent.ts) is a small A2A agent on `@a2a-js/sdk` 1.3.0, serving A2A 1.0 and, through the SDK's compatibility layer, A2A 0.3 on one JSON-RPC endpoint. Run it from `conformance/` after `yarn build`, as `node dist/stub_agent/stub_agent.js`.
@@ -247,12 +271,33 @@ The harness validates with Ajv 8's draft 2020-12 build in strict mode, with Ajv'
 
 A new scenario is written in the harness, which runs it with the MCP SDK's client against the tool server; its expected records are written with `SPECTRA_WRITE_TOOL_CAPTURE=1` and checked by hand.
 
+## Writing cases for `capture_receiver`
+
+| Field         | Required | Meaning                                                                                                            |
+| ------------- | -------- | ------------------------------------------------------------------------------------------------------------------ |
+| `name`        | yes      | Unique name of the case.                                                                                           |
+| `description` | yes      | The run, its producers and what the case verifies.                                                                 |
+| `action`      | yes      | `capture_receiver`.                                                                                                |
+| `exports`     | yes      | Path of the recorded export requests, relative to `conformance/`.                                                  |
+| `expect`      | yes      | Path of the expected record, relative to `conformance/`.                                                           |
+| `log`         | no       | The lines the receiver prints, in order, without Spectra's `a2ui-spectra: ` prefix. A case without it prints none. |
+
+```yaml
+- name: logs_before_span
+  description: "Derived from adk_time_window: the first model call's generate_content span alone, whose log records arrive before the span's own export."
+  action: capture_receiver
+  exports: 'test_data/receiver_capture/v0_1/logs_before_span/exports.json'
+  expect: 'test_data/receiver_capture/v0_1/logs_before_span/expected.json'
+```
+
+A new case is recorded from a live run with the recording proxy in front of the receiver, and its expected record written from the record Spectra served; a case derived from a recording has its expected record written with `SPECTRA_WRITE_RECEIVER_CAPTURE=1` and checked by hand.
+
 ## Checks on the test data as a whole
 
 - Every kind the schema defines appears in at least one must-pass fixture.
 - Every file under `test_data/turn_record/` is named by a case.
-- Every expected record of the A2A, model and tool capture suites validates against the turn record schema.
-- Every file under `test_data/a2a_capture/`, `test_data/model_capture/` and `test_data/tool_capture/` is named by a case.
+- Every expected record of the A2A, model, tool and receiver capture suites validates against the turn record schema.
+- Every file under `test_data/a2a_capture/`, `test_data/model_capture/`, `test_data/tool_capture/` and `test_data/receiver_capture/` is named by a case.
 
 ## Commands
 

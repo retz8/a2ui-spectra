@@ -60,7 +60,18 @@
           "type": "string"
         },
         "attributes": {
-          "type": "object"
+          "type": "object",
+          "properties": {
+            "a2ui.received.log.body": true,
+            "a2ui.received.log.severity_number": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 24
+            },
+            "a2ui.received.log.severity_text": {
+              "type": "string"
+            }
+          }
         }
       },
       "required": ["timeUnixNano", "name"],
@@ -555,6 +566,9 @@
                   "otel.scope.version": {
                     "type": "string"
                   },
+                  "a2ui.received.dialect": {
+                    "enum": ["adk", "openinference", "genai"]
+                  },
                   "a2ui.received.attributes": {
                     "type": "object"
                   },
@@ -678,6 +692,9 @@
                   "otel.scope.version": {
                     "type": "string"
                   },
+                  "a2ui.received.dialect": {
+                    "enum": ["adk", "openinference", "genai"]
+                  },
                   "a2ui.received.attributes": {
                     "type": "object"
                   }
@@ -744,6 +761,9 @@
                   "otel.scope.version": {
                     "type": "string"
                   },
+                  "a2ui.received.dialect": {
+                    "enum": ["adk", "openinference", "genai"]
+                  },
                   "a2ui.received.attributes": {
                     "type": "object"
                   }
@@ -802,6 +822,9 @@
                   },
                   "otel.scope.version": {
                     "type": "string"
+                  },
+                  "a2ui.received.dialect": {
+                    "enum": ["adk", "openinference", "genai"]
                   },
                   "a2ui.received.attributes": {
                     "type": "object"
@@ -911,6 +934,9 @@
                   },
                   "otel.scope.version": {
                     "type": "string"
+                  },
+                  "a2ui.received.dialect": {
+                    "enum": ["adk", "openinference", "genai"]
                   },
                   "a2ui.received.attributes": {
                     "type": "object"
