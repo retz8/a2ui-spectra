@@ -124,3 +124,26 @@ One attribute, `a2ui.mcp.stream.url`: the HTTP+SSE session's `GET` stream URL, c
 - The unit tests, the three capture suites with the rewritten HTTP+SSE records, and both end-to-end tests pass after the fixes, under Node and against the binary, locally and in CI.
 - This spec carries decision 16's last item.
 - The done commit names the boards not checked, the tall window's height, the fork's ref `825beac28` with google-adk 2.3.0, LiteLLM 1.90.1 and the two instrumentations' versions, the a2uiverse-apps commit the live sessions ran against, and the Claude model.
+
+### 18. What the run fixed
+
+- An open turn's header duration runs to the present while a call is in flight, and to a finished call's end past the newest step, as the lanes do; it stood at the newest step while a call ran. The turn list's open row counts the same way at its last update.
+- An offset or a duration of a minute or more reads `1m 27s` in the timeline's columns and in the spans section's events, where `1 min 27 s` wrapped the row; the spans section's event times sit in a wider column that does not wrap.
+- The timeline takes focus once the earlier call a prefix break's link names is selected in another turn, so the keys go on from it; focus fell to the page before.
+- `a2ui.mcp.stream.url` and the folded exchange line `reply on GET /sse`, decision 15, seen live on the floor plan turn.
+
+### 19. The design canvas
+
+No board is amended. The HTTP+SSE board already read "reply on GET /sse".
+
+### 20. A2UI findings
+
+Findings 31 and 32 are recorded: the Python restaurant finder's retry on "Surface default already exists", ADK's aggregated event meeting the SDK's stream, reproduced in two conversations in a scratch store; and the custom-components example prompting with examples in a catalog the host did not negotiate, seen in every message-box turn of the run on each API. The example reading an action from v0.8's `userAction` alone, which keeps the message box's press from reaching its floor plan server, is finding 23's; the floor plan turn is sent from the recorded conversation through the wire proxy as a second host.
+
+### 21. Content, not findings
+
+The Node finder's live Gemini output puts an empty object where the v0.9 catalog wants a string in a Button's `action.event.context`, and leaves a Button's child unsent; the floor plan server reports its resource as `text/plain` where the board drew `text/html`; a2a-sdk's `EventQueue` spans arrive every half second through a turn, so an open turn's duration, which runs to its newest event, advances with them.
+
+### 22. Sessions not yet run
+
+The Linear and CircleCI sessions, decisions 1, 9 and 3's fourth and fifth, wait for a session with their sign-ins; the `tools/call` over streamable HTTP board, the live bearer token stripped, and ADK's spans around a Claude call with them.
