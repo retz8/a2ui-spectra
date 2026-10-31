@@ -132,7 +132,7 @@ The stand-in provider is a standalone server in `conformance/` replaying recorde
 
 | Case | Source |
 | --- | --- |
-| Each client's request shape and auth: google-genai through the Python restaurant finder; LiteLLM's `gemini/` and `anthropic/` through the custom-components example; the anthropic SDK through an A2UIVerse agent on Claude | Real recordings of those agents, one short conversation each |
+| Each client's request shape and auth: google-genai through the Python restaurant finder; LiteLLM's `gemini/` and `anthropic/` through the custom-components example | Real recordings of those agents, one short conversation each |
 | Streamed and not streamed, Gemini and Anthropic | Real, from the agents where they stream, otherwise scripted calls |
 | A tool call and the request carrying its result | Real: the restaurant finder's `get_restaurants`, and the custom-components example on Anthropic |
 | Anthropic's cache write, then read | Scripted: two calls with `cache_control` on the same long system prompt |
