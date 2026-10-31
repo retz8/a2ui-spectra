@@ -51,7 +51,9 @@
         "test_data/turn_record/**",
         "../specification/turn_record/**/json/*.json",
         "tool_capture/**",
-        "test_data/tool_capture/**"
+        "test_data/tool_capture/**",
+        "receiver_capture/**",
+        "test_data/receiver_capture/**"
       ],
       "output": []
     },

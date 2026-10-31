@@ -1,0 +1,78 @@
+# The OTLP/HTTP receiver: each case's recorded OTLP/JSON export requests posted
+# to the receiver with the turns of its expected record opened at their start,
+# their proxies' calls placed in them, and each turn closed at its end, and the
+# turns as written compared with the expected record.
+
+- name: adk_time_window
+  description: "Upstream's Python restaurant finder on Gemini, under opentelemetry-instrument with the distro and the OTLP exporter alone: ADK's tree, invocation, invoke_agent restaurant_agent, call_llm and generate_content with execute_tool get_restaurants, among a2a-sdk's spans, in ADK's own traces, placed by their start; call_llm and generate_content linked to the model proxy's calls by time containment; generate_content's content from its gen_ai.system.message, gen_ai.user.message and gen_ai.choice log records, which arrive before the span; the spans a2a-sdk starts after a turn's last reply not recorded."
+  action: capture_receiver
+  exports: "test_data/receiver_capture/v0_1/adk_time_window/exports.json"
+  expect: "test_data/receiver_capture/v0_1/adk_time_window/expected.json"
+  log:
+    - "The receiver did not record 1 span from a2a-python-sdk, which started at 2026-10-31T07:20:57.935Z: their start falls in no turn's time range."
+    - "The receiver did not record 3 spans from a2a-python-sdk, which started at 2026-10-31T07:21:09.489Z: their start falls in no turn's time range."
+
+- name: adk_trace_context
+  description: "The same agent with the bootstrap set, the click instrumentation switched off: the tree carries the turn's trace id from the wire proxy's traceparent, its root the starlette server span under the turn event, and the model proxy's calls linked to call_llm and generate_content through the traceparent the aiohttp client span put on them."
+  action: capture_receiver
+  exports: "test_data/receiver_capture/v0_1/adk_trace_context/exports.json"
+  expect: "test_data/receiver_capture/v0_1/adk_trace_context/expected.json"
+  log:
+    - "The receiver did not record 6 spans from opentelemetry.instrumentation.starlette, which started from 2026-10-31T07:21:42.312Z to 2026-10-31T07:21:43.492Z: their start falls in no turn's time range."
+
+- name: adk_operation_details
+  description: "The same agent with the bootstrap set and OTEL_SEMCONV_STABILITY_OPT_IN=gen_ai_latest_experimental: generate_content's gen_ai.client.inference.operation.details log record attached as a span event, and its gen_ai.input.messages, gen_ai.output.messages and gen_ai.tool.definitions translated from it."
+  action: capture_receiver
+  exports: "test_data/receiver_capture/v0_1/adk_operation_details/exports.json"
+  expect: "test_data/receiver_capture/v0_1/adk_operation_details/expected.json"
+  log:
+    - "The receiver did not record 6 spans from opentelemetry.instrumentation.starlette, which started from 2026-10-31T07:23:08.385Z to 2026-10-31T07:23:09.618Z: their start falls in no turn's time range."
+
+- name: openinference
+  description: "Upstream's custom-components example on Gemini through LiteLLM, with the bootstrap set and OpenInference's LiteLLM instrumentation: acompletion, a2ui.received.dialect openinference, read from its flattened messages, tools, invocation parameters and token counts; its span sits inside ADK's call_llm and generate_content beside the aiohttp span the traceparent names, and the whole chain is linked to the model proxy's call."
+  action: capture_receiver
+  exports: "test_data/receiver_capture/v0_1/openinference/exports.json"
+  expect: "test_data/receiver_capture/v0_1/openinference/expected.json"
+  log:
+    - "The receiver did not record 6 spans from opentelemetry.instrumentation.starlette, which started from 2026-10-31T07:24:21.599Z to 2026-10-31T07:24:22.791Z: their start falls in no turn's time range."
+
+- name: openllmetry
+  description: "The same example with the bootstrap set and OpenLLMetry's LiteLLM instrumentation: litellm.chat, a2ui.received.dialect genai, its conventions' names as written, its content parsed from JSON strings and llm.is_streaming left in the received attributes; inside ADK's chain, linked with it to the model proxy's call."
+  action: capture_receiver
+  exports: "test_data/receiver_capture/v0_1/openllmetry/exports.json"
+  expect: "test_data/receiver_capture/v0_1/openllmetry/expected.json"
+  log:
+    - "The receiver did not record 7 spans from opentelemetry.instrumentation.httpx and opentelemetry.instrumentation.starlette, which started from 2026-10-31T07:25:37.167Z to 2026-10-31T07:25:40.313Z: their start falls in no turn's time range."
+
+- name: logs_before_span
+  description: "Derived from adk_time_window: the first model call's generate_content span alone, whose log records arrive in an export before the span's own; they are held until the span arrives and attached to it as span events, and the span is translated with them."
+  action: capture_receiver
+  exports: "test_data/receiver_capture/v0_1/logs_before_span/exports.json"
+  expect: "test_data/receiver_capture/v0_1/logs_before_span/expected.json"
+
+- name: unplaced
+  description: "Derived from adk_time_window: a second turn of the conversation opening a second after the first and closing with it; ADK's spans starting in both turns' ranges, and a2a-sdk's starting in neither, are not recorded, each counted in one line per export and reason."
+  action: capture_receiver
+  exports: "test_data/receiver_capture/v0_1/unplaced/exports.json"
+  expect: "test_data/receiver_capture/v0_1/unplaced/expected.json"
+  log:
+    - "The receiver did not record 1 span from gcp.vertex.agent, which started at 2026-10-31T07:20:30.507Z: their start falls in the time ranges of two or more turns."
+    - "The receiver did not record 2 spans from gcp.vertex.agent, which started at 2026-10-31T07:20:30.511Z: their start falls in the time ranges of two or more turns."
+    - "The receiver did not record 1 span from a2a-python-sdk, which started at 2026-10-31T07:20:57.935Z: their start falls in no turn's time range."
+    - "The receiver did not record 4 spans from gcp.vertex.agent, which started from 2026-10-31T07:20:43.583Z to 2026-10-31T07:20:43.589Z: their start falls in the time ranges of two or more turns."
+
+- name: nesting_chain
+  description: "The custom-components example with the distro, the OTLP exporter and OpenInference's LiteLLM instrumentation, no trace context: the model proxy's call starts inside call_llm, generate_content and acompletion, which nest as one chain, and is linked to all three by time containment."
+  action: capture_receiver
+  exports: "test_data/receiver_capture/v0_1/nesting_chain/exports.json"
+  expect: "test_data/receiver_capture/v0_1/nesting_chain/expected.json"
+  log:
+    - "The receiver did not record 2 spans from a2a-python-sdk, which started at 2026-10-31T07:28:23.535Z: their start falls in no turn's time range."
+
+- name: several_exchanges
+  description: "The restaurant finder with the distro and the OTLP exporter, its first Gemini call answered 503 by _dev/tools/fail_first_call.py: google-genai retries inside one generate_content span, and call_llm and generate_content each link back to both exchanges."
+  action: capture_receiver
+  exports: "test_data/receiver_capture/v0_1/several_exchanges/exports.json"
+  expect: "test_data/receiver_capture/v0_1/several_exchanges/expected.json"
+  log:
+    - "The receiver did not record 3 spans from a2a-python-sdk, which started at 2026-10-31T07:31:15.371Z: their start falls in no turn's time range."

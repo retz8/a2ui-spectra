@@ -17,6 +17,9 @@
       },
       {
         "$ref": "#/$defs/CaptureToolTest"
+      },
+      {
+        "$ref": "#/$defs/CaptureReceiverTest"
       }
     ]
   },
@@ -187,6 +190,40 @@
         }
       },
       "required": ["name", "description", "action", "scenario", "expect"],
+      "additionalProperties": false
+    },
+    "CaptureReceiverTest": {
+      "type": "object",
+      "description": "Posts one live run's recorded OTLP/JSON export requests to the OTLP/HTTP receiver, with the turns of the expected record opened, their proxies' calls placed and each closed at its end, and compares the turns as written with the expected turn record.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique name of the test case."
+        },
+        "description": {
+          "type": "string",
+          "description": "The run, its producers and what the case verifies."
+        },
+        "action": {
+          "const": "capture_receiver"
+        },
+        "exports": {
+          "type": "string",
+          "description": "Path of the recorded export requests, relative to conformance/: a JSON list of each request's path, its arrival time and its OTLP/JSON body."
+        },
+        "expect": {
+          "type": "string",
+          "description": "Path of the expected turn record, relative to conformance/: the turns the harness opens, each with its turn event, its proxies' calls and the receiver's events."
+        },
+        "log": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "The lines the receiver prints, in order. None when it prints none."
+        }
+      },
+      "required": ["name", "description", "action", "exports", "expect"],
       "additionalProperties": false
     }
   }

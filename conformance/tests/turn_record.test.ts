@@ -39,6 +39,14 @@ type CaptureCase =
       action: 'capture_tool';
       scenario: string;
       expect: Record<string, string>;
+    }
+  | {
+      name: string;
+      description: string;
+      action: 'capture_receiver';
+      exports: string;
+      expect: string;
+      log?: string[];
     };
 
 /** The expected records a case names. */
@@ -48,7 +56,8 @@ function expectedRecords(c: CaptureCase): string[] {
 
 /** Every file a case names: its recording, when it has one, and its expected records. */
 function namedFiles(c: CaptureCase): string[] {
-  return [...('traffic' in c ? [c.traffic] : []), ...expectedRecords(c)];
+  const recording = 'traffic' in c ? [c.traffic] : 'exports' in c ? [c.exports] : [];
+  return [...recording, ...expectedRecords(c)];
 }
 
 interface TurnRecord {
@@ -87,6 +96,11 @@ const CAPTURE_SUITES = [
     title: 'tool capture v0.1',
     suite: path.join(CONFORMANCE_DIR, 'tool_capture/capture_v0_1.yaml'),
     root: path.join(CONFORMANCE_DIR, 'test_data/tool_capture'),
+  },
+  {
+    title: 'receiver capture v0.1',
+    suite: path.join(CONFORMANCE_DIR, 'receiver_capture/capture_v0_1.yaml'),
+    root: path.join(CONFORMANCE_DIR, 'test_data/receiver_capture'),
   },
 ];
 
