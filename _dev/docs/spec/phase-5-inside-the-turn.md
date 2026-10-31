@@ -29,15 +29,15 @@ The model proxy reads four APIs in full: Google's Gemini API, OpenAI's Chat Comp
 
 ### 2. Redirection
 
-`a2ui-spectra run` sets the base-URL variables the provider SDKs and LiteLLM read for the three providers. The model proxy forwards each call to the value the variable has in Spectra's own environment, and to the provider's own API when it has none. Under `a2ui-spectra attach`, Spectra prints at start the variables and the values to set in the agent's shell.
+`a2ui-spectra run` sets the base-URL variables the provider SDKs and LiteLLM read for the three providers: `GOOGLE_GEMINI_BASE_URL`, `OPENAI_BASE_URL`, `ANTHROPIC_BASE_URL`, and LiteLLM's `GEMINI_API_BASE` and `ANTHROPIC_API_BASE`. The model proxy forwards each call to what the variable's client would have resolved from the values in Spectra's own environment, and to the provider's own API when there is none. Vertex AI is not redirected. Under `a2ui-spectra attach`, Spectra prints at start the variables and the values to set in the agent's shell.
 
 ### 3. Trace context on A2A requests
 
-The message box and the wire proxy add a W3C `traceparent` to each A2A request, carrying the turn's trace id. When a host's request through the wire proxy already carries one, the wire proxy keeps it and the turn adopts its trace id.
+The wire proxy adds a W3C `traceparent` to each A2A turn request, the message box's included, carrying the turn's trace id. When a host's request already carries one, the wire proxy keeps it and the turn adopts its trace id, unless another turn has that trace id, when the wire proxy's own replaces it.
 
 ### 4. Placing a call or a span in its turn
 
-A model call, a tool call or a received span carrying a turn's trace id belongs to that turn. Without trace context, one that starts while exactly one turn is open belongs to that turn.
+A model call, a tool call or a received span carrying a turn's trace id belongs to that turn. Without trace context, one that starts while exactly one turn is open belongs to that turn. A model call or a tool call whose trace id names no turn is placed as one without trace context is.
 
 ### 5. What cannot be placed
 
@@ -49,7 +49,7 @@ Upstream's custom-components example, unchanged, its `LITELLM_MODEL` switched pe
 
 ### 7. The stand-in provider
 
-The model proxy's tests run against a stand-in provider for the four APIs, read as if it were the provider's own host. Its Gemini and Anthropic responses are real recordings. Its OpenAI responses, for Chat Completions and Responses, are built from the request, response and stream event examples of OpenAI's published API reference, and the acceptance run drives the custom-components example against it for both OpenAI APIs.
+The model proxy's tests run against a stand-in provider for the four APIs, read as if it were the provider's own host. Its Gemini and Anthropic responses are real recordings. Its OpenAI responses, for Chat Completions and Responses, are built from the request, response and stream event examples of OpenAI's published API reference, and the acceptance run drives the custom-components example against it for both OpenAI APIs, its OpenAI responses there carrying the example's own replies from its Gemini recording of the same conversation.
 
 ### 8. The tool proxy
 
@@ -111,9 +111,9 @@ The last sub-task, through the tunnel, under `run` and `attach`, across every bo
 ### 20. Other documents
 
 - SPEC.md, amended in place:
-  - The v1 coverage table: the four APIs of decision 1 read in full on the providers' own hosts, every other host recorded raw; other hosts, such as Vertex AI, Azure OpenAI and Amazon Bedrock, after v1.
+  - The v1 coverage table: the four APIs of decision 1 read in full on the providers' own hosts, every other host recorded raw; other hosts, such as Vertex AI, Azure OpenAI and Amazon Bedrock, after v1; redirection does not reach Vertex AI in v1.
   - The v1 features: token usage gains cache reads and writes, the hit ratio and the estimated cost with its table's date; the prefix break is added; the after-v1 tokens split by where they went drops cache hits.
-  - Capture's Redirection: LiteLLM's OpenAI and Anthropic variables, forwarding to the original value, what `attach` prints, the trace context on A2A requests, placing by trace context and then the time window, and the content capture switch.
+  - Capture's Redirection: LiteLLM's Anthropic variable, forwarding to the original value, what `attach` prints, the trace context on A2A requests, placing by trace context and then the time window, and the content capture switch.
   - Capture's OpenTelemetry: the receiver takes traces and logs.
   - The roadmap's Phase 5 line.
 - The turn record prose and schema carry decision 17.
