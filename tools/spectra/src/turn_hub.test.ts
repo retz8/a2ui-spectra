@@ -51,6 +51,7 @@ function open(hub: TurnHub, traceId: string, conversationId?: string): void {
   hub.onTurn({
     type: 'turn_opened',
     traceId,
+    spanId: '0'.repeat(16),
     ...(conversationId !== undefined && {conversationId}),
     startTimeUnixNano: '1792576800000000000',
     messageId: `m-${traceId[0]}`,

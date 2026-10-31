@@ -16,6 +16,7 @@ import {CatalogRegistry} from './catalog/registry.js';
 import {ConfigError, type SpectraConfig, substituteVariables} from './config.js';
 import {MessageBox, unsetVariablesClause} from './message_box.js';
 import type {Output} from './output.js';
+import {CallPlacer} from './placement.js';
 import {TurnRecorder} from './recorder.js';
 import {PortTakenError, startViewerServer, type ViewerServer} from './server.js';
 import {TurnStore} from './store/store.js';
@@ -85,6 +86,11 @@ export async function runSession(
   }
   const turns = new TurnHub();
   const recorder = new TurnRecorder(store, out, {onRecorded: turns.onRecorded, catalogs});
+  const placer = new CallPlacer({
+    onTurn: recorder.onTurn,
+    log: line => out.info(line),
+    ...(agentCommand !== undefined && {alwaysCapturePaths: ['model_proxy']}),
+  });
 
   const stop = new AbortController();
   let stoppedBy: NodeJS.Signals | undefined;
@@ -171,7 +177,7 @@ export async function runSession(
         agentUrl: options.agentUrl,
         agentName: typeof card.name === 'string' ? card.name : undefined,
         onTurn: notification => {
-          recorder.onTurn(notification);
+          placer.onTurn(notification);
           turns.onTurn(notification);
         },
         traceIdTaken: async traceId =>

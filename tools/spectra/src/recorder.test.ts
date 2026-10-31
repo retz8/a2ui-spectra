@@ -90,6 +90,7 @@ describe('the turn recorder', () => {
     recorder.onTurn({
       type: 'turn_opened',
       traceId: TRACE_ID,
+      spanId: '0'.repeat(16),
       conversationId: 'ctx-1',
       startTimeUnixNano: '1792576860000000000',
     });
@@ -174,6 +175,7 @@ describe('the turn recorder', () => {
     recorder.onTurn({
       type: 'turn_opened',
       traceId: TRACE_ID,
+      spanId: '0'.repeat(16),
       startTimeUnixNano: '1792576860000000000',
     });
     let idle = false;

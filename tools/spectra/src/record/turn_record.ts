@@ -237,9 +237,58 @@ export interface CheckAttributes {
 
 export type CheckEvent = PointUnderTurn<CheckAttributes>;
 
+// The model call event.
+
+/** The names the model proxy writes on a call read in full; a call recorded raw carries the exchange only. */
+export interface ModelCallAttributes {
+  'a2ui.event.kind': 'model_call';
+  'gen_ai.operation.name'?: string;
+  'gen_ai.provider.name'?: string;
+  'gen_ai.request.model'?: string;
+  'gen_ai.request.max_tokens'?: number;
+  'gen_ai.request.temperature'?: number;
+  'gen_ai.request.top_p'?: number;
+  'gen_ai.request.top_k'?: number;
+  'gen_ai.request.frequency_penalty'?: number;
+  'gen_ai.request.presence_penalty'?: number;
+  'gen_ai.request.stop_sequences'?: string[];
+  'gen_ai.request.seed'?: number;
+  'gen_ai.request.choice.count'?: number;
+  'gen_ai.request.stream'?: boolean;
+  'gen_ai.output.type'?: string;
+  'gen_ai.response.id'?: string;
+  'gen_ai.response.model'?: string;
+  'gen_ai.response.finish_reasons'?: string[];
+  'gen_ai.response.time_to_first_chunk'?: number;
+  'gen_ai.usage.input_tokens'?: number;
+  'gen_ai.usage.output_tokens'?: number;
+  'gen_ai.usage.cache_read.input_tokens'?: number;
+  'gen_ai.usage.cache_write.input_tokens'?: number;
+  'gen_ai.usage.reasoning.output_tokens'?: number;
+  'gen_ai.system_instructions'?: unknown[];
+  'gen_ai.input.messages'?: unknown[];
+  'gen_ai.output.messages'?: unknown[];
+  'gen_ai.tool.definitions'?: unknown[];
+  'http.request.method'?: string;
+  'url.full'?: string;
+  'http.response.status_code'?: number;
+  'server.address'?: string;
+  'server.port'?: number;
+  'a2ui.http.request.body'?: unknown;
+  'a2ui.http.response.body'?: unknown;
+  'error.type'?: string;
+  [name: string]: unknown;
+}
+
+/** A proxy's model call: a client span under the turn event, lasting from the request to the end of the response. */
+export interface ModelCallEvent extends EventFields<ModelCallAttributes> {
+  kind: 3;
+  parentSpanId: SpanId;
+}
+
 // The kinds whose attributes later phases type.
 
-type OtherKind = Exclude<EventKind, 'turn' | 'wire_input' | 'wire_output' | 'check'>;
+type OtherKind = Exclude<EventKind, 'turn' | 'wire_input' | 'wire_output' | 'check' | 'model_call'>;
 
 /** An event of a kind Phase 2 does not write, with open attributes. */
 export type OtherEvent = {
@@ -250,7 +299,7 @@ export type OtherEvent = {
 }[OtherKind];
 
 export type TurnRecordEvent =
-  TurnEvent | WireInputEvent | WireOutputEvent | CheckEvent | OtherEvent;
+  TurnEvent | WireInputEvent | WireOutputEvent | CheckEvent | ModelCallEvent | OtherEvent;
 
 /** The event type for one kind. */
 export type EventOfKind<Kind extends EventKind> = Extract<

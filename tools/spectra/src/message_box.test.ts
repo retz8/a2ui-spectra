@@ -41,6 +41,7 @@ class FakeProxy {
     this.turns.onTurn({
       type: 'turn_opened',
       traceId,
+      spanId: '0'.repeat(16),
       startTimeUnixNano: '1792576800000000000',
       messageId: String(body.params.message.messageId),
     });

@@ -177,6 +177,7 @@ describe('TurnCapture', () => {
     assert.deepEqual(captured.notifications[0], {
       type: 'turn_opened',
       traceId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      spanId: '0000000000000001',
       conversationId: 'ctx-1',
       startTimeUnixNano: '1792576800001000000',
       messageId: 'm-user',
@@ -451,6 +452,7 @@ describe('TurnCapture', () => {
       assert.deepEqual(captured.notifications[0], {
         type: 'turn_opened',
         traceId: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        spanId: '0000000000000001',
         startTimeUnixNano: '1792576800001000000',
         messageId: 'm-user',
       });

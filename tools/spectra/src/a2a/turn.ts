@@ -25,6 +25,8 @@ export type TurnNotification =
   | {
       type: 'turn_opened';
       traceId: string;
+      /** The turn event's span id, the parent of the calls placed in the turn. */
+      spanId: string;
       conversationId?: string;
       /** The turn's start, in nanoseconds since the Unix epoch. */
       startTimeUnixNano: string;
@@ -110,6 +112,7 @@ export class TurnCapture {
     this.#notify({
       type: 'turn_opened',
       traceId: this.#traceId,
+      spanId: this.#spanId,
       ...(this.#conversationId !== undefined && {conversationId: this.#conversationId}),
       startTimeUnixNano: this.#start.toString(),
       ...(request.message.messageId !== undefined && {messageId: request.message.messageId}),

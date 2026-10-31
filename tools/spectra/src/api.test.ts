@@ -98,6 +98,7 @@ function openTurn(turns: TurnHub, n: number): void {
   turns.onTurn({
     type: 'turn_opened',
     traceId: trace(n),
+    spanId: '0'.repeat(16),
     startTimeUnixNano: `${1792576800 + n}000000000`,
   });
 }
