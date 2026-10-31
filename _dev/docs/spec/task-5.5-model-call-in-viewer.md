@@ -29,7 +29,7 @@ The table is LiteLLM's `model_prices_and_context_window.json` at release v1.106.
 
 ### 4. Matching a call to a price
 
-The config's override is tried first, keyed by the model id as requested. Then the table: among the entries whose `litellm_provider` is the call's provider, the one whose key, less the `gemini/` prefix, equals `gen_ai.request.model`; failing that, `gen_ai.response.model`; failing both, the call has no price and the usage reads "No price for `<model>`". Nothing is stripped from or added to a model id.
+The config's override is tried first, keyed by the model id as requested. Then the table: among the entries whose `litellm_provider` is the call's provider, the one whose key, as written or less the `gemini/` prefix, equals `gen_ai.request.model`, so that a LiteLLM span's `gemini/gemini-3.6-flash` meets its own key; failing that, `gen_ai.response.model`; failing both, the call has no price and the usage reads "No price for `<model>`". Nothing is stripped from or added to a model id.
 
 ### 5. The cost formula
 

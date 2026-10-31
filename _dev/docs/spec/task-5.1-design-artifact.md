@@ -35,11 +35,11 @@ Four boards: the turn's header line shows its estimated cost and a low share fro
 
 ### 4. Calls on the timeline
 
-Model calls and tool calls are rows among the steps, ordered by their start time. Framework spans have no rows. A call seen by a proxy and through the agent's spans is one row once the two are linked; a pair left unlinked is two rows, each labelled with its one source.
+Model calls and tool calls are rows among the steps, ordered by their start time. Framework spans have no rows. A call seen by a proxy and through the agent's spans is one row once the two are linked; a pair left unlinked is two rows, each labelled with its one source. Nested received spans of one kind, `model_call` or `tool_call`, that each contain the next are one chain and one row, the rule the receiver's linking uses, whether or not an exchange is linked to them. A model call read from spans only carries its source in the row's muted target, `Gemini · ADK spans`; a proxied call's row stays `Gemini`, linked or not.
 
 ### 5. The time lane
 
-Every row ends in a narrow lane of the same width, drawn against the length of the whole turn. A call draws a bar from its start to its end; a step or a delivery draws a dot at its moment. A model call's bar is lighter until its first token and darker after, the change of tone marking the time to the first token; the first A2UI step's dot marks the time to the first component. Each row also shows its duration beside the lane. Bars are grey, teal on the selected row, and red only for problems.
+Every row ends in a narrow lane of the same width, drawn against the length of the whole turn. A call draws a bar from its start to its end; a step or a delivery draws a dot at its moment. A model call's bar is lighter until its first token and darker after, the change of tone marking the time to the first token; the first A2UI step's dot marks the time to the first component. Each row also shows its duration beside the lane. Bars are grey, teal on the selected row, and red only for problems. Every lane runs from the turn's start, the request's arrival at the wire proxy, to the latest of the turn's end and every row's end, so that a span placed after the agent's last reply is never clipped; on a live turn the end is the present, and the scale grows as the turn runs. A tool call's bar and a span-only model call's bar are drawn in the darker tone from start to end; the lighter tone means waiting for the first token and nothing else.
 
 ### 6. What a call's row says
 
@@ -48,9 +48,10 @@ Every row ends in a narrow lane of the same width, drawn against the length of t
 | Model call | The model id as requested, such as `gemini-3.6-flash` | The provider: Gemini, OpenAI or Anthropic |
 | MCP | The tool's name for `tools/call`, the method otherwise | "MCP" and the server's host |
 | HTTP tool | The method and the path | "HTTP" and the host |
+| Tool call read from spans only | The tool's name | "in the agent" |
 | Recorded raw | The host | The method and the path |
 
-Tokens, cost and cache use are not on the row. When the response names a model other than the request's, the detail shows both. An MCP request other than `tools/call`, `resources/read` and `prompts/get` is drawn as the smaller, muted 28px row a delivery has; those three are full 32px step rows.
+Tokens, cost and cache use are not on the row. When the response names a model other than the request's, the detail shows both. An MCP request other than `tools/call`, `resources/read` and `prompts/get` is drawn as the smaller, muted 28px row a delivery has; those three are full 32px step rows. A `DELETE` or a standalone `response`, which carry no method, are labelled by the event's name.
 
 ### 7. A narrow timeline
 
@@ -94,19 +95,49 @@ The model call's order, with Arguments and Result in place of the usage, the req
 
 ### 17. The agent's spans
 
-A source from the receiver is named by the dialect it was translated from: "ADK spans", "OpenInference spans", or "GenAI spans" for the current conventions. The section "From the agent's spans" holds, in order: a first line with that name and the scope's name and version, such as "ADK spans · gcp.vertex.agent 2.8.0"; the chain of spans above the call, such as "invocation › agent_run restaurant_agent › call_llm", each with its duration and folding open to its own attributes; the translated names as a list of keys and values; the span's events, received logs included, each with its time and its body folded; and "As received", every attribute as sent, as one folded JSON block. In a linked pair, the proxy's reading fills the call's sections and the span's view follows in this section.
+A source from the receiver is named by the dialect it was translated from: "ADK spans", "OpenInference spans", or "GenAI spans" for the current conventions. The section "From the agent's spans" holds, in order:
+
+- One source line per distinct source and scope in the chain, such as "ADK spans · gcp.vertex.agent 2.8.0" then "OpenInference spans · openinference.instrumentation.litellm 0.1.52". A received call span with no dialect is named "Received spans" with its scope.
+- "Above this call": every ancestor of the row's spans by `parentSpanId` within the turn, root first, the turn event itself not listed, then the row's own chain outermost to innermost, each of those marked "this call"; every span with its name and duration, folding open to its received attributes; a span whose status is an error adds "· status error" after its duration.
+- "Translated": each translated name once, the innermost span's value winning.
+- "Events": the span events of the row's chain in time order, each with its time, its name and "log record" when it carries the `a2ui.received.log.` names, folding open to its attributes and body.
+- "As received": one folded block per span of the chain, labelled with the span's name and its attribute count.
+
+In a linked pair, the proxy's reading fills the call's sections and the span's view follows in this section.
 
 ### 18. A call the model proxy did not read
 
 A model call seen through the agent's spans only, or a linked pair whose proxy side was recorded raw, fills its sections from the span where the span carries the values: the usage from its token counts, with the hit ratio and the cost; the request and the response from its content, each section's label adding "· from <dialect> spans". When the span carries no content, one grey sentence takes the request's place: "No prompt or response in this span · its producer's content capture is off." It has no prefix break, and no exchange where there is no proxy exchange.
 
+The provider comes from the chain, each name from the innermost span that carries it. Its display and its table provider:
+
+| Provider | Shows as | Priced as | The title line's API |
+| --- | --- | --- | --- |
+| `gcp.gemini` | Gemini | `gemini` | "Gemini API" |
+| `gcp.gen_ai` | Google | `gemini` | "Google" |
+| `openai` | OpenAI | `openai` | "OpenAI" |
+| `anthropic` | Anthropic | `anthropic` | "Anthropic Messages" |
+
+Any other value shows as written and has no table provider. A chain with no provider shows none, its row reading `gemini-3.6-flash · ADK spans`, and has no price. A tool call read from spans only has the title line "in the agent · ADK spans".
+
 ### 19. Failed calls as problems
 
 A model call or tool call answered with an HTTP error status, a JSON-RPC error, or a received span whose status is an error, is a problem: it joins the one count, carries the red mark on its row, and opens its detail with a problem block in Phase 3's form, a plain sentence first, such as "The model API answered 429 Too Many Requests.", and the status or code on the second line. A tool's own `isError` is shown in its Result and not counted. A prefix break is never a problem.
 
+One problem per row: a row is a problem when any of its sources has status `2`, the proxy event or any span of its chain, so a linked pair where both sides failed is one problem. Framework spans have no rows and their status is never a problem; a failed span above a call shows its status in the spans section's chain and nothing more. The tool sentences:
+
+| Case | First line | Second line |
+| --- | --- | --- |
+| A JSON-RPC error | "The tool server answered a JSON-RPC error." | "JSON-RPC -32602 · MCP" |
+| An HTTP error, unreachable, a broken stream, closed early | 5.5's four sentences, "the tool server" in place of "the model API" and "the provider" | "HTTP 404 · HTTP", "HTTP 502 · MCP" |
+| `cancelled` | "The agent cancelled the request before it was answered." | "cancelled · MCP" |
+| `aborted` | "The connection closed before the request was answered." | "aborted · MCP" |
+| A span-only call whose span has error status | "The agent's span ended in error." | "Span status error · ADK spans" |
+| A linked pair, both failed | The proxy's sentence; the span's status message joins the third line | |
+
 ### 20. The turn header's second line
 
-A second quiet line under the header's first, shown only when the turn has a model or tool call: "First token 1.2 s · First component 2.8 s · 3 model calls · 2 tool calls · 41.2k in · 1.1k out · 92% from cache · Est. $0.031 · LiteLLM prices 2026-10-01". The first token is timed from the turn's start to the first token of its first model call. A call with no price adds "· 1 call unpriced"; a call recorded raw counts among the model calls, adds no tokens or cost, and adds "· 1 call recorded raw". The totals are the sum of the timeline's rows.
+A second quiet line under the header's first, shown only when the turn has a model or tool call: "First token 1.2 s · First component 2.8 s · 3 model calls · 2 tool calls · 41.2k in · 1.1k out · 92% from cache · Est. $0.031 · LiteLLM prices 2026-10-01". The first token is timed from the turn's start to the first token of its first model call. A call with no price adds "· 1 call unpriced"; a call recorded raw counts among the model calls, adds no tokens or cost, and adds "· 1 call recorded raw". The totals are the sum of the timeline's rows. "N tool calls" counts the full tool rows: `tools/call`, `resources/read`, `prompts/get`, HTTP tools and tool calls read from spans only. Housekeeping rows — `initialize`, `notifications/initialized`, `tools/list`, `ping`, `DELETE`, a standalone `response`, a server's notifications and requests — stay on the timeline uncounted.
 
 ### 21. The first screen under `attach`
 
