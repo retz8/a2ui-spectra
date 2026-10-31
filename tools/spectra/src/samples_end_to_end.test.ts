@@ -135,7 +135,8 @@ describe(`the sample catalog apps in Chromium, ${binary ? 'the binary' : 'under 
       {timeout: TIMEOUT},
       async () => {
         const pageUrl = pageOf(sample);
-        const [agentPort, port, proxyPort] = await Promise.all([
+        const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+          freePort(),
           freePort(),
           freePort(),
           freePort(),
@@ -151,6 +152,8 @@ describe(`the sample catalog apps in Chromium, ${binary ? 'the binary' : 'under 
           String(port),
           '--proxy-port',
           String(proxyPort),
+          '--model-proxy-port',
+          String(modelProxyPort),
           '--no-open',
         ]);
         const base = `http://127.0.0.1:${port}`;

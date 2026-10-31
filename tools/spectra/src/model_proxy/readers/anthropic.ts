@@ -10,7 +10,6 @@ import {
   blobPart,
   defined,
   type FinishReason,
-  type GenAiMessage,
   type GenAiPart,
   isRecord,
   reasoningPart,

@@ -52,20 +52,28 @@ export interface AgentProcess {
 
 const posix = process.platform !== 'win32';
 
+export interface AgentProcessOptions {
+  /** The time the stopped process gets before it is force-killed. */
+  graceMs?: number;
+  /** Variables added to Spectra's environment for the command: the redirection. */
+  env?: Record<string, string>;
+}
+
 /**
- * Starts the command without a shell, with Spectra's environment and working
- * directory, writing to Spectra's stdout and stderr, with its input closed.
- * On POSIX systems it leads its own process group.
+ * Starts the command without a shell, with Spectra's environment, the
+ * variables given added, and its working directory, writing to Spectra's
+ * stdout and stderr, with its input closed. On POSIX systems it leads its
+ * own process group.
  */
 export function startAgentProcess(
   command: string,
   args: readonly string[],
-  graceMs = STOP_GRACE_MS,
+  {graceMs = STOP_GRACE_MS, env = {}}: AgentProcessOptions = {},
 ): AgentProcess {
   const child = spawn(command, args, {
     stdio: ['ignore', 'inherit', 'inherit'],
     detached: posix,
-    env: process.env,
+    env: {...process.env, ...env},
     cwd: process.cwd(),
   });
   const exited = new Promise<AgentExit>(resolve => {

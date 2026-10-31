@@ -19,6 +19,8 @@ export interface SessionContext extends CardDetails {
   proxyAddress: string;
   /** The config file's preview pages, in config order. */
   previewPages: string[];
+  /** Under `attach`, the variables and values `attach` prints, to set in the agent's shell. */
+  variables?: Array<{name: string; value: string}>;
 }
 
 /** What the API serves from. */

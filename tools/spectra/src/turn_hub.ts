@@ -1,7 +1,10 @@
 import type {TurnListener} from './a2a/turn.js';
 import {inputBriefOf, type InputBrief} from './listing.js';
+import type {CallListener, CallNotification} from './model_proxy/proxy.js';
 import {
   isEventOfKind,
+  type ModelCallEvent,
+  type SpanEvent,
   type Turn,
   type TurnEvent,
   type WireInputEvent,
@@ -26,6 +29,12 @@ export type LiveEvent =
       conversationId?: string;
       event: WireInputEvent | WireOutputEvent;
     }
+  /** A call placed in an open turn: its event so far, with its start, its request and the names read from it. */
+  | {type: 'call_started'; traceId: string; event: ModelCallEvent}
+  /** One response chunk of a call, as it arrives. */
+  | {type: 'call_chunk'; traceId: string; spanId: string; chunk: SpanEvent}
+  /** The call's complete event, as the record holds it. */
+  | {type: 'call_ended'; traceId: string; event: ModelCallEvent}
   /** The turn's own events with its check event, once its write has finished. */
   | {type: 'turn_closed'; traceId: string; turn: Turn};
 
@@ -34,15 +43,24 @@ export type HubEvent = LiveEvent & {messageId?: string};
 
 export type HubListener = (event: HubEvent) => void;
 
+interface OpenCall {
+  started: Extract<HubEvent, {type: 'call_started'}>;
+  chunks: Array<Extract<HubEvent, {type: 'call_chunk'}>>;
+  ended?: Extract<HubEvent, {type: 'call_ended'}>;
+}
+
 interface Open {
   opened: Extract<HubEvent, {type: 'turn_opened'}>;
   wireEvents: Array<Extract<HubEvent, {type: 'wire_event'}>>;
+  /** The calls placed in the turn so far, by span id, in the order they started. */
+  calls: Map<string, OpenCall>;
 }
 
 /**
  * The turns of this run as they happen: each turn is open from the adapter's
  * turn opened until the recorder has checked it and finished writing it, and
- * every event is passed to the listeners as it comes.
+ * every event, the proxies' calls included, is passed to the listeners as it
+ * comes.
  */
 export class TurnHub {
   readonly #open = new Map<string, Open>();
@@ -60,7 +78,7 @@ export class TurnHub {
         startTime: isoTime(notification.startTimeUnixNano),
         ...(notification.messageId !== undefined && {messageId: notification.messageId}),
       };
-      this.#open.set(notification.traceId, {opened, wireEvents: []});
+      this.#open.set(notification.traceId, {opened, wireEvents: [], calls: new Map()});
       this.#emit(opened);
     } else if (notification.type === 'wire_event') {
       const event: Open['wireEvents'][number] = {
@@ -81,6 +99,22 @@ export class TurnHub {
       }
       this.#emit(event);
     }
+  };
+
+  /** Takes the proxies' call notifications. */
+  readonly onCall: CallListener = (notification: CallNotification) => {
+    const open = this.#open.get(notification.traceId);
+    if (open !== undefined) {
+      if (notification.type === 'call_started') {
+        open.calls.set(notification.event.spanId, {started: notification, chunks: []});
+      } else if (notification.type === 'call_chunk') {
+        open.calls.get(notification.spanId)?.chunks.push(notification);
+      } else {
+        const call = open.calls.get(notification.event.spanId);
+        if (call !== undefined) call.ended = notification;
+      }
+    }
+    this.#emit(notification);
   };
 
   /** Takes each turn the recorder has checked and finished writing, and closes it. */
@@ -116,14 +150,19 @@ export class TurnHub {
 
   /**
    * Passes every event from now on to the listener. With `catchUp`, the
-   * listener first receives each open turn's turn opened and its wire events
-   * so far. Returns the call that stops it.
+   * listener first receives each open turn's turn opened, its wire events so
+   * far, and its calls with their chunks so far. Returns the call that stops it.
    */
   subscribe(listener: HubListener, {catchUp = false}: {catchUp?: boolean} = {}): () => void {
     if (catchUp) {
-      for (const {opened, wireEvents} of this.#open.values()) {
+      for (const {opened, wireEvents, calls} of this.#open.values()) {
         listener(opened);
         for (const event of wireEvents) listener(event);
+        for (const call of calls.values()) {
+          listener(call.started);
+          for (const chunk of call.chunks) listener(chunk);
+          if (call.ended !== undefined) listener(call.ended);
+        }
       }
     }
     this.#listeners.add(listener);

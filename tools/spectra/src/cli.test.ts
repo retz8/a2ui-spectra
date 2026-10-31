@@ -11,8 +11,15 @@ import path from 'node:path';
 import {describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
 
-import {type CheckEvent, isEventOfKind, type TurnRecord} from './record/turn_record.js';
+import {VARIABLES} from './model_proxy/redirection.js';
+import {
+  type CheckEvent,
+  isEventOfKind,
+  type ModelCallEvent,
+  type TurnRecord,
+} from './record/turn_record.js';
 import {SEND_REPLY, startFakeAgent, STREAM_REPLY} from './testing/fake_agent.js';
+import {FAKE_PROVIDER_KEY, startFakeProvider} from './testing/fake_provider.js';
 import {binary, finished, freePort, SpectraProcess, workingDir} from './testing/spectra_process.js';
 import {turnRecordErrors} from './testing/turn_record_schema.js';
 import {VERSION} from './version.js';
@@ -159,7 +166,12 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
   );
 
   it('attach waits for the card, then serves the viewer', {timeout: TIMEOUT}, async () => {
-    const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+    const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+      freePort(),
+      freePort(),
+      freePort(),
+      freePort(),
+    ]);
     const spectra = new SpectraProcess([
       'attach',
       `http://localhost:${agentPort}`,
@@ -167,6 +179,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
       String(port),
       '--proxy-port',
       String(proxyPort),
+      '--model-proxy-port',
+      String(modelProxyPort),
       '--no-open',
       '--allow-host',
       'viewer.example',
@@ -228,7 +242,12 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
     'attach starts the wire proxy, which rewrites the card and relays the agent as it answers',
     {timeout: TIMEOUT},
     async () => {
-      const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+      const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+        freePort(),
+        freePort(),
+        freePort(),
+        freePort(),
+      ]);
       const agent = await startFakeAgent(agentPort);
       const spectra = new SpectraProcess([
         'attach',
@@ -237,6 +256,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         String(port),
         '--proxy-port',
         String(proxyPort),
+        '--model-proxy-port',
+        String(modelProxyPort),
         '--no-open',
       ]);
       try {
@@ -286,7 +307,12 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
     'attach writes each turn through the proxy to the store, with its schema check',
     {timeout: TIMEOUT},
     async () => {
-      const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+      const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+        freePort(),
+        freePort(),
+        freePort(),
+        freePort(),
+      ]);
       const agent = await startFakeAgent(agentPort);
       const cwd = workingDir();
       const spectra = new SpectraProcess(
@@ -297,6 +323,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           String(port),
           '--proxy-port',
           String(proxyPort),
+          '--model-proxy-port',
+          String(modelProxyPort),
           '--no-open',
         ],
         cwd,
@@ -350,6 +378,104 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
     },
   );
 
+  it(
+    "attach prints the variables to set in the agent's shell, and serves them in the context",
+    {timeout: TIMEOUT},
+    async () => {
+      const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+        freePort(),
+        freePort(),
+        freePort(),
+        freePort(),
+      ]);
+      const agent = await startFakeAgent(agentPort);
+      const spectra = new SpectraProcess(
+        [
+          'attach',
+          `http://localhost:${agentPort}`,
+          '--port',
+          String(port),
+          '--proxy-port',
+          String(proxyPort),
+          '--model-proxy-port',
+          String(modelProxyPort),
+          '--no-open',
+        ],
+        workingDir(),
+        {GEMINI_API_BASE: 'https://litellm.example/v1beta?key=secret'},
+      );
+      try {
+        await spectra.waitFor(viewerUrl);
+        await spectra.waitFor(/set these in the agent's shell and restart it/);
+        await spectra.waitFor(/already sets one of them to another address/);
+        for (const name of VARIABLES) {
+          assert.match(
+            spectra.output,
+            new RegExp(
+              `^export ${name}=http://127\\.0\\.0\\.1:${modelProxyPort}/${name}  # forwards to `,
+              'm',
+            ),
+          );
+        }
+        assert.match(
+          spectra.output,
+          /^export GEMINI_API_BASE=.*# forwards to https:\/\/litellm\.example\/v1beta\?key=REMOVED$/m,
+        );
+        assert.equal(spectra.output.includes('secret'), false);
+        const context = JSON.parse((await send(port, {path: '/api/context'})).body) as {
+          mode: string;
+          variables?: unknown;
+        };
+        assert.equal(context.mode, 'attach');
+        assert.deepEqual(
+          context.variables,
+          VARIABLES.map(name => ({name, value: `http://127.0.0.1:${modelProxyPort}/${name}`})),
+        );
+        spectra.signal('SIGTERM');
+        assert.equal((await spectra.exited).code, 128 + 15);
+      } finally {
+        await closeServer(agent);
+      }
+    },
+  );
+
+  it(
+    'reports a taken model proxy port and the option that changes it',
+    {timeout: TIMEOUT},
+    async () => {
+      const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+        freePort(),
+        freePort(),
+        freePort(),
+        freePort(),
+      ]);
+      const agent = await startFakeAgent(agentPort);
+      const holder = createServer();
+      await new Promise<void>(resolve =>
+        holder.listen(modelProxyPort, '127.0.0.1', () => resolve()),
+      );
+      try {
+        const result = await finished([
+          'attach',
+          `http://localhost:${agentPort}`,
+          '--port',
+          String(port),
+          '--proxy-port',
+          String(proxyPort),
+          '--model-proxy-port',
+          String(modelProxyPort),
+          '--no-open',
+        ]);
+        assert.equal(result.code, 1);
+        assert.match(result.output, new RegExp(`Port ${modelProxyPort} is taken`));
+        assert.match(result.output, /--model-proxy-port/);
+      } finally {
+        await closeServer(holder);
+        await closeServer(agent);
+      }
+    },
+  );
+
   it('stops at start when its store cannot be created', {timeout: TIMEOUT}, async () => {
     const cwd = workingDir();
     writeFileSync(path.join(cwd, '.a2ui-spectra'), 'not a directory');
@@ -363,7 +489,12 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
     'attach warns when the card prefers another transport to JSON-RPC, and keeps running',
     {timeout: TIMEOUT},
     async () => {
-      const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+      const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+        freePort(),
+        freePort(),
+        freePort(),
+        freePort(),
+      ]);
       const agent = await startFakeAgent(agentPort, {transports: ['GRPC', 'JSONRPC']});
       const spectra = new SpectraProcess([
         'attach',
@@ -372,6 +503,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         String(port),
         '--proxy-port',
         String(proxyPort),
+        '--model-proxy-port',
+        String(modelProxyPort),
         '--no-open',
       ]);
       try {
@@ -386,7 +519,12 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
   );
 
   it('attach stops when the card lists no interface at all', {timeout: TIMEOUT}, async () => {
-    const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+    const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+      freePort(),
+      freePort(),
+      freePort(),
+      freePort(),
+    ]);
     const agent = await startFakeAgent(agentPort, {transports: []});
     try {
       const result = await finished([
@@ -396,6 +534,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         String(port),
         '--proxy-port',
         String(proxyPort),
+        '--model-proxy-port',
+        String(modelProxyPort),
         '--no-open',
       ]);
       assert.equal(result.code, 1, result.output);
@@ -408,7 +548,12 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
   });
 
   it('attach stops when the card lists no JSON-RPC interface', {timeout: TIMEOUT}, async () => {
-    const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+    const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+      freePort(),
+      freePort(),
+      freePort(),
+      freePort(),
+    ]);
     const agent = await startFakeAgent(agentPort, {transports: ['GRPC', 'HTTP+JSON']});
     try {
       const result = await finished([
@@ -418,6 +563,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         String(port),
         '--proxy-port',
         String(proxyPort),
+        '--model-proxy-port',
+        String(modelProxyPort),
         '--no-open',
       ]);
       assert.equal(result.code, 1, result.output);
@@ -430,7 +577,12 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
   });
 
   it('reports a taken proxy port and the option that changes it', {timeout: TIMEOUT}, async () => {
-    const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+    const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+      freePort(),
+      freePort(),
+      freePort(),
+      freePort(),
+    ]);
     const agent = await startFakeAgent(agentPort);
     const holder = createServer();
     await new Promise<void>(resolve => holder.listen(proxyPort, '127.0.0.1', () => resolve()));
@@ -442,6 +594,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         String(port),
         '--proxy-port',
         String(proxyPort),
+        '--model-proxy-port',
+        String(modelProxyPort),
         '--no-open',
       ]);
       assert.equal(result.code, 1);
@@ -454,7 +608,12 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
   });
 
   it('reports a taken port and the option that changes it', {timeout: TIMEOUT}, async () => {
-    const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+    const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+      freePort(),
+      freePort(),
+      freePort(),
+      freePort(),
+    ]);
     const agent = await startFakeAgent(agentPort);
     const holder = createServer();
     await new Promise<void>(resolve => holder.listen(port, '127.0.0.1', () => resolve()));
@@ -466,6 +625,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         String(port),
         '--proxy-port',
         String(proxyPort),
+        '--model-proxy-port',
+        String(modelProxyPort),
         '--no-open',
       ]);
       assert.equal(result.code, 1);
@@ -479,7 +640,12 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
 
   describe('run', () => {
     async function runArgs(agentArgs: string[]) {
-      const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+      const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+        freePort(),
+        freePort(),
+        freePort(),
+        freePort(),
+      ]);
       return [
         'run',
         '--agent-url',
@@ -488,6 +654,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         String(port),
         '--proxy-port',
         String(proxyPort),
+        '--model-proxy-port',
+        String(modelProxyPort),
         '--no-open',
         '--',
         process.execPath,
@@ -599,6 +767,117 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         const result = await finished(await runArgs(['--transports', 'GRPC']));
         assert.equal(result.code, 1, result.output);
         assert.match(result.output, /lists no A2A JSON-RPC interface/);
+      },
+    );
+
+    it(
+      "sets the base-URL variables in the agent's environment, pointing at the model proxy, and lists none in the context",
+      {timeout: TIMEOUT},
+      async () => {
+        const args = await runArgs([]);
+        const command = args.indexOf('--');
+        const modelProxyPort = args[args.indexOf('--model-proxy-port') + 1];
+        const result = await finished([
+          ...args.slice(0, command + 1),
+          process.execPath,
+          '-e',
+          "process.stdout.write('gemini=' + process.env.GEMINI_API_BASE + ' anthropic=' + process.env.ANTHROPIC_API_BASE + ' openai=' + process.env.OPENAI_BASE_URL + '\\n'); process.exit(6)",
+        ]);
+        assert.equal(result.code, 6, result.output);
+        assert.match(
+          result.output,
+          new RegExp(
+            `gemini=http://127\\.0\\.0\\.1:${modelProxyPort}/GEMINI_API_BASE anthropic=http://127\\.0\\.0\\.1:${modelProxyPort}/ANTHROPIC_API_BASE openai=http://127\\.0\\.0\\.1:${modelProxyPort}/OPENAI_BASE_URL`,
+          ),
+        );
+        assert.doesNotMatch(result.output, /set these in the agent's shell/);
+      },
+    );
+
+    it(
+      'records a model call the agent makes during a turn, read in full, with the key removed',
+      {timeout: TIMEOUT},
+      async () => {
+        const providerPort = await freePort();
+        const provider = await startFakeProvider(providerPort);
+        const cwd = workingDir();
+        const spectra = new SpectraProcess(await runArgs(['--model-call']), cwd, {
+          ANTHROPIC_BASE_URL: `http://127.0.0.1:${providerPort}`,
+          SPECTRA_PROVIDER_STAND_IN: `http://127.0.0.1:${providerPort}`,
+        });
+        try {
+          const [, shownPort] = await spectra.waitFor(viewerUrl);
+          const port = Number(shownPort);
+          const [, shownProxyPort] = await spectra.waitFor(proxyAddress);
+          const context = JSON.parse((await send(port, {path: '/api/context'})).body) as {
+            mode: string;
+            variables?: unknown;
+          };
+          assert.equal(context.mode, 'run');
+          assert.equal(context.variables, undefined);
+
+          const answer = await send(Number(shownProxyPort), {
+            method: 'POST',
+            headers: {'content-type': 'application/json'},
+            body: jsonRpc('message/send'),
+          });
+          assert.equal(answer.body, SEND_REPLY);
+          assert.equal(provider.received.length, 1, 'the call reached the provider');
+          assert.equal(
+            provider.received[0]['x-api-key'],
+            FAKE_PROVIDER_KEY,
+            'the key is forwarded',
+          );
+
+          let traceId: string | undefined;
+          const deadline = Date.now() + 10_000;
+          while (traceId === undefined) {
+            assert.ok(Date.now() < deadline, `No closed turn:\n${spectra.output}`);
+            const listed = JSON.parse((await send(port, {path: '/api/turns'})).body) as {
+              turns: Array<{traceId: string; open?: boolean}>;
+            };
+            traceId = listed.turns.find(turn => turn.open !== true)?.traceId;
+            if (traceId === undefined) await new Promise(resolve => setTimeout(resolve, 50));
+          }
+          const served = await send(port, {path: `/api/turns/${traceId}`});
+          assert.equal(served.status, 200, served.body);
+          const record = JSON.parse(served.body) as TurnRecord;
+          assert.deepEqual(turnRecordErrors(record), []);
+          const turn = record.turns[record.turns.length - 1];
+          const turnEvent = turn.events.find(event => isEventOfKind(event, 'turn'));
+          assert.ok(turnEvent?.attributes['a2ui.event.kind'] === 'turn');
+          assert.deepEqual(turnEvent.attributes['a2ui.turn.capture_paths'], [
+            'wire',
+            'model_proxy',
+          ]);
+          const call = turn.events.find((event): event is ModelCallEvent =>
+            isEventOfKind(event, 'model_call'),
+          );
+          assert.ok(call, 'the turn holds its model call');
+          assert.equal(call.parentSpanId, turnEvent.spanId);
+          assert.equal(call.name, 'chat claude-fake-1');
+          assert.equal(call.attributes['gen_ai.provider.name'], 'anthropic');
+          assert.equal(call.attributes['gen_ai.response.id'], 'msg_fake_1');
+          assert.equal(call.attributes['gen_ai.usage.input_tokens'], 12);
+          assert.deepEqual(call.attributes['gen_ai.system_instructions'], [
+            {type: 'text', content: 'You are a fake agent.'},
+          ]);
+          assert.deepEqual(call.attributes['http.request.header.x-api-key'], ['REMOVED']);
+          assert.equal(call.attributes['url.full'], `http://127.0.0.1:${providerPort}/v1/messages`);
+          assert.deepEqual(call.status, {code: 1});
+          assert.equal(served.body.includes(FAKE_PROVIDER_KEY), false, 'no key in the record');
+
+          spectra.signal('SIGTERM');
+          assert.equal((await spectra.exited).code, 128 + 15, spectra.output);
+          const store = path.join(realpathSync(cwd), '.a2ui-spectra', 'turns', 'ctx-1');
+          const [file] = readdirSync(store);
+          assert.equal(
+            readFileSync(path.join(store, file), 'utf8').includes(FAKE_PROVIDER_KEY),
+            false,
+          );
+        } finally {
+          await closeServer(provider.server);
+        }
       },
     );
 

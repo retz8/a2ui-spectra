@@ -19,6 +19,7 @@ import type {ListedTurn, SessionContext} from './api.js';
 import type {MessageBoxState, SentMessage} from './message_box.js';
 import type {CatalogListing} from './catalog/registry.js';
 import {CONFIG_FILE} from './config.js';
+import {VARIABLES} from './model_proxy/redirection.js';
 import {
   type A2uiPart,
   type CheckEvent,
@@ -219,7 +220,8 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
       `holds a two-turn conversation over A2A ${a2a}, continued after another was started, which goes on with an action, the data model sent with each, each turn recorded, checked and streamed`,
       {timeout: TIMEOUT},
       async () => {
-        const [agentPort, port, proxyPort] = await Promise.all([
+        const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+          freePort(),
           freePort(),
           freePort(),
           freePort(),
@@ -234,6 +236,8 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
             String(port),
             '--proxy-port',
             String(proxyPort),
+            '--model-proxy-port',
+            String(modelProxyPort),
             '--no-open',
           ],
           cwd,
@@ -249,6 +253,10 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
             mode: 'attach',
             proxyAddress: `http://127.0.0.1:${proxyPort}/`,
             previewPages: [],
+            variables: VARIABLES.map(name => ({
+              name,
+              value: `http://127.0.0.1:${modelProxyPort}/${name}`,
+            })),
             a2aVersions: a2a === '1.0' ? ['1.0', '0.3'] : ['0.3', '1.0'],
             a2uiExtensions: [],
             examples: ['Hello'],
@@ -393,11 +401,25 @@ describe(`the config file against the stub agent, ${binary ? 'the binary' : 'und
     "reads the agent's URL, the token header and a catalog from a2ui-spectra.json, the token from the shell",
     {timeout: TIMEOUT},
     async () => {
-      const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+      const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+        freePort(),
+        freePort(),
+        freePort(),
+        freePort(),
+      ]);
       const stub = await startStub(agentPort, ['--bearer-token', 't0k3n']);
       const cwd = configuredDir(agentPort);
       const spectra = new SpectraProcess(
-        ['attach', '--port', String(port), '--proxy-port', String(proxyPort), '--no-open'],
+        [
+          'attach',
+          '--port',
+          String(port),
+          '--proxy-port',
+          String(proxyPort),
+          '--model-proxy-port',
+          String(modelProxyPort),
+          '--no-open',
+        ],
         cwd,
         {SPECTRA_STUB_TOKEN: 't0k3n'},
       );
@@ -447,11 +469,25 @@ describe(`the config file against the stub agent, ${binary ? 'the binary' : 'und
     'refuses the message box while the token variable is not set, saying so at start',
     {timeout: TIMEOUT},
     async () => {
-      const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+      const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+        freePort(),
+        freePort(),
+        freePort(),
+        freePort(),
+      ]);
       const stub = await startStub(agentPort, ['--bearer-token', 't0k3n']);
       const cwd = configuredDir(agentPort);
       const spectra = new SpectraProcess(
-        ['attach', '--port', String(port), '--proxy-port', String(proxyPort), '--no-open'],
+        [
+          'attach',
+          '--port',
+          String(port),
+          '--proxy-port',
+          String(proxyPort),
+          '--model-proxy-port',
+          String(modelProxyPort),
+          '--no-open',
+        ],
         cwd,
       );
       const base = `http://127.0.0.1:${port}`;
@@ -490,7 +526,12 @@ describe(`the flawed booking conversation against the stub agent, ${binary ? 'th
     'answers a later message in the conversation with a surface whose bound path the binding check finds unfilled',
     {timeout: TIMEOUT},
     async () => {
-      const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+      const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+        freePort(),
+        freePort(),
+        freePort(),
+        freePort(),
+      ]);
       const stub = await startStub(agentPort, [], '--flawed-booking');
       const spectra = new SpectraProcess(
         [
@@ -500,6 +541,8 @@ describe(`the flawed booking conversation against the stub agent, ${binary ? 'th
           String(port),
           '--proxy-port',
           String(proxyPort),
+          '--model-proxy-port',
+          String(modelProxyPort),
           '--no-open',
         ],
         workingDir(),

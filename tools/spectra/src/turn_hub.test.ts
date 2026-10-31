@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import type {Turn, WireInputEvent} from './record/turn_record.js';
+import type {ModelCallEvent, Turn, WireInputEvent} from './record/turn_record.js';
 import {type HubEvent, TurnHub} from './turn_hub.js';
 
 const TRACE_A = 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa';
@@ -131,6 +131,75 @@ describe('the turn hub', () => {
     hub.subscribe(event => late.push(event), {catchUp: true});
     const [opened] = late;
     assert.equal(opened.type === 'turn_opened' && opened.conversationId, 'ctx-2');
+  });
+
+  it("passes a call's events on, and catches a new subscriber up on an open turn's calls with their chunks so far", () => {
+    const hub = new TurnHub();
+    const events: HubEvent[] = [];
+    hub.subscribe(event => events.push(event));
+    open(hub, TRACE_A);
+    const call = (spanId: string, end?: string): ModelCallEvent => ({
+      traceId: TRACE_A,
+      spanId,
+      parentSpanId: '0'.repeat(16),
+      name: 'chat m',
+      kind: 3,
+      startTimeUnixNano: '1792576800002000000',
+      ...(end !== undefined && {endTimeUnixNano: end}),
+      attributes: {'a2ui.event.kind': 'model_call'},
+    });
+    const chunk = (body: string) => ({
+      timeUnixNano: '1792576800003000000',
+      name: 'a2ui.http.response.chunk',
+      attributes: {'a2ui.http.response.chunk.body': body},
+    });
+    hub.onCall({type: 'call_started', traceId: TRACE_A, event: call('a'.repeat(16))});
+    hub.onCall({type: 'call_chunk', traceId: TRACE_A, spanId: 'a'.repeat(16), chunk: chunk('one')});
+    hub.onCall({type: 'call_started', traceId: TRACE_A, event: call('b'.repeat(16))});
+    hub.onCall({type: 'call_chunk', traceId: TRACE_A, spanId: 'a'.repeat(16), chunk: chunk('two')});
+    hub.onCall({
+      type: 'call_ended',
+      traceId: TRACE_A,
+      event: call('a'.repeat(16), '1792576800004000000'),
+    });
+    assert.deepEqual(
+      events.map(event => event.type),
+      [
+        'turn_opened',
+        'wire_event',
+        'call_started',
+        'call_chunk',
+        'call_started',
+        'call_chunk',
+        'call_ended',
+      ],
+    );
+
+    const late: HubEvent[] = [];
+    hub.subscribe(event => late.push(event), {catchUp: true});
+    assert.deepEqual(
+      late.map(event => [
+        event.type,
+        'spanId' in event
+          ? event.spanId
+          : 'event' in event && 'spanId' in event.event
+            ? event.event.spanId
+            : '',
+      ]),
+      [
+        ['turn_opened', ''],
+        ['wire_event', '0000000000000001'],
+        ['call_started', 'a'.repeat(16)],
+        ['call_chunk', 'a'.repeat(16)],
+        ['call_chunk', 'a'.repeat(16)],
+        ['call_ended', 'a'.repeat(16)],
+        ['call_started', 'b'.repeat(16)],
+      ],
+    );
+    hub.onRecorded(closedTurn(TRACE_A));
+    const after: HubEvent[] = [];
+    hub.subscribe(event => after.push(event), {catchUp: true});
+    assert.deepEqual(after, []);
   });
 
   it('stops passing events to a listener that unsubscribed', () => {

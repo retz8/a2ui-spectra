@@ -2,8 +2,11 @@ import {parseArgs} from 'node:util';
 
 import {CONFIG_FILE, type SpectraConfig} from './config.js';
 
+import {DEFAULT_MODEL_PROXY_PORT} from './model_proxy/redirection.js';
+
 export const DEFAULT_VIEWER_PORT = 9820;
 export const DEFAULT_PROXY_PORT = 9821;
+export {DEFAULT_MODEL_PROXY_PORT};
 
 export type CommandName = 'attach' | 'run';
 
@@ -17,6 +20,8 @@ export interface SessionOptions {
   port: number;
   /** The wire proxy's port. */
   proxyPort: number;
+  /** The model proxy's port. */
+  modelProxyPort: number;
   /** Whether to open the browser. */
   open: boolean;
   /** Host names the server answers besides the loopback names. */
@@ -44,6 +49,7 @@ const sessionOptions = {
   config: {type: 'string'},
   port: {type: 'string'},
   'proxy-port': {type: 'string'},
+  'model-proxy-port': {type: 'string'},
   'no-open': {type: 'boolean'},
   'allow-host': {type: 'string', multiple: true},
   help: {type: 'boolean'},
@@ -174,25 +180,36 @@ function sessionOptionsFrom(
     config?: string;
     port?: string;
     'proxy-port'?: string;
+    'model-proxy-port'?: string;
     'no-open'?: boolean;
     'allow-host'?: string[];
   },
   agentUrl: string | undefined,
   topic: CommandName,
 ): SessionOptions {
-  const port = parsePort(values.port, DEFAULT_VIEWER_PORT, '--port', topic);
-  const proxyPort = parsePort(values['proxy-port'], DEFAULT_PROXY_PORT, '--proxy-port', topic);
-  if (port === proxyPort) {
-    throw new UsageError(
-      `--port and --proxy-port are both ${port}; they need different ports.`,
-      topic,
-    );
+  const ports = [
+    ['--port', parsePort(values.port, DEFAULT_VIEWER_PORT, '--port', topic)],
+    ['--proxy-port', parsePort(values['proxy-port'], DEFAULT_PROXY_PORT, '--proxy-port', topic)],
+    [
+      '--model-proxy-port',
+      parsePort(values['model-proxy-port'], DEFAULT_MODEL_PROXY_PORT, '--model-proxy-port', topic),
+    ],
+  ] as const;
+  for (const [i, [option, port]] of ports.entries()) {
+    const same = ports.slice(i + 1).find(([, other]) => other === port);
+    if (same !== undefined) {
+      throw new UsageError(
+        `${option} and ${same[0]} are both ${port}; they need different ports.`,
+        topic,
+      );
+    }
   }
   return {
     ...(agentUrl !== undefined && {agentUrl: parseAgentUrl(agentUrl, topic)}),
     ...(values.config !== undefined && {config: values.config}),
-    port,
-    proxyPort,
+    port: ports[0][1],
+    proxyPort: ports[1][1],
+    modelProxyPort: ports[2][1],
     open: !values['no-open'],
     allowedHosts: (values['allow-host'] ?? []).map(name => parseHostName(name, topic)),
   };

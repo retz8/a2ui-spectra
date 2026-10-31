@@ -108,6 +108,14 @@ describe('parseCommandLine', () => {
     usageError(['attach', 'http://a', '--port', '0'], /--port must be a port/);
     usageError(['attach', 'http://a', '--port', '9821'], /different ports/);
     usageError(
+      ['attach', 'http://a', '--model-proxy-port', '9821'],
+      /--proxy-port and --model-proxy-port are both 9821/,
+    );
+    usageError(
+      ['run', '--agent-url', 'http://a', '--port', '9822', '--', 'x'],
+      /--port and --model-proxy-port/,
+    );
+    usageError(
       ['attach', 'http://a', '--allow-host', 'http://x.example'],
       /--allow-host takes a host name/,
     );

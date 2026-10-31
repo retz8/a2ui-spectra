@@ -11,12 +11,17 @@
  *   --exit-after-card <code>     Exit with <code> soon after answering the card.
  *   --ignore-sigterm             Ignore the stop signal.
  *   --grandchild-pid-file <path> Start a long-running child and write its pid.
+ *   --model-call                 Call the model at ANTHROPIC_BASE_URL during
+ *                                each turn, before answering, as a redirected
+ *                                agent does.
  */
 import {spawn} from 'node:child_process';
 import {writeFileSync} from 'node:fs';
-import {createServer, type Server} from 'node:http';
+import {createServer, request as httpRequest, type Server} from 'node:http';
 import {pathToFileURL} from 'node:url';
 import {parseArgs} from 'node:util';
+
+import {FAKE_PROVIDER_KEY} from './fake_provider.js';
 
 export const FAKE_AGENT_NAME = 'Fake agent';
 
@@ -46,12 +51,47 @@ export interface FakeAgentOptions {
    * lists no interface. Default: JSON-RPC only.
    */
   transports?: string[];
+  /** Whether each turn calls the model at ANTHROPIC_BASE_URL before answering. */
+  modelCall?: boolean;
+}
+
+/** One call to Anthropic's Messages API at ANTHROPIC_BASE_URL, with the fake key, resolving when it has been answered. */
+function callModel(): Promise<void> {
+  const base = process.env.ANTHROPIC_BASE_URL;
+  if (base === undefined) return Promise.resolve();
+  return new Promise(resolve => {
+    const request = httpRequest(
+      `${base}/v1/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': FAKE_PROVIDER_KEY,
+          'anthropic-version': '2023-06-01',
+        },
+      },
+      response => {
+        response.resume();
+        response.once('end', () => resolve());
+        response.once('error', () => resolve());
+      },
+    );
+    request.once('error', () => resolve());
+    request.end(
+      JSON.stringify({
+        model: 'claude-fake-1',
+        max_tokens: 64,
+        system: 'You are a fake agent.',
+        messages: [{role: 'user', content: 'Hi'}],
+      }),
+    );
+  });
 }
 
 /** Starts the fake agent on 127.0.0.1. */
 export function startFakeAgent(
   port: number,
-  {onCardAnswered, transports = ['JSONRPC']}: FakeAgentOptions = {},
+  {onCardAnswered, transports = ['JSONRPC'], modelCall = false}: FakeAgentOptions = {},
 ): Promise<Server> {
   const url = `http://localhost:${port}/`;
   // No transports is a card that lists no interface at all, as an empty A2A 1.0 list.
@@ -96,21 +136,28 @@ export function startFakeAgent(
       } catch {
         method = undefined;
       }
-      if (method === 'message/send') {
-        response.writeHead(200, {'content-type': 'application/json'});
-        response.end(SEND_REPLY);
-      } else if (method === 'message/stream') {
-        response.writeHead(200, {'content-type': 'text/event-stream'});
-        response.end(STREAM_REPLY);
+      const answer = () => {
+        if (method === 'message/send') {
+          response.writeHead(200, {'content-type': 'application/json'});
+          response.end(SEND_REPLY);
+        } else if (method === 'message/stream') {
+          response.writeHead(200, {'content-type': 'text/event-stream'});
+          response.end(STREAM_REPLY);
+        } else {
+          response.writeHead(200, {'content-type': 'application/json'});
+          response.end(
+            JSON.stringify({
+              jsonrpc: '2.0',
+              id: 1,
+              error: {code: -32601, message: 'Method not found'},
+            }),
+          );
+        }
+      };
+      if (modelCall && (method === 'message/send' || method === 'message/stream')) {
+        void callModel().then(answer);
       } else {
-        response.writeHead(200, {'content-type': 'application/json'});
-        response.end(
-          JSON.stringify({
-            jsonrpc: '2.0',
-            id: 1,
-            error: {code: -32601, message: 'Method not found'},
-          }),
-        );
+        answer();
       }
     });
   });
@@ -128,6 +175,7 @@ async function runAsScript(): Promise<void> {
       'exit-after-card': {type: 'string'},
       'ignore-sigterm': {type: 'boolean'},
       'grandchild-pid-file': {type: 'string'},
+      'model-call': {type: 'boolean'},
     },
   });
   if (values['ignore-sigterm']) {
@@ -142,6 +190,7 @@ async function runAsScript(): Promise<void> {
   const exitCode = values['exit-after-card'];
   await startFakeAgent(Number(values.port), {
     transports: values.transports?.split(','),
+    modelCall: values['model-call'] === true,
     onCardAnswered: () => {
       if (exitCode !== undefined) {
         setTimeout(() => process.exit(Number(exitCode)), 200);

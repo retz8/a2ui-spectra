@@ -15,10 +15,12 @@ import {openBrowser} from './browser.js';
 import {CatalogRegistry} from './catalog/registry.js';
 import {ConfigError, type SpectraConfig, substituteVariables} from './config.js';
 import {MessageBox, unsetVariablesClause} from './message_box.js';
+import {type ModelProxy, startModelProxy} from './model_proxy/proxy.js';
+import {attachLines, environmentOf, redirections, variablesOf} from './model_proxy/redirection.js';
 import type {Output} from './output.js';
 import {CallPlacer} from './placement.js';
 import {TurnRecorder} from './recorder.js';
-import {PortTakenError, startViewerServer, type ViewerServer} from './server.js';
+import {LOOPBACK_ADDRESS, PortTakenError, startViewerServer, type ViewerServer} from './server.js';
 import {TurnStore} from './store/store.js';
 import {TurnHub} from './turn_hub.js';
 
@@ -36,6 +38,12 @@ export interface SessionSettings extends Omit<SessionOptions, 'agentUrl' | 'conf
 
 const STOP_SIGNALS: NodeJS.Signals[] =
   process.platform === 'win32' ? ['SIGINT', 'SIGTERM'] : ['SIGINT', 'SIGTERM', 'SIGHUP'];
+
+/**
+ * Names the stand-in provider's origin, for the tests: a call forwarded there
+ * is read as the own host of the API its path names.
+ */
+const STAND_IN_VARIABLE = 'SPECTRA_PROVIDER_STAND_IN';
 
 /**
  * Runs `attach`, or `run` when given the agent's command: opens the store,
@@ -91,12 +99,16 @@ export async function runSession(
     log: line => out.info(line),
     ...(agentCommand !== undefined && {alwaysCapturePaths: ['model_proxy']}),
   });
+  const modelProxyOrigin = `http://${LOOPBACK_ADDRESS}:${options.modelProxyPort}`;
+  const redirected = redirections(process.env, modelProxyOrigin);
+  const standIn = process.env[STAND_IN_VARIABLE]?.trim().replace(/\/+$/, '');
 
   const stop = new AbortController();
   let stoppedBy: NodeJS.Signals | undefined;
   let agent: AgentProcess | undefined;
   let agentExit: AgentExit | undefined;
   let proxy: WireProxy | undefined;
+  let modelProxy: ModelProxy | undefined;
   let box: MessageBox | undefined;
   let server: ViewerServer | undefined;
   let failed = false;
@@ -120,8 +132,19 @@ export async function runSession(
   }
 
   try {
+    // The model proxy listens before the agent starts, so its first call finds it.
+    modelProxy = await startModelProxy({
+      port: options.modelProxyPort,
+      redirections: redirected,
+      ...(standIn !== undefined && standIn !== '' && {standInOrigin: standIn}),
+      place: call => placer.place(call),
+      onCall: turns.onCall,
+      log: line => out.info(line),
+    });
     if (agentCommand !== undefined) {
-      agent = startAgentProcess(agentCommand.command, agentCommand.args);
+      agent = startAgentProcess(agentCommand.command, agentCommand.args, {
+        env: environmentOf(redirected),
+      });
       void agent.exited.then(exit => {
         agentExit = exit;
         if (!stop.signal.aborted) {
@@ -209,6 +232,7 @@ export async function runSession(
             mode: agentCommand === undefined ? 'attach' : 'run',
             proxyAddress: proxy.address,
             previewPages: options.config.preview,
+            ...(agentCommand === undefined && {variables: variablesOf(redirected)}),
             ...cardDetailsOf(card),
           },
         },
@@ -216,6 +240,12 @@ export async function runSession(
       out.info(`The viewer is at ${server.url}`);
       out.info(`Point a host at the wire proxy: ${proxy.address}`);
       out.info(`Turns are saved in ${store.turnsDir}`);
+      if (agentCommand === undefined) {
+        const lines = attachLines(redirected);
+        out.info(lines.intro);
+        for (const line of lines.exports) out.print(line);
+        out.info(lines.note);
+      }
       if (options.open) {
         openBrowser(server.url);
       }
@@ -224,7 +254,12 @@ export async function runSession(
   } catch (error) {
     failed = true;
     if (error instanceof PortTakenError) {
-      const option = error.port === options.port ? '--port' : '--proxy-port';
+      const option =
+        error.port === options.port
+          ? '--port'
+          : error.port === options.proxyPort
+            ? '--proxy-port'
+            : '--model-proxy-port';
       out.error(`Port ${error.port} is taken. Choose another port with ${option}.`);
     } else {
       out.error(`Spectra failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -233,6 +268,8 @@ export async function runSession(
     await server?.close();
     box?.close();
     await proxy?.close();
+    // A call the stop cuts off ends as aborted, so its turn can be written.
+    await modelProxy?.close();
     await recorder.idle();
     if (agent !== undefined) {
       await agent.stop();
