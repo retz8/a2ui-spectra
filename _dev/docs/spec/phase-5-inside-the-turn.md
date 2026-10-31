@@ -87,13 +87,17 @@ Each model call shows its cache read and cache write tokens where its provider r
 
 Cost comes from LiteLLM's price table, copied at a pinned release with its notice and labelled with that release's date, and overridable per model in the config. Each model call and each turn shows its estimated cost with the table's date. A model the table does not know shows none.
 
+The pin is release v1.106.6, published 2026-10-28. The copy is `model_prices_and_context_window.json` trimmed to the entries whose `litellm_provider` is `gemini`, `anthropic` or `openai`, each entry whole; a script under `_dev/tools/` writes it with its NOTICE, and moving the pin is running it again. A call is matched to the config's price for the model id as requested first, then to the entry of its provider whose key, less the `gemini/` prefix, equals the model id as requested, else as the response named it; nothing is stripped from or added to a model id. The formula prices the uncached input, the cache reads and writes, the reasoning tokens at the reasoning price when the entry has one and the rest of the output, each at its own rate, and every token of a kind the entry prices above a threshold the input exceeds at the above-threshold rate; service tiers and Anthropic's one-hour cache write rate are not applied. The config's `prices` give USD per million tokens.
+
 ### 15. The prefix break
 
 Each model call read in full is compared with the earlier call of the same model in the same conversation that shares the longest prefix with it. It shows where the shared prefix ends, which part that is, the tool definitions, the system prompt or the nth message, and what differs there. A call recorded raw has none.
 
+A request is compared as segments in cache order, one per tool definition, one for the system prompt, then one per input message, each segment's text as the readable request shows it; the prefix is matched segment by segment, then character by character inside the first segment that differs. A request whose last segment's text goes on in the other's, as when LiteLLM adds the next question to the last user message, is a prefix of it. When every segment of a call is in the earlier one, the sentence reads "Shares all of its request with the call at …", a fourth form beside the three of the design.
+
 ### 16. Derived values are computed when shown
 
-The hit ratio, the estimated cost and the prefix break are computed when shown, from what the record holds. The record does not carry them.
+The hit ratio, the estimated cost and the prefix break are computed when shown, from what the record holds. The record does not carry them. The viewer computes all three from the records it loads, with the price table and the config's prices from `GET /api/prices`.
 
 ### 17. The turn record
 

@@ -44,7 +44,8 @@ None of them sees inside the turn (the exact model request, the raw response, to
 - The turn list, and a turn view with the input, the raw text, the A2UI tree, the data model and the preview.
 - Everything else the agent returns: collected data, metadata, text. A2UI is one part of the response, not all of it.
 - The exact model request: system prompt, tool definitions, model id and settings.
-- Token usage.
+- Token usage, with cache reads and writes, the hit ratio, and the estimated cost with its price table's date.
+- The prefix break: where a model call's request stops sharing its prefix with the earlier call of the same model in the conversation, and what differs there.
 - Tool calls.
 - The A2UI step: which raw text became which component, retries and the parse or validation errors that caused them, and the inference format.
 - A timeline of the turn: time to the first token, time to the first component, and the duration of each tool call.
@@ -83,7 +84,7 @@ None of them sees inside the turn (the exact model request, the raw response, to
 
 - Preview variants for light and dark, and other themes.
 - **Fixture editing:** change a recorded tool result (an empty list, a very long list, a very long name, a missing field) and replay.
-- **Tokens split by where they went:** system prompt, the catalog schema in the prompt, tool results, conversation history, and cache hits.
+- **Tokens split by where they went:** system prompt, the catalog schema in the prompt, tool results and conversation history.
 - **Fixture to test:** pin assertions (the response is valid, contains a component, offers an action) and export the fixture as a test.
 - **Prompt diff:** edit the prompt, replay fixtures with the model live, and see old and new responses side by side, with differences in the tree and in the checks.
 - **Prompt drafts in the browser:** edit the system prompt of a recorded turn as a draft and replay it against the recorded tool results through the model proxy, without touching the agent. A winning draft is then copied into the code. Replaying with tools recorded only works while the model keeps asking for the same tool calls; a draft that makes it ask for a different call needs the real agent running.

@@ -78,7 +78,7 @@ Two groups of labelled figures. Tokens: Input, Output, Reasoning, Cache read and
 
 ### 13. The prefix break
 
-One sentence in the usage area, in three forms: "Shares all of the earlier call's request" when the earlier call's whole request is a prefix of this one; "Prefix breaks in the system prompt · against the call at 14:02:31" when the prefix ends inside it, naming the part it ends in; "First gemini-3.6-flash call in this conversation" when there is none to compare with. The earlier call's time is a link that selects that call, in an earlier turn too. In the request below, a thin grey marker, "Shared prefix ends", sits at the exact point with its part unfolded, and under it the text that differs as two short lines, the earlier call's and this one's, the differing span tinted. A prefix break is drawn in grey and a neutral tint, never red.
+One sentence in the usage area, in four forms: "Shares all of the earlier call's request" when the earlier call's whole request is a prefix of this one; "Shares all of its request with the call at 14:02:31" when every part of this call's request is in the earlier one; "Prefix breaks in the system prompt · against the call at 14:02:31" when the prefix ends inside it, naming the part it ends in; "First gemini-3.6-flash call in this conversation" when there is none to compare with. The earlier call's time is a link that selects that call, in an earlier turn too. In the request below, a thin grey marker, "Shared prefix ends", sits at the exact point with its part unfolded, and under it the text that differs as two short lines, the earlier call's and this one's, the differing span tinted. A prefix break is drawn in grey and a neutral tint, never red.
 
 ### 14. The exchange
 
