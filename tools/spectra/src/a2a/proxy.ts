@@ -16,6 +16,7 @@ import {NAME, VERSION} from '../version.js';
 import {EXTENDED_CARD_METHODS, isCardPath, rewriteCard} from './card.js';
 import {isRecord, readTurnRequest} from './protocol.js';
 import {SseParser} from './sse.js';
+import {formatTraceparent, parseTraceparent} from './trace_context.js';
 import {TurnCapture, type TurnListener} from './turn.js';
 
 export interface WireProxyOptions {
@@ -27,6 +28,13 @@ export interface WireProxyOptions {
   agentName?: string;
   /** Called as each turn is captured. */
   onTurn?: TurnListener;
+  /**
+   * Whether a trace id already names a turn, open or in the store, so a
+   * host's trace id is not adopted twice. Without it, none does.
+   */
+  traceIdTaken?: (traceId: string) => Promise<boolean> | boolean;
+  /** Takes the proxy's one-line warnings, such as that the host reuses trace ids. */
+  warn?: (line: string) => void;
 }
 
 export interface WireProxy {
@@ -64,18 +72,27 @@ function endToEndHeaders(headers: IncomingHttpHeaders): OutgoingHttpHeaders {
   );
 }
 
+/** What the proxy keeps across requests. */
+interface ProxyState {
+  origin: string;
+  inFlight: Set<ClientRequest>;
+  /** Whether the host has been told once that it reuses trace ids. */
+  warnedReuse: boolean;
+}
+
 /**
  * Starts the wire proxy: a transparent reverse proxy to the agent's origin
- * that captures each send and stream as a turn. Bodies, replies and streams
- * pass through as received, `Host` set to the agent's; the one edit is the
- * card, whose JSON-RPC endpoints point at the proxy.
+ * that captures each send and stream as a turn. Each request is held until
+ * its body has been read, then forwarded as received, `Host` set to the
+ * agent's. Replies and streams pass through as received. The edits: a turn
+ * request gains a `traceparent` naming the turn, and the card's JSON-RPC
+ * endpoints point at the proxy.
  */
 export function startWireProxy(options: WireProxyOptions): Promise<WireProxy> {
   const origin = `http://${LOOPBACK_ADDRESS}:${options.port}`;
   const inFlight = new Set<ClientRequest>();
-  const server = createServer((request, response) =>
-    forward(options, origin, inFlight, request, response),
-  );
+  const state: ProxyState = {origin, inFlight, warnedReuse: false};
+  const server = createServer((request, response) => forward(options, state, request, response));
   return new Promise((resolve, reject) => {
     server.once('error', (error: NodeJS.ErrnoException) => {
       reject(error.code === 'EADDRINUSE' ? new PortTakenError(options.port) : error);
@@ -98,36 +115,63 @@ export function startWireProxy(options: WireProxyOptions): Promise<WireProxy> {
 }
 
 /** What the request turned out to be, once its body has been read. */
-type Kind = {name: 'turn'; capture: TurnCapture} | {name: 'extended_card'} | {name: 'other'};
+type Kind =
+  | {
+      name: 'turn';
+      capture: TurnCapture;
+      /** Whether the host's own trace context is kept on the request, the turn having adopted its trace id. */
+      hostTraceContext: boolean;
+    }
+  | {name: 'extended_card'}
+  | {name: 'other'};
 
 function forward(
   options: WireProxyOptions,
-  origin: string,
-  inFlight: Set<ClientRequest>,
+  state: ProxyState,
   request: IncomingMessage,
   response: ServerResponse,
 ): void {
-  const target = new URL(request.url ?? '/', options.agentUrl);
-  const isCardGet = request.method === 'GET' && isCardPath(target.pathname);
-  const send = options.agentUrl.protocol === 'https:' ? httpsRequest : httpRequest;
-  const upstream = send(target, {
-    method: request.method,
-    headers: {...endToEndHeaders(request.headers), host: options.agentUrl.host},
-  });
-  inFlight.add(upstream);
-  upstream.once('close', () => inFlight.delete(upstream));
-
   const bodyChunks: Buffer[] = [];
   request.on('data', (chunk: Buffer) => bodyChunks.push(chunk));
-  const kind = new Promise<Kind>(resolve => {
-    request.once('end', () => {
-      void readBody(Buffer.concat(bodyChunks), request.headers['content-encoding']).then(text =>
-        resolve(classify(options, text)),
-      );
-    });
-    request.once('error', () => resolve({name: 'other'}));
+  request.once('error', () => response.destroy());
+  request.once('end', () => {
+    void forwardRead(options, state, request, Buffer.concat(bodyChunks), response);
   });
-  request.pipe(upstream);
+}
+
+/** Forwards a request whose body has been read in full. */
+async function forwardRead(
+  options: WireProxyOptions,
+  state: ProxyState,
+  request: IncomingMessage,
+  raw: Buffer,
+  response: ServerResponse,
+): Promise<void> {
+  const target = new URL(request.url ?? '/', options.agentUrl);
+  const isCardGet = request.method === 'GET' && isCardPath(target.pathname);
+  const text = await readBody(raw, request.headers['content-encoding']);
+  const found = await classify(options, state, text, request.headers);
+
+  const headers: OutgoingHttpHeaders = {
+    ...endToEndHeaders(request.headers),
+    host: options.agentUrl.host,
+  };
+  if (
+    raw.length > 0 ||
+    request.headers['content-length'] !== undefined ||
+    request.headers['transfer-encoding'] !== undefined
+  ) {
+    headers['content-length'] = raw.length;
+  }
+  if (found.name === 'turn' && !found.hostTraceContext) {
+    headers.traceparent = formatTraceparent(found.capture.traceId, found.capture.spanId);
+    delete headers.tracestate;
+  }
+
+  const send = options.agentUrl.protocol === 'https:' ? httpsRequest : httpRequest;
+  const upstream = send(target, {method: request.method, headers});
+  state.inFlight.add(upstream);
+  upstream.once('close', () => state.inFlight.delete(upstream));
 
   response.once('close', () => {
     if (!response.writableFinished) {
@@ -136,13 +180,11 @@ function forward(
   });
 
   upstream.once('response', reply => {
-    void kind.then(found => {
-      if (isCardGet || found.name === 'extended_card') {
-        relayCard(reply, response, origin, isCardGet);
-      } else {
-        relay(reply, response, found.name === 'turn' ? found.capture : undefined);
-      }
-    });
+    if (isCardGet || found.name === 'extended_card') {
+      relayCard(reply, response, state.origin, isCardGet);
+    } else {
+      relay(reply, response, found.name === 'turn' ? found.capture : undefined);
+    }
   });
 
   upstream.once('error', error => {
@@ -152,26 +194,53 @@ function forward(
     } else {
       response.destroy(error);
     }
-    void kind.then(found => {
-      if (found.name === 'turn') {
-        found.capture.fail(error.message);
-        found.capture.close();
-      }
-    });
+    if (found.name === 'turn') {
+      found.capture.fail(error.message);
+      found.capture.close();
+    }
   });
+
+  upstream.end(raw);
 }
 
-function classify(options: WireProxyOptions, text: string | undefined): Kind {
+/**
+ * Reads what the request is. A turn request opens a turn: on the host's own
+ * trace id when its `traceparent` parses and no turn has that id yet, else
+ * on a new one, the host told once per run when its trace id was taken.
+ */
+async function classify(
+  options: WireProxyOptions,
+  state: ProxyState,
+  text: string | undefined,
+  headers: IncomingHttpHeaders,
+): Promise<Kind> {
   const body = parseJson(text);
   const turnRequest = readTurnRequest(body);
   if (turnRequest !== undefined) {
+    const own = parseTraceparent(headers.traceparent);
+    let adopted: string | undefined;
+    if (own !== undefined) {
+      if (await (options.traceIdTaken?.(own.traceId) ?? false)) {
+        if (!state.warnedReuse) {
+          state.warnedReuse = true;
+          options.warn?.(
+            "The host reuses trace ids: a turn request's traceparent named a trace id another turn already has, " +
+              "so the wire proxy replaced it with Spectra's own.",
+          );
+        }
+      } else {
+        adopted = own.traceId;
+      }
+    }
     return {
       name: 'turn',
       capture: TurnCapture.open(turnRequest, {
         agentName: options.agentName,
         writer: {name: NAME, version: VERSION},
         listener: options.onTurn ?? (() => {}),
+        ...(adopted !== undefined && {traceId: adopted}),
       }),
+      hostTraceContext: adopted !== undefined,
     };
   }
   if (isRecord(body) && typeof body.method === 'string' && EXTENDED_CARD_METHODS.has(body.method)) {

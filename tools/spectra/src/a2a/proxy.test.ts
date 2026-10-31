@@ -11,7 +11,7 @@ import {after, describe, it} from 'node:test';
 import {gzipSync} from 'node:zlib';
 
 import type {TurnEvent, TurnRecordEvent, WireOutputEvent} from '../record/turn_record.js';
-import {startWireProxy, type WireProxy} from './proxy.js';
+import {startWireProxy, type WireProxy, type WireProxyOptions} from './proxy.js';
 import type {TurnNotification} from './turn.js';
 
 type Handler = (request: IncomingMessage, body: string, response: ServerResponse) => void;
@@ -52,7 +52,11 @@ async function freePort(): Promise<number> {
   return port;
 }
 
-async function setUp(handler: Handler, agentPath = ''): Promise<Setup> {
+async function setUp(
+  handler: Handler,
+  agentPath = '',
+  extra: Partial<WireProxyOptions> = {},
+): Promise<Setup> {
   const received: IncomingHttpHeaders[] = [];
   const agent = createServer((request, response) => {
     received.push(request.headers);
@@ -69,6 +73,7 @@ async function setUp(handler: Handler, agentPath = ''): Promise<Setup> {
     agentUrl: new URL(`http://127.0.0.1:${agentPort}${agentPath}`),
     agentName: 'Test Agent',
     onTurn: notification => notifications.push(notification),
+    ...extra,
   });
   proxies.push(proxy);
   return {agentPort, proxy, notifications, received};
@@ -420,6 +425,105 @@ describe('the wire proxy', () => {
     assert.equal(outputs.length, 1);
     assert.equal(turnEvent.attributes['a2ui.turn.outcome'], 'failed');
     assert.ok(turnEvent.status?.message);
+  });
+
+  describe('trace context', () => {
+    const HOST_TRACE = '4bf92f3577b34da6a3ce929d0e0e4736';
+    const HOST_PARENT = '00f067aa0ba902b7';
+    const sendReply = (_request: IncomingMessage, _body: string, response: ServerResponse) => {
+      response.writeHead(200, {'content-type': 'application/json'});
+      response.end(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          result: {
+            kind: 'message',
+            messageId: 'r',
+            role: 'agent',
+            parts: [{kind: 'text', text: 'Hey'}],
+          },
+        }),
+      );
+    };
+    const clearNotifications = (notifications: TurnNotification[]) => notifications.splice(0);
+
+    it('adds a traceparent naming the turn to a turn request, in either A2A version', async () => {
+      const {proxy, notifications, received} = await setUp(sendReply);
+      for (const [index, method] of ['message/send', 'SendStreamingMessage'].entries()) {
+        await send(proxy, {method: 'POST', body: jsonRpc(method, {message: userMessage})});
+        const {turnEvent} = await closedTurn(notifications);
+        assert.equal(
+          received[index].traceparent,
+          `00-${turnEvent.traceId}-${turnEvent.spanId}-01`,
+          `${method}'s traceparent`,
+        );
+        assert.equal(received[index].tracestate, undefined);
+        clearNotifications(notifications);
+      }
+    });
+
+    it('adds none to a request that is not a turn', async () => {
+      const {proxy, received} = await setUp(sendReply);
+      await send(proxy, {method: 'POST', body: jsonRpc('tasks/get', {id: 't'})});
+      await send(proxy, {path: '/.well-known/agent-card.json'});
+      assert.equal(received[0].traceparent, undefined);
+      assert.equal(received[1].traceparent, undefined);
+    });
+
+    it("keeps a host's traceparent with its tracestate, and the turn adopts its trace id", async () => {
+      const {proxy, notifications, received} = await setUp(sendReply);
+      await send(proxy, {
+        method: 'POST',
+        headers: {
+          traceparent: `00-${HOST_TRACE}-${HOST_PARENT}-01`,
+          tracestate: 'vendor=value',
+        },
+        body: jsonRpc('message/send', {message: userMessage}),
+      });
+      const {turnEvent} = await closedTurn(notifications);
+      assert.equal(turnEvent.traceId, HOST_TRACE);
+      assert.equal(received[0].traceparent, `00-${HOST_TRACE}-${HOST_PARENT}-01`);
+      assert.equal(received[0].tracestate, 'vendor=value');
+      assert.equal(
+        notifications.find(n => n.type === 'turn_opened')?.traceId,
+        HOST_TRACE,
+        'the turn opened on the host trace id',
+      );
+    });
+
+    it("replaces a host's traceparent that does not parse, and drops its tracestate", async () => {
+      const {proxy, notifications, received} = await setUp(sendReply);
+      await send(proxy, {
+        method: 'POST',
+        headers: {traceparent: `00-${HOST_TRACE}-${HOST_PARENT}`, tracestate: 'vendor=value'},
+        body: jsonRpc('message/send', {message: userMessage}),
+      });
+      const {turnEvent} = await closedTurn(notifications);
+      assert.notEqual(turnEvent.traceId, HOST_TRACE);
+      assert.equal(received[0].traceparent, `00-${turnEvent.traceId}-${turnEvent.spanId}-01`);
+      assert.equal(received[0].tracestate, undefined);
+    });
+
+    it("replaces a host's trace id that a turn already has, and says so once per run", async () => {
+      const warnings: string[] = [];
+      const {proxy, notifications, received} = await setUp(sendReply, '', {
+        traceIdTaken: async traceId => traceId === HOST_TRACE,
+        warn: line => warnings.push(line),
+      });
+      for (const index of [0, 1]) {
+        await send(proxy, {
+          method: 'POST',
+          headers: {traceparent: `00-${HOST_TRACE}-${HOST_PARENT}-01`},
+          body: jsonRpc('message/send', {message: userMessage}),
+        });
+        const {turnEvent} = await closedTurn(notifications);
+        assert.notEqual(turnEvent.traceId, HOST_TRACE);
+        assert.equal(received[index].traceparent, `00-${turnEvent.traceId}-${turnEvent.spanId}-01`);
+        clearNotifications(notifications);
+      }
+      assert.equal(warnings.length, 1, warnings.join('\n'));
+      assert.match(warnings[0], /reuses trace ids/);
+    });
   });
 
   it('fails the turn for a reply that is not 2xx', async () => {

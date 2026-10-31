@@ -49,6 +49,8 @@ export interface TurnCaptureOptions {
   /** The program writing the record. */
   writer: {name: string; version: string};
   listener: TurnListener;
+  /** The trace id the turn adopts, a host's own; else it gets a new one. */
+  traceId?: string;
   /** Nanoseconds since the Unix epoch. */
   now?: () => bigint;
   newTraceId?: () => string;
@@ -100,7 +102,8 @@ export class TurnCapture {
     this.#now = options.now ?? nowUnixNano;
     this.#newSpanId = options.newSpanId ?? (() => randomBytes(8).toString('hex'));
     this.#start = this.#now();
-    this.#traceId = (options.newTraceId ?? (() => randomBytes(16).toString('hex')))();
+    this.#traceId =
+      options.traceId ?? (options.newTraceId ?? (() => randomBytes(16).toString('hex')))();
     this.#spanId = this.#newSpanId();
     this.#conversationId = request.message.contextId;
 
@@ -128,6 +131,16 @@ export class TurnCapture {
   /** Opens a turn for a host's request and notifies that it opened. */
   static open(request: TurnRequest, options: TurnCaptureOptions): TurnCapture {
     return new TurnCapture(request, options);
+  }
+
+  /** The turn's trace id. */
+  get traceId(): string {
+    return this.#traceId;
+  }
+
+  /** The turn event's span id: the parent of the turn's wire events, and of the calls placed in it. */
+  get spanId(): string {
+    return this.#spanId;
   }
 
   /**

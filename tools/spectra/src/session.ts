@@ -174,6 +174,9 @@ export async function runSession(
           recorder.onTurn(notification);
           turns.onTurn(notification);
         },
+        traceIdTaken: async traceId =>
+          turns.isOpen(traceId) || (await store.list()).some(turn => turn.traceId === traceId),
+        warn: line => out.info(line),
       });
       box = new MessageBox({
         card: rewriteCard(card, proxy.origin),
