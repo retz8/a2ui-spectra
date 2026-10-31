@@ -1,0 +1,1084 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "e5adaaa559e269ceebf3f26e0d573879",
+          "spanId": "f01a9d73f9257128",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800008000000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "wire",
+              "model_proxy"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "e5adaaa559e269ceebf3f26e0d573879",
+          "spanId": "719b44be89c23543",
+          "parentSpanId": "f01a9d73f9257128",
+          "name": "chat gpt-4.1-mini",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000100000000",
+          "endTimeUnixNano": "1792800000900000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "chat",
+            "gen_ai.provider.name": "openai",
+            "openai.api.type": "chat_completions",
+            "gen_ai.request.model": "gpt-4.1-mini",
+            "gen_ai.request.stream": false,
+            "gen_ai.system_instructions": [
+              {
+                "type": "text",
+                "content": "You are a helpful assistant."
+              }
+            ],
+            "gen_ai.input.messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Hello!"
+                  }
+                ]
+              }
+            ],
+            "http.request.method": "POST",
+            "url.full": "https://api.openai.com/v1/chat/completions",
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.accept": [
+              "application/json"
+            ],
+            "http.request.header.authorization": [
+              "REMOVED"
+            ],
+            "http.request.header.user-agent": [
+              "OpenAI/Python 1.109.1"
+            ],
+            "a2ui.http.request.body": {
+              "model": "gpt-4.1-mini",
+              "messages": [
+                {
+                  "role": "developer",
+                  "content": "You are a helpful assistant."
+                },
+                {
+                  "role": "user",
+                  "content": "Hello!"
+                }
+              ]
+            },
+            "http.response.header.content-type": [
+              "application/json"
+            ],
+            "http.response.status_code": 200,
+            "a2ui.http.response.body": {
+              "id": "chatcmpl-ref-1",
+              "object": "chat.completion",
+              "created": 1761264000,
+              "model": "gpt-4.1-mini-2025-04-14",
+              "choices": [
+                {
+                  "index": 0,
+                  "message": {
+                    "role": "assistant",
+                    "content": "Hello! How can I assist you today?",
+                    "refusal": null,
+                    "annotations": []
+                  },
+                  "logprobs": null,
+                  "finish_reason": "stop"
+                }
+              ],
+              "usage": {
+                "prompt_tokens": 19,
+                "completion_tokens": 10,
+                "total_tokens": 29,
+                "prompt_tokens_details": {
+                  "cached_tokens": 0,
+                  "audio_tokens": 0
+                },
+                "completion_tokens_details": {
+                  "reasoning_tokens": 0,
+                  "audio_tokens": 0,
+                  "accepted_prediction_tokens": 0,
+                  "rejected_prediction_tokens": 0
+                }
+              },
+              "service_tier": "default",
+              "system_fingerprint": "fp_reference"
+            },
+            "gen_ai.response.id": "chatcmpl-ref-1",
+            "gen_ai.response.model": "gpt-4.1-mini-2025-04-14",
+            "gen_ai.response.finish_reasons": [
+              "stop"
+            ],
+            "gen_ai.usage.input_tokens": 19,
+            "gen_ai.usage.output_tokens": 10,
+            "gen_ai.usage.cache_read.input_tokens": 0,
+            "gen_ai.usage.reasoning.output_tokens": 0,
+            "gen_ai.output.messages": [
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Hello! How can I assist you today?"
+                  }
+                ],
+                "finish_reason": "stop"
+              }
+            ]
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "e5adaaa559e269ceebf3f26e0d573879",
+          "spanId": "d544d27b2c7f389c",
+          "parentSpanId": "f01a9d73f9257128",
+          "name": "chat gpt-4.1-mini",
+          "kind": 3,
+          "startTimeUnixNano": "1792800001100000000",
+          "endTimeUnixNano": "1792800001900000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "chat",
+            "gen_ai.provider.name": "openai",
+            "openai.api.type": "chat_completions",
+            "gen_ai.request.model": "gpt-4.1-mini",
+            "gen_ai.request.stream": true,
+            "gen_ai.system_instructions": [
+              {
+                "type": "text",
+                "content": "You are a helpful assistant."
+              }
+            ],
+            "gen_ai.input.messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Hello!"
+                  }
+                ]
+              }
+            ],
+            "http.request.method": "POST",
+            "url.full": "https://api.openai.com/v1/chat/completions",
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.accept": [
+              "application/json"
+            ],
+            "http.request.header.authorization": [
+              "REMOVED"
+            ],
+            "http.request.header.user-agent": [
+              "OpenAI/Python 1.109.1"
+            ],
+            "a2ui.http.request.body": {
+              "model": "gpt-4.1-mini",
+              "messages": [
+                {
+                  "role": "developer",
+                  "content": "You are a helpful assistant."
+                },
+                {
+                  "role": "user",
+                  "content": "Hello!"
+                }
+              ],
+              "stream": true,
+              "stream_options": {
+                "include_usage": true
+              }
+            },
+            "http.response.header.content-type": [
+              "text/event-stream; charset=utf-8"
+            ],
+            "http.response.status_code": 200,
+            "gen_ai.response.id": "chatcmpl-ref-2",
+            "gen_ai.response.model": "gpt-4.1-mini-2025-04-14",
+            "gen_ai.response.finish_reasons": [
+              "stop"
+            ],
+            "gen_ai.usage.input_tokens": 19,
+            "gen_ai.usage.output_tokens": 10,
+            "gen_ai.usage.cache_read.input_tokens": 0,
+            "gen_ai.usage.reasoning.output_tokens": 0,
+            "gen_ai.output.messages": [
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Hello! How can I assist you today?"
+                  }
+                ],
+                "finish_reason": "stop"
+              }
+            ]
+          },
+          "events": [
+            {
+              "timeUnixNano": "1792800001100000000",
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "id": "chatcmpl-ref-2",
+                  "object": "chat.completion.chunk",
+                  "created": 1761264001,
+                  "model": "gpt-4.1-mini-2025-04-14",
+                  "service_tier": "default",
+                  "system_fingerprint": "fp_reference",
+                  "choices": [
+                    {
+                      "index": 0,
+                      "delta": {
+                        "role": "assistant",
+                        "content": "",
+                        "refusal": null
+                      },
+                      "logprobs": null,
+                      "finish_reason": null
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "timeUnixNano": "1792800001101000000",
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "id": "chatcmpl-ref-2",
+                  "object": "chat.completion.chunk",
+                  "created": 1761264001,
+                  "model": "gpt-4.1-mini-2025-04-14",
+                  "service_tier": "default",
+                  "system_fingerprint": "fp_reference",
+                  "choices": [
+                    {
+                      "index": 0,
+                      "delta": {
+                        "content": "Hello"
+                      },
+                      "logprobs": null,
+                      "finish_reason": null
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "timeUnixNano": "1792800001102000000",
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "id": "chatcmpl-ref-2",
+                  "object": "chat.completion.chunk",
+                  "created": 1761264001,
+                  "model": "gpt-4.1-mini-2025-04-14",
+                  "service_tier": "default",
+                  "system_fingerprint": "fp_reference",
+                  "choices": [
+                    {
+                      "index": 0,
+                      "delta": {
+                        "content": "! How can I assist you today?"
+                      },
+                      "logprobs": null,
+                      "finish_reason": null
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "timeUnixNano": "1792800001103000000",
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "id": "chatcmpl-ref-2",
+                  "object": "chat.completion.chunk",
+                  "created": 1761264001,
+                  "model": "gpt-4.1-mini-2025-04-14",
+                  "service_tier": "default",
+                  "system_fingerprint": "fp_reference",
+                  "choices": [
+                    {
+                      "index": 0,
+                      "delta": {},
+                      "logprobs": null,
+                      "finish_reason": "stop"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "timeUnixNano": "1792800001104000000",
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "id": "chatcmpl-ref-2",
+                  "object": "chat.completion.chunk",
+                  "created": 1761264001,
+                  "model": "gpt-4.1-mini-2025-04-14",
+                  "service_tier": "default",
+                  "system_fingerprint": "fp_reference",
+                  "choices": [],
+                  "usage": {
+                    "prompt_tokens": 19,
+                    "completion_tokens": 10,
+                    "total_tokens": 29,
+                    "prompt_tokens_details": {
+                      "cached_tokens": 0,
+                      "audio_tokens": 0
+                    },
+                    "completion_tokens_details": {
+                      "reasoning_tokens": 0,
+                      "audio_tokens": 0,
+                      "accepted_prediction_tokens": 0,
+                      "rejected_prediction_tokens": 0
+                    }
+                  }
+                }
+              }
+            },
+            {
+              "timeUnixNano": "1792800001105000000",
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": "[DONE]"
+              }
+            }
+          ],
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "e5adaaa559e269ceebf3f26e0d573879",
+          "spanId": "4ac88408ac71e919",
+          "parentSpanId": "f01a9d73f9257128",
+          "name": "chat gpt-4.1-mini",
+          "kind": 3,
+          "startTimeUnixNano": "1792800002100000000",
+          "endTimeUnixNano": "1792800002900000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "chat",
+            "gen_ai.provider.name": "openai",
+            "openai.api.type": "chat_completions",
+            "gen_ai.request.model": "gpt-4.1-mini",
+            "gen_ai.request.stream": false,
+            "gen_ai.input.messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "What is the weather like in Boston today?"
+                  }
+                ]
+              }
+            ],
+            "gen_ai.tool.definitions": [
+              {
+                "type": "function",
+                "name": "get_weather",
+                "description": "Get the current weather in a given location",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "location": {
+                      "type": "string",
+                      "description": "The city and state, e.g. San Francisco, CA"
+                    }
+                  },
+                  "required": [
+                    "location"
+                  ]
+                }
+              }
+            ],
+            "http.request.method": "POST",
+            "url.full": "https://api.openai.com/v1/chat/completions",
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.accept": [
+              "application/json"
+            ],
+            "http.request.header.authorization": [
+              "REMOVED"
+            ],
+            "http.request.header.user-agent": [
+              "OpenAI/Python 1.109.1"
+            ],
+            "a2ui.http.request.body": {
+              "model": "gpt-4.1-mini",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "What is the weather like in Boston today?"
+                }
+              ],
+              "tools": [
+                {
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "description": "Get the current weather in a given location",
+                    "parameters": {
+                      "type": "object",
+                      "properties": {
+                        "location": {
+                          "type": "string",
+                          "description": "The city and state, e.g. San Francisco, CA"
+                        }
+                      },
+                      "required": [
+                        "location"
+                      ]
+                    }
+                  }
+                }
+              ],
+              "tool_choice": "auto"
+            },
+            "http.response.header.content-type": [
+              "application/json"
+            ],
+            "http.response.status_code": 200,
+            "a2ui.http.response.body": {
+              "id": "chatcmpl-ref-3",
+              "object": "chat.completion",
+              "created": 1761264000,
+              "model": "gpt-4.1-mini-2025-04-14",
+              "choices": [
+                {
+                  "index": 0,
+                  "message": {
+                    "role": "assistant",
+                    "content": null,
+                    "refusal": null,
+                    "annotations": [],
+                    "tool_calls": [
+                      {
+                        "id": "call_abc123",
+                        "type": "function",
+                        "function": {
+                          "name": "get_weather",
+                          "arguments": "{\n\"location\": \"Boston, MA\"\n}"
+                        }
+                      }
+                    ]
+                  },
+                  "logprobs": null,
+                  "finish_reason": "tool_calls"
+                }
+              ],
+              "usage": {
+                "prompt_tokens": 82,
+                "completion_tokens": 17,
+                "total_tokens": 99,
+                "prompt_tokens_details": {
+                  "cached_tokens": 0,
+                  "audio_tokens": 0
+                },
+                "completion_tokens_details": {
+                  "reasoning_tokens": 0,
+                  "audio_tokens": 0,
+                  "accepted_prediction_tokens": 0,
+                  "rejected_prediction_tokens": 0
+                }
+              },
+              "service_tier": "default",
+              "system_fingerprint": "fp_reference"
+            },
+            "gen_ai.response.id": "chatcmpl-ref-3",
+            "gen_ai.response.model": "gpt-4.1-mini-2025-04-14",
+            "gen_ai.response.finish_reasons": [
+              "tool_call"
+            ],
+            "gen_ai.usage.input_tokens": 82,
+            "gen_ai.usage.output_tokens": 17,
+            "gen_ai.usage.cache_read.input_tokens": 0,
+            "gen_ai.usage.reasoning.output_tokens": 0,
+            "gen_ai.output.messages": [
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "tool_call",
+                    "id": "call_abc123",
+                    "name": "get_weather",
+                    "arguments": {
+                      "location": "Boston, MA"
+                    }
+                  }
+                ],
+                "finish_reason": "tool_call"
+              }
+            ]
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "e5adaaa559e269ceebf3f26e0d573879",
+          "spanId": "0b74f582927c545d",
+          "parentSpanId": "f01a9d73f9257128",
+          "name": "chat gpt-4.1-mini",
+          "kind": 3,
+          "startTimeUnixNano": "1792800003100000000",
+          "endTimeUnixNano": "1792800003900000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "chat",
+            "gen_ai.provider.name": "openai",
+            "openai.api.type": "chat_completions",
+            "gen_ai.request.model": "gpt-4.1-mini",
+            "gen_ai.request.stream": false,
+            "gen_ai.input.messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "What is the weather like in Boston today?"
+                  }
+                ]
+              },
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "tool_call",
+                    "id": "call_abc123",
+                    "name": "get_weather",
+                    "arguments": {
+                      "location": "Boston, MA"
+                    }
+                  }
+                ]
+              },
+              {
+                "role": "tool",
+                "parts": [
+                  {
+                    "type": "tool_call_response",
+                    "id": "call_abc123",
+                    "response": "{\"temperature\": \"22\", \"unit\": \"celsius\", \"description\": \"Sunny\"}"
+                  }
+                ]
+              }
+            ],
+            "gen_ai.tool.definitions": [
+              {
+                "type": "function",
+                "name": "get_weather",
+                "description": "Get the current weather in a given location",
+                "parameters": {
+                  "type": "object",
+                  "properties": {
+                    "location": {
+                      "type": "string",
+                      "description": "The city and state, e.g. San Francisco, CA"
+                    }
+                  },
+                  "required": [
+                    "location"
+                  ]
+                }
+              }
+            ],
+            "http.request.method": "POST",
+            "url.full": "https://api.openai.com/v1/chat/completions",
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.accept": [
+              "application/json"
+            ],
+            "http.request.header.authorization": [
+              "REMOVED"
+            ],
+            "http.request.header.user-agent": [
+              "OpenAI/Python 1.109.1"
+            ],
+            "a2ui.http.request.body": {
+              "model": "gpt-4.1-mini",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "What is the weather like in Boston today?"
+                },
+                {
+                  "role": "assistant",
+                  "content": null,
+                  "tool_calls": [
+                    {
+                      "id": "call_abc123",
+                      "type": "function",
+                      "function": {
+                        "name": "get_weather",
+                        "arguments": "{\n\"location\": \"Boston, MA\"\n}"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "role": "tool",
+                  "tool_call_id": "call_abc123",
+                  "content": "{\"temperature\": \"22\", \"unit\": \"celsius\", \"description\": \"Sunny\"}"
+                }
+              ],
+              "tools": [
+                {
+                  "type": "function",
+                  "function": {
+                    "name": "get_weather",
+                    "description": "Get the current weather in a given location",
+                    "parameters": {
+                      "type": "object",
+                      "properties": {
+                        "location": {
+                          "type": "string",
+                          "description": "The city and state, e.g. San Francisco, CA"
+                        }
+                      },
+                      "required": [
+                        "location"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            "http.response.header.content-type": [
+              "application/json"
+            ],
+            "http.response.status_code": 200,
+            "a2ui.http.response.body": {
+              "id": "chatcmpl-ref-4",
+              "object": "chat.completion",
+              "created": 1761264000,
+              "model": "gpt-4.1-mini-2025-04-14",
+              "choices": [
+                {
+                  "index": 0,
+                  "message": {
+                    "role": "assistant",
+                    "content": "The weather in Boston today is sunny with a temperature of 22°C.",
+                    "refusal": null,
+                    "annotations": []
+                  },
+                  "logprobs": null,
+                  "finish_reason": "stop"
+                }
+              ],
+              "usage": {
+                "prompt_tokens": 129,
+                "completion_tokens": 18,
+                "total_tokens": 147,
+                "prompt_tokens_details": {
+                  "cached_tokens": 0,
+                  "audio_tokens": 0
+                },
+                "completion_tokens_details": {
+                  "reasoning_tokens": 0,
+                  "audio_tokens": 0,
+                  "accepted_prediction_tokens": 0,
+                  "rejected_prediction_tokens": 0
+                }
+              },
+              "service_tier": "default",
+              "system_fingerprint": "fp_reference"
+            },
+            "gen_ai.response.id": "chatcmpl-ref-4",
+            "gen_ai.response.model": "gpt-4.1-mini-2025-04-14",
+            "gen_ai.response.finish_reasons": [
+              "stop"
+            ],
+            "gen_ai.usage.input_tokens": 129,
+            "gen_ai.usage.output_tokens": 18,
+            "gen_ai.usage.cache_read.input_tokens": 0,
+            "gen_ai.usage.reasoning.output_tokens": 0,
+            "gen_ai.output.messages": [
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "The weather in Boston today is sunny with a temperature of 22°C."
+                  }
+                ],
+                "finish_reason": "stop"
+              }
+            ]
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "e5adaaa559e269ceebf3f26e0d573879",
+          "spanId": "95370ba8f1feb793",
+          "parentSpanId": "f01a9d73f9257128",
+          "name": "chat gpt-4.1-mini",
+          "kind": 3,
+          "startTimeUnixNano": "1792800004100000000",
+          "endTimeUnixNano": "1792800004900000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "chat",
+            "gen_ai.provider.name": "openai",
+            "openai.api.type": "chat_completions",
+            "gen_ai.request.model": "gpt-4.1-mini",
+            "gen_ai.request.stream": false,
+            "gen_ai.system_instructions": [
+              {
+                "type": "text",
+                "content": "You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. "
+              }
+            ],
+            "gen_ai.input.messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Hello again!"
+                  }
+                ]
+              }
+            ],
+            "http.request.method": "POST",
+            "url.full": "https://api.openai.com/v1/chat/completions",
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.accept": [
+              "application/json"
+            ],
+            "http.request.header.authorization": [
+              "REMOVED"
+            ],
+            "http.request.header.user-agent": [
+              "OpenAI/Python 1.109.1"
+            ],
+            "a2ui.http.request.body": {
+              "model": "gpt-4.1-mini",
+              "messages": [
+                {
+                  "role": "system",
+                  "content": "You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. You are a helpful assistant. "
+                },
+                {
+                  "role": "user",
+                  "content": "Hello again!"
+                }
+              ]
+            },
+            "http.response.header.content-type": [
+              "application/json"
+            ],
+            "http.response.status_code": 200,
+            "a2ui.http.response.body": {
+              "id": "chatcmpl-ref-5",
+              "object": "chat.completion",
+              "created": 1761264000,
+              "model": "gpt-4.1-mini-2025-04-14",
+              "choices": [
+                {
+                  "index": 0,
+                  "message": {
+                    "role": "assistant",
+                    "content": "Hello again! How can I help you today?",
+                    "refusal": null,
+                    "annotations": []
+                  },
+                  "logprobs": null,
+                  "finish_reason": "stop"
+                }
+              ],
+              "usage": {
+                "prompt_tokens": 2006,
+                "completion_tokens": 11,
+                "total_tokens": 2017,
+                "prompt_tokens_details": {
+                  "cached_tokens": 1920,
+                  "audio_tokens": 0
+                },
+                "completion_tokens_details": {
+                  "reasoning_tokens": 0,
+                  "audio_tokens": 0,
+                  "accepted_prediction_tokens": 0,
+                  "rejected_prediction_tokens": 0
+                }
+              },
+              "service_tier": "default",
+              "system_fingerprint": "fp_reference"
+            },
+            "gen_ai.response.id": "chatcmpl-ref-5",
+            "gen_ai.response.model": "gpt-4.1-mini-2025-04-14",
+            "gen_ai.response.finish_reasons": [
+              "stop"
+            ],
+            "gen_ai.usage.input_tokens": 2006,
+            "gen_ai.usage.output_tokens": 11,
+            "gen_ai.usage.cache_read.input_tokens": 1920,
+            "gen_ai.usage.reasoning.output_tokens": 0,
+            "gen_ai.output.messages": [
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Hello again! How can I help you today?"
+                  }
+                ],
+                "finish_reason": "stop"
+              }
+            ]
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "e5adaaa559e269ceebf3f26e0d573879",
+          "spanId": "086db6215557441f",
+          "parentSpanId": "f01a9d73f9257128",
+          "name": "chat gpt-does-not-exist",
+          "kind": 3,
+          "startTimeUnixNano": "1792800005100000000",
+          "endTimeUnixNano": "1792800005900000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "chat",
+            "gen_ai.provider.name": "openai",
+            "openai.api.type": "chat_completions",
+            "gen_ai.request.model": "gpt-does-not-exist",
+            "gen_ai.request.stream": false,
+            "gen_ai.input.messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Hello!"
+                  }
+                ]
+              }
+            ],
+            "http.request.method": "POST",
+            "url.full": "https://api.openai.com/v1/chat/completions",
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.accept": [
+              "application/json"
+            ],
+            "http.request.header.authorization": [
+              "REMOVED"
+            ],
+            "http.request.header.user-agent": [
+              "OpenAI/Python 1.109.1"
+            ],
+            "a2ui.http.request.body": {
+              "model": "gpt-does-not-exist",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "Hello!"
+                }
+              ]
+            },
+            "http.response.header.content-type": [
+              "application/json"
+            ],
+            "http.response.status_code": 404,
+            "a2ui.http.response.body": {
+              "error": {
+                "message": "The model `gpt-does-not-exist` does not exist or you do not have access to it.",
+                "type": "invalid_request_error",
+                "param": null,
+                "code": "model_not_found"
+              }
+            },
+            "error.type": "404"
+          },
+          "status": {
+            "code": 2,
+            "message": "The model `gpt-does-not-exist` does not exist or you do not have access to it."
+          }
+        },
+        {
+          "traceId": "e5adaaa559e269ceebf3f26e0d573879",
+          "spanId": "125e0bacc742ad14",
+          "parentSpanId": "f01a9d73f9257128",
+          "name": "chat gpt-4.1-mini",
+          "kind": 3,
+          "startTimeUnixNano": "1792800006100000000",
+          "endTimeUnixNano": "1792800006900000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "chat",
+            "gen_ai.provider.name": "openai",
+            "openai.api.type": "chat_completions",
+            "gen_ai.request.model": "gpt-4.1-mini",
+            "gen_ai.request.stream": true,
+            "gen_ai.input.messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Hello!"
+                  }
+                ]
+              }
+            ],
+            "http.request.method": "POST",
+            "url.full": "https://api.openai.com/v1/chat/completions",
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.accept": [
+              "application/json"
+            ],
+            "http.request.header.authorization": [
+              "REMOVED"
+            ],
+            "http.request.header.user-agent": [
+              "OpenAI/Python 1.109.1"
+            ],
+            "a2ui.http.request.body": {
+              "model": "gpt-4.1-mini",
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "Hello!"
+                }
+              ],
+              "stream": true
+            },
+            "http.response.header.content-type": [
+              "text/event-stream; charset=utf-8"
+            ],
+            "http.response.status_code": 200,
+            "gen_ai.response.id": "chatcmpl-ref-7",
+            "gen_ai.response.model": "gpt-4.1-mini-2025-04-14",
+            "gen_ai.output.messages": [
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Hel"
+                  }
+                ]
+              }
+            ],
+            "error.type": "server_error"
+          },
+          "events": [
+            {
+              "timeUnixNano": "1792800006100000000",
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "id": "chatcmpl-ref-7",
+                  "object": "chat.completion.chunk",
+                  "created": 1761264001,
+                  "model": "gpt-4.1-mini-2025-04-14",
+                  "service_tier": "default",
+                  "system_fingerprint": "fp_reference",
+                  "choices": [
+                    {
+                      "index": 0,
+                      "delta": {
+                        "role": "assistant",
+                        "content": "",
+                        "refusal": null
+                      },
+                      "logprobs": null,
+                      "finish_reason": null
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "timeUnixNano": "1792800006101000000",
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "id": "chatcmpl-ref-7",
+                  "object": "chat.completion.chunk",
+                  "created": 1761264001,
+                  "model": "gpt-4.1-mini-2025-04-14",
+                  "service_tier": "default",
+                  "system_fingerprint": "fp_reference",
+                  "choices": [
+                    {
+                      "index": 0,
+                      "delta": {
+                        "content": "Hel"
+                      },
+                      "logprobs": null,
+                      "finish_reason": null
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "timeUnixNano": "1792800006102000000",
+              "name": "a2ui.http.response.chunk",
+              "attributes": {
+                "a2ui.http.response.chunk.body": {
+                  "error": {
+                    "message": "The server had an error while processing your request. Sorry about that!",
+                    "type": "server_error",
+                    "param": null,
+                    "code": null
+                  }
+                }
+              }
+            }
+          ],
+          "status": {
+            "code": 2,
+            "message": "The server had an error while processing your request. Sorry about that!"
+          }
+        }
+      ]
+    }
+  ]
+}

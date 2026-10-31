@@ -90,6 +90,8 @@
         "../../conformance/test_data/turn_record/v0_1/full_record_*.json",
         "../../conformance/a2a_capture/**",
         "../../conformance/test_data/a2a_capture/**",
+        "../../conformance/test_data/model_capture/**",
+        "../../conformance/model_capture/**",
         "../../specification/turn_record/v0_1/json/*.json",
         "../../samples/preview/catalog.json",
         "../../samples/preview/*/a2ui-spectra.json",

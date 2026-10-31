@@ -27,6 +27,7 @@
       "files": [
         "tests/**/*.ts",
         "stub_agent/**/*.ts",
+        "stand_in_provider/**/*.ts",
         "tsconfig.json"
       ],
       "output": [
@@ -43,7 +44,9 @@
         "conformance_schema.json",
         "turn_record/**",
         "a2a_capture/**",
+        "model_capture/**",
         "test_data/a2a_capture/**",
+        "test_data/model_capture/**",
         "test_data/turn_record/**",
         "../specification/turn_record/**/json/*.json"
       ],

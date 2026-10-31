@@ -1,0 +1,27 @@
+# The model capture path: each recording of model API traffic replayed through
+# the model proxy, with the stand-in provider in the provider's place, and the
+# model call events it writes compared with the expected record.
+
+- name: openai_chat_reference_examples
+  description: "OpenAI's Chat Completions API, in the shapes of its API reference: a completion not streamed, one streamed with its usage in the last chunk, a tool call and the request carrying its result, a usage reporting cached_tokens, an unknown model's 404, and an error object inside a 2xx stream."
+  action: capture_model
+  traffic: "test_data/model_capture/v0_1/openai_chat/reference_examples.har"
+  expect: "test_data/model_capture/v0_1/openai_chat/reference_examples.json"
+
+- name: openai_responses_reference_examples
+  description: "OpenAI's Responses API, in the shapes of its API reference: a response not streamed, one streamed to response.completed, a function call and the request carrying its output, a usage reporting cached_tokens, an unknown model's 404, and a stream ending in response.failed."
+  action: capture_model
+  traffic: "test_data/model_capture/v0_1/openai_responses/reference_examples.har"
+  expect: "test_data/model_capture/v0_1/openai_responses/reference_examples.json"
+
+- name: anthropic_overloaded_stream
+  description: "Anthropic's Messages API: a 2xx stream carrying an error event, overloaded_error, in the shape of Anthropic's streaming documentation; a failed call with the chunks before the error."
+  action: capture_model
+  traffic: "test_data/model_capture/v0_1/anthropic/overloaded_stream.har"
+  expect: "test_data/model_capture/v0_1/anthropic/overloaded_stream.json"
+
+- name: gemini_rate_limited
+  description: "Gemini's generateContent answering 429 in Gemini's documented error shape: a failed call with the provider's message as the status message."
+  action: capture_model
+  traffic: "test_data/model_capture/v0_1/gemini/rate_limited.har"
+  expect: "test_data/model_capture/v0_1/gemini/rate_limited.json"

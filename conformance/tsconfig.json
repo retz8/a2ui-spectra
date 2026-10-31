@@ -30,6 +30,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["tests/**/*.ts", "stub_agent/**/*.ts"],
+  "include": ["tests/**/*.ts", "stub_agent/**/*.ts", "stand_in_provider/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

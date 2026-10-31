@@ -5,19 +5,34 @@
   "description": "JSON schema validating the conformance test suites under conformance/.",
   "type": "array",
   "items": {
-    "anyOf": [{"$ref": "#/$defs/ValidateTurnRecordTest"}, {"$ref": "#/$defs/CaptureA2aTest"}]
+    "anyOf": [
+      {
+        "$ref": "#/$defs/ValidateTurnRecordTest"
+      },
+      {
+        "$ref": "#/$defs/CaptureA2aTest"
+      },
+      {
+        "$ref": "#/$defs/CaptureModelTest"
+      }
+    ]
   },
   "$defs": {
     "ValidateTurnRecordTest": {
       "type": "object",
       "description": "Validates one turn record fixture against the turn record schema of the suite's version.",
       "properties": {
-        "name": {"type": "string", "description": "Unique name of the test case."},
+        "name": {
+          "type": "string",
+          "description": "Unique name of the test case."
+        },
         "description": {
           "type": "string",
           "description": "What the test verifies. For a case that must fail, the reason it fails."
         },
-        "action": {"const": "validate_turn_record"},
+        "action": {
+          "const": "validate_turn_record"
+        },
         "fixture": {
           "type": "string",
           "description": "Path of the turn record fixture, relative to conformance/."
@@ -27,21 +42,38 @@
           "description": "Present when the fixture must fail validation."
         }
       },
-      "required": ["name", "action", "fixture"],
+      "required": [
+        "name",
+        "action",
+        "fixture"
+      ],
       "additionalProperties": false,
-      "if": {"required": ["expectError"]},
-      "then": {"required": ["description"]}
+      "if": {
+        "required": [
+          "expectError"
+        ]
+      },
+      "then": {
+        "required": [
+          "description"
+        ]
+      }
     },
     "CaptureA2aTest": {
       "type": "object",
       "description": "Replays one HAR recording of A2A traffic through the A2A capture path and compares the turns it captures with an expected turn record.",
       "properties": {
-        "name": {"type": "string", "description": "Unique name of the test case."},
+        "name": {
+          "type": "string",
+          "description": "Unique name of the test case."
+        },
         "description": {
           "type": "string",
           "description": "The roster entry and the axis values the recording verifies."
         },
-        "action": {"const": "capture_a2a"},
+        "action": {
+          "const": "capture_a2a"
+        },
         "traffic": {
           "type": "string",
           "description": "Path of the HAR 1.2 recording, relative to conformance/."
@@ -51,13 +83,21 @@
           "description": "Path of the expected turn record, relative to conformance/."
         }
       },
-      "required": ["name", "description", "action", "traffic", "expect"],
+      "required": [
+        "name",
+        "description",
+        "action",
+        "traffic",
+        "expect"
+      ],
       "additionalProperties": false
     },
     "ExpectError": {
       "type": "object",
       "properties": {
-        "category": {"const": "ValidationError"},
+        "category": {
+          "const": "ValidationError"
+        },
         "details": {
           "type": "array",
           "minItems": 1,
@@ -74,12 +114,55 @@
                 "description": "The JSON Schema keyword that failed, as JSON Schema 2020-12's output format names it."
               }
             },
-            "required": ["path", "code"],
+            "required": [
+              "path",
+              "code"
+            ],
             "additionalProperties": false
           }
         }
       },
-      "required": ["category", "details"],
+      "required": [
+        "category",
+        "details"
+      ],
+      "additionalProperties": false
+    },
+    "CaptureModelTest": {
+      "type": "object",
+      "description": "Replays one HAR recording of model API traffic through the model proxy, with the stand-in provider in the provider's place, and compares the model call events it writes with an expected turn record.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique name of the test case."
+        },
+        "description": {
+          "type": "string",
+          "description": "The client, the API and what the recording verifies."
+        },
+        "action": {
+          "const": "capture_model"
+        },
+        "traffic": {
+          "type": "string",
+          "description": "Path of the HAR 1.2 recording, relative to conformance/."
+        },
+        "expect": {
+          "type": "string",
+          "description": "Path of the expected turn record, relative to conformance/."
+        },
+        "readInFull": {
+          "type": "boolean",
+          "description": "Whether the stand-in is read as the providers' own hosts. Default true; false records every call raw, as a call to another host is."
+        }
+      },
+      "required": [
+        "name",
+        "description",
+        "action",
+        "traffic",
+        "expect"
+      ],
       "additionalProperties": false
     }
   }
