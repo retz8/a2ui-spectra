@@ -10,11 +10,21 @@ import {catalogsOf} from '@/model/catalogs.ts';
 import {dataModelMapOf, dataModelVersionOf} from '@/model/host_message.ts';
 import {agentMessages} from '@/model/messages.ts';
 import {previewProblemsOf, routeOf, surfaceFeedOf, targetOf} from '@/model/preview.ts';
+import {isProxyModelCall} from '@/model/model_calls.ts';
+import {candidatesFor, type PrefixBreak, prefixBreakOf} from '@/model/prefix.ts';
 import {type Problem, onlyProblems, turnProblemsOf} from '@/model/problems.ts';
-import {type Turn, type TurnRecordEvent, unixMillis} from '@/model/record.ts';
+import {
+  isTurnEvent,
+  isWireInput,
+  isWireOutput,
+  type Turn,
+  type TurnRecordEvent,
+  unixMillis,
+} from '@/model/record.ts';
 import {replay} from '@/model/replay.ts';
 import {type Position, replyThrough, type TimelineRow, timelineOf} from '@/model/steps.ts';
 import {openFieldsOf, summaryOf} from '@/model/summary.ts';
+import {insideLineOf} from '@/model/turn_calls.ts';
 import {briefText} from '@/model/turn_groups.ts';
 import {detailOpenHeight, rememberedSize, rememberSize} from '@/state/layout.ts';
 import {previewHost, renderKeyOf, usePreviewPages} from '@/state/preview_host.ts';
@@ -48,6 +58,9 @@ const NO_SURFACES: [] = [];
 /** The detail's height when collapsed to its title line, in pixels. */
 const DETAIL_TITLE = 41;
 
+/** The result pane's height when folded to its header line, while the detail is maximized, in pixels. */
+const RESULT_TITLE = 45;
+
 /** The detail's height when open with no size of its own yet, as a percentage of the pane. */
 const DETAIL_OPEN = '38';
 
@@ -68,11 +81,14 @@ export function TurnView({
   stepId: string | undefined;
   /** Counts the turn list's selections, so selecting the same turn again counts too. */
   selection: number;
-  onSelect: (traceId: string) => void;
+  /** Selects a turn, and a step of it when one is named. */
+  onSelect: (traceId: string, stepId?: string) => void;
   /** Selects a step of the turn, or none, putting it in the page address. */
   onStep: (traceId: string, stepId: string | undefined) => void;
 }) {
   const state = useSpectra();
+  // Maximize holds from turn to turn until the page is reloaded.
+  const [maximized, setMaximized] = useState(false);
   const needs: string[] = [];
   const view: TurnViewState =
     traceId === undefined ? {status: 'none'} : turnViewOf(state, traceId, needs);
@@ -137,6 +153,9 @@ export function TurnView({
         view={view}
         stepId={stepId}
         onStep={next => onStep(traceId, next)}
+        onOther={onSelect}
+        maximized={maximized}
+        onMaximized={setMaximized}
       />
     );
   }
@@ -177,12 +196,20 @@ function TurnBody({
   view,
   stepId: picked,
   onStep: setPicked,
+  onOther,
+  maximized,
+  onMaximized,
 }: {
   traceId: string;
   view: Extract<TurnViewState, {status: 'open' | 'closed'}>;
   /** The step picked, as the page address holds it. */
   stepId: string | undefined;
   onStep: (stepId: string | undefined) => void;
+  /** Selects a step of another turn, such as the earlier call a prefix break names. */
+  onOther: (traceId: string, stepId: string) => void;
+  /** Whether the step's detail takes the result pane's height. */
+  maximized: boolean;
+  onMaximized: (maximized: boolean) => void;
 }) {
   const state = useSpectra();
   const small = useSmallWindow();
@@ -195,10 +222,12 @@ function TurnBody({
   const earlier = 'turns' in view.earlier ? view.earlier.turns : undefined;
 
   const timeline = useMemo(() => timelineOf(events, startMs), [events, startMs]);
+  // The surfaces are rebuilt only when the wire changes, not as a call's chunks arrive.
+  const wireEvents = useWireEvents(events);
   const catalogs = useMemo(() => catalogsOf(state.catalogs), [state.catalogs]);
   const whole = useMemo(
-    () => (earlier === undefined ? undefined : replay(earlier, events, undefined, catalogs)),
-    [earlier, events, catalogs],
+    () => (earlier === undefined ? undefined : replay(earlier, wireEvents, undefined, catalogs)),
+    [earlier, wireEvents, catalogs],
   );
   // The record's problems: the checks' findings, web core's rejections and a failed outcome.
   const recorded = useMemo(
@@ -236,10 +265,10 @@ function TurnBody({
         ? undefined
         : position === undefined
           ? whole
-          : replay(earlier, events, position, catalogs),
-    [earlier, events, whole, position, catalogs],
+          : replay(earlier, wireEvents, position, catalogs),
+    [earlier, wireEvents, whole, position, catalogs],
   );
-  const reply = useMemo(() => replyThrough(events, position), [events, position]);
+  const reply = useMemo(() => replyThrough(wireEvents, position), [wireEvents, position]);
 
   // The surface in view, and its preview: its list goes to the page it is routed to.
   const [pickedSurface, setPickedSurface] = useState<string | undefined>();
@@ -250,8 +279,8 @@ function TurnBody({
     () =>
       earlier === undefined || surfaceId === undefined
         ? undefined
-        : surfaceFeedOf(earlier, events, position, surfaceId),
-    [earlier, events, position, surfaceId],
+        : surfaceFeedOf(earlier, wireEvents, position, surfaceId),
+    [earlier, wireEvents, position, surfaceId],
   );
   const feedMessages = useMemo(() => feed?.map(({message}) => message), [feed]);
   const feedKey = useMemo(
@@ -331,7 +360,31 @@ function TurnBody({
       setDataModelInView(undefined);
     };
   }, []);
-  const sentA2ui = useMemo(() => agentMessages(events).length > 0, [events]);
+  const sentA2ui = useMemo(() => agentMessages(wireEvents).length > 0, [wireEvents]);
+
+  // The model calls: the header's second line, and the selected call's prefix break against the
+  // conversation's earlier calls, this turn's and the earlier turns'.
+  const inside = useMemo(
+    () => insideLineOf(events, startMs, state.prices),
+    [events, startMs, state.prices],
+  );
+  const selectedCall = selected?.row === 'step' ? selected.call : undefined;
+  const prefix = useMemo(() => {
+    if (selectedCall === undefined || earlier === undefined) return undefined;
+    const turns = [
+      ...earlier.map(turn => ({
+        traceId: turn.events.find(isTurnEvent)?.traceId ?? '',
+        calls: turn.events.filter(isProxyModelCall),
+      })),
+      {traceId, calls: events.filter(isProxyModelCall)},
+    ];
+    return prefixBreakOf(selectedCall, candidatesFor(selectedCall, turns));
+  }, [selectedCall, earlier, events, traceId]);
+  const onEarlier = (found: Exclude<PrefixBreak, {form: 'first'}>) => {
+    const {traceId: turnOf, call} = found.earlier;
+    if (turnOf === traceId) setPicked(call.spanId);
+    else onOther(turnOf, call.spanId);
+  };
 
   // The page address holds the step selected, picked or landed on; a pick not in a closed turn gives way.
   const shownId = inView.selected ? selected?.id : undefined;
@@ -341,6 +394,7 @@ function TurnBody({
   }, [shownId, picked, arriving, setPicked]);
 
   const detail = usePanelRef();
+  const result = usePanelRef();
   const timelinePanel = usePanelRef();
   const [collapsed, setCollapsed] = useState(!inView.selected);
   // The detail is collapsed to its title line until a step is selected.
@@ -356,11 +410,37 @@ function TurnBody({
     if (height !== undefined && height < panel.getSize().inPixels) panel.resize(height);
   }, [detail]);
 
-  // `n` and Shift+`n` go to the next and previous problem, opening the detail on it; `l` jumps to the latest step.
+  // Maximized, the selected step's detail takes the result pane's height and the pane folds to its
+  // header line. While a live turn is followed with no step selected, the split stays.
+  const folding = maximized && inView.selected;
+  useEffect(() => {
+    const pane = result.current;
+    if (pane === null) return;
+    if (folding) {
+      openDetail(detail.current);
+      pane.collapse();
+    } else if (pane.isCollapsed()) {
+      pane.expand();
+    }
+  }, [folding, result, detail, selected?.id]);
+  const toggleMaximized = () => {
+    if (folding) {
+      onMaximized(false);
+      return;
+    }
+    // Maximizing the step the view follows selects it.
+    if (!inView.selected && selected !== undefined) setPicked(selected.id);
+    onMaximized(true);
+  };
+
+  // `n` and Shift+`n` go to the next and previous problem, opening the detail on it; `l` jumps to
+  // the latest step; `m` maximizes the step's detail or restores the split.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const key = pageKeyOf(event);
-      if (key === 'n' || key === 'N') {
+      if (key === 'm') {
+        if (selected !== undefined) toggleMaximized();
+      } else if (key === 'n' || key === 'N') {
         const next = nextProblem(shown, byStep, selected?.id, {backwards: key === 'N'});
         if (next === undefined) return;
         setPicked(next);
@@ -374,7 +454,7 @@ function TurnBody({
     return () => {
       document.removeEventListener('keydown', onKey);
     };
-  }, [shown, byStep, selected, open, inView.following, setPicked, detail]);
+  });
 
   const row = state.turns.find(listed => listed.traceId === traceId);
   const input = turn === undefined ? undefined : inputBriefOfTurn(turn);
@@ -403,6 +483,7 @@ function TurnBody({
         meta={meta}
         traceId={traceId}
         conversationId={summary?.conversationId ?? (open ? view.live.conversationId : undefined)}
+        {...(inside !== undefined && {inside})}
       />
       <ResizablePanelGroup
         orientation="horizontal"
@@ -451,12 +532,22 @@ function TurnBody({
               const panel = detail.current;
               if (panel === null) return;
               setCollapsed(panel.isCollapsed());
+              // Dragging the divider, or collapsing the detail, brings the split back.
+              const pane = result.current;
+              if (isUserInteraction && folding && pane !== null && !pane.isCollapsed()) {
+                onMaximized(false);
+              }
               if (isUserInteraction && !panel.isCollapsed()) {
                 rememberSize('detail', panel.getSize().inPixels);
               }
             }}
           >
-            <ResizablePanel minSize={160}>
+            <ResizablePanel
+              panelRef={result}
+              minSize={160}
+              collapsible
+              collapsedSize={RESULT_TITLE}
+            >
               <ResultPane
                 reply={reply}
                 asOf={inView.following ? 'Live' : asOfLabel(selected, events, startMs)}
@@ -468,6 +559,7 @@ function TurnBody({
                 open={open}
                 sentA2ui={sentA2ui}
                 failed={summary?.outcome === 'failed'}
+                folded={folding}
               />
             </ResizablePanel>
             <ResizableHandle />
@@ -497,8 +589,16 @@ function TurnBody({
                   collapsed={collapsed}
                   onToggle={() => {
                     if (collapsed) openDetail(detail.current);
-                    else detail.current?.collapse();
+                    else {
+                      if (folding) onMaximized(false);
+                      detail.current?.collapse();
+                    }
                   }}
+                  maximized={folding}
+                  onMaximize={toggleMaximized}
+                  prices={state.prices}
+                  prefix={prefix}
+                  onEarlier={onEarlier}
                 />
               )}
             </ResizablePanel>
@@ -545,12 +645,44 @@ function asOfLabel(
 ): string {
   if (row === undefined) return '';
   if (row.row === 'delivery') return `After the delivery at ${formatOffset(row.offsetMs)}`;
+  if (row.call !== undefined) {
+    const end = row.call.endTimeUnixNano;
+    return end === undefined
+      ? 'Live · the call is in flight'
+      : `At the end of the call, ${formatOffset(unixMillis(end) - startMs)}`;
+  }
   const offset =
     row.offsetMs ??
     (row.position === undefined
       ? undefined
       : unixMillis(events[row.position.eventIndex].startTimeUnixNano) - startMs);
   return offset === undefined ? '' : `After the step at ${formatOffset(offset)}`;
+}
+
+/**
+ * The events as the surfaces read them: the same array until a wire event
+ * comes or an event is added, so a call's chunks and progress, which change
+ * only its own event, do not rebuild the surfaces.
+ */
+function useWireEvents(events: readonly TurnRecordEvent[]): readonly TurnRecordEvent[] {
+  const [kept, setKept] = useState(events);
+  if (kept !== events && !sameWire(kept, events)) {
+    setKept(events);
+    return events;
+  }
+  return kept;
+}
+
+/** Whether two versions of a turn's events hold the same events in order and the same wire events. */
+function sameWire(before: readonly TurnRecordEvent[], events: readonly TurnRecordEvent[]): boolean {
+  return (
+    before.length === events.length &&
+    events.every(
+      (event, index) =>
+        event.spanId === before[index].spanId &&
+        (!(isWireInput(event) || isWireOutput(event)) || event === before[index]),
+    )
+  );
 }
 
 function countBy<T>(

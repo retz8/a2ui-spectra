@@ -1,13 +1,13 @@
 /**
  * The page's keys of one character: `/` for the search, `?` for the list of
  * keys, `n` and Shift+`n` for the next and previous problem, `l` for the
- * latest step. None of them acts while you type in a field, inside a dialog,
+ * latest step, `m` to maximize or restore the step's detail. None of them acts while you type in a field, inside a dialog,
  * or with Ctrl, Cmd or Alt held.
  */
 
-export type PageKey = '/' | '?' | 'n' | 'N' | 'l';
+export type PageKey = '/' | '?' | 'n' | 'N' | 'l' | 'm';
 
-const PAGE_KEYS: ReadonlySet<string> = new Set<PageKey>(['/', '?', 'n', 'N', 'l']);
+const PAGE_KEYS: ReadonlySet<string> = new Set<PageKey>(['/', '?', 'n', 'N', 'l', 'm']);
 
 /** The fields of a key press the page reads. */
 export interface KeyPress {
@@ -32,10 +32,10 @@ export function pageKeyOf(event: KeyPress): PageKey | undefined {
       ? event.shiftKey
         ? 'N'
         : 'n'
-      : letter === 'l'
+      : letter === 'l' || letter === 'm'
         ? event.shiftKey
           ? undefined
-          : 'l'
+          : letter
         : event.key;
   if (key === undefined || !PAGE_KEYS.has(key)) return undefined;
   const target = event.target as {closest?: (selector: string) => unknown} | null;

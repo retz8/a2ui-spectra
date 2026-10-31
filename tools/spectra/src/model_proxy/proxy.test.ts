@@ -353,6 +353,50 @@ describe('the model proxy', () => {
     assert.ok(chunk?.type === 'call_chunk');
     assert.equal(chunk.spanId, event.spanId);
     assert.equal(chunk.traceId, TRACE);
+    // The response read so far went out while the stream was open, and once more at its last chunk.
+    const types = notifications.map(n => n.type);
+    assert.ok(types.indexOf('call_progress') < types.lastIndexOf('call_chunk'));
+    assert.deepEqual(types.slice(-2), ['call_progress', 'call_ended']);
+    const last = notifications[notifications.length - 2];
+    assert.ok(last.type === 'call_progress');
+    assert.equal(last.spanId, event.spanId);
+    assert.deepEqual(
+      last.attributes['gen_ai.output.messages'],
+      event.attributes['gen_ai.output.messages'],
+    );
+    assert.equal(last.attributes['gen_ai.usage.output_tokens'], 3);
+  });
+
+  it('sends the response read so far at most ten times a second', async () => {
+    const deltas = Array.from(
+      {length: 50},
+      (_, index) =>
+        `event: content_block_delta\ndata: ${JSON.stringify({type: 'content_block_delta', index: 0, delta: {type: 'text_delta', text: `${index} `}})}\n\n`,
+    ).join('');
+    const {proxy, ended, notifications} = await setUp((_request, _body, response) => {
+      response.writeHead(200, {'content-type': 'text/event-stream'});
+      response.write(
+        `event: content_block_start\ndata: ${JSON.stringify({type: 'content_block_start', index: 0, content_block: {type: 'text', text: ''}})}\n\n` +
+          deltas,
+      );
+      setTimeout(() => response.end(), 250);
+    });
+    await send(proxy, {
+      path: '/ANTHROPIC_API_BASE/v1/messages',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify({...anthropicRequest, stream: true}),
+    });
+    await eventually(() => ended.length === 1, 'the call ended');
+    const progress = notifications.filter(n => n.type === 'call_progress');
+    assert.equal(notifications.filter(n => n.type === 'call_chunk').length, 51);
+    // The first chunk's at once, the rest of that burst's once its tenth of a second has passed.
+    assert.equal(progress.length, 2);
+    const [, burst] = progress;
+    assert.ok(burst.type === 'call_progress');
+    const [message] = burst.attributes['gen_ai.output.messages'] as Array<{
+      parts: Array<{content: string}>;
+    }>;
+    assert.ok(message.parts[0].content.endsWith('49 '));
   });
 
   it('records a call on another path raw, named by its method, with the exchange only', async () => {

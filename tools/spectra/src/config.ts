@@ -43,6 +43,16 @@ export interface SpectraConfig {
   preview: string[];
   /** The tool servers, in config order. */
   tools: ToolServerConfig[];
+  /** The prices that replace the price table's, by model id as requested. */
+  prices: Record<string, PriceOverride>;
+}
+
+/** A model's price from the config file, in USD per million tokens. */
+export interface PriceOverride {
+  input: number;
+  output: number;
+  cacheRead?: number;
+  cacheWrite?: number;
 }
 
 /** One tool server: the variable the agent reads its URL from, and the URL as the file gives it. */
@@ -64,6 +74,7 @@ interface ConfigShape {
   catalogs?: string[];
   preview?: string[];
   tools?: Array<{variable: string; url: string}>;
+  prices?: Record<string, PriceOverride>;
 }
 
 const validate = new Ajv2020({allErrors: false}).compile<ConfigShape>(schema);
@@ -77,7 +88,7 @@ export async function loadConfig({cwd, path: given}: LoadOptions): Promise<Spect
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       if (given === undefined) {
-        return {headers: {}, catalogs: [], preview: [], tools: []};
+        return {headers: {}, catalogs: [], preview: [], tools: [], prices: {}};
       }
       throw new ConfigError(`The config file ${file} does not exist.`);
     }
@@ -108,6 +119,7 @@ export async function loadConfig({cwd, path: given}: LoadOptions): Promise<Spect
     catalogs: (json.catalogs ?? []).map(entry => path.resolve(dir, entry)),
     preview: [...(json.preview ?? [])],
     tools: readTools(json.tools ?? [], file),
+    prices: {...(json.prices ?? {})},
   };
 }
 
@@ -224,10 +236,17 @@ function settingName(pointer: string): string {
 
 /** The settings the schema defines under an object, other than `$schema`. */
 function settingsUnder(pointer: string): string[] {
-  type Node = {properties?: Record<string, unknown>; items?: unknown};
+  type Node = {
+    properties?: Record<string, unknown>;
+    items?: unknown;
+    additionalProperties?: unknown;
+  };
   let node: Node = schema;
   for (const segment of pointer.split('/').slice(1)) {
-    node = (/^\d+$/.test(segment) ? node.items : node.properties?.[segment]) ?? {};
+    const named = /^\d+$/.test(segment) ? node.items : node.properties?.[segment];
+    // A key of an object keyed by name, such as a model id under `prices`.
+    const keyed = typeof node.additionalProperties === 'object' ? node.additionalProperties : {};
+    node = (named ?? keyed) as Node;
   }
   return Object.keys(node.properties ?? {}).filter(key => key !== '$schema');
 }

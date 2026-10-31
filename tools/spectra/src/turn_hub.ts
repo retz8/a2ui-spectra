@@ -34,6 +34,8 @@ export type LiveEvent =
   | {type: 'call_started'; traceId: string; event: CallEvent}
   /** One response chunk of a call, as it arrives. */
   | {type: 'call_chunk'; traceId: string; spanId: string; chunk: SpanEvent}
+  /** A model call's response names read from its chunks so far. */
+  | {type: 'call_progress'; traceId: string; spanId: string; attributes: Record<string, unknown>}
   /** The call's complete event, as the record holds it. */
   | {type: 'call_ended'; traceId: string; event: CallEvent}
   /** The turn's own events with its check event, once its write has finished. */
@@ -54,6 +56,8 @@ export type HubListener = (event: HubEvent) => void;
 interface OpenCall {
   started: Extract<HubEvent, {type: 'call_started'}>;
   chunks: Array<Extract<HubEvent, {type: 'call_chunk'}>>;
+  /** The latest progress, which reads every chunk before it. */
+  progress?: Extract<HubEvent, {type: 'call_progress'}>;
   ended?: Extract<HubEvent, {type: 'call_ended'}>;
 }
 
@@ -124,6 +128,9 @@ export class TurnHub {
         open.calls.set(notification.event.spanId, {started: notification, chunks: []});
       } else if (notification.type === 'call_chunk') {
         open.calls.get(notification.spanId)?.chunks.push(notification);
+      } else if (notification.type === 'call_progress') {
+        const call = open.calls.get(notification.spanId);
+        if (call !== undefined) call.progress = notification;
       } else {
         const call = open.calls.get(notification.event.spanId);
         if (call !== undefined) call.ended = notification;
@@ -176,7 +183,8 @@ export class TurnHub {
   /**
    * Passes every event from now on to the listener. With `catchUp`, the
    * listener first receives each open turn's turn opened, its wire events so
-   * far, its calls with their chunks so far, and one turn amended with the
+   * far, its calls with their chunks so far and, for a call in flight, its
+   * latest progress, and one turn amended with the
    * events the receiver placed or changed in it so far. Returns the call that
    * stops it.
    */
@@ -189,6 +197,7 @@ export class TurnHub {
           listener(call.started);
           for (const chunk of call.chunks) listener(chunk);
           if (call.ended !== undefined) listener(call.ended);
+          else if (call.progress !== undefined) listener(call.progress);
         }
         if (amended.size > 0) {
           listener({type: 'turn_amended', traceId: opened.traceId, events: [...amended.values()]});

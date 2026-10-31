@@ -18,7 +18,7 @@ const press = (key: string, fields: Partial<KeyPress> = {}, inside: string[] = [
 
 describe('pageKeyOf', () => {
   it('reads the page’s keys of one character, Shift+n among them', () => {
-    for (const key of ['/', '?', 'n', 'l']) assert.equal(pageKeyOf(press(key)), key);
+    for (const key of ['/', '?', 'n', 'l', 'm']) assert.equal(pageKeyOf(press(key)), key);
     assert.equal(pageKeyOf(press('?', {shiftKey: true})), '?');
     assert.equal(pageKeyOf(press('N', {shiftKey: true})), 'N');
   });
@@ -34,6 +34,8 @@ describe('pageKeyOf', () => {
       assert.equal(pageKeyOf(press(key)), undefined);
     }
     assert.equal(pageKeyOf(press('l', {shiftKey: true})), undefined);
+    assert.equal(pageKeyOf(press('m', {shiftKey: true})), undefined);
+    assert.equal(pageKeyOf(press('M')), 'm', 'Caps Lock on: m maximizes the step’s detail.');
     assert.equal(pageKeyOf(press('L', {shiftKey: true})), undefined);
   });
 

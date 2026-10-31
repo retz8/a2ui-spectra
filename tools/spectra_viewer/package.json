@@ -43,7 +43,8 @@
         "src/**/*.tsx",
         "tsconfig.json",
         "tsconfig.test.json",
-        "../../conformance/test_data/a2a_capture/**"
+        "../../conformance/test_data/a2a_capture/**",
+        "../spectra/src/prices/*.json"
       ],
       "output": [],
       "dependencies": [

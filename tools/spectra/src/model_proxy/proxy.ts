@@ -42,6 +42,12 @@ export type CallNotification =
   | {type: 'call_started'; traceId: string; event: CallEvent}
   /** One response chunk, as it arrives. */
   | {type: 'call_chunk'; traceId: string; spanId: string; chunk: SpanEvent}
+  /**
+   * A model call's response names read from its chunks so far: the output
+   * messages, the finish reasons and the usage as far as the stream has
+   * given them.
+   */
+  | {type: 'call_progress'; traceId: string; spanId: string; attributes: Record<string, unknown>}
   /** The complete event, as the record holds it. */
   | {type: 'call_ended'; traceId: string; event: CallEvent};
 
@@ -71,6 +77,9 @@ export interface ModelProxyOptions {
 }
 
 const DEFAULT_CLOSE_GRACE_MS = 5000;
+
+/** The least time between two of a call's progress notifications: at most ten a second. */
+const PROGRESS_MS = 100;
 const AGENT_CLOSED = 'The agent closed the connection before the response ended.';
 
 export interface ModelProxy {
@@ -183,6 +192,10 @@ class Capture {
   #chunksAtClose = 0;
   #graceTimer: NodeJS.Timeout | undefined;
   #dropReply: (() => void) | undefined;
+  /** When the last progress went out, on the monotonic clock, and how many chunks it read. */
+  #progressAt: number | undefined;
+  #progressChunks = 0;
+  #progressTimer: NodeJS.Timeout | undefined;
   /** Runs `done` once what the reply delivered so far has been read; set by the relay. */
   #settle: (done: () => void) => void = done => process.nextTick(done);
 
@@ -257,6 +270,37 @@ class Capture {
       spanId: this.event.spanId,
       chunk: spanEvent,
     });
+    this.#progress();
+  }
+
+  /**
+   * Sends the response names read from the chunks so far, at most once per
+   * `PROGRESS_MS`: at once when the last went out long enough ago, else when
+   * that time has passed, reading every chunk come by then.
+   */
+  #progress(): void {
+    if (this.#reader === undefined || this.#progressTimer !== undefined) return;
+    const since = this.#progressAt === undefined ? Infinity : performance.now() - this.#progressAt;
+    if (since >= PROGRESS_MS) {
+      this.#sendProgress();
+      return;
+    }
+    this.#progressTimer = setTimeout(() => {
+      this.#progressTimer = undefined;
+      if (!this.#ended) this.#sendProgress();
+    }, PROGRESS_MS - since);
+  }
+
+  #sendProgress(): void {
+    if (this.#reader === undefined) return;
+    this.#progressAt = performance.now();
+    this.#progressChunks = this.chunks.length;
+    this.#state.options.onCall?.({
+      type: 'call_progress',
+      traceId: this.#placed.traceId,
+      spanId: this.event.spanId,
+      attributes: this.#reader.stream(this.chunks).attributes,
+    });
   }
 
   /**
@@ -277,6 +321,10 @@ class Capture {
     at: bigint = this.#state.now(),
   ): void {
     if (this.#ended) return;
+    clearTimeout(this.#progressTimer);
+    this.#progressTimer = undefined;
+    // The last chunk's progress goes out before the call ends.
+    if (this.chunks.length > 0 && this.chunks.length !== this.#progressChunks) this.#sendProgress();
     this.#ended = true;
     clearTimeout(this.#graceTimer);
     const attributes: Record<string, unknown> = {...this.event.attributes};

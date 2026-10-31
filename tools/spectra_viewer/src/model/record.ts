@@ -35,6 +35,21 @@ export interface Status {
   message?: string;
 }
 
+/** A timed point inside an event: an OTLP span event, such as a response chunk. */
+export interface SpanEvent {
+  /** Nanoseconds since the Unix epoch, as a decimal string. */
+  timeUnixNano: string;
+  name: string;
+  attributes?: Record<string, unknown>;
+}
+
+/** A link to a related event, such as the same call seen by another capture path. */
+export interface Link {
+  traceId: string;
+  spanId: string;
+  attributes?: Record<string, unknown>;
+}
+
 /** The fields every event shares, shaped as an OTLP span. */
 interface EventFields<Attributes> {
   traceId: string;
@@ -46,6 +61,8 @@ interface EventFields<Attributes> {
   startTimeUnixNano: string;
   endTimeUnixNano?: string;
   attributes: Attributes;
+  events?: SpanEvent[];
+  links?: Link[];
   status?: Status;
 }
 
@@ -127,6 +144,16 @@ export type OtherEvent = EventFields<{
 
 export type TurnRecordEvent =
   TurnEvent | WireInputEvent | WireOutputEvent | CheckEvent | OtherEvent;
+
+/** A model call event: its GenAI names, its exchange, and its chunks in `events`. */
+export type ModelCallEvent = EventFields<{
+  'a2ui.event.kind': 'model_call';
+  [name: string]: unknown;
+}>;
+
+export function isModelCall(event: TurnRecordEvent): event is ModelCallEvent {
+  return event.attributes['a2ui.event.kind'] === 'model_call';
+}
 
 export function isTurnEvent(event: TurnRecordEvent): event is TurnEvent {
   return event.attributes['a2ui.event.kind'] === 'turn';

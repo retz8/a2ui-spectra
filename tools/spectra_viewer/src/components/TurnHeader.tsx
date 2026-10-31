@@ -11,8 +11,9 @@ import {Icon} from './icons.tsx';
 /**
  * The turn's header: its input as the title, the outcome and the check state
  * beside it, the problem count pressed to keep only the steps with problems,
- * and one quiet line of the start, the duration, the A2UI version, the agent
- * and the short ids.
+ * one quiet line of the start, the duration, the A2UI version, the agent
+ * and the short ids, and, for a turn with model calls, a second quiet line
+ * of their times, tokens, cache use and estimated cost.
  */
 export function TurnHeader({
   title,
@@ -24,6 +25,7 @@ export function TurnHeader({
   meta,
   traceId,
   conversationId,
+  inside,
 }: {
   title: string;
   status: TurnStatus;
@@ -36,6 +38,8 @@ export function TurnHeader({
   meta: readonly string[];
   traceId: string;
   conversationId: string | undefined;
+  /** The second line's parts, for a turn with model calls. */
+  inside?: readonly string[];
 }) {
   return (
     <header className="flex shrink-0 flex-col gap-1.5 border-b px-[18px] pt-3.5 pb-3">
@@ -62,6 +66,15 @@ export function TurnHeader({
           </>
         )}
       </div>
+      {inside !== undefined && (
+        <div
+          aria-label="Inside the turn"
+          className="min-w-0 truncate text-xs whitespace-nowrap text-muted-foreground"
+          title={inside.join(' · ')}
+        >
+          {inside.join(' · ')}
+        </div>
+      )}
     </header>
   );
 }

@@ -49,19 +49,51 @@ function finishReason(value: unknown): FinishReason | undefined {
   return typeof value === 'string' ? (FINISH_REASONS[value] ?? 'error') : undefined;
 }
 
+/**
+ * How a body's fields are spelled. A request is read in both spellings, the
+ * camel case and the snake case, as the Gemini API takes either: google-genai
+ * sends `parameters_json_schema`, LiteLLM `system_instruction`,
+ * `function_declarations`, `function_call` and `function_response`. A
+ * response is read in camel case, as the API answers.
+ */
+type Spelling = 'request' | 'response';
+
+/** A field's snake-case spelling: `systemInstruction` as `system_instruction`. */
+function snakeCase(name: string): string {
+  return name.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
+}
+
+/** A field by its camel-case name, else, in a request, by its snake-case one. */
+function field(record: Record<string, unknown>, name: string, spelling: Spelling): unknown {
+  return record[name] ?? (spelling === 'request' ? record[snakeCase(name)] : undefined);
+}
+
+/** A field that holds an object, in the spellings `field` reads. */
+function recordField(
+  record: Record<string, unknown>,
+  name: string,
+  spelling: Spelling,
+): Record<string, unknown> | undefined {
+  const value = field(record, name, spelling);
+  return isRecord(value) ? value : undefined;
+}
+
+/** The fields of a part that are no part of its content. */
+const PART_FLAGS = new Set(['thought', 'thoughtSignature', 'thought_signature']);
+
 /** A content's parts in GenAI's shapes. */
-function parts(value: unknown): GenAiPart[] {
+function parts(value: unknown, spelling: Spelling): GenAiPart[] {
   return asArray(value).flatMap(part => {
     if (!isRecord(part)) return [];
     if (typeof part.text === 'string') {
       return [part.thought === true ? reasoningPart(part.text) : textPart(part.text)];
     }
-    if (isRecord(part.functionCall)) {
-      const call = part.functionCall;
+    const call = recordField(part, 'functionCall', spelling);
+    if (call !== undefined) {
       return [toolCallPart(asString(call.id), asString(call.name) ?? '', call.args)];
     }
-    if (isRecord(part.functionResponse)) {
-      const response = part.functionResponse;
+    const response = recordField(part, 'functionResponse', spelling);
+    if (response !== undefined) {
       return [
         defined({
           ...toolCallResponsePart(asString(response.id), response.response),
@@ -69,15 +101,20 @@ function parts(value: unknown): GenAiPart[] {
         }),
       ];
     }
-    if (isRecord(part.inlineData)) {
-      return [blobPart(asString(part.inlineData.mimeType), asString(part.inlineData.data) ?? '')];
+    const inline = recordField(part, 'inlineData', spelling);
+    if (inline !== undefined) {
+      return [blobPart(asString(field(inline, 'mimeType', spelling)), asString(inline.data) ?? '')];
     }
-    if (isRecord(part.fileData)) {
-      return [uriPart(asString(part.fileData.mimeType), asString(part.fileData.fileUri) ?? '')];
+    const file = recordField(part, 'fileData', spelling);
+    if (file !== undefined) {
+      return [
+        uriPart(
+          asString(field(file, 'mimeType', spelling)),
+          asString(field(file, 'fileUri', spelling)) ?? '',
+        ),
+      ];
     }
-    const [key] = Object.keys(part).filter(
-      name => name !== 'thought' && name !== 'thoughtSignature',
-    );
+    const [key] = Object.keys(part).filter(name => !PART_FLAGS.has(name));
     return [{type: key ?? 'unknown', content: part}];
   });
 }
@@ -86,23 +123,28 @@ function role(value: unknown): string {
   return value === 'model' ? 'assistant' : (asString(value) ?? 'user');
 }
 
+/** A tool's key for its function declarations, in both spellings. */
+const DECLARATIONS = new Set(['functionDeclarations', 'function_declarations']);
+
 function tools(value: unknown): GenAiPart[] | undefined {
   const definitions = asArray(value).flatMap(tool => {
     if (!isRecord(tool)) return [];
-    const functions = asArray(tool.functionDeclarations).flatMap(declaration =>
-      isRecord(declaration)
-        ? [
-            defined({
-              type: 'function',
-              name: asString(declaration.name) ?? '',
-              description: asString(declaration.description),
-              parameters: declaration.parameters ?? declaration.parametersJsonSchema,
-            }),
-          ]
-        : [],
+    const functions = asArray(field(tool, 'functionDeclarations', 'request')).flatMap(
+      declaration =>
+        isRecord(declaration)
+          ? [
+              defined({
+                type: 'function',
+                name: asString(declaration.name) ?? '',
+                description: asString(declaration.description),
+                parameters:
+                  declaration.parameters ?? field(declaration, 'parametersJsonSchema', 'request'),
+              }),
+            ]
+          : [],
     );
     const others = Object.keys(tool)
-      .filter(key => key !== 'functionDeclarations')
+      .filter(key => !DECLARATIONS.has(key))
       .map(key => ({type: key, name: key}));
     return [...functions, ...others];
   });
@@ -128,7 +170,7 @@ function candidateMessage(candidate: Record<string, unknown>): GenAiMessage {
   const content = isRecord(candidate.content) ? candidate.content : {};
   return defined({
     role: role(content.role ?? 'model'),
-    parts: parts(content.parts),
+    parts: parts(content.parts, 'response'),
     finish_reason: finishReason(candidate.finishReason),
   });
 }
@@ -155,28 +197,28 @@ export const geminiReader: ApiReader = {
   request({pathname, body}: ReadRequest) {
     const match = GEMINI_PATH.exec(pathname);
     const record = isRecord(body) ? body : {};
-    const config = isRecord(record.generationConfig) ? record.generationConfig : {};
-    const system = isRecord(record.systemInstruction)
-      ? parts(record.systemInstruction.parts)
-      : undefined;
+    const config = recordField(record, 'generationConfig', 'request') ?? {};
+    const setting = (name: string) => field(config, name, 'request');
+    const instruction = recordField(record, 'systemInstruction', 'request');
+    const system = instruction === undefined ? undefined : parts(instruction.parts, 'request');
     const messages = asArray(record.contents).flatMap(content =>
-      isRecord(content) ? [{role: role(content.role), parts: parts(content.parts)}] : [],
+      isRecord(content) ? [{role: role(content.role), parts: parts(content.parts, 'request')}] : [],
     );
-    const mimeType = asString(config.responseMimeType);
+    const mimeType = asString(setting('responseMimeType'));
     return defined({
       'gen_ai.operation.name': 'generate_content',
       'gen_ai.provider.name': 'gcp.gemini',
       'gen_ai.request.model': match?.[1],
       'gen_ai.request.stream': match?.[2] === 'streamGenerateContent',
-      'gen_ai.request.temperature': asNumber(config.temperature),
-      'gen_ai.request.top_p': asNumber(config.topP),
-      'gen_ai.request.top_k': asInteger(config.topK),
-      'gen_ai.request.max_tokens': asInteger(config.maxOutputTokens),
-      'gen_ai.request.stop_sequences': asStringArray(config.stopSequences),
-      'gen_ai.request.choice.count': asInteger(config.candidateCount),
-      'gen_ai.request.seed': asInteger(config.seed),
-      'gen_ai.request.frequency_penalty': asNumber(config.frequencyPenalty),
-      'gen_ai.request.presence_penalty': asNumber(config.presencePenalty),
+      'gen_ai.request.temperature': asNumber(setting('temperature')),
+      'gen_ai.request.top_p': asNumber(setting('topP')),
+      'gen_ai.request.top_k': asInteger(setting('topK')),
+      'gen_ai.request.max_tokens': asInteger(setting('maxOutputTokens')),
+      'gen_ai.request.stop_sequences': asStringArray(setting('stopSequences')),
+      'gen_ai.request.choice.count': asInteger(setting('candidateCount')),
+      'gen_ai.request.seed': asInteger(setting('seed')),
+      'gen_ai.request.frequency_penalty': asNumber(setting('frequencyPenalty')),
+      'gen_ai.request.presence_penalty': asNumber(setting('presencePenalty')),
       'gen_ai.output.type':
         mimeType === undefined
           ? undefined
@@ -224,7 +266,7 @@ export const geminiReader: ApiReader = {
         const slot = candidates.get(index) ?? {parts: []};
         candidates.set(index, slot);
         const content = isRecord(candidate.content) ? candidate.content : {};
-        for (const part of parts(content.parts)) {
+        for (const part of parts(content.parts, 'response')) {
           const last = slot.parts[slot.parts.length - 1];
           // Text arrives in pieces; the pieces of one text part are one part.
           if (part.type === 'text' && last?.type === 'text') {

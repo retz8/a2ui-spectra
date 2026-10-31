@@ -53,6 +53,37 @@
           }
         }
       }
+    },
+    "prices": {
+      "type": "object",
+      "description": "Prices for the viewer's estimated cost, keyed by the model id as requested, such as gemini-3.6-flash, in USD per million tokens. An entry replaces LiteLLM's entry for that model whole, and prices a model LiteLLM's table does not know.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["input", "output"],
+        "properties": {
+          "input": {
+            "type": "number",
+            "minimum": 0,
+            "description": "USD per million input tokens that were not read from or written to the cache."
+          },
+          "output": {
+            "type": "number",
+            "minimum": 0,
+            "description": "USD per million output tokens, reasoning tokens included."
+          },
+          "cacheRead": {
+            "type": "number",
+            "minimum": 0,
+            "description": "USD per million input tokens read from the cache. Without it, they are priced as input."
+          },
+          "cacheWrite": {
+            "type": "number",
+            "minimum": 0,
+            "description": "USD per million input tokens written to the cache. Without it, they are priced as input."
+          }
+        }
+      }
     }
   }
 }

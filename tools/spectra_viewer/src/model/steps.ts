@@ -1,15 +1,18 @@
 /**
  * The turn's timeline: a step for each A2UI message, text part, data part,
- * file part and status update, in the order they came, with the input first
- * and the outcome last. The steps of one delivery that carries several are
- * grouped under a row for the delivery.
+ * file part and status update, and a row for each model call the model proxy
+ * recorded, in the order they came, with the input first and the outcome
+ * last. The steps of one delivery that carries several are grouped under a
+ * row for the delivery.
  */
 import {inputBrief} from './input_brief.ts';
 import {messageKey} from './messages.ts';
+import {isProxyModelCall, rowTextOf} from './model_calls.ts';
 import {
   isTurnEvent,
   isWireInput,
   isWireOutput,
+  type ModelCallEvent,
   type TurnOutcome,
   type TurnRecordEvent,
   unixMillis,
@@ -30,6 +33,7 @@ export type StepIcon =
   | 'updateDataModel'
   | 'deleteSurface'
   | 'message'
+  | 'model'
   | OutcomeIcon;
 
 export type OutcomeIcon = 'completed' | 'waiting' | 'failed' | 'cancelled';
@@ -49,7 +53,7 @@ export interface Step {
    * has closed.
    */
   id: string;
-  kind: 'input' | 'status' | 'text' | 'data' | 'file' | 'message' | 'outcome';
+  kind: 'input' | 'status' | 'text' | 'data' | 'file' | 'message' | 'call' | 'outcome';
   icon: StepIcon;
   label: string;
   /** What the step is about, in brief. */
@@ -58,7 +62,11 @@ export interface Step {
   offsetMs?: number;
   /** Under its delivery's row. */
   grouped: boolean;
-  /** Where it sits; none for the outcome, which follows every event. */
+  /**
+   * Where it sits; none for the outcome, which follows every event. For a
+   * call, where the surfaces stood at its end; none while it is in flight,
+   * when the latest state shows.
+   */
   position?: Position;
   /** An A2UI message's key, as `messageKey` names it. */
   messageKey?: string;
@@ -68,6 +76,8 @@ export interface Step {
   part?: WirePart;
   /** The outcome, for the outcome step. */
   outcome?: TurnOutcome;
+  /** The model call, for a call's row. */
+  call?: ModelCallEvent;
 }
 
 /** A delivery that carries several steps. */
@@ -102,6 +112,10 @@ const MESSAGE_ICONS = new Set<StepIcon>([
 export function timelineOf(events: readonly TurnRecordEvent[], startMs: number): TimelineRow[] {
   const rows: TimelineRow[] = [];
   events.forEach((event, eventIndex) => {
+    if (isProxyModelCall(event)) {
+      rows.push(callStep(event, events, startMs));
+      return;
+    }
     if (!isWireInput(event) && !isWireOutput(event)) return;
     const offsetMs = unixMillis(event.startTimeUnixNano) - startMs;
     const steps = stepsOfEvent(event, eventIndex);
@@ -139,6 +153,34 @@ export function timelineOf(events: readonly TurnRecordEvent[], startMs: number):
     });
   }
   return rows;
+}
+
+/**
+ * A model call's row, named by its span id: the model id as requested and
+ * the provider, or the host and the method and path for a call recorded raw.
+ */
+function callStep(call: ModelCallEvent, events: readonly TurnRecordEvent[], startMs: number): Step {
+  const {label, target} = rowTextOf(call);
+  // The surfaces as they stood at the call's end: after every event that started by then.
+  let through: number | undefined;
+  if (call.endTimeUnixNano !== undefined) {
+    const end = BigInt(call.endTimeUnixNano);
+    events.forEach((event, index) => {
+      if (BigInt(event.startTimeUnixNano) <= end) through = index;
+    });
+  }
+  return {
+    row: 'step',
+    id: call.spanId,
+    kind: 'call',
+    icon: 'model',
+    label,
+    target,
+    offsetMs: unixMillis(call.startTimeUnixNano) - startMs,
+    grouped: false,
+    ...(through !== undefined && {position: {eventIndex: through}}),
+    call,
+  };
 }
 
 /** A delivery row's label: its parts, and its messages when an array holds several. */

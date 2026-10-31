@@ -157,11 +157,24 @@ describe('the turn hub', () => {
     hub.onCall({type: 'call_chunk', traceId: TRACE_A, spanId: 'a'.repeat(16), chunk: chunk('one')});
     hub.onCall({type: 'call_started', traceId: TRACE_A, event: call('b'.repeat(16))});
     hub.onCall({type: 'call_chunk', traceId: TRACE_A, spanId: 'a'.repeat(16), chunk: chunk('two')});
+    const progress = (spanId: string, text: string) => ({
+      type: 'call_progress' as const,
+      traceId: TRACE_A,
+      spanId,
+      attributes: {
+        'gen_ai.output.messages': [{role: 'assistant', parts: [{type: 'text', content: text}]}],
+      },
+    });
+    hub.onCall(progress('a'.repeat(16), 'one two'));
     hub.onCall({
       type: 'call_ended',
       traceId: TRACE_A,
       event: call('a'.repeat(16), '1792576800004000000'),
     });
+    hub.onCall({type: 'call_chunk', traceId: TRACE_A, spanId: 'b'.repeat(16), chunk: chunk('x')});
+    hub.onCall(progress('b'.repeat(16), 'x'));
+    hub.onCall({type: 'call_chunk', traceId: TRACE_A, spanId: 'b'.repeat(16), chunk: chunk('y')});
+    hub.onCall(progress('b'.repeat(16), 'xy'));
     assert.deepEqual(
       events.map(event => event.type),
       [
@@ -171,7 +184,12 @@ describe('the turn hub', () => {
         'call_chunk',
         'call_started',
         'call_chunk',
+        'call_progress',
         'call_ended',
+        'call_chunk',
+        'call_progress',
+        'call_chunk',
+        'call_progress',
       ],
     );
 
@@ -194,8 +212,13 @@ describe('the turn hub', () => {
         ['call_chunk', 'a'.repeat(16)],
         ['call_ended', 'a'.repeat(16)],
         ['call_started', 'b'.repeat(16)],
+        ['call_chunk', 'b'.repeat(16)],
+        ['call_chunk', 'b'.repeat(16)],
+        ['call_progress', 'b'.repeat(16)],
       ],
     );
+    // A call in flight catches up with its latest progress only.
+    assert.deepEqual(late[late.length - 1], progress('b'.repeat(16), 'xy'));
     hub.onRecorded(closedTurn(TRACE_A));
     const after: HubEvent[] = [];
     hub.subscribe(event => after.push(event), {catchUp: true});

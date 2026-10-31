@@ -20,6 +20,7 @@ const SECTIONS: Array<{title: string; rows: Array<{label: string; keys: string[]
       {label: 'First step', keys: ['Home']},
       {label: 'Latest step', keys: ['End']},
       {label: 'Jump to latest', keys: ['l']},
+      {label: 'Maximize or restore the step’s detail', keys: ['m']},
     ],
   },
   {

@@ -22,6 +22,7 @@ export function JsonBlock({
   meta,
   marks = [],
   reveal,
+  folded: foldedAtFirst = [],
 }: {
   label: string;
   value: unknown;
@@ -29,8 +30,10 @@ export function JsonBlock({
   /** The paths of the values problems mark, as `markedPath` gives them. */
   marks?: readonly string[];
   reveal?: Reveal;
+  /** The objects and arrays folded at first, by their JSON Pointers. */
+  folded?: readonly string[];
 }) {
-  const [folded, setFolded] = useState<ReadonlySet<string>>(() => new Set());
+  const [folded, setFolded] = useState<ReadonlySet<string>>(() => new Set(foldedAtFirst));
   // A reveal unfolds what hides its line before the block is drawn again.
   const [revealed, setRevealed] = useState(reveal);
   if (reveal !== revealed) {

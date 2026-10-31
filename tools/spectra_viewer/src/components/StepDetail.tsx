@@ -1,6 +1,9 @@
 import {useState} from 'react';
 
+import {cn} from '@/lib/utils';
+import type {Prices} from '@/model/cost.ts';
 import {markedPath} from '@/model/json_lines.ts';
+import type {PrefixBreak} from '@/model/prefix.ts';
 import type {Problem} from '@/model/problems.ts';
 import {isWireInput, type TurnRecordEvent, unixMillis, type WireEvent} from '@/model/record.ts';
 import {deliveryLabel, plural, type Step, type TimelineRow} from '@/model/steps.ts';
@@ -8,12 +11,15 @@ import {deliveryLabel, plural, type Step, type TimelineRow} from '@/model/steps.
 import {formatOffset, toneOf} from './format.ts';
 import {Icon} from './icons.tsx';
 import {BlockLabel, JsonBlock, type Reveal} from './JsonBlock.tsx';
+import {callTitleOf, ModelCallBlocks} from './ModelCallDetail.tsx';
 
 /**
  * The selected step's detail: its problems, the rejections folded under
  * them as quiet lines, then what it holds, then the delivery it arrived in,
  * folded. A problem that marks a line in the step's
- * message is pressed to bring the line into view.
+ * message is pressed to bring the line into view. A model call's detail
+ * holds its usage, its prefix break, its request, its response and its
+ * exchange. Maximize gives the detail the result pane's height.
  */
 export function StepDetail({
   row,
@@ -23,6 +29,11 @@ export function StepDetail({
   folded,
   collapsed,
   onToggle,
+  maximized,
+  onMaximize,
+  prices,
+  prefix,
+  onEarlier,
 }: {
   row: TimelineRow;
   events: readonly TurnRecordEvent[];
@@ -32,7 +43,16 @@ export function StepDetail({
   folded: readonly string[];
   collapsed: boolean;
   onToggle: () => void;
+  /** Whether the detail takes the result pane's height. */
+  maximized: boolean;
+  onMaximize: () => void;
+  prices: Prices | undefined;
+  /** A model call's prefix break, when the step is a call read in full. */
+  prefix: PrefixBreak | undefined;
+  onEarlier: (found: Exclude<PrefixBreak, {form: 'first'}>) => void;
 }) {
+  const call = row.row === 'step' ? row.call : undefined;
+  const title = call === undefined ? undefined : callTitleOf(call, events, startMs);
   const offset = offsetOf(row, events, startMs);
   const [reveal, setReveal] = useState<Reveal>();
   const message = row.row === 'step' && row.kind === 'message' ? row.message : undefined;
@@ -58,14 +78,35 @@ export function StepDetail({
             <span className="shrink-0 font-semibold">{row.label}</span>
             {/* A failed turn's reason is its problem block's sentence. */}
             {!(row.kind === 'outcome' && row.outcome === 'failed') && (
-              <span className="min-w-0 truncate text-xs text-muted-foreground">{row.target}</span>
+              <span className="min-w-0 truncate text-xs text-muted-foreground">
+                {title?.target ?? row.target}
+              </span>
             )}
           </>
         )}
         <div className="flex-1" />
-        {offset !== undefined && (
-          <span className="shrink-0 text-xs text-muted-foreground">{formatOffset(offset)}</span>
+        {title !== undefined ? (
+          <span className="shrink-0 text-xs text-muted-foreground">{title.times}</span>
+        ) : (
+          offset !== undefined && (
+            <span className="shrink-0 text-xs text-muted-foreground">{formatOffset(offset)}</span>
+          )
         )}
+        <button
+          type="button"
+          aria-label={maximized ? 'Restore the split' : 'Maximize the step’s detail'}
+          aria-pressed={maximized}
+          title={maximized ? 'Restore the split · m' : 'Maximize the step’s detail · m'}
+          onClick={onMaximize}
+          className={cn(
+            'ease-quick flex size-[26px] cursor-pointer items-center justify-center rounded-md',
+            maximized
+              ? 'bg-tint text-foreground'
+              : 'text-muted-foreground hover:bg-tint hover:text-foreground',
+          )}
+        >
+          <Icon kind={maximized ? 'restore' : 'maximize'} size={14} />
+        </button>
         <button
           type="button"
           aria-label={collapsed ? 'Expand the step’s detail' : 'Collapse the step’s detail'}
@@ -109,6 +150,8 @@ export function StepDetail({
           ))}
           {row.row === 'delivery' ? (
             <DeliveryBlocks event={events[row.eventIndex] as WireEvent} />
+          ) : call !== undefined ? (
+            <ModelCallBlocks call={call} prices={prices} prefix={prefix} onEarlier={onEarlier} />
           ) : (
             <StepBlocks
               step={row}

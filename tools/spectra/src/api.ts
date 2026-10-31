@@ -2,9 +2,10 @@ import type {IncomingMessage, ServerResponse} from 'node:http';
 
 import type {CardDetails} from './a2a/card.js';
 import type {CatalogRegistry} from './catalog/registry.js';
-import {CONFIG_SCHEMA} from './config.js';
+import {CONFIG_SCHEMA, type PriceOverride} from './config.js';
 import {type ListingFields, listingFieldsOf} from './listing.js';
 import {type MessageBox, MessageBoxError} from './message_box.js';
+import {pricesAnswer} from './prices.js';
 import type {StoredTurn, TurnStore} from './store/store.js';
 import type {HubEvent, TurnHub} from './turn_hub.js';
 
@@ -31,6 +32,8 @@ export interface Api {
   /** The catalog definitions Spectra knows. */
   catalogs: CatalogRegistry;
   context: SessionContext;
+  /** The config file's prices, by model id as requested. */
+  prices?: Readonly<Record<string, PriceOverride>>;
   /** How often the live stream sends its heartbeat. */
   heartbeatMs?: number;
 }
@@ -71,6 +74,7 @@ const HEARTBEAT_MS = 2000;
  * - `POST /api/message-box/messages`: sends `{"text": …}`, continuing one of them by its
  *   `conversationId`, or else in a new conversation.
  * - `GET /api/catalogs`: the catalog definitions Spectra knows.
+ * - `GET /api/prices`: LiteLLM's price table as copied, its release and date, and the config's prices.
  * - `GET /api/config.schema.json`: the schema the config file is validated against.
  */
 export function handleApi(api: Api, request: IncomingMessage, response: ServerResponse): boolean {
@@ -111,6 +115,8 @@ async function answer(
     await sendMessage(api.box, request, response);
   } else if (route === 'GET /api/catalogs') {
     sendJson(response, 200, api.catalogs.listing());
+  } else if (route === 'GET /api/prices') {
+    sendJson(response, 200, pricesAnswer(api.prices ?? {}));
   } else if (route === 'GET /api/config.schema.json') {
     sendJson(response, 200, CONFIG_SCHEMA);
   } else if (isRoute(pathname)) {
@@ -129,6 +135,7 @@ function isRoute(pathname: string): boolean {
       '/api/message-box',
       '/api/message-box/messages',
       '/api/catalogs',
+      '/api/prices',
       '/api/config.schema.json',
     ].includes(pathname)
   );

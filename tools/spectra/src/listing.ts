@@ -30,6 +30,8 @@ export interface ListingFields {
    * rejects, leaving out the messages a finding already points into.
    */
   rejections: number;
+  /** How many of the model proxy's calls in the turn failed, when any did. */
+  failedModelCalls?: number;
 }
 
 export function inputBriefOf(event: WireInputEvent): InputBrief | undefined {
@@ -62,6 +64,7 @@ export function listingFieldsOf(
   let fields: Pick<ListingFields, 'outcome' | 'agentName' | 'durationMs'> | undefined;
   let input: InputBrief | undefined;
   let findings: Finding[] | undefined;
+  let failedModelCalls = 0;
   for (const event of turn.events) {
     if (isEventOfKind(event, 'turn')) {
       const agentName = event.attributes['gen_ai.agent.name'];
@@ -76,6 +79,13 @@ export function listingFieldsOf(
       input = inputBriefOf(event);
     } else if (isEventOfKind(event, 'check')) {
       findings = [...(findings ?? []), ...event.attributes['a2ui.check.findings']];
+    } else if (
+      isEventOfKind(event, 'model_call') &&
+      event.status?.code === 2 &&
+      !('a2ui.received.attributes' in event.attributes)
+    ) {
+      // A failed call is a problem on its row; a span the receiver placed has no row of its own yet.
+      failedModelCalls += 1;
     }
   }
   if (fields === undefined) return undefined;
@@ -86,6 +96,7 @@ export function listingFieldsOf(
       ...(input !== undefined && {input}),
       ...(findings !== undefined && {findings: findings.length}),
       rejections: unfoldedRejections(conversation, findings ?? []),
+      ...(failedModelCalls > 0 && {failedModelCalls}),
     };
   } finally {
     conversation.dispose();

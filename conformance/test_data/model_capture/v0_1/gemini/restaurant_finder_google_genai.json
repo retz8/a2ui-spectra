@@ -69,7 +69,30 @@
               {
                 "type": "function",
                 "name": "get_restaurants",
-                "description": "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return."
+                "description": "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return.",
+                "parameters": {
+                  "properties": {
+                    "cuisine": {
+                      "title": "Cuisine",
+                      "type": "string"
+                    },
+                    "location": {
+                      "title": "Location",
+                      "type": "string"
+                    },
+                    "count": {
+                      "default": 5,
+                      "title": "Count",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "cuisine",
+                    "location"
+                  ],
+                  "title": "get_restaurantsParams",
+                  "type": "object"
+                }
               }
             ],
             "http.request.method": "POST",
@@ -353,7 +376,30 @@
               {
                 "type": "function",
                 "name": "get_restaurants",
-                "description": "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return."
+                "description": "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return.",
+                "parameters": {
+                  "properties": {
+                    "cuisine": {
+                      "title": "Cuisine",
+                      "type": "string"
+                    },
+                    "location": {
+                      "title": "Location",
+                      "type": "string"
+                    },
+                    "count": {
+                      "default": 5,
+                      "title": "Count",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "cuisine",
+                    "location"
+                  ],
+                  "title": "get_restaurantsParams",
+                  "type": "object"
+                }
               }
             ],
             "http.request.method": "POST",
@@ -2087,7 +2133,30 @@
               {
                 "type": "function",
                 "name": "get_restaurants",
-                "description": "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return."
+                "description": "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return.",
+                "parameters": {
+                  "properties": {
+                    "cuisine": {
+                      "title": "Cuisine",
+                      "type": "string"
+                    },
+                    "location": {
+                      "title": "Location",
+                      "type": "string"
+                    },
+                    "count": {
+                      "default": 5,
+                      "title": "Count",
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "cuisine",
+                    "location"
+                  ],
+                  "title": "get_restaurantsParams",
+                  "type": "object"
+                }
               }
             ],
             "http.request.method": "POST",

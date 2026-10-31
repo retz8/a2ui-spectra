@@ -38,6 +38,7 @@ describe('loadConfig', () => {
       catalogs: [],
       preview: [],
       tools: [],
+      prices: {},
     });
   });
 
@@ -103,7 +104,7 @@ describe('loadConfig', () => {
     write(cwd, 'unknown.json', {header: {}});
     await configError(
       {cwd, path: 'unknown.json'},
-      /unknown\.json: 'header' is not a setting; the settings are agent, catalogs, preview and tools/,
+      /unknown\.json: 'header' is not a setting; the settings are agent, catalogs, preview, tools and prices/,
     );
     write(cwd, 'nested.json', {agent: {uri: 'http://a'}});
     await configError(
@@ -183,6 +184,37 @@ describe('loadConfig', () => {
     await configError(
       {cwd, path: 'extra.json'},
       /extra\.json: 'tools\[0\]\.name' is not a setting; tools\[0\] takes variable and url/,
+    );
+  });
+
+  it('reads the prices, by model id as requested, in USD per million tokens', async () => {
+    const cwd = freshDir();
+    const prices = {
+      'gemini-3.6-flash': {input: 0.75, output: 3.75, cacheRead: 0.075},
+      'my-model': {input: 1, output: 2, cacheRead: 0.1, cacheWrite: 1.25},
+    };
+    write(cwd, CONFIG_FILE, {prices});
+    assert.deepEqual((await loadConfig({cwd})).prices, prices);
+  });
+
+  it('stops on a price it cannot use', async () => {
+    const cwd = freshDir();
+    write(cwd, 'missing.json', {prices: {'gemini-3.6-flash': {input: 0.75}}});
+    await configError(
+      {cwd, path: 'missing.json'},
+      /missing\.json: prices\.gemini-3\.6-flash must have required property 'output'/,
+    );
+    write(cwd, 'negative.json', {prices: {m: {input: -1, output: 1}}});
+    await configError(
+      {cwd, path: 'negative.json'},
+      /negative\.json: prices\.m\.input must be >= 0/,
+    );
+    write(cwd, 'type.json', {prices: {m: {input: '1', output: 1}}});
+    await configError({cwd, path: 'type.json'}, /type\.json: prices\.m\.input must be a number/);
+    write(cwd, 'extra.json', {prices: {m: {input: 1, output: 1, reasoning: 2}}});
+    await configError(
+      {cwd, path: 'extra.json'},
+      /extra\.json: 'prices\.m\.reasoning' is not a setting; prices\.m takes input, output, cacheRead and cacheWrite/,
     );
   });
 

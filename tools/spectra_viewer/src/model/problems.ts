@@ -1,13 +1,15 @@
 /**
  * A turn's problems, each on the step it belongs to: the checks' findings on
  * the message each points into, the processor's rejections on the A2UI
- * message they name, and a failed turn's reason on the outcome. A finding
+ * message they name, a failed model call on its row, and a failed turn's
+ * reason on the outcome. A finding
  * that names no message is a problem of the whole turn, on the outcome too.
  * A rejection of a message that a finding already points into is not a
  * problem of its own: it folds under that step's findings as a quiet line
  * and is not counted. The timeline narrowed to the steps with problems.
  */
 import {locateFinding} from './messages.ts';
+import {failureOf, isProxyModelCall} from './model_calls.ts';
 import {isCheck, isTurnEvent, type TurnRecordEvent} from './record.ts';
 import type {Rejection} from './replay.ts';
 import type {TimelineRow} from './steps.ts';
@@ -22,7 +24,10 @@ export interface Problem {
   surfaceId?: string;
   /** A JSON Pointer inside the step's message, to the line it marks; empty for the message itself. */
   inner?: string;
-  /** A third, quiet line: where a problem that is not recorded came from. */
+  /**
+   * A third, quiet line: where a problem that is not recorded came from, or
+   * the status message the model proxy recorded on a failed call.
+   */
   note?: string;
 }
 
@@ -98,6 +103,11 @@ export function turnProblemsOf(
       ...(rejection.inner !== undefined && stepId !== undefined && {inner: rejection.inner}),
     });
   }
+  for (const row of timeline) {
+    if (row.row !== 'step' || row.call === undefined) continue;
+    const failure = failureOf(row.call);
+    if (failure !== undefined) problems.push({stepId: row.id, ...failure});
+  }
   const turn = events.find(isTurnEvent);
   if (turn?.attributes['a2ui.turn.outcome'] === 'failed') {
     const reason = turn.status?.message;
@@ -139,19 +149,26 @@ export function onlyProblems(
 
 /**
  * A turn's problem count, from what the listing gives: the findings, the
- * unfolded rejections and a failed outcome; and, while the turn is in view,
- * the render errors its preview counts.
+ * unfolded rejections, the failed model calls and a failed outcome; and,
+ * while the turn is in view, the render errors its preview counts.
  */
 export function listedProblemCount(turn: {
   outcome?: string;
   findings?: number;
   rejections?: number;
+  failedModelCalls?: number;
   renderErrors?: number;
 }): number {
   return (
     (turn.findings ?? 0) +
     (turn.rejections ?? 0) +
+    (turn.failedModelCalls ?? 0) +
     (turn.outcome === 'failed' ? 1 : 0) +
     (turn.renderErrors ?? 0)
   );
+}
+
+/** How many of the model proxy's calls in a turn failed. */
+export function failedModelCallsOf(events: readonly TurnRecordEvent[]): number {
+  return events.filter(event => isProxyModelCall(event) && event.status?.code === 2).length;
 }

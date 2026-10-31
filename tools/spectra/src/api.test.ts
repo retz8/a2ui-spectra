@@ -8,7 +8,7 @@ import {after, describe, it} from 'node:test';
 import {SseParser} from './a2a/sse.js';
 import type {ListedTurn, SessionContext} from './api.js';
 import {CatalogRegistry} from './catalog/registry.js';
-import {CONFIG_SCHEMA} from './config.js';
+import {CONFIG_SCHEMA, type PriceOverride} from './config.js';
 import {MessageBox} from './message_box.js';
 import type {Turn, TurnRecord, WireInputEvent, WirePart} from './record/turn_record.js';
 import {startViewerServer, type ViewerServer} from './server.js';
@@ -103,7 +103,7 @@ function openTurn(turns: TurnHub, n: number): void {
   });
 }
 
-async function serve(heartbeatMs = 60_000) {
+async function serve(heartbeatMs = 60_000, prices?: Record<string, PriceOverride>) {
   const dir = mkdtempSync(path.join(tmpdir(), 'spectra-api-'));
   dirs.push(dir);
   const store = await TurnStore.open(dir);
@@ -123,7 +123,15 @@ async function serve(heartbeatMs = 60_000) {
     port,
     viewerDir: dir,
     allowedHosts: [],
-    api: {store, turns, box, heartbeatMs, context: CONTEXT, catalogs: CatalogRegistry.builtIn()},
+    api: {
+      store,
+      turns,
+      box,
+      heartbeatMs,
+      context: CONTEXT,
+      catalogs: CatalogRegistry.builtIn(),
+      ...(prices !== undefined && {prices}),
+    },
   });
   servers.push(server);
   const base = `http://127.0.0.1:${port}`;
@@ -399,6 +407,32 @@ describe('the API', () => {
     assert.deepEqual(schema.body, CONFIG_SCHEMA);
     const wrongMethod = await post(`${base}/api/catalogs`, {});
     assert.equal(wrongMethod.status, 405);
+  });
+
+  it("serves LiteLLM's price table as copied, its release and date, and the config's prices", async () => {
+    const overrides = {'my-model': {input: 1, output: 2}};
+    const {base} = await serve(60_000, overrides);
+    const {status, body} = await getJson(`${base}/api/prices`);
+    assert.equal(status, 200);
+    const {release, date, entries} = body as {
+      release: string;
+      date: string;
+      entries: Record<string, {litellm_provider: string; input_cost_per_token?: number}>;
+    };
+    assert.equal(release, 'v1.106.6');
+    assert.equal(date, '2026-10-28');
+    assert.deepEqual((body as {overrides: unknown}).overrides, overrides);
+    assert.deepEqual(
+      [...new Set(Object.values(entries).map(entry => entry.litellm_provider))].sort(),
+      ['anthropic', 'gemini', 'openai'],
+    );
+    assert.equal(entries['gemini/gemini-3.6-flash'].input_cost_per_token, 7.5e-7);
+    assert.deepEqual((await getJson(`${(await serve()).base}/api/prices`)).body, {
+      release,
+      date,
+      entries,
+      overrides: {},
+    });
   });
 
   it('answers only JSON to its routes that change anything, and only known routes', async () => {

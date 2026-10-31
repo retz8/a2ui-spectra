@@ -27,3 +27,6 @@ conformance/test_data/**
 tools/spectra/proto/**
 tools/spectra/src/receiver/gen/**
 tools/spectra/src/receiver/genai_schemas/*.json
+
+# LiteLLM's price table, copied at the pinned release and trimmed
+tools/spectra/src/prices/*.json

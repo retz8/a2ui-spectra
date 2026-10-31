@@ -101,6 +101,76 @@ describe('the Gemini reader', () => {
     );
   });
 
+  it('reads a request in the snake case LiteLLM sends as it reads the camel case', () => {
+    const snake = {
+      contents: [
+        {role: 'user', parts: [{text: 'Top 2 Chinese restaurants in New York'}]},
+        {
+          role: 'model',
+          parts: [
+            {
+              function_call: {name: 'get_restaurants', args: {cuisine: 'Chinese', count: 2}},
+              thought_signature: 'c2ln',
+            },
+          ],
+        },
+        {
+          role: 'user',
+          parts: [{function_response: {name: 'get_restaurants', response: {result: ['A', 'B']}}}],
+        },
+        {role: 'user', parts: [{inline_data: {mime_type: 'image/png', data: 'AAAA'}}]},
+      ],
+      system_instruction: {parts: [{text: 'You are a helpful restaurant finding assistant.'}]},
+      tools: [
+        {
+          function_declarations: [
+            {
+              name: 'get_restaurants',
+              description: 'Finds restaurants.',
+              parameters: {type: 'object', properties: {cuisine: {type: 'string'}}},
+            },
+          ],
+        },
+        {googleSearch: {}},
+      ],
+      generation_config: {
+        temperature: 0.2,
+        top_p: 0.9,
+        top_k: 40,
+        max_output_tokens: 2048,
+        stop_sequences: ['END'],
+        candidate_count: 1,
+        response_mime_type: 'application/json',
+      },
+    };
+    const path = '/v1beta/models/gemini-2.5-flash:streamGenerateContent';
+    assert.deepEqual(read(path, snake), read(path, request));
+  });
+
+  it("reads a function declaration's parameters from parameters_json_schema, as google-genai sends it, and from parametersJsonSchema", () => {
+    const schema = {type: 'object', properties: {cuisine: {type: 'string'}}};
+    for (const key of ['parameters_json_schema', 'parametersJsonSchema']) {
+      const attributes = read('/v1beta/models/gemini-2.5-flash:generateContent', {
+        tools: [{functionDeclarations: [{name: 'get_restaurants', [key]: schema}]}],
+      });
+      assert.deepEqual(attributes['gen_ai.tool.definitions'], [
+        {type: 'function', name: 'get_restaurants', parameters: schema},
+      ]);
+    }
+  });
+
+  it('reads a response in camel case only', () => {
+    const attributes = geminiReader.response({
+      candidates: [{content: {role: 'model', parts: [{function_call: {name: 'f', args: {}}}]}}],
+    });
+    assert.deepEqual(attributes['gen_ai.output.messages'], [
+      {
+        role: 'assistant',
+        parts: [{type: 'function_call', content: {function_call: {name: 'f', args: {}}}}],
+      },
+    ]);
+  });
+
   it('reads a response: the ids, the finish reason normalised, the tokens as the reference scenario sums them, and the message', () => {
     const attributes = geminiReader.response({
       candidates: [

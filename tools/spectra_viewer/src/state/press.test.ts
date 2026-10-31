@@ -118,7 +118,17 @@ describe('keepsPending', () => {
 
   it('reads an open turn’s conversation from the live stream', () => {
     const live = new Map([
-      ['e', {traceId: 'e', conversationId: 'c', startTime: '2026-10-24T09:01:00.000Z', events: []}],
+      [
+        'e',
+        {
+          traceId: 'e',
+          conversationId: 'c',
+          startTime: '2026-10-24T09:01:00.000Z',
+          events: [],
+          wire: [],
+          calls: new Map(),
+        },
+      ],
     ]);
     assert.ok(keepsPending(stateOf(turns, live), pending, {traceId: 'e'}));
   });

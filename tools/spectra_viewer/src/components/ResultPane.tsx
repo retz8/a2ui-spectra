@@ -41,6 +41,7 @@ export function ResultPane({
   open,
   sentA2ui,
   failed,
+  folded = false,
 }: {
   reply: string;
   asOf: string;
@@ -57,6 +58,8 @@ export function ResultPane({
   /** Whether the agent sent any A2UI in the turn. */
   sentA2ui: boolean;
   failed: boolean;
+  /** Folded to its header line, while the step's detail is maximized. */
+  folded?: boolean;
 }) {
   const settings = useViewSettings();
   // At least one pane shows: Structure when both are toggled off.
@@ -69,7 +72,7 @@ export function ResultPane({
   const drawn = showPreview && preview?.route.kind === 'page' ? preview.route.page : undefined;
   return (
     <section aria-label="Result" className="flex h-full min-h-0 flex-col">
-      {reply !== '' && (
+      {reply !== '' && !folded && (
         <div className="mx-4 mt-3 flex shrink-0 items-start gap-2.5 rounded-[10px] bg-tint px-3 py-2.5">
           <Icon kind="text" size={14} className="mt-0.5 text-muted-foreground" />
           <p className="min-w-0 flex-1">{reply}</p>
@@ -119,7 +122,8 @@ export function ResultPane({
           />
         )}
       </div>
-      {replay === undefined ? (
+      {/* Folded, the panes unmount, so the preview's iframe, laid over its frame, hides too. */}
+      {folded ? null : replay === undefined ? (
         <Centered>Reading the conversation’s earlier turns…</Centered>
       ) : surface === undefined ? (
         <Centered icon>

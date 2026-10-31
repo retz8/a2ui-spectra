@@ -212,7 +212,7 @@ export function App() {
       traceId={selected}
       stepId={address.stepId}
       selection={selections}
-      onSelect={traceId => go(traceId)}
+      onSelect={(traceId, stepId) => go(traceId, stepId)}
       onStep={onStep}
     />
   );

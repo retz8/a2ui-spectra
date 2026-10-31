@@ -4,6 +4,7 @@ import {describe, it} from 'node:test';
 import {inputBriefOf, listingFieldsOf} from './listing.js';
 import type {
   CheckEvent,
+  ModelCallEvent,
   Turn,
   TurnEvent,
   WireInputEvent,
@@ -170,6 +171,38 @@ describe('listingFieldsOf', () => {
     const turn: Turn = {events: [turnEvent, output(createSurface)]};
     assert.equal(listingFieldsOf(turn)?.rejections, 0);
     assert.equal(listingFieldsOf(turn, [turn])?.rejections, 1);
+  });
+
+  it("counts the model proxy's failed calls, and not a failed span the receiver placed", () => {
+    const call = (spanId: string, code: 1 | 2, received = false): ModelCallEvent => ({
+      traceId: TRACE,
+      spanId,
+      parentSpanId: TURN_SPAN,
+      name: 'generate_content gemini-3.6-flash',
+      kind: 3,
+      startTimeUnixNano: '1792576800100000000',
+      endTimeUnixNano: '1792576800200000000',
+      attributes: {
+        'a2ui.event.kind': 'model_call',
+        ...(code === 2 && {'error.type': '429'}),
+        ...(received && {'a2ui.received.attributes': {}}),
+      },
+      status: {code},
+    });
+    const fields = listingFieldsOf({
+      events: [
+        turnEvent,
+        call('a'.repeat(16), 2),
+        call('b'.repeat(16), 1),
+        call('c'.repeat(16), 2),
+        call('d'.repeat(16), 2, true),
+      ],
+    });
+    assert.equal(fields?.failedModelCalls, 2);
+    assert.equal(
+      listingFieldsOf({events: [turnEvent, call('b'.repeat(16), 1)]})?.failedModelCalls,
+      undefined,
+    );
   });
 
   it('leaves out what a turn does not have', () => {

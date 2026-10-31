@@ -10,6 +10,7 @@ import {
   getCatalogs,
   getContext,
   getMessageBox,
+  getPrices,
   getRecord,
   type KnownCatalog,
   type ListedTurn,
@@ -20,12 +21,15 @@ import {
   type SessionContext,
   STREAM_PATH,
 } from '../api.ts';
+import type {Prices} from '../model/cost.ts';
 import {inputBrief} from '../model/input_brief.ts';
 import {
   isTurnEvent,
   isWireInput,
+  type OtherEvent,
   type Turn,
   type TurnRecord,
+  type TurnRecordEvent,
   unixMillis,
   type WireEvent,
 } from '../model/record.ts';
@@ -36,7 +40,14 @@ export interface LiveTurn {
   traceId: string;
   conversationId?: string;
   startTime: string;
-  events: WireEvent[];
+  /** Its wire events and its calls, by start time, as the record will hold them. */
+  events: TurnRecordEvent[];
+  wire: WireEvent[];
+  /**
+   * The calls placed in it, by span id: each as its event stood at its start,
+   * with its chunks and its progress so far, until it ends complete.
+   */
+  calls: ReadonlyMap<string, OtherEvent>;
 }
 
 /** A record the page has asked for. */
@@ -58,6 +69,8 @@ export interface SpectraState {
   context?: SessionContext;
   /** The catalog definitions Spectra knows, once read; the same array until they change. */
   catalogs?: KnownCatalog[];
+  /** LiteLLM's price table and the config's prices, once read. */
+  prices?: Prices;
 }
 
 /** How long to wait before opening the live stream again after it was dropped. */
@@ -164,6 +177,22 @@ class Spectra {
       });
     on('turn_opened', data => this.#turnOpened(data));
     on('wire_event', data => this.#wireEvent(data));
+    on('call_started', ({traceId, event}) => this.#call(traceId, event.spanId, () => event));
+    on('call_chunk', ({traceId, spanId, chunk}) =>
+      this.#call(
+        traceId,
+        spanId,
+        call => call && {...call, events: [...(call.events ?? []), chunk]},
+      ),
+    );
+    on('call_progress', ({traceId, spanId, attributes}) =>
+      this.#call(
+        traceId,
+        spanId,
+        call => call && {...call, attributes: {...call.attributes, ...attributes}},
+      ),
+    );
+    on('call_ended', ({traceId, event}) => this.#call(traceId, event.spanId, () => event));
     on('turn_closed', data => this.#turnClosed(data));
     on('heartbeat', () => {});
   }
@@ -227,8 +256,17 @@ class Spectra {
           ? this.#state.catalogs
           : catalogs;
       this.#set({loaded: true, turns: sortRows([...rows.values()]), box, context, catalogs: known});
+      if (this.#state.prices === undefined) void this.#readPrices();
     } catch {
       // The check marks the page as not connected; the stream's next open reads again.
+    }
+  }
+
+  async #readPrices(): Promise<void> {
+    try {
+      this.#set({prices: await getPrices()});
+    } catch {
+      // Read again with the listing; without it, no cost is shown.
     }
   }
 
@@ -241,7 +279,7 @@ class Spectra {
   }
 
   #turnOpened(data: LiveEvents['turn_opened']): void {
-    const turn: LiveTurn = {...data, events: []};
+    const turn: LiveTurn = {...data, events: [], wire: [], calls: new Map()};
     const live = new Map(this.#state.live).set(data.traceId, turn);
     const row = openRow(turn, this.#state.context?.agentName);
     this.#set({live, turns: upsertRow(this.#state.turns, row)});
@@ -250,10 +288,12 @@ class Spectra {
   #wireEvent({traceId, conversationId, event}: LiveEvents['wire_event']): void {
     const turn = this.#state.live.get(traceId);
     if (turn === undefined) return;
+    const wire = [...turn.wire, event];
     const updated: LiveTurn = {
       ...turn,
       ...(turn.conversationId === undefined && conversationId !== undefined && {conversationId}),
-      events: [...turn.events, event],
+      wire,
+      events: byStart(wire, turn.calls),
     };
     const live = new Map(this.#state.live).set(traceId, updated);
     const row = this.#state.turns.find(row => row.traceId === traceId);
@@ -262,6 +302,21 @@ class Spectra {
         ? this.#state.turns
         : upsertRow(this.#state.turns, openRow(updated, this.#state.context?.agentName));
     this.#set({live, turns});
+  }
+
+  /** Changes a call of an open turn: it starts, gains a chunk or its progress, or ends. */
+  #call(
+    traceId: string,
+    spanId: string,
+    change: (call: OtherEvent | undefined) => OtherEvent | undefined,
+  ): void {
+    const turn = this.#state.live.get(traceId);
+    if (turn === undefined) return;
+    const call = change(turn.calls.get(spanId));
+    if (call === undefined) return;
+    const calls = new Map(turn.calls).set(spanId, call);
+    const updated: LiveTurn = {...turn, calls, events: byStart(turn.wire, calls)};
+    this.#set({live: new Map(this.#state.live).set(traceId, updated)});
   }
 
   #turnClosed({traceId, turn}: LiveEvents['turn_closed']): void {
@@ -292,6 +347,18 @@ class Spectra {
     this.#state = {...this.#state, ...changes};
     for (const listener of this.#listeners) listener();
   }
+}
+
+/** The wire events and the calls together by start time, as the record joins them; the wire's first on a tie. */
+function byStart(
+  wire: readonly WireEvent[],
+  calls: ReadonlyMap<string, OtherEvent>,
+): TurnRecordEvent[] {
+  if (calls.size === 0) return [...wire];
+  return [...wire, ...calls.values()]
+    .map((event, index) => ({event, index, start: BigInt(event.startTimeUnixNano)}))
+    .sort((a, b) => (a.start === b.start ? a.index - b.index : a.start < b.start ? -1 : 1))
+    .map(({event}) => event);
 }
 
 /** An open turn's row: the session's agent is the open turn's, and its duration runs to its newest event. */

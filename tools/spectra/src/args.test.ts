@@ -153,6 +153,7 @@ describe('parseCommandLine', () => {
       catalogs: [],
       preview: [],
       tools: [],
+      prices: {},
     };
     const attach = parseCommandLine(['attach']);
     assert.ok(attach.name === 'attach');
@@ -160,7 +161,7 @@ describe('parseCommandLine', () => {
     const given = parseCommandLine(['attach', 'http://localhost:10004']);
     assert.ok(given.name === 'attach');
     assert.equal(agentUrlOf(given.options, config, 'attach').href, 'http://localhost:10004/');
-    const none = {headers: {}, catalogs: [], preview: [], tools: []};
+    const none = {headers: {}, catalogs: [], preview: [], tools: [], prices: {}};
     assert.throws(
       () => agentUrlOf(attach.options, none, 'attach'),
       (error: unknown) =>

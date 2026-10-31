@@ -338,27 +338,47 @@ class GeminiReader:
     def finish(self, value):
         return (self.FINISH.get(value) or "error") if isinstance(value, str) else None
 
-    def parts(self, value):
+    # A request is read in both spellings, the camel case and the snake case, as the Gemini API takes
+    # either; a response in camel case, as the API answers.
+    @staticmethod
+    def snake(name):
+        return re.sub(r"[A-Z]", lambda letter: "_" + letter.group(0).lower(), name)
+
+    def field(self, mapping, name, request):
+        value = mapping.get(name)
+        if value is None and request:
+            value = mapping.get(self.snake(name))
+        return value
+
+    def dict_field(self, mapping, name, request):
+        value = self.field(mapping, name, request)
+        return value if isinstance(value, dict) else None
+
+    PART_FLAGS = ("thought", "thoughtSignature", "thought_signature")
+
+    def parts(self, value, request):
         out = []
         for part in as_list(value):
             if not isinstance(part, dict):
                 continue
+            call = self.dict_field(part, "functionCall", request)
+            response = self.dict_field(part, "functionResponse", request)
+            inline = self.dict_field(part, "inlineData", request)
+            file = self.dict_field(part, "fileData", request)
             if isinstance(part.get("text"), str):
                 out.append({"type": "reasoning" if part.get("thought") is True else "text", "content": part["text"]})
-            elif isinstance(part.get("functionCall"), dict):
-                call = part["functionCall"]
+            elif call is not None:
                 out.append(tool_call(as_str(call.get("id")), as_str(call.get("name")) or "", call.get("args")))
-            elif isinstance(part.get("functionResponse"), dict):
-                response = part["functionResponse"]
+            elif response is not None:
                 out.append(defined({**tool_result(as_str(response.get("id")), response.get("response")), "name": as_str(response.get("name"))}))
-            elif isinstance(part.get("inlineData"), dict):
-                data = part["inlineData"]
-                out.append(defined({"type": "blob", "mime_type": as_str(data.get("mimeType")), "modality": modality_of(as_str(data.get("mimeType"))), "content": as_str(data.get("data")) or ""}))
-            elif isinstance(part.get("fileData"), dict):
-                data = part["fileData"]
-                out.append(defined({"type": "uri", "mime_type": as_str(data.get("mimeType")), "modality": modality_of(as_str(data.get("mimeType"))), "uri": as_str(data.get("fileUri")) or ""}))
+            elif inline is not None:
+                mime = as_str(self.field(inline, "mimeType", request))
+                out.append(defined({"type": "blob", "mime_type": mime, "modality": modality_of(mime), "content": as_str(inline.get("data")) or ""}))
+            elif file is not None:
+                mime = as_str(self.field(file, "mimeType", request))
+                out.append(defined({"type": "uri", "mime_type": mime, "modality": modality_of(mime), "uri": as_str(self.field(file, "fileUri", request)) or ""}))
             else:
-                keys = [key for key in part if key not in ("thought", "thoughtSignature")]
+                keys = [key for key in part if key not in self.PART_FLAGS]
                 out.append({"type": keys[0] if keys else "unknown", "content": part})
         return out
 
@@ -370,12 +390,14 @@ class GeminiReader:
         for tool in as_list(value):
             if not isinstance(tool, dict):
                 continue
-            for declaration in as_list(tool.get("functionDeclarations")):
+            for declaration in as_list(self.field(tool, "functionDeclarations", True)):
                 if isinstance(declaration, dict):
-                    parameters = declaration.get("parameters", declaration.get("parametersJsonSchema"))
+                    parameters = declaration.get("parameters")
+                    if parameters is None:
+                        parameters = self.field(declaration, "parametersJsonSchema", True)
                     definitions.append(defined({"type": "function", "name": as_str(declaration.get("name")) or "", "description": as_str(declaration.get("description")), "parameters": parameters}))
             for key in tool:
-                if key != "functionDeclarations":
+                if key not in ("functionDeclarations", "function_declarations"):
                     definitions.append({"type": key, "name": key})
         return definitions or None
 
@@ -394,25 +416,27 @@ class GeminiReader:
     def request(self, path, body):
         match = GEMINI_PATH.match(path)
         body = body if isinstance(body, dict) else {}
-        config = body.get("generationConfig") if isinstance(body.get("generationConfig"), dict) else {}
-        system = self.parts(body["systemInstruction"].get("parts")) if isinstance(body.get("systemInstruction"), dict) else None
-        messages = [{"role": self.role(c.get("role")), "parts": self.parts(c.get("parts"))} for c in as_list(body.get("contents")) if isinstance(c, dict)]
-        mime = as_str(config.get("responseMimeType"))
+        config = self.dict_field(body, "generationConfig", True) or {}
+        setting = lambda name: self.field(config, name, True)
+        instruction = self.dict_field(body, "systemInstruction", True)
+        system = self.parts(instruction.get("parts"), True) if instruction is not None else None
+        messages = [{"role": self.role(c.get("role")), "parts": self.parts(c.get("parts"), True)} for c in as_list(body.get("contents")) if isinstance(c, dict)]
+        mime = as_str(setting("responseMimeType"))
         output_type = None if mime is None else ("json" if "json" in mime.lower() else "text" if mime.lower().startswith("text/") else mime)
         return defined({
             "gen_ai.operation.name": "generate_content",
             "gen_ai.provider.name": "gcp.gemini",
             "gen_ai.request.model": match.group(1) if match else None,
             "gen_ai.request.stream": bool(match and match.group(2) == "streamGenerateContent"),
-            "gen_ai.request.temperature": as_num(config.get("temperature")),
-            "gen_ai.request.top_p": as_num(config.get("topP")),
-            "gen_ai.request.top_k": as_int(config.get("topK")),
-            "gen_ai.request.max_tokens": as_int(config.get("maxOutputTokens")),
-            "gen_ai.request.stop_sequences": as_str_list(config.get("stopSequences")),
-            "gen_ai.request.choice.count": as_int(config.get("candidateCount")),
-            "gen_ai.request.seed": as_int(config.get("seed")),
-            "gen_ai.request.frequency_penalty": as_num(config.get("frequencyPenalty")),
-            "gen_ai.request.presence_penalty": as_num(config.get("presencePenalty")),
+            "gen_ai.request.temperature": as_num(setting("temperature")),
+            "gen_ai.request.top_p": as_num(setting("topP")),
+            "gen_ai.request.top_k": as_int(setting("topK")),
+            "gen_ai.request.max_tokens": as_int(setting("maxOutputTokens")),
+            "gen_ai.request.stop_sequences": as_str_list(setting("stopSequences")),
+            "gen_ai.request.choice.count": as_int(setting("candidateCount")),
+            "gen_ai.request.seed": as_int(setting("seed")),
+            "gen_ai.request.frequency_penalty": as_num(setting("frequencyPenalty")),
+            "gen_ai.request.presence_penalty": as_num(setting("presencePenalty")),
             "gen_ai.output.type": output_type,
             "gen_ai.system_instructions": system or None,
             "gen_ai.input.messages": messages or None,
@@ -421,7 +445,7 @@ class GeminiReader:
 
     def candidate_message(self, candidate):
         content = candidate.get("content") if isinstance(candidate.get("content"), dict) else {}
-        return defined({"role": self.role(content.get("role", "model")), "parts": self.parts(content.get("parts")), "finish_reason": self.finish(candidate.get("finishReason"))})
+        return defined({"role": self.role(content.get("role", "model")), "parts": self.parts(content.get("parts"), False), "finish_reason": self.finish(candidate.get("finishReason"))})
 
     def response_attributes(self, body, messages):
         return defined({
@@ -455,7 +479,7 @@ class GeminiReader:
                     continue
                 slot = candidates.setdefault(as_int(candidate.get("index")) or 0, {"parts": [], "finish": None})
                 content = candidate.get("content") if isinstance(candidate.get("content"), dict) else {}
-                for part in self.parts(content.get("parts")):
+                for part in self.parts(content.get("parts"), False):
                     if part["type"] == "text" and slot["parts"] and slot["parts"][-1]["type"] == "text":
                         slot["parts"][-1]["content"] += part["content"]
                     else:

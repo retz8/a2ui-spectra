@@ -1,5 +1,6 @@
 /** The server's API, as the tool's README describes it. */
 import type {KnownCatalog} from './model/catalogs.ts';
+import type {Prices} from './model/cost.ts';
 import type {A2aVersion, ActionMessage, DataModelMap} from './model/host_message.ts';
 import type {InputBrief} from './model/input_brief.ts';
 import type {OtherEvent, Turn, TurnOutcome, TurnRecord, WireEvent} from './model/record.ts';
@@ -21,6 +22,8 @@ export interface ListedTurn {
   findings?: number;
   /** How many of the turn's A2UI messages web core's message processor rejects that no finding points into. */
   rejections?: number;
+  /** How many of the model proxy's calls in the turn failed, when any did. */
+  failedModelCalls?: number;
   /** The render errors the preview counts, set by the viewer while the turn is in view. */
   renderErrors?: number;
 }
@@ -87,6 +90,8 @@ export interface LiveEvents {
   call_started: {traceId: string; event: OtherEvent};
   /** One response chunk of a call, as it arrives. */
   call_chunk: {traceId: string; spanId: string; chunk: CallChunk};
+  /** A model call's response names read from its chunks so far. */
+  call_progress: {traceId: string; spanId: string; attributes: Record<string, unknown>};
   /** The call's complete event, as the record holds it. */
   call_ended: {traceId: string; event: OtherEvent};
   turn_closed: {traceId: string; turn: Turn};
@@ -140,6 +145,11 @@ export function getMessageBox(): Promise<MessageBoxState> {
 /** The catalog definitions Spectra knows: the built-in and the configured ones. */
 export async function getCatalogs(): Promise<KnownCatalog[]> {
   return (await request<{catalogs: KnownCatalog[]}>('/api/catalogs')).catalogs;
+}
+
+/** LiteLLM's price table as Spectra copied it, its release and date, and the config's prices. Read once. */
+export function getPrices(): Promise<Prices> {
+  return request<Prices>('/api/prices');
 }
 
 /**

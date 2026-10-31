@@ -283,6 +283,7 @@ export async function runSession(
           turns,
           box,
           catalogs,
+          prices: options.config.prices,
           context: {
             ...(typeof card.name === 'string' && {agentName: card.name}),
             agentUrl: options.agentUrl.href,
