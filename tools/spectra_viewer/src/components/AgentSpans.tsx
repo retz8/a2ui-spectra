@@ -15,7 +15,7 @@ import {isTurnEvent, type SpanEvent, type TurnRecordEvent, unixMillis} from '@/m
 import {plural} from '@/model/steps.ts';
 
 import {Pairs, Section} from './CallParts.tsx';
-import {formatDuration, formatOffset} from './format.ts';
+import {formatDuration, formatOffsetCompact} from './format.ts';
 import {Icon} from './icons.tsx';
 import {BlockLabel, JsonBlock, JsonLines} from './JsonBlock.tsx';
 
@@ -151,7 +151,7 @@ function eventRow(event: SpanEvent, index: number, startMs: number): FoldRow {
   const log = Object.keys(attributes).some(name => name.startsWith(LOG_PREFIX));
   return {
     key: `${index}`,
-    time: formatOffset(unixMillis(event.timeUnixNano) - startMs),
+    time: formatOffsetCompact(unixMillis(event.timeUnixNano) - startMs),
     name: event.name === '' ? 'event' : event.name,
     ...(log && {meta: 'log record'}),
     value: attributes,
@@ -199,7 +199,9 @@ function FoldRows({label, rows, mono = false}: {label: string; rows: FoldRow[]; 
                   <Icon kind={unfolded ? 'chevronDown' : 'chevronRight'} size={11} />
                 </button>
                 {row.time !== undefined && (
-                  <span className="w-12 shrink-0 text-right text-muted-foreground">{row.time}</span>
+                  <span className="w-14 shrink-0 text-right whitespace-nowrap text-muted-foreground">
+                    {row.time}
+                  </span>
                 )}
                 <span
                   className={cn(
