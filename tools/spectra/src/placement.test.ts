@@ -262,4 +262,57 @@ describe('CallPlacer', () => {
       1,
     );
   });
+
+  it("remembers this run's turns with their ranges, open, waiting and written", () => {
+    const {placer} = setUp();
+    placer.onTurn(opened(T1, S1));
+    assert.deepEqual(placer.turnOf(T1), {
+      traceId: T1,
+      spanId: S1,
+      startTimeUnixNano: 1000000000000n,
+      state: 'open',
+    });
+    // An open turn's range ends at the present.
+    assert.deepEqual(
+      placer.turnsHolding(9000000000000n).map(turn => turn.traceId),
+      [T1],
+    );
+    const placed = placer.place({...aCall, startTimeUnixNano: '2000000000000'});
+    assert.ok(placed);
+    placed.ended(call(T1, S1, '2000000000000', '2500000000000'));
+    assert.equal(placer.callsOf(T1).length, 1);
+    const held = placer.place(aCall);
+    placer.onTurn(closed(T1, S1));
+    assert.equal(placer.turnOf(T1)?.state, 'waiting');
+    assert.equal(placer.turnOf(T1)?.endTimeUnixNano, 5000000000000n);
+    assert.deepEqual(placer.turnsHolding(9000000000000n), []);
+    held?.release();
+    assert.equal(placer.turnOf(T1)?.state, 'written');
+    assert.deepEqual(placer.callsOf(T1), []);
+    assert.deepEqual(
+      placer.turnsHolding(4000000000000n).map(turn => turn.traceId),
+      [T1],
+    );
+    assert.equal(placer.turnOf(T2), undefined);
+  });
+
+  it('gives a turn its last events through the assemble hook as it hands it on', () => {
+    const out: TurnNotification[] = [];
+    const placer = new CallPlacer({
+      onTurn: notification => out.push(notification),
+      log: () => {},
+      assemble: turn => ({
+        events: [...turn.events, {...turn.events[0], spanId: S2, name: 'added'}],
+      }),
+    });
+    placer.onTurn(opened(T1, S1));
+    placer.onTurn(closed(T1, S1));
+    const handed = out.find(
+      (n): n is Extract<TurnNotification, {type: 'turn_closed'}> => n.type === 'turn_closed',
+    );
+    assert.deepEqual(
+      handed?.turn.events.map(event => event.name),
+      ['invoke_agent', 'wire_output', 'added'],
+    );
+  });
 });

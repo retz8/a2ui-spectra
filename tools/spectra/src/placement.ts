@@ -41,6 +41,27 @@ export interface CallPlacerOptions {
   log: (line: string) => void;
   /** The capture paths every turn lists, besides the ones its calls prove: the proxies' under `run`. */
   alwaysCapturePaths?: CapturePath[];
+  /**
+   * Gives the turn, with its calls, its last events before it is handed on:
+   * the receiver's spans placed in it while it was open.
+   */
+  assemble?: (turn: Turn) => Turn;
+  /** Nanoseconds since the Unix epoch. */
+  now?: () => bigint;
+}
+
+/** Where a turn of this run stands: open on the wire, waiting for its calls, or handed on to be written. */
+export type RunTurnState = 'open' | 'waiting' | 'written';
+
+/** A turn of this run, with its time range: from its start to the agent's last reply, or to the present while it is open. */
+export interface RunTurn {
+  traceId: string;
+  /** The turn event's span id. */
+  spanId: string;
+  startTimeUnixNano: bigint;
+  /** The agent's last reply; none while the wire is open. */
+  endTimeUnixNano?: bigint;
+  state: RunTurnState;
 }
 
 interface OpenTurn {
@@ -62,12 +83,18 @@ interface OpenTurn {
  * turn, a call that starts while exactly one turn is open belongs to that
  * turn. A call that cannot be placed is not recorded: the terminal gets one
  * line saying what it was, when, and why.
+ *
+ * It also remembers every turn of this run with its time range, open,
+ * waiting or written, for the receiver to place its spans by, and lets the
+ * receiver give a turn its spans as it is handed on.
  */
 export class CallPlacer {
   readonly #options: CallPlacerOptions;
   readonly #open = new Map<string, OpenTurn>();
   /** The trace ids of the turns handed on this run. */
   readonly #written = new Set<string>();
+  /** Every turn of this run, with its range, remembered until Spectra stops. */
+  readonly #runTurns = new Map<string, RunTurn>();
 
   constructor(options: CallPlacerOptions) {
     this.#options = options;
@@ -82,6 +109,12 @@ export class CallPlacer {
         inFlight: 0,
         calls: [],
       });
+      this.#runTurns.set(notification.traceId, {
+        traceId: notification.traceId,
+        spanId: notification.spanId,
+        startTimeUnixNano: BigInt(notification.startTimeUnixNano),
+        state: 'open',
+      });
       this.#options.onTurn(notification);
     } else if (notification.type === 'turn_closed') {
       const turn = this.#open.get(notification.traceId);
@@ -90,11 +123,37 @@ export class CallPlacer {
         return;
       }
       turn.closed = notification.turn;
+      const run = this.#runTurns.get(notification.traceId);
+      const turnEvent = notification.turn.events.find(event => isEventOfKind(event, 'turn'));
+      if (run !== undefined) {
+        run.state = 'waiting';
+        if (turnEvent?.endTimeUnixNano !== undefined) {
+          run.endTimeUnixNano = BigInt(turnEvent.endTimeUnixNano);
+        }
+      }
       this.#handOnWhenDone(turn);
     } else {
       this.#options.onTurn(notification);
     }
   };
+
+  /** The turn of this run with a trace id, open, waiting or written. */
+  turnOf(traceId: string): RunTurn | undefined {
+    return this.#runTurns.get(traceId);
+  }
+
+  /** The turns of this run whose time range holds a time, an open turn's ending at the present. */
+  turnsHolding(unixNano: bigint): RunTurn[] {
+    const now = (this.#options.now ?? nowUnixNano)();
+    return [...this.#runTurns.values()].filter(
+      turn => turn.startTimeUnixNano <= unixNano && unixNano <= (turn.endTimeUnixNano ?? now),
+    );
+  }
+
+  /** The calls of a turn not yet handed on that have ended so far, in the order they ended. */
+  callsOf(traceId: string): readonly CallEvent[] {
+    return this.#open.get(traceId)?.calls ?? [];
+  }
 
   /** Places a call, or returns nothing and logs why when it cannot be placed. */
   place(call: CallToPlace): PlacedCall | undefined {
@@ -158,10 +217,13 @@ export class CallPlacer {
     }
     this.#open.delete(turn.traceId);
     this.#written.add(turn.traceId);
+    const run = this.#runTurns.get(turn.traceId);
+    if (run !== undefined) run.state = 'written';
+    const withCalls = this.#withCalls(turn.closed, turn.calls);
     this.#options.onTurn({
       type: 'turn_closed',
       traceId: turn.traceId,
-      turn: this.#withCalls(turn.closed, turn.calls),
+      turn: this.#options.assemble?.(withCalls) ?? withCalls,
     });
   }
 
@@ -205,6 +267,10 @@ function compareUnixNano(a: string, b: string): number {
 
 function capitalise(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
+}
+
+function nowUnixNano(): bigint {
+  return BigInt(Math.round((performance.timeOrigin + performance.now()) * 1000)) * 1000n;
 }
 
 function isoTime(unixNano: string): string {

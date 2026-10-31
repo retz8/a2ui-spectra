@@ -19,7 +19,10 @@ import {type ModelProxy, startModelProxy} from './model_proxy/proxy.js';
 import {attachLines, environmentOf, redirections, variablesOf} from './model_proxy/redirection.js';
 import type {Output} from './output.js';
 import {CallPlacer} from './placement.js';
-import type {CapturePath} from './record/turn_record.js';
+import {type ReceiverListener, startReceiverListener} from './receiver/listener.js';
+import {SpanReceiver} from './receiver/receiver.js';
+import {receiverExportLines, receiverVariables, replacedLine} from './receiver/variables.js';
+import type {CapturePath, Turn} from './record/turn_record.js';
 import {TurnRecorder} from './recorder.js';
 import {LOOPBACK_ADDRESS, PortTakenError, startViewerServer, type ViewerServer} from './server.js';
 import {TurnStore} from './store/store.js';
@@ -121,11 +124,21 @@ export async function runSession(
     agentCommand === undefined
       ? []
       : ['model_proxy', ...(tools.length > 0 ? ['tool_proxy' as const] : [])];
-  const placer = new CallPlacer({
+  // The receiver's spans join a turn when the placer hands it on, and amend it once written.
+  const placer: CallPlacer = new CallPlacer({
     onTurn: recorder.onTurn,
     log: line => out.info(line),
     alwaysCapturePaths,
+    assemble: (turn: Turn): Turn => spans.assemble(turn),
   });
+  const spans: SpanReceiver = new SpanReceiver({
+    turns: placer,
+    store,
+    onAmended: turns.onAmended,
+    log: line => out.info(line),
+  });
+  const receiverOrigin = `http://${LOOPBACK_ADDRESS}:${options.receiverPort}`;
+  const otel = receiverVariables(process.env, receiverOrigin);
   const modelProxyOrigin = `http://${LOOPBACK_ADDRESS}:${options.modelProxyPort}`;
   const redirected = redirections(process.env, modelProxyOrigin);
   const standIn = process.env[STAND_IN_VARIABLE]?.trim().replace(/\/+$/, '');
@@ -137,6 +150,7 @@ export async function runSession(
   let proxy: WireProxy | undefined;
   let modelProxy: ModelProxy | undefined;
   let toolProxy: ToolProxy | undefined;
+  let receiverListener: ReceiverListener | undefined;
   let box: MessageBox | undefined;
   let server: ViewerServer | undefined;
   let failed = false;
@@ -177,9 +191,16 @@ export async function runSession(
         log: line => out.info(line),
       });
     }
+    receiverListener = await startReceiverListener({
+      port: options.receiverPort,
+      onSpans: received => spans.takeSpans(received),
+      onLogs: received => spans.takeLogs(received),
+    });
     if (agentCommand !== undefined) {
+      const replaced = replacedLine(otel);
+      if (replaced !== undefined) out.info(replaced);
       agent = startAgentProcess(agentCommand.command, agentCommand.args, {
-        env: {...environmentOf(redirected), ...toolEnvironmentOf(tools)},
+        env: {...environmentOf(redirected), ...toolEnvironmentOf(tools), ...otel.environment},
       });
       void agent.exited.then(exit => {
         agentExit = exit;
@@ -269,7 +290,7 @@ export async function runSession(
             proxyAddress: proxy.address,
             previewPages: options.config.preview,
             ...(agentCommand === undefined && {
-              variables: [...variablesOf(redirected), ...toolVariablesOf(tools)],
+              variables: [...variablesOf(redirected), ...toolVariablesOf(tools), ...otel.printed],
             }),
             ...cardDetailsOf(card),
           },
@@ -278,9 +299,13 @@ export async function runSession(
       out.info(`The viewer is at ${server.url}`);
       out.info(`Point a host at the wire proxy: ${proxy.address}`);
       for (const line of startLines(tools)) out.info(line);
+      out.info(`The OpenTelemetry receiver is at ${receiverListener.origin}`);
       out.info(`Turns are saved in ${store.turnsDir}`);
       if (agentCommand === undefined) {
-        const lines = attachLines(redirected, exportLines(tools));
+        const lines = attachLines(redirected, [
+          ...exportLines(tools),
+          ...receiverExportLines(otel),
+        ]);
         out.info(lines.intro);
         for (const line of lines.exports) out.print(line);
         out.info(lines.note);
@@ -300,7 +325,9 @@ export async function runSession(
             ? '--proxy-port'
             : error.port === options.modelProxyPort
               ? '--model-proxy-port'
-              : '--tool-proxy-port';
+              : error.port === options.receiverPort
+                ? '--receiver-port'
+                : '--tool-proxy-port';
       out.error(`Port ${error.port} is taken. Choose another port with ${option}.`);
     } else {
       out.error(`Spectra failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -317,6 +344,9 @@ export async function runSession(
       await agent.stop();
       agentExit = await agent.exited;
     }
+    // The receiver listens until the agent has gone, for the spans its exporter flushes as it stops.
+    await receiverListener?.close();
+    await spans.idle();
     for (const signal of STOP_SIGNALS) {
       process.off(signal, onSignal);
     }

@@ -128,8 +128,8 @@ export function attachLines(
       ...toolExports,
     ],
     note:
-      "If the agent's shell already sets one of them to another address, start Spectra with that value set as well, " +
-      'so the proxy forwards there.',
+      "If the agent's shell already sets one of the model or tool variables to another address, " +
+      'start Spectra with that value set as well, so the proxy forwards there.',
   };
 }
 

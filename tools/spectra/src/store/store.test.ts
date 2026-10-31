@@ -223,4 +223,38 @@ describe('the store', () => {
     const [latest] = await store.list();
     assert.deepEqual(traceIds(await store.read(latest.file)), ['1', '2']);
   });
+
+  it('amends a turn this run wrote, in its own file and in each later file of its conversation', async () => {
+    const store = await TurnStore.open(workingDir());
+    const first = turnOf('1', T0, 'ctx-1');
+    await store.write(first);
+    await store.write(turnOf('2', T0 + 1000, 'ctx-1'));
+    const amended = await store.amend('1'.repeat(32), turn => ({
+      events: [...turn.events, {...turn.events[0], spanId: '0000000000000009', name: 'later'}],
+    }));
+    assert.ok(amended);
+    assert.deepEqual(amended.previous, first);
+    const [latest, own] = await store.list();
+    for (const file of [own.file, latest.file]) {
+      const record = await store.read(file);
+      assert.deepEqual(
+        record.turns[0].events.map(event => event.name),
+        ['invoke_agent', 'later'],
+      );
+    }
+    assert.deepEqual(traceIds(await store.read(latest.file)), ['1', '2']);
+    assert.equal(await store.amend('9'.repeat(32), turn => turn), undefined);
+  });
+
+  it('amends a turn once the writes queued before it have finished', async () => {
+    const store = await TurnStore.open(workingDir());
+    const writing = store.write(turnOf('1', T0, 'ctx-1'));
+    const amending = store.amend('1'.repeat(32), turn => ({
+      events: [...turn.events, {...turn.events[0], spanId: '0000000000000009', name: 'later'}],
+    }));
+    await writing;
+    assert.ok(await amending);
+    const [stored] = await store.list();
+    assert.equal((await store.read(stored.file)).turns[0].events.length, 2);
+  });
 });

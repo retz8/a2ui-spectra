@@ -11,6 +11,7 @@
     "build:tsc": "wireit",
     "build:viewer": "wireit",
     "build:binary": "wireit",
+    "generate:otlp": "wireit",
     "test": "wireit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
@@ -101,18 +102,33 @@
         "../../samples/preview/*/index.html",
         "../../samples/preview/*/vite.config.ts",
         "../../samples/preview/angular/angular.json",
-        "../../samples/preview/*/package.json"
+        "../../samples/preview/*/package.json",
+        "../../conformance/test_data/receiver_capture/**",
+        "../../conformance/receiver_capture/**"
       ],
       "output": []
     },
     "clean": {
       "command": "rm -rf dist .wireit"
+    },
+    "generate:otlp": {
+      "command": "buf generate",
+      "files": [
+        "proto/**/*.proto",
+        "buf.gen.yaml"
+      ],
+      "output": [
+        "src/receiver/gen/**"
+      ]
     }
   },
   "dependencies": {
-    "@a2ui/web_core": "0.14.0"
+    "@a2ui/web_core": "0.14.0",
+    "@bufbuild/protobuf": "2.16.0"
   },
   "devDependencies": {
+    "@bufbuild/buf": "1.75.0",
+    "@bufbuild/protoc-gen-es": "2.16.0",
     "@modelcontextprotocol/sdk": "1.32.2",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.9.3",

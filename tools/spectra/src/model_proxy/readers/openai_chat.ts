@@ -23,7 +23,7 @@ import {
 } from '../genai.js';
 import type {ApiReader, ReadRequest, StreamChunk} from './reader.js';
 
-const FINISH_REASONS: Record<string, FinishReason> = {
+export const FINISH_REASONS: Record<string, FinishReason> = {
   stop: 'stop',
   length: 'length',
   content_filter: 'content_filter',

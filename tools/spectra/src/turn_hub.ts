@@ -4,6 +4,7 @@ import type {CallListener, CallNotification} from './model_proxy/proxy.js';
 import {
   type CallEvent,
   isEventOfKind,
+  type TurnRecordEvent,
   type SpanEvent,
   type Turn,
   type TurnEvent,
@@ -36,7 +37,14 @@ export type LiveEvent =
   /** The call's complete event, as the record holds it. */
   | {type: 'call_ended'; traceId: string; event: CallEvent}
   /** The turn's own events with its check event, once its write has finished. */
-  | {type: 'turn_closed'; traceId: string; turn: Turn};
+  | {type: 'turn_closed'; traceId: string; turn: Turn}
+  /**
+   * The events one export to the receiver added to a turn or changed in it,
+   * in the record's shape, open or written: the spans placed, the proxies'
+   * calls whose links grew, the turn event when its capture paths changed.
+   * A subscriber replaces each by its span id.
+   */
+  | {type: 'turn_amended'; traceId: string; events: TurnRecordEvent[]};
 
 /** A live event, and for a turn opened, the `messageId` of the host's message. */
 export type HubEvent = LiveEvent & {messageId?: string};
@@ -54,6 +62,8 @@ interface Open {
   wireEvents: Array<Extract<HubEvent, {type: 'wire_event'}>>;
   /** The calls placed in the turn so far, by span id, in the order they started. */
   calls: Map<string, OpenCall>;
+  /** The events the receiver's exports added or changed so far, by span id, the latest of each. */
+  amended: Map<string, TurnRecordEvent>;
 }
 
 /**
@@ -78,7 +88,12 @@ export class TurnHub {
         startTime: isoTime(notification.startTimeUnixNano),
         ...(notification.messageId !== undefined && {messageId: notification.messageId}),
       };
-      this.#open.set(notification.traceId, {opened, wireEvents: [], calls: new Map()});
+      this.#open.set(notification.traceId, {
+        opened,
+        wireEvents: [],
+        calls: new Map(),
+        amended: new Map(),
+      });
       this.#emit(opened);
     } else if (notification.type === 'wire_event') {
       const event: Open['wireEvents'][number] = {
@@ -117,6 +132,16 @@ export class TurnHub {
     this.#emit(notification);
   };
 
+  /** Takes the events one export to the receiver added to a turn or changed in it. */
+  readonly onAmended = (traceId: string, events: TurnRecordEvent[]): void => {
+    if (events.length === 0) return;
+    const open = this.#open.get(traceId);
+    if (open !== undefined) {
+      for (const event of events) open.amended.set(event.spanId, event);
+    }
+    this.#emit({type: 'turn_amended', traceId, events});
+  };
+
   /** Takes each turn the recorder has checked and finished writing, and closes it. */
   readonly onRecorded = (turn: Turn): void => {
     const turnEvent = turn.events.find((event): event is TurnEvent => isEventOfKind(event, 'turn'));
@@ -151,17 +176,22 @@ export class TurnHub {
   /**
    * Passes every event from now on to the listener. With `catchUp`, the
    * listener first receives each open turn's turn opened, its wire events so
-   * far, and its calls with their chunks so far. Returns the call that stops it.
+   * far, its calls with their chunks so far, and one turn amended with the
+   * events the receiver placed or changed in it so far. Returns the call that
+   * stops it.
    */
   subscribe(listener: HubListener, {catchUp = false}: {catchUp?: boolean} = {}): () => void {
     if (catchUp) {
-      for (const {opened, wireEvents, calls} of this.#open.values()) {
+      for (const {opened, wireEvents, calls, amended} of this.#open.values()) {
         listener(opened);
         for (const event of wireEvents) listener(event);
         for (const call of calls.values()) {
           listener(call.started);
           for (const chunk of call.chunks) listener(chunk);
           if (call.ended !== undefined) listener(call.ended);
+        }
+        if (amended.size > 0) {
+          listener({type: 'turn_amended', traceId: opened.traceId, events: [...amended.values()]});
         }
       }
     }

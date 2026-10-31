@@ -28,7 +28,7 @@ import type {ApiReader, ReadRequest, StreamChunk} from './reader.js';
 export const GEMINI_PATH =
   /^(?:\/v1[a-z0-9]*)?\/models\/([^/:]+):(generateContent|streamGenerateContent)$/;
 
-const FINISH_REASONS: Record<string, FinishReason> = {
+export const FINISH_REASONS: Record<string, FinishReason> = {
   STOP: 'stop',
   MAX_TOKENS: 'length',
   SAFETY: 'content_filter',

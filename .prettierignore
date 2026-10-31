@@ -22,3 +22,8 @@ tools/spectra/src/check/schemas/**/*.json
 
 # Conformance fixtures, kept as written
 conformance/test_data/**
+
+# The OTLP protos, copied unchanged at the pinned release, the code generated from them, and the GenAI schemas the receiver validates against, copied unchanged
+tools/spectra/proto/**
+tools/spectra/src/receiver/gen/**
+tools/spectra/src/receiver/genai_schemas/*.json

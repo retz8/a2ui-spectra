@@ -3,11 +3,12 @@ import {parseArgs} from 'node:util';
 import {CONFIG_FILE, type SpectraConfig} from './config.js';
 
 import {DEFAULT_MODEL_PROXY_PORT} from './model_proxy/redirection.js';
+import {DEFAULT_RECEIVER_PORT} from './receiver/listener.js';
 
 export const DEFAULT_VIEWER_PORT = 9820;
 export const DEFAULT_PROXY_PORT = 9821;
-export const DEFAULT_TOOL_PROXY_PORT = 9823;
-export {DEFAULT_MODEL_PROXY_PORT};
+export const DEFAULT_TOOL_PROXY_PORT = 9824;
+export {DEFAULT_MODEL_PROXY_PORT, DEFAULT_RECEIVER_PORT};
 
 export type CommandName = 'attach' | 'run';
 
@@ -25,6 +26,8 @@ export interface SessionOptions {
   modelProxyPort: number;
   /** The first tool server's port on the tool proxy; each further one takes the next. */
   toolProxyPort: number;
+  /** The OpenTelemetry receiver's port. */
+  receiverPort: number;
   /** Whether to open the browser. */
   open: boolean;
   /** Host names the server answers besides the loopback names. */
@@ -54,6 +57,7 @@ const sessionOptions = {
   'proxy-port': {type: 'string'},
   'model-proxy-port': {type: 'string'},
   'tool-proxy-port': {type: 'string'},
+  'receiver-port': {type: 'string'},
   'no-open': {type: 'boolean'},
   'allow-host': {type: 'string', multiple: true},
   help: {type: 'boolean'},
@@ -186,6 +190,7 @@ function sessionOptionsFrom(
     'proxy-port'?: string;
     'model-proxy-port'?: string;
     'tool-proxy-port'?: string;
+    'receiver-port'?: string;
     'no-open'?: boolean;
     'allow-host'?: string[];
   },
@@ -198,6 +203,10 @@ function sessionOptionsFrom(
     [
       '--model-proxy-port',
       parsePort(values['model-proxy-port'], DEFAULT_MODEL_PROXY_PORT, '--model-proxy-port', topic),
+    ],
+    [
+      '--receiver-port',
+      parsePort(values['receiver-port'], DEFAULT_RECEIVER_PORT, '--receiver-port', topic),
     ],
     [
       '--tool-proxy-port',
@@ -219,7 +228,8 @@ function sessionOptionsFrom(
     port: ports[0][1],
     proxyPort: ports[1][1],
     modelProxyPort: ports[2][1],
-    toolProxyPort: ports[3][1],
+    receiverPort: ports[3][1],
+    toolProxyPort: ports[4][1],
     open: !values['no-open'],
     allowedHosts: (values['allow-host'] ?? []).map(name => parseHostName(name, topic)),
   };
@@ -249,6 +259,7 @@ export function toolProxyPorts(
     ['--port', options.port],
     ['--proxy-port', options.proxyPort],
     ['--model-proxy-port', options.modelProxyPort],
+    ['--receiver-port', options.receiverPort],
   ] as const;
   for (const [option, port] of others) {
     if (ports.includes(port)) {

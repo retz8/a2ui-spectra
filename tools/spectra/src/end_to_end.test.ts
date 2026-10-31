@@ -228,6 +228,7 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
         ]);
         const stub = await startStub(agentPort, [...flags]);
         const cwd = workingDir();
+        const receiverPort = await freePort();
         const spectra = new SpectraProcess(
           [
             'attach',
@@ -238,6 +239,8 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
             String(proxyPort),
             '--model-proxy-port',
             String(modelProxyPort),
+            '--receiver-port',
+            String(receiverPort),
             '--no-open',
           ],
           cwd,
@@ -253,10 +256,15 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
             mode: 'attach',
             proxyAddress: `http://127.0.0.1:${proxyPort}/`,
             previewPages: [],
-            variables: VARIABLES.map(name => ({
-              name,
-              value: `http://127.0.0.1:${modelProxyPort}/${name}`,
-            })),
+            variables: [
+              ...VARIABLES.map(name => ({
+                name,
+                value: `http://127.0.0.1:${modelProxyPort}/${name}`,
+              })),
+              {name: 'OTEL_EXPORTER_OTLP_ENDPOINT', value: `http://127.0.0.1:${receiverPort}`},
+              {name: 'OTEL_EXPORTER_OTLP_PROTOCOL', value: 'http/protobuf'},
+              {name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT', value: 'true'},
+            ],
             a2aVersions: a2a === '1.0' ? ['1.0', '0.3'] : ['0.3', '1.0'],
             a2uiExtensions: [],
             examples: ['Hello'],
@@ -418,6 +426,8 @@ describe(`the config file against the stub agent, ${binary ? 'the binary' : 'und
           String(proxyPort),
           '--model-proxy-port',
           String(modelProxyPort),
+          '--receiver-port',
+          String(await freePort()),
           '--no-open',
         ],
         cwd,
@@ -486,6 +496,8 @@ describe(`the config file against the stub agent, ${binary ? 'the binary' : 'und
           String(proxyPort),
           '--model-proxy-port',
           String(modelProxyPort),
+          '--receiver-port',
+          String(await freePort()),
           '--no-open',
         ],
         cwd,
@@ -543,6 +555,8 @@ describe(`the flawed booking conversation against the stub agent, ${binary ? 'th
           String(proxyPort),
           '--model-proxy-port',
           String(modelProxyPort),
+          '--receiver-port',
+          String(await freePort()),
           '--no-open',
         ],
         workingDir(),

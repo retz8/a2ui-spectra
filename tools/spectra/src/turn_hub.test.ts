@@ -210,4 +210,35 @@ describe('the turn hub', () => {
     open(hub, TRACE_A);
     assert.deepEqual(events, []);
   });
+
+  it("passes the receiver's amendments on, and catches a new subscriber up on an open turn's latest", () => {
+    const hub = new TurnHub();
+    const live: HubEvent[] = [];
+    hub.subscribe(event => live.push(event));
+    open(hub, TRACE_A);
+    const span = {...wireInput(TRACE_A), spanId: 'e'.repeat(16)};
+    hub.onAmended(TRACE_A, [span]);
+    hub.onAmended(TRACE_A, [{...span, name: 'again'}]);
+    hub.onAmended(TRACE_A, []);
+    assert.deepEqual(
+      live
+        .filter(event => event.type === 'turn_amended')
+        .map(event => event.type === 'turn_amended' && event.events[0].name),
+      [span.name, 'again'],
+    );
+    const caught: HubEvent[] = [];
+    hub.subscribe(event => caught.push(event), {catchUp: true});
+    assert.deepEqual(caught[caught.length - 1], {
+      type: 'turn_amended',
+      traceId: TRACE_A,
+      events: [{...span, name: 'again'}],
+    });
+    hub.onRecorded(closedTurn(TRACE_A));
+    // A written turn's amendment is passed on, and kept for no catch-up.
+    hub.onAmended(TRACE_A, [span]);
+    assert.equal(live[live.length - 1].type, 'turn_amended');
+    const later: HubEvent[] = [];
+    hub.subscribe(event => later.push(event), {catchUp: true});
+    assert.deepEqual(later, []);
+  });
 });

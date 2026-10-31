@@ -67,6 +67,8 @@ export class TurnStore {
   readonly #unwritten = new Map<string, TurnRecord>();
   /** The last write of each conversation folder, so one folder's files are written one at a time. */
   readonly #writing = new Map<string, Promise<unknown>>();
+  /** The turns this run wrote, by trace id, so a turn can be amended. */
+  readonly #written = new Map<string, StoredTurn>();
 
   private constructor(dir: string) {
     this.dir = dir;
@@ -115,15 +117,120 @@ export class TurnStore {
     finish: (earlierTurns: readonly Turn[]) => Turn = () => turn,
   ): Promise<{stored: StoredTurn; record: TurnRecord}> {
     const stored = storedTurnOf(turn);
-    const folder = path.posix.dirname(stored.file);
+    this.#written.set(stored.traceId, stored);
+    return this.#queue(path.posix.dirname(stored.file), folder =>
+      this.#write(stored, folder, finish),
+    );
+  }
+
+  /**
+   * Amends a turn this run wrote, once the writes queued before it have
+   * finished: `change` is given the turn as its own file holds it and
+   * returns the turn as amended, which replaces it in its own file and in
+   * every later file of its conversation that embeds it, each written once,
+   * atomically. Resolves with the turn before and after, or with nothing for
+   * a turn this run did not write. A file that fails to write is kept in
+   * memory for this run, as a failed write is, and the error is thrown.
+   */
+  amend(
+    traceId: string,
+    change: (turn: Turn) => Turn,
+  ): Promise<{previous: Turn; turn: Turn} | undefined> {
+    const stored = this.#written.get(traceId);
+    if (stored === undefined) return Promise.resolve(undefined);
+    return this.#queue(path.posix.dirname(stored.file), folder =>
+      this.#amend(stored, folder, change),
+    );
+  }
+
+  /** Runs one write after the folder's writes before it, whether they succeeded or not. */
+  #queue<T>(folder: string, run: (folder: string) => Promise<T>): Promise<T> {
     const previous = this.#writing.get(folder) ?? Promise.resolve();
-    const written = previous.catch(() => {}).then(() => this.#write(stored, folder, finish));
+    const written = previous.catch(() => {}).then(() => run(folder));
     this.#writing.set(folder, written);
     void written.then(
       () => this.#forget(folder, written),
       () => this.#forget(folder, written),
     );
     return written;
+  }
+
+  async #amend(
+    stored: StoredTurn,
+    folder: string,
+    change: (turn: Turn) => Turn,
+  ): Promise<{previous: Turn; turn: Turn} | undefined> {
+    let own: TurnRecord;
+    try {
+      own = await this.read(stored.file);
+    } catch {
+      return undefined;
+    }
+    const index = indexOfTurn(own, stored.traceId);
+    if (index === undefined) return undefined;
+    const previous = own.turns[index];
+    const turn = change(previous);
+    // The turn's own file, then each later file of its conversation that embeds it.
+    const files =
+      stored.conversationId === undefined
+        ? [stored.file]
+        : [...new Set([...(await this.#filesOf(folder)), stored.file])]
+            .filter(file => file >= stored.file)
+            .sort();
+    let failure: StoreWriteError | undefined;
+    for (const file of files) {
+      let record: TurnRecord;
+      try {
+        record = file === stored.file ? own : await this.read(file);
+      } catch {
+        continue;
+      }
+      const at = indexOfTurn(record, stored.traceId);
+      if (at === undefined) continue;
+      const turns = [...record.turns];
+      turns[at] = turn;
+      try {
+        await this.#writeFile(file, {...record, turns: turns as TurnRecord['turns']});
+      } catch (error) {
+        if (error instanceof StoreWriteError) failure ??= error;
+        else throw error;
+      }
+    }
+    if (failure !== undefined) throw failure;
+    return {previous, turn};
+  }
+
+  /** The record files of a conversation folder, on disk and kept from failed writes. */
+  async #filesOf(folder: string): Promise<string[]> {
+    let names: string[] = [];
+    try {
+      names = await readdir(path.join(this.turnsDir, folder));
+    } catch {
+      // A folder that cannot be read has no files to amend.
+    }
+    return names
+      .filter(name => FILE_NAME.test(name))
+      .map(name => `${folder}/${name}`)
+      .concat([...this.#unwritten.keys()].filter(file => path.posix.dirname(file) === folder));
+  }
+
+  /** Writes one record file once, atomically; on failure keeps the record for this run and throws. */
+  async #writeFile(file: string, record: TurnRecord): Promise<void> {
+    const target = this.#pathOf(file);
+    const temporary = path.join(
+      path.dirname(target),
+      `.${path.basename(target)}.${randomBytes(4).toString('hex')}.tmp`,
+    );
+    try {
+      await mkdir(path.dirname(target), {recursive: true});
+      await writeFile(temporary, `${JSON.stringify(record, null, 2)}\n`);
+      await rename(temporary, target);
+      this.#unwritten.delete(file);
+    } catch (error) {
+      this.#unwritten.set(file, record);
+      await rm(temporary, {force: true}).catch(() => {});
+      throw new StoreWriteError(target, reasonOf(error));
+    }
   }
 
   /** Every turn in the store, earlier runs included, newest first. */
@@ -163,25 +270,12 @@ export class TurnStore {
     folder: string,
     finish: (earlierTurns: readonly Turn[]) => Turn,
   ): Promise<{stored: StoredTurn; record: TurnRecord}> {
-    const target = this.#pathOf(stored.file);
-    const temporary = path.join(
-      path.dirname(target),
-      `.${path.basename(target)}.${randomBytes(4).toString('hex')}.tmp`,
-    );
     const earlier: readonly Turn[] =
       stored.conversationId === undefined ? [] : await this.#latestTurns(folder);
     const turn = finish(earlier);
     const turns: Turn[] = [...earlier, turn];
     const record: TurnRecord = {version: 'v0.1', turns: turns as TurnRecord['turns']};
-    try {
-      await mkdir(path.dirname(target), {recursive: true});
-      await writeFile(temporary, `${JSON.stringify(record, null, 2)}\n`);
-      await rename(temporary, target);
-    } catch (error) {
-      this.#unwritten.set(stored.file, record);
-      await rm(temporary, {force: true}).catch(() => {});
-      throw new StoreWriteError(target, reasonOf(error));
-    }
+    await this.#writeFile(stored.file, record);
     return {stored, record};
   }
 
@@ -222,6 +316,15 @@ export class TurnStore {
       this.#writing.delete(folder);
     }
   }
+}
+
+/** Where a turn sits among a record's turns, by its turn event's trace id. */
+function indexOfTurn(record: TurnRecord, traceId: string): number | undefined {
+  if (!Array.isArray(record.turns)) return undefined;
+  const index = record.turns.findIndex(turn =>
+    turn.events.some(event => isEventOfKind(event, 'turn') && event.traceId === traceId),
+  );
+  return index === -1 ? undefined : index;
 }
 
 /** Where a closed turn is stored, from its turn event. */

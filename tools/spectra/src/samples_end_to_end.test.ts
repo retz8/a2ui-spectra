@@ -155,6 +155,8 @@ describe(`the sample catalog apps in Chromium, ${binary ? 'the binary' : 'under 
           String(proxyPort),
           '--model-proxy-port',
           String(modelProxyPort),
+          '--receiver-port',
+          String(await freePort()),
           '--no-open',
         ]);
         const base = `http://127.0.0.1:${port}`;

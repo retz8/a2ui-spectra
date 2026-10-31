@@ -18,6 +18,12 @@
  *                                each turn, before answering, with a bearer
  *                                token, as an agent reading its tool server's
  *                                URL from a variable does.
+ *   --otel-export                Export OTLP/JSON to OTEL_EXPORTER_OTLP_ENDPOINT
+ *                                for each turn: before answering, a span
+ *                                carrying the request's trace context and a
+ *                                log record on it, with the OpenTelemetry
+ *                                variables it was given as attributes; and a
+ *                                second span half a second after answering.
  */
 import {spawn} from 'node:child_process';
 import {writeFileSync} from 'node:fs';
@@ -62,6 +68,8 @@ export interface FakeAgentOptions {
   modelCall?: boolean;
   /** Whether each turn calls a tool over MCP at FAKE_TOOL_URL before answering. */
   toolCall?: boolean;
+  /** Whether each turn exports to OTEL_EXPORTER_OTLP_ENDPOINT, before answering and after. */
+  otelExport?: boolean;
 }
 
 /** One MCP tools/call at FAKE_TOOL_URL, with the fake token, resolving when it has been answered. */
@@ -96,6 +104,96 @@ function callTool(): Promise<void> {
       }),
     );
   });
+}
+
+/** The span names of the fake agent's export, and its scope. */
+export const FAKE_SPAN_SCOPE = 'fake-agent';
+
+/** Posts one OTLP/JSON export to the receiver at OTEL_EXPORTER_OTLP_ENDPOINT, resolving when it has been answered. */
+function exportOtlp(signal: 'traces' | 'logs', body: unknown): Promise<void> {
+  const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+  if (endpoint === undefined) return Promise.resolve();
+  return new Promise(resolve => {
+    const request = httpRequest(
+      `${endpoint}/v1/${signal}`,
+      {method: 'POST', headers: {'content-type': 'application/json'}},
+      response => {
+        response.resume();
+        response.once('end', () => resolve());
+      },
+    );
+    request.once('error', () => resolve());
+    request.end(JSON.stringify(body));
+  });
+}
+
+function nowUnixNano(): string {
+  return (BigInt(Date.now()) * 1_000_000n).toString();
+}
+
+/** One span of the fake agent's export, in OTLP/JSON. */
+function otlpSpan(traceId: string, spanId: string, parentSpanId: string, name: string): unknown {
+  const start = nowUnixNano();
+  const string = (value: string | undefined) => ({stringValue: value ?? ''});
+  return {
+    resourceSpans: [
+      {
+        scopeSpans: [
+          {
+            scope: {name: FAKE_SPAN_SCOPE, version: '1.0'},
+            spans: [
+              {
+                traceId,
+                spanId,
+                parentSpanId,
+                name,
+                kind: 2,
+                startTimeUnixNano: start,
+                endTimeUnixNano: start,
+                attributes: [
+                  {key: 'otlp.protocol', value: string(process.env.OTEL_EXPORTER_OTLP_PROTOCOL)},
+                  {
+                    key: 'otlp.capture',
+                    value: string(process.env.OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT),
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/** A turn's export: its span and a log record on it now, and a later span once the turn has closed. */
+function exportTurn(traceparent: string | undefined): Promise<void> {
+  const [, traceId, parentId] = traceparent?.split('-') ?? [];
+  if (traceId === undefined || parentId === undefined) return Promise.resolve();
+  const spanId = '5eed0000000000a1';
+  setTimeout(() => {
+    void exportOtlp('traces', otlpSpan(traceId, '5eed0000000000a2', spanId, 'after the reply'));
+  }, 500);
+  return exportOtlp('logs', {
+    resourceLogs: [
+      {
+        scopeLogs: [
+          {
+            scope: {name: FAKE_SPAN_SCOPE},
+            logRecords: [
+              {
+                timeUnixNano: nowUnixNano(),
+                severityText: 'INFO',
+                body: {stringValue: 'answering'},
+                traceId,
+                spanId,
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  }).then(() => exportOtlp('traces', otlpSpan(traceId, spanId, parentId, 'POST /')));
 }
 
 /** One call to Anthropic's Messages API at ANTHROPIC_BASE_URL, with the fake key, resolving when it has been answered. */
@@ -139,6 +237,7 @@ export function startFakeAgent(
     transports = ['JSONRPC'],
     modelCall = false,
     toolCall = false,
+    otelExport = false,
   }: FakeAgentOptions = {},
 ): Promise<Server> {
   const url = `http://localhost:${port}/`;
@@ -202,9 +301,18 @@ export function startFakeAgent(
           );
         }
       };
-      if ((modelCall || toolCall) && (method === 'message/send' || method === 'message/stream')) {
+      const traceparent = request.headers.traceparent;
+      if (
+        (modelCall || toolCall || otelExport) &&
+        (method === 'message/send' || method === 'message/stream')
+      ) {
         void (modelCall ? callModel() : Promise.resolve())
           .then(() => (toolCall ? callTool() : undefined))
+          .then(() =>
+            otelExport
+              ? exportTurn(Array.isArray(traceparent) ? traceparent[0] : traceparent)
+              : undefined,
+          )
           .then(answer);
       } else {
         answer();
@@ -227,6 +335,7 @@ async function runAsScript(): Promise<void> {
       'grandchild-pid-file': {type: 'string'},
       'model-call': {type: 'boolean'},
       'tool-call': {type: 'boolean'},
+      'otel-export': {type: 'boolean'},
     },
   });
   if (values['ignore-sigterm']) {
@@ -243,6 +352,7 @@ async function runAsScript(): Promise<void> {
     transports: values.transports?.split(','),
     modelCall: values['model-call'] === true,
     toolCall: values['tool-call'] === true,
+    otelExport: values['otel-export'] === true,
     onCardAnswered: () => {
       if (exitCode !== undefined) {
         setTimeout(() => process.exit(Number(exitCode)), 200);

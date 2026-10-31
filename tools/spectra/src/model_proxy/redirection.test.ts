@@ -157,7 +157,7 @@ describe('redirection', () => {
       `export ANTHROPIC_API_BASE=${ORIGIN}/ANTHROPIC_API_BASE  # forwards to https://api.anthropic.com`,
       `export GEMINI_API_BASE=${ORIGIN}/GEMINI_API_BASE  # forwards to https://g.example/v1beta?key=REMOVED`,
     ]);
-    assert.match(note, /already sets one of them to another address/);
+    assert.match(note, /already sets one of the model or tool variables to another address/);
     assert.match(
       attachLines(redirections({}, ORIGIN)).exports[4],
       /forwards to https:\/\/generativelanguage\.googleapis\.com\/v1beta, or \/v1alpha for a gemini-3 model$/,
