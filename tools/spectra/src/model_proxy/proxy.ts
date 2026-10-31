@@ -54,10 +54,19 @@ export interface ModelProxyOptions {
   onCall?: CallListener;
   /** Takes the proxy's one-line notes, such as a token request passed on unrecorded. */
   log?: (line: string) => void;
+  /**
+   * How long a reply is waited for after the agent closes its connection,
+   * in milliseconds; one that neither ends nor delivers by then ends the call
+   * as aborted. Five seconds unless set.
+   */
+  closeGraceMs?: number;
   /** Nanoseconds since the Unix epoch. */
   now?: () => bigint;
   newSpanId?: () => string;
 }
+
+const DEFAULT_CLOSE_GRACE_MS = 5000;
+const AGENT_CLOSED = 'The agent closed the connection before the response ended.';
 
 export interface ModelProxy {
   readonly origin: string;
@@ -71,6 +80,7 @@ interface ProxyState {
   sockets: Set<Duplex>;
   /** Set when Spectra stops: a call cut off then ends as aborted. */
   closing: boolean;
+  closeGraceMs: number;
   now: () => bigint;
   newSpanId: () => string;
 }
@@ -84,6 +94,7 @@ export function startModelProxy(options: ModelProxyOptions): Promise<ModelProxy>
     inFlight: new Set(),
     sockets: new Set(),
     closing: false,
+    closeGraceMs: options.closeGraceMs ?? DEFAULT_CLOSE_GRACE_MS,
     now: options.now ?? nowUnixNano,
     newSpanId: options.newSpanId ?? (() => randomBytes(8).toString('hex')),
   };
@@ -162,6 +173,13 @@ class Capture {
   readonly #reader: ApiReader | undefined;
   #ended = false;
   #firstChunkAt: bigint | undefined;
+  /** When the agent closed its connection before the call ended, and the chunks it had by then. */
+  #closedAt: bigint | undefined;
+  #chunksAtClose = 0;
+  #graceTimer: NodeJS.Timeout | undefined;
+  #dropReply: (() => void) | undefined;
+  /** Runs `done` once what the reply delivered so far has been read; set by the relay. */
+  #settle: (done: () => void) => void = done => process.nextTick(done);
 
   constructor(
     state: ProxyState,
@@ -190,7 +208,38 @@ class Capture {
     state.options.onCall?.({type: 'call_started', traceId: placed.traceId, event: this.event});
   }
 
+  settleWith(settle: (done: () => void) => void): void {
+    this.#settle = settle;
+  }
+
+  /**
+   * Notes that the agent closed its connection before the response ended.
+   * The reply is read on for the grace: one that ends by then is complete,
+   * read in full; one that has not ends the call as aborted at the close,
+   * with the chunks before it, and `dropReply` drops the reply.
+   */
+  agentClosed(dropReply: () => void): void {
+    if (this.#ended || this.#closedAt !== undefined) return;
+    const at = this.#state.now();
+    this.#settle(() => {
+      if (this.#ended || this.#closedAt !== undefined) return;
+      this.#closedAt = at;
+      this.#chunksAtClose = this.spanEvents.length;
+      this.#dropReply = dropReply;
+      this.#graceTimer = setTimeout(() => this.#abandon(), this.#state.closeGraceMs);
+    });
+  }
+
+  /** Ends the call as aborted at the agent's close, and drops the reply. */
+  #abandon(): void {
+    this.spanEvents.length = this.#chunksAtClose;
+    this.chunks.length = this.#chunksAtClose;
+    this.end({failure: {type: 'aborted', message: AGENT_CLOSED}}, this.#closedAt);
+    this.#dropReply?.();
+  }
+
   chunk(chunk: {event?: string; id?: string; data: string}): void {
+    if (this.#ended) return;
     const at = this.#state.now();
     this.#firstChunkAt ??= at;
     const spanEvent = chunkEvent(at.toString(), chunk);
@@ -206,20 +255,25 @@ class Capture {
   }
 
   /**
-   * Ends the call: with the response read in full when it ended well, and
-   * with the failure's type and message when it did not. Later calls do nothing.
+   * Ends the call, at `at` or now: with the response read in full when it
+   * ended well, and with the failure's type and message when it did not.
+   * Later calls do nothing.
    */
-  end(outcome: {
-    response?: {
-      status: number;
-      headers: IncomingMessage['headers'];
-      body?: string;
-      streamed: boolean;
-    };
-    failure?: {type: string; message?: string};
-  }): void {
+  end(
+    outcome: {
+      response?: {
+        status: number;
+        headers: IncomingMessage['headers'];
+        body?: string;
+        streamed: boolean;
+      };
+      failure?: {type: string; message?: string};
+    },
+    at: bigint = this.#state.now(),
+  ): void {
     if (this.#ended) return;
     this.#ended = true;
+    clearTimeout(this.#graceTimer);
     const attributes: Record<string, unknown> = {...this.event.attributes};
     let failure = outcome.failure;
     if (outcome.response !== undefined) {
@@ -251,7 +305,7 @@ class Capture {
     }
     const complete: ModelCallEvent = {
       ...this.event,
-      endTimeUnixNano: this.#state.now().toString(),
+      endTimeUnixNano: at.toString(),
       attributes: attributes as ModelCallEvent['attributes'],
       ...(this.spanEvents.length > 0 && {events: this.spanEvents}),
       status:
@@ -320,22 +374,23 @@ async function forward(
   upstream.once('close', () => state.inFlight.delete(upstream));
 
   response.once('close', () => {
-    if (!response.writableFinished) {
-      upstream.destroy(new Error('The agent closed the connection before the response ended.'));
-      capture?.end({
-        failure: {
-          type: 'aborted',
-          message: 'The agent closed the connection before the response ended.',
-        },
-      });
+    if (response.writableFinished) return;
+    if (capture === undefined) {
+      upstream.destroy(new Error(AGENT_CLOSED));
+      return;
     }
+    // The reply is read on, for the agent that leaves once it has the content,
+    // before the stream's last event.
+    capture.agentClosed(() => upstream.destroy(new Error(AGENT_CLOSED)));
   });
 
   upstream.once('response', reply => relay(state, reply, response, capture));
 
   upstream.once('error', error => {
     const code = (error as NodeJS.ErrnoException).code;
-    if (!response.headersSent) {
+    if (response.destroyed) {
+      // The agent is gone; nothing to answer.
+    } else if (!response.headersSent) {
       response.writeHead(502, {'content-type': 'text/plain; charset=utf-8'});
       response.end(`${NAME}'s model proxy could not reach ${target.host}: ${error.message}\n`);
     } else {
@@ -358,13 +413,23 @@ function relay(
   response: ServerResponse,
   capture: Capture | undefined,
 ): void {
-  response.writeHead(reply.statusCode ?? 502, reply.statusMessage, endToEndHeaders(reply.headers));
-  reply.pipe(response);
-  reply.once('close', () => {
-    if (!reply.complete) {
-      response.destroy();
-    }
-  });
+  if (!response.destroyed) {
+    response.writeHead(
+      reply.statusCode ?? 502,
+      reply.statusMessage,
+      endToEndHeaders(reply.headers),
+    );
+    reply.pipe(response);
+    reply.once('close', () => {
+      if (!reply.complete) {
+        response.destroy();
+      }
+    });
+    response.once('close', () => {
+      // The pipe's end pauses the reply; the capture reads it on.
+      if (capture !== undefined && !reply.complete) reply.resume();
+    });
+  }
   if (capture === undefined) {
     reply.resume();
     return;
@@ -375,6 +440,12 @@ function relay(
   const text = new TextDecoder();
   const sse = new SseParser();
   let body = '';
+  if (decoder !== undefined) {
+    // The agent's close counts once the decoder has given out what arrived before it.
+    capture.settleWith(done =>
+      decoder.flush === undefined ? process.nextTick(done) : decoder.flush(done),
+    );
+  }
   const breakOff = (error?: Error) => {
     capture.end({
       response: {status, headers: reply.headers, streamed},
@@ -478,8 +549,11 @@ function upgrade(state: ProxyState, request: IncomingMessage, socket: Duplex, he
   });
 }
 
+/** A content-encoding's decoder; zlib's streams flush, a pass-through has nothing to. */
+type Decoder = Transform & {flush?(callback: () => void): void};
+
 /** A stream that undoes the content encoding, or nothing for an encoding it cannot read. */
-function decoderFor(encoding: string | string[] | undefined): Transform | undefined {
+function decoderFor(encoding: string | string[] | undefined): Decoder | undefined {
   const value = Array.isArray(encoding) ? encoding.join(', ') : encoding;
   switch (value?.trim().toLowerCase() ?? 'identity') {
     case 'identity':

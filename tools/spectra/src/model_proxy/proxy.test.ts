@@ -65,7 +65,10 @@ async function freePort(): Promise<number> {
  * read as the APIs, and a placement that puts every call in one turn, or
  * none when `place` is false.
  */
-async function setUp(handler: Handler, {place = true, standIn = true} = {}): Promise<Setup> {
+async function setUp(
+  handler: Handler,
+  {place = true, standIn = true, closeGraceMs = undefined as number | undefined} = {},
+): Promise<Setup> {
   const received: Setup['received'] = [];
   const provider = createServer((request, response) => {
     let body = '';
@@ -93,6 +96,7 @@ async function setUp(handler: Handler, {place = true, standIn = true} = {}): Pro
     port: proxyPort,
     redirections: list,
     ...(standIn && {standInOrigin: origin}),
+    ...(closeGraceMs !== undefined && {closeGraceMs}),
     place: call => {
       placements.push(call);
       if (!place) return undefined;
@@ -523,34 +527,90 @@ describe('the model proxy', () => {
     assert.equal(ended[0].attributes['http.response.status_code'], 200);
   });
 
-  it('records a call the agent abandons as aborted, ended at the close', async () => {
-    const {proxy, ended} = await setUp((_request, _body, response) => {
-      response.writeHead(200, {'content-type': 'text/event-stream'});
-      response.write('data: {"type": "ping"}\n\n');
-    });
+  /** Sends a streamed request through the proxy and destroys it once `leaveAfter` chunks arrived. */
+  function leave(proxy: ModelProxy, path: string, leaveAfter: number): Promise<void> {
     const origin = new URL(proxy.origin);
-    await new Promise<void>(resolve => {
+    return new Promise<void>(resolve => {
       const request = httpRequest(
         {
           host: origin.hostname,
           port: origin.port,
           method: 'POST',
-          path: '/ANTHROPIC_BASE_URL/v1/messages',
+          path,
           headers: {'content-type': 'application/json'},
         },
         response => {
-          response.once('data', () => {
-            request.destroy();
-            resolve();
+          let seen = 0;
+          response.on('data', () => {
+            if (++seen === leaveAfter) {
+              request.destroy();
+              resolve();
+            }
           });
         },
       );
       request.once('error', () => resolve());
-      request.end('{"stream": true}');
+      request.end(JSON.stringify({...anthropicRequest, stream: true}));
     });
+  }
+
+  const anthropicStream =
+    `event: message_start\ndata: ${JSON.stringify({type: 'message_start', message: {id: 'msg_4', type: 'message', role: 'assistant', model: 'claude-sonnet-4-5', content: [], usage: {input_tokens: 8, output_tokens: 1}}})}\n\n` +
+    `event: content_block_start\ndata: ${JSON.stringify({type: 'content_block_start', index: 0, content_block: {type: 'text', text: ''}})}\n\n` +
+    `event: content_block_delta\ndata: ${JSON.stringify({type: 'content_block_delta', index: 0, delta: {type: 'text_delta', text: 'Hello.'}})}\n\n` +
+    `event: content_block_stop\ndata: ${JSON.stringify({type: 'content_block_stop', index: 0})}\n\n` +
+    `event: message_delta\ndata: ${JSON.stringify({type: 'message_delta', delta: {stop_reason: 'end_turn'}, usage: {output_tokens: 3}})}\n\n` +
+    `event: message_stop\ndata: ${JSON.stringify({type: 'message_stop'})}\n\n`;
+
+  it('reads a stream to its end when the agent closes before its last event, and records the call complete', async () => {
+    // As the ADK samples do through LiteLLM: the agent leaves once it has the content.
+    const events = anthropicStream.split('\n\n').filter(Boolean);
+    const {proxy, ended} = await setUp((_request, _body, response) => {
+      response.writeHead(200, {'content-type': 'text/event-stream'});
+      response.write(`${events.slice(0, -1).join('\n\n')}\n\n`);
+      setTimeout(() => response.end(`${events[events.length - 1]}\n\n`), 100);
+    });
+    await leave(proxy, '/ANTHROPIC_BASE_URL/v1/messages', 1);
+    await eventually(() => ended.length === 1, 'the call ended');
+    assert.equal(ended[0].status?.code, 1);
+    assert.equal(ended[0].attributes['error.type'], undefined);
+    assert.equal(ended[0].events?.length, 6);
+    assert.deepEqual(ended[0].attributes['gen_ai.response.finish_reasons'], ['stop']);
+    assert.equal(ended[0].attributes['gen_ai.usage.output_tokens'], 3);
+  });
+
+  it('records a call the agent abandons as aborted at the close, with the chunks before it, when the reply does not end within the grace', async () => {
+    const {proxy, ended} = await setUp(
+      (_request, _body, response) => {
+        response.writeHead(200, {'content-type': 'text/event-stream'});
+        response.write('data: {"type": "ping"}\n\n');
+        setTimeout(() => response.write('data: {"type": "ping"}\n\n'), 100);
+      },
+      {closeGraceMs: 300},
+    );
+    await leave(proxy, '/ANTHROPIC_BASE_URL/v1/messages', 1);
+    const closedAt = BigInt(Date.now()) * 1_000_000n;
     await eventually(() => ended.length === 1, 'the call ended');
     assert.equal(ended[0].attributes['error.type'], 'aborted');
     assert.equal(ended[0].status?.code, 2);
+    assert.match(ended[0].status?.message ?? '', /closed the connection/);
+    assert.equal(ended[0].events?.length, 1);
+    assert.ok(BigInt(ended[0].endTimeUnixNano ?? '0') <= closedAt + 50_000_000n);
+  });
+
+  it('records a call the agent abandons as aborted when the reply neither ends nor delivers within the grace', async () => {
+    const {proxy, ended} = await setUp(
+      (_request, _body, response) => {
+        response.writeHead(200, {'content-type': 'text/event-stream'});
+        response.write('data: {"type": "ping"}\n\n');
+      },
+      {closeGraceMs: 100},
+    );
+    await leave(proxy, '/ANTHROPIC_BASE_URL/v1/messages', 1);
+    await eventually(() => ended.length === 1, 'the call ended');
+    assert.equal(ended[0].attributes['error.type'], 'aborted');
+    assert.equal(ended[0].status?.code, 2);
+    assert.equal(ended[0].events?.length, 1);
   });
 
   it('ends a call cut off by the stop as aborted', async () => {
