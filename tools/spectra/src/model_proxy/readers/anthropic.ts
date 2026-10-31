@@ -91,12 +91,14 @@ function usage(value: unknown): Record<string, number | undefined> {
   const input = asInteger(value.input_tokens);
   const cacheRead = asInteger(value.cache_read_input_tokens);
   const cacheWrite = asInteger(value.cache_creation_input_tokens);
+  const outputDetails = isRecord(value.output_tokens_details) ? value.output_tokens_details : {};
   return {
     'gen_ai.usage.input_tokens':
       input === undefined ? undefined : sum(input, cacheRead, cacheWrite),
     'gen_ai.usage.output_tokens': asInteger(value.output_tokens),
     'gen_ai.usage.cache_read.input_tokens': cacheRead,
     'gen_ai.usage.cache_write.input_tokens': cacheWrite,
+    'gen_ai.usage.reasoning.output_tokens': asInteger(outputDetails.thinking_tokens),
   };
 }
 

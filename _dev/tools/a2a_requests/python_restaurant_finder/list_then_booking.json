@@ -1,0 +1,60 @@
+{
+  "card": {
+    "headers": {
+      "X-A2A-Extensions": "https://a2ui.org/a2a-extension/a2ui/v0.9"
+    }
+  },
+  "requests": [
+    {
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
+        "X-A2A-Extensions": "https://a2ui.org/a2a-extension/a2ui/v0.9"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "message/stream",
+        "params": {
+          "message": {
+            "kind": "message",
+            "messageId": "restaurant-finder-user-1",
+            "role": "user",
+            "parts": [
+              {
+                "kind": "text",
+                "text": "Top 2 Chinese restaurants in New York"
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "text/event-stream",
+        "X-A2A-Extensions": "https://a2ui.org/a2a-extension/a2ui/v0.9"
+      },
+      "body": {
+        "jsonrpc": "2.0",
+        "id": 2,
+        "method": "message/stream",
+        "params": {
+          "message": {
+            "kind": "message",
+            "messageId": "restaurant-finder-user-2",
+            "role": "user",
+            "parts": [
+              {
+                "kind": "text",
+                "text": "Book a table for 2 at the first one tomorrow at 7pm"
+              }
+            ],
+            "contextId": "${contextId}"
+          }
+        }
+      }
+    }
+  ]
+}

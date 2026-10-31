@@ -213,7 +213,10 @@ async function runCase(c: CaptureModelCase): Promise<void> {
   const proxyPort = await freePort();
   const redirected: Redirection[] = redirections({}, `http://127.0.0.1:${proxyPort}`).map(item => ({
     ...item,
-    target: {kind: 'base', base: `${standIn.origin}${PREFIXES['api.openai.com'].variable === item.name ? '/v1' : ''}`},
+    target: {
+      kind: 'base',
+      base: `${standIn.origin}${PREFIXES['api.openai.com'].variable === item.name ? '/v1' : ''}`,
+    },
   }));
   const proxy = await startModelProxy({
     port: proxyPort,
@@ -278,7 +281,11 @@ async function runCase(c: CaptureModelCase): Promise<void> {
       BigInt(event.endTimeUnixNano ?? '0') >= BigInt(event.startTimeUnixNano),
       `call ${index + 1}: ends after it starts`,
     );
-    assert.equal(event.attributes['server.address'], '127.0.0.1', `call ${index + 1}: went to the stand-in`);
+    assert.equal(
+      event.attributes['server.address'],
+      '127.0.0.1',
+      `call ${index + 1}: went to the stand-in`,
+    );
     assert.deepEqual(
       comparable(event),
       comparable(wanted[index]),

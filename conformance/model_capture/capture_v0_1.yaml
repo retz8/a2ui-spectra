@@ -25,3 +25,46 @@
   action: capture_model
   traffic: "test_data/model_capture/v0_1/gemini/rate_limited.har"
   expect: "test_data/model_capture/v0_1/gemini/rate_limited.json"
+
+- name: gemini_restaurant_finder_google_genai
+  description: "Upstream's Python restaurant finder on Gemini through google-genai, under ADK: a two-turn conversation of three streamed generateContent calls, the first a get_restaurants tool call and the second carrying its result, the third the booking form; the key in x-goog-api-key removed."
+  action: capture_model
+  traffic: "test_data/model_capture/v0_1/gemini/restaurant_finder_google_genai.har"
+  expect: "test_data/model_capture/v0_1/gemini/restaurant_finder_google_genai.json"
+
+- name: gemini_custom_components_litellm
+  description: "Upstream's custom-components example on Gemini through LiteLLM's gemini/ route, under ADK: one turn of three streamed generateContent calls under the version LiteLLM's custom base leaves out, the first a get_contact_info tool call and the second carrying its result; the key in x-goog-api-key removed."
+  action: capture_model
+  traffic: "test_data/model_capture/v0_1/gemini/custom_components_litellm.har"
+  expect: "test_data/model_capture/v0_1/gemini/custom_components_litellm.json"
+
+- name: anthropic_custom_components_litellm
+  description: "Upstream's custom-components example on Claude through LiteLLM's anthropic/ route, under ADK: one turn of three streamed Messages calls, the first a get_contact_info tool call and the second carrying its result; the key in x-api-key removed."
+  action: capture_model
+  traffic: "test_data/model_capture/v0_1/anthropic/custom_components_litellm.har"
+  expect: "test_data/model_capture/v0_1/anthropic/custom_components_litellm.json"
+
+- name: anthropic_cache_write_then_read
+  description: "Anthropic's Messages API, scripted: two calls with cache_control on the same long system prompt, the first writing the cache and the second reading it, each with its thinking tokens."
+  action: capture_model
+  traffic: "test_data/model_capture/v0_1/anthropic/cache_write_then_read.har"
+  expect: "test_data/model_capture/v0_1/anthropic/cache_write_then_read.json"
+
+- name: anthropic_unknown_model
+  description: "Anthropic's Messages API, scripted: an unknown model's 404, a failed call with the provider's message."
+  action: capture_model
+  traffic: "test_data/model_capture/v0_1/anthropic/unknown_model.har"
+  expect: "test_data/model_capture/v0_1/anthropic/unknown_model.json"
+
+- name: gemini_unknown_model_and_count_tokens
+  description: "Gemini, scripted: an unknown model's 404 on generateContent, a failed call with the provider's message, then countTokens, another request on the provider's host, recorded raw."
+  action: capture_model
+  traffic: "test_data/model_capture/v0_1/gemini/unknown_model_and_count_tokens.har"
+  expect: "test_data/model_capture/v0_1/gemini/unknown_model_and_count_tokens.json"
+
+- name: gemini_rate_limited_on_another_host
+  description: "The same 429 at an origin the test-only variable does not name: a call recorded raw, with the exchange only and no message from the body."
+  action: capture_model
+  traffic: "test_data/model_capture/v0_1/gemini/rate_limited.har"
+  expect: "test_data/model_capture/v0_1/gemini/rate_limited_raw.json"
+  readInFull: false

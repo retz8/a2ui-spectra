@@ -1,0 +1,22 @@
+{
+  "requests": [
+    {
+      "path": "/v1/messages",
+      "headers": {
+        "Content-Type": "application/json",
+        "x-api-key": "${env:ANTHROPIC_API_KEY}",
+        "anthropic-version": "2023-06-01"
+      },
+      "body": {
+        "model": "claude-does-not-exist",
+        "max_tokens": 16,
+        "messages": [
+          {
+            "role": "user",
+            "content": "Hello"
+          }
+        ]
+      }
+    }
+  ]
+}

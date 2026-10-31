@@ -131,7 +131,20 @@ describe('the Anthropic Messages reader', () => {
     });
     assert.equal(plain['gen_ai.usage.input_tokens'], 3);
     assert.equal('gen_ai.usage.cache_read.input_tokens' in plain, false);
+    assert.equal('gen_ai.usage.reasoning.output_tokens' in plain, false);
     assert.deepEqual(plain['gen_ai.response.finish_reasons'], ['stop']);
+    const thinking = anthropicReader.response({
+      id: 'm',
+      model: 'c',
+      content: [
+        {type: 'thinking', thinking: 'Hm.', signature: 's'},
+        {type: 'text', text: 'x'},
+      ],
+      stop_reason: 'end_turn',
+      usage: {input_tokens: 3, output_tokens: 40, output_tokens_details: {thinking_tokens: 30}},
+    });
+    assert.equal(thinking['gen_ai.usage.reasoning.output_tokens'], 30);
+    assert.equal(thinking['gen_ai.usage.output_tokens'], 40);
   });
 
   it('assembles a stream: the blocks from their deltas, the tool input from its JSON pieces, the usage from start and delta', () => {

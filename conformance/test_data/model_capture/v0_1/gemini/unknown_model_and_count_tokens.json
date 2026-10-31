@@ -1,0 +1,148 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "a1690339b15a6a6ea42d5ed5900e4568",
+          "spanId": "7aac09573191d54c",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800003000000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "wire",
+              "model_proxy"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "a1690339b15a6a6ea42d5ed5900e4568",
+          "spanId": "0ad10efe3485dbbc",
+          "parentSpanId": "7aac09573191d54c",
+          "name": "generate_content gemini-does-not-exist",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000100000000",
+          "endTimeUnixNano": "1792800000900000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "generate_content",
+            "gen_ai.provider.name": "gcp.gemini",
+            "gen_ai.request.model": "gemini-does-not-exist",
+            "gen_ai.request.stream": false,
+            "gen_ai.input.messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Hello"
+                  }
+                ]
+              }
+            ],
+            "http.request.method": "POST",
+            "url.full": "https://generativelanguage.googleapis.com/v1beta/models/gemini-does-not-exist:generateContent",
+            "http.request.header.accept-encoding": [
+              "identity"
+            ],
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.x-goog-api-key": [
+              "REMOVED"
+            ],
+            "a2ui.http.request.body": {
+              "contents": [
+                {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "text": "Hello"
+                    }
+                  ]
+                }
+              ]
+            },
+            "http.response.header.content-type": [
+              "application/json; charset=UTF-8"
+            ],
+            "http.response.status_code": 404,
+            "a2ui.http.response.body": {
+              "error": {
+                "code": 404,
+                "message": "models/gemini-does-not-exist is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods.",
+                "status": "NOT_FOUND"
+              }
+            },
+            "error.type": "404"
+          },
+          "status": {
+            "code": 2,
+            "message": "models/gemini-does-not-exist is not found for API version v1beta, or is not supported for generateContent. Call ModelService.ListModels to see the list of available models and their supported methods."
+          }
+        },
+        {
+          "traceId": "a1690339b15a6a6ea42d5ed5900e4568",
+          "spanId": "193babdc1e37f7a8",
+          "parentSpanId": "7aac09573191d54c",
+          "name": "POST",
+          "kind": 3,
+          "startTimeUnixNano": "1792800001100000000",
+          "endTimeUnixNano": "1792800001900000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "http.request.method": "POST",
+            "url.full": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:countTokens",
+            "http.request.header.accept-encoding": [
+              "identity"
+            ],
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.x-goog-api-key": [
+              "REMOVED"
+            ],
+            "a2ui.http.request.body": {
+              "contents": [
+                {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "text": "Top 2 Chinese restaurants in New York"
+                    }
+                  ]
+                }
+              ]
+            },
+            "http.response.header.content-type": [
+              "application/json; charset=UTF-8"
+            ],
+            "http.response.status_code": 200,
+            "a2ui.http.response.body": {
+              "totalTokens": 9,
+              "promptTokensDetails": [
+                {
+                  "modality": "TEXT",
+                  "tokenCount": 9
+                }
+              ]
+            }
+          },
+          "status": {
+            "code": 1
+          }
+        }
+      ]
+    }
+  ]
+}

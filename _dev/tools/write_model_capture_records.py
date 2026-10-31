@@ -9,8 +9,9 @@ From the repository root:
     python3 -I _dev/tools/write_model_capture_records.py conformance/test_data/model_capture/v0_1/*/*.har
 
 Each <conversation>.har gets its expected record beside it, as <conversation>.json: one turn holding a
-stand-in turn event and one model call event per exchange, in order. A HAR whose name ends in `_raw`
-is written as calls recorded raw, as calls to a host that is not a provider's are.
+stand-in turn event and one model call event per exchange, in order. With --raw, the record is written
+as <conversation>_raw.json with every call recorded raw, as calls to a host that is not a provider's
+are.
 """
 
 import hashlib
@@ -43,11 +44,12 @@ T0 = 1792800000 * 10**9
 
 
 def main():
-    for name in sys.argv[1:]:
+    raw = "--raw" in sys.argv[1:]
+    for name in (arg for arg in sys.argv[1:] if arg != "--raw"):
         har = Path(name)
-        raw = har.stem.endswith("_raw")
-        record = expected_record(json.loads(har.read_text(encoding="utf-8")), har.stem, raw)
-        out = har.with_suffix(".json")
+        stem = f"{har.stem}_raw" if raw else har.stem
+        record = expected_record(json.loads(har.read_text(encoding="utf-8")), stem, raw)
+        out = har.with_name(f"{stem}.json")
         out.write_text(json.dumps(record, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
         calls = len(record["turns"][0]["events"]) - 1
         print(f"{out}: {calls} model calls{' recorded raw' if raw else ''}")
@@ -874,11 +876,13 @@ class AnthropicReader:
             return {}
         inp = as_int(value.get("input_tokens"))
         read, write = as_int(value.get("cache_read_input_tokens")), as_int(value.get("cache_creation_input_tokens"))
+        details = value.get("output_tokens_details") if isinstance(value.get("output_tokens_details"), dict) else {}
         return {
             "gen_ai.usage.input_tokens": None if inp is None else sum_present(inp, read, write),
             "gen_ai.usage.output_tokens": as_int(value.get("output_tokens")),
             "gen_ai.usage.cache_read.input_tokens": read,
             "gen_ai.usage.cache_write.input_tokens": write,
+            "gen_ai.usage.reasoning.output_tokens": as_int(details.get("thinking_tokens")),
         }
 
     def request(self, path, body):

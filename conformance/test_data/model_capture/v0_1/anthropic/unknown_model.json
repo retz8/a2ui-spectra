@@ -1,0 +1,100 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "37f1e240dfbbe2f0c5493b84c5ea8fae",
+          "spanId": "5a31fbd31d83d73f",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800002000000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "wire",
+              "model_proxy"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "37f1e240dfbbe2f0c5493b84c5ea8fae",
+          "spanId": "319eb76a3a24f148",
+          "parentSpanId": "5a31fbd31d83d73f",
+          "name": "chat claude-does-not-exist",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000100000000",
+          "endTimeUnixNano": "1792800000900000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "chat",
+            "gen_ai.provider.name": "anthropic",
+            "gen_ai.request.model": "claude-does-not-exist",
+            "gen_ai.request.stream": false,
+            "gen_ai.request.max_tokens": 16,
+            "gen_ai.input.messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Hello"
+                  }
+                ]
+              }
+            ],
+            "http.request.method": "POST",
+            "url.full": "https://api.anthropic.com/v1/messages",
+            "http.request.header.accept-encoding": [
+              "identity"
+            ],
+            "http.request.header.content-type": [
+              "application/json"
+            ],
+            "http.request.header.x-api-key": [
+              "REMOVED"
+            ],
+            "http.request.header.anthropic-version": [
+              "2023-06-01"
+            ],
+            "a2ui.http.request.body": {
+              "model": "claude-does-not-exist",
+              "max_tokens": 16,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": "Hello"
+                }
+              ]
+            },
+            "http.response.header.content-type": [
+              "application/json"
+            ],
+            "http.response.status_code": 404,
+            "a2ui.http.response.body": {
+              "type": "error",
+              "error": {
+                "type": "not_found_error",
+                "message": "model: claude-does-not-exist"
+              },
+              "request_id": "req_011CgZZNvGYMruTWQiaQ6XUq"
+            },
+            "error.type": "404"
+          },
+          "status": {
+            "code": 2,
+            "message": "model: claude-does-not-exist"
+          }
+        }
+      ]
+    }
+  ]
+}

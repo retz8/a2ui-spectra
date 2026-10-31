@@ -1,0 +1,42 @@
+{
+  "requests": [
+    {
+      "path": "/v1beta/models/gemini-does-not-exist:generateContent",
+      "headers": {
+        "Content-Type": "application/json",
+        "x-goog-api-key": "${env:GEMINI_API_KEY}"
+      },
+      "body": {
+        "contents": [
+          {
+            "role": "user",
+            "parts": [
+              {
+                "text": "Hello"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "path": "/v1beta/models/gemini-3.6-flash:countTokens",
+      "headers": {
+        "Content-Type": "application/json",
+        "x-goog-api-key": "${env:GEMINI_API_KEY}"
+      },
+      "body": {
+        "contents": [
+          {
+            "role": "user",
+            "parts": [
+              {
+                "text": "Top 2 Chinese restaurants in New York"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

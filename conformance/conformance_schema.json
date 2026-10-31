@@ -42,21 +42,13 @@
           "description": "Present when the fixture must fail validation."
         }
       },
-      "required": [
-        "name",
-        "action",
-        "fixture"
-      ],
+      "required": ["name", "action", "fixture"],
       "additionalProperties": false,
       "if": {
-        "required": [
-          "expectError"
-        ]
+        "required": ["expectError"]
       },
       "then": {
-        "required": [
-          "description"
-        ]
+        "required": ["description"]
       }
     },
     "CaptureA2aTest": {
@@ -83,13 +75,7 @@
           "description": "Path of the expected turn record, relative to conformance/."
         }
       },
-      "required": [
-        "name",
-        "description",
-        "action",
-        "traffic",
-        "expect"
-      ],
+      "required": ["name", "description", "action", "traffic", "expect"],
       "additionalProperties": false
     },
     "ExpectError": {
@@ -114,18 +100,12 @@
                 "description": "The JSON Schema keyword that failed, as JSON Schema 2020-12's output format names it."
               }
             },
-            "required": [
-              "path",
-              "code"
-            ],
+            "required": ["path", "code"],
             "additionalProperties": false
           }
         }
       },
-      "required": [
-        "category",
-        "details"
-      ],
+      "required": ["category", "details"],
       "additionalProperties": false
     },
     "CaptureModelTest": {
@@ -156,13 +136,7 @@
           "description": "Whether the stand-in is read as the providers' own hosts. Default true; false records every call raw, as a call to another host is."
         }
       },
-      "required": [
-        "name",
-        "description",
-        "action",
-        "traffic",
-        "expect"
-      ],
+      "required": ["name", "description", "action", "traffic", "expect"],
       "additionalProperties": false
     }
   }
