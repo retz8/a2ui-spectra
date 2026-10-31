@@ -33,7 +33,12 @@ async function configError(options: {cwd: string; path?: string}, pattern: RegEx
 
 describe('loadConfig', () => {
   it('is empty when the working directory has no config file', async () => {
-    assert.deepEqual(await loadConfig({cwd: freshDir()}), {headers: {}, catalogs: [], preview: []});
+    assert.deepEqual(await loadConfig({cwd: freshDir()}), {
+      headers: {},
+      catalogs: [],
+      preview: [],
+      tools: [],
+    });
   });
 
   it('reads a2ui-spectra.json from the working directory', async () => {
@@ -98,7 +103,7 @@ describe('loadConfig', () => {
     write(cwd, 'unknown.json', {header: {}});
     await configError(
       {cwd, path: 'unknown.json'},
-      /unknown\.json: 'header' is not a setting; the settings are agent, catalogs and preview/,
+      /unknown\.json: 'header' is not a setting; the settings are agent, catalogs, preview and tools/,
     );
     write(cwd, 'nested.json', {agent: {uri: 'http://a'}});
     await configError(
@@ -120,6 +125,64 @@ describe('loadConfig', () => {
     await configError(
       {cwd, path: 'preview.json'},
       /preview\.json: preview\[0\] must start with http/,
+    );
+  });
+
+  it('reads the tool servers, in config order', async () => {
+    const cwd = freshDir();
+    write(cwd, CONFIG_FILE, {
+      tools: [
+        {variable: 'FLOOR_PLAN_SERVER_URL', url: 'http://127.0.0.1:8000/sse'},
+        {variable: 'CIRCLECI_MCP_URL', url: 'https://mcp.circleci.com/v1/mcp'},
+      ],
+    });
+    const config = await loadConfig({cwd});
+    assert.deepEqual(
+      config.tools.map(({variable, url}) => [variable, url.href]),
+      [
+        ['FLOOR_PLAN_SERVER_URL', 'http://127.0.0.1:8000/sse'],
+        ['CIRCLECI_MCP_URL', 'https://mcp.circleci.com/v1/mcp'],
+      ],
+    );
+  });
+
+  it('stops on a tool server it cannot use', async () => {
+    const cwd = freshDir();
+    const tool = (entry: unknown) => ({tools: [entry]});
+    write(cwd, 'name.json', tool({variable: '1URL', url: 'http://a'}));
+    await configError(
+      {cwd, path: 'name.json'},
+      /name\.json: tools\[0\]\.variable must be a variable name of letters, digits and underscores/,
+    );
+    write(cwd, 'model.json', tool({variable: 'OPENAI_BASE_URL', url: 'http://a'}));
+    await configError(
+      {cwd, path: 'model.json'},
+      /model\.json: tools\[0\]\.variable is OPENAI_BASE_URL, one of the model proxy's variables/,
+    );
+    write(cwd, 'twice.json', {
+      tools: [
+        {variable: 'TOOL_URL', url: 'http://a'},
+        {variable: 'TOOL_URL', url: 'http://b'},
+      ],
+    });
+    await configError(
+      {cwd, path: 'twice.json'},
+      /twice\.json: tools\[1\]\.variable TOOL_URL names another tool server already/,
+    );
+    write(cwd, 'scheme.json', tool({variable: 'TOOL_URL', url: 'ws://a'}));
+    await configError(
+      {cwd, path: 'scheme.json'},
+      /scheme\.json: tools\[0\]\.url must start with http/,
+    );
+    write(cwd, 'missing.json', tool({variable: 'TOOL_URL'}));
+    await configError(
+      {cwd, path: 'missing.json'},
+      /missing\.json: tools\[0\] must have required property 'url'/,
+    );
+    write(cwd, 'extra.json', tool({variable: 'TOOL_URL', url: 'http://a', name: 'x'}));
+    await configError(
+      {cwd, path: 'extra.json'},
+      /extra\.json: 'tools\[0\]\.name' is not a setting; tools\[0\] takes variable and url/,
     );
   });
 

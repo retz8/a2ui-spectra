@@ -19,9 +19,20 @@ import {type ModelProxy, startModelProxy} from './model_proxy/proxy.js';
 import {attachLines, environmentOf, redirections, variablesOf} from './model_proxy/redirection.js';
 import type {Output} from './output.js';
 import {CallPlacer} from './placement.js';
+import type {CapturePath} from './record/turn_record.js';
 import {TurnRecorder} from './recorder.js';
 import {LOOPBACK_ADDRESS, PortTakenError, startViewerServer, type ViewerServer} from './server.js';
 import {TurnStore} from './store/store.js';
+import {startToolProxy, type ToolProxy} from './tool_proxy/proxy.js';
+import {
+  exportLines,
+  startLines,
+  toolEnvironmentOf,
+  type ToolServer,
+  ToolServerError,
+  toolServers,
+  toolVariablesOf,
+} from './tool_proxy/servers.js';
 import {TurnHub} from './turn_hub.js';
 
 /** The agent's command, under `run`. */
@@ -34,6 +45,8 @@ export interface AgentCommand {
 export interface SessionSettings extends Omit<SessionOptions, 'agentUrl' | 'config'> {
   agentUrl: URL;
   config: SpectraConfig;
+  /** The tool proxy's port for each configured tool server, in config order. */
+  toolPorts: number[];
 }
 
 const STOP_SIGNALS: NodeJS.Signals[] =
@@ -92,12 +105,26 @@ export async function runSession(
         'and the message box cannot send.',
     );
   }
+  let tools: ToolServer[];
+  try {
+    tools = toolServers(options.config.tools, options.toolPorts, process.env);
+  } catch (error) {
+    if (error instanceof ToolServerError) {
+      out.error(error.message);
+      return 1;
+    }
+    throw error;
+  }
   const turns = new TurnHub();
   const recorder = new TurnRecorder(store, out, {onRecorded: turns.onRecorded, catalogs});
+  const alwaysCapturePaths: CapturePath[] =
+    agentCommand === undefined
+      ? []
+      : ['model_proxy', ...(tools.length > 0 ? ['tool_proxy' as const] : [])];
   const placer = new CallPlacer({
     onTurn: recorder.onTurn,
     log: line => out.info(line),
-    ...(agentCommand !== undefined && {alwaysCapturePaths: ['model_proxy']}),
+    alwaysCapturePaths,
   });
   const modelProxyOrigin = `http://${LOOPBACK_ADDRESS}:${options.modelProxyPort}`;
   const redirected = redirections(process.env, modelProxyOrigin);
@@ -109,6 +136,7 @@ export async function runSession(
   let agentExit: AgentExit | undefined;
   let proxy: WireProxy | undefined;
   let modelProxy: ModelProxy | undefined;
+  let toolProxy: ToolProxy | undefined;
   let box: MessageBox | undefined;
   let server: ViewerServer | undefined;
   let failed = false;
@@ -141,9 +169,17 @@ export async function runSession(
       onCall: turns.onCall,
       log: line => out.info(line),
     });
+    if (tools.length > 0) {
+      toolProxy = await startToolProxy({
+        servers: tools,
+        place: call => placer.tryPlace(call),
+        onCall: turns.onCall,
+        log: line => out.info(line),
+      });
+    }
     if (agentCommand !== undefined) {
       agent = startAgentProcess(agentCommand.command, agentCommand.args, {
-        env: environmentOf(redirected),
+        env: {...environmentOf(redirected), ...toolEnvironmentOf(tools)},
       });
       void agent.exited.then(exit => {
         agentExit = exit;
@@ -232,16 +268,19 @@ export async function runSession(
             mode: agentCommand === undefined ? 'attach' : 'run',
             proxyAddress: proxy.address,
             previewPages: options.config.preview,
-            ...(agentCommand === undefined && {variables: variablesOf(redirected)}),
+            ...(agentCommand === undefined && {
+              variables: [...variablesOf(redirected), ...toolVariablesOf(tools)],
+            }),
             ...cardDetailsOf(card),
           },
         },
       });
       out.info(`The viewer is at ${server.url}`);
       out.info(`Point a host at the wire proxy: ${proxy.address}`);
+      for (const line of startLines(tools)) out.info(line);
       out.info(`Turns are saved in ${store.turnsDir}`);
       if (agentCommand === undefined) {
-        const lines = attachLines(redirected);
+        const lines = attachLines(redirected, exportLines(tools));
         out.info(lines.intro);
         for (const line of lines.exports) out.print(line);
         out.info(lines.note);
@@ -259,7 +298,9 @@ export async function runSession(
           ? '--port'
           : error.port === options.proxyPort
             ? '--proxy-port'
-            : '--model-proxy-port';
+            : error.port === options.modelProxyPort
+              ? '--model-proxy-port'
+              : '--tool-proxy-port';
       out.error(`Port ${error.port} is taken. Choose another port with ${option}.`);
     } else {
       out.error(`Spectra failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -270,6 +311,7 @@ export async function runSession(
     await proxy?.close();
     // A call the stop cuts off ends as aborted, so its turn can be written.
     await modelProxy?.close();
+    await toolProxy?.close();
     await recorder.idle();
     if (agent !== undefined) {
       await agent.stop();

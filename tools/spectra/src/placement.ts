@@ -1,9 +1,9 @@
 import type {TurnListener, TurnNotification} from './a2a/turn.js';
 import {parseTraceparent} from './a2a/trace_context.js';
 import {
+  type CallEvent,
   type CapturePath,
   isEventOfKind,
-  type ModelCallEvent,
   type Turn,
   type TurnEvent,
 } from './record/turn_record.js';
@@ -14,7 +14,7 @@ export interface CallToPlace {
   what: string;
   /** The call's start, in nanoseconds since the Unix epoch. */
   startTimeUnixNano: string;
-  /** The `traceparent` header the call carried, when it did. */
+  /** The trace context the call carried, when it did: its `traceparent` header, or MCP's `_meta` one. */
   traceparent?: string | string[];
 }
 
@@ -24,7 +24,14 @@ export interface PlacedCall {
   /** The turn event's span id, the call's parent. */
   parentSpanId: string;
   /** Hands the call's complete event over, once it has ended. */
-  ended(event: ModelCallEvent): void;
+  ended(event: CallEvent): void;
+  /** Lets the turn go without an event, for a request that turned out to be no call. */
+  release(): void;
+}
+
+/** A call that could not be placed, and the line that says so. */
+export interface Unplaced {
+  line: string;
 }
 
 export interface CallPlacerOptions {
@@ -32,7 +39,7 @@ export interface CallPlacerOptions {
   onTurn: TurnListener;
   /** Takes the line about a call that was not placed. */
   log: (line: string) => void;
-  /** The capture paths every turn lists, besides the ones its calls prove: `model_proxy` under `run`. */
+  /** The capture paths every turn lists, besides the ones its calls prove: the proxies' under `run`. */
   alwaysCapturePaths?: CapturePath[];
 }
 
@@ -42,7 +49,7 @@ interface OpenTurn {
   /** The turn as the wire closed it; none while the wire is open. */
   closed?: Turn;
   inFlight: number;
-  calls: ModelCallEvent[];
+  calls: CallEvent[];
 }
 
 /**
@@ -91,6 +98,19 @@ export class CallPlacer {
 
   /** Places a call, or returns nothing and logs why when it cannot be placed. */
   place(call: CallToPlace): PlacedCall | undefined {
+    const result = this.tryPlace(call);
+    if ('line' in result) {
+      this.#options.log(result.line);
+      return undefined;
+    }
+    return result;
+  }
+
+  /**
+   * Places a call, or returns the line saying why it cannot be placed without
+   * logging it, for a request that may turn out to be no call.
+   */
+  tryPlace(call: CallToPlace): PlacedCall | Unplaced {
     const traceId = parseTraceparent(call.traceparent)?.traceId;
     let turn: OpenTurn | undefined;
     let reason: string | undefined;
@@ -106,10 +126,9 @@ export class CallPlacer {
       reason = `${this.#open.size} turns are open`;
     }
     if (turn === undefined) {
-      this.#options.log(
-        `${capitalise(call.what)} at ${isoTime(call.startTimeUnixNano)} was not placed in a turn: ${reason}. It is not recorded.`,
-      );
-      return undefined;
+      return {
+        line: `${capitalise(call.what)} at ${isoTime(call.startTimeUnixNano)} was not placed in a turn: ${reason}. It is not recorded.`,
+      };
     }
     const placed = turn;
     placed.inFlight++;
@@ -122,6 +141,12 @@ export class CallPlacer {
         done = true;
         placed.inFlight--;
         placed.calls.push(event);
+        this.#handOnWhenDone(placed);
+      },
+      release: () => {
+        if (done) return;
+        done = true;
+        placed.inFlight--;
         this.#handOnWhenDone(placed);
       },
     };
@@ -141,10 +166,13 @@ export class CallPlacer {
   }
 
   /** The turn with its calls among its events by start time, and the capture paths they prove. */
-  #withCalls(turn: Turn, calls: ModelCallEvent[]): Turn {
+  #withCalls(turn: Turn, calls: CallEvent[]): Turn {
     const paths = new Set<CapturePath>(this.#options.alwaysCapturePaths ?? []);
-    if (calls.length > 0) {
+    if (calls.some(call => isEventOfKind(call, 'model_call'))) {
       paths.add('model_proxy');
+    }
+    if (calls.some(call => isEventOfKind(call, 'tool_call'))) {
+      paths.add('tool_proxy');
     }
     const events = turn.events.map(event =>
       isEventOfKind(event, 'turn') ? withCapturePaths(event, paths) : event,

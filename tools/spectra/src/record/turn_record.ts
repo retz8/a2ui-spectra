@@ -3,8 +3,9 @@
  * defines it. The JSON Schema there is normative; these types follow it.
  *
  * Every kind shares the span fields. The attributes are typed in full for the
- * kinds Phase 2 writes (turn, wire input, wire output and check); the other
- * kinds keep an open attribute map until the phase that writes them.
+ * kinds Phase 2 writes (turn, wire input, wire output and check), and the
+ * proxies' model and tool calls name theirs; the other kinds keep an open
+ * attribute map until the phase that writes them.
  */
 
 /** The record version this module describes. */
@@ -286,9 +287,48 @@ export interface ModelCallEvent extends EventFields<ModelCallAttributes> {
   parentSpanId: SpanId;
 }
 
+// The tool call.
+
+export interface ToolCallAttributes {
+  'a2ui.event.kind': 'tool_call';
+  'gen_ai.operation.name'?: string;
+  'gen_ai.tool.name'?: string;
+  'gen_ai.tool.call.arguments'?: Record<string, unknown>;
+  'gen_ai.tool.call.result'?: Record<string, unknown>;
+  'gen_ai.prompt.name'?: string;
+  'mcp.method.name'?: string;
+  'mcp.session.id'?: string;
+  'mcp.protocol.version'?: string;
+  'mcp.resource.uri'?: string;
+  'jsonrpc.request.id'?: string;
+  'rpc.response.status_code'?: string;
+  'http.request.method'?: string;
+  'url.full'?: string;
+  'http.response.status_code'?: number;
+  'server.address'?: string;
+  'server.port'?: number;
+  'a2ui.http.request.body'?: unknown;
+  'a2ui.http.response.body'?: unknown;
+  'error.type'?: string;
+  [name: string]: unknown;
+}
+
+/**
+ * A tool call. The tool proxy's is a client span under the turn event, or a
+ * producer span for an operation the server initiated, lasting from the
+ * request to the response.
+ */
+export type ToolCallEvent = EventFields<ToolCallAttributes>;
+
+/** A call one of the proxies captured. */
+export type CallEvent = ModelCallEvent | ToolCallEvent;
+
 // The kinds whose attributes later phases type.
 
-type OtherKind = Exclude<EventKind, 'turn' | 'wire_input' | 'wire_output' | 'check' | 'model_call'>;
+type OtherKind = Exclude<
+  EventKind,
+  'turn' | 'wire_input' | 'wire_output' | 'check' | 'model_call' | 'tool_call'
+>;
 
 /** An event of a kind Phase 2 does not write, with open attributes. */
 export type OtherEvent = {
@@ -299,7 +339,13 @@ export type OtherEvent = {
 }[OtherKind];
 
 export type TurnRecordEvent =
-  TurnEvent | WireInputEvent | WireOutputEvent | CheckEvent | ModelCallEvent | OtherEvent;
+  | TurnEvent
+  | WireInputEvent
+  | WireOutputEvent
+  | CheckEvent
+  | ModelCallEvent
+  | ToolCallEvent
+  | OtherEvent;
 
 /** The event type for one kind. */
 export type EventOfKind<Kind extends EventKind> = Extract<

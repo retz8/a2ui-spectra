@@ -103,7 +103,8 @@ async function setUp(
       const placed: PlacedCall = {
         traceId: TRACE,
         parentSpanId: TURN_SPAN,
-        ended: event => ended.push(event),
+        ended: event => ended.push(event as ModelCallEvent),
+        release: () => {},
       };
       return placed;
     },
@@ -489,7 +490,12 @@ describe('the model proxy', () => {
         ...item,
         target: {kind: 'base', base: `http://127.0.0.1:${closed}`},
       })),
-      place: () => ({traceId: TRACE, parentSpanId: TURN_SPAN, ended: event => ended.push(event)}),
+      place: () => ({
+        traceId: TRACE,
+        parentSpanId: TURN_SPAN,
+        ended: event => ended.push(event as ModelCallEvent),
+        release: () => {},
+      }),
     });
     proxies.push(redirected);
     void proxy;
@@ -668,5 +674,25 @@ describe('the model proxy', () => {
     assert.deepEqual(ended, []);
     assert.equal(logs.length, 1);
     assert.match(logs[0], /token request.*passed on unrecorded/);
+  });
+
+  it('knows a token request by its shape on any path, form-encoded or JSON', async () => {
+    const {proxy, ended, placements, logs} = await setUp((_request, _body, response) => {
+      response.writeHead(200, {'content-type': 'application/json'});
+      response.end('{"access_token": "t"}');
+    });
+    await send(proxy, {
+      path: '/OPENAI_BASE_URL/oauth2/token',
+      body: 'grant_type=client_credentials',
+      headers: {'content-type': 'application/x-www-form-urlencoded'},
+    });
+    await send(proxy, {
+      path: '/ANTHROPIC_BASE_URL/v1/oauth/token',
+      body: JSON.stringify({grant_type: 'refresh_token', refresh_token: 'r'}),
+      headers: {'content-type': 'application/json'},
+    });
+    assert.deepEqual(placements, []);
+    assert.deepEqual(ended, []);
+    assert.equal(logs.length, 2);
   });
 });

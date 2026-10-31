@@ -1,4 +1,4 @@
-import {agentUrlOf, parseCommandLine, UsageError} from './args.js';
+import {agentUrlOf, parseCommandLine, toolProxyPorts, UsageError} from './args.js';
 import {ConfigError, loadConfig} from './config.js';
 import {helpText} from './help.js';
 import type {Output} from './output.js';
@@ -40,8 +40,10 @@ export async function main(
         throw error;
       }
       let agentUrl;
+      let toolPorts;
       try {
         agentUrl = agentUrlOf(commandLine.options, config, commandLine.name);
+        toolPorts = toolProxyPorts(commandLine.options, config.tools.length, commandLine.name);
       } catch (error) {
         if (error instanceof UsageError) {
           return usage(error, out);
@@ -49,7 +51,7 @@ export async function main(
         throw error;
       }
       return runSession(
-        {...commandLine.options, agentUrl, config},
+        {...commandLine.options, agentUrl, config, toolPorts},
         commandLine.name === 'run'
           ? {command: commandLine.command, args: commandLine.args}
           : undefined,

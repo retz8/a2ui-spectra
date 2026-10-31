@@ -2,6 +2,7 @@ import {
   type CommandName,
   DEFAULT_MODEL_PROXY_PORT,
   DEFAULT_PROXY_PORT,
+  DEFAULT_TOOL_PROXY_PORT,
   DEFAULT_VIEWER_PORT,
 } from './args.js';
 import {NAME, VERSION} from './version.js';
@@ -12,6 +13,10 @@ const sharedOptions = `  --config <path>      The config file. Default: a2ui-spe
   --proxy-port <n>     The wire proxy's port. Default: ${DEFAULT_PROXY_PORT}.
   --model-proxy-port <n>
                        The model proxy's port. Default: ${DEFAULT_MODEL_PROXY_PORT}.
+  --tool-proxy-port <n>
+                       The tool proxy's port for the config file's first tool
+                       server; each further one takes the next port.
+                       Default: ${DEFAULT_TOOL_PROXY_PORT}.
   --no-open            Do not open the browser.
   --allow-host <name>  Also answer requests addressed to <name>, a host name
                        without a port, such as a tunnel's. Can be repeated.
@@ -43,10 +48,10 @@ const attachHelp = `Usage: ${NAME} attach [<agent-url>] [options]
 Attach to an agent that is already running at <agent-url>, its base address,
 or at agent.url in the config file when the argument is left out. Spectra
 waits until the agent's card answers at <agent-url>/.well-known/agent-card.json,
-then starts the wire proxy, the model proxy and the viewer. Point a host at
-the wire proxy's address in place of the agent's URL. To see the agent's model
-calls, set the variables Spectra prints at start in the agent's shell and
-restart the agent.
+then starts the wire proxy, the model proxy, the tool proxy and the viewer.
+Point a host at the wire proxy's address in place of the agent's URL. To see
+the agent's model and tool calls, set the variables Spectra prints at start in
+the agent's shell and restart the agent.
 
 Options:
 ${sharedOptions}
@@ -63,7 +68,9 @@ working directory, and writes to Spectra's terminal. Spectra adds the model
 providers' base-URL variables, GOOGLE_GEMINI_BASE_URL, OPENAI_BASE_URL,
 ANTHROPIC_BASE_URL, ANTHROPIC_API_BASE and GEMINI_API_BASE, pointing at its
 model proxy, which forwards each call to the address the variable had before,
-or to the provider. Other environment variables go before ${NAME}:
+or to the provider; and the variable of each tool server in the config file's
+tools, pointing at the tool proxy, which forwards to the server's URL. Other
+environment variables go before ${NAME}:
 
   ${NAME} run --agent-url http://localhost:10002 -- uv run .
   LITELLM_MODEL=gemini/gemini-2.5-flash \\

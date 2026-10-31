@@ -14,6 +14,10 @@
  *   --model-call                 Call the model at ANTHROPIC_BASE_URL during
  *                                each turn, before answering, as a redirected
  *                                agent does.
+ *   --tool-call                  Call a tool over MCP at FAKE_TOOL_URL during
+ *                                each turn, before answering, with a bearer
+ *                                token, as an agent reading its tool server's
+ *                                URL from a variable does.
  */
 import {spawn} from 'node:child_process';
 import {writeFileSync} from 'node:fs';
@@ -24,6 +28,9 @@ import {parseArgs} from 'node:util';
 import {FAKE_PROVIDER_KEY} from './fake_provider.js';
 
 export const FAKE_AGENT_NAME = 'Fake agent';
+
+/** The bearer token the fake agent sends its tool server, which no record may hold. */
+export const FAKE_TOOL_TOKEN = 'fake-tool-token-0f3c9a';
 
 const surface = {
   version: 'v0.9',
@@ -53,6 +60,42 @@ export interface FakeAgentOptions {
   transports?: string[];
   /** Whether each turn calls the model at ANTHROPIC_BASE_URL before answering. */
   modelCall?: boolean;
+  /** Whether each turn calls a tool over MCP at FAKE_TOOL_URL before answering. */
+  toolCall?: boolean;
+}
+
+/** One MCP tools/call at FAKE_TOOL_URL, with the fake token, resolving when it has been answered. */
+function callTool(): Promise<void> {
+  const url = process.env.FAKE_TOOL_URL;
+  if (url === undefined) return Promise.resolve();
+  return new Promise(resolve => {
+    const request = httpRequest(
+      url,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          accept: 'application/json, text/event-stream',
+          authorization: `Bearer ${FAKE_TOOL_TOKEN}`,
+          'mcp-protocol-version': '2025-06-18',
+        },
+      },
+      response => {
+        response.resume();
+        response.once('end', () => resolve());
+        response.once('error', () => resolve());
+      },
+    );
+    request.once('error', () => resolve());
+    request.end(
+      JSON.stringify({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: {name: 'lookup', arguments: {q: 'floor plan'}},
+      }),
+    );
+  });
 }
 
 /** One call to Anthropic's Messages API at ANTHROPIC_BASE_URL, with the fake key, resolving when it has been answered. */
@@ -91,7 +134,12 @@ function callModel(): Promise<void> {
 /** Starts the fake agent on 127.0.0.1. */
 export function startFakeAgent(
   port: number,
-  {onCardAnswered, transports = ['JSONRPC'], modelCall = false}: FakeAgentOptions = {},
+  {
+    onCardAnswered,
+    transports = ['JSONRPC'],
+    modelCall = false,
+    toolCall = false,
+  }: FakeAgentOptions = {},
 ): Promise<Server> {
   const url = `http://localhost:${port}/`;
   // No transports is a card that lists no interface at all, as an empty A2A 1.0 list.
@@ -154,8 +202,10 @@ export function startFakeAgent(
           );
         }
       };
-      if (modelCall && (method === 'message/send' || method === 'message/stream')) {
-        void callModel().then(answer);
+      if ((modelCall || toolCall) && (method === 'message/send' || method === 'message/stream')) {
+        void (modelCall ? callModel() : Promise.resolve())
+          .then(() => (toolCall ? callTool() : undefined))
+          .then(answer);
       } else {
         answer();
       }
@@ -176,6 +226,7 @@ async function runAsScript(): Promise<void> {
       'ignore-sigterm': {type: 'boolean'},
       'grandchild-pid-file': {type: 'string'},
       'model-call': {type: 'boolean'},
+      'tool-call': {type: 'boolean'},
     },
   });
   if (values['ignore-sigterm']) {
@@ -191,6 +242,7 @@ async function runAsScript(): Promise<void> {
   await startFakeAgent(Number(values.port), {
     transports: values.transports?.split(','),
     modelCall: values['model-call'] === true,
+    toolCall: values['tool-call'] === true,
     onCardAnswered: () => {
       if (exitCode !== undefined) {
         setTimeout(() => process.exit(Number(exitCode)), 200);

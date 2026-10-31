@@ -16,29 +16,34 @@ import {
   type ServerResponse,
 } from 'node:http';
 import {request as httpsRequest} from 'node:https';
-import {connect as netConnect, type Socket} from 'node:net';
-import {type Duplex, PassThrough, type Transform} from 'node:stream';
-import {connect as tlsConnect} from 'node:tls';
-import {createBrotliDecompress, createGunzip, createInflate} from 'node:zlib';
+import type {Duplex} from 'node:stream';
 
 import {SseParser} from '../a2a/sse.js';
 import type {CallToPlace, PlacedCall} from '../placement.js';
-import type {ModelCallEvent, SpanEvent} from '../record/turn_record.js';
+import type {CallEvent, ModelCallEvent, SpanEvent} from '../record/turn_record.js';
 import {LOOPBACK_ADDRESS, PortTakenError} from '../server.js';
 import {NAME} from '../version.js';
 import {chunkEvent, endToEndHeaders, requestAttributes, responseAttributes} from './exchange.js';
+import {
+  bodyJson,
+  decoderFor,
+  isTokenRequest,
+  nowUnixNano,
+  readBody,
+  tunnelUpgrade,
+} from './forwarding.js';
 import {seconds} from './genai.js';
 import {type ApiReader, readerFor, type StreamChunk} from './readers/index.js';
 import {forwardTo, type Redirection, splitPrefix, VARIABLES} from './redirection.js';
 
-/** What the model proxy hands out as a call is captured. */
+/** What the model proxy and the tool proxy hand out as a call is captured. */
 export type CallNotification =
-  /** The call's event so far: its start, its request and the GenAI names read from it. */
-  | {type: 'call_started'; traceId: string; event: ModelCallEvent}
+  /** The call's event so far: its start, its request and the names read from it. */
+  | {type: 'call_started'; traceId: string; event: CallEvent}
   /** One response chunk, as it arrives. */
   | {type: 'call_chunk'; traceId: string; spanId: string; chunk: SpanEvent}
   /** The complete event, as the record holds it. */
-  | {type: 'call_ended'; traceId: string; event: ModelCallEvent};
+  | {type: 'call_ended'; traceId: string; event: CallEvent};
 
 export type CallListener = (notification: CallNotification) => void;
 
@@ -341,7 +346,8 @@ async function forward(
   }
 
   let capture: Capture | undefined;
-  if (target.pathname.endsWith('/v1/oauth/token')) {
+  const text = await readBody(raw, request.headers['content-encoding']);
+  if (isTokenRequest(request.headers['content-type'], text)) {
     state.options.log?.(
       `A token request, ${method} ${target.origin}${target.pathname}, was passed on unrecorded.`,
     );
@@ -355,7 +361,6 @@ async function forward(
       const standIn =
         state.options.standInOrigin !== undefined && target.origin === state.options.standInOrigin;
       const reader = readerFor(method, target.host, target.pathname, target.searchParams, standIn);
-      const text = await readBody(raw, request.headers['content-encoding']);
       const bodyJsonValue = text === undefined ? undefined : bodyJson(text);
       capture = new Capture(state, placed, reader, start, {
         ...reader?.request({
@@ -507,97 +512,5 @@ function upgrade(state: ProxyState, request: IncomingMessage, socket: Duplex, he
   state.options.log?.(
     `A WebSocket upgrade, ${target.origin}${target.pathname}, was passed on unrecorded.`,
   );
-  const port = Number(target.port || (target.protocol === 'https:' ? 443 : 80));
-  const upstream: Socket =
-    target.protocol === 'https:'
-      ? tlsConnect({host: target.hostname, port, servername: target.hostname})
-      : netConnect({host: target.hostname, port});
-  state.sockets.add(socket);
-  state.sockets.add(upstream);
-  const forget = () => {
-    state.sockets.delete(socket);
-    state.sockets.delete(upstream);
-  };
-  upstream.once('connect', () => {
-    const lines = [`${request.method ?? 'GET'} ${target.pathname}${target.search} HTTP/1.1`];
-    for (let i = 0; i < request.rawHeaders.length; i += 2) {
-      const name = request.rawHeaders[i];
-      lines.push(
-        `${name}: ${name.toLowerCase() === 'host' ? target.host : request.rawHeaders[i + 1]}`,
-      );
-    }
-    upstream.write(`${lines.join('\r\n')}\r\n\r\n`);
-    if (head.length > 0) upstream.write(head);
-    socket.pipe(upstream).pipe(socket);
-  });
-  upstream.once('secureConnect', () => upstream.emit('connect'));
-  upstream.once('error', () => {
-    socket.destroy();
-    forget();
-  });
-  socket.once('error', () => {
-    upstream.destroy();
-    forget();
-  });
-  socket.once('close', () => {
-    upstream.destroy();
-    forget();
-  });
-  upstream.once('close', () => {
-    socket.destroy();
-    forget();
-  });
-}
-
-/** A content-encoding's decoder; zlib's streams flush, a pass-through has nothing to. */
-type Decoder = Transform & {flush?(callback: () => void): void};
-
-/** A stream that undoes the content encoding, or nothing for an encoding it cannot read. */
-function decoderFor(encoding: string | string[] | undefined): Decoder | undefined {
-  const value = Array.isArray(encoding) ? encoding.join(', ') : encoding;
-  switch (value?.trim().toLowerCase() ?? 'identity') {
-    case 'identity':
-    case '':
-      return new PassThrough();
-    case 'gzip':
-    case 'x-gzip':
-      return createGunzip();
-    case 'deflate':
-      return createInflate();
-    case 'br':
-      return createBrotliDecompress();
-    default:
-      return undefined;
-  }
-}
-
-/** A whole body as text, its content encoding undone; nothing when it cannot be read. */
-function readBody(
-  raw: Buffer,
-  encoding: string | string[] | undefined,
-): Promise<string | undefined> {
-  const decoder = decoderFor(encoding);
-  if (decoder === undefined) {
-    return Promise.resolve(undefined);
-  }
-  return new Promise(resolve => {
-    const chunks: Buffer[] = [];
-    decoder.on('data', (chunk: Buffer) => chunks.push(chunk));
-    decoder.once('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-    decoder.once('error', () => resolve(undefined));
-    decoder.end(raw);
-  });
-}
-
-/** A body's JSON value, or nothing when it is not JSON. */
-function bodyJson(text: string): unknown {
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    return undefined;
-  }
-}
-
-function nowUnixNano(): bigint {
-  return BigInt(Math.round((performance.timeOrigin + performance.now()) * 1000)) * 1000n;
+  tunnelUpgrade(request, socket, head, target, state.sockets);
 }

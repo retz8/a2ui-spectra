@@ -92,6 +92,8 @@
         "../../conformance/test_data/a2a_capture/**",
         "../../conformance/test_data/model_capture/**",
         "../../conformance/model_capture/**",
+        "../../conformance/test_data/tool_capture/**",
+        "../../conformance/tool_capture/**",
         "../../specification/turn_record/v0_1/json/*.json",
         "../../samples/preview/catalog.json",
         "../../samples/preview/*/a2ui-spectra.json",
@@ -111,6 +113,7 @@
     "@a2ui/web_core": "0.14.0"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.9.3",
     "ajv": "^8.17.1",

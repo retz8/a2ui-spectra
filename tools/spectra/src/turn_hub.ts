@@ -2,8 +2,8 @@ import type {TurnListener} from './a2a/turn.js';
 import {inputBriefOf, type InputBrief} from './listing.js';
 import type {CallListener, CallNotification} from './model_proxy/proxy.js';
 import {
+  type CallEvent,
   isEventOfKind,
-  type ModelCallEvent,
   type SpanEvent,
   type Turn,
   type TurnEvent,
@@ -30,11 +30,11 @@ export type LiveEvent =
       event: WireInputEvent | WireOutputEvent;
     }
   /** A call placed in an open turn: its event so far, with its start, its request and the names read from it. */
-  | {type: 'call_started'; traceId: string; event: ModelCallEvent}
+  | {type: 'call_started'; traceId: string; event: CallEvent}
   /** One response chunk of a call, as it arrives. */
   | {type: 'call_chunk'; traceId: string; spanId: string; chunk: SpanEvent}
   /** The call's complete event, as the record holds it. */
-  | {type: 'call_ended'; traceId: string; event: ModelCallEvent}
+  | {type: 'call_ended'; traceId: string; event: CallEvent}
   /** The turn's own events with its check event, once its write has finished. */
   | {type: 'turn_closed'; traceId: string; turn: Turn};
 

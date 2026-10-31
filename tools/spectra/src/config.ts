@@ -1,7 +1,7 @@
 /**
  * The config file: `a2ui-spectra.json` in the directory Spectra is launched
  * from, or the file `--config` names, with the agent's URL and headers, the
- * catalog paths and the preview pages. The file is validated against
+ * catalog paths, the preview pages and the tool servers. The file is validated against
  * `config.schema.json`, the schema the running tool serves for editors, and
  * is read strictly: a file that does not parse, a setting of the wrong type
  * or a key Spectra does not know stops Spectra at start. Only the default
@@ -13,6 +13,7 @@ import path from 'node:path';
 import {Ajv2020, type ErrorObject} from 'ajv/dist/2020.js';
 
 import schema from './config.schema.json' with {type: 'json'};
+import {VARIABLES as MODEL_VARIABLES} from './model_proxy/redirection.js';
 
 /** The config file's name, looked for in the directory Spectra is launched from. */
 export const CONFIG_FILE = 'a2ui-spectra.json';
@@ -40,6 +41,14 @@ export interface SpectraConfig {
   catalogs: string[];
   /** The preview pages' URLs. */
   preview: string[];
+  /** The tool servers, in config order. */
+  tools: ToolServerConfig[];
+}
+
+/** One tool server: the variable the agent reads its URL from, and the URL as the file gives it. */
+export interface ToolServerConfig {
+  variable: string;
+  url: URL;
 }
 
 export interface LoadOptions {
@@ -54,6 +63,7 @@ interface ConfigShape {
   agent?: {url?: string; headers?: Record<string, string>};
   catalogs?: string[];
   preview?: string[];
+  tools?: Array<{variable: string; url: string}>;
 }
 
 const validate = new Ajv2020({allErrors: false}).compile<ConfigShape>(schema);
@@ -67,7 +77,7 @@ export async function loadConfig({cwd, path: given}: LoadOptions): Promise<Spect
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       if (given === undefined) {
-        return {headers: {}, catalogs: [], preview: []};
+        return {headers: {}, catalogs: [], preview: [], tools: []};
       }
       throw new ConfigError(`The config file ${file} does not exist.`);
     }
@@ -97,7 +107,43 @@ export async function loadConfig({cwd, path: given}: LoadOptions): Promise<Spect
     headers: {...(json.agent?.headers ?? {})},
     catalogs: (json.catalogs ?? []).map(entry => path.resolve(dir, entry)),
     preview: [...(json.preview ?? [])],
+    tools: readTools(json.tools ?? [], file),
   };
+}
+
+/** A POSIX environment variable name. */
+const POSIX_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/**
+ * The tool servers: each variable a POSIX name, used once and none of the
+ * model proxy's five, each URL starting with `http://` or `https://`.
+ */
+function readTools(
+  entries: ReadonlyArray<{variable: string; url: string}>,
+  file: string,
+): ToolServerConfig[] {
+  const seen = new Set<string>();
+  return entries.map(({variable, url}, index) => {
+    if (!POSIX_NAME.test(variable)) {
+      throw new ConfigError(
+        `${file}: tools[${index}].variable must be a variable name of letters, digits and underscores, ` +
+          `not starting with a digit, not '${variable}'.`,
+      );
+    }
+    if ((MODEL_VARIABLES as readonly string[]).includes(variable)) {
+      throw new ConfigError(
+        `${file}: tools[${index}].variable is ${variable}, one of the model proxy's variables; ` +
+          'a tool server needs a variable of its own.',
+      );
+    }
+    if (seen.has(variable)) {
+      throw new ConfigError(
+        `${file}: tools[${index}].variable ${variable} names another tool server already; each needs its own.`,
+      );
+    }
+    seen.add(variable);
+    return {variable, url: parseUrl(url, `tools[${index}].url`, file)};
+  });
 }
 
 /** The variables of the bare `${VAR}` form, with a name of letters, digits and underscores. */
@@ -178,9 +224,10 @@ function settingName(pointer: string): string {
 
 /** The settings the schema defines under an object, other than `$schema`. */
 function settingsUnder(pointer: string): string[] {
-  let node: {properties?: Record<string, unknown>} = schema;
+  type Node = {properties?: Record<string, unknown>; items?: unknown};
+  let node: Node = schema;
   for (const segment of pointer.split('/').slice(1)) {
-    node = (node.properties?.[segment] ?? {}) as {properties?: Record<string, unknown>};
+    node = (/^\d+$/.test(segment) ? node.items : node.properties?.[segment]) ?? {};
   }
   return Object.keys(node.properties ?? {}).filter(key => key !== '$schema');
 }

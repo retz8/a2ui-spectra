@@ -4,8 +4,10 @@ import {describe, it} from 'node:test';
 import {
   agentUrlOf,
   DEFAULT_PROXY_PORT,
+  DEFAULT_TOOL_PROXY_PORT,
   DEFAULT_VIEWER_PORT,
   parseCommandLine,
+  toolProxyPorts,
   UsageError,
 } from './args.js';
 
@@ -37,6 +39,7 @@ describe('parseCommandLine', () => {
     assert.equal(commandLine.options.agentUrl?.href, 'http://localhost:10002/');
     assert.equal(commandLine.options.port, DEFAULT_VIEWER_PORT);
     assert.equal(commandLine.options.proxyPort, DEFAULT_PROXY_PORT);
+    assert.equal(commandLine.options.toolProxyPort, DEFAULT_TOOL_PROXY_PORT);
     assert.equal(commandLine.options.open, true);
     assert.deepEqual(commandLine.options.allowedHosts, []);
     assert.equal(commandLine.options.config, undefined);
@@ -62,6 +65,8 @@ describe('parseCommandLine', () => {
       '7000',
       '--proxy-port',
       '7001',
+      '--tool-proxy-port',
+      '7003',
       '--no-open',
       '--allow-host',
       'One.Example',
@@ -71,6 +76,7 @@ describe('parseCommandLine', () => {
     assert.ok(commandLine.name === 'attach');
     assert.equal(commandLine.options.port, 7000);
     assert.equal(commandLine.options.proxyPort, 7001);
+    assert.equal(commandLine.options.toolProxyPort, 7003);
     assert.equal(commandLine.options.open, false);
     assert.deepEqual(commandLine.options.allowedHosts, ['one.example', 'two.example']);
   });
@@ -116,6 +122,10 @@ describe('parseCommandLine', () => {
       /--port and --model-proxy-port/,
     );
     usageError(
+      ['attach', 'http://a', '--tool-proxy-port', '9820'],
+      /--port and --tool-proxy-port are both 9820/,
+    );
+    usageError(
       ['attach', 'http://a', '--allow-host', 'http://x.example'],
       /--allow-host takes a host name/,
     );
@@ -130,6 +140,7 @@ describe('parseCommandLine', () => {
       headers: {},
       catalogs: [],
       preview: [],
+      tools: [],
     };
     const attach = parseCommandLine(['attach']);
     assert.ok(attach.name === 'attach');
@@ -137,7 +148,7 @@ describe('parseCommandLine', () => {
     const given = parseCommandLine(['attach', 'http://localhost:10004']);
     assert.ok(given.name === 'attach');
     assert.equal(agentUrlOf(given.options, config, 'attach').href, 'http://localhost:10004/');
-    const none = {headers: {}, catalogs: [], preview: []};
+    const none = {headers: {}, catalogs: [], preview: [], tools: []};
     assert.throws(
       () => agentUrlOf(attach.options, none, 'attach'),
       (error: unknown) =>
@@ -157,6 +168,28 @@ describe('parseCommandLine', () => {
         /run needs the agent's URL: --agent-url, or agent\.url in a2ui-spectra\.json/.test(
           error.message,
         ),
+    );
+  });
+
+  it('gives each tool server the next port from --tool-proxy-port, apart from the other ports', () => {
+    const attach = parseCommandLine(['attach', 'http://a', '--port', '9825']);
+    assert.ok(attach.name === 'attach');
+    assert.deepEqual(toolProxyPorts(attach.options, 0, 'attach'), []);
+    assert.deepEqual(toolProxyPorts(attach.options, 2, 'attach'), [9823, 9824]);
+    assert.throws(
+      () => toolProxyPorts(attach.options, 3, 'attach'),
+      (error: unknown) =>
+        error instanceof UsageError &&
+        /The tool proxy's ports, 9823 to 9825 for the 3 tool servers in the config file, include --port's 9825/.test(
+          error.message,
+        ),
+    );
+    const high = parseCommandLine(['attach', 'http://a', '--tool-proxy-port', '65535']);
+    assert.ok(high.name === 'attach');
+    assert.deepEqual(toolProxyPorts(high.options, 1, 'attach'), [65535]);
+    assert.throws(
+      () => toolProxyPorts(high.options, 2, 'attach'),
+      (error: unknown) => error instanceof UsageError && /past 65535/.test(error.message),
     );
   });
 

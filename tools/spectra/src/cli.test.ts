@@ -16,9 +16,10 @@ import {
   type CheckEvent,
   isEventOfKind,
   type ModelCallEvent,
+  type ToolCallEvent,
   type TurnRecord,
 } from './record/turn_record.js';
-import {SEND_REPLY, startFakeAgent, STREAM_REPLY} from './testing/fake_agent.js';
+import {FAKE_TOOL_TOKEN, SEND_REPLY, startFakeAgent, STREAM_REPLY} from './testing/fake_agent.js';
 import {FAKE_PROVIDER_KEY, startFakeProvider} from './testing/fake_provider.js';
 import {binary, finished, freePort, SpectraProcess, workingDir} from './testing/spectra_process.js';
 import {turnRecordErrors} from './testing/turn_record_schema.js';
@@ -389,6 +390,14 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         freePort(),
       ]);
       const agent = await startFakeAgent(agentPort);
+      const toolProxyPort = await freePort();
+      const cwd = workingDir();
+      writeFileSync(
+        path.join(cwd, 'a2ui-spectra.json'),
+        JSON.stringify({
+          tools: [{variable: 'FLOOR_PLAN_SERVER_URL', url: 'http://127.0.0.1:8000/sse'}],
+        }),
+      );
       const spectra = new SpectraProcess(
         [
           'attach',
@@ -399,15 +408,26 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           String(proxyPort),
           '--model-proxy-port',
           String(modelProxyPort),
+          '--tool-proxy-port',
+          String(toolProxyPort),
           '--no-open',
         ],
-        workingDir(),
+        cwd,
         {GEMINI_API_BASE: 'https://litellm.example/v1beta?key=secret'},
       );
       try {
         await spectra.waitFor(viewerUrl);
-        await spectra.waitFor(/set these in the agent's shell and restart it/);
+        await spectra.waitFor(
+          /To see model and tool calls, set these in the agent's shell and restart it/,
+        );
         await spectra.waitFor(/already sets one of them to another address/);
+        assert.match(
+          spectra.output,
+          new RegExp(
+            `^export GEMINI_API_BASE=.*\\n^export FLOOR_PLAN_SERVER_URL=http://127\\.0\\.0\\.1:${toolProxyPort}/sse  # forwards to http://127\\.0\\.0\\.1:8000/sse$`,
+            'm',
+          ),
+        );
         for (const name of VARIABLES) {
           assert.match(
             spectra.output,
@@ -427,10 +447,10 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           variables?: unknown;
         };
         assert.equal(context.mode, 'attach');
-        assert.deepEqual(
-          context.variables,
-          VARIABLES.map(name => ({name, value: `http://127.0.0.1:${modelProxyPort}/${name}`})),
-        );
+        assert.deepEqual(context.variables, [
+          ...VARIABLES.map(name => ({name, value: `http://127.0.0.1:${modelProxyPort}/${name}`})),
+          {name: 'FLOOR_PLAN_SERVER_URL', value: `http://127.0.0.1:${toolProxyPort}/sse`},
+        ]);
         spectra.signal('SIGTERM');
         assert.equal((await spectra.exited).code, 128 + 15);
       } finally {
@@ -877,6 +897,114 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           );
         } finally {
           await closeServer(provider.server);
+        }
+      },
+    );
+
+    it(
+      'records a tool call the agent makes through a configured tool server, with the token removed',
+      {timeout: TIMEOUT},
+      async () => {
+        const toolPort = await freePort();
+        const received: string[] = [];
+        const toolServer = createServer((request, response) => {
+          let body = '';
+          request.setEncoding('utf8');
+          request.on('data', (chunk: string) => (body += chunk));
+          request.on('end', () => {
+            received.push(String(request.headers.authorization));
+            const message = JSON.parse(body) as {id: number};
+            response.writeHead(200, {'content-type': 'application/json'});
+            response.end(
+              JSON.stringify({
+                jsonrpc: '2.0',
+                id: message.id,
+                result: {content: [{type: 'text', text: 'Desk 4'}]},
+              }),
+            );
+          });
+        });
+        await new Promise<void>(resolve =>
+          toolServer.listen(toolPort, '127.0.0.1', () => resolve()),
+        );
+        const cwd = workingDir();
+        writeFileSync(
+          path.join(cwd, 'a2ui-spectra.json'),
+          JSON.stringify({
+            tools: [{variable: 'FAKE_TOOL_URL', url: `http://127.0.0.1:${toolPort}/mcp`}],
+          }),
+        );
+        const toolProxyPort = await freePort();
+        const args = await runArgs(['--tool-call']);
+        const command = args.indexOf('--');
+        const spectra = new SpectraProcess(
+          [
+            ...args.slice(0, command),
+            '--tool-proxy-port',
+            String(toolProxyPort),
+            ...args.slice(command),
+          ],
+          cwd,
+        );
+        try {
+          const [, shownPort] = await spectra.waitFor(viewerUrl);
+          const port = Number(shownPort);
+          const [, shownProxyPort] = await spectra.waitFor(proxyAddress);
+          await spectra.waitFor(
+            new RegExp(
+              `The tool proxy for FAKE_TOOL_URL is at http://127\\.0\\.0\\.1:${toolProxyPort}, forwarding to http://127\\.0\\.0\\.1:${toolPort}`,
+            ),
+          );
+          const answer = await send(Number(shownProxyPort), {
+            method: 'POST',
+            headers: {'content-type': 'application/json'},
+            body: jsonRpc('message/send'),
+          });
+          assert.equal(answer.body, SEND_REPLY);
+          assert.deepEqual(received, [`Bearer ${FAKE_TOOL_TOKEN}`], 'the token is forwarded');
+
+          let traceId: string | undefined;
+          const deadline = Date.now() + 10_000;
+          while (traceId === undefined) {
+            assert.ok(Date.now() < deadline, `No closed turn:\n${spectra.output}`);
+            const listed = JSON.parse((await send(port, {path: '/api/turns'})).body) as {
+              turns: Array<{traceId: string; open?: boolean}>;
+            };
+            traceId = listed.turns.find(turn => turn.open !== true)?.traceId;
+            if (traceId === undefined) await new Promise(resolve => setTimeout(resolve, 50));
+          }
+          const served = await send(port, {path: `/api/turns/${traceId}`});
+          assert.equal(served.status, 200, served.body);
+          const record = JSON.parse(served.body) as TurnRecord;
+          assert.deepEqual(turnRecordErrors(record), []);
+          const turn = record.turns[record.turns.length - 1];
+          const turnEvent = turn.events.find(event => isEventOfKind(event, 'turn'));
+          assert.ok(turnEvent?.attributes['a2ui.event.kind'] === 'turn');
+          assert.deepEqual(turnEvent.attributes['a2ui.turn.capture_paths'], [
+            'wire',
+            'model_proxy',
+            'tool_proxy',
+          ]);
+          const call = turn.events.find((event): event is ToolCallEvent =>
+            isEventOfKind(event, 'tool_call'),
+          );
+          assert.ok(call, 'the turn holds its tool call');
+          assert.equal(call.parentSpanId, turnEvent.spanId);
+          assert.equal(call.kind, 3);
+          assert.equal(call.name, 'tools/call lookup');
+          assert.equal(call.attributes['gen_ai.tool.name'], 'lookup');
+          assert.deepEqual(call.attributes['gen_ai.tool.call.arguments'], {q: 'floor plan'});
+          assert.deepEqual(call.attributes['gen_ai.tool.call.result'], {
+            content: [{type: 'text', text: 'Desk 4'}],
+          });
+          assert.equal(call.attributes['mcp.protocol.version'], '2025-06-18');
+          assert.deepEqual(call.attributes['http.request.header.authorization'], ['REMOVED']);
+          assert.equal(call.attributes['url.full'], `http://127.0.0.1:${toolPort}/mcp`);
+          assert.equal(served.body.includes(FAKE_TOOL_TOKEN), false, 'no token in the record');
+          spectra.signal('SIGTERM');
+          assert.equal((await spectra.exited).code, 128 + 15, spectra.output);
+        } finally {
+          await closeServer(toolServer);
         }
       },
     );

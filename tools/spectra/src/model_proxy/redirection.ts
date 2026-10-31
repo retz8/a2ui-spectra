@@ -110,16 +110,26 @@ export function describeTarget(target: Target): string {
   return text.endsWith('/') && !target.base.endsWith('/') ? text.slice(0, -1) : text;
 }
 
-/** The lines `attach` prints: the instruction, one POSIX export per variable, and the note on values already set. */
-export function attachLines(list: Redirection[]): {intro: string; exports: string[]; note: string} {
+/**
+ * The lines `attach` prints: the instruction, one POSIX export per variable,
+ * then the tool servers' lines, and the note on values already set.
+ */
+export function attachLines(
+  list: Redirection[],
+  toolExports: string[] = [],
+): {intro: string; exports: string[]; note: string} {
   return {
-    intro: "To see model calls, set these in the agent's shell and restart it:",
-    exports: list.map(
-      ({name, value, target}) => `export ${name}=${value}  # forwards to ${describeTarget(target)}`,
-    ),
+    intro: "To see model and tool calls, set these in the agent's shell and restart it:",
+    exports: [
+      ...list.map(
+        ({name, value, target}) =>
+          `export ${name}=${value}  # forwards to ${describeTarget(target)}`,
+      ),
+      ...toolExports,
+    ],
     note:
       "If the agent's shell already sets one of them to another address, start Spectra with that value set as well, " +
-      'so the model proxy forwards there.',
+      'so the proxy forwards there.',
   };
 }
 

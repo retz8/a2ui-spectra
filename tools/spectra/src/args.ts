@@ -6,6 +6,7 @@ import {DEFAULT_MODEL_PROXY_PORT} from './model_proxy/redirection.js';
 
 export const DEFAULT_VIEWER_PORT = 9820;
 export const DEFAULT_PROXY_PORT = 9821;
+export const DEFAULT_TOOL_PROXY_PORT = 9823;
 export {DEFAULT_MODEL_PROXY_PORT};
 
 export type CommandName = 'attach' | 'run';
@@ -22,6 +23,8 @@ export interface SessionOptions {
   proxyPort: number;
   /** The model proxy's port. */
   modelProxyPort: number;
+  /** The first tool server's port on the tool proxy; each further one takes the next. */
+  toolProxyPort: number;
   /** Whether to open the browser. */
   open: boolean;
   /** Host names the server answers besides the loopback names. */
@@ -50,6 +53,7 @@ const sessionOptions = {
   port: {type: 'string'},
   'proxy-port': {type: 'string'},
   'model-proxy-port': {type: 'string'},
+  'tool-proxy-port': {type: 'string'},
   'no-open': {type: 'boolean'},
   'allow-host': {type: 'string', multiple: true},
   help: {type: 'boolean'},
@@ -181,6 +185,7 @@ function sessionOptionsFrom(
     port?: string;
     'proxy-port'?: string;
     'model-proxy-port'?: string;
+    'tool-proxy-port'?: string;
     'no-open'?: boolean;
     'allow-host'?: string[];
   },
@@ -193,6 +198,10 @@ function sessionOptionsFrom(
     [
       '--model-proxy-port',
       parsePort(values['model-proxy-port'], DEFAULT_MODEL_PROXY_PORT, '--model-proxy-port', topic),
+    ],
+    [
+      '--tool-proxy-port',
+      parsePort(values['tool-proxy-port'], DEFAULT_TOOL_PROXY_PORT, '--tool-proxy-port', topic),
     ],
   ] as const;
   for (const [i, [option, port]] of ports.entries()) {
@@ -210,9 +219,47 @@ function sessionOptionsFrom(
     port: ports[0][1],
     proxyPort: ports[1][1],
     modelProxyPort: ports[2][1],
+    toolProxyPort: ports[3][1],
     open: !values['no-open'],
     allowedHosts: (values['allow-host'] ?? []).map(name => parseHostName(name, topic)),
   };
+}
+
+/**
+ * The tool proxy's ports, one per configured tool server: `--tool-proxy-port`
+ * for the first and the next port for each further one, in config order.
+ * A port past 65535, or one another of Spectra's ports holds, is a usage
+ * error.
+ */
+export function toolProxyPorts(
+  options: SessionOptions,
+  servers: number,
+  topic: CommandName,
+): number[] {
+  const ports = Array.from({length: servers}, (_, index) => options.toolProxyPort + index);
+  const last = ports[ports.length - 1];
+  if (last !== undefined && last > 65535) {
+    throw new UsageError(
+      `The ${servers} tool servers in the config file need ports ${options.toolProxyPort} to ${last}, ` +
+        'past 65535. Choose a lower --tool-proxy-port.',
+      topic,
+    );
+  }
+  const others = [
+    ['--port', options.port],
+    ['--proxy-port', options.proxyPort],
+    ['--model-proxy-port', options.modelProxyPort],
+  ] as const;
+  for (const [option, port] of others) {
+    if (ports.includes(port)) {
+      throw new UsageError(
+        `The tool proxy's ports, ${options.toolProxyPort} to ${last} for the ${servers} tool servers in the config file, ` +
+          `include ${option}'s ${port}; they need different ports.`,
+        topic,
+      );
+    }
+  }
+  return ports;
 }
 
 function parseAgentUrl(value: string, topic: CommandName): URL {

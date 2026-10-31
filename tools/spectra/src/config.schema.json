@@ -34,6 +34,25 @@
       "type": "array",
       "items": {"type": "string"},
       "description": "The preview pages: the URL of each page built with a Spectra preview adapter, starting with http:// or https://."
+    },
+    "tools": {
+      "type": "array",
+      "description": "The agent's tool servers, MCP over HTTP or plain HTTP, each reached through the tool proxy on its own port. run sets each variable to the tool proxy's address, and attach prints it.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["variable", "url"],
+        "properties": {
+          "variable": {
+            "type": "string",
+            "description": "The environment variable the agent reads the server's URL from, such as FLOOR_PLAN_SERVER_URL. A POSIX name, used once, and none of the model proxy's five variables."
+          },
+          "url": {
+            "type": "string",
+            "description": "The server's URL, starting with http:// or https://, such as http://127.0.0.1:8000/sse. When Spectra's environment sets the variable to another address, that value is the server's URL instead."
+          }
+        }
+      }
     }
   }
 }

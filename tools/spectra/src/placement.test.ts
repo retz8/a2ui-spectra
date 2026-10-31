@@ -3,7 +3,7 @@ import {describe, it} from 'node:test';
 
 import type {TurnNotification} from './a2a/turn.js';
 import {CallPlacer} from './placement.js';
-import type {ModelCallEvent, Turn, TurnEvent} from './record/turn_record.js';
+import type {ModelCallEvent, ToolCallEvent, Turn, TurnEvent} from './record/turn_record.js';
 
 const T1 = 'a'.repeat(32);
 const T2 = 'b'.repeat(32);
@@ -70,7 +70,7 @@ function closed(traceId: string, spanId: string): TurnNotification {
   };
 }
 
-function setUp(alwaysCapturePaths?: Array<'model_proxy'>) {
+function setUp(alwaysCapturePaths?: Array<'model_proxy' | 'tool_proxy'>) {
   const out: TurnNotification[] = [];
   const log: string[] = [];
   const placer = new CallPlacer({
@@ -201,6 +201,52 @@ describe('CallPlacer', () => {
     attach.placer.onTurn(closed(T1, S1));
     const attachTurn = attach.handedOn()[0].turn.events[0] as TurnEvent;
     assert.deepEqual(attachTurn.attributes['a2ui.turn.capture_paths'], ['wire']);
+  });
+
+  it('lists tool_proxy on a turn with a tool call, and on every turn under run with tool servers', () => {
+    const attach = setUp();
+    attach.placer.onTurn(opened(T1, S1));
+    const placed = attach.placer.place(aCall);
+    attach.placer.onTurn(closed(T1, S1));
+    const toolCall: ToolCallEvent = {
+      ...call(T1, S1, '2000000000000', '4000000000000'),
+      name: 'tools/call echo',
+      attributes: {'a2ui.event.kind': 'tool_call', 'mcp.method.name': 'tools/call'},
+    };
+    placed?.ended(toolCall);
+    const attachTurn = attach.handedOn()[0].turn.events[0] as TurnEvent;
+    assert.deepEqual(attachTurn.attributes['a2ui.turn.capture_paths'], ['wire', 'tool_proxy']);
+
+    const run = setUp(['model_proxy', 'tool_proxy']);
+    run.placer.onTurn(opened(T1, S1));
+    run.placer.onTurn(closed(T1, S1));
+    const runTurn = run.handedOn()[0].turn.events[0] as TurnEvent;
+    assert.deepEqual(runTurn.attributes['a2ui.turn.capture_paths'], [
+      'wire',
+      'model_proxy',
+      'tool_proxy',
+    ]);
+  });
+
+  it('lets a turn go when a call it held is released, with no event', () => {
+    const {placer, handedOn} = setUp();
+    placer.onTurn(opened(T1, S1));
+    const placed = placer.tryPlace(aCall);
+    assert.ok(!('line' in placed));
+    placer.onTurn(closed(T1, S1));
+    assert.equal(handedOn().length, 0, 'held while the request is out');
+    placed.release();
+    placed.release();
+    assert.equal(handedOn().length, 1);
+    assert.equal(handedOn()[0].turn.events.length, 2);
+  });
+
+  it('says why a call cannot be placed without logging it, when asked to try', () => {
+    const {placer, log} = setUp();
+    const result = placer.tryPlace(aCall);
+    assert.ok('line' in result);
+    assert.match(result.line, /no turn is open/);
+    assert.deepEqual(log, []);
   });
 
   it('ends a call once', () => {
