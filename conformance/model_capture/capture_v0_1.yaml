@@ -68,3 +68,15 @@
   traffic: "test_data/model_capture/v0_1/gemini/rate_limited.har"
   expect: "test_data/model_capture/v0_1/gemini/rate_limited_raw.json"
   readInFull: false
+
+- name: openai_chat_custom_components_conversation
+  description: "The custom-components example's conversation as the stand-in plays it for the acceptance run on Chat Completions, built in the API reference's shapes from the example's Gemini recording: the get_contact_info call streamed in pieces, the answer, and the answer again after the example's validation retry, with cached_tokens on the last."
+  action: capture_model
+  traffic: "test_data/model_capture/v0_1/openai_chat/custom_components_conversation.har"
+  expect: "test_data/model_capture/v0_1/openai_chat/custom_components_conversation.json"
+
+- name: openai_responses_custom_components_conversation
+  description: "The same conversation as the stand-in plays it on the Responses API: the function call item streamed, the message items, and response.completed carrying each response with its usage."
+  action: capture_model
+  traffic: "test_data/model_capture/v0_1/openai_responses/custom_components_conversation.har"
+  expect: "test_data/model_capture/v0_1/openai_responses/custom_components_conversation.json"

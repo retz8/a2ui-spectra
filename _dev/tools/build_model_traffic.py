@@ -15,6 +15,12 @@ live traffic, as HAR 1.2 files under conformance/test_data/model_capture/v0_1/:
   "Error events").
 - gemini/rate_limited.har: a 429 in Gemini's documented error shape
   (https://ai.google.dev/gemini-api/docs/troubleshooting, `{"error": {"code", "message", "status"}}`).
+- openai_chat/custom_components_conversation.har and openai_responses/custom_components_conversation.har:
+  the custom-components example's conversation, "Who is Alex Jordan?", as the stand-in plays it for the
+  acceptance run on each OpenAI API: the requests, responses and stream events in the shapes of OpenAI's
+  API reference, carrying the example's own replies from its Gemini recording of the same conversation,
+  gemini/custom_components_litellm.har — the get_contact_info call, the answer, and the answer again
+  after the example's validation retry — with that recording's token counts.
 
 Every HAR carries the credential headers a client sends with the placeholder value RECORDED-CREDENTIAL,
 never a key. From the repository root:
@@ -38,6 +44,9 @@ def main():
     write("openai_responses/reference_examples.har", openai_responses_entries())
     write("anthropic/overloaded_stream.har", anthropic_overloaded_entries())
     write("gemini/rate_limited.har", gemini_rate_limited_entries())
+    conversation = gemini_conversation("gemini/custom_components_litellm.har")
+    write("openai_chat/custom_components_conversation.har", chat_conversation_entries(conversation))
+    write("openai_responses/custom_components_conversation.har", responses_conversation_entries(conversation))
 
 
 def write(name, entries):
@@ -379,6 +388,170 @@ def gemini_rate_limited_entries():
         429, "Too Many Requests", [("content-type", "application/json; charset=UTF-8")],
         json.dumps({"error": {"code": 429, "message": "You exceeded your current quota, please check your plan and billing details.", "status": "RESOURCE_EXHAUSTED"}}),
     )]
+
+
+# --- The custom-components conversation, from its Gemini recording ---
+
+CHAT_MODEL = "gpt-4.1-mini"
+CHAT_RESPONSE_MODEL = "gpt-4.1-mini-2025-04-14"
+DELTA_CHARS = 120
+
+
+def gemini_conversation(name):
+    """The conversation's calls as the Gemini recording holds them: the system prompt, the tools, and
+    per call the contents sent and what came back, text or a function call, with the token counts."""
+    har = json.loads((ROOT / name).read_text(encoding="utf-8"))
+    calls = []
+    for entry in har["log"]["entries"]:
+        request = json.loads(entry["request"]["postData"]["text"])
+        text, call, usage = [], None, None
+        for line in entry["response"]["content"]["text"].splitlines():
+            if not line.startswith("data:"):
+                continue
+            chunk = json.loads(line[5:].strip())
+            for candidate in chunk.get("candidates", []):
+                for part in candidate.get("content", {}).get("parts", []):
+                    if "text" in part:
+                        text.append(part["text"])
+                    if "functionCall" in part:
+                        call = part["functionCall"]
+            usage = chunk.get("usageMetadata", usage)
+        calls.append({"contents": request["contents"], "text": "".join(text), "call": call, "usage": usage})
+    first = json.loads(har["log"]["entries"][0]["request"]["postData"]["text"])
+    return {
+        "system": first["system_instruction"]["parts"][0]["text"],
+        "tools": [f for t in first["tools"] for f in t["function_declarations"]],
+        "calls": calls,
+    }
+
+
+def tool_call_id(index):
+    return f"call_cc_{index}"
+
+
+def pieces(text):
+    return [text[i : i + DELTA_CHARS] for i in range(0, len(text), DELTA_CHARS)] or [""]
+
+
+def usage_counts(usage):
+    return usage.get("promptTokenCount", 0), usage.get("candidatesTokenCount", 0), usage.get("cachedContentTokenCount", 0)
+
+
+def chat_messages(conversation, contents):
+    """The conversation's contents as Chat Completions messages, the system prompt first."""
+    messages = [{"role": "system", "content": conversation["system"]}]
+    call_index = 0
+    for content in contents:
+        for part in content["parts"]:
+            if "text" in part:
+                messages.append({"role": "user" if content["role"] == "user" else "assistant", "content": part["text"]})
+            elif "function_call" in part or "functionCall" in part:
+                call = part.get("function_call") or part["functionCall"]
+                call_index += 1
+                messages.append({"role": "assistant", "content": None, "tool_calls": [{"id": tool_call_id(call_index), "type": "function", "function": {"name": call["name"], "arguments": json.dumps(call["args"])}}]})
+            elif "function_response" in part or "functionResponse" in part:
+                response = part.get("function_response") or part["functionResponse"]
+                messages.append({"role": "tool", "tool_call_id": tool_call_id(call_index), "content": json.dumps(response["response"])})
+    return messages
+
+
+def chat_tools(conversation):
+    return [{"type": "function", "function": {"name": t["name"], "description": t.get("description", ""), "parameters": t["parameters"]}} for t in conversation["tools"]]
+
+
+def chat_conversation_entries(conversation):
+    entries = []
+    for index, call in enumerate(conversation["calls"], 1):
+        prompt, completion, cached = usage_counts(call["usage"])
+        request = {"model": CHAT_MODEL, "messages": chat_messages(conversation, call["contents"]), "tools": chat_tools(conversation), "stream": True, "stream_options": {"include_usage": True}}
+        id_ = f"chatcmpl-cc-{index}"
+        chunks = [chat_chunk(id_, {"role": "assistant", "content": "", "refusal": None})]
+        if call["call"] is not None:
+            call_id = tool_call_id(sum(1 for c in call["contents"] for p in c["parts"] if "function_call" in p or "functionCall" in p) + 1)
+            arguments = json.dumps(call["call"]["args"])
+            chunks.append(chat_chunk(id_, {"tool_calls": [{"index": 0, "id": call_id, "type": "function", "function": {"name": call["call"]["name"], "arguments": ""}}]}))
+            for piece in pieces(arguments):
+                chunks.append(chat_chunk(id_, {"tool_calls": [{"index": 0, "function": {"arguments": piece}}]}))
+            chunks.append(chat_chunk(id_, {}, "tool_calls"))
+        else:
+            for piece in pieces(call["text"]):
+                chunks.append(chat_chunk(id_, {"content": piece}))
+            chunks.append(chat_chunk(id_, {}, "stop"))
+        chunks.append(chat_chunk(id_, None, usage=chat_usage(prompt, completion, cached=cached)))
+        chunks.append("[DONE]")
+        for chunk in chunks:
+            if isinstance(chunk, dict):
+                chunk["model"] = CHAT_RESPONSE_MODEL
+        entries.append(entry(f"{OPENAI}/v1/chat/completions", OPENAI_HEADERS, request, 200, "OK", SSE_RESPONSE, sse(chunks)))
+    return entries
+
+
+def responses_input(contents):
+    """The conversation's contents as Responses API input items."""
+    items = []
+    call_index = 0
+    for content in contents:
+        for part in content["parts"]:
+            if "text" in part:
+                items.append({"role": "user" if content["role"] == "user" else "assistant", "content": part["text"]})
+            elif "function_call" in part or "functionCall" in part:
+                call = part.get("function_call") or part["functionCall"]
+                call_index += 1
+                items.append({"type": "function_call", "call_id": tool_call_id(call_index), "name": call["name"], "arguments": json.dumps(call["args"])})
+            elif "function_response" in part or "functionResponse" in part:
+                response = part.get("function_response") or part["functionResponse"]
+                items.append({"type": "function_call_output", "call_id": tool_call_id(call_index), "output": json.dumps(response["response"])})
+    return items
+
+
+def responses_tools(conversation):
+    return [{"type": "function", "name": t["name"], "description": t.get("description", ""), "parameters": t["parameters"], "strict": False} for t in conversation["tools"]]
+
+
+def responses_conversation_entries(conversation):
+    entries = []
+    for index, call in enumerate(conversation["calls"], 1):
+        prompt, completion, cached = usage_counts(call["usage"])
+        tools = responses_tools(conversation)
+        request = {"model": CHAT_MODEL, "instructions": conversation["system"], "input": responses_input(call["contents"]), "tools": tools, "stream": True}
+        id_ = f"resp_cc_{index}"
+        base = dict(instructions=conversation["system"], tools=tools)
+        created = response_object(id_, [], None, status="in_progress", **base)
+        events = [
+            ("response.created", {"type": "response.created", "sequence_number": 0, "response": created}),
+            ("response.in_progress", {"type": "response.in_progress", "sequence_number": 1, "response": created}),
+        ]
+        sequence = 2
+
+        def event(name, **fields):
+            nonlocal sequence
+            events.append((name, {"type": name, "sequence_number": sequence, **fields}))
+            sequence += 1
+
+        if call["call"] is not None:
+            call_id = tool_call_id(sum(1 for c in call["contents"] for p in c["parts"] if "function_call" in p or "functionCall" in p) + 1)
+            arguments = json.dumps(call["call"]["args"])
+            item_id = f"fc_cc_{index}"
+            added = {"type": "function_call", "id": item_id, "call_id": call_id, "name": call["call"]["name"], "arguments": "", "status": "in_progress"}
+            event("response.output_item.added", output_index=0, item=added)
+            for piece in pieces(arguments):
+                event("response.function_call_arguments.delta", item_id=item_id, output_index=0, delta=piece)
+            event("response.function_call_arguments.done", item_id=item_id, output_index=0, arguments=arguments)
+            done = {**added, "arguments": arguments, "status": "completed"}
+        else:
+            item_id = f"msg_cc_{index}"
+            event("response.output_item.added", output_index=0, item={"type": "message", "id": item_id, "status": "in_progress", "role": "assistant", "content": []})
+            event("response.content_part.added", item_id=item_id, output_index=0, content_index=0, part={"type": "output_text", "text": "", "annotations": []})
+            for piece in pieces(call["text"]):
+                event("response.output_text.delta", item_id=item_id, output_index=0, content_index=0, delta=piece)
+            event("response.output_text.done", item_id=item_id, output_index=0, content_index=0, text=call["text"])
+            event("response.content_part.done", item_id=item_id, output_index=0, content_index=0, part={"type": "output_text", "text": call["text"], "annotations": []})
+            done = text_item(item_id, call["text"])
+        event("response.output_item.done", output_index=0, item=done)
+        completed = response_object(id_, [done], responses_usage(prompt, completion, cached=cached), **base)
+        event("response.completed", response=completed)
+        entries.append(entry(f"{OPENAI}/v1/responses", OPENAI_HEADERS, request, 200, "OK", SSE_RESPONSE, sse(events)))
+    return entries
 
 
 if __name__ == "__main__":
