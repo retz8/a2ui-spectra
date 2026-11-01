@@ -10,7 +10,7 @@ The run's store, configs, launch scripts, logs and the scratch copies of the two
 
 ## Open threads
 
-- For A2UIVerse's backlog, not written there from this session since the a2uiverse session 18.6 held `_dev/TODO.md`: the kit hands the model an MCP tool's `content` alone, so CircleCI's `list_runs`, whose runs sit in `structuredContent` under a `content` of "Found 5 run(s)", shows the agent nothing to open.
+- In A2UIVerse's Backlog as `e04926b` on its `main`: the kit hands the model an MCP tool's `content` alone, so CircleCI's `list_runs`, whose runs sit in `structuredContent` under a `content` of "Found 5 run(s)", shows the agent nothing to open.
 - The Chromium end-to-end test of the React sample wants port 9831, the port Spectra's own tool server takes in `conformance/README.md`; a tool server left running fails it.
 - The viewer showed "Not connected to Spectra · reconnecting" twice through the tunnel on 2026-10-31; it reconnected each time. Not reproduced locally.
 - The 5.6 spec's "reply on the SSE stream" line, its decision 10, still reads the old wording; the 5.1 spec's decision 16 carries the new one.
