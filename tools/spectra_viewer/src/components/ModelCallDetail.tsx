@@ -28,6 +28,7 @@ import {
 import {type Marker, partName, partText, type PrefixBreak} from '@/model/prefix.ts';
 import {type ModelCallEvent, type TurnRecordEvent, unixMillis} from '@/model/record.ts';
 import {plural} from '@/model/steps.ts';
+import {useBlockFold} from '@/state/block_folds.ts';
 
 import {AgentSpans} from './AgentSpans.tsx';
 import {asList, Exchange, Pairs, Section, TextBlock} from './CallParts.tsx';
@@ -299,6 +300,7 @@ function MarkedText({
   marker: Marker;
   mono: boolean;
 }) {
+  const fold = useBlockFold(label);
   const line = ([before, differing, after]: readonly [string, string, string]) => (
     <span className="min-w-0 break-words whitespace-pre-wrap">
       {before}
@@ -310,33 +312,37 @@ function MarkedText({
   );
   return (
     <section data-anchor="prefix-break" className="flex min-w-0 flex-col gap-1.5">
-      <BlockLabel label={label} meta={meta} />
-      <div
-        className={cn(
-          'flex flex-col rounded-lg bg-tint px-3 py-2.5 break-words whitespace-pre-wrap',
-          mono && 'font-mono text-xs leading-[1.6]',
-        )}
-      >
-        {marker.before !== '' && <span>{marker.before.replace(/\n$/, '')}</span>}
-        <span
-          role="separator"
-          aria-label="Shared prefix ends"
-          className="my-1 mb-1.5 flex items-center gap-2 font-sans text-xs font-semibold whitespace-nowrap text-muted-strong"
+      <BlockLabel label={label} meta={meta} fold={fold} />
+      {fold.open && (
+        <div
+          className={cn(
+            'flex flex-col rounded-lg bg-tint px-3 py-2.5 break-words whitespace-pre-wrap',
+            mono && 'font-mono text-xs leading-[1.6]',
+          )}
         >
-          <span className="h-px flex-1 bg-muted-foreground" />
-          Shared prefix ends
-          <span className="h-px flex-1 bg-muted-foreground" />
-        </span>
-        <span className="mb-1.5 grid grid-cols-[84px_minmax(0,1fr)] gap-x-2.5 gap-y-0.5">
-          <span className="font-sans text-xs leading-[21px] text-muted-foreground">
-            Earlier call
+          {marker.before !== '' && <span>{marker.before.replace(/\n$/, '')}</span>}
+          <span
+            role="separator"
+            aria-label="Shared prefix ends"
+            className="my-1 mb-1.5 flex items-center gap-2 font-sans text-xs font-semibold whitespace-nowrap text-muted-strong"
+          >
+            <span className="h-px flex-1 bg-muted-foreground" />
+            Shared prefix ends
+            <span className="h-px flex-1 bg-muted-foreground" />
           </span>
-          {line(marker.earlier)}
-          <span className="font-sans text-xs leading-[21px] text-muted-foreground">This call</span>
-          {line(marker.current)}
-        </span>
-        {marker.after !== '' && <span>{marker.after.replace(/^\n/, '')}</span>}
-      </div>
+          <span className="mb-1.5 grid grid-cols-[84px_minmax(0,1fr)] gap-x-2.5 gap-y-0.5">
+            <span className="font-sans text-xs leading-[21px] text-muted-foreground">
+              Earlier call
+            </span>
+            {line(marker.earlier)}
+            <span className="font-sans text-xs leading-[21px] text-muted-foreground">
+              This call
+            </span>
+            {line(marker.current)}
+          </span>
+          {marker.after !== '' && <span>{marker.after.replace(/^\n/, '')}</span>}
+        </div>
+      )}
     </section>
   );
 }
@@ -427,6 +433,7 @@ function PartsBlock({
   meta: string;
   parts: readonly unknown[];
 }) {
+  const fold = useBlockFold(label);
   if (parts.length === 1) {
     const [part] = parts;
     const {type, content} = (part ?? {}) as {type?: unknown; content?: unknown};
@@ -437,17 +444,21 @@ function PartsBlock({
   }
   return (
     <section className="flex min-w-0 flex-col gap-1.5">
-      <BlockLabel label={label} meta={meta} />
-      {parts.map((part, index) => {
-        const {type, content} = (part ?? {}) as {type?: unknown; content?: unknown};
-        return (type === 'text' || type === 'reasoning') && typeof content === 'string' ? (
-          <p key={index} className="rounded-lg bg-tint px-3 py-2.5 break-words whitespace-pre-wrap">
-            {content}
-          </p>
-        ) : (
-          <JsonLines key={index} value={part} folded={foldedOf(part)} />
-        );
-      })}
+      <BlockLabel label={label} meta={meta} fold={fold} />
+      {fold.open &&
+        parts.map((part, index) => {
+          const {type, content} = (part ?? {}) as {type?: unknown; content?: unknown};
+          return (type === 'text' || type === 'reasoning') && typeof content === 'string' ? (
+            <p
+              key={index}
+              className="rounded-lg bg-tint px-3 py-2.5 break-words whitespace-pre-wrap"
+            >
+              {content}
+            </p>
+          ) : (
+            <JsonLines key={index} value={part} folded={foldedOf(part)} />
+          );
+        })}
     </section>
   );
 }
@@ -466,48 +477,51 @@ function ToolDefinitions({
   marked: {index: number; marker: Marker} | undefined;
 }) {
   const [open, setOpen] = useState<ReadonlySet<number>>(() => new Set());
+  const fold = useBlockFold('Tool definitions');
   return (
     <section className="flex min-w-0 flex-col gap-1.5">
-      <BlockLabel label="Tool definitions" meta={plural(tools.length, 'tool')} />
-      <div className="flex flex-col rounded-lg bg-tint py-1 text-xs">
-        {tools.map((tool, index) => {
-          const {name, description} = (tool ?? {}) as {name?: unknown; description?: unknown};
-          const unfolded = open.has(index) || marked?.index === index;
-          return (
-            <div key={index} className="flex flex-col">
-              <div className="flex h-7 min-w-0 items-center gap-2 pr-3 pl-2.5">
-                <button
-                  type="button"
-                  aria-expanded={unfolded}
-                  aria-label={`${unfolded ? 'Fold' : 'Unfold'} ${String(name ?? 'the tool')}`}
-                  onClick={() => {
-                    const next = new Set(open);
-                    if (!next.delete(index)) next.add(index);
-                    setOpen(next);
-                  }}
-                  className="flex size-4 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-border hover:text-foreground"
-                >
-                  <Icon kind={unfolded ? 'chevronDown' : 'chevronRight'} size={11} />
-                </button>
-                <span className="shrink-0 font-mono font-medium">{String(name ?? '')}</span>
-                <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                  {typeof description === 'string' ? description : ''}
-                </span>
+      <BlockLabel label="Tool definitions" meta={plural(tools.length, 'tool')} fold={fold} />
+      {fold.open && (
+        <div className="flex flex-col rounded-lg bg-tint py-1 text-xs">
+          {tools.map((tool, index) => {
+            const {name, description} = (tool ?? {}) as {name?: unknown; description?: unknown};
+            const unfolded = open.has(index) || marked?.index === index;
+            return (
+              <div key={index} className="flex flex-col">
+                <div className="flex h-7 min-w-0 items-center gap-2 pr-3 pl-2.5">
+                  <button
+                    type="button"
+                    aria-expanded={unfolded}
+                    aria-label={`${unfolded ? 'Fold' : 'Unfold'} ${String(name ?? 'the tool')}`}
+                    onClick={() => {
+                      const next = new Set(open);
+                      if (!next.delete(index)) next.add(index);
+                      setOpen(next);
+                    }}
+                    className="flex size-4 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-border hover:text-foreground"
+                  >
+                    <Icon kind={unfolded ? 'chevronDown' : 'chevronRight'} size={11} />
+                  </button>
+                  <span className="shrink-0 font-mono font-medium">{String(name ?? '')}</span>
+                  <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                    {typeof description === 'string' ? description : ''}
+                  </span>
+                </div>
+                {unfolded &&
+                  (marked?.index === index ? (
+                    <div className="px-2.5 pb-2">
+                      <MarkedText label="Definition" marker={marked.marker} mono />
+                    </div>
+                  ) : (
+                    <div className="px-2.5 pb-2">
+                      <JsonLines value={tool} className="bg-panel" />
+                    </div>
+                  ))}
               </div>
-              {unfolded &&
-                (marked?.index === index ? (
-                  <div className="px-2.5 pb-2">
-                    <MarkedText label="Definition" marker={marked.marker} mono />
-                  </div>
-                ) : (
-                  <div className="px-2.5 pb-2">
-                    <JsonLines value={tool} className="bg-panel" />
-                  </div>
-                ))}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }

@@ -67,7 +67,7 @@ The step's detail has a Maximize button, for every step. Pressed, the detail tak
 
 ### 10. A model call's detail
 
-In order: the title line, with the model id, the provider and the API, such as "Anthropic Messages", the sources, such as "Model proxy · ADK spans", the duration and the time to the first token; the usage; the prefix break's sentence; the request; the response; the exchange; and "From the agent's spans" when a span is linked. The sections are separated by spacing and small labels, with no tabs.
+In order: the title line, with the model id, the provider and the API, such as "Anthropic Messages", the sources, such as "Model proxy · ADK spans", the duration and the time to the first token; the usage; the prefix break's sentence; the request; the response; the exchange; and "From the agent's spans" when a span is linked. The sections are separated by spacing and small labels, with no tabs. Every labelled block, in a model call's detail, a tool call's and a step's alike, folds on its label line with the chevron the sections use, and a block folded stays folded by its label on every step for the session; the model call board draws its tool definitions folded.
 
 ### 11. The request
 

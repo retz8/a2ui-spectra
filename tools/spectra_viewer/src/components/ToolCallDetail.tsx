@@ -16,6 +16,7 @@ import {
   timedEventOf,
 } from '@/model/call_rows.ts';
 import type {OtherEvent, TurnRecordEvent} from '@/model/record.ts';
+import {useBlockFold} from '@/state/block_folds.ts';
 import {
   argumentsOf,
   contentBlocksOf,
@@ -151,6 +152,7 @@ function Parts({
   meta: string;
   parts: ReadonlyArray<{text: string} | {json: unknown}>;
 }) {
+  const fold = useBlockFold(label);
   if (parts.length === 1) {
     const [part] = parts;
     return 'text' in part ? (
@@ -161,16 +163,20 @@ function Parts({
   }
   return (
     <section className="flex min-w-0 flex-col gap-1.5">
-      <BlockLabel label={label} meta={meta} />
-      {parts.map((part, index) =>
-        'text' in part ? (
-          <p key={index} className="rounded-lg bg-tint px-3 py-2.5 break-words whitespace-pre-wrap">
-            {part.text}
-          </p>
-        ) : (
-          <JsonLines key={index} value={part.json} />
-        ),
-      )}
+      <BlockLabel label={label} meta={meta} fold={fold} />
+      {fold.open &&
+        parts.map((part, index) =>
+          'text' in part ? (
+            <p
+              key={index}
+              className="rounded-lg bg-tint px-3 py-2.5 break-words whitespace-pre-wrap"
+            >
+              {part.text}
+            </p>
+          ) : (
+            <JsonLines key={index} value={part.json} />
+          ),
+        )}
     </section>
   );
 }

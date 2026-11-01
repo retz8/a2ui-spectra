@@ -5,6 +5,7 @@ import type {Prices} from '@/model/cost.ts';
 import {markedPath} from '@/model/json_lines.ts';
 import type {PrefixBreak} from '@/model/prefix.ts';
 import type {Problem} from '@/model/problems.ts';
+import {useBlockFold} from '@/state/block_folds.ts';
 import {isWireInput, type TurnRecordEvent, unixMillis, type WireEvent} from '@/model/record.ts';
 import {deliveryLabel, plural, type Step, type TimelineRow} from '@/model/steps.ts';
 
@@ -260,14 +261,7 @@ function StepBlocks({
         <JsonBlock label="Message" value={step.message} marks={marks} reveal={reveal} />
       )}
       {step.kind === 'data' && <JsonBlock label="Data" value={step.part?.content} />}
-      {step.kind === 'text' && (
-        <section className="flex flex-col gap-1.5">
-          <BlockLabel label="Text" />
-          <p className="rounded-lg bg-tint px-3 py-2.5 whitespace-pre-wrap">
-            {String(step.part?.content ?? '')}
-          </p>
-        </section>
-      )}
+      {step.kind === 'text' && <TextPart text={String(step.part?.content ?? '')} />}
       {step.kind === 'file' && step.part !== undefined && <FileFacts part={step.part} />}
       {step.kind === 'status' && (
         <p className="text-muted-foreground">A status update with no parts.</p>
@@ -280,8 +274,20 @@ function StepBlocks({
   );
 }
 
+/** A text part as text. */
+function TextPart({text}: {text: string}) {
+  const fold = useBlockFold('Text');
+  return (
+    <section className="flex flex-col gap-1.5">
+      <BlockLabel label="Text" fold={fold} />
+      {fold.open && <p className="rounded-lg bg-tint px-3 py-2.5 whitespace-pre-wrap">{text}</p>}
+    </section>
+  );
+}
+
 /** A file part's name, MIME type, and size or URI. */
 function FileFacts({part}: {part: {[field: string]: unknown}}) {
+  const fold = useBlockFold('File');
   const facts: Array<[string, string]> = [];
   if (typeof part.name === 'string') facts.push(['Name', part.name]);
   if (typeof part.mime_type === 'string') facts.push(['MIME type', part.mime_type]);
@@ -291,26 +297,29 @@ function FileFacts({part}: {part: {[field: string]: unknown}}) {
   if (typeof part.file_id === 'string') facts.push(['File id', part.file_id]);
   return (
     <section className="flex flex-col gap-1.5">
-      <BlockLabel label="File" />
-      <dl className="flex flex-col gap-0.5 rounded-lg bg-tint px-3 py-2.5">
-        {facts.map(([name, value]) => (
-          <div key={name} className="flex gap-3">
-            <dt className="w-20 shrink-0 text-muted-foreground">{name}</dt>
-            <dd className="min-w-0 break-all">{value}</dd>
-          </div>
-        ))}
-      </dl>
+      <BlockLabel label="File" fold={fold} />
+      {fold.open && (
+        <dl className="flex flex-col gap-0.5 rounded-lg bg-tint px-3 py-2.5">
+          {facts.map(([name, value]) => (
+            <div key={name} className="flex gap-3">
+              <dt className="w-20 shrink-0 text-muted-foreground">{name}</dt>
+              <dd className="min-w-0 break-all">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
     </section>
   );
 }
 
 /** A value the host may not have sent: its JSON, or a line saying it sent none. */
 function OptionalJson({label, value}: {label: string; value: unknown}) {
+  const fold = useBlockFold(label);
   if (value !== undefined) return <JsonBlock label={label} value={value} />;
   return (
     <section className="flex flex-col gap-1.5">
-      <BlockLabel label={label} />
-      <p className="text-muted-foreground">The host sent none.</p>
+      <BlockLabel label={label} fold={fold} />
+      {fold.open && <p className="text-muted-foreground">The host sent none.</p>}
     </section>
   );
 }

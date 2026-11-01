@@ -13,6 +13,7 @@ import {cn} from '@/lib/utils';
 import {ancestorsOf, type CallRow, sourceLinesOf} from '@/model/call_rows.ts';
 import {isTurnEvent, type SpanEvent, type TurnRecordEvent, unixMillis} from '@/model/record.ts';
 import {plural} from '@/model/steps.ts';
+import {useBlockFold} from '@/state/block_folds.ts';
 
 import {Pairs, Section} from './CallParts.tsx';
 import {formatDuration, formatOffsetCompact} from './format.ts';
@@ -172,61 +173,64 @@ interface FoldRow {
 /** A labelled list of rows on a tinted block, each folding open to its JSON. */
 function FoldRows({label, rows, mono = false}: {label: string; rows: FoldRow[]; mono?: boolean}) {
   const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
+  const fold = useBlockFold(label);
   if (rows.length === 0) return null;
   return (
     <section className="flex min-w-0 flex-col gap-1.5">
-      <BlockLabel label={label} />
-      <div className="flex flex-col rounded-lg bg-tint py-1 text-xs">
-        {rows.map(row => {
-          const unfolded = open.has(row.key);
-          return (
-            <div key={row.key} className="flex flex-col">
-              <div
-                className={cn('flex min-w-0 items-center gap-2 pr-3', mono ? 'h-7' : 'h-8')}
-                style={{paddingLeft: 10 + (row.indent ?? 0) * 16}}
-              >
-                <button
-                  type="button"
-                  aria-expanded={unfolded}
-                  aria-label={`${unfolded ? 'Fold' : 'Unfold'} ${row.name}`}
-                  onClick={() => {
-                    const next = new Set(open);
-                    if (!next.delete(row.key)) next.add(row.key);
-                    setOpen(next);
-                  }}
-                  className="flex size-4 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-border hover:text-foreground"
+      <BlockLabel label={label} fold={fold} />
+      {fold.open && (
+        <div className="flex flex-col rounded-lg bg-tint py-1 text-xs">
+          {rows.map(row => {
+            const unfolded = open.has(row.key);
+            return (
+              <div key={row.key} className="flex flex-col">
+                <div
+                  className={cn('flex min-w-0 items-center gap-2 pr-3', mono ? 'h-7' : 'h-8')}
+                  style={{paddingLeft: 10 + (row.indent ?? 0) * 16}}
                 >
-                  <Icon kind={unfolded ? 'chevronDown' : 'chevronRight'} size={11} />
-                </button>
-                {row.time !== undefined && (
-                  <span className="w-14 shrink-0 text-right whitespace-nowrap text-muted-foreground">
-                    {row.time}
-                  </span>
-                )}
-                <span
-                  className={cn(
-                    'min-w-0 shrink truncate font-medium',
-                    mono ? 'font-mono' : 'text-sm',
+                  <button
+                    type="button"
+                    aria-expanded={unfolded}
+                    aria-label={`${unfolded ? 'Fold' : 'Unfold'} ${row.name}`}
+                    onClick={() => {
+                      const next = new Set(open);
+                      if (!next.delete(row.key)) next.add(row.key);
+                      setOpen(next);
+                    }}
+                    className="flex size-4 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-border hover:text-foreground"
+                  >
+                    <Icon kind={unfolded ? 'chevronDown' : 'chevronRight'} size={11} />
+                  </button>
+                  {row.time !== undefined && (
+                    <span className="w-14 shrink-0 text-right whitespace-nowrap text-muted-foreground">
+                      {row.time}
+                    </span>
                   )}
-                >
-                  {row.name}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                  {row.meta ?? ''}
-                </span>
-                {row.end !== undefined && row.end !== '' && (
-                  <span className="shrink-0 text-muted-foreground">{row.end}</span>
+                  <span
+                    className={cn(
+                      'min-w-0 shrink truncate font-medium',
+                      mono ? 'font-mono' : 'text-sm',
+                    )}
+                  >
+                    {row.name}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                    {row.meta ?? ''}
+                  </span>
+                  {row.end !== undefined && row.end !== '' && (
+                    <span className="shrink-0 text-muted-foreground">{row.end}</span>
+                  )}
+                </div>
+                {unfolded && (
+                  <div className="px-2.5 pb-2">
+                    <JsonLines value={row.value} className="bg-panel" />
+                  </div>
                 )}
               </div>
-              {unfolded && (
-                <div className="px-2.5 pb-2">
-                  <JsonLines value={row.value} className="bg-panel" />
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }

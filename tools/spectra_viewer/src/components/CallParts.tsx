@@ -9,6 +9,7 @@ import {cn} from '@/lib/utils';
 import {statusLine} from '@/model/model_calls.ts';
 import type {ModelCallEvent, OtherEvent, SpanEvent} from '@/model/record.ts';
 import {plural} from '@/model/steps.ts';
+import {useBlockFold} from '@/state/block_folds.ts';
 
 import {CopyButton} from './CopyButton.tsx';
 import {formatOffset} from './format.ts';
@@ -69,41 +70,45 @@ export function Pairs({
   /** MCP's names, values in mono; or the translated names, values in mono on wider keys. */
   layout?: 'mcp' | 'names';
 }) {
+  const fold = useBlockFold(label);
   if (pairs.length === 0) return null;
   const mono = monoKeys || layout !== undefined;
   return (
     <div className="flex flex-col gap-1.5">
-      <BlockLabel label={label} />
-      <div
-        className={cn(
-          'grid gap-x-3 gap-y-0.5 text-xs leading-5',
-          layout === 'names'
-            ? 'grid-cols-[260px_minmax(0,1fr)]'
-            : monoKeys
-              ? 'grid-cols-[150px_minmax(0,1fr)]'
-              : 'grid-cols-[170px_minmax(0,1fr)]',
-        )}
-      >
-        {pairs.map(({key, value, removed}, index) => (
-          <span key={index} className="contents">
-            <span className="break-all text-muted-foreground">{key}</span>
-            <span
-              className={cn('break-all', removed ? 'text-muted-foreground' : mono && 'font-mono')}
-            >
-              {removed ? 'Removed by Spectra' : value}
+      <BlockLabel label={label} fold={fold} />
+      {fold.open && (
+        <div
+          className={cn(
+            'grid gap-x-3 gap-y-0.5 text-xs leading-5',
+            layout === 'names'
+              ? 'grid-cols-[260px_minmax(0,1fr)]'
+              : monoKeys
+                ? 'grid-cols-[150px_minmax(0,1fr)]'
+                : 'grid-cols-[170px_minmax(0,1fr)]',
+          )}
+        >
+          {pairs.map(({key, value, removed}, index) => (
+            <span key={index} className="contents">
+              <span className="break-all text-muted-foreground">{key}</span>
+              <span
+                className={cn('break-all', removed ? 'text-muted-foreground' : mono && 'font-mono')}
+              >
+                {removed ? 'Removed by Spectra' : value}
+              </span>
             </span>
-          </span>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 /** A labelled text on a tinted block, with a copy button. */
 export function TextBlock({label, meta, text}: {label: string; meta?: string; text: string}) {
+  const fold = useBlockFold(label);
   return (
     <section className="flex min-w-0 flex-col gap-1.5">
-      <BlockLabel label={label} meta={meta}>
+      <BlockLabel label={label} meta={meta} fold={fold}>
         <CopyButton
           text={text}
           label={`Copy the ${label.toLowerCase()}`}
@@ -112,7 +117,9 @@ export function TextBlock({label, meta, text}: {label: string; meta?: string; te
           Copy
         </CopyButton>
       </BlockLabel>
-      <p className="rounded-lg bg-tint px-3 py-2.5 break-words whitespace-pre-wrap">{text}</p>
+      {fold.open && (
+        <p className="rounded-lg bg-tint px-3 py-2.5 break-words whitespace-pre-wrap">{text}</p>
+      )}
     </section>
   );
 }
@@ -189,12 +196,15 @@ export function Exchange({
 }
 
 export function MonoLine({label, text}: {label: string; text: string}) {
+  const fold = useBlockFold(label);
   return (
     <div className="flex flex-col gap-1.5">
-      <BlockLabel label={label} />
-      <div className="rounded-lg bg-tint px-3 py-1.5 font-mono text-xs leading-[1.6] break-all">
-        {text}
-      </div>
+      <BlockLabel label={label} fold={fold} />
+      {fold.open && (
+        <div className="rounded-lg bg-tint px-3 py-1.5 font-mono text-xs leading-[1.6] break-all">
+          {text}
+        </div>
+      )}
     </div>
   );
 }
@@ -266,53 +276,57 @@ function Chunks({
   inFlight: boolean;
 }) {
   const [open, setOpen] = useState<ReadonlySet<number>>(() => new Set());
+  const fold = useBlockFold('Chunks');
   return (
     <section className="flex min-w-0 flex-col gap-1.5">
       <BlockLabel
         label="Chunks"
         meta={inFlight ? `${chunks.length} so far` : plural(chunks.length, 'chunk')}
+        fold={fold}
       />
-      <div className="flex flex-col rounded-lg bg-tint py-1 text-xs">
-        {chunks.map((chunk, index) => {
-          const body = chunk.attributes?.['a2ui.http.response.chunk.body'];
-          const event = chunk.attributes?.['a2ui.http.response.chunk.event'];
-          const unfolded = open.has(index);
-          const ms = Number((BigInt(chunk.timeUnixNano) - start) / 1_000_000n);
-          return (
-            <div key={index} className="flex flex-col">
-              <div className="flex h-7 min-w-0 items-center gap-2 pr-3 pl-2.5">
-                <button
-                  type="button"
-                  aria-expanded={unfolded}
-                  aria-label={`${unfolded ? 'Fold' : 'Unfold'} chunk ${index + 1}`}
-                  onClick={() => {
-                    const next = new Set(open);
-                    if (!next.delete(index)) next.add(index);
-                    setOpen(next);
-                  }}
-                  className="flex size-4 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-border hover:text-foreground"
-                >
-                  <Icon kind={unfolded ? 'chevronDown' : 'chevronRight'} size={11} />
-                </button>
-                <span className="w-12 shrink-0 text-right text-muted-foreground">
-                  {formatOffset(ms)}
-                </span>
-                <span className="shrink-0 font-mono font-medium">
-                  {typeof event === 'string' ? event : 'data'}
-                </span>
-                <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">
-                  {typeof body === 'string' ? body : JSON.stringify(body)}
-                </span>
-              </div>
-              {unfolded && (
-                <div className="px-2.5 pb-2">
-                  <JsonLines value={body} className="bg-panel" />
+      {fold.open && (
+        <div className="flex flex-col rounded-lg bg-tint py-1 text-xs">
+          {chunks.map((chunk, index) => {
+            const body = chunk.attributes?.['a2ui.http.response.chunk.body'];
+            const event = chunk.attributes?.['a2ui.http.response.chunk.event'];
+            const unfolded = open.has(index);
+            const ms = Number((BigInt(chunk.timeUnixNano) - start) / 1_000_000n);
+            return (
+              <div key={index} className="flex flex-col">
+                <div className="flex h-7 min-w-0 items-center gap-2 pr-3 pl-2.5">
+                  <button
+                    type="button"
+                    aria-expanded={unfolded}
+                    aria-label={`${unfolded ? 'Fold' : 'Unfold'} chunk ${index + 1}`}
+                    onClick={() => {
+                      const next = new Set(open);
+                      if (!next.delete(index)) next.add(index);
+                      setOpen(next);
+                    }}
+                    className="flex size-4 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-border hover:text-foreground"
+                  >
+                    <Icon kind={unfolded ? 'chevronDown' : 'chevronRight'} size={11} />
+                  </button>
+                  <span className="w-12 shrink-0 text-right text-muted-foreground">
+                    {formatOffset(ms)}
+                  </span>
+                  <span className="shrink-0 font-mono font-medium">
+                    {typeof event === 'string' ? event : 'data'}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">
+                    {typeof body === 'string' ? body : JSON.stringify(body)}
+                  </span>
                 </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+                {unfolded && (
+                  <div className="px-2.5 pb-2">
+                    <JsonLines value={body} className="bg-panel" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </section>
   );
 }

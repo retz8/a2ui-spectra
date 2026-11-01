@@ -2,6 +2,7 @@ import {type ReactNode, useEffect, useMemo, useRef, useState} from 'react';
 
 import {cn} from '@/lib/utils';
 import {type JsonLine, jsonLines, markedLine, unfoldedTo} from '@/model/json_lines.ts';
+import {type BlockFold, toggleBlockFold, useBlockFold} from '@/state/block_folds.ts';
 
 import {CopyButton} from './CopyButton.tsx';
 import {Icon} from './icons.tsx';
@@ -33,6 +34,7 @@ export function JsonBlock({
   /** The objects and arrays folded at first, by their JSON Pointers. */
   folded?: readonly string[];
 }) {
+  const fold = useBlockFold(label);
   const [folded, setFolded] = useState<ReadonlySet<string>>(() => new Set(foldedAtFirst));
   // A reveal unfolds what hides its line before the block is drawn again.
   const [revealed, setRevealed] = useState(reveal);
@@ -47,6 +49,11 @@ export function JsonBlock({
   const scrolled = useRef<Reveal | undefined>(undefined);
   useEffect(() => {
     if (reveal === undefined || scrolled.current === reveal) return;
+    // A revealed line in a block folded on its label unfolds the block first.
+    if (!fold.open) {
+      toggleBlockFold(label);
+      return;
+    }
     scrolled.current = reveal;
     const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     block.current?.children[markedLine(lines, reveal.path)]?.scrollIntoView({
@@ -54,11 +61,11 @@ export function JsonBlock({
       inline: 'nearest',
       behavior: reduce ? 'auto' : 'smooth',
     });
-  }, [reveal, lines]);
+  }, [reveal, lines, fold.open, label]);
   const toggle = (path: string) => setFolded(toggled(folded, path));
   return (
     <section className="flex min-w-0 flex-col gap-1.5">
-      <BlockLabel label={label} meta={meta}>
+      <BlockLabel label={label} meta={meta} fold={fold}>
         <CopyButton
           text={JSON.stringify(value, null, 2)}
           label={`Copy the ${label.toLowerCase()}`}
@@ -67,14 +74,16 @@ export function JsonBlock({
           Copy
         </CopyButton>
       </BlockLabel>
-      <div
-        ref={block}
-        className="overflow-x-auto rounded-lg bg-tint py-2 font-mono text-xs leading-[1.6]"
-      >
-        {lines.map((line, index) => (
-          <LineRow key={index} line={line} marked={marked.has(index)} onToggle={toggle} />
-        ))}
-      </div>
+      {fold.open && (
+        <div
+          ref={block}
+          className="overflow-x-auto rounded-lg bg-tint py-2 font-mono text-xs leading-[1.6]"
+        >
+          {lines.map((line, index) => (
+            <LineRow key={index} line={line} marked={marked.has(index)} onToggle={toggle} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
@@ -146,18 +155,32 @@ function LineRow({
   );
 }
 
-/** A block's label in small capitals, with what sits on its right. */
+/** A block's label in small capitals, its fold's chevron before it, with what sits on its right. */
 export function BlockLabel({
   label,
   meta,
+  fold,
   children,
 }: {
   label: string;
   meta?: ReactNode;
+  /** The block's fold, drawn as a chevron before the label. */
+  fold?: BlockFold;
   children?: ReactNode;
 }) {
   return (
     <div className="flex h-[22px] items-center gap-2">
+      {fold !== undefined && (
+        <button
+          type="button"
+          aria-expanded={fold.open}
+          aria-label={`${fold.open ? 'Fold' : 'Unfold'} ${label.toLowerCase()}`}
+          onClick={fold.onToggle}
+          className="flex size-4 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-tint hover:text-foreground"
+        >
+          <Icon kind={fold.open ? 'chevronDown' : 'chevronRight'} size={12} />
+        </button>
+      )}
       <span className="section-label">{label}</span>
       {meta !== undefined && <span className="text-xs text-muted-foreground">{meta}</span>}
       <div className="flex-1" />
