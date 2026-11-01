@@ -4,7 +4,7 @@ Spec: `_dev/docs/spec/task-5.7-acceptance-run.md`. Ticked on 2026-11-01; its sec
 
 ## How the done line was verified
 
-Sessions 1 to 3 on 2026-10-31 overnight, sessions 4 and 5 on 2026-11-01 with Jioh, every board of decision 5 seen in light and dark and Flows 1 to 4 walked once, with the real binary through the tunnel on 5173. Jioh's feedback on the Linear session, the empty grey boxes and the turn list's agents, fixed and seen through the tunnel under `attach` to A2UIVerse's running Linear agent, its own process left as it was. `yarn test:all` green, and `SPECTRA_BINARY=dist/a2ui-spectra yarn test` in `tools/spectra` green, both end-to-end tests among them; CI runs when `main` is pushed, which is Jioh's call.
+Sessions 1 to 3 on 2026-10-31 overnight, sessions 4 and 5 on 2026-11-01 with Jioh, every board of decision 5 seen in light and dark and Flows 1 to 4 walked once, with the real binary through the tunnel on 5173. Jioh's feedback on the Linear session, the empty grey boxes and the turn list's agents, fixed and seen through the tunnel under `attach` to A2UIVerse's running Linear agent, its own process left as it was. `yarn test:all` green, and `SPECTRA_BINARY=dist/a2ui-spectra yarn test` in `tools/spectra` green, both end-to-end tests among them; CI green on `main` at 38ede76, after a Prettier fix to three files the stale-context commit had left unformatted.
 
 The run's store, configs, launch scripts, logs and the scratch copies of the two sign-in stores lived in this session's scratchpad, `/private/tmp/claude-501/-Users-jiohin-Desktop-future-of-sw-a2ui-spectra/90a0925e-7fdc-44cf-b8c6-d36f355d504e/scratchpad/run/`, which the system clears; nothing in it is needed again.
 
