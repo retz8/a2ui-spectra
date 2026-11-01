@@ -1,7 +1,8 @@
 /**
  * A turn with its received spans: each span's event, its parent in the turn,
  * the same-call links between the proxies' events and the received spans,
- * and `otel_receiver` among the turn's capture paths.
+ * and `otel_receiver` among the turn's capture paths, with `wrapper` beside
+ * it when a span of the A2UI step is among them.
  *
  * The received events follow the turn's own events, the turn event, the wire
  * events and the proxies' calls, and come before its check events, so that
@@ -225,8 +226,14 @@ export function assembleTurn(turn: Turn, placed: readonly PlacedSpan[]): Turn {
     delete rest.links;
     return (all.length > 0 ? {...rest, links: all} : rest) as TurnRecordEvent;
   };
+  const step = received.some(
+    event => isEventOfKind(event, 'prompt_generation') || isEventOfKind(event, 'parse'),
+  );
   const ownEvents = own.map(event => {
-    if (isEventOfKind(event, 'turn')) return withCapturePath(event, 'otel_receiver');
+    if (isEventOfKind(event, 'turn')) {
+      const withReceiver = withCapturePath(event, 'otel_receiver');
+      return step ? withCapturePath(withReceiver, 'wrapper') : withReceiver;
+    }
     if (!isExchange(event)) return event;
     // A link naming a received span is the receiver's, rebuilt each time; any other stays.
     const kept = (event.links ?? []).filter(link => !receivedKeys.has(keyOf(link)));

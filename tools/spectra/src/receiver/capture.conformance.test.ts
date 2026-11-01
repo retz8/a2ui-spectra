@@ -119,6 +119,7 @@ async function runCase(c: CaptureReceiverCase): Promise<void> {
       },
       log: line => lines.push(line),
       assemble: (turn: Turn): Turn => spans.assemble(turn),
+      onCallEnded: (traceId, call) => spans.takeCall(traceId, call),
     });
     const spans: SpanReceiver = new SpanReceiver({
       turns: placer,
@@ -131,26 +132,35 @@ async function runCase(c: CaptureReceiverCase): Promise<void> {
       onLogs: received => spans.takeLogs(received),
     });
     const turns = expected.turns.map(inputOf);
-    const open = new Set(turns.map(turn => turn.turnEvent.traceId));
+    const open = new Set<string>();
+    const pending = [...turns];
     try {
-      for (const {turnEvent, calls} of turns) {
-        placer.onTurn({
-          type: 'turn_opened',
-          traceId: turnEvent.traceId,
-          spanId: turnEvent.spanId,
-          startTimeUnixNano: turnEvent.startTimeUnixNano,
-        });
-        for (const call of calls) {
-          // Placed by the turn's own trace context, so each call joins its turn however many are open.
-          const placed = placer.tryPlace({
-            what: call.name,
-            startTimeUnixNano: call.startTimeUnixNano,
-            traceparent: `00-${turnEvent.traceId}-${turnEvent.spanId}-01`,
+      // Each turn opens, its calls placed in it, before the first export that arrived at or after its start.
+      const openUpTo = (time?: bigint) => {
+        while (
+          pending.length > 0 &&
+          (time === undefined || BigInt(pending[0].turnEvent.startTimeUnixNano) <= time)
+        ) {
+          const {turnEvent, calls} = pending.shift()!;
+          open.add(turnEvent.traceId);
+          placer.onTurn({
+            type: 'turn_opened',
+            traceId: turnEvent.traceId,
+            spanId: turnEvent.spanId,
+            startTimeUnixNano: turnEvent.startTimeUnixNano,
           });
-          assert.ok(!('line' in placed), `the call ${call.name} is placed`);
-          placed.ended(call as CallEvent);
+          for (const call of calls) {
+            // Placed by the turn's own trace context, so each call joins its turn however many are open.
+            const placed = placer.tryPlace({
+              what: call.name,
+              startTimeUnixNano: call.startTimeUnixNano,
+              traceparent: `00-${turnEvent.traceId}-${turnEvent.spanId}-01`,
+            });
+            assert.ok(!('line' in placed), `the call ${call.name} is placed`);
+            placed.ended(call as CallEvent);
+          }
         }
-      }
+      };
       const closeUpTo = (time?: bigint) => {
         for (const {turnEvent} of turns) {
           if (
@@ -167,6 +177,7 @@ async function runCase(c: CaptureReceiverCase): Promise<void> {
         }
       };
       for (const recorded of exports) {
+        openUpTo(BigInt(recorded.receivedTimeUnixNano));
         closeUpTo(BigInt(recorded.receivedTimeUnixNano));
         const answer = await fetch(`${listener.origin}${recorded.path}`, {
           method: 'POST',
@@ -176,6 +187,7 @@ async function runCase(c: CaptureReceiverCase): Promise<void> {
         assert.equal(answer.status, 200, `${recorded.path} is read`);
         await answer.text();
       }
+      openUpTo();
       closeUpTo();
       await Promise.all(writes);
       await spans.idle();

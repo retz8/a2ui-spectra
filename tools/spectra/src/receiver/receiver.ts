@@ -8,10 +8,15 @@
  * record in the store, the turn's end and its checks unchanged. A span
  * already in its turn is ignored.
  *
+ * A prompt generation that falls in no turn is kept for the run and placed
+ * by its section text in every turn of the run whose model call request
+ * holds it, on its arrival and again each time a model call joins a turn.
+ *
  * A log record carrying span context is attached to its span, which is
  * translated again with it; one whose span has not arrived is held until it
  * does, and goes with its span when the span is not placed. What is not
- * recorded is counted in one terminal line per export request and reason.
+ * recorded, and a span of the A2UI step written as a framework span, are
+ * each counted in one terminal line per export request and reason.
  */
 import {
   type CallEvent,
@@ -20,13 +25,16 @@ import {
   type TurnRecordEvent,
 } from '../record/turn_record.js';
 import type {RunTurn} from '../placement.js';
+import {a2uiStepKindOf, readA2uiStep, sectionTextOf} from './a2ui_step.js';
 import {assembleTurn, type PlacedSpan, spanKey} from './assemble.js';
 import type {ReceivedLog, ReceivedSpan, Scope} from './otlp.js';
+import {receivedEvent} from './received_event.js';
 
 /** What the receiver needs of the placer: this run's turns and the calls of those still open. */
 export interface TurnsOfRun {
   turnOf(traceId: string): RunTurn | undefined;
   turnsHolding(unixNano: bigint): RunTurn[];
+  allTurns(): readonly RunTurn[];
   callsOf(traceId: string): readonly CallEvent[];
 }
 
@@ -50,6 +58,15 @@ export interface SpanReceiverOptions {
 interface Placed extends PlacedSpan {
   logs: ReceivedLog[];
   turn: string;
+}
+
+/** A prompt generation that fell in no turn, kept for the run to be placed by its section text. */
+interface Kept {
+  span: ReceivedSpan;
+  logs: ReceivedLog[];
+  text: string;
+  /** The turns it is placed in, by trace id. */
+  turns: Set<string>;
 }
 
 /** Why a span or a log is not recorded. */
@@ -83,6 +100,10 @@ export class SpanReceiver {
   readonly #options: SpanReceiverOptions;
   /** Every span placed this run, by its trace and span id. */
   readonly #placed = new Map<string, Placed>();
+  /** The prompt generations that fell in no turn, by trace and span id, kept until Spectra stops. */
+  readonly #kept = new Map<string, Kept>();
+  /** The string values of the requests of each turn's proxy model calls, by the turn's trace id. */
+  readonly #proxyRequests = new Map<string, string[]>();
   /** The spans placed in each turn, in the order they were placed. */
   readonly #byTurn = new Map<string, Placed[]>();
   /** Log records whose span has not arrived, by the span's trace and span id. */
@@ -101,15 +122,24 @@ export class SpanReceiver {
   /** Takes the spans of one trace export request. */
   takeSpans(spans: readonly ReceivedSpan[]): void {
     const dropped = new Map<Reason, Tally>();
+    const halfFormed = new Map<string, Tally>();
     const touched = new Set<string>();
+    const arrived: Kept[] = [];
     for (const span of spans) {
       const key = spanKey(span.traceId, span.spanId);
-      if (this.#placed.has(key)) continue;
+      if (this.#placed.has(key) || this.#kept.has(key)) continue;
       const placed = this.#place(span);
       const held = this.#held.get(key) ?? [];
       this.#held.delete(key);
       if (typeof placed !== 'string') {
         const reason = placed.reason;
+        const text = reason === 'no_turn' ? sectionTextOf(span) : undefined;
+        if (text !== undefined) {
+          const kept: Kept = {span, logs: held, text, turns: new Set()};
+          this.#kept.set(key, kept);
+          arrived.push(kept);
+          continue;
+        }
         this.#dropped.set(key, reason);
         const tally = tallyOf(dropped, reason);
         tally.add('span', span.scope, span.startTimeUnixNano);
@@ -122,9 +152,89 @@ export class SpanReceiver {
       list.push(entry);
       this.#byTurn.set(placed, list);
       touched.add(placed);
+      const missing = readA2uiStep(span)?.missing ?? [];
+      if (missing.length > 0) {
+        tallyOf(halfFormed, `${a2uiStepKindOf(span)}\u0000${missing.join('\u0000')}`).add(
+          'span',
+          span.scope,
+          span.startTimeUnixNano,
+        );
+      }
     }
     this.#report(dropped);
+    this.#reportHalfFormed(halfFormed);
+    for (const turn of this.#options.turns.allTurns()) {
+      if (this.#placeKept(turn.traceId, arrived)) touched.add(turn.traceId);
+    }
+    this.#settle(touched);
+  }
+
+  /**
+   * Takes a proxy's call as it joins its turn: a model call's request is
+   * searched for the section texts of the prompt generations kept.
+   */
+  takeCall(traceId: string, call: CallEvent): void {
+    if (!isEventOfKind(call, 'model_call')) return;
+    const strings = this.#proxyRequests.get(traceId) ?? [];
+    strings.push(...stringValues(call.attributes['a2ui.http.request.body']));
+    this.#proxyRequests.set(traceId, strings);
+    if (this.#placeKept(traceId, [...this.#kept.values()])) this.#amend(traceId);
+  }
+
+  /** Places the kept prompt generations in each turn touched, then brings each up to date. */
+  #settle(touched: Set<string>): void {
+    const kept = [...this.#kept.values()];
+    for (const turn of touched) this.#placeKept(turn, kept);
     for (const turn of touched) this.#amend(turn);
+  }
+
+  /**
+   * Places each candidate in a turn whose model call requests hold its
+   * section text, unless the turn already holds a prompt generation with an
+   * equal text. Returns whether any was placed.
+   */
+  #placeKept(traceId: string, candidates: readonly Kept[]): boolean {
+    if (candidates.length === 0) return false;
+    const strings = this.#requestStrings(traceId);
+    if (strings.length === 0) return false;
+    const list = this.#byTurn.get(traceId) ?? [];
+    const sections = new Set(
+      list.flatMap(({span}) => {
+        const section = span.attributes['a2ui.prompt.ui_section'];
+        return a2uiStepKindOf(span) === 'prompt_generation' && typeof section === 'string'
+          ? [section]
+          : [];
+      }),
+    );
+    let any = false;
+    for (const kept of candidates) {
+      if (kept.turns.has(traceId) || sections.has(kept.text)) continue;
+      if (!strings.some(value => value.includes(kept.text))) continue;
+      kept.turns.add(traceId);
+      sections.add(kept.text);
+      list.push({span: kept.span, logs: kept.logs, turn: traceId});
+      any = true;
+    }
+    if (any) this.#byTurn.set(traceId, list);
+    return any;
+  }
+
+  /**
+   * The string values a turn's model call requests hold: every one of a
+   * proxy's request body, and the text of a received span's system
+   * instructions and input messages.
+   */
+  #requestStrings(traceId: string): string[] {
+    const received = (this.#byTurn.get(traceId) ?? []).flatMap(({span, logs}) => {
+      if (a2uiStepKindOf(span) !== undefined) return [];
+      const event = receivedEvent(span, logs, undefined);
+      if (!isEventOfKind(event, 'model_call')) return [];
+      return [
+        ...stringValues(event.attributes['gen_ai.system_instructions']),
+        ...stringValues(event.attributes['gen_ai.input.messages']),
+      ];
+    });
+    return [...(this.#proxyRequests.get(traceId) ?? []), ...received];
   }
 
   /** Takes the log records of one log export request. */
@@ -138,10 +248,14 @@ export class SpanReceiver {
       }
       const key = spanKey(log.traceId, log.spanId);
       const placed = this.#placed.get(key);
+      const kept = this.#kept.get(key);
       const reason = this.#dropped.get(key);
       if (placed !== undefined) {
         placed.logs.push(log);
         touched.add(placed.turn);
+      } else if (kept !== undefined) {
+        kept.logs.push(log);
+        for (const turn of kept.turns) touched.add(turn);
       } else if (reason !== undefined) {
         tallyOf(dropped, reason).add('log', log.scope, log.timeUnixNano);
       } else {
@@ -151,7 +265,7 @@ export class SpanReceiver {
       }
     }
     this.#report(dropped);
-    for (const turn of touched) this.#amend(turn);
+    this.#settle(touched);
   }
 
   /**
@@ -267,16 +381,21 @@ export class SpanReceiver {
       ]
         .filter(part => part !== undefined)
         .join(' and ');
-      const scopes = [...tally.scopes];
-      const from =
-        scopes.length === 1
-          ? scopes[0]
-          : `${scopes.slice(0, -1).join(', ')} and ${scopes[scopes.length - 1]}`;
-      const first = isoTime(tally.first);
-      const last = isoTime(tally.last);
-      const when = first === last ? `at ${first}` : `from ${first} to ${last}`;
       this.#options.log(
-        `The receiver did not record ${counts} from ${from}, which started ${when}: ${REASONS[reason]}.`,
+        `The receiver did not record ${counts} from ${listed([...tally.scopes])}, which started ${when(tally)}: ${REASONS[reason]}.`,
+      );
+    }
+  }
+
+  /** One line per kind and missing names for the spans of the A2UI step one export wrote as framework spans. */
+  #reportHalfFormed(tallies: Map<string, Tally>): void {
+    for (const [reason, tally] of tallies) {
+      const [kind, ...missing] = reason.split('\u0000');
+      const one = tally.spans === 1;
+      this.#options.log(
+        `The receiver wrote ${tally.spans} span${one ? '' : 's'} from ${listed([...tally.scopes])}, ` +
+          `which started ${when(tally)}, as ${one ? 'a framework_span' : 'framework_span events'}: ` +
+          `${one ? 'it carries' : 'they carry'} a2ui.event.kind ${kind} without ${listed(missing)}.`,
       );
     }
   }
@@ -290,7 +409,7 @@ export class SpanReceiver {
   }
 }
 
-function tallyOf(tallies: Map<Reason, Tally>, reason: Reason): Tally {
+function tallyOf<Key>(tallies: Map<Key, Tally>, reason: Key): Tally {
   const tally = tallies.get(reason) ?? new Tally();
   tallies.set(reason, tally);
   return tally;
@@ -307,6 +426,29 @@ function changedEvents(
   return next.filter(
     event => before.get(spanKey(event.traceId, event.spanId)) !== JSON.stringify(event),
   );
+}
+
+/** Names in words: `a`, `a and b`, `a, b and c`. */
+function listed(names: readonly string[]): string {
+  return names.length === 1
+    ? names[0]
+    : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+/** When a tally's items started: at one time, or from the first to the last. */
+function when(tally: Tally): string {
+  const first = isoTime(tally.first);
+  const last = isoTime(tally.last);
+  return first === last ? `at ${first}` : `from ${first} to ${last}`;
+}
+
+/** Every string value a JSON value holds, walked through its arrays and objects. */
+function stringValues(value: unknown): string[] {
+  if (typeof value === 'string') return [value];
+  if (Array.isArray(value)) return value.flatMap(stringValues);
+  if (value !== null && typeof value === 'object')
+    return Object.values(value).flatMap(stringValues);
+  return [];
 }
 
 function isoTime(unixNano: bigint | undefined): string {

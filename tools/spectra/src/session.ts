@@ -130,6 +130,7 @@ export async function runSession(
     log: line => out.info(line),
     alwaysCapturePaths,
     assemble: (turn: Turn): Turn => spans.assemble(turn),
+    onCallEnded: (traceId, call) => spans.takeCall(traceId, call),
   });
   const spans: SpanReceiver = new SpanReceiver({
     turns: placer,

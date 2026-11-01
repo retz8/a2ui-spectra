@@ -1,0 +1,146 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "4b1d0c2e9a7f43e6b8d5c1a0f2e3d4c5",
+          "spanId": "9e8d7c6b5a493827",
+          "name": "invoke_agent Restaurant Agent",
+          "kind": 3,
+          "startTimeUnixNano": "1793500000000000000",
+          "endTimeUnixNano": "1793500010000000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "Restaurant Agent",
+            "gen_ai.conversation.id": "2f6a1c3e-8b4d-4e5f-9a7b-1c2d3e4f5a6b",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.protocol_version": "v1.0",
+            "a2ui.turn.capture_paths": [
+              "wire",
+              "model_proxy",
+              "otel_receiver",
+              "wrapper"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.1"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "4b1d0c2e9a7f43e6b8d5c1a0f2e3d4c5",
+          "spanId": "8192a3b4c5d6e7f8",
+          "parentSpanId": "9e8d7c6b5a493827",
+          "name": "generate_content gemini-3.6-flash",
+          "kind": 3,
+          "startTimeUnixNano": "1793500001000000000",
+          "endTimeUnixNano": "1793500003000000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "generate_content",
+            "gen_ai.provider.name": "gcp.gemini",
+            "gen_ai.request.model": "gemini-3.6-flash",
+            "gen_ai.system_instructions": [
+              {
+                "type": "text",
+                "content": "You are a helpful restaurant finding assistant.\n\n## Workflow Description:\n# A2UI Express DSL Output Contract\n\nYou must output the user interface using A2UI Express.\n\nWrap each block in <a2ui-express> and </a2ui-express> tags."
+              }
+            ],
+            "gen_ai.input.messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Top 3 Chinese restaurants in New York"
+                  }
+                ]
+              }
+            ],
+            "http.request.method": "POST",
+            "url.full": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent",
+            "http.request.header.x-goog-api-key": [
+              "REMOVED"
+            ],
+            "http.response.status_code": 200,
+            "server.address": "generativelanguage.googleapis.com",
+            "server.port": 443,
+            "a2ui.http.request.body": {
+              "contents": [
+                {
+                  "role": "user",
+                  "parts": [
+                    {
+                      "text": "Top 3 Chinese restaurants in New York"
+                    }
+                  ]
+                }
+              ],
+              "systemInstruction": {
+                "role": "user",
+                "parts": [
+                  {
+                    "text": "You are a helpful restaurant finding assistant.\n\n## Workflow Description:\n# A2UI Express DSL Output Contract\n\nYou must output the user interface using A2UI Express.\n\nWrap each block in <a2ui-express> and </a2ui-express> tags."
+                  }
+                ]
+              }
+            },
+            "a2ui.http.response.body": {
+              "candidates": [
+                {
+                  "content": {
+                    "role": "model",
+                    "parts": [
+                      {
+                        "text": "Here are three."
+                      }
+                    ]
+                  },
+                  "finishReason": "STOP"
+                }
+              ],
+              "modelVersion": "gemini-3.6-flash"
+            }
+          }
+        },
+        {
+          "traceId": "7a3c9e1f5b2d4a6c8e0f1a2b3c4d5e6f",
+          "spanId": "708192a3b4c5d6e7",
+          "name": "prompt_generation",
+          "kind": 1,
+          "startTimeUnixNano": "1793499998000000000",
+          "endTimeUnixNano": "1793499998002000000",
+          "attributes": {
+            "a2ui.event.kind": "prompt_generation",
+            "otel.scope.name": "a2ui-spectra-instrumentation",
+            "otel.scope.version": "0.0.1",
+            "a2ui.prompt.ui_section": "## Workflow Description:\n# A2UI Express DSL Output Contract\n\nYou must output the user interface using A2UI Express.\n\nWrap each block in <a2ui-express> and </a2ui-express> tags.",
+            "a2ui.prompt.inference_format": "express",
+            "a2ui.prompt.catalogs": [
+              {
+                "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                "protocolVersion": "v1.0"
+              }
+            ],
+            "a2ui.sdk.name": "a2ui-agent-sdk",
+            "a2ui.sdk.version": "0.9.1",
+            "a2ui.received.attributes": {
+              "a2ui.event.kind": "prompt_generation",
+              "a2ui.prompt.ui_section": "## Workflow Description:\n# A2UI Express DSL Output Contract\n\nYou must output the user interface using A2UI Express.\n\nWrap each block in <a2ui-express> and </a2ui-express> tags.",
+              "a2ui.prompt.inference_format": "express",
+              "a2ui.prompt.catalogs": "[{\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"protocolVersion\":\"v1.0\"}]",
+              "a2ui.sdk.name": "a2ui-agent-sdk",
+              "a2ui.sdk.version": "0.9.1"
+            }
+          },
+          "status": {
+            "code": 0
+          }
+        }
+      ]
+    }
+  ]
+}

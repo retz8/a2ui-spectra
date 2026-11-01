@@ -1,0 +1,91 @@
+[
+  {
+    "path": "/v1/traces",
+    "receivedTimeUnixNano": "1793500009000000000",
+    "body": {
+      "resourceSpans": [
+        {
+          "resource": {
+            "attributes": [
+              {
+                "key": "service.name",
+                "value": {
+                  "stringValue": "restaurant-agent"
+                }
+              },
+              {
+                "key": "telemetry.sdk.language",
+                "value": {
+                  "stringValue": "python"
+                }
+              },
+              {
+                "key": "telemetry.sdk.name",
+                "value": {
+                  "stringValue": "opentelemetry"
+                }
+              },
+              {
+                "key": "telemetry.sdk.version",
+                "value": {
+                  "stringValue": "1.42.1"
+                }
+              }
+            ]
+          },
+          "scopeSpans": [
+            {
+              "scope": {
+                "name": "a2ui-spectra-instrumentation",
+                "version": "0.0.1"
+              },
+              "spans": [
+                {
+                  "traceId": "7a3c9e1f5b2d4a6c8e0f1a2b3c4d5e6f",
+                  "spanId": "3c4d5e6f708192a3",
+                  "name": "parse",
+                  "kind": 1,
+                  "startTimeUnixNano": "1793500002000000000",
+                  "endTimeUnixNano": "1793500002040000000",
+                  "attributes": [
+                    {
+                      "key": "a2ui.event.kind",
+                      "value": {
+                        "stringValue": "parse"
+                      }
+                    },
+                    {
+                      "key": "a2ui.parse.entry_point",
+                      "value": {
+                        "stringValue": "parse_response"
+                      }
+                    },
+                    {
+                      "key": "a2ui.parse.inference_format",
+                      "value": {
+                        "stringValue": "express"
+                      }
+                    },
+                    {
+                      "key": "a2ui.sdk.name",
+                      "value": {
+                        "stringValue": "a2ui-agent-sdk"
+                      }
+                    },
+                    {
+                      "key": "a2ui.sdk.version",
+                      "value": {
+                        "stringValue": "0.9.1"
+                      }
+                    }
+                  ],
+                  "status": {}
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+]

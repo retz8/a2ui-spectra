@@ -46,6 +46,8 @@ export interface CallPlacerOptions {
    * the receiver's spans placed in it while it was open.
    */
   assemble?: (turn: Turn) => Turn;
+  /** Takes each call as it joins its turn, before the turn can be handed on. */
+  onCallEnded?: (traceId: string, call: CallEvent) => void;
   /** Nanoseconds since the Unix epoch. */
   now?: () => bigint;
 }
@@ -142,6 +144,11 @@ export class CallPlacer {
     return this.#runTurns.get(traceId);
   }
 
+  /** Every turn of this run so far, open, waiting or written. */
+  allTurns(): RunTurn[] {
+    return [...this.#runTurns.values()];
+  }
+
   /** The turns of this run whose time range holds a time, an open turn's ending at the present. */
   turnsHolding(unixNano: bigint): RunTurn[] {
     const now = (this.#options.now ?? nowUnixNano)();
@@ -201,6 +208,7 @@ export class CallPlacer {
         done = true;
         placed.inFlight--;
         placed.calls.push(event);
+        this.#options.onCallEnded?.(placed.traceId, event);
         this.#handOnWhenDone(placed);
       },
       release: () => {

@@ -85,3 +85,29 @@
   log:
     - "The receiver did not record 4 log records from uvicorn.error, which started from 2026-11-01T03:08:24.580Z to 2026-11-01T03:08:24.582Z: they carry no span context."
     - "The receiver did not record 3 spans and 1 log record from opentelemetry.instrumentation.starlette and uvicorn.access, which started at 2026-11-01T03:08:24.650Z: their start falls in no turn's time range."
+
+- name: a2ui_step_spans
+  description: "Derived by hand: a prompt_generation and a parse span of the A2UI step in their wire form, placed by the time window, read into the record's shapes by their own a2ui.event.kind with no dialect: the catalogs, messages and error details parsed from their JSON text, the stream's chunk events and the exception event with its block range; wrapper joins the turn's capture paths."
+  action: capture_receiver
+  exports: "test_data/receiver_capture/v0_1/a2ui_step_spans/exports.json"
+  expect: "test_data/receiver_capture/v0_1/a2ui_step_spans/expected.json"
+
+- name: a2ui_step_malformed
+  description: "Derived by hand: a parse span without a2ui.parse.input, written as a framework_span with nothing translated, and counted in one line."
+  action: capture_receiver
+  exports: "test_data/receiver_capture/v0_1/a2ui_step_malformed/exports.json"
+  expect: "test_data/receiver_capture/v0_1/a2ui_step_malformed/expected.json"
+  log:
+    - "The receiver wrote 1 span from a2ui-spectra-instrumentation, which started at 2026-11-01T02:26:42.000Z, as a framework_span: it carries a2ui.event.kind parse without a2ui.parse.input."
+
+- name: stated_retry
+  description: "Derived by hand: a model_call span in the current conventions carrying a2ui.retry.attempt and a link to the failed parse that caused it, the attempt copied onto the event and the link kept, beside the two parses."
+  action: capture_receiver
+  exports: "test_data/receiver_capture/v0_1/stated_retry/exports.json"
+  expect: "test_data/receiver_capture/v0_1/stated_retry/expected.json"
+
+- name: prompt_generation_by_text
+  description: "Derived by hand: a prompt_generation that arrives before any turn, its start in no turn's range, kept for the run; then a turn whose proxy model call's request holds its section text in the system instruction, where it is placed as received, with its own trace id, wrapper joining the capture paths."
+  action: capture_receiver
+  exports: "test_data/receiver_capture/v0_1/prompt_generation_by_text/exports.json"
+  expect: "test_data/receiver_capture/v0_1/prompt_generation_by_text/expected.json"
