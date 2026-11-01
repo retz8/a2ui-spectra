@@ -49,6 +49,33 @@ export function spanApiOf(call: ModelCallEvent): string | undefined {
   }
 }
 
+/** A provider whose colour a model call's icon takes. */
+export type Brand = 'gemini' | 'claude' | 'openai';
+
+/**
+ * The provider colour a model call's icon takes: Gemini's for Gemini's API,
+ * and for Google's when the model is a Gemini model; Claude's for
+ * Anthropic's; OpenAI's only for a call to OpenAI's own host, by its URL or
+ * its span's server, since other servers speak OpenAI's APIs too. None for
+ * any other provider, or a call recorded raw, whose icon stays grey.
+ */
+export function brandOf(call: ModelCallEvent): Brand | undefined {
+  switch (call.attributes['gen_ai.provider.name']) {
+    case 'gcp.gemini':
+      return 'gemini';
+    case 'gcp.gen_ai':
+      return modelOf(call)?.startsWith('gemini') ? 'gemini' : undefined;
+    case 'anthropic':
+      return 'claude';
+    case 'openai':
+      return (urlOf(call)?.hostname ?? text(call.attributes['server.address'])) === 'api.openai.com'
+        ? 'openai'
+        : undefined;
+    default:
+      return undefined;
+  }
+}
+
 /** The API a call read in full used, such as "Anthropic Messages". */
 export function apiOf(call: ModelCallEvent): string | undefined {
   switch (call.attributes['gen_ai.provider.name']) {

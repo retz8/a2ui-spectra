@@ -3,7 +3,7 @@ import {describe, it} from 'node:test';
 
 import {a2uiDelivery, byStart, modelCall, rawCall, T0} from '../testing/model_calls.ts';
 import type {Prices} from './cost.ts';
-import {failureOf, figuresOf, hitRatioOf, rowTextOf, usageOf} from './model_calls.ts';
+import {brandOf, failureOf, figuresOf, hitRatioOf, rowTextOf, usageOf} from './model_calls.ts';
 import {failedCallsOf} from './call_rows.ts';
 import {problemsOf} from './problems.ts';
 import {timelineOf} from './steps.ts';
@@ -232,5 +232,42 @@ describe('the header’s second line', () => {
       insideLineOf([ended, inFlight], START, withOverride)?.join(' · '),
       'First token 900 ms · 2 model calls · 1.0k in · 100 out · Est. $0.0012 · Prices from the config',
     );
+  });
+});
+
+describe('the colour a model call’s icon takes', () => {
+  const call = (provider: 'gcp.gemini' | 'anthropic' | 'openai', attributes = {}) =>
+    modelCall({spanId: 'a'.repeat(16), start: 0, end: 1, provider, attributes});
+
+  it('is Gemini’s for Gemini’s API, and Claude’s for Anthropic’s', () => {
+    assert.equal(brandOf(call('gcp.gemini')), 'gemini');
+    assert.equal(brandOf(call('anthropic')), 'claude');
+  });
+
+  it('is Gemini’s for Google’s API only when the model is a Gemini model', () => {
+    const google = (model: string) =>
+      call('gcp.gemini', {'gen_ai.provider.name': 'gcp.gen_ai', 'gen_ai.request.model': model});
+    assert.equal(brandOf(google('gemini-3.6-flash')), 'gemini');
+    assert.equal(brandOf(google('gemma-4')), undefined);
+  });
+
+  it('is OpenAI’s only for a call to OpenAI’s own host, by its URL or its span’s server', () => {
+    assert.equal(
+      brandOf(call('openai', {'url.full': 'https://api.openai.com/v1/chat/completions'})),
+      'openai',
+    );
+    assert.equal(
+      brandOf(call('openai', {'url.full': 'https://openrouter.ai/api/v1/chat/completions'})),
+      undefined,
+    );
+    assert.equal(
+      brandOf(call('openai', {'url.full': undefined, 'server.address': 'api.openai.com'})),
+      'openai',
+    );
+  });
+
+  it('is none for any other provider, or a call recorded raw', () => {
+    assert.equal(brandOf(call('anthropic', {'gen_ai.provider.name': 'aws.bedrock'})), undefined);
+    assert.equal(brandOf(call('anthropic', {'gen_ai.provider.name': undefined})), undefined);
   });
 });

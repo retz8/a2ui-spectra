@@ -6,7 +6,7 @@ import {type Lane, lanesOf, shareOf} from '@/model/lanes.ts';
 import {deliveryLabel, type TimelineRow} from '@/model/steps.ts';
 import {takeTimelineFocusRequest} from '@/state/timeline_focus.ts';
 
-import {formatDurationCompact, formatOffsetCompact, toneOf} from './format.ts';
+import {brandIconOf, formatDurationCompact, formatOffsetCompact, toneOf} from './format.ts';
 import {Icon} from './icons.tsx';
 import {ProblemMark} from './TurnList.tsx';
 import {useNow} from './use_now.ts';
@@ -200,11 +200,15 @@ export function Timeline({
               >
                 {row.offsetMs === undefined ? '' : formatOffsetCompact(row.offsetMs)}
               </span>
-              <Icon
-                kind={row.icon}
-                size={14}
-                className={following && isSelected ? 'text-brand' : toneOf(row.icon)}
-              />
+              {row.row === 'step' && row.brand !== undefined ? (
+                <Icon kind={row.icon} size={14} {...brandIconOf(row.brand)} />
+              ) : (
+                <Icon
+                  kind={row.icon}
+                  size={14}
+                  className={following && isSelected ? 'text-brand' : toneOf(row.icon)}
+                />
+              )}
               {/* At the timeline's narrowest, the name truncates before the problem mark is hidden. */}
               <span
                 className={cn('min-w-0 truncate', isSelected ? 'font-semibold' : 'font-medium')}

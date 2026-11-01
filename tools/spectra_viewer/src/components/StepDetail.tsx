@@ -9,7 +9,7 @@ import {useBlockFold} from '@/state/block_folds.ts';
 import {isWireInput, type TurnRecordEvent, unixMillis, type WireEvent} from '@/model/record.ts';
 import {deliveryLabel, plural, type Step, type TimelineRow} from '@/model/steps.ts';
 
-import {formatOffset, toneOf} from './format.ts';
+import {brandIconOf, formatOffset, toneOf} from './format.ts';
 import {Icon} from './icons.tsx';
 import {BlockLabel, JsonBlock, type Reveal} from './JsonBlock.tsx';
 import {callTitleOf, ModelCallBlocks} from './ModelCallDetail.tsx';
@@ -79,7 +79,11 @@ export function StepDetail({
           </>
         ) : (
           <>
-            <Icon kind={row.icon} size={14} className={toneOf(row.icon)} />
+            {row.brand !== undefined ? (
+              <Icon kind={row.icon} size={14} {...brandIconOf(row.brand)} />
+            ) : (
+              <Icon kind={row.icon} size={14} className={toneOf(row.icon)} />
+            )}
             <span className="shrink-0 font-semibold">{row.label}</span>
             {/* A failed turn's reason is its problem block's sentence. */}
             {!(row.kind === 'outcome' && row.outcome === 'failed') && (

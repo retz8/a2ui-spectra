@@ -16,7 +16,7 @@ import {
 } from './call_rows.ts';
 import {inputBrief} from './input_brief.ts';
 import {messageKey} from './messages.ts';
-import {modelOf, providerOf, rowTextOf} from './model_calls.ts';
+import {type Brand, brandOf, modelOf, providerOf, rowTextOf} from './model_calls.ts';
 import {isFullToolRow, toolRowTextOf} from './tool_calls.ts';
 import {
   isTurnEvent,
@@ -66,6 +66,8 @@ export interface Step {
   id: string;
   kind: 'input' | 'status' | 'text' | 'data' | 'file' | 'message' | 'call' | 'outcome';
   icon: StepIcon;
+  /** A model call's provider, whose colour its icon takes. */
+  brand?: Brand;
   label: string;
   /** What the step is about, in brief. */
   target: string;
@@ -208,11 +210,13 @@ function callStep(call: CallRow, events: readonly TurnRecordEvent[], startMs: nu
     });
   }
   const housekeeping = call.kind === 'tool' && !isFullToolRow(call);
+  const brand = call.kind === 'model' ? brandOf(modelReadingOf(call).event) : undefined;
   return {
     row: 'step',
     id: call.id,
     kind: 'call',
     icon: call.kind === 'model' ? 'model' : 'tool',
+    ...(brand !== undefined && {brand}),
     label,
     target,
     offsetMs: unixMillis(timed.startTimeUnixNano) - startMs,

@@ -4,7 +4,7 @@
  * with a lens over its corner, the card solid outside the lens and
  * see-through under it.
  */
-import type {ReactNode} from 'react';
+import {type ReactNode, useId} from 'react';
 
 import {cn} from '@/lib/utils';
 
@@ -192,22 +192,38 @@ const PATHS = {
 
 export type IconKind = keyof typeof PATHS;
 
+/**
+ * Gemini's colours, the four of Google's that Gemini's mark blends from blue,
+ * as Lobe Icons' Gemini mark draws them: red, yellow and green into blue,
+ * corner to corner.
+ */
+const GEMINI_STOPS: ReadonlyArray<[offset: number, colour: string]> = [
+  [0, '#F94543'],
+  [0.3, '#FABC12'],
+  [0.55, '#08B962'],
+  [0.8, '#3186FF'],
+];
+
 export function Icon({
   kind,
   size = 16,
+  gradient,
   className,
 }: {
   kind: IconKind;
   size?: number;
+  /** Strokes the icon in a gradient in place of its colour: Gemini's colours. */
+  gradient?: 'gemini';
   className?: string;
 }) {
+  const gradientId = `gradient-${useId().replace(/[^\w-]/g, '')}`;
   return (
     <svg
       viewBox="0 0 24 24"
       width={size}
       height={size}
       fill="none"
-      stroke="currentColor"
+      stroke={gradient === undefined ? 'currentColor' : `url(#${gradientId})`}
       strokeWidth="1.75"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -218,6 +234,22 @@ export function Icon({
         className,
       )}
     >
+      {gradient === 'gemini' && (
+        <defs>
+          <linearGradient
+            id={gradientId}
+            gradientUnits="userSpaceOnUse"
+            x1="4"
+            y1="4"
+            x2="20"
+            y2="20"
+          >
+            {GEMINI_STOPS.map(([offset, colour]) => (
+              <stop key={offset} offset={offset} stopColor={colour} />
+            ))}
+          </linearGradient>
+        </defs>
+      )}
       {PATHS[kind]}
     </svg>
   );

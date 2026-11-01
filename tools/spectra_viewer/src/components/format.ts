@@ -1,3 +1,4 @@
+import type {Brand} from '@/model/model_calls.ts';
 import type {TurnOutcome} from '@/model/record.ts';
 
 import type {IconKind} from './icons.tsx';
@@ -21,6 +22,17 @@ export const STATUS_ICONS: Record<TurnStatus, IconKind> = {
 };
 
 /** An icon's colour: grey for its shape alone, red for trouble, teal for what is live. */
+/**
+ * A model call's icon in its provider's colour: Claude's clay, OpenAI's in the
+ * text colour, since OpenAI's mark carries no colour of its own, and Gemini's
+ * in its gradient, which the icon draws.
+ */
+export function brandIconOf(brand: Brand): {className: string; gradient?: 'gemini'} {
+  if (brand === 'gemini') return {className: 'text-gemini', gradient: 'gemini'};
+  if (brand === 'claude') return {className: 'text-claude'};
+  return {className: 'text-foreground'};
+}
+
 export function toneOf(icon: IconKind): string {
   if (icon === 'failed') return 'text-problem';
   if (icon === 'open') return 'text-brand';

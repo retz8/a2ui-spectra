@@ -86,7 +86,7 @@ Each outcome (completed, waiting for input, failed, cancelled, open) has its own
 
 ### 19. Step types: shape, not colour
 
-Each step type has its own icon shape, in grey. Only the selected row is teal, and only problems are red.
+Each step type has its own icon shape, in grey. Only the selected row is teal, and only problems are red. A model call's icon takes its provider's colour: Gemini's in a gradient of Google's four colours, Claude's in clay, and OpenAI's in the text colour, as OpenAI's mark carries none; any other provider's stays grey.
 
 ### 20. Type: compact, Inter
 

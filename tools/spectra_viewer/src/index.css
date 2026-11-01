@@ -16,6 +16,9 @@
   --color-brand-on: var(--brand-on);
   --color-problem: var(--problem);
   --color-problem-soft: var(--problem-soft);
+  /* A model call's icon in its provider's colour: Claude's clay as Simple Icons records it, and Gemini's blue, the colour its gradient lands on. */
+  --color-claude: #d97757;
+  --color-gemini: #3186ff;
   --color-success: var(--success);
   --shadow-panel: var(--panel-shadow);
   --shadow-float: var(--float-shadow);
