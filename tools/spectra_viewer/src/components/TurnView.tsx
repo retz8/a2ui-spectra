@@ -80,8 +80,11 @@ export function TurnView({
   selection,
   onSelect,
   onStep,
+  listEmpty,
 }: {
   traceId: string | undefined;
+  /** Whether the turn list, showing the agent picked, has no turn. */
+  listEmpty: boolean;
   /** The step the page address holds. */
   stepId: string | undefined;
   /** Counts the turn list's selections, so selecting the same turn again counts too. */
@@ -124,7 +127,7 @@ export function TurnView({
   }, [pending, state, traceId, startsNew]);
   const inView = useDataModelInView();
 
-  const first = traceId === undefined && state.loaded && state.turns.length === 0;
+  const first = traceId === undefined && listEmpty;
   useEffect(() => {
     if (first) input.current?.focus();
   }, [first]);

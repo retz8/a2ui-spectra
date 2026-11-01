@@ -26,7 +26,7 @@ A left rail holds Spectra's mark with its name under it, and the sections: Turns
 
 ### 4. The turn list: grouped by conversation
 
-The turn list is a column grouped by conversation, newest first, each group titled by its first message and the agent, with its number of turns. Each row shows the turn's status, its time, its input, its duration, and its problem count when it has problems. While the newest turn is selected, a new turn from any host is selected as it opens; selecting an older turn stops following, and selecting the newest again resumes it. The search matches each turn's input, its conversation's title and agent, and a trace or conversation id, whole or short. Each group collapses and expands.
+The turn list is a column grouped by conversation, newest first, each group titled by its first message and the agent, with its number of turns. It shows the connected agent's turns, by the name on its card, and an agent picker in its header, shown when the store holds turns of other agents, offers each agent with turns and every agent together. Each row shows the turn's status, its time, its input, its duration, and its problem count when it has problems. While the newest turn is selected, a new turn from any host is selected as it opens; selecting an older turn stops following, and selecting the newest again resumes it. The search matches each turn's input, its conversation's title and agent, and a trace or conversation id, whole or short. Each group collapses and expands.
 
 ### 5. The turn view: the result in view, the steps beside it
 

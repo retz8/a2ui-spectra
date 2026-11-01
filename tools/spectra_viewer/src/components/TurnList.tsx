@@ -1,7 +1,9 @@
+import {DropdownMenu} from 'radix-ui';
 import {type KeyboardEvent, type RefObject, useEffect, useMemo, useRef, useState} from 'react';
 
 import type {ListedTurn} from '@/api.ts';
 import {cn} from '@/lib/utils';
+import {type AgentChoice, agentLabel, type AgentShown} from '@/model/agents.ts';
 import {groupItemId, type ListKey, listItemsOf, moveInList, turnItemId} from '@/model/list_keys.ts';
 import {listedProblemCount} from '@/model/problems.ts';
 import {plural} from '@/model/steps.ts';
@@ -17,10 +19,24 @@ import {
 } from './format.ts';
 import {Icon} from './icons.tsx';
 
-/** The turn list: the turns grouped by conversation, newest first, with a search. */
+/** The agent picker's choices, the agent shown and what picking one does. */
+export interface AgentPicker {
+  choices: readonly AgentChoice[];
+  shown: AgentShown;
+  /** How many turns every agent has together. */
+  total: number;
+  onPick: (shown: AgentShown) => void;
+}
+
+/**
+ * The turn list: the turns grouped by conversation, newest first, with a
+ * search, and the agent picker when the store holds more than one agent's
+ * turns.
+ */
 export function TurnList({
   turns,
   loaded,
+  agents,
   selected,
   onSelect,
   searchRef,
@@ -29,8 +45,10 @@ export function TurnList({
   onCollapse,
   className,
 }: {
+  /** The turns of the agent shown. */
   turns: readonly ListedTurn[];
   loaded: boolean;
+  agents?: AgentPicker;
   selected: string | undefined;
   /** Selects a turn, pressed or reached with the arrows. */
   onSelect: (traceId: string, how: 'press' | 'key') => void;
@@ -122,6 +140,7 @@ export function TurnList({
       <div className="flex shrink-0 flex-col gap-2.5 px-3.5 pt-3.5 pb-2.5">
         <div className="flex items-baseline gap-2">
           <h2 className="text-base font-semibold">Turns</h2>
+          {agents !== undefined && <AgentMenu agents={agents} />}
           <span className="text-xs text-muted-foreground">{turns.length}</span>
           {onCollapse !== undefined && (
             <button
@@ -185,6 +204,89 @@ export function TurnList({
         ))}
       </div>
     </section>
+  );
+}
+
+/** The value of a choice in the picker's radio group. */
+function valueOf(shown: AgentShown): string {
+  return shown === 'all' ? 'all' : `agent:${shown.name}`;
+}
+
+/** The agent picker: the agent shown, opening the agents with turns in the store, then every agent. */
+function AgentMenu({agents}: {agents: AgentPicker}) {
+  const {choices, shown, total, onPick} = agents;
+  const value = valueOf(shown);
+  return (
+    <DropdownMenu.Root>
+      <DropdownMenu.Trigger asChild>
+        <button
+          type="button"
+          className="ease-quick inline-flex h-6 max-w-[168px] min-w-0 cursor-pointer items-center gap-1 self-center rounded-md pr-1.5 pl-2 text-xs font-medium text-muted-strong hover:bg-tint data-[state=open]:bg-tint"
+        >
+          <span className="min-w-0 truncate">{agentLabel(shown)}</span>
+          <Icon kind="chevronDown" size={12} className="shrink-0 text-muted-foreground" />
+        </button>
+      </DropdownMenu.Trigger>
+      <DropdownMenu.Portal>
+        <DropdownMenu.Content
+          align="start"
+          sideOffset={6}
+          aria-label="Agents"
+          className="fade-in-quick z-50 flex w-[248px] flex-col rounded-xl bg-panel p-1.5 text-foreground shadow-float"
+        >
+          <DropdownMenu.RadioGroup
+            value={value}
+            onValueChange={next => {
+              const choice = choices.find(agent => valueOf({name: agent.name}) === next);
+              onPick(choice === undefined ? 'all' : {name: choice.name});
+            }}
+          >
+            {choices.map(agent => (
+              <AgentItem
+                key={agent.name}
+                value={valueOf({name: agent.name})}
+                checked={value === valueOf({name: agent.name})}
+                name={agent.name}
+                note={agent.connected ? 'connected' : undefined}
+                count={agent.turns}
+              />
+            ))}
+            <DropdownMenu.Separator className="mx-1.5 my-1 h-px bg-border" />
+            <AgentItem value="all" checked={value === 'all'} name="All agents" count={total} />
+          </DropdownMenu.RadioGroup>
+        </DropdownMenu.Content>
+      </DropdownMenu.Portal>
+    </DropdownMenu.Root>
+  );
+}
+
+function AgentItem({
+  value,
+  checked,
+  name,
+  note,
+  count,
+}: {
+  value: string;
+  checked: boolean;
+  name: string;
+  note?: string;
+  count: number;
+}) {
+  return (
+    <DropdownMenu.RadioItem
+      value={value}
+      className="ease-quick flex h-8 cursor-pointer items-center gap-2 rounded-lg px-2 outline-none data-[highlighted]:bg-tint"
+    >
+      <span className="flex size-3.5 shrink-0 text-brand">
+        <DropdownMenu.ItemIndicator>
+          <Icon kind="checked" size={14} />
+        </DropdownMenu.ItemIndicator>
+      </span>
+      <span className={cn('min-w-0 flex-1 truncate', checked && 'font-semibold')}>{name}</span>
+      {note !== undefined && <span className="shrink-0 text-xs text-muted-foreground">{note}</span>}
+      <span className="min-w-4 shrink-0 text-right text-xs text-muted-foreground">{count}</span>
+    </DropdownMenu.RadioItem>
   );
 }
 

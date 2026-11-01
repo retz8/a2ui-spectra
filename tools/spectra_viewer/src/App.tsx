@@ -10,6 +10,14 @@ import {TurnView} from '@/components/TurnView.tsx';
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
 import {cn} from '@/lib/utils';
 import {type Address, historyOf, readAddress, writeAddress} from '@/model/address.ts';
+import {
+  agentChoicesOf,
+  agentOfSelection,
+  type AgentShown,
+  agentShownOf,
+  offersPicker,
+  turnsOfAgent,
+} from '@/model/agents.ts';
 import {followNewest} from '@/model/follow.ts';
 import {pageKeyOf} from '@/model/keys.ts';
 import {rememberedSize, rememberSize} from '@/state/layout.ts';
@@ -88,6 +96,18 @@ export function App() {
           ),
     [state.turns, renderErrors],
   );
+  // The connected agent's turns, until another agent, or every agent, is picked.
+  const [picked, setPicked] = useState<AgentShown | undefined>();
+  const connected = state.context?.agentName;
+  const shown = useMemo(() => agentShownOf(picked, connected), [picked, connected]);
+  const listed = useMemo(() => turnsOfAgent(turns, shown), [turns, shown]);
+  // A turn selected that the list does not show, by a link, the browser's history or the composer, shows its agent's turns.
+  const [placed, setPlaced] = useState<string | undefined>();
+  if (state.loaded && selected !== placed && turns.some(turn => turn.traceId === selected)) {
+    setPlaced(selected);
+    const agent = agentOfSelection(turns, shown, selected);
+    if (agent !== undefined) setPicked(agent);
+  }
   // The turn list over the turn view on a small window, and what took focus as it opened.
   const [overlay, setOverlay] = useState<'list' | 'search' | undefined>();
   const [keysOpen, setKeysOpen] = useState(false);
@@ -157,7 +177,7 @@ export function App() {
   }, [state.context]);
 
   // With no turn in the address, the newest is selected; while the newest is selected, a new turn is as it opens.
-  const newest = state.loaded ? state.turns[0]?.traceId : undefined;
+  const newest = state.loaded ? listed[0]?.traceId : undefined;
   const newestBefore = useRef<string | undefined>(undefined);
   useEffect(() => {
     const next = followNewest(newestBefore.current, newest, selected);
@@ -207,8 +227,22 @@ export function App() {
     };
   }, [overlay, closeOverlay]);
 
+  // Picking an agent selects its newest turn, when it has one.
+  const agents = offersPicker(turns, connected)
+    ? {
+        choices: agentChoicesOf(turns, connected),
+        shown,
+        total: turns.length,
+        onPick: (next: AgentShown) => {
+          setPicked(next);
+          const newestOfAgent = turnsOfAgent(turns, next)[0];
+          if (newestOfAgent !== undefined) pick(newestOfAgent.traceId);
+        },
+      }
+    : undefined;
   const turnView = (
     <TurnView
+      listEmpty={state.loaded && listed.length === 0}
       traceId={selected}
       stepId={address.stepId}
       selection={selections}
@@ -224,7 +258,7 @@ export function App() {
         <div className="relative flex min-h-0 flex-1 gap-2 pr-2 pb-2">
           {small && (
             <Strip
-              turns={turns}
+              turns={listed}
               selected={selected}
               onSelect={pick}
               open={overlay !== undefined}
@@ -237,8 +271,9 @@ export function App() {
           {small && overlay !== undefined && (
             <div ref={overlayBox} className="absolute top-0 bottom-2 left-[60px] z-30 w-[296px]">
               <TurnList
-                turns={turns}
+                turns={listed}
                 loaded={state.loaded}
+                agents={agents}
                 selected={selected}
                 onSelect={(traceId, how) => {
                   pick(traceId);
@@ -293,8 +328,9 @@ export function App() {
                     inert={swing === undefined && turnListCollapsed}
                   >
                     <TurnList
-                      turns={turns}
+                      turns={listed}
                       loaded={state.loaded}
+                      agents={agents}
                       selected={selected}
                       onSelect={pick}
                       searchRef={search}
@@ -310,7 +346,7 @@ export function App() {
                       )}
                     >
                       <Strip
-                        turns={turns}
+                        turns={listed}
                         selected={selected}
                         onSelect={pick}
                         open={false}
