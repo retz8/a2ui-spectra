@@ -73,7 +73,7 @@ A `parse` event is tied to the model call of its turn whose response text, or on
 
 ### 13. Parse errors as problems
 
-Each error the parser raised is one problem: each rejected block, the one that ended the parse and each one a stream read past. A retry is marked with the error that caused it and is not counted.
+Each error the parser raised is one problem: each rejected block, the one that ended the parse and each one a stream read past. A failed `prompt_generation` in a turn is one problem, on its own row. A retry is marked with the error that caused it and is not counted.
 
 ### 14. The parse a tree component came from
 
@@ -103,11 +103,11 @@ Phase 6's boards are drawn first on the design canvas "Spectra viewer UI", in li
 1. a `parse` step: the raw text with each component's characters, linked both ways with the tree, selecting a node marking its text and selecting marked text selecting the node;
 2. a failed parse, each rejected block marked in the raw text, as problems;
 3. a retry marked with the error that caused it;
-4. the inference format and the catalog version;
-5. the prompt's UI section marked inside the model call's exact request, apart from the developer's own text;
-6. the model call a parse read, linked both ways;
-7. a toolset tool call shown as its parse;
-8. a turn with no A2UI step events, saying how to switch the wrapper on.
+4. the prompt's UI section marked inside the model call's exact request, apart from the developer's own text, with the inference format and the catalog version;
+5. the model call a parse read, linked both ways;
+6. a toolset tool call shown as its parse;
+7. a turn with no A2UI step events, saying how to switch the wrapper on;
+8. a failed prompt generation.
 
 Flow 6 is a new row on the Flows page: finding out why a turn retried and where the model's text went wrong. The header's problem count; the failed parse with its rejected block marked; the retry marked with its cause; the final tree, where selecting a component marks its text.
 

@@ -78,7 +78,7 @@ A grey sentence above "Raw text" says why: "No component ranges · the parse nam
 
 ### 11. A parse error's problem block
 
-The first line is a short lead naming what happened, then the SDK's message: "The parse stopped on this block: Surface default already exists." for the error that ended the parse, "The stream rejected this block and read on: …" for a block a stream read past. The second line is the error's class and the SDK: "ValueError · A2UI SDK, Python". "↓ Show text" scrolls to the block's red-soft mark in "Raw text"; an error that cannot be placed in the text marks none.
+The first line is a short lead naming what happened, then the SDK's message: "The parse stopped on this block: Surface default already exists." for the error that ended the parse, "The stream rejected this block and read on: …" for a block a stream read past. The second line is the error's class and the SDK: "A2uiIntegrityError · A2UI SDK, Python". "↓ Show text" scrolls to the block's red-soft mark in "Raw text"; an error that cannot be placed in the text marks none.
 
 ### 12. The source of an A2UI step span
 
