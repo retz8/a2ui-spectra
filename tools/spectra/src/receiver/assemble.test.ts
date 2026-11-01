@@ -240,15 +240,35 @@ describe('a turn with its received spans', () => {
   it("tells tool call spans run side by side apart by the exchange's tool name", () => {
     const side = [
       received(S(2), 'call_llm', 0, 100, {traceId: TURN}),
-      received(S(3), 'execute_tool lookup', 10, 60, {traceId: TURN, parent: S(2), attributes: {'gen_ai.tool.name': 'lookup'}}),
-      received(S(4), 'execute_tool other', 10, 90, {traceId: TURN, parent: S(2), attributes: {'gen_ai.tool.name': 'other'}}),
+      received(S(3), 'execute_tool lookup', 10, 60, {
+        traceId: TURN,
+        parent: S(2),
+        attributes: {'gen_ai.tool.name': 'lookup'},
+      }),
+      received(S(4), 'execute_tool other', 10, 90, {
+        traceId: TURN,
+        parent: S(2),
+        attributes: {'gen_ai.tool.name': 'other'},
+      }),
     ];
     const assembled = assembleTurn(
       {
         events: [
           turnEvent(),
-          {...exchange(S(91), 20, {tool: true}), attributes: {...exchange(S(91), 20, {tool: true}).attributes, 'gen_ai.tool.name': 'lookup'}} as TurnRecordEvent,
-          {...exchange(S(92), 21, {tool: true}), attributes: {...exchange(S(92), 21, {tool: true}).attributes, 'gen_ai.tool.name': 'other'}} as TurnRecordEvent,
+          {
+            ...exchange(S(91), 20, {tool: true}),
+            attributes: {
+              ...exchange(S(91), 20, {tool: true}).attributes,
+              'gen_ai.tool.name': 'lookup',
+            },
+          } as TurnRecordEvent,
+          {
+            ...exchange(S(92), 21, {tool: true}),
+            attributes: {
+              ...exchange(S(92), 21, {tool: true}).attributes,
+              'gen_ai.tool.name': 'other',
+            },
+          } as TurnRecordEvent,
           exchange(S(93), 22, {tool: true}),
         ],
       },
