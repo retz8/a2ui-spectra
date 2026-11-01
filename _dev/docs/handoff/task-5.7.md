@@ -1,6 +1,6 @@
 # Task 5.7 — The acceptance run: close-out notes
 
-Spec: `_dev/docs/spec/task-5.7-acceptance-run.md`. Ticked on 2026-11-01; its sections 18 to 23 hold what the run fixed, the canvas's amendment, the findings and the two A2UIVerse sessions.
+Spec: `_dev/docs/spec/task-5.7-acceptance-run.md`. Its sections 18 to 23 hold what the run fixed, the canvas's amendment, the findings and the two A2UIVerse sessions.
 
 ## How the done line was verified
 
