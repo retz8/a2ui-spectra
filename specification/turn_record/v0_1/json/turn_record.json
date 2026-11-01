@@ -37,6 +37,31 @@
       "type": "string",
       "pattern": "^v[0-9]+\\.[0-9]+(\\.[0-9]+)?$"
     },
+    "InferenceFormat": {
+      "enum": ["direct_json", "express", "elemental", "atom"],
+      "description": "An inference format: the syntax the model writes a UI in before an A2UI SDK compiles it into A2UI messages."
+    },
+    "CatalogRef": {
+      "type": "object",
+      "properties": {
+        "catalogId": {
+          "type": "string"
+        },
+        "protocolVersion": {
+          "$ref": "#/$defs/ProtocolVersion"
+        }
+      },
+      "required": ["catalogId", "protocolVersion"],
+      "additionalProperties": false,
+      "description": "A catalog an A2UI SDK worked with: its id, and the A2UI protocol version it is for, in the record's own form."
+    },
+    "Catalogs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/CatalogRef"
+      }
+    },
     "Status": {
       "type": "object",
       "properties": {
@@ -76,32 +101,102 @@
       },
       "required": ["timeUnixNano", "name"],
       "additionalProperties": false,
-      "if": {
-        "properties": {
-          "name": {
-            "const": "a2ui.http.response.chunk"
-          }
-        }
-      },
-      "then": {
-        "required": ["attributes"],
-        "properties": {
-          "attributes": {
-            "type": "object",
+      "allOf": [
+        {
+          "if": {
             "properties": {
-              "a2ui.http.response.chunk.body": true,
-              "a2ui.http.response.chunk.event": {
-                "type": "string"
-              },
-              "a2ui.http.response.chunk.id": {
-                "type": "string"
+              "name": {
+                "const": "a2ui.http.response.chunk"
               }
-            },
-            "required": ["a2ui.http.response.chunk.body"],
-            "additionalProperties": false
+            }
+          },
+          "then": {
+            "required": ["attributes"],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "a2ui.http.response.chunk.body": true,
+                  "a2ui.http.response.chunk.event": {
+                    "type": "string"
+                  },
+                  "a2ui.http.response.chunk.id": {
+                    "type": "string"
+                  }
+                },
+                "required": ["a2ui.http.response.chunk.body"],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "name": {
+                "const": "exception"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "exception.type": {
+                    "type": "string"
+                  },
+                  "exception.message": {
+                    "type": "string"
+                  },
+                  "exception.stacktrace": {
+                    "type": "string"
+                  },
+                  "a2ui.parse.block.start": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "a2ui.parse.block.end": {
+                    "type": "integer",
+                    "minimum": 0
+                  },
+                  "a2ui.parse.error.details": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/ErrorDetail"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "name": {
+                "const": "a2ui.parse.chunk"
+              }
+            }
+          },
+          "then": {
+            "required": ["attributes"],
+            "properties": {
+              "attributes": {
+                "type": "object",
+                "properties": {
+                  "a2ui.parse.chunk.end": {
+                    "type": "integer",
+                    "minimum": 0
+                  }
+                },
+                "required": ["a2ui.parse.chunk.end"],
+                "additionalProperties": false
+              }
+            }
           }
         }
-      }
+      ]
     },
     "Link": {
       "type": "object",
@@ -176,6 +271,26 @@
       "required": ["surfaceId", "componentId", "start", "end"],
       "additionalProperties": false,
       "description": "Where a component's text sits in the parser input, in UTF-16 code units. start is inclusive and end is exclusive."
+    },
+    "ErrorDetail": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "surfaceId": {
+          "type": "string"
+        }
+      },
+      "required": ["path", "code", "message"],
+      "additionalProperties": false,
+      "description": "One structured detail of an error an A2UI SDK raised, as the SDK gives it."
     },
     "Finding": {
       "type": "object",
@@ -747,12 +862,18 @@
                     "type": "string"
                   },
                   "a2ui.prompt.inference_format": {
+                    "$ref": "#/$defs/InferenceFormat"
+                  },
+                  "a2ui.prompt.catalogs": {
+                    "$ref": "#/$defs/Catalogs"
+                  },
+                  "a2ui.sdk.name": {
                     "type": "string"
                   },
-                  "a2ui.prompt.catalog_id": {
+                  "a2ui.sdk.version": {
                     "type": "string"
                   },
-                  "a2ui.prompt.catalog_version": {
+                  "gen_ai.tool.name": {
                     "type": "string"
                   },
                   "error.type": {
@@ -773,11 +894,31 @@
                 },
                 "required": [
                   "a2ui.event.kind",
-                  "a2ui.prompt.ui_section",
                   "a2ui.prompt.inference_format",
-                  "a2ui.prompt.catalog_id"
+                  "a2ui.prompt.catalogs"
                 ],
                 "additionalProperties": false
+              }
+            },
+            "if": {
+              "properties": {
+                "status": {
+                  "properties": {
+                    "code": {
+                      "const": 2
+                    }
+                  },
+                  "required": ["code"]
+                }
+              },
+              "required": ["status"]
+            },
+            "then": {},
+            "else": {
+              "properties": {
+                "attributes": {
+                  "required": ["a2ui.prompt.ui_section"]
+                }
               }
             }
           }
@@ -805,8 +946,20 @@
                   "a2ui.parse.input": {
                     "type": "string"
                   },
+                  "a2ui.parse.entry_point": {
+                    "enum": ["parse_response", "open_stream", "compile", "tool_call"]
+                  },
+                  "a2ui.parse.wrapped": {
+                    "type": "boolean"
+                  },
+                  "a2ui.parse.streamed": {
+                    "type": "boolean"
+                  },
                   "a2ui.parse.inference_format": {
-                    "type": "string"
+                    "$ref": "#/$defs/InferenceFormat"
+                  },
+                  "a2ui.parse.catalogs": {
+                    "$ref": "#/$defs/Catalogs"
                   },
                   "a2ui.parse.messages": {
                     "type": "array"
@@ -816,6 +969,21 @@
                     "items": {
                       "$ref": "#/$defs/ComponentRange"
                     }
+                  },
+                  "a2ui.sdk.name": {
+                    "type": "string"
+                  },
+                  "a2ui.sdk.version": {
+                    "type": "string"
+                  },
+                  "gen_ai.tool.name": {
+                    "type": "string"
+                  },
+                  "gen_ai.tool.call.id": {
+                    "type": "string"
+                  },
+                  "gen_ai.tool.call.result": {
+                    "$ref": "gen-ai-tool-call-result.json"
                   },
                   "error.type": {
                     "type": "string"
@@ -833,7 +1001,7 @@
                     "type": "object"
                   }
                 },
-                "required": ["a2ui.event.kind", "a2ui.parse.input"],
+                "required": ["a2ui.event.kind", "a2ui.parse.input", "a2ui.parse.entry_point"],
                 "additionalProperties": false
               }
             }

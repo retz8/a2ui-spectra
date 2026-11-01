@@ -33,7 +33,8 @@
           "startTimeUnixNano": "1792576800950000000",
           "attributes": {
             "a2ui.event.kind": "parse",
-            "a2ui.parse.input": "<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"main\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\"}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"main\",\"components\":[{\"id\":\"root\",\"component\":\"Text\",\"text\":\"Hello\"}]}}]\n</a2ui-json>"
+            "a2ui.parse.input": "<a2ui-json>\n[{\"version\":\"v0.9\",\"createSurface\":{\"surfaceId\":\"main\",\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\"}},{\"version\":\"v0.9\",\"updateComponents\":{\"surfaceId\":\"main\",\"components\":[{\"id\":\"root\",\"component\":\"Text\",\"text\":\"Hello\"}]}}]\n</a2ui-json>",
+            "a2ui.parse.entry_point": "parse_response"
           }
         }
       ]

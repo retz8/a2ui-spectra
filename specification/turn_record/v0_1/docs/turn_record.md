@@ -97,7 +97,7 @@ Events come from three capture depths, and each works without the others.
 
 - **The wire.** The transport adapter writes the turn event and the wire events.
 - **The network edge.** The model proxy and the tool proxy write `model_call` and `tool_call` events under the turn event.
-- **OpenTelemetry.** The receiver writes the spans the agent's process sends: `model_call` and `tool_call` events seen from inside the agent, `prompt_generation` and `parse` events from the A2UI wrapper or a native SDK hook, and `framework_span` events for the rest. These keep their own `traceId` and their own parents. The root of such a tree may have no parent; under trace propagation, a tree carrying the turn's `traceId` has the turn event as its root's parent. A span already in its turn, by its `traceId` and `spanId`, is not written again.
+- **OpenTelemetry.** The receiver writes the spans the agent's process sends: `model_call` and `tool_call` events seen from inside the agent, `prompt_generation` and `parse` events from any producer of the A2UI step, as [Producers of the A2UI step](#producers-of-the-a2ui-step) has it, and `framework_span` events for the rest. These keep their own `traceId` and their own parents. The root of such a tree may have no parent; under trace propagation, a tree carrying the turn's `traceId` has the turn event as its root's parent. A span already in its turn, by its `traceId` and `spanId`, is not written again.
 
 Events written at the wire and the network edge share the turn event's `traceId`.
 
@@ -108,9 +108,11 @@ A log record the agent's process sends with span context is kept as one of its s
 ### Links
 
 - **The same call.** A call seen both by a proxy and by the receiver is two events, one per capture path. When the two are known to be the same call, each links to the other. A call may be several events on either side: nested spans that each contain the next, such as a framework's model call span around an instrumented client's, are one chain, and each of them links to the proxy's event and it to each; and a span links to every proxy event its client sent inside it, such as a retry.
-- **A retry.** A `model_call` that retries after a failed parse links to the `parse` event whose error caused it, and carries `a2ui.retry.attempt`.
+- **A stated retry.** A producer that states a retry writes it on the `model_call`: a link to the `parse` event whose error caused it, and `a2ui.retry.attempt`. A retry no producer states is not written; it is worked out when shown, as [Rules worked out when shown](#rules-worked-out-when-shown) has it.
 
 A link to a `parse` event is a retry link. A link between two `model_call` events, or between two `tool_call` events, is a same-call link.
+
+A `parse` made by a tool call is tied to that call by its parent, not by a link: a `parse` whose parent is a `tool_call` event belongs to that tool call. Failing the parent, a `tool_call` and a `parse` of the same turn with equal `gen_ai.tool.call.id` are the same call.
 
 ## Event kinds in detail
 
@@ -241,31 +243,58 @@ The first chunk's time gives the time to the first token.
 
 ### `prompt_generation`
 
-The UI section an A2UI SDK generated for the prompt, written by the wrapper or a native SDK hook.
+The UI section an A2UI SDK generated for the prompt, written by a producer of the A2UI step. `a2ui.prompt.ui_section` is the text the SDK generated, exactly.
 
-| Attribute                      | Type   | Required | Meaning                                                   |
-| ------------------------------ | ------ | -------- | --------------------------------------------------------- |
-| `a2ui.event.kind`              | string | yes      | `"prompt_generation"`.                                    |
-| `a2ui.prompt.ui_section`       | string | yes      | The text the SDK wrote into the prompt.                   |
-| `a2ui.prompt.inference_format` | string | yes      | The inference format, such as `direct_json` or `express`. |
-| `a2ui.prompt.catalog_id`       | string | yes      | The catalog the section describes.                        |
-| `a2ui.prompt.catalog_version`  | string | no       | The catalog's version, when it has one apart from its id. |
-| `error.type`                   | string | no       | The error class, when generation failed.                  |
+| Attribute                      | Type              | Required         | Meaning                                                                                                        |
+| ------------------------------ | ----------------- | ---------------- | -------------------------------------------------------------------------------------------------------------- |
+| `a2ui.event.kind`              | string            | yes              | `"prompt_generation"`.                                                                                         |
+| `a2ui.prompt.ui_section`       | string            | unless it failed | The text the SDK generated for the prompt. Required when `status` is not an error.                             |
+| `a2ui.prompt.inference_format` | string            | yes              | The inference format: `direct_json`, `express`, `elemental` or `atom`.                                         |
+| `a2ui.prompt.catalogs`         | array of catalogs | yes              | The catalogs the section describes, at least one.                                                              |
+| `a2ui.sdk.name`                | string            | no               | The agent SDK's package name: `a2ui-agent-sdk` or `@a2ui/agent`.                                               |
+| `a2ui.sdk.version`             | string            | no               | The version the package reports.                                                                               |
+| `gen_ai.tool.name`             | string            | no               | The tool whose prompt it is, for a section a toolset appended to the instructions: `send_a2ui_json_to_client`. |
+| `error.type`                   | string            | no               | The error's class, when generation failed.                                                                     |
+
+A catalog is an object:
+
+| Field             | Type   | Meaning                                                                                           |
+| ----------------- | ------ | ------------------------------------------------------------------------------------------------- |
+| `catalogId`       | string | The catalog's id.                                                                                 |
+| `protocolVersion` | string | The A2UI protocol version the catalog is for, in the record's own form: `v0.9`, `v0.9.1`, `v1.0`. |
+
+Both fields are required. The producer writes the protocol version in the record's form, whatever form the SDK holds it in.
+
+- **A failed generation** has `status` `code` `2` with the error's message, `error.type` with its class, one `exception` span event, and no `a2ui.prompt.ui_section`.
+- **A toolset's section.** When a toolset appends the A2UI prompt to the agent's instructions, as `a2ui-adk`'s `SendA2uiToClientToolset` does, its generation is one `prompt_generation` whose `a2ui.prompt.ui_section` is exactly the text the toolset appended, carrying `gen_ai.tool.name`.
 
 A `prompt_generation` event may also carry the received-span attributes.
 
 ### `parse`
 
-Raw text turned into A2UI messages by an A2UI SDK's parser, written by the wrapper or a native SDK hook. A parse or validation error is recorded on the event: `status` with `code` `2` and the error's message, and `error.type` with its class.
+Raw text turned into A2UI messages by an A2UI SDK's parser, written by a producer of the A2UI step. There is one `parse` event per outermost call to one of the SDK's public parsing entry points.
 
-| Attribute                     | Type                      | Required | Meaning                                                                                                |
-| ----------------------------- | ------------------------- | -------- | ------------------------------------------------------------------------------------------------------ |
-| `a2ui.event.kind`             | string                    | yes      | `"parse"`.                                                                                             |
-| `a2ui.parse.input`            | string                    | yes      | The text the parser was given.                                                                         |
-| `a2ui.parse.inference_format` | string                    | no       | The inference format the parser read.                                                                  |
-| `a2ui.parse.messages`         | array                     | no       | The A2UI messages it produced, including those before an error. Not validated against any A2UI schema. |
-| `a2ui.parse.components`       | array of component ranges | no       | Which text became which component.                                                                     |
-| `error.type`                  | string                    | no       | The error class, when parsing or validation failed.                                                    |
+| Attribute                     | Type                      | Required | Meaning                                                                                                                                                                   |
+| ----------------------------- | ------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `a2ui.event.kind`             | string                    | yes      | `"parse"`.                                                                                                                                                                |
+| `a2ui.parse.input`            | string                    | yes      | Exactly what the call was given: the whole text, the one block, the chunks of a stream joined in order, or a tool call's `a2ui_payload` argument.                         |
+| `a2ui.parse.entry_point`      | string                    | yes      | How the text was given: `parse_response`, the whole text; `open_stream`, a stream; `compile`, one block; `tool_call`, a toolset's tool call, whichever path it parses by. |
+| `a2ui.parse.wrapped`          | boolean                   | no       | `false` when the SDK was told the whole text is one block without tags. Absent means wrapped.                                                                             |
+| `a2ui.parse.streamed`         | boolean                   | no       | `true` for a stream.                                                                                                                                                      |
+| `a2ui.parse.inference_format` | string                    | no       | The inference format the parser read: `direct_json`, `express`, `elemental` or `atom`.                                                                                    |
+| `a2ui.parse.catalogs`         | array of catalogs         | no       | The catalogs the parser checked against, as on `prompt_generation`.                                                                                                       |
+| `a2ui.parse.messages`         | array                     | no       | The A2UI messages it produced, including those before an error. Not validated against any A2UI schema.                                                                    |
+| `a2ui.parse.components`       | array of component ranges | no       | Which text became which component, when the producer states it.                                                                                                           |
+| `a2ui.sdk.name`               | string                    | no       | The agent SDK's package name: `a2ui-agent-sdk` or `@a2ui/agent`. A toolset's parse names the agent SDK, whose parser did the parsing.                                     |
+| `a2ui.sdk.version`            | string                    | no       | The version the package reports.                                                                                                                                          |
+| `gen_ai.tool.name`            | string                    | no       | For a parse a tool call made: the tool, `send_a2ui_json_to_client`.                                                                                                       |
+| `gen_ai.tool.call.id`         | string                    | no       | For a parse a tool call made: the call's id, when the tool's context gives one.                                                                                           |
+| `gen_ai.tool.call.result`     | object                    | no       | For a parse a tool call made: the object the tool returned, on success and on failure alike. Validated against `gen-ai-tool-call-result.json`.                            |
+| `error.type`                  | string                    | no       | The class of the first error, when parsing or validation failed.                                                                                                          |
+
+- **Errors.** Each error the parse raised is one `exception` span event, the error that ended the parse included: a parse that failed on one error has one, and a stream that read past rejected blocks has one per block. The event's `status` is `code` `2` with the first error's message, and `error.type` is the first error's class.
+- **A stream** is one event, from opening the stream to closing it. Each chunk fed is one `a2ui.parse.chunk` span event, at the time it was fed.
+- **Component ranges** are worked out when shown, as [Rules worked out when shown](#rules-worked-out-when-shown) has it. `a2ui.parse.components` is for a producer that states ranges itself.
 
 A component range is an object:
 
@@ -279,6 +308,36 @@ A component range is an object:
 `start` and `end` count UTF-16 code units.
 
 A `parse` event may also carry the received-span attributes.
+
+### The A2UI step's span events
+
+An `exception` span event is one error an A2UI SDK raised, at the time it was raised:
+
+| Attribute                  | Type                   | Required | Meaning                                                                                                                                                                  |
+| -------------------------- | ---------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `exception.type`           | string                 | yes      | The error's class.                                                                                                                                                       |
+| `exception.message`        | string                 | yes      | Its message.                                                                                                                                                             |
+| `exception.stacktrace`     | string                 | no       | Its stack trace, when the producer has one.                                                                                                                              |
+| `a2ui.parse.block.start`   | integer                | no       | Where the rejected block starts in `a2ui.parse.input`, inclusive. Left out by an error that belongs to no one block, such as the tree check that runs after every block. |
+| `a2ui.parse.block.end`     | integer                | no       | Where the rejected block ends, exclusive.                                                                                                                                |
+| `a2ui.parse.error.details` | array of error details | no       | The SDK's structured details, when it gives any.                                                                                                                         |
+
+`a2ui.parse.block.start` and `a2ui.parse.block.end` count UTF-16 code units. An error detail is an object, as the SDK gives it:
+
+| Field       | Type   | Required | Meaning                                  |
+| ----------- | ------ | -------- | ---------------------------------------- |
+| `path`      | string | yes      | Where in the messages the detail points. |
+| `code`      | string | yes      | The detail's code.                       |
+| `message`   | string | yes      | What is wrong.                           |
+| `surfaceId` | string | no       | The surface it concerns.                 |
+
+An `a2ui.parse.chunk` span event is one chunk fed to a stream, at the time it was fed. It carries no text:
+
+| Attribute              | Type    | Required | Meaning                                                                                |
+| ---------------------- | ------- | -------- | -------------------------------------------------------------------------------------- |
+| `a2ui.parse.chunk.end` | integer | yes      | The offset in `a2ui.parse.input`, in UTF-16 code units, the chunk brought the text to. |
+
+The schema types the `exception` attributes and requires none of them, as an `exception` event on any received span passes as received. A producer of the A2UI step writes `exception.type` and `exception.message` on each.
 
 ### `check`
 
@@ -375,6 +434,56 @@ A span event that is a received log record carries:
 | `a2ui.received.log.severity_number` | integer | Its severity number, from 1 to 24. |
 | `a2ui.received.log.severity_text`   | string  | Its severity text.                 |
 
+## Producers of the A2UI step
+
+A producer of the A2UI step is any program that sends the receiver spans for the step: the A2UI wrapper, a native hook in an A2UI SDK, or an agent reporting its own step. It exports them to the receiver over OTLP/HTTP, as any other span.
+
+### What a span carries
+
+- A span of the step carries `a2ui.event.kind`, `prompt_generation` or `parse`, and the attributes of that kind under the record's names, as [`prompt_generation`](#prompt_generation) and [`parse`](#parse) have them.
+- Its name is the kind, `prompt_generation` or `parse`, and its span kind is internal, `1`.
+- Its status is unset, `code` `0`, on success; on failure, `code` `2` with the first error's message.
+- Its span events are the step's own, as [The A2UI step's span events](#the-a2ui-steps-span-events) has them: an `exception` event for each error, and an `a2ui.parse.chunk` event for each chunk a stream is fed.
+- A producer that states a retry writes `a2ui.retry.attempt` on its `model_call` span, and a link from it to the `parse` span whose error caused it.
+
+### The wire forms
+
+OTLP attribute values are strings, booleans, integers, doubles and arrays of them. An attribute the record holds as a string, a boolean or an integer is sent as that OTLP value. An attribute the record holds as an array or an object is sent as a string holding its JSON text:
+
+- `a2ui.prompt.catalogs` and `a2ui.parse.catalogs`;
+- `a2ui.parse.messages` and `a2ui.parse.components`;
+- `gen_ai.tool.call.result`;
+- `a2ui.parse.error.details`, on an `exception` span event.
+
+### How the receiver reads a span
+
+- `a2ui.event.kind` is read before any dialect. A received span whose `a2ui.event.kind` is `prompt_generation` or `parse` is an event of that kind, with no `a2ui.received.dialect`. Any other value is not honoured: the span is read by its dialect, and the attribute stays in `a2ui.received.attributes`.
+- The translated names are the record's own, copied: the `a2ui.prompt.`, `a2ui.parse.` and `a2ui.sdk.` names, `gen_ai.tool.name`, `gen_ai.tool.call.id`, `gen_ai.tool.call.result` and `error.type`, each where the kind defines it. A name the record holds as an array or an object is parsed from its JSON text. A value that does not fit the record's shape is left out. A name the kind does not define stays in `a2ui.received.attributes` only.
+- The span's events pass as received, `a2ui.parse.error.details` on an `exception` event parsed the same way.
+- **A half-formed span.** A span of the step missing a required attribute of its kind, after the values that do not fit are left out, is written as a `framework_span`, with nothing translated.
+- `a2ui.retry.attempt` on a received `model_call` span of any dialect is copied onto the event, and the span's own links are kept as they are.
+- `a2ui.received.attributes` keeps every attribute as received, beside the translated names.
+
+### Placement
+
+A span of the step is placed in its turn as any received span is: by the turn's `traceId`, else in the one turn of the run whose time range holds its start.
+
+A `prompt_generation` that falls in no turn is kept for the run and placed by its text, `a2ui.prompt.ui_section`, in every turn of the run whose model call request holds that text:
+
+- **Where the text is looked for.** In a `model_call` from the model proxy, every string value of `a2ui.http.request.body`, walked as JSON; in a received `model_call` span, the text of `gen_ai.system_instructions` and `gen_ai.input.messages`. A request holds the text when one string value contains the whole of it.
+- **When.** On the event's arrival, against every turn of the run so far, open, waiting for its calls or written, a written turn amended; and again each time a model call joins a turn of the run, against the prompt generations kept.
+- **Once per turn.** A turn that already holds a `prompt_generation` with an equal section text takes no other, and a text found in several of a turn's model calls places the event once.
+- The event is written as received, with its own `traceId` and parent, into each turn it is placed in.
+
+`wrapper` joins a turn's `a2ui.turn.capture_paths` when a `prompt_generation` or `parse` event is placed in it, beside `otel_receiver`.
+
+## Rules worked out when shown
+
+A record states what happened. These are worked out from it each time the turn is shown, and are not written:
+
+- **The retry.** In a turn, the first `model_call` that starts after a failed `parse` ends is a retry of the call whose reply failed. It is linked to that `parse`, and its attempt is counted along the chain: a failure, retry 1, a failure, retry 2. A retry a producer states, by its link and `a2ui.retry.attempt`, wins over the one worked out.
+- **The component ranges.** Each component's range in a `parse` event's input is worked out from the input and the inference format, by a reader of that format's notation. A range a producer states in `a2ui.parse.components` wins.
+
 ## The `a2ui.` attributes
 
 Every attribute the record defines itself is in the `a2ui.` namespace, named `a2ui.<area>.<name>` under OpenTelemetry's naming rules.
@@ -398,12 +507,21 @@ Every attribute the record defines itself is in the `a2ui.` namespace, named `a2
 | `a2ui.http.response.chunk.id`       | string                    | `a2ui.http.response.chunk` span events |
 | `a2ui.prompt.ui_section`            | string                    | `prompt_generation`                    |
 | `a2ui.prompt.inference_format`      | string                    | `prompt_generation`                    |
-| `a2ui.prompt.catalog_id`            | string                    | `prompt_generation`                    |
-| `a2ui.prompt.catalog_version`       | string                    | `prompt_generation`                    |
+| `a2ui.prompt.catalogs`              | array of catalogs         | `prompt_generation`                    |
 | `a2ui.parse.input`                  | string                    | `parse`                                |
+| `a2ui.parse.entry_point`            | string                    | `parse`                                |
+| `a2ui.parse.wrapped`                | boolean                   | `parse`                                |
+| `a2ui.parse.streamed`               | boolean                   | `parse`                                |
 | `a2ui.parse.inference_format`       | string                    | `parse`                                |
+| `a2ui.parse.catalogs`               | array of catalogs         | `parse`                                |
 | `a2ui.parse.messages`               | array                     | `parse`                                |
 | `a2ui.parse.components`             | array of component ranges | `parse`                                |
+| `a2ui.parse.block.start`            | integer                   | `exception` span events                |
+| `a2ui.parse.block.end`              | integer                   | `exception` span events                |
+| `a2ui.parse.error.details`          | array of error details    | `exception` span events                |
+| `a2ui.parse.chunk.end`              | integer                   | `a2ui.parse.chunk` span events         |
+| `a2ui.sdk.name`                     | string                    | `prompt_generation`, `parse`           |
+| `a2ui.sdk.version`                  | string                    | `prompt_generation`, `parse`           |
 | `a2ui.retry.attempt`                | integer                   | `model_call`                           |
 | `a2ui.check.name`                   | string                    | `check`                                |
 | `a2ui.check.passed`                 | boolean                   | `check`                                |

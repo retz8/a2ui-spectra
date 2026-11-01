@@ -57,9 +57,19 @@
   fixture: "test_data/turn_record/v0_1/full_record_custom_components.json"
 
 - name: prompt_generation_failed
-  description: "A prompt generation that failed, with its error type, for a catalog that carries its own version."
+  description: "A toolset's prompt generation that failed: no section, its error type, its exception event with a stack trace, the SDK and the tool."
   action: validate_turn_record
   fixture: "test_data/turn_record/v0_1/prompt_generation_failed.json"
+
+- name: parse_stream_read_past
+  description: "A stream that read past two rejected blocks: its chunks, an exception event per block with the block's range, one with the SDK's details, and the first error as its status."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/parse_stream_read_past.json"
+
+- name: parse_tool_call
+  description: "A toolset's tool call as its parse: the payload unwrapped, the tool, the call's id and the object the tool returned."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/parse_tool_call.json"
 
 - name: chunk_with_id
   description: "A model call whose streamed chunks carry the server-sent event's event and id fields."
@@ -281,15 +291,55 @@
       - path: "/turns/0/events/1/attributes/gen_ai.tool.call.result"
         code: type
 
-- name: prompt_generation_without_catalog_id
-  description: "A prompt generation event has no catalog id."
+- name: prompt_generation_without_catalogs
+  description: "A prompt generation event names no catalogs."
   action: validate_turn_record
-  fixture: "test_data/turn_record/v0_1/prompt_generation_without_catalog_id.json"
+  fixture: "test_data/turn_record/v0_1/prompt_generation_without_catalogs.json"
   expectError:
     category: ValidationError
     details:
       - path: "/turns/0/events/1/attributes"
         code: required
+
+- name: prompt_generation_without_ui_section
+  description: "A prompt generation that did not fail has no section text."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/prompt_generation_without_ui_section.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes"
+        code: required
+
+- name: inference_format_unknown
+  description: "A prompt generation names an inference format the record does not define."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/inference_format_unknown.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes/a2ui.prompt.inference_format"
+        code: enum
+
+- name: prompt_catalogs_empty
+  description: "A prompt generation's list of catalogs is empty."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/prompt_catalogs_empty.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes/a2ui.prompt.catalogs"
+        code: minItems
+
+- name: catalog_protocol_version_without_v
+  description: "A catalog's protocol version is not in the record's own form."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/catalog_protocol_version_without_v.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes/a2ui.prompt.catalogs/0/protocolVersion"
+        code: pattern
 
 - name: parse_without_input
   description: "A parse event has no input text."
@@ -299,6 +349,46 @@
     category: ValidationError
     details:
       - path: "/turns/0/events/1/attributes"
+        code: required
+
+- name: parse_without_entry_point
+  description: "A parse event does not say how it was given its text."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/parse_without_entry_point.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes"
+        code: required
+
+- name: exception_block_end_negative
+  description: "An exception event's rejected block ends before the input."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/exception_block_end_negative.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/events/0/attributes/a2ui.parse.block.end"
+        code: minimum
+
+- name: error_detail_without_code
+  description: "An error detail on an exception event has no code."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/error_detail_without_code.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/events/0/attributes/a2ui.parse.error.details/0"
+        code: required
+
+- name: parse_chunk_without_end
+  description: "A stream's chunk event does not say where the chunk brought the text to."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/parse_chunk_without_end.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/events/0/attributes"
         code: required
 
 - name: component_range_negative_start

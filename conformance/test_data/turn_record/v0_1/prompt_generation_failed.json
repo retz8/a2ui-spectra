@@ -33,16 +33,33 @@
           "startTimeUnixNano": "1792576800050000000",
           "attributes": {
             "a2ui.event.kind": "prompt_generation",
-            "a2ui.prompt.ui_section": "",
             "a2ui.prompt.inference_format": "direct_json",
-            "a2ui.prompt.catalog_id": "example.com:contacts",
-            "a2ui.prompt.catalog_version": "2.1.0",
-            "error.type": "a2ui.core.exceptions.A2uiCatalogError"
+            "a2ui.prompt.catalogs": [
+              {
+                "catalogId": "example.com:contacts",
+                "protocolVersion": "v0.9.1"
+              }
+            ],
+            "a2ui.sdk.name": "a2ui-agent-sdk",
+            "a2ui.sdk.version": "0.9.0",
+            "gen_ai.tool.name": "send_a2ui_json_to_client",
+            "error.type": "A2uiCatalogError"
           },
           "status": {
             "code": 2,
             "message": "Catalog example.com:contacts declares no components."
-          }
+          },
+          "events": [
+            {
+              "timeUnixNano": "1792576800050000000",
+              "name": "exception",
+              "attributes": {
+                "exception.type": "A2uiCatalogError",
+                "exception.message": "Catalog example.com:contacts declares no components.",
+                "exception.stacktrace": "Traceback (most recent call last):\n  File \"send_a2ui_to_client_toolset.py\", line 318, in process_llm_request\na2ui.core.exceptions.A2uiCatalogError: Catalog example.com:contacts declares no components."
+              }
+            }
+          ]
         }
       ]
     }

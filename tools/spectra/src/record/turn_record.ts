@@ -3,9 +3,9 @@
  * defines it. The JSON Schema there is normative; these types follow it.
  *
  * Every kind shares the span fields. The attributes are typed in full for the
- * kinds Phase 2 writes (turn, wire input, wire output and check), and the
- * proxies' model and tool calls name theirs; the other kinds keep an open
- * attribute map until the phase that writes them.
+ * kinds Phase 2 writes (turn, wire input, wire output and check); the
+ * proxies' model and tool calls and the A2UI step's prompt generation and
+ * parse name theirs; a framework span keeps an open attribute map.
  */
 
 /** The record version this module describes. */
@@ -323,14 +323,87 @@ export type ToolCallEvent = EventFields<ToolCallAttributes>;
 /** A call one of the proxies captured. */
 export type CallEvent = ModelCallEvent | ToolCallEvent;
 
-// The kinds whose attributes later phases type.
+// The A2UI step.
+
+/** The syntax the model writes a UI in before an A2UI SDK compiles it into A2UI messages. */
+export type InferenceFormat = 'direct_json' | 'express' | 'elemental' | 'atom';
+
+/** A catalog an A2UI SDK worked with, its protocol version in the record's own form. */
+export interface CatalogRef {
+  catalogId: string;
+  protocolVersion: ProtocolVersion;
+}
+
+/** How a parse was given its text. */
+export type ParseEntryPoint = 'parse_response' | 'open_stream' | 'compile' | 'tool_call';
+
+/** Which text became which component, in UTF-16 code units of the parse input. */
+export interface ComponentRange {
+  surfaceId: string;
+  componentId: string;
+  start: number;
+  end: number;
+}
+
+/** One structured detail of an error an A2UI SDK raised, as the SDK gives it. */
+export interface ErrorDetail {
+  path: string;
+  code: string;
+  message: string;
+  surfaceId?: string;
+}
+
+export interface PromptGenerationAttributes {
+  'a2ui.event.kind': 'prompt_generation';
+  /** The text the SDK generated; absent when generation failed. */
+  'a2ui.prompt.ui_section'?: string;
+  'a2ui.prompt.inference_format': InferenceFormat;
+  'a2ui.prompt.catalogs': CatalogRef[];
+  'a2ui.sdk.name'?: string;
+  'a2ui.sdk.version'?: string;
+  'gen_ai.tool.name'?: string;
+  'error.type'?: string;
+  [name: string]: unknown;
+}
+
+export interface ParseAttributes {
+  'a2ui.event.kind': 'parse';
+  /** Exactly what the call was given. */
+  'a2ui.parse.input': string;
+  'a2ui.parse.entry_point': ParseEntryPoint;
+  'a2ui.parse.wrapped'?: boolean;
+  'a2ui.parse.streamed'?: boolean;
+  'a2ui.parse.inference_format'?: InferenceFormat;
+  'a2ui.parse.catalogs'?: CatalogRef[];
+  'a2ui.parse.messages'?: unknown[];
+  'a2ui.parse.components'?: ComponentRange[];
+  'a2ui.sdk.name'?: string;
+  'a2ui.sdk.version'?: string;
+  'gen_ai.tool.name'?: string;
+  'gen_ai.tool.call.id'?: string;
+  'gen_ai.tool.call.result'?: Record<string, unknown>;
+  'error.type'?: string;
+  [name: string]: unknown;
+}
+
+export type PromptGenerationEvent = EventFields<PromptGenerationAttributes>;
+export type ParseEvent = EventFields<ParseAttributes>;
+
+// The framework span.
 
 type OtherKind = Exclude<
   EventKind,
-  'turn' | 'wire_input' | 'wire_output' | 'check' | 'model_call' | 'tool_call'
+  | 'turn'
+  | 'wire_input'
+  | 'wire_output'
+  | 'check'
+  | 'model_call'
+  | 'tool_call'
+  | 'prompt_generation'
+  | 'parse'
 >;
 
-/** An event of a kind Phase 2 does not write, with open attributes. */
+/** A framework span, with open attributes. */
 export type OtherEvent = {
   [Kind in OtherKind]: EventFields<{
     'a2ui.event.kind': Kind;
@@ -345,6 +418,8 @@ export type TurnRecordEvent =
   | CheckEvent
   | ModelCallEvent
   | ToolCallEvent
+  | PromptGenerationEvent
+  | ParseEvent
   | OtherEvent;
 
 /** The event type for one kind. */
