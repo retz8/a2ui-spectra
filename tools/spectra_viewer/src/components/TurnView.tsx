@@ -81,10 +81,17 @@ export function TurnView({
   onSelect,
   onStep,
   listEmpty,
+  heldWidth,
 }: {
   traceId: string | undefined;
   /** Whether the turn list, showing the agent picked, has no turn. */
   listEmpty: boolean;
+  /**
+   * The width the content is held at while the turn list swings: the turn
+   * view's width once it lands, so the content lays out once, not on every
+   * frame, and the card reveals or covers it as it widens or narrows.
+   */
+  heldWidth?: number;
   /** The step the page address holds. */
   stepId: string | undefined;
   /** Counts the turn list's selections, so selecting the same turn again counts too. */
@@ -169,24 +176,29 @@ export function TurnView({
   }
   return (
     <main className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl bg-panel shadow-panel">
-      {body}
-      <Composer
-        text={draft}
-        onText={setDraft}
-        inputRef={input}
-        onSent={onSelect}
-        traceId={traceId}
-        startsNew={startsNew}
-        onStartNew={() => {
-          setNewAt(selected);
-          input.current?.focus();
-        }}
-        pending={pending}
-        onDiscard={() => setPendingAction(undefined)}
-        dataModel={
-          inView !== undefined && inView.traceId === traceId ? inView.dataModel : undefined
-        }
-      />
+      <div
+        className="flex min-h-0 flex-1 flex-col"
+        style={heldWidth === undefined ? undefined : {width: heldWidth}}
+      >
+        {body}
+        <Composer
+          text={draft}
+          onText={setDraft}
+          inputRef={input}
+          onSent={onSelect}
+          traceId={traceId}
+          startsNew={startsNew}
+          onStartNew={() => {
+            setNewAt(selected);
+            input.current?.focus();
+          }}
+          pending={pending}
+          onDiscard={() => setPendingAction(undefined)}
+          dataModel={
+            inView !== undefined && inView.traceId === traceId ? inView.dataModel : undefined
+          }
+        />
+      </div>
     </main>
   );
 }

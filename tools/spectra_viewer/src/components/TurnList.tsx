@@ -2,6 +2,7 @@ import {DropdownMenu} from 'radix-ui';
 import {type KeyboardEvent, type RefObject, useEffect, useMemo, useRef, useState} from 'react';
 
 import type {ListedTurn} from '@/api.ts';
+import {scrollIntoColumn} from '@/lib/scroll.ts';
 import {cn} from '@/lib/utils';
 import {type AgentChoice, agentLabel, type AgentShown} from '@/model/agents.ts';
 import {groupItemId, type ListKey, listItemsOf, moveInList, turnItemId} from '@/model/list_keys.ts';
@@ -104,7 +105,7 @@ export function TurnList({
   const currentId = current?.id;
   useEffect(() => {
     if (currentId !== undefined) {
-      document.getElementById(domIdOf(currentId))?.scrollIntoView({block: 'nearest'});
+      scrollIntoColumn(tree.current, document.getElementById(domIdOf(currentId)));
     }
   }, [currentId]);
 

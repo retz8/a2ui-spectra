@@ -36,6 +36,24 @@ const STRIP = 52;
 /** How long the turn list takes to collapse to its strip or expand from it, in milliseconds. */
 const SWING_MS = 200;
 
+/**
+ * The turn list's width while it swings, its width as a collapse starts or
+ * the one it opens to, and the turn view's width once it lands, from the two
+ * panels' widths as the swing starts.
+ */
+function swingWidths(
+  direction: 'collapse' | 'expand',
+  listNow: number | undefined,
+  viewNow: number | undefined,
+): {list: number; landing: number | undefined} {
+  const listThen = direction === 'collapse' ? STRIP : (rememberedSize('turnList') ?? TURN_LIST);
+  return {
+    list: direction === 'collapse' ? (listNow ?? TURN_LIST) : listThen,
+    landing:
+      listNow === undefined || viewNow === undefined ? undefined : viewNow + listNow - listThen,
+  };
+}
+
 function reducedMotion(): boolean {
   return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
@@ -82,6 +100,8 @@ export function App() {
   const [swing, setSwing] = useState<'collapse' | 'expand' | undefined>();
   // The list's width while it swings: its width as the collapse starts, or the one it opens to.
   const [swingWidth, setSwingWidth] = useState(TURN_LIST);
+  // The turn view's width once the swing lands, its content held at it meanwhile so it lays out once.
+  const [landingWidth, setLandingWidth] = useState<number | undefined>();
   const stripInPanel = turnListCollapsed || swing !== undefined;
   // The turn in view counts its preview's render errors on its row.
   const renderErrors = useRenderErrorsInView();
@@ -115,12 +135,15 @@ export function App() {
   const stripButton = useRef<HTMLButtonElement>(null);
   const overlayBox = useRef<HTMLDivElement>(null);
   const turnList = usePanelRef();
+  const turnViewPanel = usePanelRef();
   const startSwing = (direction: 'collapse' | 'expand') => {
-    setSwingWidth(
-      direction === 'collapse'
-        ? (turnList.current?.getSize().inPixels ?? TURN_LIST)
-        : (rememberedSize('turnList') ?? TURN_LIST),
+    const widths = swingWidths(
+      direction,
+      turnList.current?.getSize().inPixels,
+      turnViewPanel.current?.getSize().inPixels,
     );
+    setSwingWidth(widths.list);
+    setLandingWidth(widths.landing);
     setSwing(direction);
   };
 
@@ -161,6 +184,7 @@ export function App() {
         () => {
           setViewSetting('turnListCollapsed', swing === 'collapse');
           setSwing(undefined);
+          setLandingWidth(undefined);
         },
         reducedMotion() ? 0 : SWING_MS,
       );
@@ -193,7 +217,13 @@ export function App() {
         event.preventDefault();
         if (small && overlay === undefined) setOverlay('search');
         else if (!small && turnListCollapsed) {
-          setSwingWidth(rememberedSize('turnList') ?? TURN_LIST);
+          const widths = swingWidths(
+            'expand',
+            turnList.current?.getSize().inPixels,
+            turnViewPanel.current?.getSize().inPixels,
+          );
+          setSwingWidth(widths.list);
+          setLandingWidth(widths.landing);
           setSwing('expand');
           setTimeout(() => search.current?.focus(), reducedMotion() ? 0 : SWING_MS);
         } else search.current?.focus();
@@ -206,7 +236,7 @@ export function App() {
     return () => {
       document.removeEventListener('keydown', onKey);
     };
-  }, [small, overlay, turnListCollapsed]);
+  }, [small, overlay, turnListCollapsed, turnList, turnViewPanel]);
 
   // The overlay closes on Esc, and on a press outside it and the strip's button.
   useEffect(() => {
@@ -243,6 +273,7 @@ export function App() {
   const turnView = (
     <TurnView
       listEmpty={state.loaded && listed.length === 0}
+      heldWidth={swing === undefined ? undefined : landingWidth}
       traceId={selected}
       stepId={address.stepId}
       selection={selections}
@@ -365,7 +396,7 @@ export function App() {
                 disabled={turnListCollapsed || swing !== undefined}
               />
             )}
-            <ResizablePanel id="turn-view" {...(!small && {minSize: 640})}>
+            <ResizablePanel id="turn-view" panelRef={turnViewPanel} {...(!small && {minSize: 640})}>
               {turnView}
             </ResizablePanel>
           </ResizablePanelGroup>

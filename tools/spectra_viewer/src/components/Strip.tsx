@@ -1,6 +1,7 @@
 import {type KeyboardEvent, type RefObject, useEffect, useMemo, useRef} from 'react';
 
 import type {ListedTurn} from '@/api.ts';
+import {scrollIntoColumn} from '@/lib/scroll.ts';
 import {cn} from '@/lib/utils';
 import {groupTurns, stripOf} from '@/model/turn_groups.ts';
 
@@ -39,7 +40,7 @@ export function Strip({
 
   useEffect(() => {
     if (selected !== undefined) {
-      document.getElementById(domIdOf(selected))?.scrollIntoView({block: 'nearest'});
+      scrollIntoColumn(list.current, document.getElementById(domIdOf(selected)));
     }
   }, [selected]);
 
