@@ -1215,3 +1215,79 @@ on Gemini, Anthropic and both OpenAI APIs, among them traces
 Give the model only the examples of the catalogs the request's processor
 holds, or negotiate the inline catalog with hosts that accept inline catalogs
 before prompting with it.
+
+## 33. The Python and TypeScript agent SDKs word the same errors differently and expose different error classes
+
+**Component:** `python/a2ui_agent` and `python/a2ui_core`;
+`typescript/agents/a2ui_agent` and `typescript/core/web_core`.
+
+**Severity:** a caller, a test or a tool that reads an error from both SDKs
+cannot match it by class or by message, and an agent ported from one SDK to
+the other changes the text it sends back to the model on a retry. Seen at
+upstream `825beac28`.
+
+### Issue
+
+Given the same text, catalogs and format, the two agent SDKs raise errors of
+the same kind with different classes and different messages, and generate
+different prompts:
+
+- **A Direct JSON block that is not JSON** raises `A2uiParseError` in Python
+  and `ParseError` in TypeScript (`typescript/agents/a2ui_agent/src/errors.ts:34`),
+  with the same message.
+- **A dangling child** is reported as "Dangling reference: Component 'root'
+  references non-existent component 'bookButton' in field 'children[1]'" in
+  Python (`python/a2ui_core/src/a2ui/core/state/validation_helpers.py:79`) and
+  "Component 'root' references non-existent component 'bookButton' in field
+  'children[1]' (Dangling reference 'bookButton' in component 'root')" in
+  TypeScript (`typescript/core/web_core/src/state/surface-components-model.ts:318`).
+- **A Direct JSON component the catalog does not define** is reported as
+  "Validation failed for component 'Heading': components.name.component:
+  Unrecognized component type 'Heading'" in Python
+  (`python/a2ui_core/src/a2ui/core/validation/payload_validator.py:336`) and
+  "Unknown component type 'Heading' not found in catalog '<catalog id>'." in
+  TypeScript (`typescript/core/web_core/src/validation/payload-validator.ts:226`).
+- **An Express name the catalog does not define**, such as `Heading(...)`,
+  raises `A2uiCompilationValidationError` in both, but its cause is a plain
+  `ExpressValidationError` in Python, with "Unknown function 'Heading' not
+  defined in catalog '<catalog id>'."
+  (`python/a2ui_agent/src/a2ui/inference_formats/express/compiler.py:1394`),
+  and an `ExpressUnknownFunctionError` in TypeScript, with "Function 'Heading'
+  is not defined in the catalog."
+  (`typescript/agents/a2ui_agent/src/inference-formats/express/errors.ts:132`).
+- **The compilation errors' classes.** Python's `A2uiCompilationParseError` is
+  also an `A2uiParseError`, and `A2uiCompilationValidationError` an
+  `A2uiValidationError` (`python/a2ui_agent/src/a2ui/parser/errors.py`).
+  TypeScript's derive from `A2uiCompilationError` alone
+  (`typescript/agents/a2ui_agent/src/errors.ts:98` and `:123`), so code that
+  catches `A2uiValidationError` catches a block the catalog refuses in Python
+  and misses it in TypeScript.
+- **Express's prompt.** Python's prompt generator heads its rules with
+  "## Workflow Description:"
+  (`python/a2ui_agent/src/a2ui/inference_formats/express/prompt_generator.py:700`);
+  TypeScript's writes the rules without it
+  (`typescript/agents/a2ui_agent/src/prompt/generator.ts:80`).
+- **Catalogs of mixed protocol versions,** v0.9 and v0.9.1, are rejected by
+  Python when the format is built, before the prompt generator runs
+  (`python/a2ui_agent/src/a2ui/inference_formats/_shared/catalogs.py`, "The
+  catalogs target incompatible protocol versions"), and by TypeScript's Direct
+  JSON format only inside the generator
+  (`typescript/agents/a2ui_agent/src/inference-formats/direct-json/prompt-generator.ts:81`,
+  "The schema prompt's catalogs target different protocol versions").
+
+### Reproduction
+
+Run the same text through both SDKs' `parse_response` / `parseResponse` on the
+basic catalog at v1.0: the texts of Spectra's wrapper capture suite,
+`conformance/test_data/wrapper_capture/v0_1/`, `direct_json_malformed_block`,
+`dangling_child`, `direct_json_unknown_component` and
+`express_unknown_component`, give the pairs above; their expected records,
+`expected_python.json` and `expected_typescript.json`, hold each SDK's class and
+message. `express_generate` gives the two prompts, and `generate_failed` the
+mixed catalogs.
+
+### Fix
+
+Share the error classes' hierarchy and the messages between the SDKs, as the
+conformance suite shares their behaviour: one class for each kind of error,
+with the same parents, and one message text for each.

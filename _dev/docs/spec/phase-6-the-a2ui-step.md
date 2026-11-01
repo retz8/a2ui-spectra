@@ -41,7 +41,7 @@ In Python, the wrapper is switched on by launching under `opentelemetry-instrume
 
 ### 5. The A2UI step's spans
 
-A received span carrying `a2ui.event.kind` set to `prompt_generation` or `parse`, with that kind's attributes under the turn record's names, is read as that event, whoever sent it: the wrapper, a native SDK hook, or an agent reporting its own A2UI step. The wrapper writes exactly that. These spans are placed in their turns as the Phase 5 spec's decision 4 places any received span — by the turn's trace id, else by the one turn of the run whose time range holds the span's start — apart from decision 9's.
+A received span carrying `a2ui.event.kind` set to `prompt_generation` or `parse`, with that kind's attributes under the turn record's names, is read as that event, whoever sent it: the wrapper, a native SDK hook, or an agent reporting its own A2UI step. The wrapper writes exactly that. A span of the step missing a required attribute of its kind is written as a `framework_span`, and the terminal says so. These spans are placed in their turns as the Phase 5 spec's decision 4 places any received span — by the turn's trace id, else by the one turn of the run whose time range holds the span's start — apart from decision 9's.
 
 ### 6. One parse event
 
@@ -83,9 +83,16 @@ A wire message is traced to the latest `parse` event of its turn that started be
 
 Turn record v0.1 is amended in place:
 
-- a section for producers, saying what a span of the A2UI step carries, as decision 5 has it;
+- a section for producers, saying what a span of the A2UI step carries and its wire forms, as decision 5 has it, with the half-formed span written as a `framework_span`;
 - a stream's rejected blocks as `exception` span events on its `parse` event, decision 6;
-- the toolset's tool call and its input, decision 7;
+- every error a parse raised as an `exception` span event, with the rejected block's range in the input and the SDK's structured details;
+- a stream's chunks as `a2ui.parse.chunk` span events, and `a2ui.parse.streamed`;
+- the toolset's tool call and its input, decision 7, the tool's name, call id and result on the `parse`, which belongs to a `tool_call` by its parent, else by an equal call id;
+- `a2ui.parse.entry_point`, `a2ui.parse.wrapped` and the input exactly as the call was given it;
+- the `sdk` area, the agent SDK's package name and version;
+- `a2ui.prompt.catalogs` and `a2ui.parse.catalogs` in place of `a2ui.prompt.catalog_id` and `a2ui.prompt.catalog_version`;
+- a failed prompt generation, with no section;
+- the inference format's four values;
 - a `prompt_generation` event placed by its text, decision 9;
 - the retry rule, and a stated retry winning, decision 10;
 - component ranges worked out by the reader, and a stated range winning, decision 11.
@@ -94,7 +101,7 @@ Turn record v0.1 is amended in place:
 
 ### 16. The wrapper capture suite
 
-A wrapper capture suite in `conformance/`, with a driver in each language that calls the pinned SDK's public entry points with the wrapper switched on, inside a turn the harness opens: prompt generation, whole-text parsing, streaming, and the toolset. Its cases cover every format, streamed and whole, valid replies and each kind of error. One expected record serves both languages wherever a format exists in both. The valid case texts are model replies recorded once from Gemini, each prompted with its format's own generated prompt; the error cases are written by hand. The rules of decisions 10, 11, 12 and 14 are tested in the viewer, on records.
+A wrapper capture suite in `conformance/`, with a driver in each language that calls the pinned SDK's public entry points with the wrapper switched on, inside a turn the harness opens: prompt generation, whole-text parsing, streaming, and the toolset. Its cases cover every format, streamed and whole, valid replies and each kind of error. One expected record serves both languages wherever a format exists in both, and a case whose SDKs differ in wording, class or generated text names an expected record per language. The harness skips, by name, a language whose driver is not yet there. The valid case texts are model replies recorded once from Gemini, each prompted with its format's own generated prompt; the error cases are written by hand. The rules of decisions 10, 11, 12 and 14 are tested in the viewer, on records.
 
 ### 17. The design artifact comes first
 
