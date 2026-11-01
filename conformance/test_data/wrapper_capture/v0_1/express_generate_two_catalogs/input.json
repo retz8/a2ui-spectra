@@ -1,0 +1,19 @@
+{
+  "languages": [
+    "python",
+    "typescript"
+  ],
+  "inferenceFormat": "express",
+  "entryPoint": "generate",
+  "catalogs": [
+    {
+      "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+      "protocolVersion": "v1.0"
+    },
+    {
+      "catalogId": "conformance/custom",
+      "protocolVersion": "v1.0",
+      "path": "test_data/catalogs/custom_catalog_v1_0.json"
+    }
+  ]
+}

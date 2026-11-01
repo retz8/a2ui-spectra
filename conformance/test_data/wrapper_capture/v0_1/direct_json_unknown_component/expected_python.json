@@ -1,0 +1,93 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "a9299ba1a2a9194f22bb2ccc4948308a",
+          "spanId": "c45a398abc942d23",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000022000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "otel_receiver",
+              "wrapper"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "df5c0fe692bef89f27e91f9355bb24b2",
+          "spanId": "1d3f3ad07360e1a4",
+          "name": "parse",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000010000000",
+          "endTimeUnixNano": "1792800000012000000",
+          "attributes": {
+            "a2ui.event.kind": "parse",
+            "otel.scope.name": "a2ui-spectra-instrumentation",
+            "otel.scope.version": "0.0.0",
+            "a2ui.parse.input": "Here is the restaurant card.\n\n<a2ui-json>\n[\n  {\n    \"version\": \"1.0\",\n    \"createSurface\": {\n      \"surfaceId\": \"restaurant-card\",\n      \"catalogId\": \"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\n      \"components\": [\n        {\"id\": \"root\", \"component\": \"Card\", \"child\": \"name\"},\n        {\"id\": \"name\", \"component\": \"Heading\", \"text\": \"Xi'an Famous Foods\"}\n      ]\n    }\n  }\n]\n</a2ui-json>\n",
+            "a2ui.parse.entry_point": "parse_response",
+            "a2ui.parse.inference_format": "direct_json",
+            "a2ui.parse.catalogs": [
+              {
+                "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                "protocolVersion": "v1.0"
+              }
+            ],
+            "a2ui.parse.messages": [],
+            "a2ui.sdk.name": "a2ui-agent-sdk",
+            "a2ui.sdk.version": "0.9.1.dev171",
+            "error.type": "A2uiValidationError",
+            "a2ui.received.attributes": {
+              "a2ui.event.kind": "parse",
+              "a2ui.parse.input": "Here is the restaurant card.\n\n<a2ui-json>\n[\n  {\n    \"version\": \"1.0\",\n    \"createSurface\": {\n      \"surfaceId\": \"restaurant-card\",\n      \"catalogId\": \"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\n      \"components\": [\n        {\"id\": \"root\", \"component\": \"Card\", \"child\": \"name\"},\n        {\"id\": \"name\", \"component\": \"Heading\", \"text\": \"Xi'an Famous Foods\"}\n      ]\n    }\n  }\n]\n</a2ui-json>\n",
+              "a2ui.parse.entry_point": "parse_response",
+              "a2ui.parse.inference_format": "direct_json",
+              "a2ui.parse.catalogs": "[{\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"protocolVersion\":\"v1.0\"}]",
+              "a2ui.parse.messages": "[]",
+              "a2ui.sdk.name": "a2ui-agent-sdk",
+              "a2ui.sdk.version": "0.9.1.dev171",
+              "error.type": "A2uiValidationError"
+            }
+          },
+          "events": [
+            {
+              "timeUnixNano": "1792800000011000000",
+              "name": "exception",
+              "attributes": {
+                "exception.type": "A2uiValidationError",
+                "exception.message": "Validation failed for component 'Heading': components.name.component: Unrecognized component type 'Heading'",
+                "exception.stacktrace": "(the stack trace, which the comparison checks is present)",
+                "a2ui.parse.block.start": 42,
+                "a2ui.parse.block.end": 397,
+                "a2ui.parse.error.details": [
+                  {
+                    "path": "components.name.component",
+                    "code": "unrecognized_component",
+                    "message": "Unrecognized component type 'Heading'",
+                    "surfaceId": "restaurant-card"
+                  }
+                ]
+              }
+            }
+          ],
+          "status": {
+            "code": 2,
+            "message": "Validation failed for component 'Heading': components.name.component: Unrecognized component type 'Heading'"
+          }
+        }
+      ]
+    }
+  ]
+}

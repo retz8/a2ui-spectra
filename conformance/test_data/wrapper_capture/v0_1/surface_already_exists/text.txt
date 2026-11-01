@@ -1,0 +1,34 @@
+Here is the restaurant card.
+
+<a2ui-json>
+[
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "default",
+      "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+      "components": [
+        {"id": "root", "component": "Card", "child": "name"},
+        {"id": "name", "component": "Text", "text": "Xi'an Famous Foods"}
+      ]
+    }
+  }
+]
+</a2ui-json>
+Here is the restaurant card.
+
+<a2ui-json>
+[
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "default",
+      "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+      "components": [
+        {"id": "root", "component": "Card", "child": "name"},
+        {"id": "name", "component": "Text", "text": "Xi'an Famous Foods"}
+      ]
+    }
+  }
+]
+</a2ui-json>

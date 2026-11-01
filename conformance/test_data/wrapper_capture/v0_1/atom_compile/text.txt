@@ -1,0 +1,15 @@
+(Card
+  :child (Column
+    (Text :text "Xi'an Famous Foods" :variant "body")
+    (Row
+      :align "center"
+      (Icon :name "star")
+      (Text :text "4.6 out of 5" :variant "caption"))
+    (Row
+      :align "center"
+      (Icon :name "locationOn")
+      (Text :text "45 Bayard St, New York, NY 10013" :variant "caption"))
+    (Button
+      :variant "primary"
+      :child (Text :text "Book a Table")
+      :action (Event "book_table" :restaurant "Xi'an Famous Foods"))))

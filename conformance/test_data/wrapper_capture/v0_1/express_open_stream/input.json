@@ -1,0 +1,16 @@
+{
+  "languages": [
+    "python",
+    "typescript"
+  ],
+  "inferenceFormat": "express",
+  "entryPoint": "open_stream",
+  "catalogs": [
+    {
+      "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+      "protocolVersion": "v1.0"
+    }
+  ],
+  "text": "text.txt",
+  "chunks": "chunks.json"
+}

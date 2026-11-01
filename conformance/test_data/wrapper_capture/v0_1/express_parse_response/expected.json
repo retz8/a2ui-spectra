@@ -1,0 +1,179 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "5c2f191b872dd73fbab23d1607de9791",
+          "spanId": "37485a49e7a13d08",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000022000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "otel_receiver",
+              "wrapper"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "f6282196d2397498ae3f3d0d88b9c58c",
+          "spanId": "923424730f2fb523",
+          "name": "parse",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000010000000",
+          "endTimeUnixNano": "1792800000012000000",
+          "attributes": {
+            "a2ui.event.kind": "parse",
+            "otel.scope.name": "a2ui-spectra-instrumentation",
+            "otel.scope.version": "0.0.0",
+            "a2ui.parse.input": "<a2ui>\nsurface(\"restaurant_surface\")\n\n$/restaurant/name = \"Xi'an Famous Foods\"\n$/restaurant/address = \"45 Bayard St, New York, NY 10013\"\n$/restaurant/rating = \"4.6 / 5\"\n\nroot = Card(cardContent)\n\ncardContent = Column([titleText, addressRow, ratingRow, divider, bookButton], \"start\", \"stretch\")\n\ntitleText = Text(\"**Xi'an Famous Foods**\")\n\naddressRow = Row([locationIcon, addressText], \"start\", \"center\")\nlocationIcon = Icon(\"locationOn\")\naddressText = Text($/restaurant/address, \"caption\")\n\nratingRow = Row([starIcon, ratingText], \"start\", \"center\")\nstarIcon = Icon(\"star\")\nratingText = Text(\"4.6 / 5 (Rating)\", \"body\")\n\ndivider = Divider(\"horizontal\")\n\nbookButton = Button(bookButtonText, \"primary\", Event(\"book_table\", {restaurant: $/restaurant/name}))\nbookButtonText = Text(\"Book a Table\")\n</a2ui>",
+            "a2ui.parse.entry_point": "parse_response",
+            "a2ui.parse.inference_format": "express",
+            "a2ui.parse.catalogs": [
+              {
+                "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                "protocolVersion": "v1.0"
+              }
+            ],
+            "a2ui.parse.messages": [
+              {
+                "version": "1.0",
+                "createSurface": {
+                  "surfaceId": "restaurant_surface",
+                  "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                  "components": [
+                    {
+                      "id": "root",
+                      "component": "Card",
+                      "child": "cardContent"
+                    },
+                    {
+                      "id": "cardContent",
+                      "component": "Column",
+                      "children": [
+                        "titleText",
+                        "addressRow",
+                        "ratingRow",
+                        "divider",
+                        "bookButton"
+                      ],
+                      "justify": "start",
+                      "align": "stretch"
+                    },
+                    {
+                      "id": "titleText",
+                      "component": "Text",
+                      "text": "**Xi'an Famous Foods**"
+                    },
+                    {
+                      "id": "addressRow",
+                      "component": "Row",
+                      "children": [
+                        "locationIcon",
+                        "addressText"
+                      ],
+                      "justify": "start",
+                      "align": "center"
+                    },
+                    {
+                      "id": "locationIcon",
+                      "component": "Icon",
+                      "name": "locationOn"
+                    },
+                    {
+                      "id": "addressText",
+                      "component": "Text",
+                      "text": {
+                        "@path": "/restaurant/address"
+                      },
+                      "variant": "caption"
+                    },
+                    {
+                      "id": "ratingRow",
+                      "component": "Row",
+                      "children": [
+                        "starIcon",
+                        "ratingText"
+                      ],
+                      "justify": "start",
+                      "align": "center"
+                    },
+                    {
+                      "id": "starIcon",
+                      "component": "Icon",
+                      "name": "star"
+                    },
+                    {
+                      "id": "ratingText",
+                      "component": "Text",
+                      "text": "4.6 / 5 (Rating)",
+                      "variant": "body"
+                    },
+                    {
+                      "id": "divider",
+                      "component": "Divider",
+                      "axis": "horizontal"
+                    },
+                    {
+                      "id": "bookButton",
+                      "component": "Button",
+                      "child": "bookButtonText",
+                      "variant": "primary",
+                      "action": {
+                        "event": {
+                          "name": "book_table",
+                          "context": {
+                            "restaurant": {
+                              "@path": "/restaurant/name"
+                            }
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "id": "bookButtonText",
+                      "component": "Text",
+                      "text": "Book a Table"
+                    }
+                  ],
+                  "dataModel": {
+                    "restaurant": {
+                      "name": "Xi'an Famous Foods",
+                      "address": "45 Bayard St, New York, NY 10013",
+                      "rating": "4.6 / 5"
+                    }
+                  }
+                }
+              }
+            ],
+            "a2ui.sdk.name": "a2ui-agent-sdk",
+            "a2ui.sdk.version": "0.9.1.dev171",
+            "a2ui.received.attributes": {
+              "a2ui.event.kind": "parse",
+              "a2ui.parse.input": "<a2ui>\nsurface(\"restaurant_surface\")\n\n$/restaurant/name = \"Xi'an Famous Foods\"\n$/restaurant/address = \"45 Bayard St, New York, NY 10013\"\n$/restaurant/rating = \"4.6 / 5\"\n\nroot = Card(cardContent)\n\ncardContent = Column([titleText, addressRow, ratingRow, divider, bookButton], \"start\", \"stretch\")\n\ntitleText = Text(\"**Xi'an Famous Foods**\")\n\naddressRow = Row([locationIcon, addressText], \"start\", \"center\")\nlocationIcon = Icon(\"locationOn\")\naddressText = Text($/restaurant/address, \"caption\")\n\nratingRow = Row([starIcon, ratingText], \"start\", \"center\")\nstarIcon = Icon(\"star\")\nratingText = Text(\"4.6 / 5 (Rating)\", \"body\")\n\ndivider = Divider(\"horizontal\")\n\nbookButton = Button(bookButtonText, \"primary\", Event(\"book_table\", {restaurant: $/restaurant/name}))\nbookButtonText = Text(\"Book a Table\")\n</a2ui>",
+              "a2ui.parse.entry_point": "parse_response",
+              "a2ui.parse.inference_format": "express",
+              "a2ui.parse.catalogs": "[{\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"protocolVersion\":\"v1.0\"}]",
+              "a2ui.parse.messages": "[{\"version\":\"1.0\",\"createSurface\":{\"surfaceId\":\"restaurant_surface\",\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"components\":[{\"id\":\"root\",\"component\":\"Card\",\"child\":\"cardContent\"},{\"id\":\"cardContent\",\"component\":\"Column\",\"children\":[\"titleText\",\"addressRow\",\"ratingRow\",\"divider\",\"bookButton\"],\"justify\":\"start\",\"align\":\"stretch\"},{\"id\":\"titleText\",\"component\":\"Text\",\"text\":\"**Xi'an Famous Foods**\"},{\"id\":\"addressRow\",\"component\":\"Row\",\"children\":[\"locationIcon\",\"addressText\"],\"justify\":\"start\",\"align\":\"center\"},{\"id\":\"locationIcon\",\"component\":\"Icon\",\"name\":\"locationOn\"},{\"id\":\"addressText\",\"component\":\"Text\",\"text\":{\"@path\":\"/restaurant/address\"},\"variant\":\"caption\"},{\"id\":\"ratingRow\",\"component\":\"Row\",\"children\":[\"starIcon\",\"ratingText\"],\"justify\":\"start\",\"align\":\"center\"},{\"id\":\"starIcon\",\"component\":\"Icon\",\"name\":\"star\"},{\"id\":\"ratingText\",\"component\":\"Text\",\"text\":\"4.6 / 5 (Rating)\",\"variant\":\"body\"},{\"id\":\"divider\",\"component\":\"Divider\",\"axis\":\"horizontal\"},{\"id\":\"bookButton\",\"component\":\"Button\",\"child\":\"bookButtonText\",\"variant\":\"primary\",\"action\":{\"event\":{\"name\":\"book_table\",\"context\":{\"restaurant\":{\"@path\":\"/restaurant/name\"}}}}},{\"id\":\"bookButtonText\",\"component\":\"Text\",\"text\":\"Book a Table\"}],\"dataModel\":{\"restaurant\":{\"name\":\"Xi'an Famous Foods\",\"address\":\"45 Bayard St, New York, NY 10013\",\"rating\":\"4.6 / 5\"}}}}]",
+              "a2ui.sdk.name": "a2ui-agent-sdk",
+              "a2ui.sdk.version": "0.9.1.dev171"
+            }
+          },
+          "status": {
+            "code": 0
+          }
+        }
+      ]
+    }
+  ]
+}

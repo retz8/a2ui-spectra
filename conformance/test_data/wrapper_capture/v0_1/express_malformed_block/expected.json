@@ -1,0 +1,85 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "2a5f7b4d8db8c632b7933b8c6c7aa1ef",
+          "spanId": "64d236095cee6ae2",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000022000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "otel_receiver",
+              "wrapper"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "14981aff45a3931b0b1b0266f0aa17d8",
+          "spanId": "6aed086ffeb1791d",
+          "name": "parse",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000010000000",
+          "endTimeUnixNano": "1792800000012000000",
+          "attributes": {
+            "a2ui.event.kind": "parse",
+            "otel.scope.name": "a2ui-spectra-instrumentation",
+            "otel.scope.version": "0.0.0",
+            "a2ui.parse.input": "Here is the restaurant card.\n<a2ui>\nsurface(\"restaurant_card\")\n\nroot = Card(cardContent)\ncardContent = Column([titleText, bookButton])\ntitleText = Text(\"Xi'an Famous Foods\")\nbookButton = Button(bookButtonText, \"primary\", Event(\"book_table\")\nbookButtonText = Text(\"Book a Table\")\n</a2ui>\n",
+            "a2ui.parse.entry_point": "parse_response",
+            "a2ui.parse.inference_format": "express",
+            "a2ui.parse.catalogs": [
+              {
+                "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                "protocolVersion": "v1.0"
+              }
+            ],
+            "a2ui.parse.messages": [],
+            "a2ui.sdk.name": "a2ui-agent-sdk",
+            "a2ui.sdk.version": "0.9.1.dev171",
+            "error.type": "A2uiCompilationParseError",
+            "a2ui.received.attributes": {
+              "a2ui.event.kind": "parse",
+              "a2ui.parse.input": "Here is the restaurant card.\n<a2ui>\nsurface(\"restaurant_card\")\n\nroot = Card(cardContent)\ncardContent = Column([titleText, bookButton])\ntitleText = Text(\"Xi'an Famous Foods\")\nbookButton = Button(bookButtonText, \"primary\", Event(\"book_table\")\nbookButtonText = Text(\"Book a Table\")\n</a2ui>\n",
+              "a2ui.parse.entry_point": "parse_response",
+              "a2ui.parse.inference_format": "express",
+              "a2ui.parse.catalogs": "[{\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"protocolVersion\":\"v1.0\"}]",
+              "a2ui.parse.messages": "[]",
+              "a2ui.sdk.name": "a2ui-agent-sdk",
+              "a2ui.sdk.version": "0.9.1.dev171",
+              "error.type": "A2uiCompilationParseError"
+            }
+          },
+          "events": [
+            {
+              "timeUnixNano": "1792800000011000000",
+              "name": "exception",
+              "attributes": {
+                "exception.type": "A2uiCompilationParseError",
+                "exception.message": "Failed to parse expression: Syntax error at line 7:0: extraneous input 'bookButtonText' expecting {',', ')'} (line 7) - Line 7, Col 0 - Help: Please correct the syntax error in your Express DSL.",
+                "exception.stacktrace": "(the stack trace, which the comparison checks is present)",
+                "a2ui.parse.block.start": 36,
+                "a2ui.parse.block.end": 278
+              }
+            }
+          ],
+          "status": {
+            "code": 2,
+            "message": "Failed to parse expression: Syntax error at line 7:0: extraneous input 'bookButtonText' expecting {',', ')'} (line 7) - Line 7, Col 0 - Help: Please correct the syntax error in your Express DSL."
+          }
+        }
+      ]
+    }
+  ]
+}

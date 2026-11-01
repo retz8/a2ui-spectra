@@ -1,0 +1,20 @@
+Here is the restaurant card.
+<a2ui>
+surface("restaurant_card")
+
+root = Card(cardContent)
+cardContent = Column([titleText, bookButton])
+titleText = Text("Xi'an Famous Foods")
+bookButton = Button(bookButtonText, "primary", Event("book_table"))
+bookButtonText = Text("Book a Table")
+</a2ui>
+And its booking form.
+<a2ui>
+surface("booking_form")
+
+root = Card(cardContent)
+cardContent = Column([titleText, bookButton])
+titleText = Heading("Xi'an Famous Foods")
+bookButton = Button(bookButtonText, "primary", Event("book_table"))
+bookButtonText = Text("Book a Table")
+</a2ui>

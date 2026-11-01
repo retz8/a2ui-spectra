@@ -1,0 +1,10 @@
+Here is the restaurant card.
+<a2ui>
+(Card
+  :child (Column
+    (Heading :text "Xi'an Famous Foods" :variant "body")
+    (Button
+      :variant "primary"
+      :child (Text :text "Book a Table")
+      :action (Event "book_table"))))
+</a2ui>

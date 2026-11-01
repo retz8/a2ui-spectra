@@ -1,0 +1,13 @@
+Here is the restaurant card.
+<a2ui>
+  <main id="main">
+    <ui-card id="root">
+      <ui-column id="card_body">
+        <ui-text id="restaurant_name" text="Xi'an Famous Foods" />
+        <ui-button id="book_button" variant="primary" on-click="{Event('book_table')}">
+          <ui-text id="button_text" text="Book a Table" />
+        </ui-button>
+      </ui-column>
+    </ui-card>
+  </main>
+</a2ui>

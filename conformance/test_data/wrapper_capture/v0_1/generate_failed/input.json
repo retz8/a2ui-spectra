@@ -1,0 +1,18 @@
+{
+  "languages": [
+    "typescript"
+  ],
+  "inferenceFormat": "direct_json",
+  "entryPoint": "generate",
+  "catalogs": [
+    {
+      "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+      "protocolVersion": "v0.9"
+    },
+    {
+      "catalogId": "https://github.com/retz8/a2uiverse-apps/blob/main/circleci/circleci-catalog/catalogs/v0.9.1/catalog.json",
+      "protocolVersion": "v0.9.1",
+      "path": "test_data/catalogs/a2uiverse_circleci_v0_9_1.json"
+    }
+  ]
+}

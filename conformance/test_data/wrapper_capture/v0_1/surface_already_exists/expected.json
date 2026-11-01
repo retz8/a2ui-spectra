@@ -1,0 +1,135 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "c586fb2fa11e32515413c671bae9d218",
+          "spanId": "a3eaad4b1084892f",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000030000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "otel_receiver",
+              "wrapper"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "b04f4f45746d239fde33d55c535c69a9",
+          "spanId": "6dedba68a93e38ab",
+          "name": "parse",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000010000000",
+          "endTimeUnixNano": "1792800000020000000",
+          "attributes": {
+            "a2ui.event.kind": "parse",
+            "otel.scope.name": "a2ui-spectra-instrumentation",
+            "otel.scope.version": "0.0.0",
+            "a2ui.parse.input": "Here is the restaurant card.\n\n<a2ui-json>\n[\n  {\n    \"version\": \"1.0\",\n    \"createSurface\": {\n      \"surfaceId\": \"default\",\n      \"catalogId\": \"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\n      \"components\": [\n        {\"id\": \"root\", \"component\": \"Card\", \"child\": \"name\"},\n        {\"id\": \"name\", \"component\": \"Text\", \"text\": \"Xi'an Famous Foods\"}\n      ]\n    }\n  }\n]\n</a2ui-json>\nHere is the restaurant card.\n\n<a2ui-json>\n[\n  {\n    \"version\": \"1.0\",\n    \"createSurface\": {\n      \"surfaceId\": \"default\",\n      \"catalogId\": \"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\n      \"components\": [\n        {\"id\": \"root\", \"component\": \"Card\", \"child\": \"name\"},\n        {\"id\": \"name\", \"component\": \"Text\", \"text\": \"Xi'an Famous Foods\"}\n      ]\n    }\n  }\n]\n</a2ui-json>\n",
+            "a2ui.parse.entry_point": "open_stream",
+            "a2ui.parse.streamed": true,
+            "a2ui.parse.inference_format": "direct_json",
+            "a2ui.parse.catalogs": [
+              {
+                "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                "protocolVersion": "v1.0"
+              }
+            ],
+            "a2ui.parse.messages": [
+              {
+                "version": "1.0",
+                "createSurface": {
+                  "surfaceId": "default",
+                  "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                  "components": [
+                    {
+                      "id": "root",
+                      "component": "Card",
+                      "child": "name"
+                    },
+                    {
+                      "id": "name",
+                      "component": "Text",
+                      "text": "Xi'an Famous Foods"
+                    }
+                  ]
+                }
+              }
+            ],
+            "a2ui.sdk.name": "a2ui-agent-sdk",
+            "a2ui.sdk.version": "0.9.1.dev171",
+            "error.type": "A2uiIntegrityError",
+            "a2ui.received.attributes": {
+              "a2ui.event.kind": "parse",
+              "a2ui.parse.input": "Here is the restaurant card.\n\n<a2ui-json>\n[\n  {\n    \"version\": \"1.0\",\n    \"createSurface\": {\n      \"surfaceId\": \"default\",\n      \"catalogId\": \"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\n      \"components\": [\n        {\"id\": \"root\", \"component\": \"Card\", \"child\": \"name\"},\n        {\"id\": \"name\", \"component\": \"Text\", \"text\": \"Xi'an Famous Foods\"}\n      ]\n    }\n  }\n]\n</a2ui-json>\nHere is the restaurant card.\n\n<a2ui-json>\n[\n  {\n    \"version\": \"1.0\",\n    \"createSurface\": {\n      \"surfaceId\": \"default\",\n      \"catalogId\": \"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\n      \"components\": [\n        {\"id\": \"root\", \"component\": \"Card\", \"child\": \"name\"},\n        {\"id\": \"name\", \"component\": \"Text\", \"text\": \"Xi'an Famous Foods\"}\n      ]\n    }\n  }\n]\n</a2ui-json>\n",
+              "a2ui.parse.entry_point": "open_stream",
+              "a2ui.parse.streamed": true,
+              "a2ui.parse.inference_format": "direct_json",
+              "a2ui.parse.catalogs": "[{\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"protocolVersion\":\"v1.0\"}]",
+              "a2ui.parse.messages": "[{\"version\":\"1.0\",\"createSurface\":{\"surfaceId\":\"default\",\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"components\":[{\"id\":\"root\",\"component\":\"Card\",\"child\":\"name\"},{\"id\":\"name\",\"component\":\"Text\",\"text\":\"Xi'an Famous Foods\"}]}}]",
+              "a2ui.sdk.name": "a2ui-agent-sdk",
+              "a2ui.sdk.version": "0.9.1.dev171",
+              "error.type": "A2uiIntegrityError"
+            }
+          },
+          "events": [
+            {
+              "timeUnixNano": "1792800000011000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 74
+              }
+            },
+            {
+              "timeUnixNano": "1792800000013000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 215
+              }
+            },
+            {
+              "timeUnixNano": "1792800000015000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 400
+              }
+            },
+            {
+              "timeUnixNano": "1792800000017000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 800
+              }
+            },
+            {
+              "timeUnixNano": "1792800000018000000",
+              "name": "exception",
+              "attributes": {
+                "exception.type": "A2uiIntegrityError",
+                "exception.message": "Surface default already exists.",
+                "exception.stacktrace": "(the stack trace, which the comparison checks is present)",
+                "a2ui.parse.block.start": 442,
+                "a2ui.parse.block.end": 786
+              }
+            }
+          ],
+          "status": {
+            "code": 2,
+            "message": "Surface default already exists."
+          }
+        }
+      ]
+    }
+  ]
+}

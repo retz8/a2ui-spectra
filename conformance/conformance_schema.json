@@ -20,6 +20,9 @@
       },
       {
         "$ref": "#/$defs/CaptureReceiverTest"
+      },
+      {
+        "$ref": "#/$defs/CaptureWrapperTest"
       }
     ]
   },
@@ -225,6 +228,164 @@
       },
       "required": ["name", "description", "action", "exports", "expect"],
       "additionalProperties": false
+    },
+    "CaptureWrapperTest": {
+      "type": "object",
+      "description": "Runs one job through a driver per language that calls the pinned agent SDK with the A2UI wrapper switched on, inside a turn the harness opens, and compares the turn written with the expected turn record.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique name of the test case."
+        },
+        "description": {
+          "type": "string",
+          "description": "What the job does and what the case verifies."
+        },
+        "action": {
+          "const": "capture_wrapper"
+        },
+        "job": {
+          "type": "string",
+          "description": "Path of the driver's job, relative to conformance/."
+        },
+        "expect": {
+          "description": "Path of the expected turn record, relative to conformance/: one path when the languages share it, else one per language.",
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "object",
+              "minProperties": 2,
+              "additionalProperties": false,
+              "properties": {
+                "python": {
+                  "type": "string",
+                  "description": "The record the Python driver's turn must match."
+                },
+                "typescript": {
+                  "type": "string",
+                  "description": "The record the TypeScript driver's turn must match."
+                }
+              }
+            }
+          ]
+        }
+      },
+      "required": ["name", "description", "action", "job", "expect"],
+      "additionalProperties": false
+    },
+    "WrapperCaptureJob": {
+      "type": "object",
+      "description": "A driver's job: what it calls on the agent SDK, with the wrapper switched on. Paths of the text and the chunks are relative to the job's directory; a catalog's path is relative to conformance/.",
+      "properties": {
+        "languages": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "enum": ["python", "typescript"]
+          },
+          "description": "The languages the case runs in."
+        },
+        "inferenceFormat": {
+          "enum": ["direct_json", "express", "elemental", "atom"],
+          "description": "The inference format of the processor."
+        },
+        "entryPoint": {
+          "enum": ["generate", "parse_response", "open_stream", "compile", "tool_call"],
+          "description": "What the driver calls: the prompt generator, a whole-text parse, a stream, one block's compile, or the toolset's tool."
+        },
+        "catalogs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "properties": {
+              "catalogId": {
+                "type": "string"
+              },
+              "protocolVersion": {
+                "type": "string",
+                "pattern": "^v[0-9]+\\.[0-9]+(\\.[0-9]+)?$"
+              },
+              "path": {
+                "type": "string",
+                "description": "A custom catalog's catalog.json. Without it, the catalog is the basic catalog of its protocol version, built into the SDK."
+              }
+            },
+            "required": ["catalogId", "protocolVersion"],
+            "additionalProperties": false
+          },
+          "description": "The processor's catalogs, in order."
+        },
+        "examples": {
+          "type": "string",
+          "description": "Path of the prompt's example turns, a JSON list of lists of A2UI messages, relative to the job's directory."
+        },
+        "text": {
+          "type": "string",
+          "description": "The case text: the whole text, the one block, the stream's text or the a2ui_payload."
+        },
+        "chunks": {
+          "type": "string",
+          "description": "A JSON list of each chunk's end in the text, in UTF-16 code units, for a stream."
+        },
+        "wrapped": {
+          "type": "boolean",
+          "description": "False when the whole text is one block without tags. True by default."
+        },
+        "afterRejectedBlock": {
+          "enum": ["end", "continue"],
+          "description": "What a stream does after it rejects a block. end by default."
+        },
+        "rendererState": {
+          "type": "boolean",
+          "description": "For the toolset: whether a renderer state is bound to the processor. False by default."
+        },
+        "beforeTurn": {
+          "type": "boolean",
+          "description": "Whether the driver runs before the turn opens. False by default."
+        }
+      },
+      "required": ["languages", "inferenceFormat", "entryPoint", "catalogs"],
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "entryPoint": {
+                "const": "generate"
+              }
+            }
+          },
+          "then": {
+            "not": {
+              "required": ["text"]
+            }
+          },
+          "else": {
+            "required": ["text"]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "entryPoint": {
+                "const": "open_stream"
+              }
+            }
+          },
+          "then": {
+            "required": ["chunks"]
+          },
+          "else": {
+            "not": {
+              "required": ["chunks"]
+            }
+          }
+        }
+      ]
     }
   }
 }

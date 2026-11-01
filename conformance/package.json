@@ -53,7 +53,9 @@
         "tool_capture/**",
         "test_data/tool_capture/**",
         "receiver_capture/**",
-        "test_data/receiver_capture/**"
+        "test_data/receiver_capture/**",
+        "wrapper_capture/**",
+        "test_data/wrapper_capture/**"
       ],
       "output": []
     },

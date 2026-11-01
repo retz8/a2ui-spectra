@@ -1,0 +1,26 @@
+<a2ui>
+surface("restaurant_surface")
+
+$/restaurant/name = "Xi'an Famous Foods"
+$/restaurant/address = "45 Bayard St, New York, NY 10013"
+$/restaurant/rating = "4.6 / 5"
+
+root = Card(cardContent)
+
+cardContent = Column([titleText, addressRow, ratingRow, divider, bookButton], "start", "stretch")
+
+titleText = Text("**Xi'an Famous Foods**")
+
+addressRow = Row([locationIcon, addressText], "start", "center")
+locationIcon = Icon("locationOn")
+addressText = Text($/restaurant/address, "caption")
+
+ratingRow = Row([starIcon, ratingText], "start", "center")
+starIcon = Icon("star")
+ratingText = Text("4.6 / 5 (Rating)", "body")
+
+divider = Divider("horizontal")
+
+bookButton = Button(bookButtonText, "primary", Event("book_table", {restaurant: $/restaurant/name}))
+bookButtonText = Text("Book a Table")
+</a2ui>

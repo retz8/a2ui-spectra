@@ -1,0 +1,97 @@
+[
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "restaurant-card-surface",
+      "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+      "components": [
+        {
+          "id": "root",
+          "component": "Card",
+          "child": "cardContent"
+        },
+        {
+          "id": "cardContent",
+          "component": "Column",
+          "children": [
+            "restaurantName",
+            "ratingRow",
+            "addressRow",
+            "cardDivider",
+            "bookButton"
+          ]
+        },
+        {
+          "id": "restaurantName",
+          "component": "Text",
+          "text": "Xi'an Famous Foods",
+          "variant": "body"
+        },
+        {
+          "id": "ratingRow",
+          "component": "Row",
+          "align": "center",
+          "children": [
+            "starIcon",
+            "ratingText"
+          ]
+        },
+        {
+          "id": "starIcon",
+          "component": "Icon",
+          "name": "star"
+        },
+        {
+          "id": "ratingText",
+          "component": "Text",
+          "text": "4.6 / 5.0"
+        },
+        {
+          "id": "addressRow",
+          "component": "Row",
+          "align": "center",
+          "children": [
+            "locationIcon",
+            "addressText"
+          ]
+        },
+        {
+          "id": "locationIcon",
+          "component": "Icon",
+          "name": "locationOn"
+        },
+        {
+          "id": "addressText",
+          "component": "Text",
+          "text": "45 Bayard St, New York, NY 10013",
+          "variant": "caption"
+        },
+        {
+          "id": "cardDivider",
+          "component": "Divider"
+        },
+        {
+          "id": "bookButton",
+          "component": "Button",
+          "variant": "primary",
+          "child": "btnText",
+          "action": {
+            "event": {
+              "name": "book_table",
+              "userMessage": "Book a table at Xi'an Famous Foods",
+              "context": {
+                "restaurantName": "Xi'an Famous Foods",
+                "address": "45 Bayard St, New York, NY 10013"
+              }
+            }
+          }
+        },
+        {
+          "id": "btnText",
+          "component": "Text",
+          "text": "Book a Table"
+        }
+      ]
+    }
+  }
+]

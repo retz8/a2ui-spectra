@@ -47,15 +47,38 @@ type CaptureCase =
       exports: string;
       expect: string;
       log?: string[];
+    }
+  | {
+      name: string;
+      description: string;
+      action: 'capture_wrapper';
+      job: string;
+      expect: string | Record<string, string>;
     };
+
+/** A wrapper capture case's job, as far as the files it names. */
+interface WrapperCaptureJob {
+  text?: string;
+  chunks?: string;
+  examples?: string;
+}
 
 /** The expected records a case names. */
 function expectedRecords(c: CaptureCase): string[] {
   return typeof c.expect === 'string' ? [c.expect] : Object.values(c.expect);
 }
 
-/** Every file a case names: its recording, when it has one, and its expected records. */
+/**
+ * Every file a case names: its recording, when it has one, or its job and the
+ * files the job names; and its expected records.
+ */
 function namedFiles(c: CaptureCase): string[] {
+  if ('job' in c) {
+    const job = readJson(path.join(CONFORMANCE_DIR, c.job)) as WrapperCaptureJob;
+    const dir = path.dirname(c.job);
+    const named = [job.text, job.chunks, job.examples].filter(file => file !== undefined);
+    return [c.job, ...named.map(file => path.join(dir, file)), ...expectedRecords(c)];
+  }
   const recording = 'traffic' in c ? [c.traffic] : 'exports' in c ? [c.exports] : [];
   return [...recording, ...expectedRecords(c)];
 }
@@ -101,6 +124,11 @@ const CAPTURE_SUITES = [
     title: 'receiver capture v0.1',
     suite: path.join(CONFORMANCE_DIR, 'receiver_capture/capture_v0_1.yaml'),
     root: path.join(CONFORMANCE_DIR, 'test_data/receiver_capture'),
+  },
+  {
+    title: 'wrapper capture v0.1',
+    suite: path.join(CONFORMANCE_DIR, 'wrapper_capture/capture_v0_1.yaml'),
+    root: path.join(CONFORMANCE_DIR, 'test_data/wrapper_capture'),
   },
 ];
 
@@ -196,6 +224,16 @@ function listFiles(dir: string): string[] {
 }
 
 const cases = loadCases<TurnRecordCase>(SUITE);
+const validateJob = (() => {
+  const caseSchema = readJson(
+    path.join(CONFORMANCE_DIR, 'conformance_schema.json'),
+  ) as AnySchemaObject;
+  const caseAjv = createAjv();
+  caseAjv.addSchema(caseSchema);
+  const compiled = caseAjv.getSchema(`${caseSchema.$id as string}#/$defs/WrapperCaptureJob`);
+  assert.ok(compiled, 'conformance_schema.json defines WrapperCaptureJob');
+  return compiled;
+})();
 const ajv = createAjv();
 const {schema, validate} = compileTurnRecordSchema(ajv);
 
@@ -260,6 +298,21 @@ for (const {title, suite, root} of CAPTURE_SUITES) {
         for (const file of expectedRecords(c)) {
           const record = readJson(path.join(CONFORMANCE_DIR, file));
           assert.ok(validate(record), `${file} must validate:\n${formatErrors(validate.errors)}`);
+        }
+        if ('job' in c) {
+          const job = readJson(path.join(CONFORMANCE_DIR, c.job));
+          assert.ok(
+            validateJob(job),
+            `${c.job} must match WrapperCaptureJob:\n${formatErrors(validateJob.errors)}`,
+          );
+          const languages = (job as {languages: string[]}).languages;
+          if (typeof c.expect !== 'string') {
+            assert.deepEqual(
+              Object.keys(c.expect).sort(),
+              [...languages].sort(),
+              'a record for each language',
+            );
+          }
         }
       });
     }

@@ -1,0 +1,379 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "6daa85718867703cd23d2924ce3e8a01",
+          "spanId": "0d3eb70c0f9a92e9",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000082000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "otel_receiver",
+              "wrapper"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "36c8317f1e8506655eacb27190b12964",
+          "spanId": "f8b178e7738037f0",
+          "name": "parse",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000010000000",
+          "endTimeUnixNano": "1792800000072000000",
+          "attributes": {
+            "a2ui.event.kind": "parse",
+            "otel.scope.name": "a2ui-spectra-instrumentation",
+            "otel.scope.version": "0.0.0",
+            "a2ui.parse.input": "Here is the restaurant card for Xi'an Famous Foods with details and a booking button.\n\n<a2ui-json>\n[\n  {\n    \"version\": \"1.0\",\n    \"createSurface\": {\n      \"surfaceId\": \"restaurant-card-surface\",\n      \"catalogId\": \"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\n      \"components\": [\n        {\n          \"id\": \"root\",\n          \"component\": \"Card\",\n          \"child\": \"cardContent\"\n        },\n        {\n          \"id\": \"cardContent\",\n          \"component\": \"Column\",\n          \"children\": [\n            \"restaurantName\",\n            \"ratingRow\",\n            \"addressRow\",\n            \"cardDivider\",\n            \"bookButton\"\n          ]\n        },\n        {\n          \"id\": \"restaurantName\",\n          \"component\": \"Text\",\n          \"text\": \"Xi'an Famous Foods\",\n          \"variant\": \"body\"\n        },\n        {\n          \"id\": \"ratingRow\",\n          \"component\": \"Row\",\n          \"align\": \"center\",\n          \"children\": [\n            \"starIcon\",\n            \"ratingText\"\n          ]\n        },\n        {\n          \"id\": \"starIcon\",\n          \"component\": \"Icon\",\n          \"name\": \"star\"\n        },\n        {\n          \"id\": \"ratingText\",\n          \"component\": \"Text\",\n          \"text\": \"4.6 / 5.0\"\n        },\n        {\n          \"id\": \"addressRow\",\n          \"component\": \"Row\",\n          \"align\": \"center\",\n          \"children\": [\n            \"locationIcon\",\n            \"addressText\"\n          ]\n        },\n        {\n          \"id\": \"locationIcon\",\n          \"component\": \"Icon\",\n          \"name\": \"locationOn\"\n        },\n        {\n          \"id\": \"addressText\",\n          \"component\": \"Text\",\n          \"text\": \"45 Bayard St, New York, NY 10013\",\n          \"variant\": \"caption\"\n        },\n        {\n          \"id\": \"cardDivider\",\n          \"component\": \"Divider\"\n        },\n        {\n          \"id\": \"bookButton\",\n          \"component\": \"Button\",\n          \"variant\": \"primary\",\n          \"child\": \"btnText\",\n          \"action\": {\n            \"event\": {\n              \"name\": \"book_table\",\n              \"userMessage\": \"Book a table at Xi'an Famous Foods\",\n              \"context\": {\n                \"restaurantName\": \"Xi'an Famous Foods\",\n                \"address\": \"45 Bayard St, New York, NY 10013\"\n              }\n            }\n          }\n        },\n        {\n          \"id\": \"btnText\",\n          \"component\": \"Text\",\n          \"text\": \"Book a Table\"\n        }\n      ]\n    }\n  }\n]\n</a2ui-json>",
+            "a2ui.parse.entry_point": "open_stream",
+            "a2ui.parse.streamed": true,
+            "a2ui.parse.inference_format": "direct_json",
+            "a2ui.parse.catalogs": [
+              {
+                "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                "protocolVersion": "v1.0"
+              }
+            ],
+            "a2ui.parse.messages": [
+              {
+                "version": "1.0",
+                "createSurface": {
+                  "surfaceId": "restaurant-card-surface",
+                  "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                  "components": [
+                    {
+                      "id": "root",
+                      "component": "Card",
+                      "child": "cardContent"
+                    },
+                    {
+                      "id": "cardContent",
+                      "component": "Column",
+                      "children": [
+                        "restaurantName",
+                        "ratingRow",
+                        "addressRow",
+                        "cardDivider",
+                        "bookButton"
+                      ]
+                    },
+                    {
+                      "id": "restaurantName",
+                      "component": "Text",
+                      "text": "Xi'an Famous Foods",
+                      "variant": "body"
+                    },
+                    {
+                      "id": "ratingRow",
+                      "component": "Row",
+                      "align": "center",
+                      "children": [
+                        "starIcon",
+                        "ratingText"
+                      ]
+                    },
+                    {
+                      "id": "starIcon",
+                      "component": "Icon",
+                      "name": "star"
+                    },
+                    {
+                      "id": "ratingText",
+                      "component": "Text",
+                      "text": "4.6 / 5.0"
+                    },
+                    {
+                      "id": "addressRow",
+                      "component": "Row",
+                      "align": "center",
+                      "children": [
+                        "locationIcon",
+                        "addressText"
+                      ]
+                    },
+                    {
+                      "id": "locationIcon",
+                      "component": "Icon",
+                      "name": "locationOn"
+                    },
+                    {
+                      "id": "addressText",
+                      "component": "Text",
+                      "text": "45 Bayard St, New York, NY 10013",
+                      "variant": "caption"
+                    },
+                    {
+                      "id": "cardDivider",
+                      "component": "Divider"
+                    },
+                    {
+                      "id": "bookButton",
+                      "component": "Button",
+                      "variant": "primary",
+                      "child": "btnText",
+                      "action": {
+                        "event": {
+                          "name": "book_table",
+                          "userMessage": "Book a table at Xi'an Famous Foods",
+                          "context": {
+                            "restaurantName": "Xi'an Famous Foods",
+                            "address": "45 Bayard St, New York, NY 10013"
+                          }
+                        }
+                      }
+                    },
+                    {
+                      "id": "btnText",
+                      "component": "Text",
+                      "text": "Book a Table"
+                    }
+                  ]
+                }
+              }
+            ],
+            "a2ui.sdk.name": "a2ui-agent-sdk",
+            "a2ui.sdk.version": "0.9.1.dev171",
+            "a2ui.received.attributes": {
+              "a2ui.event.kind": "parse",
+              "a2ui.parse.input": "Here is the restaurant card for Xi'an Famous Foods with details and a booking button.\n\n<a2ui-json>\n[\n  {\n    \"version\": \"1.0\",\n    \"createSurface\": {\n      \"surfaceId\": \"restaurant-card-surface\",\n      \"catalogId\": \"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\n      \"components\": [\n        {\n          \"id\": \"root\",\n          \"component\": \"Card\",\n          \"child\": \"cardContent\"\n        },\n        {\n          \"id\": \"cardContent\",\n          \"component\": \"Column\",\n          \"children\": [\n            \"restaurantName\",\n            \"ratingRow\",\n            \"addressRow\",\n            \"cardDivider\",\n            \"bookButton\"\n          ]\n        },\n        {\n          \"id\": \"restaurantName\",\n          \"component\": \"Text\",\n          \"text\": \"Xi'an Famous Foods\",\n          \"variant\": \"body\"\n        },\n        {\n          \"id\": \"ratingRow\",\n          \"component\": \"Row\",\n          \"align\": \"center\",\n          \"children\": [\n            \"starIcon\",\n            \"ratingText\"\n          ]\n        },\n        {\n          \"id\": \"starIcon\",\n          \"component\": \"Icon\",\n          \"name\": \"star\"\n        },\n        {\n          \"id\": \"ratingText\",\n          \"component\": \"Text\",\n          \"text\": \"4.6 / 5.0\"\n        },\n        {\n          \"id\": \"addressRow\",\n          \"component\": \"Row\",\n          \"align\": \"center\",\n          \"children\": [\n            \"locationIcon\",\n            \"addressText\"\n          ]\n        },\n        {\n          \"id\": \"locationIcon\",\n          \"component\": \"Icon\",\n          \"name\": \"locationOn\"\n        },\n        {\n          \"id\": \"addressText\",\n          \"component\": \"Text\",\n          \"text\": \"45 Bayard St, New York, NY 10013\",\n          \"variant\": \"caption\"\n        },\n        {\n          \"id\": \"cardDivider\",\n          \"component\": \"Divider\"\n        },\n        {\n          \"id\": \"bookButton\",\n          \"component\": \"Button\",\n          \"variant\": \"primary\",\n          \"child\": \"btnText\",\n          \"action\": {\n            \"event\": {\n              \"name\": \"book_table\",\n              \"userMessage\": \"Book a table at Xi'an Famous Foods\",\n              \"context\": {\n                \"restaurantName\": \"Xi'an Famous Foods\",\n                \"address\": \"45 Bayard St, New York, NY 10013\"\n              }\n            }\n          }\n        },\n        {\n          \"id\": \"btnText\",\n          \"component\": \"Text\",\n          \"text\": \"Book a Table\"\n        }\n      ]\n    }\n  }\n]\n</a2ui-json>",
+              "a2ui.parse.entry_point": "open_stream",
+              "a2ui.parse.streamed": true,
+              "a2ui.parse.inference_format": "direct_json",
+              "a2ui.parse.catalogs": "[{\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"protocolVersion\":\"v1.0\"}]",
+              "a2ui.parse.messages": "[{\"version\":\"1.0\",\"createSurface\":{\"surfaceId\":\"restaurant-card-surface\",\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"components\":[{\"id\":\"root\",\"component\":\"Card\",\"child\":\"cardContent\"},{\"id\":\"cardContent\",\"component\":\"Column\",\"children\":[\"restaurantName\",\"ratingRow\",\"addressRow\",\"cardDivider\",\"bookButton\"]},{\"id\":\"restaurantName\",\"component\":\"Text\",\"text\":\"Xi'an Famous Foods\",\"variant\":\"body\"},{\"id\":\"ratingRow\",\"component\":\"Row\",\"align\":\"center\",\"children\":[\"starIcon\",\"ratingText\"]},{\"id\":\"starIcon\",\"component\":\"Icon\",\"name\":\"star\"},{\"id\":\"ratingText\",\"component\":\"Text\",\"text\":\"4.6 / 5.0\"},{\"id\":\"addressRow\",\"component\":\"Row\",\"align\":\"center\",\"children\":[\"locationIcon\",\"addressText\"]},{\"id\":\"locationIcon\",\"component\":\"Icon\",\"name\":\"locationOn\"},{\"id\":\"addressText\",\"component\":\"Text\",\"text\":\"45 Bayard St, New York, NY 10013\",\"variant\":\"caption\"},{\"id\":\"cardDivider\",\"component\":\"Divider\"},{\"id\":\"bookButton\",\"component\":\"Button\",\"variant\":\"primary\",\"child\":\"btnText\",\"action\":{\"event\":{\"name\":\"book_table\",\"userMessage\":\"Book a table at Xi'an Famous Foods\",\"context\":{\"restaurantName\":\"Xi'an Famous Foods\",\"address\":\"45 Bayard St, New York, NY 10013\"}}}},{\"id\":\"btnText\",\"component\":\"Text\",\"text\":\"Book a Table\"}]}}]",
+              "a2ui.sdk.name": "a2ui-agent-sdk",
+              "a2ui.sdk.version": "0.9.1.dev171"
+            }
+          },
+          "events": [
+            {
+              "timeUnixNano": "1792800000011000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 31
+              }
+            },
+            {
+              "timeUnixNano": "1792800000013000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 110
+              }
+            },
+            {
+              "timeUnixNano": "1792800000015000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 185
+              }
+            },
+            {
+              "timeUnixNano": "1792800000017000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 252
+              }
+            },
+            {
+              "timeUnixNano": "1792800000019000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 331
+              }
+            },
+            {
+              "timeUnixNano": "1792800000021000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 421
+              }
+            },
+            {
+              "timeUnixNano": "1792800000023000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 510
+              }
+            },
+            {
+              "timeUnixNano": "1792800000025000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 618
+              }
+            },
+            {
+              "timeUnixNano": "1792800000027000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 710
+              }
+            },
+            {
+              "timeUnixNano": "1792800000029000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 800
+              }
+            },
+            {
+              "timeUnixNano": "1792800000031000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 882
+              }
+            },
+            {
+              "timeUnixNano": "1792800000033000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 967
+              }
+            },
+            {
+              "timeUnixNano": "1792800000035000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 1053
+              }
+            },
+            {
+              "timeUnixNano": "1792800000037000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 1141
+              }
+            },
+            {
+              "timeUnixNano": "1792800000039000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 1215
+              }
+            },
+            {
+              "timeUnixNano": "1792800000041000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 1292
+              }
+            },
+            {
+              "timeUnixNano": "1792800000043000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 1382
+              }
+            },
+            {
+              "timeUnixNano": "1792800000045000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 1473
+              }
+            },
+            {
+              "timeUnixNano": "1792800000047000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 1557
+              }
+            },
+            {
+              "timeUnixNano": "1792800000049000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 1640
+              }
+            },
+            {
+              "timeUnixNano": "1792800000051000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 1704
+              }
+            },
+            {
+              "timeUnixNano": "1792800000053000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 1797
+              }
+            },
+            {
+              "timeUnixNano": "1792800000055000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 1884
+              }
+            },
+            {
+              "timeUnixNano": "1792800000057000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 1975
+              }
+            },
+            {
+              "timeUnixNano": "1792800000059000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 2080
+              }
+            },
+            {
+              "timeUnixNano": "1792800000061000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 2190
+              }
+            },
+            {
+              "timeUnixNano": "1792800000063000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 2256
+              }
+            },
+            {
+              "timeUnixNano": "1792800000065000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 2340
+              }
+            },
+            {
+              "timeUnixNano": "1792800000067000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 2408
+              }
+            },
+            {
+              "timeUnixNano": "1792800000069000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 2424
+              }
+            }
+          ],
+          "status": {
+            "code": 0
+          }
+        }
+      ]
+    }
+  ]
+}

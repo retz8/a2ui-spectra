@@ -104,7 +104,10 @@
         "../../samples/preview/angular/angular.json",
         "../../samples/preview/*/package.json",
         "../../conformance/test_data/receiver_capture/**",
-        "../../conformance/receiver_capture/**"
+        "../../conformance/receiver_capture/**",
+        "../../conformance/test_data/wrapper_capture/**",
+        "../../conformance/wrapper_capture/**",
+        "../../conformance/wrapper_driver/**"
       ],
       "output": []
     },

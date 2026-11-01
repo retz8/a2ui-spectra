@@ -1,0 +1,28 @@
+<body id="main">
+    <script type="application/json">
+      {
+        "restaurant": {
+          "name": "Xi'an Famous Foods",
+          "address": "45 Bayard St, New York, NY 10013",
+          "rating": "4.6 / 5"
+        }
+      }
+    </script>
+    <ui-card id="root">
+      <ui-column id="card_body" align="stretch">
+        <ui-text id="restaurant_name" text="{$/restaurant/name}" />
+        <ui-row id="rating_row" align="center">
+          <ui-icon id="star_icon" name="star" />
+          <ui-text id="rating_value" text="{$/restaurant/rating}" />
+        </ui-row>
+        <ui-row id="address_row" align="center">
+          <ui-icon id="location_icon" name="locationOn" />
+          <ui-text id="address_value" text="{$/restaurant/address}" />
+        </ui-row>
+        <ui-divider id="divider" />
+        <ui-button id="book_table_button" variant="primary" on-click="{Event('book_table')}">
+          <ui-text id="button_text" text="Book a Table" />
+        </ui-button>
+      </ui-column>
+    </ui-card>
+  </body>

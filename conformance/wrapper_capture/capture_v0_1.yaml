@@ -1,0 +1,225 @@
+- name: direct_json_generate
+  description: "Direct JSON's prompt generated on the basic catalog at v1.0."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/direct_json_generate/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/direct_json_generate/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/direct_json_generate/expected_typescript.json"
+
+- name: express_generate
+  description: "Express's prompt generated on the basic catalog at v1.0."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_generate/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/express_generate/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/express_generate/expected_typescript.json"
+
+- name: elemental_generate
+  description: "Elemental's prompt generated on the basic catalog at v1.0."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/elemental_generate/input.json"
+  expect: "test_data/wrapper_capture/v0_1/elemental_generate/expected.json"
+
+- name: atom_generate
+  description: "Atom's prompt generated on the basic catalog at v1.0."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/atom_generate/input.json"
+  expect: "test_data/wrapper_capture/v0_1/atom_generate/expected.json"
+
+- name: express_generate_two_catalogs
+  description: "Express's prompt generated on two catalogs at v1.0: the basic catalog and the custom catalog.json from test_data/catalogs/."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_generate_two_catalogs/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/express_generate_two_catalogs/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/express_generate_two_catalogs/expected_typescript.json"
+
+- name: generate_failed
+  description: "A failed prompt generation: Direct JSON on catalogs of mixed protocol versions, the basic catalog at v0.9 and a catalog at v0.9.1, which TypeScript's generator rejects; Python's agent SDK rejects them when the format is built, before the generator, so the case runs in TypeScript only."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/generate_failed/input.json"
+  expect: "test_data/wrapper_capture/v0_1/generate_failed/expected.json"
+
+- name: generate_outside_turn
+  description: "Express's prompt generated before the turn opens, its start in no turn's range; the turn's model proxy call holds the section text in its system instruction, where the prompt generation is placed by its text."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/generate_outside_turn/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/generate_outside_turn/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/generate_outside_turn/expected_typescript.json"
+
+- name: direct_json_parse_response
+  description: "A Direct JSON reply recorded from Gemini, parsed whole."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/direct_json_parse_response/input.json"
+  expect: "test_data/wrapper_capture/v0_1/direct_json_parse_response/expected.json"
+
+- name: express_parse_response
+  description: "An Express reply recorded from Gemini, parsed whole."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_parse_response/input.json"
+  expect: "test_data/wrapper_capture/v0_1/express_parse_response/expected.json"
+
+- name: elemental_parse_response
+  description: "An Elemental reply recorded from Gemini, parsed whole."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/elemental_parse_response/input.json"
+  expect: "test_data/wrapper_capture/v0_1/elemental_parse_response/expected.json"
+
+- name: atom_parse_response
+  description: "An Atom reply recorded from Gemini, parsed whole."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/atom_parse_response/input.json"
+  expect: "test_data/wrapper_capture/v0_1/atom_parse_response/expected.json"
+
+- name: direct_json_open_stream
+  description: "The Direct JSON reply read as a stream, its chunks as Gemini sent them."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/direct_json_open_stream/input.json"
+  expect: "test_data/wrapper_capture/v0_1/direct_json_open_stream/expected.json"
+
+- name: express_open_stream
+  description: "The Express reply read as a stream, its chunks as Gemini sent them."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_open_stream/input.json"
+  expect: "test_data/wrapper_capture/v0_1/express_open_stream/expected.json"
+
+- name: direct_json_compile
+  description: "The Direct JSON reply's block compiled on its own."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/direct_json_compile/input.json"
+  expect: "test_data/wrapper_capture/v0_1/direct_json_compile/expected.json"
+
+- name: express_compile
+  description: "The Express reply's block compiled on its own."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_compile/input.json"
+  expect: "test_data/wrapper_capture/v0_1/express_compile/expected.json"
+
+- name: elemental_compile
+  description: "The Elemental reply's block compiled on its own."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/elemental_compile/input.json"
+  expect: "test_data/wrapper_capture/v0_1/elemental_compile/expected.json"
+
+- name: atom_compile
+  description: "The Atom reply's block compiled on its own."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/atom_compile/input.json"
+  expect: "test_data/wrapper_capture/v0_1/atom_compile/expected.json"
+
+- name: express_parse_response_unwrapped
+  description: "The Express reply's block parsed whole as one block without tags, wrapped false."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_parse_response_unwrapped/input.json"
+  expect: "test_data/wrapper_capture/v0_1/express_parse_response_unwrapped/expected.json"
+
+- name: direct_json_malformed_block
+  description: "A Direct JSON block that is not JSON, rejected by the grammar, with its block range."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/direct_json_malformed_block/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/direct_json_malformed_block/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/direct_json_malformed_block/expected_typescript.json"
+
+- name: express_malformed_block
+  description: "An Express block with a call left open, rejected by the grammar, with its block range."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_malformed_block/input.json"
+  expect: "test_data/wrapper_capture/v0_1/express_malformed_block/expected.json"
+
+- name: elemental_malformed_block
+  description: "An Elemental block whose root is not a body, rejected by the grammar, with its block range."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/elemental_malformed_block/input.json"
+  expect: "test_data/wrapper_capture/v0_1/elemental_malformed_block/expected.json"
+
+- name: atom_malformed_block
+  description: "An Atom block with a character no token starts with, rejected by the grammar, with its block range."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/atom_malformed_block/input.json"
+  expect: "test_data/wrapper_capture/v0_1/atom_malformed_block/expected.json"
+
+- name: direct_json_unknown_component
+  description: "A Direct JSON block naming a component the basic catalog does not define, refused by the catalog, with the SDK's details."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/direct_json_unknown_component/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/direct_json_unknown_component/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/direct_json_unknown_component/expected_typescript.json"
+
+- name: express_unknown_component
+  description: "An Express block naming a component the basic catalog does not define, refused by the catalog."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_unknown_component/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/express_unknown_component/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/express_unknown_component/expected_typescript.json"
+
+- name: elemental_unknown_component
+  description: "An Elemental block with a tag for a component the basic catalog does not define, refused by the catalog."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/elemental_unknown_component/input.json"
+  expect: "test_data/wrapper_capture/v0_1/elemental_unknown_component/expected.json"
+
+- name: atom_unknown_component
+  description: "An Atom block naming a component the basic catalog does not define, refused by the catalog."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/atom_unknown_component/input.json"
+  expect: "test_data/wrapper_capture/v0_1/atom_unknown_component/expected.json"
+
+- name: surface_already_exists
+  description: "A2UI finding 31 in Direct JSON: a reply streamed in chunks, then its aggregated copy fed again, whose second createSurface default is rejected with 'Surface default already exists.', the stream ending there."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/surface_already_exists/input.json"
+  expect: "test_data/wrapper_capture/v0_1/surface_already_exists/expected.json"
+
+- name: dangling_child
+  description: "A Direct JSON reply whose child id names no component: the tree check after every block fails, with no block range."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/dangling_child/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/dangling_child/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/dangling_child/expected_typescript.json"
+
+- name: express_open_stream_rejected_block_end
+  description: "An Express stream that ends at its rejected block: a good block, then one naming an unknown component."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_open_stream_rejected_block_end/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/express_open_stream_rejected_block_end/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/express_open_stream_rejected_block_end/expected_typescript.json"
+
+- name: express_open_stream_rejected_blocks_continue
+  description: "An Express stream that reads past rejected blocks: a block the grammar rejects and one the catalog refuses, each an exception event with its range, then a good block; the first error is the status."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_open_stream_rejected_blocks_continue/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/express_open_stream_rejected_blocks_continue/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/express_open_stream_rejected_blocks_continue/expected_typescript.json"
+
+- name: direct_json_open_stream_truncated
+  description: "A Direct JSON stream closed inside a block, rejected on close, the block running to the end of the input."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/direct_json_open_stream_truncated/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/direct_json_open_stream_truncated/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/direct_json_open_stream_truncated/expected_typescript.json"
+
+- name: tool_call_without_state
+  description: "SendA2uiToClientToolset's tool call with the Express block recorded from Gemini as its a2ui_payload, no renderer state bound: the per-block compile path, the tool's result the validated messages."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/tool_call_without_state/input.json"
+  expect: "test_data/wrapper_capture/v0_1/tool_call_without_state/expected.json"
+
+- name: tool_call_with_state
+  description: "The same tool call with a renderer state bound to the processor: the bound-state path."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/tool_call_with_state/input.json"
+  expect: "test_data/wrapper_capture/v0_1/tool_call_with_state/expected.json"
+
+- name: tool_call_catalog_not_found
+  description: "A2UI finding 32 through the toolset: a Direct JSON payload creating its surface in inline_catalog, which the processor's catalogs do not hold; the error the tool returns to the model is its result."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/tool_call_catalog_not_found/input.json"
+  expect: "test_data/wrapper_capture/v0_1/tool_call_catalog_not_found/expected.json"

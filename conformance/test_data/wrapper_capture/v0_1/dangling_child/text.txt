@@ -1,0 +1,17 @@
+Here is the restaurant card.
+
+<a2ui-json>
+[
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "restaurant-card",
+      "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+      "components": [
+        {"id": "root", "component": "Column", "children": ["name", "bookButton"]},
+        {"id": "name", "component": "Text", "text": "Xi'an Famous Foods"}
+      ]
+    }
+  }
+]
+</a2ui-json>

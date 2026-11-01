@@ -1,0 +1,309 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "d375a2b29b22c1b7694fd4dd78a548b4",
+          "spanId": "de15aed46fd87686",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000042000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "otel_receiver",
+              "wrapper"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "252b65fc573b5dcefd6db71e97117fba",
+          "spanId": "fbeb0556651db611",
+          "name": "parse",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000010000000",
+          "endTimeUnixNano": "1792800000032000000",
+          "attributes": {
+            "a2ui.event.kind": "parse",
+            "otel.scope.name": "a2ui-spectra-instrumentation",
+            "otel.scope.version": "0.0.0",
+            "a2ui.parse.input": "<a2ui>\nsurface(\"restaurant_surface\")\n\n$/restaurant/name = \"Xi'an Famous Foods\"\n$/restaurant/address = \"45 Bayard St, New York, NY 10013\"\n$/restaurant/rating = \"4.6 / 5\"\n\nroot = Card(cardContent)\n\ncardContent = Column([titleText, addressRow, ratingRow, divider, bookButton], \"start\", \"stretch\")\n\ntitleText = Text(\"**Xi'an Famous Foods**\")\n\naddressRow = Row([locationIcon, addressText], \"start\", \"center\")\nlocationIcon = Icon(\"locationOn\")\naddressText = Text($/restaurant/address, \"caption\")\n\nratingRow = Row([starIcon, ratingText], \"start\", \"center\")\nstarIcon = Icon(\"star\")\nratingText = Text(\"4.6 / 5 (Rating)\", \"body\")\n\ndivider = Divider(\"horizontal\")\n\nbookButton = Button(bookButtonText, \"primary\", Event(\"book_table\", {restaurant: $/restaurant/name}))\nbookButtonText = Text(\"Book a Table\")\n</a2ui>",
+            "a2ui.parse.entry_point": "open_stream",
+            "a2ui.parse.streamed": true,
+            "a2ui.parse.inference_format": "express",
+            "a2ui.parse.catalogs": [
+              {
+                "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                "protocolVersion": "v1.0"
+              }
+            ],
+            "a2ui.parse.messages": [
+              {
+                "version": "1.0",
+                "createSurface": {
+                  "surfaceId": "restaurant_surface",
+                  "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                  "components": [
+                    {
+                      "id": "root",
+                      "component": "Card",
+                      "child": "cardContent"
+                    }
+                  ],
+                  "dataModel": {
+                    "restaurant": {
+                      "name": "Xi'an Famous Foods",
+                      "address": "45 Bayard St, New York, NY 10013",
+                      "rating": "4.6 / 5"
+                    }
+                  }
+                }
+              },
+              {
+                "version": "1.0",
+                "updateComponents": {
+                  "surfaceId": "restaurant_surface",
+                  "components": [
+                    {
+                      "id": "cardContent",
+                      "component": "Column",
+                      "children": [
+                        "titleText",
+                        "addressRow",
+                        "ratingRow",
+                        "divider",
+                        "bookButton"
+                      ],
+                      "justify": "start",
+                      "align": "stretch"
+                    }
+                  ]
+                }
+              },
+              {
+                "version": "1.0",
+                "updateComponents": {
+                  "surfaceId": "restaurant_surface",
+                  "components": [
+                    {
+                      "id": "titleText",
+                      "component": "Text",
+                      "text": "**Xi'an Famous Foods**"
+                    },
+                    {
+                      "id": "addressRow",
+                      "component": "Row",
+                      "children": [
+                        "locationIcon",
+                        "addressText"
+                      ],
+                      "justify": "start",
+                      "align": "center"
+                    }
+                  ]
+                }
+              },
+              {
+                "version": "1.0",
+                "updateComponents": {
+                  "surfaceId": "restaurant_surface",
+                  "components": [
+                    {
+                      "id": "locationIcon",
+                      "component": "Icon",
+                      "name": "locationOn"
+                    },
+                    {
+                      "id": "addressText",
+                      "component": "Text",
+                      "text": {
+                        "@path": "/restaurant/address"
+                      },
+                      "variant": "caption"
+                    }
+                  ]
+                }
+              },
+              {
+                "version": "1.0",
+                "updateComponents": {
+                  "surfaceId": "restaurant_surface",
+                  "components": [
+                    {
+                      "id": "ratingRow",
+                      "component": "Row",
+                      "children": [
+                        "starIcon",
+                        "ratingText"
+                      ],
+                      "justify": "start",
+                      "align": "center"
+                    },
+                    {
+                      "id": "starIcon",
+                      "component": "Icon",
+                      "name": "star"
+                    }
+                  ]
+                }
+              },
+              {
+                "version": "1.0",
+                "updateComponents": {
+                  "surfaceId": "restaurant_surface",
+                  "components": [
+                    {
+                      "id": "ratingText",
+                      "component": "Text",
+                      "text": "4.6 / 5 (Rating)",
+                      "variant": "body"
+                    },
+                    {
+                      "id": "divider",
+                      "component": "Divider",
+                      "axis": "horizontal"
+                    }
+                  ]
+                }
+              },
+              {
+                "version": "1.0",
+                "updateComponents": {
+                  "surfaceId": "restaurant_surface",
+                  "components": [
+                    {
+                      "id": "bookButton",
+                      "component": "Button",
+                      "child": "bookButtonText",
+                      "variant": "primary",
+                      "action": {
+                        "event": {
+                          "name": "book_table",
+                          "context": {
+                            "restaurant": {
+                              "@path": "/restaurant/name"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              },
+              {
+                "version": "1.0",
+                "updateComponents": {
+                  "surfaceId": "restaurant_surface",
+                  "components": [
+                    {
+                      "id": "bookButtonText",
+                      "component": "Text",
+                      "text": "Book a Table"
+                    }
+                  ]
+                }
+              }
+            ],
+            "a2ui.sdk.name": "a2ui-agent-sdk",
+            "a2ui.sdk.version": "0.9.1.dev171",
+            "a2ui.received.attributes": {
+              "a2ui.event.kind": "parse",
+              "a2ui.parse.input": "<a2ui>\nsurface(\"restaurant_surface\")\n\n$/restaurant/name = \"Xi'an Famous Foods\"\n$/restaurant/address = \"45 Bayard St, New York, NY 10013\"\n$/restaurant/rating = \"4.6 / 5\"\n\nroot = Card(cardContent)\n\ncardContent = Column([titleText, addressRow, ratingRow, divider, bookButton], \"start\", \"stretch\")\n\ntitleText = Text(\"**Xi'an Famous Foods**\")\n\naddressRow = Row([locationIcon, addressText], \"start\", \"center\")\nlocationIcon = Icon(\"locationOn\")\naddressText = Text($/restaurant/address, \"caption\")\n\nratingRow = Row([starIcon, ratingText], \"start\", \"center\")\nstarIcon = Icon(\"star\")\nratingText = Text(\"4.6 / 5 (Rating)\", \"body\")\n\ndivider = Divider(\"horizontal\")\n\nbookButton = Button(bookButtonText, \"primary\", Event(\"book_table\", {restaurant: $/restaurant/name}))\nbookButtonText = Text(\"Book a Table\")\n</a2ui>",
+              "a2ui.parse.entry_point": "open_stream",
+              "a2ui.parse.streamed": true,
+              "a2ui.parse.inference_format": "express",
+              "a2ui.parse.catalogs": "[{\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"protocolVersion\":\"v1.0\"}]",
+              "a2ui.parse.messages": "[{\"version\":\"1.0\",\"createSurface\":{\"surfaceId\":\"restaurant_surface\",\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"components\":[{\"id\":\"root\",\"component\":\"Card\",\"child\":\"cardContent\"}],\"dataModel\":{\"restaurant\":{\"name\":\"Xi'an Famous Foods\",\"address\":\"45 Bayard St, New York, NY 10013\",\"rating\":\"4.6 / 5\"}}}},{\"version\":\"1.0\",\"updateComponents\":{\"surfaceId\":\"restaurant_surface\",\"components\":[{\"id\":\"cardContent\",\"component\":\"Column\",\"children\":[\"titleText\",\"addressRow\",\"ratingRow\",\"divider\",\"bookButton\"],\"justify\":\"start\",\"align\":\"stretch\"}]}},{\"version\":\"1.0\",\"updateComponents\":{\"surfaceId\":\"restaurant_surface\",\"components\":[{\"id\":\"titleText\",\"component\":\"Text\",\"text\":\"**Xi'an Famous Foods**\"},{\"id\":\"addressRow\",\"component\":\"Row\",\"children\":[\"locationIcon\",\"addressText\"],\"justify\":\"start\",\"align\":\"center\"}]}},{\"version\":\"1.0\",\"updateComponents\":{\"surfaceId\":\"restaurant_surface\",\"components\":[{\"id\":\"locationIcon\",\"component\":\"Icon\",\"name\":\"locationOn\"},{\"id\":\"addressText\",\"component\":\"Text\",\"text\":{\"@path\":\"/restaurant/address\"},\"variant\":\"caption\"}]}},{\"version\":\"1.0\",\"updateComponents\":{\"surfaceId\":\"restaurant_surface\",\"components\":[{\"id\":\"ratingRow\",\"component\":\"Row\",\"children\":[\"starIcon\",\"ratingText\"],\"justify\":\"start\",\"align\":\"center\"},{\"id\":\"starIcon\",\"component\":\"Icon\",\"name\":\"star\"}]}},{\"version\":\"1.0\",\"updateComponents\":{\"surfaceId\":\"restaurant_surface\",\"components\":[{\"id\":\"ratingText\",\"component\":\"Text\",\"text\":\"4.6 / 5 (Rating)\",\"variant\":\"body\"},{\"id\":\"divider\",\"component\":\"Divider\",\"axis\":\"horizontal\"}]}},{\"version\":\"1.0\",\"updateComponents\":{\"surfaceId\":\"restaurant_surface\",\"components\":[{\"id\":\"bookButton\",\"component\":\"Button\",\"child\":\"bookButtonText\",\"variant\":\"primary\",\"action\":{\"event\":{\"name\":\"book_table\",\"context\":{\"restaurant\":{\"@path\":\"/restaurant/name\"}}}}}]}},{\"version\":\"1.0\",\"updateComponents\":{\"surfaceId\":\"restaurant_surface\",\"components\":[{\"id\":\"bookButtonText\",\"component\":\"Text\",\"text\":\"Book a Table\"}]}}]",
+              "a2ui.sdk.name": "a2ui-agent-sdk",
+              "a2ui.sdk.version": "0.9.1.dev171"
+            }
+          },
+          "events": [
+            {
+              "timeUnixNano": "1792800000011000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 78
+              }
+            },
+            {
+              "timeUnixNano": "1792800000013000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 136
+              }
+            },
+            {
+              "timeUnixNano": "1792800000015000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 200
+              }
+            },
+            {
+              "timeUnixNano": "1792800000017000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 311
+              }
+            },
+            {
+              "timeUnixNano": "1792800000019000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 404
+              }
+            },
+            {
+              "timeUnixNano": "1792800000021000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 502
+              }
+            },
+            {
+              "timeUnixNano": "1792800000023000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 580
+              }
+            },
+            {
+              "timeUnixNano": "1792800000025000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 674
+              }
+            },
+            {
+              "timeUnixNano": "1792800000027000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 776
+              }
+            },
+            {
+              "timeUnixNano": "1792800000029000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 800
+              }
+            }
+          ],
+          "status": {
+            "code": 0
+          }
+        }
+      ]
+    }
+  ]
+}
