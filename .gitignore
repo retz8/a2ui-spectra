@@ -19,6 +19,12 @@ dist
 # The Angular CLI's cache
 .angular
 
+# The Python workspace's environment and caches
+.venv
+__pycache__
+.mypy_cache
+.pytest_cache
+
 # Yarn Modern
 .yarn/*
 !.yarn/patches

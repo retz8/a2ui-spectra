@@ -107,7 +107,12 @@
         "../../conformance/receiver_capture/**",
         "../../conformance/test_data/wrapper_capture/**",
         "../../conformance/wrapper_capture/**",
-        "../../conformance/wrapper_driver/**"
+        "../../conformance/wrapper_driver/**",
+        "../../python/a2ui_spectra_instrumentation/src/**/*.py",
+        "../../python/a2ui_spectra_instrumentation/pyproject.toml",
+        "../../pyproject.toml",
+        "../../uv.lock",
+        "../../.python-version"
       ],
       "output": []
     },

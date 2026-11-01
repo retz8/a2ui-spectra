@@ -1,0 +1,63 @@
+[project]
+name = "a2ui-spectra-python-workspace"
+version = "0.0.0"
+description = "Spectra's Python workspace root"
+requires-python = ">=3.10"
+dependencies = []
+
+[tool.uv]
+package = false
+
+[tool.uv.workspace]
+members = [
+  "python/a2ui_spectra_instrumentation",
+  "conformance/wrapper_driver/python",
+]
+
+[tool.uv.sources]
+a2ui-spectra-instrumentation = { workspace = true }
+# Upstream's agent SDK and ADK extension at upstream main 825beac28.
+a2ui-agent-sdk = { git = "https://github.com/a2ui-project/a2ui", rev = "825beac2813a6d0ccef3b6fb4124ad6c3c8419f0", subdirectory = "python/a2ui_agent" }
+a2ui-adk = { git = "https://github.com/a2ui-project/a2ui", rev = "825beac2813a6d0ccef3b6fb4124ad6c3c8419f0", subdirectory = "python/a2ui_adk" }
+
+[dependency-groups]
+dev = [
+  "mypy>=1.14.0",
+  "pyink>=25.12.0",
+  "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["python/a2ui_spectra_instrumentation/tests"]
+addopts = "--import-mode=importlib"
+
+[tool.pyink]
+unstable = true
+target-version = []
+pyink-indentation = 4
+pyink-use-majority-quotes = true
+extend-exclude = '''(?x)(
+  ^/_dev/
+)'''
+pyink-annotation-pragmas = [
+  "noqa",
+  "pylint:",
+  "type: ignore",
+  "pytype:",
+  "mypy:",
+  "pyright:",
+  "pyre-",
+]
+
+[tool.mypy]
+strict = true
+explicit_package_bases = true
+namespace_packages = true
+mypy_path = "python/a2ui_spectra_instrumentation/src"
+files = [
+  "python/a2ui_spectra_instrumentation",
+  "conformance/wrapper_driver/python",
+]
+exclude = [
+  "^_dev/",
+]
