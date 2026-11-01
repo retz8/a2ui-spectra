@@ -212,6 +212,55 @@ describe('a turn with its received spans', () => {
     assert.deepEqual(linked(apart, S(91)), []);
   });
 
+  it('links an exchange whose traceparent names a span with none of its kind above it by time, as stale context', () => {
+    // An MCP client's writer task carries the span current when its session
+    // opened, the agent-level invoke_agent, into every request it sends.
+    const tree = [
+      received(S(1), 'invoke_agent a', 0, 100, {traceId: TURN}),
+      received(S(2), 'call_llm', 10, 90, {traceId: TURN, parent: S(1)}),
+      received(S(3), 'execute_tool lookup', 20, 60, {traceId: TURN, parent: S(2)}),
+      received(S(4), 'POST', 21, 59, {traceId: TURN, parent: S(1), scope: {name: 'http'}}),
+    ];
+    const assembled = assembleTurn(
+      {
+        events: [
+          turnEvent(),
+          exchange(S(91), 22, {tool: true, traceparent: `00-${TURN}-${S(1)}-01`}),
+          exchange(S(92), 70, {tool: true, traceparent: `00-${TURN}-${S(1)}-01`}),
+        ],
+      },
+      tree,
+    );
+    assert.deepEqual(linked(assembled, S(91)), [S(3)]);
+    assert.deepEqual(linked(assembled, S(3)), [S(91)]);
+    assert.deepEqual(linked(assembled, S(92)), []);
+    assert.deepEqual(linked(assembled, S(1)), []);
+  });
+
+  it("tells tool call spans run side by side apart by the exchange's tool name", () => {
+    const side = [
+      received(S(2), 'call_llm', 0, 100, {traceId: TURN}),
+      received(S(3), 'execute_tool lookup', 10, 60, {traceId: TURN, parent: S(2), attributes: {'gen_ai.tool.name': 'lookup'}}),
+      received(S(4), 'execute_tool other', 10, 90, {traceId: TURN, parent: S(2), attributes: {'gen_ai.tool.name': 'other'}}),
+    ];
+    const assembled = assembleTurn(
+      {
+        events: [
+          turnEvent(),
+          {...exchange(S(91), 20, {tool: true}), attributes: {...exchange(S(91), 20, {tool: true}).attributes, 'gen_ai.tool.name': 'lookup'}} as TurnRecordEvent,
+          {...exchange(S(92), 21, {tool: true}), attributes: {...exchange(S(92), 21, {tool: true}).attributes, 'gen_ai.tool.name': 'other'}} as TurnRecordEvent,
+          exchange(S(93), 22, {tool: true}),
+        ],
+      },
+      side,
+    );
+    assert.deepEqual(linked(assembled, S(91)), [S(3)]);
+    assert.deepEqual(linked(assembled, S(92)), [S(4)]);
+    assert.deepEqual(linked(assembled, S(93)), []);
+    assert.deepEqual(linked(assembled, S(3)), [S(91)]);
+    assert.deepEqual(linked(assembled, S(4)), [S(92)]);
+  });
+
   it('links one span back to every exchange its range holds, as when the SDK retried inside it', () => {
     const assembled = assembleTurn(
       {events: [turnEvent(), exchange(S(91), 20), exchange(S(92), 40)]},

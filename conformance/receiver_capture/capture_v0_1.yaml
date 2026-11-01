@@ -76,3 +76,12 @@
   expect: "test_data/receiver_capture/v0_1/several_exchanges/expected.json"
   log:
     - "The receiver did not record 3 spans from a2a-python-sdk, which started at 2026-10-31T07:31:15.371Z: their start falls in no turn's time range."
+
+- name: adk_mcp_stale_context
+  description: "A2UIVerse's Linear agent in live mode on Gemini with the bootstrap set, Linear's hosted MCP server behind the tool proxy, two turns of one conversation: the MCP client's writer task carries the span current when its session opened, the first turn's invoke_agent, into every request, so the first turn's tools/call names a span with no tool call span above it and links to the execute_tool holding its start by time, and the second turn's tools/list and two tools/call, placed in it by the time window as their trace id names the written first turn, link by time and by tool name to execute_tool get_issue and execute_tool list_comments, run side by side."
+  action: capture_receiver
+  exports: "test_data/receiver_capture/v0_1/adk_mcp_stale_context/exports.json"
+  expect: "test_data/receiver_capture/v0_1/adk_mcp_stale_context/expected.json"
+  log:
+    - "The receiver did not record 4 log records from uvicorn.error, which started from 2026-11-01T03:08:24.580Z to 2026-11-01T03:08:24.582Z: they carry no span context."
+    - "The receiver did not record 3 spans and 1 log record from opentelemetry.instrumentation.starlette and uvicorn.access, which started at 2026-11-01T03:08:24.650Z: their start falls in no turn's time range."

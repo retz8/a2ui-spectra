@@ -68,7 +68,7 @@ describe('the dialects', () => {
       [span('call_llm', {}, ADK), 'model_call'],
       [span('generate_content gemini-3.6-flash', {}, ADK), 'model_call'],
       [span('execute_tool get_restaurants', {}, ADK), 'tool_call'],
-      [span('execute_tool (merged)', {}, ADK), 'tool_call'],
+      [span('execute_tool (merged)', {}, ADK), 'framework_span'],
       [span('invoke_agent restaurant_agent', {}, ADK), 'framework_span'],
       [span('invocation', {}, ADK), 'framework_span'],
       [span('acompletion', {'openinference.span.kind': 'LLM'}), 'model_call'],

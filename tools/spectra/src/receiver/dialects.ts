@@ -43,7 +43,11 @@ export function kindOf(span: ReceivedSpan, dialect: Dialect | undefined): Receiv
       if (span.name === 'call_llm' || /^generate_content(?: |$)/.test(span.name)) {
         return 'model_call';
       }
-      return /^execute_tool(?: |$)/.test(span.name) ? 'tool_call' : 'framework_span';
+      // `execute_tool (merged)` is ADK's wrapper around tool calls run side
+      // by side, with `(merged tools)` as its tool name: not a call.
+      return /^execute_tool(?: |$)/.test(span.name) && span.name !== 'execute_tool (merged)'
+        ? 'tool_call'
+        : 'framework_span';
     case 'openinference': {
       const kind = span.attributes['openinference.span.kind'];
       if (kind === 'LLM' || kind === 'EMBEDDING') return 'model_call';

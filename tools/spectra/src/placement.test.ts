@@ -148,13 +148,28 @@ describe('CallPlacer', () => {
     ]);
   });
 
-  it('does not place a call whose trace id names a turn already written', () => {
+  it('places a call whose trace id names a turn already written by the time window, as stale context', () => {
     const {placer, log} = setUp();
     placer.onTurn(opened(T1, S1));
     placer.onTurn(closed(T1, S1));
     placer.onTurn(opened(T2, S2));
+    const placed = placer.place({...aCall, traceparent: `00-${T1}-${S1}-01`});
+    assert.deepEqual([placed?.traceId, placed?.parentSpanId], [T2, S2]);
+    assert.deepEqual(log, []);
+  });
+
+  it('says that a stale trace id named a written turn when the time window cannot place the call either', () => {
+    const {placer, log} = setUp();
+    placer.onTurn(opened(T1, S1));
+    placer.onTurn(closed(T1, S1));
     assert.equal(placer.place({...aCall, traceparent: `00-${T1}-${S1}-01`}), undefined);
-    assert.match(log[0], new RegExp(`its turn ${T1} is already written`));
+    placer.onTurn(opened(T2, S2));
+    placer.onTurn(opened('c'.repeat(32), '3'.repeat(16)));
+    assert.equal(placer.place({...aCall, traceparent: `00-${T1}-${S1}-01`}), undefined);
+    assert.deepEqual(log, [
+      `A model call to h, POST /p at 1970-01-01T00:33:20.000Z was not placed in a turn: its turn ${T1} is already written and no turn is open. It is not recorded.`,
+      `A model call to h, POST /p at 1970-01-01T00:33:20.000Z was not placed in a turn: its turn ${T1} is already written and 2 turns are open. It is not recorded.`,
+    ]);
   });
 
   it('places a call carrying the trace id of a turn waiting for its calls, and hands the turn on after both', () => {

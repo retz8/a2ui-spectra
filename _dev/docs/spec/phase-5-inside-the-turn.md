@@ -37,7 +37,7 @@ The wire proxy adds a W3C `traceparent` to each A2A turn request, the message bo
 
 ### 4. Placing a call or a span in its turn
 
-A model call, a tool call or a received span carrying a turn's trace id belongs to that turn. Without trace context, a model call or a tool call that starts while exactly one turn is open belongs to that turn. A model call or a tool call whose trace id names no turn is placed as one without trace context is.
+A model call, a tool call or a received span carrying a turn's trace id belongs to that turn. Without trace context, a model call or a tool call that starts while exactly one turn is open belongs to that turn. A model call or a tool call whose trace id names no turn, or a turn already written, is placed as one without trace context is: a trace id naming a written turn is stale context, as an MCP client's writer task carries the turn its session opened in into every later turn's requests.
 
 A received span carrying a turn's trace id belongs to it whether the turn is open, waiting for its calls or written. Any other received span belongs to the turn of this run whose time range holds the span's start, when exactly one does: a turn's range runs from its start to the agent's last reply, and an open turn's to the present. The turns of this run are remembered with their ranges until Spectra stops; a turn an earlier run left in the store is never amended. A span placed in a written turn amends the record in the store; the turn's end time stays the agent's last reply and its checks are not run again.
 
@@ -77,7 +77,7 @@ The receiver translates the three dialects SPEC.md names: ADK's own names, OpenI
 
 ### 12. One call seen by two capture paths
 
-A proxy event and a received span are linked as the same call through trace context. Without it, a proxied exchange is linked to the received model call span of the same turn whose time range holds the exchange's start, and a tool proxy exchange to the tool call span. Nested spans that each contain the next, such as ADK's `call_llm` around its `generate_content {model}` around an OpenInference or OpenLLMetry LiteLLM span, are one chain and count as one: the exchange is linked to each span of the chain and each to it. When no span holds the exchange, or two that are not one chain do, it stays unlinked. One span is linked to every exchange whose start it holds, as when the agent's SDK retried inside it.
+A proxy event and a received span are linked as the same call through trace context. Without it, a proxied exchange is linked to the received model call span of the same turn whose time range holds the exchange's start, and a tool proxy exchange to the tool call span. Nested spans that each contain the next, such as ADK's `call_llm` around its `generate_content {model}` around an OpenInference or OpenLLMetry LiteLLM span, are one chain and count as one: the exchange is linked to each span of the chain and each to it. When no span holds the exchange, or two that are not one chain do, it stays unlinked, unless those carrying the exchange's tool name are one chain, as tool calls run side by side hold each other's exchanges. A `traceparent` naming a span with no call span of the exchange's kind at or above it is stale context, and the exchange is linked as one without trace context is. One span is linked to every exchange whose start it holds, as when the agent's SDK retried inside it.
 
 ### 13. Prompt cache use
 

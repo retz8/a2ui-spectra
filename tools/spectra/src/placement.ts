@@ -80,8 +80,8 @@ interface OpenTurn {
  *
  * A call carrying a turn's trace id belongs to that turn, open or waiting
  * for its calls. Without trace context, or with a trace id that names no
- * turn, a call that starts while exactly one turn is open belongs to that
- * turn. A call that cannot be placed is not recorded: the terminal gets one
+ * turn or a turn already written, a call that starts while exactly one turn
+ * is open belongs to that turn. A call that cannot be placed is not recorded: the terminal gets one
  * line saying what it was, when, and why.
  *
  * It also remembers every turn of this run with its time range, open,
@@ -173,16 +173,17 @@ export class CallPlacer {
     const traceId = parseTraceparent(call.traceparent)?.traceId;
     let turn: OpenTurn | undefined;
     let reason: string | undefined;
+    // A trace id naming a turn already written is stale context, as an MCP
+    // client's writer task carries its session's opening turn into every
+    // later turn: the call is placed as one without trace context.
+    const stale = traceId !== undefined && this.#written.has(traceId);
     if (traceId !== undefined && this.#open.has(traceId)) {
       turn = this.#open.get(traceId);
-    } else if (traceId !== undefined && this.#written.has(traceId)) {
-      reason = `its turn ${traceId} is already written`;
     } else if (this.#open.size === 1) {
       turn = [...this.#open.values()][0];
-    } else if (this.#open.size === 0) {
-      reason = 'no turn is open';
     } else {
-      reason = `${this.#open.size} turns are open`;
+      const open = this.#open.size === 0 ? 'no turn is open' : `${this.#open.size} turns are open`;
+      reason = stale ? `its turn ${traceId} is already written and ${open}` : open;
     }
     if (turn === undefined) {
       return {

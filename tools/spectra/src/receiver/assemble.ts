@@ -104,10 +104,13 @@ function linkTo(event: TurnRecordEvent): Link {
 /**
  * The same-call links, by each side's key. An exchange whose `traceparent`
  * names a received span is the same call as the nearest span of its kind at
- * or above it, and every such span above that. Without that, it is the same
- * call as the span of its kind whose time range holds the exchange's start,
+ * or above it, and every such span above that. Without that, or when the
+ * named span has no span of its kind at or above it, it is the same call as
+ * the span of its kind whose time range holds the exchange's start,
  * when the spans that hold it are one chain, each the ancestor of the next;
- * two that are not leave it unlinked. A model proxy's call pairs with model
+ * two that are not leave it unlinked, unless those of the exchange's tool
+ * name are one chain, as tool calls run side by side hold each other's
+ * exchanges. A model proxy's call pairs with model
  * call spans, a tool proxy's with tool call spans.
  */
 export function sameCallLinks(
@@ -147,6 +150,14 @@ export function sameCallLinks(
       events.every((a, i) =>
         events.slice(i + 1).every(b => ancestors(a).has(keyOf(b)) || ancestors(b).has(keyOf(a))),
       );
+    // Tool calls run side by side hold each other's exchanges: the spans of
+    // the exchange's own tool name tell them apart.
+    const toolName = attributesOf(exchange)['gen_ai.tool.name'];
+    const byTime = (): TurnRecordEvent[] => {
+      if (isChain(holding)) return holding;
+      const ofTool = holding.filter(event => attributesOf(event)['gen_ai.tool.name'] === toolName);
+      return toolName !== undefined && ofTool.length > 0 && isChain(ofTool) ? ofTool : [];
+    };
     const context = parseTraceparent(traceparentOf(exchange));
     const named =
       context === undefined ? undefined : byKey.get(spanKey(context.traceId, context.parentId));
@@ -167,9 +178,15 @@ export function sameCallLinks(
       if (nearest !== undefined) {
         const below = holding.filter(event => ancestors(event).has(keyOf(nearest)));
         if (below.length > 0 && isChain([...same, ...below])) same.push(...below);
+      } else {
+        // The named span has no span of the kind at or above it: the context
+        // is stale, as an MCP client's writer task carries the span current
+        // when its session opened, and the exchange links by time as one
+        // without trace context does.
+        same = byTime();
       }
-    } else if (isChain(holding)) {
-      same = holding;
+    } else {
+      same = byTime();
     }
     for (const span of [...same].sort(compareStart)) {
       add(exchange, span);

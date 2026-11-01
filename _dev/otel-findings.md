@@ -600,3 +600,41 @@ parent and a trace id of its own.
 
 Extract the incoming context in the SDK's server applications, or document that an HTTP
 server instrumentation is needed for an A2A server's spans to join the client's trace.
+
+## 24. The MCP client's writer task carries the session's opening span into every request
+
+**Component:** a producer, the MCP Python SDK, `mcp` 1.30.0 (`mcp/client/streamable_http.py`),
+met through `opentelemetry-instrumentation-httpx` 0.66b2, which stamps each request with the
+span current in the task that sends it; seen under google-adk 2.9.1's `McpToolset`.
+
+**Severity:** producer gap: an instrumented MCP client's requests carry the trace context of the
+turn its session opened in, not of the tool call that sends them, so a consumer that trusts the
+`traceparent` links every later turn's tool calls to the first turn.
+
+### Issue
+
+`streamablehttp_client` opens a task group and starts one `post_writer` task for the session's
+life; every request the session sends, `initialize`, `tools/list` and each `tools/call`, is posted
+from that task. OpenTelemetry's context is task-local, so the httpx instrumentation reads the span
+that was current when the task started, the one around the session's opening, and puts it in each
+request's `traceparent`. ADK opens the session inside its first turn, under the agent's own
+`invoke_agent` span: the first turn's `tools/call` names that span, not its `execute_tool`, and a
+later turn's `tools/call` names the first turn's trace id. The httpx client span of each request
+sits under the same stale parent.
+
+### Reproduction
+
+Run A2UIVerse's Linear agent in live mode under `opentelemetry-instrument` with the bootstrap set
+and `OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=click`, behind Spectra's tool proxy, and send two turns
+in one conversation, "Show my open issues" and "Open A2U-5". The first turn's `tools/call
+list_issues` carries a `traceparent` whose span is `invoke_agent Linear`, while ADK's
+`execute_tool list_issues` holds its start; the second turn's `tools/list`, `tools/call get_issue`
+and `tools/call list_comments` carry the first turn's trace id.
+
+### Fix
+
+Send each request under the context of the caller, by capturing the current context where
+`send_request` is called and attaching it around the post in `post_writer`, or by posting from the
+caller's task. Spectra treats a `traceparent` naming a written turn, or a span with no call span
+of the exchange's kind at or above it, as stale, and places and links the call by time, as one
+without trace context.
