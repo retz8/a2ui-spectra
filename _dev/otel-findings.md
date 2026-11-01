@@ -638,3 +638,32 @@ Send each request under the context of the caller, by capturing the current cont
 caller's task. Spectra treats a `traceparent` naming a written turn, or a span with no call span
 of the exchange's kind at or above it, as stale, and places and links the call by time, as one
 without trace context.
+
+## 25. `opentelemetry-bootstrap` cannot suggest an instrumentation from outside contrib
+
+**Component:** `opentelemetry-instrumentation` 0.65b0, `opentelemetry/instrumentation/bootstrap.py` and
+`bootstrap_gen.py`.
+
+**Severity:** a library's instrumentation published outside the contrib repository is never
+suggested or installed by `opentelemetry-bootstrap`, so a user who relies on the bootstrap set
+misses it with no message, and its README has to say to install it by name.
+
+### Issue
+
+`opentelemetry-bootstrap` installs the instrumentations it finds in a fixed list,
+`libraries` and `default_instrumentations` in `bootstrap_gen.py`, generated into the package
+from the contrib repository's own instrumentation packages. It reads no entry point and no
+other registry, so a third-party package, such as an instrumentation of a library's SDK that
+its own project publishes, cannot add itself to the list, while `opentelemetry-instrument`
+loads any installed package that registers an `opentelemetry_instrumentor` entry point.
+
+### Reproduction
+
+Install upstream A2UI's agent SDK and Spectra's `a2ui-spectra-instrumentation` in one
+environment and run `opentelemetry-bootstrap -a requirements`: the instrumentation is not listed,
+though `opentelemetry-instrument` loads it from its entry point.
+
+### Fix
+
+Let `opentelemetry-bootstrap` read a registry a package can join, such as an entry point naming
+the library an instrumentation instruments and its version range, beside the generated list.

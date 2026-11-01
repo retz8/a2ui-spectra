@@ -1291,3 +1291,154 @@ mixed catalogs.
 Share the error classes' hierarchy and the messages between the SDKs, as the
 conformance suite shares their behaviour: one class for each kind of error,
 with the same parents, and one message text for each.
+
+## 34. The agent SDK requires an `a2ui-core` release its own workspace does not build
+
+**Component:** `python/a2ui_agent/pyproject.toml` and `python/a2ui_core`.
+
+**Severity:** an install of the agent SDK from upstream's repository is
+inconsistent by its own metadata: `uv pip check` and `pip check` report it,
+though uv's resolver accepts it. Seen at upstream `825beac28`.
+
+### Issue
+
+The agent SDK requires `a2ui-core>=0.4.1,<0.5.0`
+(`python/a2ui_agent/pyproject.toml:25`) and takes core from the workspace. The
+workspace builds core with `hatch-vcs` from the `python/a2ui-core/v*` tags, as
+`0.4.1.dev171` at this commit, which PEP 440 orders below `0.4.1`: the version
+the requirement names is not out yet, and the one built does not satisfy it.
+
+### Reproduction
+
+In a uv project that takes `a2ui-agent-sdk` from
+`git+https://github.com/a2ui-project/a2ui@825beac28` by its subdirectory,
+`python/a2ui_agent`, `uv sync` installs `a2ui-core` 0.4.1.dev171 from the same
+repository, and `uv pip check` reports "The package `a2ui-agent-sdk` requires
+`a2ui-core>=0.4.1,<0.5.0`, but `0.4.1.dev171` is installed".
+
+### Fix
+
+Require the floor the workspace builds, `a2ui-core>=0.4.1.dev0,<0.5.0`, while
+core's release is pending, or require the released `0.4.0` until it is out.
+
+## 35. `SendA2uiToClientToolset` drops the call id of the tool call it serves
+
+**Component:** `python/a2ui_adk/src/a2ui/adk/send_a2ui_to_client_toolset.py`.
+
+**Severity:** an observer of the toolset cannot name the model's tool call a
+payload came from: what it parses is tied to the call only by the span that is
+current when the tool runs. Seen at upstream `825beac28`.
+
+### Issue
+
+ADK hands each tool call's id to the tool in its context, as
+`ToolContext.function_call_id`. The toolset's tool, `send_a2ui_json_to_client`,
+reads only `actions.skip_summarization` from the context
+(`send_a2ui_to_client_toolset.py:438`) and returns `{"validated_a2ui_json": …}`
+or `{"error": …}` without the id, and logs neither. A turn whose model asks for
+the tool twice gives two parses that nothing in the toolset tells apart by
+call.
+
+### Reproduction
+
+Run the community rizzcharts sample, or any agent on `SendA2uiToClientToolset`,
+on a request that makes the model call `send_a2ui_json_to_client` twice in one
+turn, and read the tool's results and logs: neither names
+`tool_context.function_call_id`.
+
+### Fix
+
+Carry the call id in what the tool returns and logs, or let the processor's
+parse take it, so a hook or a log can name the call it parsed for.
+
+## 36. No inference format names itself
+
+**Component:** `python/a2ui_agent/src/a2ui/inference_format.py` and the four
+formats under `python/a2ui_agent/src/a2ui/inference_formats/`.
+
+**Severity:** a tool, a log line or a trace that reports which format a turn
+used has to map the format's classes to names of its own. Seen at upstream
+`825beac28`.
+
+### Issue
+
+`InferenceFormat` (`inference_format.py:32`), its factories, parsers and prompt
+generators expose no name or id: Direct JSON, Express, Elemental and Atom are
+known only by their classes, `DirectJsonParser`, `ExpressParser` and so on. A
+caller holding a processor cannot ask it which format it uses, and each
+observer invents its own spelling.
+
+### Reproduction
+
+`A2uiRequestProcessor([BasicCatalog("1.0")]).format` is an `ExpressFormat`
+whose attributes hold no name; neither do its `create_parser()` and
+`prompt_generator`.
+
+### Fix
+
+Give `InferenceFormat` a `name` property, `direct_json`, `express`, `elemental`
+and `atom`, the spelling the formats' docs use, and pass it to the parser and
+the prompt generator the format makes.
+
+## 37. The restaurant finder parses each reply twice
+
+**Component:** `samples/agent/adk/restaurant_finder/agent.py`.
+
+**Severity:** a trace or a log of the sample's A2UI step shows two parses for
+each model call, the streamed one and the whole one, and the same error twice
+when a reply fails. Seen at upstream `825beac28`.
+
+### Issue
+
+`RestaurantAgent.stream` reads each reply as a stream while it arrives,
+`processor.open_stream()` fed through `stream_response_to_parts`
+(`agent.py:308`), and then, unless the stream failed, parses the joined reply
+again with `processor.parse_response(final_response_content)` (`agent.py:345`)
+to validate it. Both read the same text, against new renderer states.
+
+### Reproduction
+
+Run the sample with a wrapper or a hook that records each `open_stream` and
+`parse_response` call, and send one message: a turn holds two parses of the
+same text for each model call.
+
+### Fix
+
+Keep the parts the stream returned as the turn's validated UI, and drop the
+second parse, or say in the sample why it parses twice.
+
+## 38. The basic catalog's prompt depends on the Python version
+
+**Component:** `python/a2ui_core/src/a2ui/core/basic_catalog/v1_0/components.py`.
+
+**Severity:** the prompt an agent sends, and any record or cache keyed by its
+text, differs between Python 3.12 or 3.13 and Python 3.14 for the same SDK and
+catalogs. Seen at upstream `825beac28`.
+
+### Issue
+
+`RowComponent.justify` (`components.py:227`) and `ColumnComponent.justify`
+(`components.py:271`) are `Literal[…] | None` over the same seven values,
+Row's sorted and Column's in the specification's order. `typing` treats two
+`Literal`s with the same values as equal, whatever their order, and on Python
+3.12 and 3.13 its union cache hands Column the union built for Row, so
+Column's values are written in Row's order. Python 3.14 builds Column its own,
+in the order it declares. The basic catalog's document, its schema and every
+prompt generated from it follow: Column's `justify` enum reads `center`,
+`end`, `spaceAround`… on 3.12 and 3.13, and `start`, `center`, `end`… on 3.14.
+
+### Reproduction
+
+```
+python -c "from a2ui.core.basic_catalog import BasicCatalog; print(BasicCatalog('1.0').to_json()['components']['Column']['properties']['justify']['enum'])"
+```
+
+prints `['center', 'end', 'spaceAround', 'spaceBetween', 'spaceEvenly',
+'start', 'stretch']` on Python 3.12 and `['start', 'center', 'end',
+'spaceBetween', 'spaceAround', 'spaceEvenly', 'stretch']` on Python 3.14. Any
+`prompt_snippet` on the basic catalog at v1.0 differs the same way.
+
+### Fix
+
+Declare the values once, as one alias both components use, or in one order in
+both, so the cache has nothing to swap.
