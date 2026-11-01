@@ -142,17 +142,29 @@ function ResultBlock({result, suffix}: {result: ToolResult; suffix: string}) {
   return <JsonBlock label={label} value={result.value} />;
 }
 
-/** A labelled list of text blocks and JSON blocks. */
+/**
+ * A labelled list of text blocks and JSON blocks, with no block for empty
+ * text; a list of empty text alone is its label line.
+ */
 function Parts({
   label,
   meta,
-  parts,
+  parts: all,
 }: {
   label: string;
   meta: string;
   parts: ReadonlyArray<{text: string} | {json: unknown}>;
 }) {
   const fold = useBlockFold(label);
+  const parts = all.filter(part => !('text' in part) || part.text !== '');
+  if (parts.length === 0 && all.length > 0) {
+    return (
+      <BlockLabel
+        label={label}
+        meta={meta === '' || meta === 'text' ? 'empty text' : `${meta} · empty text`}
+      />
+    );
+  }
   if (parts.length === 1) {
     const [part] = parts;
     return 'text' in part ? (

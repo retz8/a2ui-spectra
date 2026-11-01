@@ -25,6 +25,7 @@ import {
   spanApiOf,
   usageOf,
 } from '@/model/model_calls.ts';
+import {emptyNoteOf, shownParts} from '@/model/empty_parts.ts';
 import {type Marker, partName, partText, type PrefixBreak} from '@/model/prefix.ts';
 import {type ModelCallEvent, type TurnRecordEvent, unixMillis} from '@/model/record.ts';
 import {plural} from '@/model/steps.ts';
@@ -401,7 +402,7 @@ function Request({
         const {role, parts} = (message ?? {}) as {role?: unknown; parts?: unknown};
         const list = asList(parts);
         const label = `Message ${index + 1}`;
-        const roleMeta = messageMeta(role, list);
+        const roleMeta = messageMeta(role, shownParts(list));
         if (marker?.segment === firstMessage + index) {
           const mono = list.some(part => (part as {type?: unknown})?.type !== 'text');
           return (
@@ -423,17 +424,25 @@ function messageMeta(role: unknown, parts: readonly unknown[]): string {
     : name;
 }
 
-/** A message's parts in order: text as text, every other part as a JSON block. */
+/**
+ * A message's parts in order: text as text, every other part as a JSON
+ * block, and no block for a part with nothing in it; a message whose parts
+ * all hold nothing is its label line alone.
+ */
 function PartsBlock({
   label,
   meta,
-  parts,
+  parts: all,
 }: {
   label: string;
   meta: string;
   parts: readonly unknown[];
 }) {
   const fold = useBlockFold(label);
+  const parts = shownParts(all);
+  if (parts.length === 0 && all.length > 0) {
+    return <BlockLabel label={label} meta={`${meta} · ${emptyNoteOf(all)}`} />;
+  }
   if (parts.length === 1) {
     const [part] = parts;
     const {type, content} = (part ?? {}) as {type?: unknown; content?: unknown};
