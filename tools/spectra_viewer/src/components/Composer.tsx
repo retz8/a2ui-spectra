@@ -169,12 +169,12 @@ export function Composer({
           <span className="min-w-0 truncate">{refusedLine(refused)}</span>
         ) : actionRefused !== undefined ? (
           <>
-            <Icon kind="failed" size={13} />
+            <Icon kind="failed" size={14} />
             <span className="min-w-0 truncate">{actionRefused}</span>
           </>
         ) : (
           <>
-            <Icon kind={icon} size={13} className={toneOf(icon)} />
+            <Icon kind={icon} size={14} className={toneOf(icon)} />
             <span className="min-w-0 truncate">{label}</span>
           </>
         )}
@@ -188,7 +188,7 @@ export function Composer({
             }}
             className="ease-quick inline-flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-md px-2 font-medium hover:bg-tint hover:text-foreground"
           >
-            <Icon kind="plus" size={13} />
+            <Icon kind="plus" size={14} />
             New conversation
           </button>
         )}
@@ -211,8 +211,8 @@ export function Composer({
           ref={form}
           onSubmit={event => void send(event)}
           className={cn(
-            'ease-quick flex min-h-10 items-end gap-2 rounded-[10px] border py-1 pr-[5px] pl-3',
-            'focus-within:border-brand focus-within:ring-[3px] focus-within:ring-brand-soft',
+            'ease-quick flex min-h-10 items-end gap-2 rounded-xl border py-1 pr-1 pl-3',
+            'focus-within:border-brand focus-within:ring-3 focus-within:ring-brand-soft',
             disabled ? 'bg-tint' : 'bg-panel',
           )}
         >
@@ -229,18 +229,18 @@ export function Composer({
                 ? 'Waiting for the turn to finish'
                 : (view.waiting ?? (waitsForInput ? `Reply to ${agent}` : `Message ${agent}`))
             }
-            className="max-h-[130px] min-w-0 flex-1 resize-none bg-transparent py-[5px] text-sm leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-default"
+            className="max-h-33 min-w-0 flex-1 resize-none bg-transparent py-1.5 text-sm leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-default"
           />
           {!disabled && (
-            <span className="shrink-0 pb-[7px] text-xs text-muted-foreground">Enter to send</span>
+            <span className="shrink-0 pb-2 text-xs text-muted-foreground">Enter to send</span>
           )}
           <button
             type="submit"
             aria-label="Send"
             disabled={disabled || text.trim() === '' || refused !== undefined}
-            className="ease-quick flex size-[30px] shrink-0 cursor-pointer items-center justify-center rounded-lg bg-brand text-brand-on disabled:cursor-default disabled:bg-border disabled:text-muted-foreground"
+            className="ease-quick flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-brand text-brand-on disabled:cursor-default disabled:bg-border disabled:text-muted-foreground"
           >
-            <Icon kind="send" size={15} />
+            <Icon kind="send" size={16} />
           </button>
         </form>
       )}
@@ -284,9 +284,9 @@ function PendingBox({
         event.preventDefault();
         onDiscard();
       }}
-      className="ease-quick flex flex-col gap-1.5 rounded-[10px] border bg-panel py-[5px] pr-[5px] pb-2.5 pl-3 focus-within:border-brand focus-within:ring-[3px] focus-within:ring-brand-soft"
+      className="ease-quick flex flex-col gap-1.5 rounded-xl border bg-panel pt-1 pr-1 pb-2.5 pl-3 focus-within:border-brand focus-within:ring-3 focus-within:ring-brand-soft"
     >
-      <div className="flex h-[30px] min-w-0 items-center gap-2">
+      <div className="flex h-8 min-w-0 items-center gap-2">
         <Icon kind="input" size={14} className="shrink-0 text-muted-foreground" />
         <span className="shrink-0 font-semibold">Action “{action.name}”</span>
         <span className="min-w-0 truncate text-xs text-muted-foreground">
@@ -296,7 +296,7 @@ function PendingBox({
         <CopyButton
           text={JSON.stringify(shown, null, 2)}
           label="Copy the action"
-          className="h-[30px] rounded-lg px-2 text-xs"
+          className="h-8 rounded-lg px-2 text-xs"
         >
           Copy
         </CopyButton>
@@ -304,7 +304,7 @@ function PendingBox({
           ref={discardRef}
           type="button"
           onClick={onDiscard}
-          className="ease-quick h-[30px] shrink-0 cursor-pointer rounded-lg px-2.5 text-xs font-medium text-muted-foreground hover:bg-tint hover:text-foreground"
+          className="ease-quick h-8 shrink-0 cursor-pointer rounded-lg px-2.5 text-xs font-medium text-muted-foreground hover:bg-tint hover:text-foreground"
         >
           Discard
         </button>
@@ -313,7 +313,7 @@ function PendingBox({
           type="button"
           disabled={sendOff}
           onClick={onSend}
-          className="ease-quick inline-flex h-[30px] shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-brand pr-3 pl-2.5 text-xs font-semibold text-brand-on disabled:cursor-default disabled:bg-border disabled:text-muted-foreground"
+          className="ease-quick inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-brand pr-3 pl-2.5 text-xs font-semibold text-brand-on disabled:cursor-default disabled:bg-border disabled:text-muted-foreground"
         >
           <Icon kind="send" size={14} />
           Send
@@ -323,7 +323,7 @@ function PendingBox({
         key={JSON.stringify(pending)}
         value={shown}
         folded={foldedAtFirst(pending.dataModel)}
-        className="mr-[7px] max-h-32"
+        className="mr-2 max-h-32"
       />
     </div>
   );

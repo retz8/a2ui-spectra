@@ -90,7 +90,7 @@ Each step type has its own icon shape, in grey. Only the selected row is teal, a
 
 ### 20. Type: compact, Inter
 
-The scale steps in 2px: 18px for the turn's title, 16px for pane titles, 14px for body text and rows, and 12px for metadata, monospace and section labels in small capitals. List rows and steps are about 32px tall. The typeface is Inter, bundled with the viewer.
+The scale steps in 2px: 18px for the turn's title, 16px for pane titles, 14px for body text and rows, and 12px for metadata, monospace and section labels in small capitals. List rows and steps are about 32px tall. Every size, space, radius, line height and letter spacing is a step of Tailwind's scale, and a recurring value with no step, such as the selected row's mark or a key column's width, is a theme token. The typeface is Inter, bundled with the viewer.
 
 ### 21. Surfaces: raised panels on a soft canvas
 

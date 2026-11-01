@@ -96,7 +96,7 @@ export function Timeline({
           </>
         )}
         {live && (
-          <span className="inline-flex items-center gap-[5px] text-xs font-semibold text-brand">
+          <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand">
             <Icon kind="dot" size={8} />
             Live
           </span>
@@ -123,7 +123,7 @@ export function Timeline({
           const base = cn(
             'ease-quick fade-in-quick flex w-full cursor-pointer items-center gap-2 rounded-lg text-left',
             isSelected
-              ? 'bg-brand-soft shadow-[inset_2px_0_0_var(--brand)] group-focus-visible/steps:outline-2 group-focus-visible/steps:-outline-offset-2 group-focus-visible/steps:outline-brand'
+              ? 'bg-brand-soft shadow-mark-start group-focus-visible/steps:outline-2 group-focus-visible/steps:-outline-offset-2 group-focus-visible/steps:outline-brand'
               : 'hover:bg-tint',
           );
           // A row pressed is selected, with focus on the list.
@@ -140,7 +140,7 @@ export function Timeline({
           const lane = lanes.byRow.get(row.id);
           const end = (
             <>
-              <span className="w-[46px] shrink-0 text-right text-xs font-normal whitespace-nowrap text-muted-foreground">
+              <span className="w-12 shrink-0 text-right text-xs font-normal whitespace-nowrap text-muted-foreground">
                 {lane?.kind === 'bar' ? formatDurationCompact(lane.end - lane.start) : ''}
               </span>
               <LaneMark
@@ -164,7 +164,7 @@ export function Timeline({
                   isSelected ? 'font-semibold' : 'text-muted-foreground',
                 )}
               >
-                <span className="w-[52px] shrink-0 text-right">
+                <span className="w-13 shrink-0 text-right">
                   {row.offsetMs === undefined ? '' : formatOffsetCompact(row.offsetMs)}
                 </span>
                 <Icon
@@ -178,7 +178,7 @@ export function Timeline({
                 <span className="min-w-0 flex-1 truncate">
                   {row.row === 'delivery' ? '' : row.target}
                 </span>
-                {row.row === 'step' && <ProblemMark count={count} size={13} />}
+                {row.row === 'step' && <ProblemMark count={count} size={12} />}
                 {end}
               </button>
             );
@@ -190,12 +190,12 @@ export function Timeline({
               role="option"
               aria-selected={isSelected}
               {...press}
-              className={cn(base, 'h-8 pr-2', row.grouped ? 'pl-[22px]' : 'pl-2')}
+              className={cn(base, 'h-8 pr-2', row.grouped ? 'pl-6' : 'pl-2')}
             >
               <span
                 className={cn(
                   'shrink-0 text-right text-xs text-muted-foreground',
-                  row.grouped ? 'w-[38px]' : 'w-[52px]',
+                  row.grouped ? 'w-9' : 'w-13',
                 )}
               >
                 {row.offsetMs === undefined ? '' : formatOffsetCompact(row.offsetMs)}
@@ -214,7 +214,7 @@ export function Timeline({
               <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
                 {row.target}
               </span>
-              <ProblemMark count={count} size={13} />
+              <ProblemMark count={count} size={12} />
               {end}
             </button>
           );
@@ -225,7 +225,7 @@ export function Timeline({
           <button
             type="button"
             onClick={onJump}
-            className="ease-quick pointer-events-auto inline-flex h-[30px] cursor-pointer items-center gap-1.5 rounded-full bg-foreground pr-3 pl-2.5 text-xs font-semibold text-panel shadow-float"
+            className="ease-quick pointer-events-auto inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-foreground pr-3 pl-2.5 text-xs font-semibold text-panel shadow-float"
           >
             <Icon kind="jump" size={14} />
             Jump to latest
@@ -258,14 +258,14 @@ function LaneMark({
         ? 'var(--problem)'
         : 'var(--muted-foreground)';
   const at = (ms: number) => `${shareOf(ms, total).toFixed(2)}%`;
-  const width = (from: number, to: number) => `max(3px, ${shareOf(to - from, total).toFixed(2)}%)`;
+  const width = (from: number, to: number) => `max(4px, ${shareOf(to - from, total).toFixed(2)}%)`;
   return (
     <span aria-hidden="true" className="relative h-3 w-12 shrink-0">
-      <span className="absolute inset-x-0 top-[5px] h-0.5 rounded-[1px] bg-border" />
+      <span className="absolute inset-x-0 top-1/2 h-0.5 -translate-y-1/2 rounded-full bg-border" />
       {lane?.kind === 'bar' && (
         <>
           <span
-            className="absolute top-0.5 h-2 rounded-[2px]"
+            className="absolute top-0.5 h-2 rounded-xs"
             style={{
               left: at(lane.start),
               width: width(lane.start, lane.end),
@@ -274,7 +274,7 @@ function LaneMark({
           />
           {!lane.waitsForToken && (
             <span
-              className="absolute top-0.5 h-2 rounded-[2px]"
+              className="absolute top-0.5 h-2 rounded-xs"
               style={{
                 left: at(lane.firstToken ?? lane.start),
                 width: width(lane.firstToken ?? lane.start, lane.end),
@@ -286,7 +286,7 @@ function LaneMark({
       )}
       {lane?.kind === 'dot' && (
         <span
-          className="absolute top-[3px] -ml-[3px] size-1.5 rounded-full"
+          className="absolute top-1/2 size-1.5 -translate-x-1/2 -translate-y-1/2 rounded-full"
           style={{left: at(lane.at), background: colour}}
         />
       )}

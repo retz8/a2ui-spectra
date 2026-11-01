@@ -54,7 +54,7 @@ export function Strip({
   return (
     <section
       aria-label="Turns"
-      className="flex w-[52px] shrink-0 flex-col items-center gap-1 rounded-xl bg-panel py-2.5 shadow-panel"
+      className="flex w-13 shrink-0 flex-col items-center gap-1 rounded-xl bg-panel py-2.5 shadow-panel"
     >
       <button
         ref={buttonRef}
@@ -64,7 +64,7 @@ export function Strip({
         aria-expanded={open}
         onClick={onOpen}
         className={cn(
-          'ease-quick flex h-[30px] w-[34px] shrink-0 cursor-pointer items-center justify-center rounded-lg',
+          'ease-quick flex h-8 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg',
           open ? 'bg-brand-soft text-brand' : 'bg-tint text-foreground hover:bg-border',
         )}
       >
@@ -80,7 +80,7 @@ export function Strip({
         onKeyDown={onKeyDown}
         // The list fits the strip and scrolls with no scrollbar of its own, which a classic
         // scrollbar would push outside the strip; the selected turn is scrolled into view.
-        className="group/strip flex min-h-0 w-full flex-col items-center gap-1 overflow-y-auto px-[9px] outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="group/strip flex min-h-0 w-full flex-col items-center gap-1 overflow-y-auto px-2 outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {strip.map(({turn, problems, title}) => {
           const isSelected = turn.traceId === selected;
@@ -101,9 +101,9 @@ export function Strip({
                 list.current?.focus({preventScroll: true});
               }}
               className={cn(
-                'ease-quick fade-in-quick relative flex h-7 w-[34px] shrink-0 cursor-pointer items-center justify-center rounded-lg',
+                'ease-quick fade-in-quick relative flex h-7 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg',
                 isSelected
-                  ? 'bg-brand-soft shadow-[inset_2px_0_0_var(--brand)] group-focus-visible/strip:outline-2 group-focus-visible/strip:-outline-offset-2 group-focus-visible/strip:outline-brand'
+                  ? 'bg-brand-soft shadow-mark-start group-focus-visible/strip:outline-2 group-focus-visible/strip:-outline-offset-2 group-focus-visible/strip:outline-brand'
                   : 'hover:bg-tint',
               )}
             >
@@ -112,7 +112,7 @@ export function Strip({
                 <span
                   aria-hidden="true"
                   className={cn(
-                    'absolute top-[3px] right-[5px] size-1.5 rounded-full bg-problem',
+                    'absolute top-1 right-1.5 size-1.5 rounded-full bg-problem',
                     isSelected ? 'ring-2 ring-brand-soft' : 'ring-2 ring-panel',
                   )}
                 />

@@ -29,12 +29,10 @@ export function FirstScreen({
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3.5 overflow-y-auto p-8 text-center">
       <Mark size={40} />
       <div className="flex flex-col items-center gap-1">
-        <h1 className="text-lg leading-[1.3] font-semibold">{context?.agentName ?? 'The agent'}</h1>
+        <h1 className="text-lg leading-tight font-semibold">{context?.agentName ?? 'The agent'}</h1>
         <Status connected={connected} />
       </div>
-      <p className="max-w-[420px] text-muted-foreground">
-        Send a message to start your first turn.
-      </p>
+      <p className="max-w-105 text-muted-foreground">Send a message to start your first turn.</p>
       {examples.length > 0 && (
         <div className="mt-1.5 flex flex-col items-center gap-2">
           <span className="section-label">From the agent's card</span>
@@ -43,7 +41,7 @@ export function FirstScreen({
               key={index}
               type="button"
               onClick={() => onExample(example)}
-              className="ease-quick inline-flex h-[34px] max-w-[560px] cursor-pointer items-center gap-2 rounded-full border bg-panel px-3.5 hover:bg-tint"
+              className="ease-quick inline-flex h-9 max-w-140 cursor-pointer items-center gap-2 rounded-full border bg-panel px-3.5 hover:bg-tint"
             >
               <Icon kind="text" size={14} className="text-muted-foreground" />
               <span className="truncate">{example}</span>
@@ -57,14 +55,14 @@ export function FirstScreen({
           <CopyButton
             text={context.proxyAddress}
             label="Copy the wire proxy's address"
-            className="h-[26px] gap-1.5 rounded-lg border bg-panel pr-2 pl-2.5 text-xs text-foreground hover:bg-panel"
+            className="h-7 gap-1.5 rounded-lg border bg-panel pr-2 pl-2.5 text-xs text-foreground hover:bg-panel"
           >
             {addressOf(context.proxyAddress)}
           </CopyButton>
         </div>
       )}
       {variables.length > 0 && (
-        <div className="mt-2.5 flex w-[600px] max-w-full flex-col gap-2 text-left">
+        <div className="mt-2.5 flex w-150 max-w-full flex-col gap-2 text-left">
           <div className="flex items-center gap-2">
             <span className="flex-1 text-xs text-muted-foreground">
               To see model and tool calls, set these in the agent’s shell
@@ -72,12 +70,12 @@ export function FirstScreen({
             <CopyButton
               text={variables.map(({name, value}) => `export ${name}=${value}`).join('\n')}
               label="Copy the variables"
-              className="h-[26px] gap-1.5 rounded-lg border bg-panel pr-2 pl-2.5 text-xs text-foreground hover:bg-panel"
+              className="h-7 gap-1.5 rounded-lg border bg-panel pr-2 pl-2.5 text-xs text-foreground hover:bg-panel"
             >
               Copy
             </CopyButton>
           </div>
-          <div className="overflow-x-auto rounded-lg bg-tint px-3 py-2 font-mono text-xs leading-[1.7]">
+          <div className="overflow-x-auto rounded-lg bg-tint px-3 py-2 font-mono text-xs leading-relaxed">
             {variables.map(({name, value}) => (
               <div key={name} className="whitespace-pre">
                 {name}={value}

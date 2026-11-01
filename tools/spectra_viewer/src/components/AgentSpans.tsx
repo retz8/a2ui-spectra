@@ -199,7 +199,7 @@ function FoldRows({label, rows, mono = false}: {label: string; rows: FoldRow[]; 
                     }}
                     className="flex size-4 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-border hover:text-foreground"
                   >
-                    <Icon kind={unfolded ? 'chevronDown' : 'chevronRight'} size={11} />
+                    <Icon kind={unfolded ? 'chevronDown' : 'chevronRight'} size={12} />
                   </button>
                   {row.time !== undefined && (
                     <span className="w-14 shrink-0 text-right whitespace-nowrap text-muted-foreground">

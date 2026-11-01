@@ -148,7 +148,7 @@ export function TurnList({
               aria-label="Collapse the turn list"
               title="Collapse the turn list"
               onClick={onCollapse}
-              className="ease-quick ml-auto flex size-[26px] cursor-pointer items-center justify-center self-center rounded-md text-muted-foreground hover:bg-tint hover:text-foreground"
+              className="ease-quick ml-auto flex size-6 cursor-pointer items-center justify-center self-center rounded-md text-muted-foreground hover:bg-tint hover:text-foreground"
             >
               <Icon kind="chevronLeft" size={14} />
             </button>
@@ -165,7 +165,7 @@ export function TurnList({
             aria-label="Search turns"
             className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
           />
-          <kbd className="rounded border px-[5px] text-xs leading-4 text-muted-foreground">/</kbd>
+          <kbd className="rounded border px-1.5 text-xs leading-4 text-muted-foreground">/</kbd>
         </label>
       </div>
       {groups.length === 0 && (
@@ -345,7 +345,7 @@ function Group({
           active === id && ACTIVE,
         )}
       >
-        <Icon kind={icon} size={15} className={cn('mt-0.5', toneOf(icon))} />
+        <Icon kind={icon} size={16} className={cn('mt-0.5', toneOf(icon))} />
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline gap-2">
             <span className="min-w-0 flex-1 truncate font-medium">
@@ -411,7 +411,7 @@ function Row({
       onClick={() => onSelect(turn.traceId)}
       className={cn(
         'ease-quick fade-in-quick flex h-8 w-full cursor-pointer items-center gap-2 rounded-lg px-2 text-left',
-        selected ? 'bg-brand-soft shadow-[inset_2px_0_0_var(--brand)]' : 'hover:bg-tint',
+        selected ? 'bg-brand-soft shadow-mark-start' : 'hover:bg-tint',
         active && ACTIVE,
       )}
     >
@@ -436,7 +436,7 @@ export function ProblemMark({count, size}: {count: number; size: number}) {
   return (
     <span
       title={plural(count, 'problem')}
-      className="inline-flex shrink-0 items-center gap-[3px] text-xs font-semibold text-problem"
+      className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-problem"
     >
       <Icon kind="failed" size={size} />
       {count}

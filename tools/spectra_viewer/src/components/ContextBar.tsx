@@ -29,7 +29,7 @@ export function ContextBar({
         <AgentPopover context={context} name={name} />
       )}
       {context !== undefined && (
-        <span className="inline-flex h-5 items-center rounded-md bg-tint px-[7px] text-xs text-muted-foreground">
+        <span className="inline-flex h-5 items-center rounded-md bg-tint px-2 text-xs text-muted-foreground">
           {context.mode}
         </span>
       )}
@@ -87,14 +87,14 @@ function AgentPopover({context, name}: {context: SessionContext; name: string}) 
           align="start"
           sideOffset={6}
           aria-label="The agent"
-          className="fade-in-quick z-50 flex w-[340px] flex-col gap-2.5 rounded-xl bg-panel px-4 py-3.5 text-foreground shadow-float"
+          className="fade-in-quick z-50 flex w-85 flex-col gap-2.5 rounded-xl bg-panel px-4 py-3.5 text-foreground shadow-float"
         >
           <span className="text-base font-semibold">{name}</span>
-          <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-y-1.5 text-xs">
+          <div className="grid grid-cols-facts gap-y-1.5 text-xs">
             {rows.map(([label, value], index) => (
               <Fragment key={index}>
                 <span className="text-muted-foreground">{label}</span>
-                <span className="[overflow-wrap:anywhere]">{value}</span>
+                <span className="wrap-anywhere">{value}</span>
               </Fragment>
             ))}
           </div>

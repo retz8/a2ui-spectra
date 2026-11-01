@@ -251,7 +251,7 @@ export function App() {
     />
   );
   return (
-    <div className="flex h-screen min-w-[740px] bg-canvas">
+    <div className="flex h-screen min-w-185 bg-canvas">
       <Rail keysOpen={keysOpen} onKeys={() => setKeysOpen(true)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <ContextBar context={state.context} connected={state.connected} />
@@ -269,7 +269,7 @@ export function App() {
             />
           )}
           {small && overlay !== undefined && (
-            <div ref={overlayBox} className="absolute top-0 bottom-2 left-[60px] z-30 w-[296px]">
+            <div ref={overlayBox} className="absolute top-0 bottom-2 left-15 z-30 w-74">
               <TurnList
                 turns={listed}
                 loaded={state.loaded}
@@ -321,7 +321,7 @@ export function App() {
                   <div
                     className={cn(
                       'h-full',
-                      swing === undefined && 'min-w-[240px]',
+                      swing === undefined && 'min-w-60',
                       swing === undefined && turnListCollapsed && 'invisible',
                     )}
                     style={swing === undefined ? undefined : {width: swingWidth}}

@@ -20,6 +20,15 @@
   --shadow-panel: var(--panel-shadow);
   --shadow-float: var(--float-shadow);
   --shadow-overlay: var(--overlay-shadow);
+  /* The selected row's mark at its start, and the selected tab's under it. */
+  --shadow-mark-start: inset 2px 0 0 var(--brand);
+  --shadow-mark-bottom: inset 0 -2px 0 var(--brand);
+  /* Two columns, a key of a fixed width and its value: the agent's facts, a prefix break's lines and the keys and values. */
+  --grid-template-columns-facts: calc(var(--spacing) * 24) minmax(0, 1fr);
+  --grid-template-columns-diff: calc(var(--spacing) * 21) minmax(0, 1fr);
+  --grid-template-columns-pairs: calc(var(--spacing) * 42) minmax(0, 1fr);
+  --grid-template-columns-pairs-narrow: calc(var(--spacing) * 38) minmax(0, 1fr);
+  --grid-template-columns-pairs-wide: calc(var(--spacing) * 65) minmax(0, 1fr);
   --color-scrim: var(--scrim);
   --color-ring: var(--ring);
   --color-input: var(--input);
@@ -124,7 +133,7 @@
 
 /* A small label in capitals, separating sections inside a panel. */
 @utility section-label {
-  @apply text-xs font-semibold tracking-[0.06em] text-muted-foreground uppercase;
+  @apply text-xs font-semibold tracking-wider text-muted-foreground uppercase;
 }
 
 /* Motion is brief, and stops when the system asks for reduced motion. */

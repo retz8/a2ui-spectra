@@ -69,7 +69,7 @@ export function JsonBlock({
         <CopyButton
           text={JSON.stringify(value, null, 2)}
           label={`Copy the ${label.toLowerCase()}`}
-          className="h-[22px] px-1.5 text-xs"
+          className="h-6 px-1.5 text-xs"
         >
           Copy
         </CopyButton>
@@ -77,7 +77,7 @@ export function JsonBlock({
       {fold.open && (
         <div
           ref={block}
-          className="overflow-x-auto rounded-lg bg-tint py-2 font-mono text-xs leading-[1.6]"
+          className="overflow-x-auto rounded-lg bg-tint py-2 font-mono text-xs leading-relaxed"
         >
           {lines.map((line, index) => (
             <LineRow key={index} line={line} marked={marked.has(index)} onToggle={toggle} />
@@ -106,7 +106,7 @@ export function JsonLines({
   return (
     <div
       className={cn(
-        'overflow-auto rounded-lg bg-tint py-1.5 font-mono text-xs leading-[1.6]',
+        'overflow-auto rounded-lg bg-tint py-1.5 font-mono text-xs leading-relaxed',
         className,
       )}
     >
@@ -137,7 +137,7 @@ function LineRow({
     <div
       className={cn('flex w-max min-w-full pr-3 pl-1 whitespace-pre', marked && 'bg-problem-soft')}
     >
-      <span className="flex w-[18px] shrink-0 items-center justify-center">
+      <span className="flex w-4 shrink-0 items-center justify-center">
         {line.fold !== undefined && (
           <button
             type="button"
@@ -146,7 +146,7 @@ function LineRow({
             onClick={() => onToggle(line.fold!)}
             className="flex size-4 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-border hover:text-foreground"
           >
-            <Icon kind={line.folded ? 'chevronRight' : 'chevronDown'} size={11} />
+            <Icon kind={line.folded ? 'chevronRight' : 'chevronDown'} size={12} />
           </button>
         )}
       </span>
@@ -170,7 +170,7 @@ export function BlockLabel({
 }) {
   return (
     // The sections' inset and chevron, so a block's label lines up with theirs.
-    <div className="flex h-[22px] items-center gap-2 pl-0.5">
+    <div className="flex h-6 items-center gap-2 pl-0.5">
       {fold !== undefined && (
         <button
           type="button"

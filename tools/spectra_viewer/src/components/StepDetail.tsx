@@ -83,7 +83,7 @@ export function StepDetail({
             <span className="shrink-0 font-semibold">{row.label}</span>
             {/* A failed turn's reason is its problem block's sentence. */}
             {!(row.kind === 'outcome' && row.outcome === 'failed') && (
-              <span className="min-w-0 shrink-[100] truncate text-xs text-muted-foreground">
+              <span className="min-w-0 shrink-100 truncate text-xs text-muted-foreground">
                 {title?.target ?? row.target}
               </span>
             )}
@@ -107,7 +107,7 @@ export function StepDetail({
           title={maximized ? 'Restore the split · m' : 'Maximize the step’s detail · m'}
           onClick={onMaximize}
           className={cn(
-            'ease-quick flex size-[26px] cursor-pointer items-center justify-center rounded-md',
+            'ease-quick flex size-6 cursor-pointer items-center justify-center rounded-md',
             maximized
               ? 'bg-tint text-foreground'
               : 'text-muted-foreground hover:bg-tint hover:text-foreground',
@@ -120,7 +120,7 @@ export function StepDetail({
           aria-label={collapsed ? 'Expand the step’s detail' : 'Collapse the step’s detail'}
           aria-expanded={!collapsed}
           onClick={onToggle}
-          className="ease-quick flex size-[26px] cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-tint hover:text-foreground"
+          className="ease-quick flex size-6 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-tint hover:text-foreground"
         >
           <Icon kind={collapsed ? 'chevronRight' : 'chevronDown'} size={14} />
         </button>
@@ -132,7 +132,7 @@ export function StepDetail({
             return mark === undefined ? (
               <div
                 key={index}
-                className="flex items-start gap-2.5 rounded-[10px] bg-problem-soft px-3 py-2.5"
+                className="flex items-start gap-2.5 rounded-lg bg-problem-soft px-3 py-2.5"
               >
                 <ProblemText problem={problem} />
               </div>
@@ -141,11 +141,11 @@ export function StepDetail({
                 key={index}
                 type="button"
                 onClick={() => setReveal({path: mark})}
-                className="group ease-quick flex shrink-0 cursor-pointer items-start gap-2.5 rounded-[10px] bg-problem-soft px-3 py-2.5 text-left hover:shadow-[inset_0_0_0_1px_var(--problem)]"
+                className="group ease-quick flex shrink-0 cursor-pointer items-start gap-2.5 rounded-lg bg-problem-soft px-3 py-2.5 text-left hover:inset-ring hover:inset-ring-problem"
               >
                 <ProblemText problem={problem} />
                 <span className="ease-quick mt-px ml-auto inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-muted-foreground group-hover:text-brand">
-                  <Icon kind="jump" size={13} />
+                  <Icon kind="jump" size={14} />
                   Show line
                 </span>
               </button>
@@ -345,11 +345,13 @@ function FoldedDelivery({event, offset}: {event: WireEvent; offset: number}) {
         type="button"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
-        className="ease-quick flex h-[34px] shrink-0 cursor-pointer items-center gap-2 border-t px-0.5 text-left text-xs text-muted-foreground hover:text-foreground"
+        className="ease-quick flex h-9 shrink-0 cursor-pointer items-center gap-2 border-t px-0.5 text-left text-xs text-muted-foreground hover:text-foreground"
       >
-        <Icon kind={open ? 'chevronDown' : 'chevronRight'} size={13} />
+        <span className="flex size-4 shrink-0 items-center justify-center">
+          <Icon kind={open ? 'chevronDown' : 'chevronRight'} size={12} />
+        </span>
         <Icon kind="delivery" size={14} />
-        <span className="font-semibold tracking-[0.06em] uppercase">Delivery</span>
+        <span className="font-semibold tracking-wider uppercase">Delivery</span>
         <span>
           {formatOffset(offset)} · {plural(parts, 'part')}
         </span>

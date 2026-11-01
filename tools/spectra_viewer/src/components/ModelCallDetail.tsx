@@ -229,7 +229,7 @@ function FigureGroup({
     <div className="flex flex-col gap-1.5">
       <span className="section-label">{label}</span>
       {figures.length > 0 && (
-        <div className="flex flex-wrap gap-x-[22px] gap-y-1.5">
+        <div className="flex flex-wrap gap-x-6 gap-y-1.5">
           {figures.map(figure => (
             <div key={figure.name} className="flex flex-col">
               <span className="text-xs text-muted-foreground">{figure.name}</span>
@@ -305,9 +305,7 @@ function MarkedText({
   const line = ([before, differing, after]: readonly [string, string, string]) => (
     <span className="min-w-0 break-words whitespace-pre-wrap">
       {before}
-      <span className="rounded-[3px] bg-[color-mix(in_srgb,var(--muted-foreground)_24%,transparent)] px-0.5">
-        {differing}
-      </span>
+      <span className="rounded-sm bg-muted-foreground/25 px-0.5">{differing}</span>
       {after}
     </span>
   );
@@ -318,7 +316,7 @@ function MarkedText({
         <div
           className={cn(
             'flex flex-col rounded-lg bg-tint px-3 py-2.5 break-words whitespace-pre-wrap',
-            mono && 'font-mono text-xs leading-[1.6]',
+            mono && 'font-mono text-xs leading-relaxed',
           )}
         >
           {marker.before !== '' && <span>{marker.before.replace(/\n$/, '')}</span>}
@@ -331,14 +329,10 @@ function MarkedText({
             Shared prefix ends
             <span className="h-px flex-1 bg-muted-foreground" />
           </span>
-          <span className="mb-1.5 grid grid-cols-[84px_minmax(0,1fr)] gap-x-2.5 gap-y-0.5">
-            <span className="font-sans text-xs leading-[21px] text-muted-foreground">
-              Earlier call
-            </span>
+          <span className="mb-1.5 grid grid-cols-diff gap-x-2.5 gap-y-0.5">
+            <span className="font-sans text-xs leading-5 text-muted-foreground">Earlier call</span>
             {line(marker.earlier)}
-            <span className="font-sans text-xs leading-[21px] text-muted-foreground">
-              This call
-            </span>
+            <span className="font-sans text-xs leading-5 text-muted-foreground">This call</span>
             {line(marker.current)}
           </span>
           {marker.after !== '' && <span>{marker.after.replace(/^\n/, '')}</span>}
@@ -514,7 +508,7 @@ function ToolDefinitions({
                     }}
                     className="flex size-4 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-border hover:text-foreground"
                   >
-                    <Icon kind={unfolded ? 'chevronDown' : 'chevronRight'} size={11} />
+                    <Icon kind={unfolded ? 'chevronDown' : 'chevronRight'} size={12} />
                   </button>
                   <span className="shrink-0 font-mono font-medium">{String(name ?? '')}</span>
                   <span className="min-w-0 flex-1 truncate text-muted-foreground">

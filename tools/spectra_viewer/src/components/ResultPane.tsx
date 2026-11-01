@@ -76,7 +76,7 @@ export function ResultPane({
   return (
     <section aria-label="Result" className="flex h-full min-h-0 flex-col">
       {reply !== '' && !folded && (
-        <div className="mx-4 mt-3 flex shrink-0 items-start gap-2.5 rounded-[10px] bg-tint px-3 py-2.5">
+        <div className="mx-4 mt-3 flex shrink-0 items-start gap-2.5 rounded-lg bg-tint px-3 py-2.5">
           <Icon kind="text" size={14} className="mt-0.5 text-muted-foreground" />
           <p className="min-w-0 flex-1">{reply}</p>
         </div>
@@ -95,7 +95,7 @@ export function ResultPane({
               className={cn(
                 'ease-quick cursor-pointer px-0.5 text-sm',
                 toggle.on
-                  ? 'font-semibold text-foreground shadow-[inset_0_-2px_0_var(--brand)]'
+                  ? 'font-semibold text-foreground shadow-mark-bottom'
                   : 'font-medium text-muted-foreground hover:text-foreground',
               )}
             >
@@ -109,7 +109,7 @@ export function ResultPane({
           <>
             <span
               title={drawn.label === 'built-in' ? 'Spectra’s built-in preview page' : drawn.label}
-              className="max-w-[220px] min-w-0 truncate text-xs text-muted-foreground"
+              className="max-w-55 min-w-0 truncate text-xs text-muted-foreground"
             >
               {drawn.label}
             </span>
@@ -204,8 +204,8 @@ function Panes({
 function Centered({children, icon = false}: {children: string; icon?: boolean}) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground">
-      {icon && <Icon kind="createSurface" size={22} />}
-      <p className="max-w-[360px]">{children}</p>
+      {icon && <Icon kind="createSurface" size={24} />}
+      <p className="max-w-90">{children}</p>
     </div>
   );
 }
@@ -237,14 +237,14 @@ function SurfaceSwitcher({
           <span className="text-muted-foreground">Surface</span>
           <span className="font-semibold">{current.surfaceId}</span>
           <ProblemMark count={problemsBySurface.get(current.surfaceId) ?? 0} size={12} />
-          <Icon kind="chevronDown" size={13} className="text-muted-foreground" />
+          <Icon kind="chevronDown" size={12} className="text-muted-foreground" />
         </button>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
           align="end"
           sideOffset={6}
-          className="fade-in-quick z-50 flex w-[420px] flex-col gap-0.5 rounded-[10px] bg-panel p-1.5 text-sm shadow-float"
+          className="fade-in-quick z-50 flex w-105 flex-col gap-0.5 rounded-xl bg-panel p-1.5 text-sm shadow-float"
         >
           <div role="listbox" aria-label="Surfaces" className="flex flex-col gap-0.5">
             {groups.map(group => (
@@ -264,13 +264,11 @@ function SurfaceSwitcher({
                       }}
                       className={cn(
                         'ease-quick flex cursor-pointer flex-col gap-px rounded-lg px-2 py-1.5 text-left',
-                        selected
-                          ? 'bg-brand-soft shadow-[inset_2px_0_0_var(--brand)]'
-                          : 'hover:bg-tint',
+                        selected ? 'bg-brand-soft shadow-mark-start' : 'hover:bg-tint',
                       )}
                     >
                       <span className="flex min-w-0 items-center gap-1.5">
-                        <Icon kind="createSurface" size={13} className="text-muted-foreground" />
+                        <Icon kind="createSurface" size={14} className="text-muted-foreground" />
                         <span
                           className={cn('truncate', selected ? 'font-semibold' : 'font-medium')}
                         >
@@ -278,7 +276,7 @@ function SurfaceSwitcher({
                         </span>
                         <ProblemMark count={problemsBySurface.get(view.surfaceId) ?? 0} size={12} />
                       </span>
-                      <span className="truncate pl-[19px] text-xs text-muted-foreground">
+                      <span className="truncate pl-5 text-xs text-muted-foreground">
                         {view.catalogId ?? 'No catalog named'}
                       </span>
                     </button>
@@ -294,7 +292,7 @@ function SurfaceSwitcher({
                     key={surfaceId}
                     className="flex items-center gap-1.5 px-2 py-1.5 text-muted-foreground"
                   >
-                    <Icon kind="deleteSurface" size={13} />
+                    <Icon kind="deleteSurface" size={14} />
                     <span className="truncate font-medium">{surfaceId}</span>
                   </div>
                 ))}
@@ -397,7 +395,7 @@ function TreeRows({
     return (
       <div
         style={pad}
-        className="flex h-[26px] items-center gap-1.5 whitespace-nowrap text-muted-foreground"
+        className="flex h-6 items-center gap-1.5 whitespace-nowrap text-muted-foreground"
       >
         <span className="w-3.5 shrink-0" />
         <span>#{node.id}</span>
@@ -411,7 +409,7 @@ function TreeRows({
   const properties = propertiesOf(node);
   return (
     <>
-      <div style={pad} className="flex h-[26px] items-center gap-1.5 whitespace-nowrap">
+      <div style={pad} className="flex h-6 items-center gap-1.5 whitespace-nowrap">
         <button
           type="button"
           aria-label={`Show the properties of #${node.id}`}
@@ -434,7 +432,7 @@ function TreeRows({
           {properties.length === 0 && <span className="text-muted-foreground">No properties.</span>}
           {properties.map(([name, value]) => (
             <div key={name} className="flex min-w-0 gap-2.5 leading-5">
-              <span className="w-[84px] shrink-0 text-muted-foreground">{name}</span>
+              <span className="w-21 shrink-0 text-muted-foreground">{name}</span>
               <span className="min-w-0 font-mono break-all whitespace-pre-wrap">
                 {JSON.stringify(value)}
               </span>

@@ -28,7 +28,7 @@ The page follows the design canvas "Spectra viewer UI": https://claude.ai/artifa
 
 ## Stack
 
-React, with Radix primitives and the resizable panels shadcn/ui wraps, on Tailwind in A2UI Composer's configuration (`components.json`), `@a2ui/web_core` from npm for the surfaces, and the preview protocol's messages from `a2ui-spectra-preview` in [`../../typescript/preview/core/`](../../typescript/preview/core). Inter and JetBrains Mono are bundled from Fontsource, so the page fetches nothing from outside Spectra.
+React, with Radix primitives and the resizable panels shadcn/ui wraps, on Tailwind in A2UI Composer's configuration (`components.json`), `@a2ui/web_core` from npm for the surfaces, and the preview protocol's messages from `a2ui-spectra-preview` in [`../../typescript/preview/core/`](../../typescript/preview/core). Inter and JetBrains Mono are bundled from Fontsource, so the page fetches nothing from outside Spectra. Every size, space, radius, line height and letter spacing is a step of Tailwind's scale, with no arbitrary size; the turn list's swing clips with an arbitrary `clip-path` and the strip hides its scrollbar with arbitrary properties, which have no utility. A recurring value with no step is a theme token in `src/index.css`, the selected row's mark `shadow-mark-start`, the selected tab's `shadow-mark-bottom`, and the key columns `grid-cols-facts`, `grid-cols-diff`, `grid-cols-pairs`, `grid-cols-pairs-narrow` and `grid-cols-pairs-wide`.
 
 ## Layout
 

@@ -33,23 +33,20 @@ export function PreviewPane({
     return (
       <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
         {route.catalogId === undefined ? (
-          <p className="max-w-[560px] leading-[1.7]">No preview: the surface names no catalog.</p>
+          <p className="max-w-140 leading-relaxed">No preview: the surface names no catalog.</p>
         ) : (
-          <p className="max-w-[560px] leading-[1.7]">
+          <p className="max-w-140 leading-relaxed">
             No preview for catalog{' '}
-            <span className="rounded-md bg-tint px-1.5 py-0.5 font-mono text-xs [overflow-wrap:anywhere]">
+            <span className="rounded-md bg-tint px-1.5 py-0.5 font-mono text-xs wrap-anywhere">
               {route.catalogId}
             </span>
           </p>
         )}
-        <p className="max-w-[440px] text-muted-foreground">
+        <p className="max-w-110 text-muted-foreground">
           Add a page built with a Spectra preview adapter to the config’s preview pages.
         </p>
         {route.unanswered.map(page => (
-          <p
-            key={page.id}
-            className="max-w-[440px] text-xs text-muted-foreground [overflow-wrap:anywhere]"
-          >
+          <p key={page.id} className="max-w-110 text-xs text-muted-foreground wrap-anywhere">
             {unansweredLine(page, PREVIEW_PROTOCOL)}
           </p>
         ))}
@@ -65,7 +62,7 @@ export function PreviewPane({
               key={index}
               className="flex h-8 items-center gap-2 rounded-lg bg-problem-soft px-3 text-xs"
             >
-              <Icon kind="failed" size={13} className="shrink-0 text-problem" />
+              <Icon kind="failed" size={14} className="shrink-0 text-problem" />
               <span className="min-w-0 truncate font-medium">{line}</span>
             </div>
           ))}
@@ -119,7 +116,7 @@ function Frame({pageId, width}: {pageId: string; width: ViewSettings['width']}) 
         ref={slot}
         style={width === 'narrow' ? {width: NARROW} : undefined}
         className={cn(
-          'h-full max-w-full shrink-0 rounded-[6px] bg-white shadow-[0_0_0_1px_var(--border)]',
+          'h-full max-w-full shrink-0 rounded-md bg-white ring-1 ring-border',
           width === 'wide' && 'w-full',
         )}
       />

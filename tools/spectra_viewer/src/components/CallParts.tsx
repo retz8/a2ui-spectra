@@ -32,7 +32,7 @@ export function Section({
 }) {
   return (
     <>
-      <div className="mt-0.5 flex h-[34px] shrink-0 items-center gap-2 border-t px-0.5 text-xs text-muted-foreground">
+      <div className="mt-0.5 flex h-9 shrink-0 items-center gap-2 border-t px-0.5 text-xs text-muted-foreground">
         {onToggle !== undefined && (
           <button
             type="button"
@@ -44,7 +44,7 @@ export function Section({
             <Icon kind={open ? 'chevronDown' : 'chevronRight'} size={12} />
           </button>
         )}
-        <span className="shrink-0 font-semibold tracking-[0.06em] uppercase">{label}</span>
+        <span className="shrink-0 font-semibold tracking-wider uppercase">{label}</span>
         {meta !== undefined && meta !== '' && <span className="min-w-0 truncate">{meta}</span>}
       </div>
       {open && children}
@@ -81,10 +81,10 @@ export function Pairs({
           className={cn(
             'grid gap-x-3 gap-y-0.5 text-xs leading-5',
             layout === 'names'
-              ? 'grid-cols-[260px_minmax(0,1fr)]'
+              ? 'grid-cols-pairs-wide'
               : monoKeys
-                ? 'grid-cols-[150px_minmax(0,1fr)]'
-                : 'grid-cols-[170px_minmax(0,1fr)]',
+                ? 'grid-cols-pairs-narrow'
+                : 'grid-cols-pairs',
           )}
         >
           {pairs.map(({key, value, removed}, index) => (
@@ -112,7 +112,7 @@ export function TextBlock({label, meta, text}: {label: string; meta?: string; te
         <CopyButton
           text={text}
           label={`Copy the ${label.toLowerCase()}`}
-          className="h-[22px] px-1.5 text-xs"
+          className="h-6 px-1.5 text-xs"
         >
           Copy
         </CopyButton>
@@ -201,7 +201,7 @@ export function MonoLine({label, text}: {label: string; text: string}) {
     <div className="flex flex-col gap-1.5">
       <BlockLabel label={label} fold={fold} />
       {fold.open && (
-        <div className="rounded-lg bg-tint px-3 py-1.5 font-mono text-xs leading-[1.6] break-all">
+        <div className="rounded-lg bg-tint px-3 py-1.5 font-mono text-xs leading-relaxed break-all">
           {text}
         </div>
       )}
@@ -305,7 +305,7 @@ function Chunks({
                     }}
                     className="flex size-4 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-border hover:text-foreground"
                   >
-                    <Icon kind={unfolded ? 'chevronDown' : 'chevronRight'} size={11} />
+                    <Icon kind={unfolded ? 'chevronDown' : 'chevronRight'} size={12} />
                   </button>
                   <span className="w-12 shrink-0 text-right text-muted-foreground">
                     {formatOffset(ms)}

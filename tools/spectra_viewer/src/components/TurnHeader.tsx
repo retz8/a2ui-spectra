@@ -42,9 +42,9 @@ export function TurnHeader({
   inside?: readonly string[];
 }) {
   return (
-    <header className="flex shrink-0 flex-col gap-1.5 border-b px-[18px] pt-3.5 pb-3">
+    <header className="flex shrink-0 flex-col gap-1.5 border-b px-4 pt-3.5 pb-3">
       <div className="flex min-w-0 items-center gap-3">
-        <h1 className="min-w-0 truncate text-lg leading-[1.3] font-semibold">{title}</h1>
+        <h1 className="min-w-0 truncate text-lg leading-tight font-semibold">{title}</h1>
         <OutcomeBadge status={status} />
         {check !== undefined && (
           <CheckChip check={check} checks={checks} filtered={filtered} onFilter={onFilter} />
@@ -93,7 +93,7 @@ export function OutcomeBadge({status}: {status: TurnStatus}) {
   return (
     <span
       className={cn(
-        'inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full bg-tint pr-2.5 pl-[7px] text-xs font-medium',
+        'inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full bg-tint pr-2.5 pl-2 text-xs font-medium',
         status === 'failed'
           ? 'text-problem'
           : status === 'completed'
@@ -173,7 +173,7 @@ function CheckChip({
             side="bottom"
             align="start"
             sideOffset={6}
-            className="fade-in-quick z-50 flex w-80 flex-col gap-1.5 rounded-[10px] bg-panel px-3 py-2.5 text-xs text-foreground shadow-float"
+            className="fade-in-quick z-50 flex w-80 flex-col gap-1.5 rounded-xl bg-panel px-3 py-2.5 text-xs text-foreground shadow-float"
           >
             <span className="section-label">Checks</span>
             {checks.map((line, index) => (

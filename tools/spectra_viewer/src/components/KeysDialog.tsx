@@ -54,19 +54,19 @@ export function KeysDialog({
         <Dialog.Overlay className="fade-in-quick fixed inset-0 z-40 bg-scrim" />
         <Dialog.Content
           aria-describedby={undefined}
-          className="fade-in-quick fixed top-1/2 left-1/2 z-50 flex w-[600px] max-w-[calc(100%-32px)] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 rounded-[14px] bg-panel px-5 py-4 shadow-overlay outline-none"
+          className="fade-in-quick fixed inset-x-4 top-1/2 z-50 mx-auto flex max-w-150 -translate-y-1/2 flex-col gap-4 rounded-2xl bg-panel px-5 py-4 shadow-overlay outline-none"
         >
           <div className="flex items-center gap-2">
             <Dialog.Title className="text-base font-semibold">Keys</Dialog.Title>
             <div className="flex-1" />
             <Dialog.Close
               aria-label="Close"
-              className="ease-quick flex size-7 cursor-pointer items-center justify-center rounded-[7px] text-muted-foreground hover:bg-tint hover:text-foreground"
+              className="ease-quick flex size-7 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-tint hover:text-foreground"
             >
               <Icon kind="close" size={14} />
             </Dialog.Close>
           </div>
-          <div className="grid grid-cols-2 gap-x-8 gap-y-[18px]">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-4">
             {SECTIONS.map(section => (
               <section key={section.title} className="flex flex-col gap-0.5">
                 <h3 className="section-label mb-1">{section.title}</h3>
@@ -77,7 +77,7 @@ export function KeysDialog({
                       {row.keys.map(key => (
                         <kbd
                           key={key}
-                          className="inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-[5px] border bg-tint px-1.5 font-sans text-xs font-medium"
+                          className="inline-flex h-6 min-w-6 items-center justify-center rounded-md border bg-tint px-1.5 font-sans text-xs font-medium"
                         >
                           {key}
                         </kbd>

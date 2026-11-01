@@ -214,7 +214,7 @@ export function Icon({
       aria-hidden="true"
       className={cn(
         'block shrink-0',
-        kind === 'open' && 'animate-spin [animation-duration:900ms] motion-reduce:animate-none',
+        kind === 'open' && 'animate-spin motion-reduce:animate-none',
         className,
       )}
     >
