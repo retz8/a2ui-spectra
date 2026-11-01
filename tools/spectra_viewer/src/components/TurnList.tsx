@@ -221,7 +221,7 @@ function AgentMenu({agents}: {agents: AgentPicker}) {
       <DropdownMenu.Trigger asChild>
         <button
           type="button"
-          className="ease-quick inline-flex h-6 max-w-[168px] min-w-0 cursor-pointer items-center gap-1 self-center rounded-md pr-1.5 pl-2 text-xs font-medium text-muted-strong hover:bg-tint data-[state=open]:bg-tint"
+          className="ease-quick inline-flex h-6 max-w-40 min-w-0 cursor-pointer items-center gap-1 self-center rounded-md pr-1.5 pl-2 text-xs font-medium text-muted-strong hover:bg-tint data-[state=open]:bg-tint"
         >
           <span className="min-w-0 truncate">{agentLabel(shown)}</span>
           <Icon kind="chevronDown" size={12} className="shrink-0 text-muted-foreground" />
@@ -232,7 +232,7 @@ function AgentMenu({agents}: {agents: AgentPicker}) {
           align="start"
           sideOffset={6}
           aria-label="Agents"
-          className="fade-in-quick z-50 flex w-[248px] flex-col rounded-xl bg-panel p-1.5 text-foreground shadow-float"
+          className="fade-in-quick z-50 flex w-64 flex-col rounded-xl bg-panel p-1.5 text-foreground shadow-float"
         >
           <DropdownMenu.RadioGroup
             value={value}

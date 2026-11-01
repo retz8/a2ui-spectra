@@ -39,9 +39,9 @@ export function Section({
             aria-expanded={open}
             aria-label={`${open ? 'Fold' : 'Unfold'} ${label.toLowerCase()}`}
             onClick={onToggle}
-            className="flex size-[18px] cursor-pointer items-center justify-center rounded hover:bg-tint hover:text-foreground"
+            className="flex size-4 cursor-pointer items-center justify-center rounded hover:bg-tint hover:text-foreground"
           >
-            <Icon kind={open ? 'chevronDown' : 'chevronRight'} size={13} />
+            <Icon kind={open ? 'chevronDown' : 'chevronRight'} size={12} />
           </button>
         )}
         <span className="shrink-0 font-semibold tracking-[0.06em] uppercase">{label}</span>

@@ -169,7 +169,8 @@ export function BlockLabel({
   children?: ReactNode;
 }) {
   return (
-    <div className="flex h-[22px] items-center gap-2">
+    // The sections' inset and chevron, so a block's label lines up with theirs.
+    <div className="flex h-[22px] items-center gap-2 pl-0.5">
       {fold !== undefined && (
         <button
           type="button"
