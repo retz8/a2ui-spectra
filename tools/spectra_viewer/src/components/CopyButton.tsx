@@ -52,7 +52,7 @@ export function CopyButton({
       }}
     >
       {children}
-      <Icon kind={copied ? 'checked' : 'copy'} size={children === undefined ? 12 : 13} />
+      <Icon kind={copied ? 'checked' : 'copy'} size={children === undefined ? 12 : 14} />
     </button>
   );
 }
