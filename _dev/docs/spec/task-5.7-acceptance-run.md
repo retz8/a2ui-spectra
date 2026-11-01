@@ -113,7 +113,7 @@ One attribute, `a2ui.mcp.stream.url`: the HTTP+SSE session's `GET` stream URL, c
 - The Phase 5 spec: decision 19, as decision 1 has it.
 - `_dev/TODO.md`: the 5.7 line names this spec.
 - `_dev/a2ui-findings.md` and `_dev/otel-findings.md`: as decisions 13 and 14 have it.
-- A2UIVerse: nothing, unless decision 13 sends a fix there.
+- A2UIVerse: the Linear agent's MCP URL read from `LINEAR_MCP_URL` with the hosted server as its default, as 5.3's decision 15 did for the CircleCI agent, so the tool proxy sees Linear's traffic too, one bare commit on a2uiverse-apps `main`; otherwise nothing, unless decision 13 sends a fix there.
 - SPEC.md and `conformance/README.md` are otherwise unchanged.
 - This spec gains, after the run, what the run fixed, the design canvas's amendments and the findings recorded, as 3.7's and 4.7's did.
 
@@ -131,19 +131,28 @@ One attribute, `a2ui.mcp.stream.url`: the HTTP+SSE session's `GET` stream URL, c
 - An offset or a duration of a minute or more reads `1m 27s` in the timeline's columns and in the spans section's events, where `1 min 27 s` wrapped the row; the spans section's event times sit in a wider column that does not wrap.
 - The timeline takes focus once the earlier call a prefix break's link names is selected in another turn, so the keys go on from it; focus fell to the page before.
 - `a2ui.mcp.stream.url` and the folded exchange line `reply on GET /sse`, decision 15, seen live on the floor plan turn.
+- Stale trace context from an MCP client. Under instrumentation, the MCP Python SDK's streamable HTTP client sends every request from one writer task spawned when the session opens, so the httpx instrumentation stamps each with the span current then, the opening turn's `invoke_agent`: the first turn's `tools/call` named a span with no tool call span above it and stayed unlinked, two rows and "2 tool calls" for one call, and every later turn's MCP requests carried the first turn's trace id and were dropped as calls of a turn already written. Now a call whose trace id names a written turn is placed by the time window, an exchange whose `traceparent` names a span with no call span of its kind at or above it links by time, and tool call spans run side by side are told apart by the exchange's tool name; the Phase 5 spec's decision 4 and the 5.4 spec's decision 11 carry the rules, the receiver capture suite the case `adk_mcp_stale_context` recorded from the Linear session, and `_dev/otel-findings.md` the producer as finding 24.
+- ADK's `execute_tool (merged)`, its wrapper around tool calls run side by side with `(merged tools)` as its tool name, is a framework span, not a tool call counted in the header.
+- Every labelled block of a step's detail folds on its label line with the chevron the sections use, and a block folded stays folded by its label on every step for the session, so a long system prompt folded once stays out of the way on every call; asked for by Jioh during the run, on the Linear session's model calls.
 
 ### 19. The design canvas
 
-No board is amended. The HTTP+SSE board already read "reply on GET /sse".
+The block templates of the step's detail, a text, a JSON block, keys and values, a list, a mono line and the marked prompt, gained the fold chevron on their label line, and the model call board draws its tool definitions folded. The HTTP+SSE board already read "reply on GET /sse"; no other board is amended.
 
 ### 20. A2UI findings
 
 Findings 31 and 32 are recorded: the Python restaurant finder's retry on "Surface default already exists", ADK's aggregated event meeting the SDK's stream, reproduced in two conversations in a scratch store; and the custom-components example prompting with examples in a catalog the host did not negotiate, seen in every message-box turn of the run on each API. The example reading an action from v0.8's `userAction` alone, which keeps the message box's press from reaching its floor plan server, is finding 23's; the floor plan turn is sent from the recorded conversation through the wire proxy as a second host.
 
-### 21. Content, not findings
+### 21. OpenTelemetry findings
 
-The Node finder's live Gemini output puts an empty object where the v0.9 catalog wants a string in a Button's `action.event.context`, and leaves a Button's child unsent; the floor plan server reports its resource as `text/plain` where the board drew `text/html`; a2a-sdk's `EventQueue` spans arrive every half second through a turn, so an open turn's duration, which runs to its newest event, advances with them.
+Finding 24: the MCP Python SDK's writer task carrying the session's opening span into every request, met through the httpx instrumentation under google-adk 2.9.1, as section 18 has it.
 
-### 22. Sessions not yet run
+### 22. The A2UIVerse sessions
 
-The Linear and CircleCI sessions, decisions 1, 9 and 3's fourth and fifth, wait for a session with their sign-ins; the `tools/call` over streamable HTTP board, the live bearer token stripped, and ADK's spans around a Claude call with them.
+Both ran from a2uiverse-apps `main`, the Linear agent on `gemini-3.7-flash`, its `.env`'s model, and the CircleCI agent on `anthropic/claude-haiku-5-5` at the kit's default effort, each in live mode with its hosted MCP server behind the tool proxy, signed in through a scratch copy of its sign-in store with a token minted into the copy for the message box, the live stores and the vault untouched, under `opentelemetry-instrument` with the bootstrap set for their environment and the Click instrumentation off. Two typed turns each: "Show my open issues" and "Open A2U-5"; "Show me the recent runs" and "Open the latest run". Seen on them: `tools/call` over streamable HTTP as the board draws it, Arguments, Result, the exchange folded as `POST mcp.linear.app/mcp · 200 · 1 chunk` and the MCP names, neither server assigning a session id; the bearer token as "Removed by Spectra", no token, key or refresh token in a record, the store or a log; a Claude call read as "Anthropic Messages · Model proxy · ADK spans · GenAI spans", the third source the Anthropic SDK's own spans, `com.anthropic.sdk.python` 2.3.0 read by the GenAI dialect, its chain of three marked "this call" with the `gen_ai.system.message`, `gen_ai.user.message` and `gen_ai.choice` log records among its events; the cache share on Claude, Cache read 0 and Hit ratio 0% on every call, as the kit's README has it; a failed call as a problem live, the CircleCI agent's `get_run` with a placeholder id answered `isError`, "The agent's span ended in error · MCP_TOOL_ERROR" with the error's text as its Result; the agent's local `list_projects` as a span-only row, "in the agent".
+
+Two faults went to A2UIVerse's repo under decision 13: the Linear catalog's components lacked the protocol's `ComponentCommon`, the fault 4.7 fixed in the CircleCI catalog, so every component's `id` failed the v0.9 schema, 13 and 41 catalog problems on the two turns, fixed as 15c71d2 was, the catalog at 0.2.1 (`17bfb68`); and decision 16's `LINEAR_MCP_URL` (`7f883b2`). One fault of the kit goes to A2UIVerse's backlog, not written there from this session: CircleCI's `list_runs` answers with the runs in `structuredContent` and only "Found 5 run(s)" as its `content`, and the model is handed the `content` alone, so the CircleCI agent could not show a run on either turn.
+
+### 23. Content, not findings
+
+The Node finder's live Gemini output puts an empty object where the v0.9 catalog wants a string in a Button's `action.event.context`, and leaves a Button's child unsent; the floor plan server reports its resource as `text/plain` where the board drew `text/html`; a2a-sdk's `EventQueue` spans arrive every half second through a turn, so an open turn's duration, which runs to its newest event, advances with them; the kit streams its prose as many short Text parts, 95 steps on a CircleCI turn; Linear's token at Linear expires within hours and the kit refreshes it from the scratch copy only within five minutes of expiry, so the Linear session ran inside that window and no refresh touched the live sign-in.
