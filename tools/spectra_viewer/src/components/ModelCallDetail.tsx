@@ -441,7 +441,12 @@ function PartsBlock({
   const fold = useBlockFold(label);
   const parts = shownParts(all);
   if (parts.length === 0 && all.length > 0) {
-    return <BlockLabel label={label} meta={`${meta} · ${emptyNoteOf(all)}`} />;
+    // Indented by the fold chevron's width and gap, so its label lines up with the labels that fold.
+    return (
+      <div className="pl-6">
+        <BlockLabel label={label} meta={`${meta} · ${emptyNoteOf(all)}`} />
+      </div>
+    );
   }
   if (parts.length === 1) {
     const [part] = parts;

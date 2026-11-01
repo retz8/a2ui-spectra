@@ -158,11 +158,14 @@ function Parts({
   const fold = useBlockFold(label);
   const parts = all.filter(part => !('text' in part) || part.text !== '');
   if (parts.length === 0 && all.length > 0) {
+    // Indented by the fold chevron's width and gap, so its label lines up with the labels that fold.
     return (
-      <BlockLabel
-        label={label}
-        meta={meta === '' || meta === 'text' ? 'empty text' : `${meta} · empty text`}
-      />
+      <div className="pl-6">
+        <BlockLabel
+          label={label}
+          meta={meta === '' || meta === 'text' ? 'empty text' : `${meta} · empty text`}
+        />
+      </div>
     );
   }
   if (parts.length === 1) {
