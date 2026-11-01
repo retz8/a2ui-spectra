@@ -1,0 +1,116 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "b78531c6b3051396a4c2bb1b4eee28b1",
+          "spanId": "4c82ed44975241e3",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000026000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "otel_receiver",
+              "wrapper"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "2cfb66016cab1b7e21cbbf49e2ef2b43",
+          "spanId": "d6f64a794cc1419a",
+          "name": "parse",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000010000000",
+          "endTimeUnixNano": "1792800000016000000",
+          "attributes": {
+            "a2ui.event.kind": "parse",
+            "otel.scope.name": "a2ui-spectra-instrumentation",
+            "otel.scope.version": "0.0.0",
+            "a2ui.parse.input": "Here is the restaurant card.\n<a2ui>\nsurface(\"restaurant_card\")\n\nroot = Card(cardContent)\ncardContent = Column([titleText, bookButton])\ntitleText = Heading(\"Xi'an Famous Foods\")\nbookButton = Button(bookButtonText, \"primary\", Event(\"book_table\"))\nbookButtonText = Text(\"Book a Table\")\n</a2ui>\nAnd a note.\n<a2ui>\nsurface(\"note\")\n\nroot = Text(\"Booking opens at noon.\")\n</a2ui>\n",
+            "a2ui.parse.entry_point": "open_stream",
+            "a2ui.parse.streamed": true,
+            "a2ui.parse.inference_format": "express",
+            "a2ui.parse.catalogs": [
+              {
+                "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                "protocolVersion": "v1.0"
+              }
+            ],
+            "a2ui.parse.messages": [
+              {
+                "version": "1.0",
+                "createSurface": {
+                  "surfaceId": "note",
+                  "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                  "components": [
+                    {
+                      "id": "root",
+                      "component": "Text",
+                      "text": "Booking opens at noon."
+                    }
+                  ]
+                }
+              }
+            ],
+            "a2ui.sdk.name": "a2ui-agent-sdk",
+            "a2ui.sdk.version": "0.9.1.dev171",
+            "error.type": "A2uiCompilationValidationError",
+            "a2ui.received.attributes": {
+              "a2ui.event.kind": "parse",
+              "a2ui.parse.input": "Here is the restaurant card.\n<a2ui>\nsurface(\"restaurant_card\")\n\nroot = Card(cardContent)\ncardContent = Column([titleText, bookButton])\ntitleText = Heading(\"Xi'an Famous Foods\")\nbookButton = Button(bookButtonText, \"primary\", Event(\"book_table\"))\nbookButtonText = Text(\"Book a Table\")\n</a2ui>\nAnd a note.\n<a2ui>\nsurface(\"note\")\n\nroot = Text(\"Booking opens at noon.\")\n</a2ui>\n",
+              "a2ui.parse.entry_point": "open_stream",
+              "a2ui.parse.streamed": true,
+              "a2ui.parse.inference_format": "express",
+              "a2ui.parse.catalogs": "[{\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"protocolVersion\":\"v1.0\"}]",
+              "a2ui.parse.messages": "[{\"version\":\"1.0\",\"createSurface\":{\"surfaceId\":\"note\",\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"components\":[{\"id\":\"root\",\"component\":\"Text\",\"text\":\"Booking opens at noon.\"}]}}]",
+              "a2ui.sdk.name": "a2ui-agent-sdk",
+              "a2ui.sdk.version": "0.9.1.dev171",
+              "error.type": "A2uiCompilationValidationError"
+            }
+          },
+          "events": [
+            {
+              "timeUnixNano": "1792800000011000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 326
+              }
+            },
+            {
+              "timeUnixNano": "1792800000012000000",
+              "name": "exception",
+              "attributes": {
+                "exception.type": "A2uiCompilationValidationError",
+                "exception.message": "Unknown function 'Heading' not defined in catalog 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json'. - Help: Please correct the syntax error in your Express DSL.",
+                "exception.stacktrace": "(the stack trace, which the comparison checks is present)",
+                "a2ui.parse.block.start": 36,
+                "a2ui.parse.block.end": 282
+              }
+            },
+            {
+              "timeUnixNano": "1792800000013000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 373
+              }
+            }
+          ],
+          "status": {
+            "code": 2,
+            "message": "Unknown function 'Heading' not defined in catalog 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json'. - Help: Please correct the syntax error in your Express DSL."
+          }
+        }
+      ]
+    }
+  ]
+}

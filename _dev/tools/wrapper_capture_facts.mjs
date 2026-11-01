@@ -154,40 +154,83 @@ async function openStream() {
     wrapped,
     afterRejectedBlock: job.afterRejectedBlock ?? 'end',
   });
-  const blocks = openBlocks(processor, text, wrapped);
-  const blockAt = position => blocks.filter(block => block[0] <= position).at(-1);
   const messages = [];
-  const errors = [];
+  const raised = [];
   let fed = 0;
-  const take = (parts, position, chunk) => {
+  const take = (parts, chunk) => {
     for (const part of parts) {
       if (part.type === 'a2ui') messages.push(...structuredClone(part.a2ui));
-      else if (part.type === 'error') {
-        errors.push({...errorFact(part.error, blockAt(position)), chunk});
-      }
+      else if (part.type === 'error') raised.push([part.error, chunk]);
     }
+  };
+  const facts = async closed => {
+    const blocks = await streamErrorBlocks(wrapped);
+    if (blocks.length !== raised.length) {
+      throw new Error(
+        `Fed one character at a time, the stream raised ${blocks.length} errors, not ${raised.length}`,
+      );
+    }
+    const errors = raised.map(([error, chunk], index) => ({...errorFact(error, blocks[index]), chunk}));
+    return {messages, errors, fed, closed};
   };
   let start = 0;
   for (const end of ends) {
     fed++;
     try {
-      take(stream.feed(text.slice(start, end)), end, fed - 1);
+      take(stream.feed(text.slice(start, end)), fed - 1);
     } catch (error) {
       if (!isA2uiError(error)) throw error;
-      take(error.partialResults ?? [], end, fed - 1);
-      errors.push({...errorFact(error, blockAt(end)), chunk: fed - 1});
-      return {messages, errors, fed, closed: false};
+      take(error.partialResults ?? [], fed - 1);
+      raised.push([error, fed - 1]);
+      return facts(false);
     }
     start = end;
   }
   try {
-    take(stream.close(), text.length, null);
+    take(stream.close(), null);
   } catch (error) {
     if (!isA2uiError(error)) throw error;
-    take(error.partialResults ?? [], text.length, null);
-    errors.push({...errorFact(error, blockAt(text.length)), chunk: null});
+    take(error.partialResults ?? [], null);
+    raised.push([error, null]);
   }
-  return {messages, errors, fed, closed: true};
+  return facts(true);
+}
+
+/**
+ * The block of each error the stream throws or reads past, in order. The text
+ * is fed one character at a time: when an error comes, the text fed ends inside
+ * the block it belongs to, or at that block's closing tag, so the block is the
+ * last one opened by then.
+ */
+async function streamErrorBlocks(wrapped) {
+  const processor = await processorOf();
+  const stream = processor.openStream({
+    wrapped,
+    afterRejectedBlock: job.afterRejectedBlock ?? 'end',
+  });
+  const blocks = openBlocks(processor, text, wrapped);
+  const blockAt = position => blocks.filter(block => block[0] <= position).at(-1);
+  const found = [];
+  const errorsIn = (parts, position) => {
+    for (const part of parts) if (part.type === 'error') found.push(blockAt(position));
+  };
+  let position = 0;
+  for (const character of text) {
+    position += character.length;
+    try {
+      errorsIn(stream.feed(character), position);
+    } catch (error) {
+      if (!isA2uiError(error)) throw error;
+      return [...found, blockAt(position)];
+    }
+  }
+  try {
+    errorsIn(stream.close(), position);
+  } catch (error) {
+    if (!isA2uiError(error)) throw error;
+    return [...found, blockAt(position)];
+  }
+  return found;
 }
 
 async function compileBlock() {

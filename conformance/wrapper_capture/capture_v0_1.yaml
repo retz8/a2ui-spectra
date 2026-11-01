@@ -206,6 +206,22 @@
     python: "test_data/wrapper_capture/v0_1/direct_json_open_stream_truncated/expected_python.json"
     typescript: "test_data/wrapper_capture/v0_1/direct_json_open_stream_truncated/expected_typescript.json"
 
+- name: express_open_stream_chunk_past_rejected_block
+  description: "An Express stream that reads past a block the catalog refuses, whose chunk runs on into the next block: the error's range is the refused block's, then the next block is read."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_open_stream_chunk_past_rejected_block/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/express_open_stream_chunk_past_rejected_block/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/express_open_stream_chunk_past_rejected_block/expected_typescript.json"
+
+- name: direct_json_open_stream_chunk_past_rejected_block
+  description: "A Direct JSON stream that reads past a block the catalog refuses, whose chunk holds the refused block, a good block and the start of a third: the error's range is the refused block's."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/direct_json_open_stream_chunk_past_rejected_block/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/direct_json_open_stream_chunk_past_rejected_block/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/direct_json_open_stream_chunk_past_rejected_block/expected_typescript.json"
+
 - name: tool_call_without_state
   description: "SendA2uiToClientToolset's tool call with the Express block recorded from Gemini as its a2ui_payload, no renderer state bound: the per-block compile path, the tool's result the validated messages."
   action: capture_wrapper
@@ -223,3 +239,9 @@
   action: capture_wrapper
   job: "test_data/wrapper_capture/v0_1/tool_call_catalog_not_found/input.json"
   expect: "test_data/wrapper_capture/v0_1/tool_call_catalog_not_found/expected.json"
+
+- name: tool_call_no_messages
+  description: "A Direct JSON payload that holds no messages, rejected by the toolset's tool itself: the error it returns to the model is an exception event on the parse, belonging to no block."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/tool_call_no_messages/input.json"
+  expect: "test_data/wrapper_capture/v0_1/tool_call_no_messages/expected.json"

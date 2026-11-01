@@ -1,0 +1,49 @@
+Here is the restaurant card.
+
+<a2ui-json>
+[
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "restaurant-card",
+      "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+      "components": [
+        {"id": "root", "component": "Card", "child": "name"},
+        {"id": "name", "component": "Heading", "text": "Xi'an Famous Foods"}
+      ]
+    }
+  }
+]
+</a2ui-json>
+And its address.
+
+<a2ui-json>
+[
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "address",
+      "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+      "components": [
+        {"id": "root", "component": "Text", "text": "45 Bayard St, New York, NY 10013"}
+      ]
+    }
+  }
+]
+</a2ui-json>
+And a note.
+
+<a2ui-json>
+[
+  {
+    "version": "1.0",
+    "createSurface": {
+      "surfaceId": "note",
+      "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+      "components": [
+        {"id": "root", "component": "Text", "text": "Booking opens at noon."}
+      ]
+    }
+  }
+]
+</a2ui-json>

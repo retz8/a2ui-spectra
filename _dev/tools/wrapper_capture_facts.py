@@ -155,39 +155,79 @@ def open_stream(job: dict, text: str, ends: list[int]) -> dict:
     stream = processor.open_stream(
         wrapped=wrapped, after_rejected_block=job.get("afterRejectedBlock", "end")
     )
-    blocks = open_blocks(processor, job["inferenceFormat"], text, wrapped)
     messages: list = []
-    errors: list = []
+    raised: list = []
     fed = 0
 
-    def block_at(position: int) -> list[int] | None:
-        # The last block opened at or before the position.
-        opened = [block for block in blocks if block[0] <= position]
-        return opened[-1] if opened else None
-
-    def take(parts, position: int, chunk: int | None) -> None:
+    def take(parts, chunk: int | None) -> None:
         for part in parts:
             if isinstance(part, A2uiPart):
                 messages.extend(to_message_dicts(part.a2ui))
             elif isinstance(part, ErrorPart):
-                errors.append({**error_fact(part.error, block_at(position)), "chunk": chunk})
+                raised.append((part.error, chunk))
+
+    def facts(closed: bool) -> dict:
+        blocks = stream_error_blocks(job, text, wrapped)
+        if len(blocks) != len(raised):
+            raise SystemExit(
+                f"Fed one character at a time, the stream raised {len(blocks)} errors,"
+                f" not {len(raised)}"
+            )
+        errors = [
+            {**error_fact(error, block), "chunk": chunk}
+            for (error, chunk), block in zip(raised, blocks)
+        ]
+        return {"messages": messages, "errors": errors, "fed": fed, "closed": closed}
 
     start = 0
     for end in ends:
         fed += 1
         try:
-            take(stream.feed(text_slice(text, start, end)), end, fed - 1)
+            take(stream.feed(text_slice(text, start, end)), fed - 1)
         except A2uiError as error:
-            take(getattr(error, "partial_results", []), end, fed - 1)
-            errors.append({**error_fact(error, block_at(end)), "chunk": fed - 1})
-            return {"messages": messages, "errors": errors, "fed": fed, "closed": False}
+            take(getattr(error, "partial_results", []), fed - 1)
+            raised.append((error, fed - 1))
+            return facts(closed=False)
         start = end
     try:
-        take(stream.close(), utf16(text), None)
+        take(stream.close(), None)
     except A2uiError as error:
-        take(getattr(error, "partial_results", []), utf16(text), None)
-        errors.append({**error_fact(error, block_at(utf16(text))), "chunk": None})
-    return {"messages": messages, "errors": errors, "fed": fed, "closed": True}
+        take(getattr(error, "partial_results", []), None)
+        raised.append((error, None))
+    return facts(closed=True)
+
+
+def stream_error_blocks(job: dict, text: str, wrapped: bool) -> list:
+    """The block of each error the stream raises or reads past, in order.
+
+    The text is fed one character at a time: when an error comes, the text fed
+    ends inside the block it belongs to, or at that block's closing tag, so the
+    block is the last one opened by then.
+    """
+    processor = processor_of(job)
+    stream = processor.open_stream(
+        wrapped=wrapped, after_rejected_block=job.get("afterRejectedBlock", "end")
+    )
+    blocks = open_blocks(processor, job["inferenceFormat"], text, wrapped)
+
+    def block_at(position: int) -> list[int] | None:
+        opened = [block for block in blocks if block[0] <= position]
+        return opened[-1] if opened else None
+
+    found: list = []
+    position = 0
+    for character in text:
+        position += utf16(character)
+        try:
+            parts = stream.feed(character)
+        except A2uiError:
+            return [*found, block_at(position)]
+        found.extend(block_at(position) for part in parts if isinstance(part, ErrorPart))
+    try:
+        parts = stream.close()
+    except A2uiError:
+        return [*found, block_at(position)]
+    return [*found, *(block_at(position) for part in parts if isinstance(part, ErrorPart))]
 
 
 def text_slice(text: str, start: int, end: int) -> str:
@@ -227,28 +267,59 @@ def compile_block(job: dict, text: str) -> dict:
 
 
 def tool_call(job: dict, payload: str) -> dict:
+    """Runs the toolset's tool on the payload, and takes every error it swallows.
+
+    The tool logs each error it swallows while it handles it; a stand-in for the
+    toolset module's logger reads that error then. An error belongs to the block
+    that was being compiled, or whose messages were being applied, when it was
+    raised, read off the traceback; one the tool raised itself belongs to none.
+    """
     from a2ui.adk import SendA2uiToClientToolset
+    from a2ui.adk import send_a2ui_to_client_toolset as toolset_module
 
     processor = processor_of(job, state=job.get("rendererState", False))
     toolset = SendA2uiToClientToolset(a2ui_enabled=True, a2ui_processor=processor)
     tool = toolset._ui_tool
-    raised: list[BaseException] = []
-    parse_payload = tool._parse_payload
+    swallowed: list[BaseException] = []
+    logger = toolset_module.logger
 
-    def recording(processor, payload):
-        try:
-            return parse_payload(processor, payload)
-        except Exception as error:
-            raised.append(error)
-            raise
+    class Recording:
+        def error(self, *args, **kwargs):
+            error = sys.exc_info()[1]
+            if error is not None:
+                swallowed.append(error)
+            return logger.error(*args, **kwargs)
 
-    tool._parse_payload = recording
-    context = SimpleNamespace(actions=SimpleNamespace(skip_summarization=False))
-    result = asyncio.run(tool.run_async(args={"a2ui_payload": payload}, tool_context=context))
-    blocks = blocks_of(processor, payload, processor.parser.has_format_content(payload))
-    errors = [error_fact(error, blocks[0] if len(blocks) == 1 else None) for error in raised]
+        def __getattr__(self, name):
+            return getattr(logger, name)
+
+    toolset_module.logger = Recording()
+    try:
+        context = SimpleNamespace(actions=SimpleNamespace(skip_summarization=False))
+        result = asyncio.run(
+            tool.run_async(args={"a2ui_payload": payload}, tool_context=context)
+        )
+    finally:
+        toolset_module.logger = logger
+    errors = [error_fact(error, compiled_block(error, payload)) for error in swallowed]
     messages = result.get("validated_a2ui_json", []) if isinstance(result, dict) else []
     return {"messages": messages, "errors": errors, "toolResult": result}
+
+
+def compiled_block(error: BaseException, payload: str) -> list[int] | None:
+    """The range of the block being compiled or applied when the error was raised, if one was."""
+    tb = error.__traceback__
+    while tb is not None:
+        frame = tb.tb_frame
+        text = frame.f_locals.get("format_content")
+        if frame.f_code.co_name in ("compile", "_apply_block") and isinstance(text, str):
+            for block in (text, text.strip()):
+                start = payload.find(block)
+                if block and start >= 0:
+                    return [utf16(payload[:start]), utf16(payload[: start + len(block)])]
+            return None
+        tb = tb.tb_next
+    return None
 
 
 def main() -> None:
