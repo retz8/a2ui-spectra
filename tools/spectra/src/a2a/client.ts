@@ -18,7 +18,8 @@ export const A2UI_EXTENSION_URIS: readonly string[] = [
 
 /**
  * The capabilities for an offer of catalog ids: v0.9 and v0.9.1 under
- * v0.9's key, v1.0 under v1.0's, each version naming the ids offered under it.
+ * v0.9's key, v1.0 under v1.0's, keyed `1.0` as v1.0 names itself, each
+ * version naming the ids offered under it.
  */
 export function capabilitiesFor(offer: CatalogOffer): Record<string, unknown> {
   return {
@@ -27,7 +28,7 @@ export function capabilitiesFor(offer: CatalogOffer): Record<string, unknown> {
       'v0.9.1': {supportedCatalogIds: [...offer['v0.9.1']]},
     },
     a2uiRendererCapabilities: {
-      'v1.0': {supportedCatalogIds: [...offer['v1.0']]},
+      '1.0': {supportedCatalogIds: [...offer['v1.0']]},
     },
   };
 }

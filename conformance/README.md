@@ -71,6 +71,8 @@ The axes of SPEC.md's coverage line, and the entries that exercise each:
 
 A recording is made once, at the entry's pinned commit or version. At each move of the upstream pin the roster is reviewed: an entry whose recordings hold only what Spectra no longer supports is retired with its recordings, and an axis left without an entry goes to an agent built for it.
 
+The v1.0 recordings, `node_restaurant_finder/stream_v1_0_booking` and AG2's two, were made before upstream moved v1.0's version string to a bare `1.0` at `d98472e5d`: their messages declare `v1.0`, which the schema check and web core 0.15.0 reject.
+
 - [`_dev/tools/record_a2a_traffic.py`](../_dev/tools/record_a2a_traffic.py) is the recording proxy: it relays each exchange between the host and the agent, rewrites the card it serves so the host's calls come back through it, and writes each exchange as the agent answered it. A recording keeps only `content-type`, `accept`, `A2A-Version`, `X-A2A-Extensions` and `A2A-Extensions`, so no credential is written. A response whose connection broke before it ended keeps the bytes that arrived and carries HAR's custom field `_brokenOff`.
 - [`_dev/tools/send_a2a_requests.py`](../_dev/tools/send_a2a_requests.py) sends a conversation's requests, from its request file under [`_dev/tools/a2a_requests/`](../_dev/tools/a2a_requests/), for the entries no host reaches.
 - [`_dev/tools/write_a2a_capture_records.py`](../_dev/tools/write_a2a_capture_records.py) writes each expected record from its recording, by the rules of `_dev/docs/spec/task-2.2-a2a-adapter.md`, sharing no code with the capture path.

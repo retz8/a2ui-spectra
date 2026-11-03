@@ -119,6 +119,9 @@ describe('problemsOf', () => {
           code: 'SCHEMA_VERSIONS_MIXED · schema check, A2UI v1.0',
           inner: undefined,
         },
+        // AG2's messages declare v1.0, as before the pin's bare 1.0, which web core rejects.
+        {step: '4.1.0', code: 'VALIDATION_ERROR · A2UI web core', inner: '/version'},
+        {step: '4.1.1', code: 'VALIDATION_ERROR · A2UI web core', inner: '/version'},
       ],
     );
     // Web core's rejection of the same message folds under the finding.
@@ -133,7 +136,11 @@ describe('problemsOf', () => {
     const alone = turnProblemsOfRecording('ag2/stream_v1_0_function_call');
     assert.deepEqual(
       alone.problems.map(({step, code}) => ({step, code})),
-      [{step: '4.1.2', code: 'VALIDATION_ERROR · A2UI web core'}],
+      [
+        {step: '4.1.0', code: 'VALIDATION_ERROR · A2UI web core'},
+        {step: '4.1.1', code: 'VALIDATION_ERROR · A2UI web core'},
+        {step: '4.1.2', code: 'VALIDATION_ERROR · A2UI web core'},
+      ],
     );
     assert.deepEqual(alone.folded, []);
   });

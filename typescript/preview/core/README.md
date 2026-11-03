@@ -27,7 +27,7 @@ The screenshot's message type is reserved; no adapter produces it yet.
 
 ## The web core part
 
-`a2ui-spectra-preview/web-core` is what every web adapter does with web core's message processor, whichever framework draws its surfaces. It takes `@a2ui/web_core` 0.14 as a peer dependency; the main entry does not import it.
+`a2ui-spectra-preview/web-core` is what every web adapter does with web core's message processor, whichever framework draws its surfaces. It takes `@a2ui/web_core` 0.15 as a peer dependency; the main entry does not import it.
 
 - `actionHandlerFor` makes the action handler an adapter makes its processor with: each action is reported with its surface's data model at that moment.
 - `watchProcessor` watches a processor the adapter made: each surface it creates reports the errors web core sends through its error channel, and its data model as it appears and whenever the agent's messages or typing change it.

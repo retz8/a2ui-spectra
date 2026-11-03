@@ -99,10 +99,12 @@ describe('replay', () => {
   });
 
   it("lists the TypeScript restaurant finder's second createSurface of stub-notice as rejected", () => {
-    const result = replayRecord(readRecording('node_restaurant_finder/stream_v1_0_booking'));
+    const result = replayRecord(
+      readRecording('react_client/node_restaurant_finder_text_and_action'),
+    );
     assert.deepEqual(result.rejections, [
       {
-        key: messageKey(3, 0),
+        key: messageKey(4, 0),
         surfaceId: 'stub-notice',
         code: 'INTEGRITY_ERROR',
         message: 'Surface stub-notice already exists.',
@@ -110,14 +112,30 @@ describe('replay', () => {
     ]);
   });
 
-  it('puts the surfaces the turn touched first, then the others as not changed', () => {
+  it("rejects each message of the TypeScript restaurant finder's v1.0 recording at its version, v1.0 as before the pin's bare 1.0", () => {
     const result = replayRecord(readRecording('node_restaurant_finder/stream_v1_0_booking'));
+    assert.equal(result.surfaces.length, 0);
+    assert.equal(result.rejections.length, 7);
+    for (const rejection of result.rejections) {
+      assert.equal(rejection.code, 'VALIDATION_ERROR');
+      assert.equal(rejection.inner, '/version');
+      assert.match(
+        rejection.message,
+        /^Invalid 1\.0 message: version: Invalid literal value, expected "1\.0"/,
+      );
+    }
+  });
+
+  it('puts the surfaces the turn touched first, then the others as not changed', () => {
+    const result = replayRecord(
+      readRecording('react_client/node_restaurant_finder_text_and_action'),
+    );
     assert.deepEqual(
       result.surfaces.map(({surfaceId, catalogId, touched}) => ({surfaceId, catalogId, touched})),
       [
-        {surfaceId: 'stub-notice', catalogId: V10_BASIC, touched: true},
-        {surfaceId: 'confirmation', catalogId: V10_BASIC, touched: true},
-        {surfaceId: 'default', catalogId: V10_BASIC, touched: false},
+        {surfaceId: 'stub-notice', catalogId: V09_BASIC, touched: true},
+        {surfaceId: 'confirmation', catalogId: V09_BASIC, touched: true},
+        {surfaceId: 'default', catalogId: V09_BASIC, touched: false},
       ],
     );
   });
@@ -308,9 +326,9 @@ describe('replay', () => {
     const result = replay(
       [],
       turnOf(
-        {version: 'v1.0', createSurface: {surfaceId: 's', catalogId: V10_BASIC}},
+        {version: '1.0', createSurface: {surfaceId: 's', catalogId: V10_BASIC}},
         {
-          version: 'v1.0',
+          version: '1.0',
           updateComponents: {
             surfaceId: 's',
             components: [

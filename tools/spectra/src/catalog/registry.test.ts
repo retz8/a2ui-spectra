@@ -326,10 +326,10 @@ describe('inline catalogs', () => {
     assert.ok(inline.themeSchema);
   });
 
-  it('takes a 1.0 inline definition as a file, and leaves out ids already known or repeated', async () => {
+  it("takes a 1.0 inline definition under v1.0's key as a file, and leaves out ids already known or repeated", async () => {
     const registry = await CatalogRegistry.load([custom]);
     const inline = registry.inlineCatalogs({
-      'v1.0': {
+      '1.0': {
         supportedCatalogIds: [],
         inlineCatalogs: [
           {protocolVersion: '1.0', catalogId: 'conformance/custom', components: {}},

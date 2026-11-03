@@ -6,6 +6,7 @@ import {
   type CheckEvent,
   isCallEvent,
   isCheck,
+  recordFormOf,
   isTurnEvent,
   type Turn,
   type TurnOutcome,
@@ -93,7 +94,7 @@ export function openFieldsOf(
     .find((version): version is string => typeof version === 'string');
   return {
     durationMs: newest - startMs,
-    ...(version !== undefined && {protocolVersion: version}),
+    ...(version !== undefined && {protocolVersion: recordFormOf(version)}),
   };
 }
 

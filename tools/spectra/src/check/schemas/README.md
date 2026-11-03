@@ -1,6 +1,6 @@
 # A2UI protocol schemas and catalogs
 
-The schemas the schema check validates the agent's A2UI messages against, and the catalog definitions the catalog registry knows, one folder per protocol version. They are copied unchanged from `a2ui-project/a2ui` at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24), under that repository's Apache 2.0 licence.
+The schemas the schema check validates the agent's A2UI messages against, and the catalog definitions the catalog registry knows, one folder per protocol version. They are copied unchanged from `a2ui-project/a2ui` at `9e8a9bac5f08cdb01e4f181d0aa9438ca2e5161b` (2026-11-02), under that repository's Apache 2.0 licence.
 
 | File                               | Copied from                                       | Used by                                                                                                                              |
 | ---------------------------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |

@@ -166,14 +166,14 @@ describe('boxRequest', () => {
         'v0.9.1': {supportedCatalogIds: [basicV09, basicV091]},
       },
       a2uiRendererCapabilities: {
-        'v1.0': {
+        '1.0': {
           supportedCatalogIds: ['https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json'],
         },
       },
     });
   });
 
-  it("writes an offer of catalog ids as the capabilities, under each version's key", () => {
+  it("writes an offer of catalog ids as the capabilities, under each version's key, v1.0's bare", () => {
     assert.deepEqual(
       capabilitiesFor({
         'v0.9': ['a'],
@@ -185,7 +185,7 @@ describe('boxRequest', () => {
           'v0.9': {supportedCatalogIds: ['a']},
           'v0.9.1': {supportedCatalogIds: ['a', 'b']},
         },
-        a2uiRendererCapabilities: {'v1.0': {supportedCatalogIds: ['c']}},
+        a2uiRendererCapabilities: {'1.0': {supportedCatalogIds: ['c']}},
       },
     );
   });
@@ -251,7 +251,7 @@ describe('boxRequest', () => {
   });
 
   it("sends a text's data model too, v1.0's under v1.0's key", () => {
-    const dataModel = {version: 'v1.0', surfaces: {form: {name: 'Ada'}}};
+    const dataModel = {version: '1.0', surfaces: {form: {name: 'Ada'}}};
     const {metadata} = (
       JSON.parse(
         boxRequest({version: '1.0', url: PROXY, streaming: false}, {...message, dataModel}, 4).body,

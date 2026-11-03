@@ -91,17 +91,19 @@ describe('rejectionCount', () => {
         return [file, turns.map((turn, index) => rejectionCount(turn, turns.slice(0, index)))];
       }),
     );
+    // AG2's and the TypeScript restaurant finder's v1.0 messages declare v1.0, as
+    // before the pin's bare 1.0, so web core rejects every one.
     assert.deepEqual(counts, {
       'a2term_examplesvc/send_multipart_and_tagged_text.json': [1, 0],
       'a2uiverse_circleci/runs_then_confirm_rerun.json': [0, 0],
       'ag2/send_v0_9_1_card.json': [0],
       'ag2/stream_v1_0_failed.json': [0],
-      'ag2/stream_v1_0_function_call.json': [1],
+      'ag2/stream_v1_0_function_call.json': [3],
       'angular_client/python_restaurant_finder_booking.json': [1, 1, 1],
       'custom_components/action_then_model_turn.json': [0, 0],
       'file_upload_summarizer/artifact_stream_and_send.json': [1, 1],
       'node_restaurant_finder/send_task_history_and_failed.json': [0, 0],
-      'node_restaurant_finder/stream_v1_0_booking.json': [0, 1],
+      'node_restaurant_finder/stream_v1_0_booking.json': [8, 7],
       'react_client/node_restaurant_finder_text_and_action.json': [0, 1],
       'strathweb_booking_wizard/send_then_stream.json': [0, 0],
       'stub_agent/cancel_a2a_0_3.json': [0],
@@ -167,7 +169,7 @@ describe('rejectionCount', () => {
     assert.equal(rejectionCount(wizard[1]), 3);
     assert.equal(rejectionCount(wizard[1], wizard.slice(0, 1)), 0);
     // The TypeScript restaurant finder's stub creates stub-notice again in its second turn.
-    const booking = readRecording('node_restaurant_finder/stream_v1_0_booking.json').turns;
+    const booking = readRecording('react_client/node_restaurant_finder_text_and_action.json').turns;
     assert.equal(rejectionCount(booking[1]), 0);
     assert.equal(rejectionCount(booking[1], booking.slice(0, 1)), 1);
   });

@@ -301,7 +301,7 @@ describe('the message box', () => {
     );
     await proxy.close((await box.send('Book a table')).traceId);
     const action = {
-      version: 'v1.0',
+      version: '1.0',
       action: {
         name: 'submit_booking',
         surfaceId: 'booking',
@@ -310,7 +310,7 @@ describe('the message box', () => {
         context: {partySize: 2},
       },
     };
-    const dataModel = {version: 'v1.0', surfaces: {booking: {partySize: 2}}};
+    const dataModel = {version: '1.0', surfaces: {booking: {partySize: 2}}};
     await assert.rejects(box.send({action}), {status: 400});
     assert.equal(proxy.sent.length, 1);
     const sent = await box.send({action, dataModel}, 'ctx-1');

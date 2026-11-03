@@ -49,11 +49,11 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@a2ui/angular@npm:0.13.0":
-  version: 0.13.0
-  resolution: "@a2ui/angular@npm:0.13.0"
+"@a2ui/angular@npm:0.14.0":
+  version: 0.14.0
+  resolution: "@a2ui/angular@npm:0.14.0"
   dependencies:
-    "@a2ui/web_core": "npm:^0.14.0"
+    "@a2ui/web_core": "npm:^0.15.0"
     tslib: "npm:^2.8.1"
     zod: "npm:^3.25.76"
   peerDependencies:
@@ -64,15 +64,15 @@ __metadata:
   peerDependenciesMeta:
     "@a2ui/markdown-it":
       optional: true
-  checksum: 10c0/d1ab8baf2acfa4b105f1168d24c3b236452c778b7d6d79c2de47b23d005f704ef8c71f6a3463db04ec47c2a84916ad2d6911df1d1b50a7c392d6a80218e646de
+  checksum: 10c0/2a9155422813a3df5f9723ea5246f05b0cf5a68dd471fba5b237837b6a94cf586967b44fda53c0a96365384357de196c6433498ccbe413b64a0729d201d872b9
   languageName: node
   linkType: hard
 
-"@a2ui/lit@npm:0.14.0":
-  version: 0.14.0
-  resolution: "@a2ui/lit@npm:0.14.0"
+"@a2ui/lit@npm:0.15.0":
+  version: 0.15.0
+  resolution: "@a2ui/lit@npm:0.15.0"
   dependencies:
-    "@a2ui/web_core": "npm:^0.14.0"
+    "@a2ui/web_core": "npm:^0.15.0"
     "@lit-labs/signals": "npm:^0.3.0"
     "@lit/context": "npm:^1.1.6"
     lit: "npm:^3.3.3"
@@ -83,7 +83,7 @@ __metadata:
   peerDependenciesMeta:
     "@a2ui/markdown-it":
       optional: true
-  checksum: 10c0/21af4a12e48fd4e63f8bc6a03f478d266e65c45a3e72fc2807c1c5723e97a92c8c0a3c38a9ddfe93c54695aa8166e761ce71432091d9578aeb35b6bc42367adb
+  checksum: 10c0/ec13986d5734d4bf36035f908aaccfc937e2a87b82f6accdbb101935e999837af23dfde568e4a05f6da03ebd110f99e92df2aa0231bbf16a0766536de0f28fd0
   languageName: node
   linkType: hard
 
@@ -99,12 +99,12 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@a2ui/react@npm:0.14.0":
-  version: 0.14.0
-  resolution: "@a2ui/react@npm:0.14.0"
+"@a2ui/react@npm:0.15.0":
+  version: 0.15.0
+  resolution: "@a2ui/react@npm:0.15.0"
   dependencies:
     "@a2ui/markdown-it": "npm:^0.2.2"
-    "@a2ui/web_core": "npm:^0.14.0"
+    "@a2ui/web_core": "npm:^0.15.0"
     clsx: "npm:^2.1.1"
     markdown-it: "npm:^14.2.0"
     zod: "npm:^3.25.76"
@@ -112,26 +112,11 @@ __metadata:
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
     zod: ^3.25.76
-  checksum: 10c0/776c7ae4abc21ffa304ed1a42c3e39524363f1e1aa21fb64760057682f47c1b86fef1f09a6dc939e47d1f027823be34a1f8c6ba5e9c9fd5a65ff57f4c477f8b5
+  checksum: 10c0/f939119d5abf42be26155b452bd0f703a1d763f42f4b9360adcf09464b9640249c796978d1391ac607786ec03e02bff338b8be93ce065ba30e672b58e5cc2475
   languageName: node
   linkType: hard
 
-"@a2ui/web_core@npm:0.14.0, @a2ui/web_core@npm:^0.14.0":
-  version: 0.14.0
-  resolution: "@a2ui/web_core@npm:0.14.0"
-  dependencies:
-    "@lit/context": "npm:^1.1.6"
-    "@preact/signals-core": "npm:^1.14.2"
-    lit: "npm:^3.3.3"
-    redos-detector: "npm:^6.1.4"
-    validate-color: "npm:^2.2.4"
-    zod: "npm:^3.25.76"
-    zod-to-json-schema: "npm:^3.25.2"
-  checksum: 10c0/0ce16e8c5c29d3e3a72c7ca00b74eed87d21ad13e2e456cfea5c7eedc2c9e376f4a8d24921b6c764d3bd96fc8c4c7425cd4991944543f7dc31445b6ce00307f8
-  languageName: node
-  linkType: hard
-
-"@a2ui/web_core@npm:^0.15.0":
+"@a2ui/web_core@npm:0.15.0, @a2ui/web_core@npm:^0.15.0":
   version: 0.15.0
   resolution: "@a2ui/web_core@npm:0.15.0"
   dependencies:
@@ -5219,8 +5204,8 @@ __metadata:
   resolution: "a2ui-spectra-basic-preview@workspace:tools/spectra_basic_preview"
   dependencies:
     "@a2ui/markdown-it": "npm:^0.2.2"
-    "@a2ui/react": "npm:0.14.0"
-    "@a2ui/web_core": "npm:0.14.0"
+    "@a2ui/react": "npm:0.15.0"
+    "@a2ui/web_core": "npm:0.15.0"
     "@types/react": "npm:^19.2.17"
     "@types/react-dom": "npm:^19.2.3"
     "@vitejs/plugin-react": "npm:^6.0.2"
@@ -5283,8 +5268,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-preview-angular@workspace:typescript/preview/angular"
   dependencies:
-    "@a2ui/angular": "npm:0.13.0"
-    "@a2ui/web_core": "npm:0.14.0"
+    "@a2ui/angular": "npm:0.14.0"
+    "@a2ui/web_core": "npm:0.15.0"
     "@angular/build": "npm:^21.2.5"
     "@angular/cli": "npm:^21.2.5"
     "@angular/common": "npm:^21.2.5"
@@ -5302,8 +5287,8 @@ __metadata:
     typescript: "npm:5.9.3"
     wireit: "npm:^0.15.0-pre.2"
   peerDependencies:
-    "@a2ui/angular": ^0.13.0
-    "@a2ui/web_core": ^0.14.0
+    "@a2ui/angular": ^0.14.0
+    "@a2ui/web_core": ^0.15.0
     "@angular/common": ^21.2.5
     "@angular/core": ^21.2.5
     "@angular/platform-browser": ^21.2.5
@@ -5314,8 +5299,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-preview-lit@workspace:typescript/preview/lit"
   dependencies:
-    "@a2ui/lit": "npm:0.14.0"
-    "@a2ui/web_core": "npm:0.14.0"
+    "@a2ui/lit": "npm:0.15.0"
+    "@a2ui/web_core": "npm:0.15.0"
     a2ui-spectra-preview: "workspace:^"
     eslint: "npm:^10.4.1"
     gts: "npm:^7.0.0"
@@ -5324,8 +5309,8 @@ __metadata:
     typescript: "npm:5.9.3"
     wireit: "npm:^0.15.0-pre.2"
   peerDependencies:
-    "@a2ui/lit": ^0.14.0
-    "@a2ui/web_core": ^0.14.0
+    "@a2ui/lit": ^0.15.0
+    "@a2ui/web_core": ^0.15.0
     lit: ^3.3.3
   languageName: unknown
   linkType: soft
@@ -5334,8 +5319,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-preview-react@workspace:typescript/preview/react"
   dependencies:
-    "@a2ui/react": "npm:0.14.0"
-    "@a2ui/web_core": "npm:0.14.0"
+    "@a2ui/react": "npm:0.15.0"
+    "@a2ui/web_core": "npm:0.15.0"
     "@types/react": "npm:^19.2.17"
     "@types/react-dom": "npm:^19.2.3"
     a2ui-spectra-preview: "workspace:^"
@@ -5349,8 +5334,8 @@ __metadata:
     wireit: "npm:^0.15.0-pre.2"
     zod: "npm:^3.25.76"
   peerDependencies:
-    "@a2ui/react": ^0.14.0
-    "@a2ui/web_core": ^0.14.0
+    "@a2ui/react": ^0.15.0
+    "@a2ui/web_core": ^0.15.0
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
   languageName: unknown
@@ -5360,7 +5345,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-preview@workspace:typescript/preview/core"
   dependencies:
-    "@a2ui/web_core": "npm:0.14.0"
+    "@a2ui/web_core": "npm:0.15.0"
     "@types/node": "npm:^25.9.3"
     eslint: "npm:^10.4.1"
     gts: "npm:^7.0.0"
@@ -5368,7 +5353,7 @@ __metadata:
     typescript: "npm:5.9.3"
     wireit: "npm:^0.15.0-pre.2"
   peerDependencies:
-    "@a2ui/web_core": ^0.14.0
+    "@a2ui/web_core": ^0.15.0
   languageName: unknown
   linkType: soft
 
@@ -5376,9 +5361,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-sample-preview-angular@workspace:samples/preview/angular"
   dependencies:
-    "@a2ui/angular": "npm:0.13.0"
+    "@a2ui/angular": "npm:0.14.0"
     "@a2ui/markdown-it": "npm:^0.2.2"
-    "@a2ui/web_core": "npm:0.14.0"
+    "@a2ui/web_core": "npm:0.15.0"
     "@angular/build": "npm:^21.2.5"
     "@angular/cli": "npm:^21.2.5"
     "@angular/common": "npm:^21.2.5"
@@ -5402,8 +5387,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-sample-preview-lit@workspace:samples/preview/lit"
   dependencies:
-    "@a2ui/lit": "npm:0.14.0"
-    "@a2ui/web_core": "npm:0.14.0"
+    "@a2ui/lit": "npm:0.15.0"
+    "@a2ui/web_core": "npm:0.15.0"
     a2ui-spectra-preview-lit: "workspace:^"
     eslint: "npm:^10.4.1"
     gts: "npm:^7.0.0"
@@ -5421,8 +5406,8 @@ __metadata:
   resolution: "a2ui-spectra-sample-preview-react@workspace:samples/preview/react"
   dependencies:
     "@a2ui/markdown-it": "npm:^0.2.2"
-    "@a2ui/react": "npm:0.14.0"
-    "@a2ui/web_core": "npm:0.14.0"
+    "@a2ui/react": "npm:0.15.0"
+    "@a2ui/web_core": "npm:0.15.0"
     "@types/react": "npm:^19.2.17"
     "@types/react-dom": "npm:^19.2.3"
     "@vitejs/plugin-react": "npm:^6.0.2"
@@ -5444,7 +5429,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-viewer@workspace:tools/spectra_viewer"
   dependencies:
-    "@a2ui/web_core": "npm:0.14.0"
+    "@a2ui/web_core": "npm:0.15.0"
     "@fontsource-variable/inter": "npm:^5.3.0"
     "@fontsource-variable/jetbrains-mono": "npm:^5.3.0"
     "@tailwindcss/vite": "npm:^4.3.3"
@@ -5506,7 +5491,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra@workspace:tools/spectra"
   dependencies:
-    "@a2ui/web_core": "npm:0.14.0"
+    "@a2ui/web_core": "npm:0.15.0"
     "@bufbuild/buf": "npm:1.75.0"
     "@bufbuild/protobuf": "npm:2.16.0"
     "@bufbuild/protoc-gen-es": "npm:2.16.0"

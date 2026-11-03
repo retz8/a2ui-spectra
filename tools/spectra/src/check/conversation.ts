@@ -22,7 +22,7 @@ import {
   type InlineDefinition,
   type ProcessorCatalog,
 } from '../catalog/registry.js';
-import {isEventOfKind, type Turn} from '../record/turn_record.js';
+import {isEventOfKind, recordFormOf, type Turn} from '../record/turn_record.js';
 import {agentMessages} from './schema_check.js';
 
 /** One A2UI message the agent sent, as the conversation fed it. */
@@ -311,7 +311,9 @@ function standInCatalogs(
 ): Array<Catalog<never>> {
   const versions = new Map<string, string>();
   for (const message of messages) {
-    const version = versionOf(message)?.startsWith('v1.') ? '1.0' : '0.9';
+    const declared = versionOf(message);
+    const version =
+      declared !== undefined && recordFormOf(declared).startsWith('v1.') ? '1.0' : '0.9';
     for (const id of catalogIdsIn(message)) {
       if (!known.has(id) && !versions.has(id)) versions.set(id, version);
     }

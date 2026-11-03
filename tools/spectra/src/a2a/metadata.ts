@@ -1,3 +1,4 @@
+import {recordFormOf} from '../record/turn_record.js';
 import {isRecord} from './protocol.js';
 
 /** The metadata keys a host sends its A2UI capabilities under: v0.9's, then v1.0's. */
@@ -8,7 +9,7 @@ const DATA_MODEL_KEYS = ['a2uiClientDataModel', 'a2uiRendererDataModel'];
 
 /** The metadata key for a data model of an A2UI version: v1.0's, or v0.9's for v0.9 and v0.9.1. */
 export function dataModelKeyFor(version: unknown): string {
-  return typeof version === 'string' && version.startsWith('v1.')
+  return typeof version === 'string' && recordFormOf(version).startsWith('v1.')
     ? DATA_MODEL_KEYS[1]
     : DATA_MODEL_KEYS[0];
 }

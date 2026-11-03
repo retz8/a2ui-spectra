@@ -24,7 +24,7 @@ const components09 = {
   },
 };
 const surface10 = {
-  version: 'v1.0',
+  version: '1.0',
   createSurface: {
     surfaceId: 's',
     catalogId: 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json',
@@ -466,7 +466,7 @@ describe('TurnCapture', () => {
           ...userMessage03,
           metadata: {
             a2uiClientCapabilities: {'v0.9': {supportedCatalogIds: ['basic-0.9']}},
-            a2uiRendererCapabilities: {'v1.0': {supportedCatalogIds: ['basic-1.0']}},
+            a2uiRendererCapabilities: {'1.0': {supportedCatalogIds: ['basic-1.0']}},
             locale: 'en-US',
           },
         }),
@@ -480,7 +480,7 @@ describe('TurnCapture', () => {
         },
         'a2ui.wire.capabilities': {
           'v0.9': {supportedCatalogIds: ['basic-0.9']},
-          'v1.0': {supportedCatalogIds: ['basic-1.0']},
+          '1.0': {supportedCatalogIds: ['basic-1.0']},
         },
         'a2ui.wire.metadata': {locale: 'en-US'},
       });
@@ -488,11 +488,11 @@ describe('TurnCapture', () => {
 
     it('takes the data model, and the one matching the A2UI version when both are sent', () => {
       const action10 = {
-        version: 'v1.0',
+        version: '1.0',
         action: {name: 'book', surfaceId: 's', sourceComponentId: 'b', timestamp: 't', context: {}},
       };
       const model09 = {version: 'v0.9', surfaces: {s: {a: 1}}};
-      const model10 = {version: 'v1.0', surfaces: {s: {a: 2}}};
+      const model10 = {version: '1.0', surfaces: {s: {a: 2}}};
       const one = capture(
         request('message/stream', {...userMessage03, metadata: {a2uiClientDataModel: model09}}),
         [],
@@ -557,7 +557,7 @@ describe('TurnCapture', () => {
     ];
     const offerBoth = {
       a2uiClientCapabilities: {'v0.9': {supportedCatalogIds: []}},
-      a2uiRendererCapabilities: {'v1.0': {supportedCatalogIds: []}},
+      a2uiRendererCapabilities: {'1.0': {supportedCatalogIds: []}},
     };
 
     it("is the version of the turn's A2UI messages, over the header and the offer", () => {
@@ -578,10 +578,14 @@ describe('TurnCapture', () => {
       );
     });
 
-    it('falls back to the offer when it names one version, else records none', () => {
+    it("falls back to the offer when it names one version, in the record's form, else records none", () => {
       assert.equal(
         versionOf({a2uiClientCapabilities: {'v0.9': {supportedCatalogIds: []}}}, noA2ui),
         'v0.9',
+      );
+      assert.equal(
+        versionOf({a2uiRendererCapabilities: {'1.0': {supportedCatalogIds: []}}}, noA2ui),
+        'v1.0',
       );
       assert.equal(versionOf(offerBoth, noA2ui), undefined);
       assert.equal(versionOf(undefined, noA2ui), undefined);

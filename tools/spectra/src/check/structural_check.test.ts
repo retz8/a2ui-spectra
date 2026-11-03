@@ -221,7 +221,7 @@ describe('the structural check', () => {
     const child = run(
       testTurn({
         capabilities: {
-          'v1.0': {
+          '1.0': {
             supportedCatalogIds: [],
             inlineCatalogs: [
               {

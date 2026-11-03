@@ -137,7 +137,7 @@ describe('the schema check on recorded turns', () => {
     }
   });
 
-  it("passes every agent's messages in the recordings but AG2's function call and the flawed booking", () => {
+  it("passes every agent's messages in the recordings but the v1.0 streams of AG2 and the Node restaurant finder and the flawed booking", () => {
     const failed: string[] = [];
     let checked = 0;
     for (const file of jsonFiles('test_data/a2a_capture/v0_1')) {
@@ -152,20 +152,27 @@ describe('the schema check on recorded turns', () => {
     assert.ok(checked >= 20, `only ${checked} turns checked`);
     assert.deepEqual(failed, [
       'ag2/stream_v1_0_function_call.json#0',
+      'node_restaurant_finder/stream_v1_0_booking.json#0',
+      'node_restaurant_finder/stream_v1_0_booking.json#1',
       'stub_agent/flawed_booking_a2a_1_0.json#0',
     ]);
 
+    // Both v1.0 streams declare v1.0, as before the pin's bare 1.0.
     const [turn] = readRecord(
       'test_data/a2a_capture/v0_1/ag2/stream_v1_0_function_call.json',
     ).turns;
     const result = checkSchema(turn);
     assert.equal(result?.protocolVersion, 'v1.0');
-    assert.equal(result?.findings.length, 1);
-    const [finding] = result.findings;
-    assert.equal(finding.code, 'VALIDATION_FAILED');
-    assert.match(finding.message, /names none of v1\.0's message types: .*callRendererFunction/);
+    assert.deepEqual(
+      result?.findings.map(({code, message}) => [code, message]),
+      Array(3).fill([
+        'SCHEMA_VERSION_UNSUPPORTED',
+        'The message declares v1.0; Spectra checks v0.9, v0.9.1, 1.0.',
+      ]),
+    );
+    const finding = result.findings[2];
     assert.equal(finding.surfaceId, undefined);
-    const pointer = (finding.path ?? '').split('/').slice(1);
+    const pointer = (finding.path ?? '').split('/').slice(1, -1);
     let value: unknown = turn;
     for (const key of pointer) value = (value as Record<string, unknown>)[key];
     assert.equal((value as {functionCallId?: string}).functionCallId, 'open-docs');
@@ -190,7 +197,11 @@ describe('the schema check', () => {
     );
     assert.deepEqual(result, {protocolVersion: 'v0.9', passed: true, findings: []});
     assert.equal(checkSchema(turnOf([[a2ui(createSurface('v0.9.1'))]]))?.passed, true);
-    assert.equal(checkSchema(turnOf([[a2ui(createSurface('v1.0'))]]))?.passed, true);
+    assert.deepEqual(checkSchema(turnOf([[a2ui(createSurface('1.0'))]])), {
+      protocolVersion: 'v1.0',
+      passed: true,
+      findings: [],
+    });
   });
 
   it("accepts any catalog's components, functions and theme", () => {
@@ -206,7 +217,7 @@ describe('the schema check', () => {
       createSurface: {...createSurface('v0.9').createSurface, theme: {glow: 3}},
     };
     const v1_0 = {
-      version: 'v1.0',
+      version: '1.0',
       updateComponents: {
         surfaceId: 's1',
         components: [{id: 'root', component: 'Gizmo', child: 'x', text: 'Hello'}],
@@ -222,7 +233,7 @@ describe('the schema check', () => {
       turnOf([
         [
           a2ui({
-            version: 'v1.0',
+            version: '1.0',
             updateComponents: {
               surfaceId: 's1',
               components: [{component: 'Text'}, {id: 'x', component: 'Surface'}],
@@ -318,7 +329,7 @@ describe('the schema check', () => {
         code: 'SCHEMA_VERSION_UNSUPPORTED',
         surfaceId: 's1',
         path: `${contentPath(0)}/version`,
-        message: 'The message declares v0.8; Spectra checks v0.9, v0.9.1, v1.0.',
+        message: 'The message declares v0.8; Spectra checks v0.9, v0.9.1, 1.0.',
       },
       {
         code: 'SCHEMA_NOT_AN_OBJECT',
@@ -338,9 +349,25 @@ describe('the schema check', () => {
     ]);
   });
 
+  it("fails a v1.0 message declaring v1.0, as before the pin's bare 1.0, in v1.0's name", () => {
+    const result = checkSchema(turnOf([[a2ui(createSurface('v1.0'))]]));
+    assert.deepEqual(result, {
+      protocolVersion: 'v1.0',
+      passed: false,
+      findings: [
+        {
+          code: 'SCHEMA_VERSION_UNSUPPORTED',
+          surfaceId: 's1',
+          path: `${contentPath(0)}/version`,
+          message: 'The message declares v1.0; Spectra checks v0.9, v0.9.1, 1.0.',
+        },
+      ],
+    });
+  });
+
   it("finds mixed versions among the agent's messages, each checked against its own", () => {
     const result = checkSchema(
-      turnOf([[a2ui(createSurface('v0.9'))], [a2ui(createSurface('v1.0', 's2'))]], {
+      turnOf([[a2ui(createSurface('v0.9'))], [a2ui(createSurface('1.0', 's2'))]], {
         version: 'v0.9',
       }),
     );
@@ -350,7 +377,7 @@ describe('the schema check', () => {
       findings: [
         {
           code: 'SCHEMA_VERSIONS_MIXED',
-          message: "The agent's messages in this turn declare more than one version: v0.9, v1.0.",
+          message: "The agent's messages in this turn declare more than one version: v0.9, 1.0.",
         },
       ],
     });
@@ -359,7 +386,7 @@ describe('the schema check', () => {
   it("takes the agent's first declared version, not the host's", () => {
     const action = a2ui({version: 'v0.9', action: {name: 'go', surfaceId: 's1'}});
     const result = checkSchema(
-      turnOf([[a2ui({text: 'no version'})], [a2ui(createSurface('v1.0'))]], {
+      turnOf([[a2ui({text: 'no version'})], [a2ui(createSurface('1.0'))]], {
         version: 'v0.9',
         input: [action],
       }),

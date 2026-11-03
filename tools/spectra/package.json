@@ -132,7 +132,7 @@
     }
   },
   "dependencies": {
-    "@a2ui/web_core": "0.14.0",
+    "@a2ui/web_core": "0.15.0",
     "@bufbuild/protobuf": "2.16.0"
   },
   "devDependencies": {

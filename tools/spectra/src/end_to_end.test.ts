@@ -291,7 +291,7 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
           ]);
 
           // The text carries the surface's data model, which the stub echoes.
-          const typed = {version: 'v1.0', surfaces: {greeting: {greeting: 'Hello!', name: 'Ada'}}};
+          const typed = {version: '1.0', surfaces: {greeting: {greeting: 'Hello!', name: 'Ada'}}};
           const second = await sendMessage(base, 'Ada', conversationId, typed);
           assert.equal(second.conversationId, conversationId);
           const two = await checkTurn(base, cwd, live, second.traceId);
@@ -303,7 +303,7 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
 
           // The other conversation goes on with its Button's action: one A2UI part, an object in A2A 0.3, a list in 1.0.
           const action = {
-            version: 'v1.0',
+            version: '1.0',
             action: {
               name: 'greet',
               surfaceId: 'greeting',
@@ -313,7 +313,7 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
             },
           };
           const pressedModel = {
-            version: 'v1.0',
+            version: '1.0',
             surfaces: {greeting: {greeting: 'Hello!', name: 'Grace'}},
           };
           const pressed = await sendMessage(base, {action}, otherId, pressedModel);
@@ -359,7 +359,7 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
             ),
             [
               {
-                version: 'v1.0',
+                version: '1.0',
                 updateDataModel: {surfaceId: 'greeting', path: '/greeting', value: 'Hello, Ada!'},
               },
             ],
@@ -464,7 +464,7 @@ describe(`the config file against the stub agent, ${binary ? 'the binary' : 'und
         assert.deepEqual(input?.attributes['a2ui.wire.capabilities'], {
           'v0.9': {supportedCatalogIds: [BASIC_V0_9]},
           'v0.9.1': {supportedCatalogIds: [BASIC_V0_9, BASIC_V0_9_1]},
-          'v1.0': {supportedCatalogIds: [BASIC_V1_0, 'conformance/custom']},
+          '1.0': {supportedCatalogIds: [BASIC_V1_0, 'conformance/custom']},
         });
       } finally {
         live?.close();

@@ -7,6 +7,8 @@ import {Catalog, type ComponentApi, type FunctionApi} from '@a2ui/web_core/catal
 import {basicCatalog as basicCatalogV10} from '@a2ui/web_core/catalogs/basic/v1';
 import {basicCatalog as basicCatalogV09} from '@a2ui/web_core/v0_9/basic_catalog';
 
+import {recordFormOf} from './record.ts';
+
 /** A definition as `GET /api/catalogs` serves it. */
 export interface KnownCatalog {
   id: string;
@@ -66,7 +68,8 @@ export function inlineCatalogsOf(
   const inline: ProcessorCatalog[] = [];
   const seen = new Set(known);
   for (const [key, value] of Object.entries(capabilities ?? {})) {
-    const version = key.startsWith('v1.') ? '1.0' : key.startsWith('v0.') ? '0.9' : undefined;
+    const form = recordFormOf(key);
+    const version = form.startsWith('v1.') ? '1.0' : form.startsWith('v0.') ? '0.9' : undefined;
     if (version === undefined) continue;
     const items =
       typeof value === 'object' &&

@@ -16,7 +16,13 @@ import {
   componentPointer,
   surfaceIdOf,
 } from './messages.ts';
-import {isWireInput, type Turn, type TurnRecord, type TurnRecordEvent} from './record.ts';
+import {
+  isWireInput,
+  recordFormOf,
+  type Turn,
+  type TurnRecord,
+  type TurnRecordEvent,
+} from './record.ts';
 import {isThrough, messageTypeOf, type Position} from './steps.ts';
 
 export interface ComponentNode {
@@ -227,6 +233,11 @@ interface ZodIssue {
   unionErrors?: Array<{issues: ZodIssue[]}>;
 }
 
+/** A detail of a component's rejection: its path a JSON Pointer inside the component. */
+interface ErrorDetail {
+  path: string;
+}
+
 const COMPONENT_FAILED = /^Validation failed for component '[^']*' \((.*)\): /;
 
 const MESSAGE_FAILED = /^(Invalid \S+ message: )([\s\S]*)$/;
@@ -242,7 +253,7 @@ const MESSAGE_FAILED = /^(Invalid \S+ message: )([\s\S]*)$/;
 function rejectionOf(error: Error, message: unknown): {message: string; inner?: string} {
   const details = (error as {details?: unknown}).details;
   const issues = Array.isArray(details)
-    ? (details as ZodIssue[])
+    ? (details as Array<ZodIssue | ErrorDetail>)
     : ((details as {issues?: ZodIssue[]} | undefined)?.issues ?? []);
   if (issues.length === 0) return {message: error.message};
   const component = COMPONENT_FAILED.exec(error.message);
@@ -255,7 +266,7 @@ function rejectionOf(error: Error, message: unknown): {message: string; inner?: 
   }
   const failed = MESSAGE_FAILED.exec(error.message);
   if (failed === null) return {message: error.message};
-  const leaves = issues.flatMap(issue => leavesOf(issue, messageTypeOf(message)));
+  const leaves = (issues as ZodIssue[]).flatMap(issue => leavesOf(issue, messageTypeOf(message)));
   const kept = leaves.filter(leaf => leaf.kept);
   const pieces = failed[2].split('; ');
   return {
@@ -290,12 +301,15 @@ function leavesOf(
   );
 }
 
-/** A Zod issue's path as a JSON Pointer, ending at the key for an unrecognized one. */
-function issuePointer(issue: ZodIssue): string {
+/**
+ * A Zod issue's path as a JSON Pointer, ending at the key for an unrecognized
+ * one; a detail's, which is one already.
+ */
+function issuePointer(issue: ZodIssue | ErrorDetail): string {
+  if (typeof issue.path === 'string') return issue.path;
+  const zod = issue as ZodIssue;
   const path =
-    issue.code === 'unrecognized_keys' && issue.keys?.length
-      ? [...issue.path, issue.keys[0]]
-      : issue.path;
+    zod.code === 'unrecognized_keys' && zod.keys?.length ? [...zod.path, zod.keys[0]] : zod.path;
   return path
     .map(segment => `/${String(segment).replace(/~/g, '~0').replace(/\//g, '~1')}`)
     .join('');
@@ -312,7 +326,9 @@ function standInCatalogs(
 ): Array<Catalog<never>> {
   const versions = new Map<string, string>();
   for (const {message} of messages) {
-    const version = versionOf(message)?.startsWith('v1.') ? '1.0' : '0.9';
+    const declared = versionOf(message);
+    const version =
+      declared !== undefined && recordFormOf(declared).startsWith('v1.') ? '1.0' : '0.9';
     for (const id of catalogIdsIn(message)) {
       if (!known.has(id) && !versions.has(id)) versions.set(id, version);
     }

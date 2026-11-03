@@ -17,6 +17,7 @@ import {
   isA2uiPart,
   isEventOfKind,
   type ProtocolVersion,
+  recordFormOf,
   type Turn,
   type TurnEvent,
 } from '../record/turn_record.js';
@@ -26,11 +27,14 @@ import v0_9_1 from './schemas/v0_9_1/server_to_client.json' with {type: 'json'};
 import v1_0 from './schemas/v1_0/agent_to_renderer.json' with {type: 'json'};
 import v1_0CommonTypes from './schemas/v1_0/common_types.json' with {type: 'json'};
 
-/** Each version the check covers: its single-message schema, then the schemas it references. */
-const SCHEMAS: Readonly<Record<ProtocolVersion, AnySchemaObject[]>> = {
+/**
+ * Each version the check covers, as a message declares it: its
+ * single-message schema, then the schemas it references.
+ */
+const SCHEMAS: Readonly<Record<string, AnySchemaObject[]>> = {
   'v0.9': [v0_9],
   'v0.9.1': [v0_9_1],
-  'v1.0': [v1_0, v1_0CommonTypes],
+  '1.0': [v1_0, v1_0CommonTypes],
 };
 
 /** The versions the check covers, as a finding names them. */
@@ -79,7 +83,7 @@ function compile(schemas: AnySchemaObject[]): VersionSchema {
   return {message: ajv.getSchema(base) as ValidateFunction, types};
 }
 
-const compiled = new Map<ProtocolVersion, VersionSchema>();
+const compiled = new Map<string, VersionSchema>();
 
 /** The validators for a version the check covers, compiled on first use; nothing for another. */
 function schemaFor(version: string): VersionSchema | undefined {
@@ -118,7 +122,7 @@ export function checkSchema(turn: Turn): SchemaCheckResult | undefined {
     isObject(message) && typeof message.version === 'string' ? [message.version] : [],
   );
   const protocolVersion =
-    declared.find(version => VERSION_FORM.test(version)) ??
+    declared.map(recordFormOf).find(version => VERSION_FORM.test(version)) ??
     turnEventOf(turn)?.attributes['a2ui.turn.protocol_version'];
   if (protocolVersion === undefined) {
     return undefined;

@@ -127,7 +127,7 @@ A `parse` made by a tool call is tied to that call by its parent, not by a link:
 | `gen_ai.agent.name`          | string          | no       | The agent's name, from its card.                                                                        |
 | `gen_ai.conversation.id`     | string          | no       | The conversation the turn belongs to: A2A's `contextId`, AG-UI's `threadId`.                            |
 | `a2ui.turn.outcome`          | string          | yes      | `completed`, `failed`, `cancelled` or `waiting_for_input`.                                              |
-| `a2ui.turn.protocol_version` | string          | no       | The A2UI protocol version the turn used, such as `"v0.9.1"`.                                            |
+| `a2ui.turn.protocol_version` | string          | no       | The A2UI protocol version the turn used, in the record's form, such as `"v0.9.1"` or `"v1.0"`.          |
 | `a2ui.turn.capture_paths`    | array of string | yes      | The capture paths active for the turn: `wire`, `model_proxy`, `tool_proxy`, `otel_receiver`, `wrapper`. |
 | `a2ui.turn.writer.name`      | string          | yes      | The program that wrote the record.                                                                      |
 | `a2ui.turn.writer.version`   | string          | yes      | Its version.                                                                                            |
@@ -348,7 +348,7 @@ One check run on the turn. Each turn has at most one check event per check.
 | `a2ui.event.kind`             | string                    | yes       | `"check"`.                                                                                                                                       |
 | `a2ui.check.name`             | string                    | yes       | `schema`, `catalog`, `structural` or `binding`.                                                                                                  |
 | `a2ui.check.passed`           | boolean                   | yes       | Whether the check passed: it has no findings.                                                                                                    |
-| `a2ui.check.protocol_version` | string                    | yes       | The A2UI protocol version checked against.                                                                                                       |
+| `a2ui.check.protocol_version` | string                    | yes       | The A2UI protocol version checked against, in the record's form.                                                                                 |
 | `a2ui.check.findings`         | array of findings         | yes       | What the check found. Empty when it passed.                                                                                                      |
 | `a2ui.check.skipped`          | array of skipped surfaces | per check | The surfaces the check could not judge. Required on `catalog`, `structural` and `binding`, empty when none was skipped; not allowed on `schema`. |
 
@@ -384,7 +384,7 @@ The codes:
 | ------------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
 | `VALIDATION_FAILED`                   | `schema`, `catalog` | A message fails its version's schema, or names no message type or several; a component, function call or theme fails its catalog's definition. |
 | `SCHEMA_VERSION_MISSING`              | `schema`            | A message with no `version` string.                                                                                                            |
-| `SCHEMA_VERSION_UNSUPPORTED`          | `schema`            | A `version` other than v0.9, v0.9.1 and v1.0.                                                                                                  |
+| `SCHEMA_VERSION_UNSUPPORTED`          | `schema`            | A `version` other than `v0.9`, `v0.9.1` and v1.0's `1.0`.                                                                                      |
 | `SCHEMA_NOT_AN_OBJECT`                | `schema`            | Content, or an element of an array, that is not a JSON object.                                                                                 |
 | `SCHEMA_VERSIONS_MIXED`               | `schema`            | The agent's messages in one turn declare more than one version.                                                                                |
 | `COMPONENT_UNKNOWN`                   | `catalog`           | A component type the catalog does not define.                                                                                                  |

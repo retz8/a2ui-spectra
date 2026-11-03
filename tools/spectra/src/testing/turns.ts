@@ -103,18 +103,18 @@ export function deleteSurface(surfaceId: string): unknown {
   return {version: 'v0.9', deleteSurface: {surfaceId}};
 }
 
-/** The same messages in v1.0's shape. */
+/** The same messages in v1.0's shape, under its bare version. */
 export const v1 = {
   createSurface: (surfaceId: string, catalogId = BASIC_V1_0, extra = {}): unknown => ({
-    version: 'v1.0',
+    version: '1.0',
     createSurface: {surfaceId, catalogId, ...extra},
   }),
   updateComponents: (surfaceId: string, components: unknown[]): unknown => ({
-    version: 'v1.0',
+    version: '1.0',
     updateComponents: {surfaceId, components},
   }),
   updateDataModel: (surfaceId: string, value: unknown, path = '/'): unknown => ({
-    version: 'v1.0',
+    version: '1.0',
     updateDataModel: {surfaceId, path, value},
   }),
 };

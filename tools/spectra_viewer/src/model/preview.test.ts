@@ -90,10 +90,10 @@ describe('targetOf', () => {
 
   it("adds the catalogs a v1.0 surface's components name of their own", () => {
     const feed = [
-      {message: {version: 'v1.0', createSurface: {surfaceId: 's', catalogId: BASIC_V1_0}}},
+      {message: {version: '1.0', createSurface: {surfaceId: 's', catalogId: BASIC_V1_0}}},
       {
         message: {
-          version: 'v1.0',
+          version: '1.0',
           updateComponents: {
             surfaceId: 's',
             components: [{id: 'root', component: 'Booking', catalogId: CUSTOM}],
@@ -101,7 +101,7 @@ describe('targetOf', () => {
         },
       },
     ];
-    assert.deepEqual(targetOf(feed), {catalogIds: [BASIC_V1_0, CUSTOM], protocolVersion: 'v1.0'});
+    assert.deepEqual(targetOf(feed), {catalogIds: [BASIC_V1_0, CUSTOM], protocolVersion: '1.0'});
   });
 });
 
@@ -111,7 +111,7 @@ describe('routeOf', () => {
       [BASIC_V0_9, 'v0.9'],
       [BASIC_V0_9, 'v0.9.1'],
       [BASIC_V0_9_1, 'v0.9.1'],
-      [BASIC_V1_0, 'v1.0'],
+      [BASIC_V1_0, '1.0'],
     ]) {
       const route = routeOf([BUILT_IN], {catalogIds: [catalogId], protocolVersion: version});
       assert.equal(
@@ -123,7 +123,7 @@ describe('routeOf', () => {
   });
 
   it("matches the version with web core's compatibility rule", () => {
-    const route = routeOf([BUILT_IN], {catalogIds: [BASIC_V0_9], protocolVersion: 'v1.0'});
+    const route = routeOf([BUILT_IN], {catalogIds: [BASIC_V0_9], protocolVersion: '1.0'});
     assert.deepEqual(route, {kind: 'none', catalogId: BASIC_V0_9, unanswered: []});
   });
 
@@ -154,7 +154,7 @@ describe('routeOf', () => {
     const old = page('http://localhost:5175/preview', {status: 'mismatch', protocol: 2});
     const route = routeOf([unanswered, old, BUILT_IN], {
       catalogIds: [BASIC_V1_0, CUSTOM],
-      protocolVersion: 'v1.0',
+      protocolVersion: '1.0',
     });
     assert.deepEqual(route, {kind: 'none', catalogId: CUSTOM, unanswered: [unanswered, old]});
   });
@@ -166,7 +166,7 @@ describe('routeOf', () => {
     const unanswered = page('http://localhost:5175/preview', {status: 'unanswered'});
     const route = routeOf([custom, unanswered, BUILT_IN], {
       catalogIds: [BASIC_V1_0],
-      protocolVersion: 'v1.0',
+      protocolVersion: '1.0',
     });
     assert.equal(route.kind === 'page' && route.page.id, 'built-in');
   });

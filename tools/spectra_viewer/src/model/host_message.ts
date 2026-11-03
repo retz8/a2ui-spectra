@@ -6,6 +6,7 @@
  */
 import type {PreviewAction} from 'a2ui-spectra-preview';
 
+import {recordFormOf} from './record.ts';
 import type {SurfaceView, TreeNode} from './replay.ts';
 
 /** The A2A versions the box speaks. */
@@ -25,12 +26,17 @@ export interface DataModelMap {
 
 /** The metadata key a data model goes under: v1.0's, or v0.9's for v0.9 and v0.9.1. */
 export function dataModelKeyOf(version: string): string {
-  return version.startsWith('v1.') ? 'a2uiRendererDataModel' : 'a2uiClientDataModel';
+  return isV1(version) ? 'a2uiRendererDataModel' : 'a2uiClientDataModel';
 }
 
 /** Whether two A2UI versions are of one protocol: v1.0's, or v0.9's with v0.9.1. */
 function sameProtocol(one: string, other: string): boolean {
-  return one.startsWith('v1.') === other.startsWith('v1.');
+  return isV1(one) === isV1(other);
+}
+
+/** Whether a version, as A2UI sends it, is v1.0's: `1.0`, or `v1.0` as before the pin. */
+function isV1(version: string): boolean {
+  return recordFormOf(version).startsWith('v1.');
 }
 
 /**

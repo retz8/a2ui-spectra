@@ -4,7 +4,7 @@ The React preview adapter of Spectra for A2UI: one component that lets Spectra's
 
 ## Adding a preview page
 
-1. Add the adapter as a dev dependency. It takes `@a2ui/react` 0.14, `@a2ui/web_core` 0.14 and React 18 or 19 as peer dependencies, so the preview runs on yours.
+1. Add the adapter as a dev dependency. It takes `@a2ui/react` 0.15, `@a2ui/web_core` 0.15 and React 18 or 19 as peer dependencies, so the preview runs on yours.
 2. Add a small page to the catalog's dev server, with `SpectraPreview` inside the providers your real host wraps its surfaces in, and the catalogs your host passes to its message processor:
 
    ```tsx

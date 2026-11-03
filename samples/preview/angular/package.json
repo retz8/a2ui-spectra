@@ -34,9 +34,9 @@
     }
   },
   "dependencies": {
-    "@a2ui/angular": "0.13.0",
+    "@a2ui/angular": "0.14.0",
     "@a2ui/markdown-it": "^0.2.2",
-    "@a2ui/web_core": "0.14.0",
+    "@a2ui/web_core": "0.15.0",
     "@angular/common": "^21.2.5",
     "@angular/core": "^21.2.5",
     "@angular/platform-browser": "^21.2.5",

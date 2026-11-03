@@ -1,13 +1,14 @@
 import {randomBytes} from 'node:crypto';
 
-import type {
-  Turn,
-  TurnEvent,
-  TurnOutcome,
-  WireInputAttributes,
-  WireInputEvent,
-  WireOutputEvent,
-  WirePart,
+import {
+  type Turn,
+  type TurnEvent,
+  type TurnOutcome,
+  type WireInputAttributes,
+  type WireInputEvent,
+  type WireOutputEvent,
+  type WirePart,
+  recordFormOf,
 } from '../record/turn_record.js';
 import {splitInputMetadata} from './metadata.js';
 import {wirePart} from './parts.js';
@@ -203,8 +204,9 @@ export class TurnCapture {
     }
     this.#closed = true;
     const outcome = this.#outcome();
-    const version =
+    const found =
       this.#a2uiVersions[0] ?? only(this.#headerVersions) ?? only(this.#offeredVersions);
+    const version = found === undefined ? undefined : recordFormOf(found);
     const {agentName, writer} = this.#options;
     const turnEvent: TurnEvent = {
       traceId: this.#traceId,

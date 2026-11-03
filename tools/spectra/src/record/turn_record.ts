@@ -44,8 +44,16 @@ export type SpanId = string;
 /** Nanoseconds since the Unix epoch, as a decimal string, as in OTLP JSON. */
 export type UnixNano = string;
 
-/** An A2UI protocol version, such as `v0.9` or `v0.9.1`. */
+/** An A2UI protocol version, in the record's form, such as `v0.9`, `v0.9.1` or `v1.0`. */
 export type ProtocolVersion = string;
+
+/**
+ * The record's form of a version as A2UI sends it: v1.0's bare `1.0` as
+ * `v1.0`; a version already in the record's form, such as `v0.9`, unchanged.
+ */
+export function recordFormOf(version: string): ProtocolVersion {
+  return version.startsWith('v') ? version : `v${version}`;
+}
 
 /**
  * OTLP's span kind: 0 unspecified, 1 internal, 2 server, 3 client,

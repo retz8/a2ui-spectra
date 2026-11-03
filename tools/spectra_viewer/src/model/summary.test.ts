@@ -100,6 +100,12 @@ describe('openFieldsOf', () => {
     );
   });
 
+  it("names v1.0's bare 1.0 in the record's form", () => {
+    const retried = readTestData('turn_record/v0_1/full_record_retried_parse.json').turns[0];
+    const {events, startMs} = sofar(retried);
+    assert.equal(openFieldsOf(events, startMs).protocolVersion, 'v1.0');
+  });
+
   it('names no version before an A2UI message has come', () => {
     const {events, startMs} = sofar(readRecording('stub_agent/cancel_a2a_1_0').turns[0]);
     assert.equal(openFieldsOf(events, startMs).protocolVersion, undefined);

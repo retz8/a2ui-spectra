@@ -72,7 +72,7 @@ const A2UI_MIME_TYPE = 'application/a2ui+json';
  */
 const A2UI_VERSIONS = [
   {
-    version: 'v1.0',
+    version: '1.0',
     capabilitiesKey: 'a2uiRendererCapabilities',
     dataModelKey: 'a2uiRendererDataModel',
     extension: 'https://a2ui.org/a2a-extension/a2ui/v1.0',
@@ -384,7 +384,7 @@ function a2uiParts(messages: Array<Record<string, unknown>>, a2a03: boolean): Pa
 
 /** A binding to a data model path, in the version's form: v1.0's `@path`, v0.9's `path`. */
 function bound(version: A2uiVersion['version'], path: string): Record<string, string> {
-  return version === 'v1.0' ? {'@path': path} : {path};
+  return version === '1.0' ? {'@path': path} : {path};
 }
 
 /**

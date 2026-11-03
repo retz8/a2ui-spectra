@@ -99,7 +99,7 @@ describe('the host message', () => {
       dataModelMapOf(replayed, 'v0.9.1', {surfaceId: 'form', dataModel: {name: 'Ada Lovelace'}}),
       {version: 'v0.9.1', surfaces: {form: {name: 'Ada Lovelace'}}},
     );
-    assert.equal(dataModelMapOf(replayed, 'v1.0'), undefined, 'A v0.9.1 surface is not v1.0.');
+    assert.equal(dataModelMapOf(replayed, '1.0'), undefined, 'A v0.9.1 surface is not v1.0.');
     assert.equal(
       dataModelMapOf(
         replayed.filter(surface => surface.surfaceId === 'notice'),
@@ -114,6 +114,7 @@ describe('the host message', () => {
   it('puts the data model under its version’s key', () => {
     assert.equal(dataModelKeyOf('v0.9'), 'a2uiClientDataModel');
     assert.equal(dataModelKeyOf('v0.9.1'), 'a2uiClientDataModel');
+    assert.equal(dataModelKeyOf('1.0'), 'a2uiRendererDataModel');
     assert.equal(dataModelKeyOf('v1.0'), 'a2uiRendererDataModel');
   });
 
@@ -141,11 +142,11 @@ describe('the host message', () => {
 
   it("takes v1.0's surfaces under v1.0", () => {
     const own = turnOf(
-      {version: 'v1.0', createSurface: {surfaceId: 'a', catalogId: V10_BASIC, sendDataModel: true}},
-      {version: 'v1.0', updateDataModel: {surfaceId: 'a', path: '/n', value: 1}},
+      {version: '1.0', createSurface: {surfaceId: 'a', catalogId: V10_BASIC, sendDataModel: true}},
+      {version: '1.0', updateDataModel: {surfaceId: 'a', path: '/n', value: 1}},
     );
-    assert.deepEqual(dataModelMapOf(replay([], own.events).surfaces, 'v1.0'), {
-      version: 'v1.0',
+    assert.deepEqual(dataModelMapOf(replay([], own.events).surfaces, '1.0'), {
+      version: '1.0',
       surfaces: {a: {n: 1}},
     });
   });

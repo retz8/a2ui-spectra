@@ -4,7 +4,7 @@ The Lit preview adapter of Spectra for A2UI: one custom element that lets Spectr
 
 ## Adding a preview page
 
-1. Add the adapter as a dev dependency. It takes `@a2ui/lit` 0.14, `@a2ui/web_core` 0.14 and Lit 3 as peer dependencies, so the preview runs on yours.
+1. Add the adapter as a dev dependency. It takes `@a2ui/lit` 0.15, `@a2ui/web_core` 0.15 and Lit 3 as peer dependencies, so the preview runs on yours.
 2. Add a small page to the catalog's dev server, with `<a2ui-spectra-preview>` where your real host places its surfaces, inside the context providers it uses, given the catalogs your host passes to its message processor:
 
    ```ts

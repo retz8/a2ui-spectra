@@ -200,6 +200,14 @@ export type ModelCallEvent = EventFields<{
   [name: string]: unknown;
 }>;
 
+/**
+ * The record's form of a version as A2UI sends it: v1.0's bare `1.0` as
+ * `v1.0`; a version already in the record's form, such as `v0.9`, unchanged.
+ */
+export function recordFormOf(version: string): string {
+  return version.startsWith('v') ? version : `v${version}`;
+}
+
 /** A model call or a tool call, a proxy's event or a received span. */
 export function isCallEvent(event: TurnRecordEvent): boolean {
   const kind = event.attributes['a2ui.event.kind'];

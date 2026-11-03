@@ -20,6 +20,7 @@ import catalogDefinition from '../check/schemas/v1_0/catalog_definition.json' wi
 import basicV10 from '../check/schemas/v1_0/catalogs/basic/catalog.json' with {type: 'json'};
 import commonTypesV10 from '../check/schemas/v1_0/common_types.json' with {type: 'json'};
 import {ConfigError} from '../config.js';
+import {recordFormOf} from '../record/turn_record.js';
 
 /** The v0.9.1 basic catalog URL, which upstream's v0.9.1 doc writes for the v0.9 basic catalog. */
 export const BASIC_CATALOG_V0_9_1 =
@@ -185,7 +186,8 @@ export class CatalogRegistry {
     const inline: InlineDefinition[] = [];
     const seen = new Set<string>();
     for (const [key, value] of Object.entries(capabilities ?? {})) {
-      const version = key.startsWith('v1.') ? '1.0' : key.startsWith('v0.') ? '0.9' : undefined;
+      const form = recordFormOf(key);
+      const version = form.startsWith('v1.') ? '1.0' : form.startsWith('v0.') ? '0.9' : undefined;
       const items =
         isObject(value) && Array.isArray(value.inlineCatalogs) ? value.inlineCatalogs : [];
       if (version === undefined) continue;
