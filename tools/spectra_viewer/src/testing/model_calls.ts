@@ -128,8 +128,12 @@ export function rawCall(spanId: string, start: number, end: number): ModelCallEv
   };
 }
 
-/** A delivery from the agent carrying one A2UI message. */
-export function a2uiDelivery(spanId: string, ms: number): WireOutputEvent {
+/** A delivery from the agent carrying one A2UI message, a contact card's createSurface unless given. */
+export function a2uiDelivery(
+  spanId: string,
+  ms: number,
+  message: unknown = {version: 'v0.9', createSurface: {surfaceId: 'contact_card', catalogId: 'x'}},
+): WireOutputEvent {
   return {
     traceId: TRACE,
     spanId,
@@ -141,12 +145,7 @@ export function a2uiDelivery(spanId: string, ms: number): WireOutputEvent {
       'a2ui.event.kind': 'wire_output',
       'a2ui.wire.message': {
         role: 'assistant',
-        parts: [
-          {
-            type: 'a2ui',
-            content: {version: 'v0.9', createSurface: {surfaceId: 'contact_card', catalogId: 'x'}},
-          },
-        ],
+        parts: [{type: 'a2ui', content: message}],
       },
     },
   };

@@ -1,4 +1,5 @@
 /** What the turn listing shows of each turn beyond the store's file names. */
+import {a2uiStepErrorsOf} from './a2ui_step.js';
 import {failedCallsOf} from './call_rows.js';
 import type {CatalogRegistry} from './catalog/registry.js';
 import {feedConversation} from './check/conversation.js';
@@ -36,6 +37,8 @@ export interface ListingFields {
    * proxy and span-only, a row counted once whichever of its sources failed.
    */
   failedCalls?: number;
+  /** The A2UI step's errors, when any: each parse error and each failed prompt generation. */
+  a2uiStepErrors?: number;
 }
 
 export function inputBriefOf(event: WireInputEvent): InputBrief | undefined {
@@ -87,6 +90,7 @@ export function listingFieldsOf(
   if (fields === undefined) return undefined;
   // A failed call is one problem on its row, as the viewer's timeline rows it.
   const failedCalls = failedCallsOf(turn.events);
+  const a2uiStepErrors = a2uiStepErrorsOf(turn.events);
   const conversation = feedConversation(turn, earlierTurns, catalogs);
   try {
     return {
@@ -95,6 +99,7 @@ export function listingFieldsOf(
       ...(findings !== undefined && {findings: findings.length}),
       rejections: unfoldedRejections(conversation, findings ?? []),
       ...(failedCalls > 0 && {failedCalls}),
+      ...(a2uiStepErrors > 0 && {a2uiStepErrors}),
     };
   } finally {
     conversation.dispose();

@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import {readRecording} from '../testing/recordings.ts';
+import {parse, promptGeneration} from '../testing/a2ui_step.ts';
+import {at, byStart, receivedSpan} from '../testing/model_calls.ts';
+import {readRecording, readTestData} from '../testing/recordings.ts';
 import {listedProblemCount, onlyProblems, problemsOf, turnProblemsOf} from './problems.ts';
 import {isTurnEvent, type Turn, type TurnRecordEvent, unixMillis} from './record.ts';
 import {replay} from './replay.ts';
@@ -219,5 +221,81 @@ describe('listedProblemCount', () => {
   it('adds the findings, the rejections and a failed outcome', () => {
     assert.equal(listedProblemCount({outcome: 'failed', findings: 2, rejections: 1}), 4);
     assert.equal(listedProblemCount({outcome: 'completed'}), 0);
+  });
+});
+
+describe("the A2UI step's problems", () => {
+  function stepProblemsOf(events: TurnRecordEvent[]) {
+    const rows = timelineOf(events, unixMillis(at(0)));
+    return problemsOf(events, rows, []);
+  }
+
+  it('puts each parse error on its parse row, with the block to show', () => {
+    const {turns} = readTestData('turn_record/v0_1/full_record_retried_parse.json');
+    const {events} = turns[0];
+    const start = unixMillis(events.find(isTurnEvent)!.startTimeUnixNano);
+    const problems = problemsOf(events, timelineOf(events, start), []);
+    assert.deepEqual(problems, [
+      {
+        stepId: 'e9f3a6c15b8d2704',
+        sentence: 'The parse stopped on this block: Surface default already exists.',
+        code: 'A2uiIntegrityError · A2UI SDK, Python',
+        range: {start: 442, end: 786},
+      },
+    ]);
+  });
+
+  it("counts a toolset row's parse errors only, not the tool span's status beside them", () => {
+    const span = receivedSpan({
+      spanId: 'tool-span',
+      name: 'execute_tool send_a2ui_json_to_client',
+      kind: 'tool_call',
+      start: 100,
+      end: 300,
+      names: {'gen_ai.tool.name': 'send_a2ui_json_to_client'},
+      status: {code: 2, message: 'tool failed'},
+    });
+    const failed = parse({
+      spanId: 'p1',
+      start: 150,
+      end: 250,
+      input: 'x',
+      entryPoint: 'tool_call',
+      tool: {name: 'send_a2ui_json_to_client'},
+      parentSpanId: 'tool-span',
+      errors: [
+        {type: 'A2uiValidationError', message: 'Catalog not found: inline_catalog', ms: 200},
+      ],
+    });
+    assert.deepEqual(stepProblemsOf(byStart(span, failed)), [
+      {
+        stepId: 'p1',
+        sentence: 'The parse stopped: Catalog not found: inline_catalog',
+        code: 'A2uiValidationError · A2UI SDK, Python',
+      },
+    ]);
+  });
+
+  it("puts a failed prompt generation's problem on its row", () => {
+    const failed = promptGeneration({
+      spanId: 'g1',
+      start: 10,
+      failure: {
+        type: 'A2uiCatalogError',
+        message: 'Catalog example.com:contacts declares no components.',
+      },
+    });
+    assert.deepEqual(stepProblemsOf([failed]), [
+      {
+        stepId: 'g1',
+        sentence:
+          "The SDK could not write the prompt's UI section: Catalog example.com:contacts declares no components.",
+        code: 'A2uiCatalogError · A2UI SDK, Python',
+      },
+    ]);
+  });
+
+  it("adds the A2UI step's errors to the listed count", () => {
+    assert.equal(listedProblemCount({findings: 1, a2uiStepErrors: 2}), 3);
   });
 });

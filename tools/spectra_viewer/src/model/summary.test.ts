@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import {readRecording} from '../testing/recordings.ts';
+import {readRecording, readTestData} from '../testing/recordings.ts';
 import {
   type CheckEvent,
   type Finding,
@@ -155,5 +155,23 @@ describe('rowFieldsOf', () => {
       durationMs: 4,
       input: {action: 'next'},
     });
+  });
+});
+
+describe("rowFieldsOf's A2UI step errors", () => {
+  it("counts the A2UI step's errors as the listing does, and leaves them out when there are none", () => {
+    const retried = readTestData('turn_record/v0_1/full_record_retried_parse.json').turns[0];
+    assert.equal(rowFieldsOf(retried).a2uiStepErrors, 1);
+    const finder = readTestData('turn_record/v0_1/full_record_restaurant_finder.json').turns;
+    assert.equal(rowFieldsOf(finder[1]).a2uiStepErrors, 1);
+    assert.equal(rowFieldsOf(finder[0]).a2uiStepErrors, undefined);
+    // A stream that read past two rejected blocks, and a failed prompt generation.
+    const wrapper = (name: string) => readTestData(`wrapper_capture/v0_1/${name}`).turns[0];
+    assert.equal(
+      rowFieldsOf(wrapper('express_open_stream_rejected_blocks_continue/expected_python.json'))
+        .a2uiStepErrors,
+      2,
+    );
+    assert.equal(rowFieldsOf(wrapper('generate_failed/expected.json')).a2uiStepErrors, 1);
   });
 });

@@ -1,5 +1,6 @@
 import {type InputBrief, inputBriefOfTurn} from './input_brief.ts';
 import {agentMessages} from './messages.ts';
+import {a2uiStepErrorsOf} from './a2ui_step.ts';
 import {failedCallsOf} from './call_rows.ts';
 import {
   type CheckEvent,
@@ -27,6 +28,8 @@ export interface RowFields {
   findings?: number;
   /** How many of its call rows failed, model and tool, proxy and span-only, when any did. */
   failedCalls?: number;
+  /** The A2UI step's errors: each parse error and each failed prompt generation, when any. */
+  a2uiStepErrors?: number;
 }
 
 export function rowFieldsOf(turn: Turn): RowFields {
@@ -36,6 +39,7 @@ export function rowFieldsOf(turn: Turn): RowFields {
   const input = inputBriefOfTurn(turn);
   const checks = turn.events.filter(isCheck);
   const failedCalls = failedCallsOf(turn.events);
+  const a2uiStepErrors = a2uiStepErrorsOf(turn.events);
   return {
     ...(outcome !== undefined && {outcome}),
     ...(agentName !== undefined && {agentName}),
@@ -50,6 +54,7 @@ export function rowFieldsOf(turn: Turn): RowFields {
       ),
     }),
     ...(failedCalls > 0 && {failedCalls}),
+    ...(a2uiStepErrors > 0 && {a2uiStepErrors}),
   };
 }
 

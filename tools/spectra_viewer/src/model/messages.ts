@@ -11,6 +11,22 @@ export interface AgentMessage {
   message: unknown;
 }
 
+/** Where a step sits among the turn's events: the event, the part, and the index in an array. */
+export interface Position {
+  eventIndex: number;
+  partIndex?: number;
+  index?: number;
+}
+
+/** Whether a position comes at or before another. */
+export function isThrough(position: Position, through: Position): boolean {
+  if (position.eventIndex !== through.eventIndex) return position.eventIndex < through.eventIndex;
+  if (through.partIndex === undefined || position.partIndex === undefined) return true;
+  if (position.partIndex !== through.partIndex) return position.partIndex < through.partIndex;
+  if (through.index === undefined || position.index === undefined) return true;
+  return position.index <= through.index;
+}
+
 export function messageKey(eventIndex: number, partIndex: number, index?: number): string {
   return index === undefined ? `${eventIndex}.${partIndex}` : `${eventIndex}.${partIndex}.${index}`;
 }

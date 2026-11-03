@@ -69,6 +69,21 @@ const PATHS = {
   tool: (
     <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.1-3.1a6 6 0 0 1-7.9 7.9l-6.3 6.3a2.1 2.1 0 0 1-3-3l6.3-6.3a6 6 0 0 1 7.9-7.9l-3.1 3.1z" />
   ),
+  // A parse: raw text's angle brackets becoming a component's box.
+  parse: (
+    <>
+      <path d="M8 6l-4 6 4 6M16 6l4 6-4 6" />
+      <rect x="9.5" y="9.5" width="5" height="5" rx="1" />
+    </>
+  ),
+  // A prompt generation: the UI section written into the prompt.
+  prompt: (
+    <>
+      <path d="M6 3.5h8l4 4v13H6z" />
+      <path d="M14 3.5v4h4" />
+      <path d="M9 12h6M9 15.5h6" />
+    </>
+  ),
   maximize: (
     <>
       <path d="M14 4h6v6M10 20H4v-6" />

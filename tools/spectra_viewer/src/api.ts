@@ -31,6 +31,8 @@ export interface ListedTurn {
   rejections?: number;
   /** How many of the turn's call rows failed, model and tool, proxy and span-only, when any did. */
   failedCalls?: number;
+  /** The A2UI step's errors: each parse error and each failed prompt generation, when any. */
+  a2uiStepErrors?: number;
   /** The render errors the preview counts, set by the viewer while the turn is in view. */
   renderErrors?: number;
 }

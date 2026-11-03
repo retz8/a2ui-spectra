@@ -4,7 +4,9 @@
  * by start time, with the input first and the outcome last. The steps of one
  * delivery that carries several are grouped under a row for the delivery.
  * An MCP request other than a tool called, a resource read or a prompt got
- * is a housekeeping row, drawn as small as a delivery's.
+ * is a housekeeping row, drawn as small as a delivery's. A parse of the A2UI
+ * step is a row; the toolset's tool call joins its parse's row; a prompt
+ * generation has a row only when it failed.
  */
 import {
   type CallRow,
@@ -15,14 +17,22 @@ import {
   timedEventOf,
 } from './call_rows.ts';
 import {inputBrief} from './input_brief.ts';
-import {messageKey} from './messages.ts';
+import {agentMessages, isThrough, messageKey, type Position} from './messages.ts';
+import {parseOfMessage} from './a2ui_step.ts';
+
+export {isThrough, type Position};
 import {type Brand, brandOf, modelOf, providerOf, rowTextOf} from './model_calls.ts';
 import {isFullToolRow, toolRowTextOf} from './tool_calls.ts';
+import {formatNameOf} from './ranges.ts';
 import {
+  isParse,
+  isPromptGeneration,
   isTurnEvent,
   isWireInput,
   isWireOutput,
   type ModelCallEvent,
+  type ParseEvent,
+  type PromptGenerationEvent,
   type TurnOutcome,
   type TurnRecordEvent,
   unixMillis,
@@ -45,16 +55,11 @@ export type StepIcon =
   | 'message'
   | 'model'
   | 'tool'
+  | 'parse'
+  | 'prompt'
   | OutcomeIcon;
 
 export type OutcomeIcon = 'completed' | 'waiting' | 'failed' | 'cancelled';
-
-/** Where a step sits among the turn's events: the event, the part, and the index in an array. */
-export interface Position {
-  eventIndex: number;
-  partIndex?: number;
-  index?: number;
-}
 
 export interface Step {
   row: 'step';
@@ -64,7 +69,17 @@ export interface Step {
    * has closed.
    */
   id: string;
-  kind: 'input' | 'status' | 'text' | 'data' | 'file' | 'message' | 'call' | 'outcome';
+  kind:
+    | 'input'
+    | 'status'
+    | 'text'
+    | 'data'
+    | 'file'
+    | 'message'
+    | 'call'
+    | 'parse'
+    | 'prompt'
+    | 'outcome';
   icon: StepIcon;
   /** A model call's provider, whose colour its icon takes. */
   brand?: Brand;
@@ -89,8 +104,16 @@ export interface Step {
   part?: WirePart;
   /** The outcome, for the outcome step. */
   outcome?: TurnOutcome;
-  /** The call, for a call's row: its proxy's event and the received spans of its chain. */
+  /**
+   * The call, for a call's row: its proxy's event and the received spans of
+   * its chain. A parse made by the toolset's tool call carries the tool
+   * call's row too.
+   */
   call?: CallRow;
+  /** The parse, for a parse's row. */
+  parse?: ParseEvent;
+  /** The prompt generation, for a failed prompt generation's row. */
+  generation?: PromptGenerationEvent;
   /** A housekeeping row: an MCP request other than a tool called, a resource read or a prompt got. */
   housekeeping?: boolean;
   /**
@@ -158,14 +181,39 @@ export function timelineOf(events: readonly TurnRecordEvent[], startMs: number):
       rows: [delivery, ...steps.map(step => ({...step, grouped: true}))],
     });
   });
-  for (const call of callRowsOf(events)) {
+  const callUnits = new Map<string, {start: bigint; index: number; rows: TimelineRow[]}>();
+  const callRows = callRowsOf(events);
+  for (const call of callRows) {
     const timed = timedEventOf(call);
-    units.push({
+    callUnits.set(call.id, {
       start: BigInt(timed.startTimeUnixNano),
       index: indexOf.get(timed) ?? events.length,
       rows: [callStep(call, events, startMs)],
     });
   }
+  for (const parse of events.filter(isParse)) {
+    const tool = toolRowOf(parse, callRows);
+    const step = parseStep(parse, events, startMs, tool);
+    if (tool !== undefined && callUnits.has(tool.id)) {
+      const unit = callUnits.get(tool.id)!;
+      callUnits.set(tool.id, {...unit, rows: [step]});
+      continue;
+    }
+    units.push({
+      start: BigInt(parse.startTimeUnixNano),
+      index: indexOf.get(parse) ?? events.length,
+      rows: [step],
+    });
+  }
+  for (const generation of events.filter(isPromptGeneration)) {
+    if (generation.status?.code !== 2) continue;
+    units.push({
+      start: BigInt(generation.startTimeUnixNano),
+      index: indexOf.get(generation) ?? events.length,
+      rows: [generationStep(generation, events, startMs)],
+    });
+  }
+  units.push(...callUnits.values());
   // By start time, the record's order among equals.
   units.sort((a, b) => (a.start === b.start ? a.index - b.index : a.start < b.start ? -1 : 1));
   const rows: TimelineRow[] = units.flatMap(unit => unit.rows);
@@ -200,15 +248,10 @@ function callStep(call: CallRow, events: readonly TurnRecordEvent[], startMs: nu
   const timed = timedEventOf(call);
   const {label, target} = call.kind === 'model' ? modelRowTextOf(call) : toolRowTextOf(call);
   // The surfaces as they stood at the call's end: after every wire event that started by then.
-  let through: number | undefined;
-  if (timed.endTimeUnixNano !== undefined) {
-    const end = BigInt(timed.endTimeUnixNano);
-    events.forEach((event, index) => {
-      if ((isWireInput(event) || isWireOutput(event)) && BigInt(event.startTimeUnixNano) <= end) {
-        through = index;
-      }
-    });
-  }
+  const through =
+    timed.endTimeUnixNano === undefined
+      ? undefined
+      : lastWireEventBy(events, BigInt(timed.endTimeUnixNano));
   const housekeeping = call.kind === 'tool' && !isFullToolRow(call);
   const brand = call.kind === 'model' ? brandOf(modelReadingOf(call).event) : undefined;
   return {
@@ -225,6 +268,105 @@ function callStep(call: CallRow, events: readonly TurnRecordEvent[], startMs: nu
     call,
     ...(housekeeping && {housekeeping}),
     aliases: idsOf(call),
+  };
+}
+
+/** The index of the last wire event that started by a time. */
+function lastWireEventBy(events: readonly TurnRecordEvent[], end: bigint): number | undefined {
+  let through: number | undefined;
+  events.forEach((event, index) => {
+    if ((isWireInput(event) || isWireOutput(event)) && BigInt(event.startTimeUnixNano) <= end) {
+      through = index;
+    }
+  });
+  return through;
+}
+
+/**
+ * The tool call's row a toolset parse belongs to: the row holding the span
+ * the parse sits under, else the row of the same `gen_ai.tool.call.id`.
+ */
+function toolRowOf(parse: ParseEvent, rows: readonly CallRow[]): CallRow | undefined {
+  if (parse.attributes['gen_ai.tool.name'] === undefined) return undefined;
+  const tools = rows.filter(row => row.kind === 'tool');
+  const parent = parse.parentSpanId;
+  const under = parent === undefined ? undefined : tools.find(row => idsOf(row).includes(parent));
+  if (under !== undefined) return under;
+  const callId = parse.attributes['gen_ai.tool.call.id'];
+  if (typeof callId !== 'string') return undefined;
+  return tools.find(row =>
+    [...(row.proxy === undefined ? [] : [row.proxy]), ...row.spans].some(
+      event => event.attributes['gen_ai.tool.call.id'] === callId,
+    ),
+  );
+}
+
+/**
+ * A parse's row, named by its span id, or by its proxy's when it joins a
+ * tool call's row: "Parse", its format and "streamed" for a stream, the
+ * tool's name first when it is the toolset's call. Its position is the last
+ * wire message traced to it; else the last wire event started by the
+ * parse's end.
+ */
+function parseStep(
+  parse: ParseEvent,
+  events: readonly TurnRecordEvent[],
+  startMs: number,
+  tool: CallRow | undefined,
+): Step {
+  const {attributes} = parse;
+  const format = formatNameOf(attributes['a2ui.parse.inference_format']);
+  const target = [
+    ...(typeof attributes['gen_ai.tool.name'] === 'string' ? [attributes['gen_ai.tool.name']] : []),
+    ...(format !== undefined ? [format] : []),
+    ...(attributes['a2ui.parse.streamed'] === true ? ['streamed'] : []),
+  ].join(' · ');
+  let through: number | undefined;
+  for (const message of agentMessages(events)) {
+    if (parseOfMessage(events, message.key)?.spanId === parse.spanId) through = message.eventIndex;
+  }
+  if (through === undefined && parse.endTimeUnixNano !== undefined) {
+    through = lastWireEventBy(events, BigInt(parse.endTimeUnixNano));
+  }
+  const timed = tool === undefined ? parse : timedEventOf(tool);
+  return {
+    row: 'step',
+    id: tool?.proxy?.spanId ?? parse.spanId,
+    kind: 'parse',
+    icon: 'parse',
+    label: 'Parse',
+    target,
+    offsetMs: unixMillis(timed.startTimeUnixNano) - startMs,
+    grouped: false,
+    ...(through !== undefined && {position: {eventIndex: through}}),
+    ...(tool !== undefined && {call: tool}),
+    parse,
+    aliases: [...(tool === undefined ? [] : idsOf(tool)), parse.spanId],
+  };
+}
+
+/** A failed prompt generation's row: "Prompt generation" and its format. */
+function generationStep(
+  generation: PromptGenerationEvent,
+  events: readonly TurnRecordEvent[],
+  startMs: number,
+): Step {
+  const through =
+    generation.endTimeUnixNano === undefined
+      ? undefined
+      : lastWireEventBy(events, BigInt(generation.endTimeUnixNano));
+  return {
+    row: 'step',
+    id: generation.spanId,
+    kind: 'prompt',
+    icon: 'prompt',
+    label: 'Prompt generation',
+    target: formatNameOf(generation.attributes['a2ui.prompt.inference_format']) ?? '',
+    offsetMs: unixMillis(generation.startTimeUnixNano) - startMs,
+    grouped: false,
+    ...(through !== undefined && {position: {eventIndex: through}}),
+    generation,
+    aliases: [generation.spanId],
   };
 }
 
@@ -427,15 +569,6 @@ function collapse(text: string): string {
 
 export function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? '' : 's'}`;
-}
-
-/** Whether a position comes at or before another. */
-export function isThrough(position: Position, through: Position): boolean {
-  if (position.eventIndex !== through.eventIndex) return position.eventIndex < through.eventIndex;
-  if (through.partIndex === undefined || position.partIndex === undefined) return true;
-  if (position.partIndex !== through.partIndex) return position.partIndex < through.partIndex;
-  if (through.index === undefined || position.index === undefined) return true;
-  return position.index <= through.index;
 }
 
 /** The agent's text parts up to a position, joined: the reply as it stood there. */

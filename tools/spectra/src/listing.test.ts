@@ -254,6 +254,24 @@ describe('listingFieldsOf', () => {
     assert.equal(count('receiver_capture/v0_1/openinference/expected.json'), undefined);
   });
 
+  it("counts the A2UI step's errors as the viewer does, on the same records", () => {
+    const count = (file: string, turn = -1) => {
+      const {turns} = readTestData(file);
+      return listingFieldsOf(turns.at(turn)!)?.a2uiStepErrors;
+    };
+    assert.equal(count('turn_record/v0_1/full_record_retried_parse.json'), 1);
+    assert.equal(count('turn_record/v0_1/full_record_restaurant_finder.json', 1), 1);
+    assert.equal(count('turn_record/v0_1/full_record_restaurant_finder.json', 0), undefined);
+    // A stream that read past two rejected blocks, and a failed prompt generation.
+    assert.equal(
+      count(
+        'wrapper_capture/v0_1/express_open_stream_rejected_blocks_continue/expected_python.json',
+      ),
+      2,
+    );
+    assert.equal(count('wrapper_capture/v0_1/generate_failed/expected.json'), 1);
+  });
+
   it('leaves out what a turn does not have', () => {
     assert.deepEqual(listingFieldsOf({events: [turnEvent]}), {
       outcome: 'waiting_for_input',

@@ -18,6 +18,21 @@ export type {ComponentRange, InferenceFormat};
 
 export const FORMATS: readonly InferenceFormat[] = ['direct_json', 'express', 'elemental', 'atom'];
 
+/** The inference formats by the names SPEC.md uses. */
+const FORMAT_NAMES: Record<InferenceFormat, string> = {
+  direct_json: 'Direct JSON',
+  express: 'Express',
+  elemental: 'Elemental',
+  atom: 'Atom',
+};
+
+/** A format's name, or any other value as written. */
+export function formatNameOf(format: unknown): string | undefined {
+  return typeof format === 'string'
+    ? (FORMAT_NAMES[format as InferenceFormat] ?? format)
+    : undefined;
+}
+
 export interface Reading {
   ranges: ComponentRange[];
   /** Where the reader stopped, when it could not finish the text, and why. */

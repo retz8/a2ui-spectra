@@ -6,8 +6,12 @@
  * that names no message is a problem of the whole turn, on the outcome too.
  * A rejection of a message that a finding already points into is not a
  * problem of its own: it folds under that step's findings as a quiet line
- * and is not counted. The timeline narrowed to the steps with problems.
+ * and is not counted. Each error a parse raised is a problem on the parse's
+ * row, the tool span's status not counted beside them when the parse is the
+ * toolset's call; a failed prompt generation is one on its row. The
+ * timeline narrowed to the steps with problems.
  */
+import {generationProblemOf, parseProblemsOf} from './a2ui_step.ts';
 import {type CallRow, sourceOfSpan} from './call_rows.ts';
 import {locateFinding} from './messages.ts';
 import {type CallFailure, failureOf} from './model_calls.ts';
@@ -37,6 +41,8 @@ export interface Problem {
    * the status message the model proxy recorded on a failed call.
    */
   note?: string;
+  /** A parse error's rejected block in the parse's input, to show in its raw text. */
+  range?: {start: number; end: number};
 }
 
 /**
@@ -112,7 +118,17 @@ export function turnProblemsOf(
     });
   }
   for (const row of timeline) {
-    if (row.row !== 'step' || row.call === undefined) continue;
+    if (row.row !== 'step') continue;
+    if (row.parse !== undefined) {
+      for (const problem of parseProblemsOf(row.parse)) problems.push({stepId: row.id, ...problem});
+      continue;
+    }
+    if (row.generation !== undefined) {
+      const problem = generationProblemOf(row.generation);
+      if (problem !== undefined) problems.push({stepId: row.id, ...problem});
+      continue;
+    }
+    if (row.call === undefined) continue;
     const failure = rowFailureOf(row.call);
     if (failure !== undefined) problems.push({stepId: row.id, ...failure});
   }
@@ -193,20 +209,23 @@ export function rowFailureOf(row: CallRow): CallFailure | undefined {
 
 /**
  * A turn's problem count, from what the listing gives: the findings, the
- * unfolded rejections, the failed call rows and a failed outcome; and,
- * while the turn is in view, the render errors its preview counts.
+ * unfolded rejections, the failed call rows, the A2UI step's errors and a
+ * failed outcome; and, while the turn is in view, the render errors its
+ * preview counts.
  */
 export function listedProblemCount(turn: {
   outcome?: string;
   findings?: number;
   rejections?: number;
   failedCalls?: number;
+  a2uiStepErrors?: number;
   renderErrors?: number;
 }): number {
   return (
     (turn.findings ?? 0) +
     (turn.rejections ?? 0) +
     (turn.failedCalls ?? 0) +
+    (turn.a2uiStepErrors ?? 0) +
     (turn.outcome === 'failed' ? 1 : 0) +
     (turn.renderErrors ?? 0)
   );

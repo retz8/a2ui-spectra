@@ -8,12 +8,13 @@
 import {catalogName} from './agent_card.ts';
 import {type CallRow, callRowsOf, modelReadingOf, timedEventOf} from './call_rows.ts';
 import type {KnownCatalog} from './catalogs.ts';
-import {agentMessages, type AgentMessage} from './messages.ts';
+import {agentMessages, type AgentMessage, isThrough, type Position} from './messages.ts';
 import {segmentsOf} from './prefix.ts';
-import {type ComponentRange, rangesOfParse} from './ranges.ts';
+import {type ComponentRange, formatNameOf, rangesOfParse} from './ranges.ts';
+
+export {formatNameOf};
 import type {ReaderCatalog} from './readers/reading.ts';
 import {
-  type InferenceFormat,
   isParse,
   isPromptGeneration,
   type ModelCallEvent,
@@ -21,21 +22,6 @@ import {
   type PromptGenerationEvent,
   type TurnRecordEvent,
 } from './record.ts';
-import {isThrough, type Position} from './steps.ts';
-
-/** The inference formats by the names SPEC.md uses. */
-const FORMAT_NAMES: Record<InferenceFormat, string> = {
-  direct_json: 'Direct JSON',
-  express: 'Express',
-  elemental: 'Elemental',
-  atom: 'Atom',
-};
-
-export function formatNameOf(format: unknown): string | undefined {
-  return typeof format === 'string'
-    ? (FORMAT_NAMES[format as InferenceFormat] ?? format)
-    : undefined;
-}
 
 /** The SDK an A2UI step event names, as a problem's code names it: "A2UI SDK, Python". */
 export function sdkOf(event: ParseEvent | PromptGenerationEvent): string {
