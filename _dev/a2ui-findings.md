@@ -1442,3 +1442,138 @@ prints `['center', 'end', 'spaceAround', 'spaceBetween', 'spaceEvenly',
 
 Declare the values once, as one alias both components use, or in one order in
 both, so the cache has nothing to swap.
+
+## 39. A build of main between releases carries the last release's version
+
+**Component:** `typescript/agents/a2ui_agent/package.json`.
+
+**Severity:** two different APIs shared one version number: anything that checks the version
+to decide what the SDK offers, such as an instrumentation's version floor, cannot tell them
+apart. Seen between npm's `@a2ui/agent` 0.0.2 (2026-10-24) and upstream main `825beac28`
+(2026-10-30); settled by the 0.1.0 release of 2026-11-02, `4fdc4c632`.
+
+### Issue
+
+The package's `version` is bumped only in the release commit, so main between two releases
+states the last release's number while it carries the code after it. At `825beac28`,
+`package.json` said `0.0.2`, as npm's 0.0.2 does, but npm's 0.0.2 exports no
+`ExpressResponseStream`, `StreamedAnswer` or `DEFAULT_EXPRESS_PROGRESSIVE_KEYS`, its
+`RendererState` has no `markChecked`, and its `DirectJsonParser.openStream` takes no
+`afterRejectedBlock`, all of which main at `825beac28` has. The Python packages avoid this
+with `hatch-vcs`, which gives a build of main a `.dev` version above the last release.
+
+### Reproduction
+
+```
+npm pack @a2ui/agent@0.0.2 && tar xzf a2ui-agent-0.0.2.tgz
+grep -c markChecked package/src/utils/renderer-state.js     # 0
+git show 825beac28:typescript/agents/a2ui_agent/package.json | grep '"version"'   # 0.0.2
+git grep -c markChecked 825beac28 -- typescript/agents/a2ui_agent/src/utils/renderer-state.ts
+```
+
+### Fix
+
+Bump main to the next prerelease right after a release, such as `0.2.0-dev.0`, so a build of
+main never states a released number.
+
+## 40. `@a2ui/agent`'s exports map hides its `package.json`
+
+**Component:** `typescript/agents/a2ui_agent/package.json`, `exports`.
+
+**Severity:** a tool that reports or checks the installed SDK's version, such as an
+instrumentation or a bug report template, cannot read it the usual way. Seen at upstream's
+release of 2026-11-02, `9e8a9bac5`.
+
+### Issue
+
+`exports` names only `.`, so `require.resolve('@a2ui/agent/package.json')` and
+`import('@a2ui/agent/package.json', {with: {type: 'json'}})` fail with
+`ERR_PACKAGE_PATH_NOT_EXPORTED`, and the SDK exports no version of its own. A tool has to
+resolve the entry file and walk up the directories to the `package.json` that names the
+package.
+
+### Reproduction
+
+```
+npm install @a2ui/agent@0.1.0
+node -e "require.resolve('@a2ui/agent/package.json')"   # ERR_PACKAGE_PATH_NOT_EXPORTED
+```
+
+### Fix
+
+Add `"./package.json": "./package.json"` to `exports`, as many packages with an exports map
+do, or export the version as a constant.
+
+## 41. A stream's `ErrorPart` does not say which block it rejected
+
+**Component:** `typescript/agents/a2ui_agent/src/parser/response-part.ts` (`ErrorPart`);
+`src/inference-formats/direct-json/response-stream.ts` (`emitReady`, `raisesWhileArriving`,
+`applyAddedComponents`); `src/inference-formats/express/response-stream.ts` (`finishBlock`,
+`compileStep`).
+
+**Severity:** a tool that shows where a streamed response went wrong, such as a dev tool
+marking the rejected block in the model's text, has to work out the block from what it can
+count. Seen at upstream's release of 2026-11-02, `9e8a9bac5`.
+
+### Issue
+
+A whole response goes through public names a caller can watch: `Parser.parseResponse` hands
+each block to `compile`, applies its messages with `RendererState.apply`, and checks the trees
+with `RendererState.checkTopology`. A stream rejects blocks outside them:
+
+- The Direct JSON stream checks each message as it arrives, applying it to the state and
+  checking what a growing `updateComponents` or `updateDataModel` gained with its own checks
+  (`applyAddedComponents`, `checkGained`). A v1.0 `updateComponents` it rejects is reported at
+  once (`raisesWhileArriving`), before the block closes.
+- The Express stream compiles the first block of a response through `ExpressParser.compile`,
+  and every later block through its scope session (`ExpressScopeSession.compileStep`).
+
+The `ErrorPart` a stream returns, and the error it throws, name no block. Direct JSON's errors
+carry no `rawContent`; an Express error carries as `rawContent` the text it compiled, which for
+a block rejected while it arrives is only the statements read so far. A tool can place the
+error only by counting the blocks the stream finished and rejected before it, and finds a
+block rejected while it arrives cut where the input then ended.
+
+### Reproduction
+
+Open a Direct JSON stream with `afterRejectedBlock: 'continue'` on the basic catalog at v1.0,
+and feed a chunk that ends inside a block whose `updateComponents` repeats a component id:
+`feed` returns `{type: 'error', error}` with an `A2uiIntegrityError` and no position. For
+Express, feed a chunk that ends after a statement naming an unknown component and before the
+block's close tag: the error's `rawContent` ends at that statement.
+
+### Fix
+
+Give the `ErrorPart`, and the error a stream throws, the rejected block's index among the
+response's blocks and its range in the text fed, as the stream knows them when it rejects the
+block.
+
+## 42. The duplicate-id error carries the id as a plain string in `details`
+
+**Component:** `typescript/core/web_core/src/processing/message-processor.ts:1423`;
+`typescript/agents/a2ui_agent/src/inference-formats/direct-json/response-stream.ts:533`.
+
+**Severity:** a tool that reads an error's structured details, as Spectra records them, gets a
+different shape for this one error than for every other validation error, and than Python's
+SDK gives for the same error. Seen at upstream's release of 2026-11-02, `9e8a9bac5`.
+
+### Issue
+
+`A2uiValidationError` and its subclasses carry `details`, which elsewhere are objects with
+`path`, `code` and `message`, as Zod's issues and the SDK's own checks give them. The
+duplicate-id `A2uiIntegrityError` passes `[comp.id]`, the repeated id as a string, with the
+path in its context instead. Python's core raises the same error with a structured detail,
+`{path, code: 'duplicate_id', message, surfaceId}`
+(`python/a2ui_core/src/a2ui/core/state/surface_components_model.py:224`).
+
+### Reproduction
+
+Apply an `updateComponents` whose components repeat an id to a `RendererState` from
+`@a2ui/agent` 0.1.0: the error's `details` is `['title']`. The same message through
+`a2ui-agent-sdk` 0.10.0 gives
+`[{'path': 'components.title', 'code': 'duplicate_id', ...}]`.
+
+### Fix
+
+Pass a structured detail, `{path: '/components/<i>/id', code: 'duplicate_id', message,
+surfaceId}`, in both places.

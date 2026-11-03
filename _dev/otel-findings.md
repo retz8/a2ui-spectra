@@ -667,3 +667,160 @@ though `opentelemetry-instrument` loads it from its entry point.
 
 Let `opentelemetry-bootstrap` read a registry a package can join, such as an entry point naming
 the library an instrumentation instruments and its version range, beside the generated list.
+
+## 26. The JavaScript batch span processor registers no exit flush
+
+**Component:** `@opentelemetry/sdk-trace` 2.12.0, `build/src/export/BatchSpanProcessorBase.js`
+(the batch timer at lines 199 to 202); `@opentelemetry/sdk-trace-node` 2.12.0,
+`NodeTracerProvider.register`.
+
+**Severity:** the spans a Node process batched since the last export are dropped when the
+process ends on its own, unless the program shuts its provider down itself. An instrumentation
+that starts a provider for a process that has none has to add the shutdown.
+
+### Issue
+
+`BatchSpanProcessor` exports on a timer, `OTEL_BSP_SCHEDULE_DELAY` (five seconds by default),
+that it `unref()`s so it never holds the process open, and neither it nor
+`NodeTracerProvider.register()` registers a `beforeExit` handler. A process whose event loop
+empties before the timer fires exits with the batch unsent. Python's SDK flushes at exit
+through `atexit`. The package's own README shows the handler a program has to write,
+`process.once('beforeExit', …)` calling `tracerProvider.shutdown()`.
+
+### Reproduction
+
+Register a `NodeTracerProvider` with a `BatchSpanProcessor` on an OTLP exporter pointed at a
+listener, end one span, and let the process exit: the listener receives nothing. Add
+`process.once('beforeExit', () => provider.shutdown())` and it receives the span.
+
+### Fix
+
+Let `NodeTracerProvider.register()` take an option, or default, that shuts the provider down
+on `beforeExit` once, as Python's SDK flushes at exit.
+
+## 27. An ES module's exports can be patched only through a loader hook registered first
+
+**Component:** `@opentelemetry/instrumentation` 0.223.0, `InstrumentationBase` and its module
+definitions, through `import-in-the-middle`.
+
+**Severity:** an instrumentation of an ES-module-only library, switched on with a line of code
+in the program rather than through `--import`, cannot use the module definitions
+`InstrumentationBase` is built around, and has to patch something else the library exports.
+
+### Issue
+
+An ES module namespace's bindings cannot be redefined from outside. `InstrumentationBase`
+patches a module's exports through `require-in-the-middle` for CommonJS and
+`import-in-the-middle` for ES modules, and the latter works only when its loader hook is
+registered, by `--import @opentelemetry/instrumentation/hook.mjs` or `module.register`, before
+the module graph that imports the library loads. A one-line `instrument()` placed in the
+program runs after its static imports, too late. What stays patchable is a mutable object the
+module exports, such as an exported class's prototype, which is one object per module
+instance whenever the patch is made.
+
+### Reproduction
+
+```
+node --input-type=module -e "import * as m from '@a2ui/agent'; Object.defineProperty(m, 'Parser', {value: 1})"
+```
+
+throws `TypeError: Cannot redefine property: Parser`, while
+`m.DirectJsonParser.prototype.compile = …` succeeds.
+
+### Fix
+
+Document, beside the module definitions, the prototype route for ES-module-only libraries
+switched on in code, or let a module definition patch named prototypes of a module that has
+already loaded.
+
+## 28. `InstrumentationBase` enables in its constructor, before the subclass's fields exist
+
+**Component:** `@opentelemetry/instrumentation` 0.223.0,
+`build/src/platform/node/instrumentation.js`, the `InstrumentationBase` constructor.
+
+**Severity:** an instrumentation that overrides `enable()` and keeps its state in class fields
+reads them undefined the first time, and has what `enable()` set overwritten when the fields
+initialize.
+
+### Issue
+
+The constructor calls `this.enable()` when the config leaves `enabled` true, as it does by
+default. A subclass's field initializers run only after `super()` returns, so an overridden
+`enable()` runs on an instance without them, and a field it assigns is reset to its
+initializer afterwards. `registerInstrumentations` then calls `setTracerProvider` on an
+instrumentation that is already enabled, so a hook that captured the tracer in `enable()`
+keeps the global one.
+
+### Reproduction
+
+```
+node --input-type=module -e "
+import {InstrumentationBase} from '@opentelemetry/instrumentation';
+class Example extends InstrumentationBase { patched = 'set'; init() { return []; } enable() { console.log(this.patched); } }
+new Example('example', '0.0.1');"
+```
+
+prints `undefined`.
+
+### Fix
+
+Document that `enable()` runs inside the base constructor and that a hook reads `this.tracer`
+when it records, not when it is installed; or enable after construction, from
+`registerInstrumentations` and a static factory.
+
+## 29. The OTLP/HTTP trace exporter does not read the protocol variable
+
+**Component:** `@opentelemetry/exporter-trace-otlp-http` 0.223.0,
+`build/src/platform/node/OTLPTraceExporter.js`; `@opentelemetry/sdk-node` 0.223.0,
+`build/src/utils.js`, `getOtlpProtocolFromEnv`.
+
+**Severity:** a program that builds its own OTLP/HTTP exporter under
+`OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf` sends OTLP/JSON, and a receiver that takes only
+protobuf rejects it.
+
+### Issue
+
+The exporter reads the endpoint, header, timeout and compression variables, and sends
+`application/json` always. `OTEL_EXPORTER_OTLP_TRACES_PROTOCOL` and
+`OTEL_EXPORTER_OTLP_PROTOCOL` are read only by the NodeSDK, which picks among the
+`-otlp-http`, `-otlp-proto` and `-otlp-grpc` packages by them. The specification's protocol
+variable configures the exporter in the other languages' SDKs.
+
+### Reproduction
+
+With `OTEL_EXPORTER_OTLP_ENDPOINT` pointed at a listener and
+`OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf`, export a span through
+`new OTLPTraceExporter()` from `@opentelemetry/exporter-trace-otlp-http`: the request's
+`content-type` is `application/json`.
+
+### Fix
+
+Have the exporter write one diag warning when the protocol variable names a protocol it does
+not speak, and say in its README that it speaks `http/json` only.
+
+## 30. The 3.0 instrumentation and the current trace SDK need different API versions
+
+**Component:** `@opentelemetry/instrumentation` 0.300.0 and `@opentelemetry/sdk-trace-node`
+2.12.0, their `peerDependencies`. As published on 2026-11-03.
+
+**Severity:** an instrumentation on the newest `@opentelemetry/instrumentation` cannot share
+an `@opentelemetry/api` with the newest released trace SDK, so a package that needs both stays
+on the 0.223 line.
+
+### Issue
+
+`@opentelemetry/instrumentation` 0.300.0 and `@opentelemetry/core` 3.0.0 were released on
+2026-10-20; the instrumentation's peer range is `@opentelemetry/api >=1.10.0 <1.11.0`. The
+latest `@opentelemetry/sdk-trace-node` and `@opentelemetry/sdk-trace-base`, 2.12.0, peer on
+`@opentelemetry/api <1.10.0`, and their 3.0 is published only as a `development` prerelease.
+
+### Reproduction
+
+```
+npm view @opentelemetry/instrumentation@0.300.0 peerDependencies
+npm view @opentelemetry/sdk-trace-node@2.12.0 peerDependencies
+```
+
+### Fix
+
+Release the trace SDK's 3.0 with the 3.0 core, or widen 2.12's API range to 1.10.

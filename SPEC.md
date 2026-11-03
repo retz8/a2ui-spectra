@@ -151,9 +151,9 @@ catalog ──▶ prompt generator ──▶ prompt ──▶ model ──▶ ra
 ```
 
 - The wrapper is OpenTelemetry instrumentation for upstream's Python and TypeScript agent SDKs, named `a2ui-spectra-instrumentation` in both languages: a dev-dependency package that patches the prompt generators and the parsers at runtime and emits the A2UI step's spans to the same receiver. OpenInference and OpenLLMetry instrument model libraries the same way.
-- It supports the agent SDKs at upstream main `825beac28`, in every inference format they implement: Direct JSON, Express, Elemental and Atom in Python; Direct JSON and Express in TypeScript. An SDK without the pinned API is left unpatched, with one log line.
+- It supports the agent SDKs of upstream's releases of 2026-11-02, `a2ui-agent-sdk` 0.10.0 with `a2ui-core` 0.5.0 and `a2ui-adk` 0.2.0 on PyPI and `@a2ui/agent` 0.1.0 on npm, in every inference format they implement: Direct JSON, Express, Elemental and Atom in Python; Direct JSON and Express in TypeScript. An SDK without the pinned API is left unpatched, with one log line.
 - It covers upstream's public parsing entry points as well as the inference-format classes, and A2UI sent as a tool call through `a2ui-adk`'s `SendA2uiToClientToolset`.
-- In Python it is switched on by launching the agent under `opentelemetry-instrument` with the package installed, or with one line, `a2ui_spectra_instrumentation.instrument()`. Switched on in a process with no tracer provider, it starts one with the OTLP/HTTP exporter, reading the `OTEL_EXPORTER_OTLP_*` variables `a2ui-spectra run` sets; a process with its own tracer provider keeps it.
+- In Python it is switched on by launching the agent under `opentelemetry-instrument` with the package installed, or with one line, `a2ui_spectra_instrumentation.instrument()`. In TypeScript it is switched on by launching the agent through Node's `--import a2ui-spectra-instrumentation/register`, with one line, `instrument()`, or as `A2uiInstrumentation` among the agent's own OpenTelemetry instrumentations. Switched on in a process with no tracer provider, it starts one with the OTLP/HTTP exporter, reading the `OTEL_EXPORTER_OTLP_*` variables `a2ui-spectra run` sets; a process with its own tracer provider keeps it.
 - It reports the raw text each parse was given, the messages it produced, the inference format, the catalogs and each parse or validation error, and the UI section each prompt generation wrote. Spectra shows from them what the model proxy cannot see:
   - which characters of raw text became which component, worked out by Spectra from the raw text;
   - that a model call was a retry, and which parse or validation error caused it, inferred by Spectra from the turn's model calls and parses;
@@ -279,7 +279,7 @@ The viewer's own stack is not visible to the adopter.
 
 - One repo holds every package: the CLI and local server, the viewer, the preview core and adapters, the Python and TypeScript wrappers, and the turn record spec with its shared test data.
 - Shaped like an upstream tool from the first commit: Yarn workspaces built with `wireit`, with upstream's standard script targets (`build`, `lint`, `lint:fix`, `test`, `format`, `format:check`). The Python wrapper is a uv project, as upstream's Python packages are. The layout follows upstream's monorepo conventions.
-- **Upstream reference** (`upstream/main` at 825beac28): Yarn 4.13.0 with the `node-modules` linker; CI on Node 22; `tools/inspector` and `tools/editor` are `@a2ui/<tool>` workspaces marked `private` and built with `wireit`.
+- **Upstream reference** (`upstream/main` at 9e8a9bac5, the commit of upstream's releases of 2026-11-02): Yarn 4.13.0 with the `node-modules` linker; CI on Node 22; `tools/inspector` and `tools/editor` are `@a2ui/<tool>` workspaces marked `private` and built with `wireit`.
 
 ### Distribution and names
 
@@ -338,8 +338,8 @@ As read from `upstream/main` at 45633b9 (2026-10-16), unless noted.
 
 - **Protocol versions** (`specification/`): v0.9.1 is the current production release. v1.0, previously known as 0.10, is a release candidate, with its own A2A extension spec. v0.9 is closed. v0.8 is legacy.
 - **Agent SDKs:**
-  - **Python:** four packages on PyPI (2026-10-22): `a2ui-core` 0.4.0, the core library; `a2ui-agent-sdk` 0.9.0, the agent SDK; `a2ui-a2a` 0.1.0, the A2A extension; `a2ui-adk` 0.1.0, the ADK extension. The A2A and ADK extensions moved out of the agent SDK, with their import paths (`a2ui.a2a`, `a2ui.adk`) unchanged. The agent SDK's code covers v0.8 to v1.0. Elemental and Atom are experimental (`python/a2ui_agent/src/a2ui/inference_formats/experimental/`).
-  - **TypeScript:** `@a2ui/agent` 0.0.1, not published to npm. It covers v0.9, v0.9.1 and v1.0, and implements Direct JSON and Express; Elemental and Atom are not implemented, and Express does not stream (`typescript/agents/a2ui_agent/KNOWN_GAPS.md`).
+  - **Python:** four packages on PyPI (2026-11-02): `a2ui-core` 0.5.0, the core library; `a2ui-agent-sdk` 0.10.0, the agent SDK; `a2ui-a2a` 0.2.0, the A2A extension; `a2ui-adk` 0.2.0, the ADK extension. The A2A and ADK extensions moved out of the agent SDK, with their import paths (`a2ui.a2a`, `a2ui.adk`) unchanged. The agent SDK's code covers v0.8 to v1.0. Elemental and Atom are experimental (`python/a2ui_agent/src/a2ui/inference_formats/experimental/`).
+  - **TypeScript:** `@a2ui/agent` 0.1.0 on npm (2026-11-02), on `@a2ui/web_core` 0.15.0. It covers v0.9, v0.9.1 and v1.0, and implements Direct JSON and Express, both streaming; Elemental and Atom are not implemented (`typescript/agents/a2ui_agent/KNOWN_GAPS.md`).
   - **Dart** (`dart/a2ui_agent`), and a legacy JVM SDK (`kotlin/agent_sdk_legacy`).
   - **Inference formats** (Direct JSON, Express, Elemental, Atom) are syntaxes the model writes a UI in before the SDK compiles it into A2UI messages.
 - **Renderers:** Lit, Angular and React on the shared web core (`@a2ui/web_core`, 0.14.0 on npm); Flutter on a Dart core (`dart/a2ui_flutter`); SwiftUI on a Swift core (`swift/`). The Lynx renderer lives in `lynx-family/lynx-stack`. Jetpack Compose is planned upstream, and community Compose renderers exist (`docs/public/ecosystem/renderers.md`).

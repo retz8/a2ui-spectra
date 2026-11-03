@@ -17,7 +17,7 @@ In scope:
 
 Out of scope:
 
-- The released SDKs: PyPI's `a2ui-agent-sdk` 0.9.0 and npm's `@a2ui/agent` 0.0.2.
+- The earlier released SDKs: PyPI's `a2ui-agent-sdk` 0.9.0 and npm's `@a2ui/agent` 0.0.2.
 - The Dart wrapper and the native hook proposal. After v1.
 - The A2UI step for A2UIVerse's agents, which are on PyPI's `a2ui-agent-sdk` 0.9.0. Backlog.
 
@@ -25,7 +25,7 @@ Out of scope:
 
 ### 1. The SDKs at the pin
 
-The wrappers support upstream's Python and TypeScript agent SDKs at upstream main `825beac28` (2026-10-30). SPEC.md's upstream reference line moves to this pin.
+The wrappers support upstream's Python and TypeScript agent SDKs of upstream's releases of 2026-11-02, from upstream `9e8a9bac5`: `a2ui-agent-sdk` 0.10.0, `a2ui-core` 0.5.0 and `a2ui-adk` 0.2.0 on PyPI, and `@a2ui/agent` 0.1.0 and `@a2ui/web_core` 0.15.0 on npm. SPEC.md's upstream reference line moves to this pin.
 
 ### 2. The inference formats
 
@@ -37,7 +37,7 @@ The wrapper is named `a2ui-spectra-instrumentation` in both languages. SPEC.md's
 
 ### 4. Switching the wrapper on
 
-In Python, the wrapper is switched on by launching under `opentelemetry-instrument` with the package installed, or with one line. In TypeScript, by a launch-time switch loaded through Node's `--import`, or with one line. In either language, switching it on in a process that has no tracer provider starts one, with the OTLP/HTTP exporter, reading the `OTEL_EXPORTER_OTLP_*` variables `a2ui-spectra run` sets; a process with its own tracer provider keeps it.
+In Python, the wrapper is switched on by launching under `opentelemetry-instrument` with the package installed, or with one line. In TypeScript, by a launch-time switch loaded through Node's `--import`, with one line, or as an instrumentation under the agent's own tracer provider. In either language, switching it on in a process that has no tracer provider starts one, with the OTLP/HTTP exporter, reading the `OTEL_EXPORTER_OTLP_*` variables `a2ui-spectra run` sets; a process with its own tracer provider keeps it.
 
 ### 5. The A2UI step's spans
 
