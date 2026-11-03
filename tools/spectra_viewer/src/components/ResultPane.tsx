@@ -4,6 +4,7 @@ import {usePanelRef} from 'react-resizable-panels';
 
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
 import {cn} from '@/lib/utils';
+import type {NodeRef} from '@/model/address.ts';
 import {bindingOf} from '@/model/bindings.ts';
 import type {Route} from '@/model/preview.ts';
 import type {ComponentNode, Replay, SurfaceView, TreeNode} from '@/model/replay.ts';
@@ -43,6 +44,8 @@ export function ResultPane({
   failed,
   later = false,
   folded = false,
+  selectedNode,
+  onSelectNode,
 }: {
   reply: string;
   asOf: string;
@@ -63,6 +66,9 @@ export function ResultPane({
   later?: boolean;
   /** Folded to its header line, while the step's detail is maximized. */
   folded?: boolean;
+  /** The tree node selected, whose parse and range the detail shows. */
+  selectedNode?: NodeRef;
+  onSelectNode?: (node: NodeRef) => void;
 }) {
   const settings = useViewSettings();
   // At least one pane shows: Structure when both are toggled off.
@@ -149,6 +155,8 @@ export function ResultPane({
           preview={showPreview ? preview : undefined}
           showStructure={showStructure}
           width={settings.width}
+          selectedNode={selectedNode}
+          onSelectNode={onSelectNode}
         />
       )}
     </section>
@@ -162,6 +170,8 @@ function Panes({
   preview,
   showStructure,
   width,
+  selectedNode,
+  onSelectNode,
 }: {
   surface: SurfaceView;
   open: boolean;
@@ -169,9 +179,25 @@ function Panes({
   preview: PreviewView | undefined;
   showStructure: boolean;
   width: 'narrow' | 'wide';
+  selectedNode: NodeRef | undefined;
+  onSelectNode: ((node: NodeRef) => void) | undefined;
 }) {
   const previewPanel = usePanelRef();
-  const structure = <Structure key={surface.surfaceId} surface={surface} open={open} />;
+  const structure = (
+    <Structure
+      key={surface.surfaceId}
+      surface={surface}
+      open={open}
+      selected={
+        selectedNode?.surfaceId === surface.surfaceId ? selectedNode.componentId : undefined
+      }
+      onSelect={
+        onSelectNode === undefined
+          ? undefined
+          : componentId => onSelectNode({surfaceId: surface.surfaceId, componentId})
+      }
+    />
+  );
   const drawing = preview === undefined ? undefined : <PreviewPane {...preview} width={width} />;
   if (drawing === undefined) return structure;
   if (!showStructure) return <div className="flex min-h-0 flex-1">{drawing}</div>;
@@ -306,7 +332,18 @@ function SurfaceSwitcher({
 }
 
 /** A surface's tree above its data model. */
-function Structure({surface, open}: {surface: SurfaceView; open: boolean}) {
+function Structure({
+  surface,
+  open,
+  selected,
+  onSelect,
+}: {
+  surface: SurfaceView;
+  open: boolean;
+  /** The selected node's component id, on this surface. */
+  selected: string | undefined;
+  onSelect: ((componentId: string) => void) | undefined;
+}) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const toggle = (key: string) => {
     const next = new Set(expanded);
@@ -343,6 +380,8 @@ function Structure({surface, open}: {surface: SurfaceView; open: boolean}) {
               expanded={expanded}
               onToggle={toggle}
               open={open}
+              selected={selected}
+              onSelect={onSelect}
             />
           )
         )}
@@ -357,6 +396,8 @@ function Structure({surface, open}: {surface: SurfaceView; open: boolean}) {
                 expanded={expanded}
                 onToggle={toggle}
                 open={open}
+                selected={selected}
+                onSelect={onSelect}
               />
             ))}
           </Fragment>
@@ -376,19 +417,27 @@ function Structure({surface, open}: {surface: SurfaceView; open: boolean}) {
   );
 }
 
-/** A node's row, its properties when opened, then its children. */
+/**
+ * A node's row, its properties when opened, then its children. Clicking the
+ * row selects the node, which selects the parse it came from; its chevron
+ * still opens its properties.
+ */
 function TreeRows({
   node,
   depth,
   expanded,
   onToggle,
   open,
+  selected,
+  onSelect,
 }: {
   node: TreeNode;
   depth: number;
   expanded: ReadonlySet<string>;
   onToggle: (key: string) => void;
   open: boolean;
+  selected: string | undefined;
+  onSelect: ((componentId: string) => void) | undefined;
 }) {
   const pad = {paddingLeft: depth * 16};
   if ('missing' in node) {
@@ -407,14 +456,39 @@ function TreeRows({
   const key = `${depth}:${node.id}`;
   const isOpen = expanded.has(key);
   const properties = propertiesOf(node);
+  const isSelected = selected === node.id;
   return (
     <>
-      <div style={pad} className="flex h-6 items-center gap-1.5 whitespace-nowrap">
+      <div
+        style={pad}
+        {...(onSelect !== undefined && {
+          role: 'button',
+          tabIndex: 0,
+          'aria-pressed': isSelected,
+          onClick: () => onSelect(node.id),
+          onKeyDown: (event: {key: string; preventDefault: () => void}) => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              onSelect(node.id);
+            }
+          },
+        })}
+        className={cn(
+          'flex h-6 items-center gap-1.5 rounded-md whitespace-nowrap',
+          onSelect !== undefined && 'cursor-pointer',
+          isSelected
+            ? 'bg-brand-soft shadow-mark-start'
+            : onSelect !== undefined && 'hover:bg-tint',
+        )}
+      >
         <button
           type="button"
           aria-label={`Show the properties of #${node.id}`}
           aria-expanded={isOpen}
-          onClick={() => onToggle(key)}
+          onClick={event => {
+            event.stopPropagation();
+            onToggle(key);
+          }}
           className="flex size-3.5 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground hover:text-foreground"
         >
           <Icon kind={isOpen ? 'chevronDown' : 'chevronRight'} size={12} />
@@ -448,6 +522,8 @@ function TreeRows({
           expanded={expanded}
           onToggle={onToggle}
           open={open}
+          selected={selected}
+          onSelect={onSelect}
         />
       ))}
     </>

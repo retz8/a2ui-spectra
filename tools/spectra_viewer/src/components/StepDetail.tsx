@@ -1,7 +1,10 @@
 import {useState} from 'react';
 
 import {cn} from '@/lib/utils';
+import {parseTitleOf, sourceLineOfStep} from '@/model/a2ui_step.ts';
+import type {NodeRef} from '@/model/address.ts';
 import type {Prices} from '@/model/cost.ts';
+import type {ReaderCatalog} from '@/model/readers/reading.ts';
 import {markedPath} from '@/model/json_lines.ts';
 import type {PrefixBreak} from '@/model/prefix.ts';
 import type {Problem} from '@/model/problems.ts';
@@ -12,7 +15,9 @@ import {deliveryLabel, plural, type Step, type TimelineRow} from '@/model/steps.
 import {brandIconOf, formatOffset, toneOf} from './format.ts';
 import {Icon} from './icons.tsx';
 import {BlockLabel, JsonBlock, type Reveal} from './JsonBlock.tsx';
-import {callTitleOf, ModelCallBlocks} from './ModelCallDetail.tsx';
+import {callTitleOf, ModelCallBlocks, type StepOnCall} from './ModelCallDetail.tsx';
+import {GenerationBlocks, ParseBlocks} from './ParseDetail.tsx';
+import type {RangeReveal} from './RawText.tsx';
 import {ToolCallBlocks} from './ToolCallDetail.tsx';
 
 /**
@@ -38,6 +43,11 @@ export function StepDetail({
   prices,
   prefix,
   onEarlier,
+  catalog,
+  selectedNode,
+  onSelectNode,
+  onStep,
+  stepOnCall,
 }: {
   row: TimelineRow;
   events: readonly TurnRecordEvent[];
@@ -54,12 +64,34 @@ export function StepDetail({
   /** A model call's prefix break, when the step is a call read in full. */
   prefix: PrefixBreak | undefined;
   onEarlier: (found: Exclude<PrefixBreak, {form: 'first'}>) => void;
+  /** What the readers know of the catalogs, for a parse's component ranges. */
+  catalog: ReaderCatalog;
+  /** The tree node selected, whose range a parse's raw text tints. */
+  selectedNode: NodeRef | undefined;
+  /** Selects a component by its range in a parse's raw text. */
+  onSelectNode: (node: NodeRef) => void;
+  /** Selects another step of the turn, by its id or a span id it holds. */
+  onStep: (stepId: string) => void;
+  /** What the A2UI step adds to a model call's detail. */
+  stepOnCall: StepOnCall | undefined;
 }) {
   const call = row.row === 'step' ? row.call : undefined;
   const title =
-    call === undefined || row.row !== 'step' ? undefined : callTitleOf(call, row.target, startMs);
+    row.row !== 'step'
+      ? undefined
+      : row.parse !== undefined
+        ? parseTitleOf(row, startMs)
+        : row.generation !== undefined
+          ? {
+              target: `${row.target} · ${sourceLineOfStep(row.generation)}`,
+              times: formatOffset(row.offsetMs ?? 0),
+            }
+          : call === undefined
+            ? undefined
+            : callTitleOf(call, row.target, startMs);
   const offset = offsetOf(row, events, startMs);
   const [reveal, setReveal] = useState<Reveal>();
+  const [rangeReveal, setRangeReveal] = useState<RangeReveal>();
   const message = row.row === 'step' && row.kind === 'message' ? row.message : undefined;
   const markOf = (problem: Problem) =>
     message === undefined || problem.inner === undefined
@@ -133,6 +165,23 @@ export function StepDetail({
         <div className="flex min-h-0 flex-1 flex-col gap-2.5 overflow-auto px-4 pb-3.5">
           {problems.map((problem, index) => {
             const mark = markOf(problem);
+            if (problem.range !== undefined) {
+              const {range} = problem;
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => setRangeReveal({...range})}
+                  className="group ease-quick flex shrink-0 cursor-pointer items-start gap-2.5 rounded-lg bg-problem-soft px-3 py-2.5 text-left hover:inset-ring hover:inset-ring-problem"
+                >
+                  <ProblemText problem={problem} />
+                  <span className="ease-quick mt-px ml-auto inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-muted-foreground group-hover:text-brand">
+                    <Icon kind="jump" size={14} />
+                    Show text
+                  </span>
+                </button>
+              );
+            }
             return mark === undefined ? (
               <div
                 key={index}
@@ -162,7 +211,20 @@ export function StepDetail({
           ))}
           {row.row === 'delivery' ? (
             <DeliveryBlocks event={events[row.eventIndex] as WireEvent} />
-          ) : call?.kind === 'model' ? (
+          ) : row.parse !== undefined ? (
+            <ParseBlocks
+              step={row}
+              events={events}
+              startMs={startMs}
+              catalog={catalog}
+              selectedNode={selectedNode}
+              onSelectNode={onSelectNode}
+              onStep={onStep}
+              reveal={rangeReveal}
+            />
+          ) : row.generation !== undefined ? (
+            <GenerationBlocks step={row} events={events} startMs={startMs} />
+          ) : call?.kind === 'model' && stepOnCall !== undefined ? (
             <ModelCallBlocks
               row={call}
               events={events}
@@ -170,6 +232,7 @@ export function StepDetail({
               prices={prices}
               prefix={prefix}
               onEarlier={onEarlier}
+              step={stepOnCall}
             />
           ) : call?.kind === 'tool' ? (
             <ToolCallBlocks row={call} events={events} startMs={startMs} />

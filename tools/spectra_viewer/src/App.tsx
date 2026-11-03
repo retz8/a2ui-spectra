@@ -9,7 +9,7 @@ import {TurnList} from '@/components/TurnList.tsx';
 import {TurnView} from '@/components/TurnView.tsx';
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
 import {cn} from '@/lib/utils';
-import {type Address, historyOf, readAddress, writeAddress} from '@/model/address.ts';
+import {type Address, historyOf, type NodeRef, readAddress, writeAddress} from '@/model/address.ts';
 import {
   agentChoicesOf,
   agentOfSelection,
@@ -68,12 +68,15 @@ function subscribeToHash(listener: () => void): () => void {
  * entry to the browser's history; changing the step, or the viewer's own
  * move, replaces it.
  */
-function useAddress(): [Address, (traceId: string, stepId?: string, own?: boolean) => void] {
+function useAddress(): [
+  Address,
+  (traceId: string, stepId?: string, own?: boolean, node?: NodeRef) => void,
+] {
   const hash = useSyncExternalStore(subscribeToHash, () => window.location.hash);
   const address = useMemo(() => readAddress(hash), [hash]);
-  const go = useCallback((traceId: string, stepId?: string, own = false) => {
-    const next = writeAddress(traceId, stepId);
-    switch (historyOf(readAddress(window.location.hash), {traceId, stepId}, {own})) {
+  const go = useCallback((traceId: string, stepId?: string, own = false, node?: NodeRef) => {
+    const next = writeAddress(traceId, stepId, node);
+    switch (historyOf(readAddress(window.location.hash), {traceId, stepId, node}, {own})) {
       case 'push':
         window.location.hash = next;
         break;
@@ -163,8 +166,8 @@ export function App() {
     [go],
   );
   const onStep = useCallback(
-    (traceId: string, stepId: string | undefined) => {
-      if (traceId === readAddress(window.location.hash).traceId) go(traceId, stepId, true);
+    (traceId: string, stepId: string | undefined, node?: NodeRef) => {
+      if (traceId === readAddress(window.location.hash).traceId) go(traceId, stepId, true, node);
     },
     [go],
   );
@@ -276,6 +279,7 @@ export function App() {
       heldWidth={swing === undefined ? undefined : landingWidth}
       traceId={selected}
       stepId={address.stepId}
+      node={address.node}
       selection={selections}
       onSelect={(traceId, stepId) => go(traceId, stepId)}
       onStep={onStep}

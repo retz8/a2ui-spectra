@@ -53,10 +53,16 @@ export function AgentSpans({
   row,
   events,
   startMs,
+  sources: given,
+  subject = 'call',
 }: {
   row: CallRow;
   events: readonly TurnRecordEvent[];
   startMs: number;
+  /** The source lines, when the row's own naming does not fit: an A2UI step span's scope. */
+  sources?: readonly string[];
+  /** What the row is, as the spans section names it: "this call", "this parse". */
+  subject?: string;
 }) {
   const chain = row.spans;
   const own = new Set(chain.map(keyOf));
@@ -72,7 +78,7 @@ export function AgentSpans({
     });
   }
   const ancestors = [...above.values()].sort((a, b) => a.depth - b.depth).map(({event}) => event);
-  const sources = sourceLinesOf(row);
+  const sources = given ?? sourceLinesOf(row);
   const translated = new Map<string, unknown>();
   for (const span of [...chain].reverse()) {
     for (const [name, value] of Object.entries(attributesOf(span))) {
@@ -95,10 +101,10 @@ export function AgentSpans({
           ))}
         </div>
         <FoldRows
-          label="Above this call"
+          label={`Above this ${subject}`}
           rows={[
-            ...ancestors.map((event, index) => spanRow(event, index, false)),
-            ...chain.map((event, index) => spanRow(event, ancestors.length + index, true)),
+            ...ancestors.map((event, index) => spanRow(event, index, undefined)),
+            ...chain.map((event, index) => spanRow(event, ancestors.length + index, subject)),
           ]}
         />
         <Pairs
@@ -133,13 +139,13 @@ export function AgentSpans({
 }
 
 /** A span of the chain above the call, or of the call's own chain, as a row that folds open to its attributes. */
-function spanRow(event: TurnRecordEvent, index: number, ownChain: boolean): FoldRow {
+function spanRow(event: TurnRecordEvent, index: number, ownChain: string | undefined): FoldRow {
   const failed = event.status?.code === 2;
   const duration = durationOf(event);
   return {
     key: keyOf(event),
     name: event.name,
-    ...(ownChain && {meta: 'this call'}),
+    ...(ownChain !== undefined && {meta: `this ${ownChain}`}),
     end: failed ? [duration, 'status error'].filter(Boolean).join(' · ') : duration,
     indent: index,
     value: attributesOf(event)['a2ui.received.attributes'] ?? {},

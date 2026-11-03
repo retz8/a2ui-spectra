@@ -29,6 +29,7 @@ export function Timeline({
   endMs,
   selected,
   problems,
+  tags,
   live,
   following,
   filter,
@@ -47,6 +48,8 @@ export function Timeline({
   selected: string;
   /** How many problems each step has, by its id. */
   problems: ReadonlyMap<string, number>;
+  /** A grey tag on a row, by its id: a retry's "Retry 1". */
+  tags?: ReadonlyMap<string, string>;
   /** Whether the turn is open. */
   live: boolean;
   /** Whether the view follows the newest step. */
@@ -218,6 +221,11 @@ export function Timeline({
               <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
                 {row.target}
               </span>
+              {tags?.get(row.id) !== undefined && (
+                <span className="shrink-0 rounded-sm bg-tint px-1 text-[11px] leading-4 whitespace-nowrap text-muted-foreground">
+                  {tags.get(row.id)}
+                </span>
+              )}
               <ProblemMark count={count} size={12} />
               {end}
             </button>

@@ -2,6 +2,17 @@ import {type ReactNode, useEffect, useMemo, useRef, useState} from 'react';
 import {type PanelImperativeHandle, usePanelRef} from 'react-resizable-panels';
 
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
+import {
+  parseOfComponent,
+  parseOfMessage,
+  readByLinesOf,
+  readerCatalogOf,
+  retriesOf,
+  retrySentenceOf,
+  stepHeaderPartsOf,
+  uiSectionsOf,
+} from '@/model/a2ui_step.ts';
+import type {NodeRef} from '@/model/address.ts';
 import {checkLinesOf, checkStateOf} from '@/model/check_state.ts';
 import {keptPick, nextProblem, pickedRowId, pickForKey, stepInView} from '@/model/follow.ts';
 import {inputBriefOfTurn} from '@/model/input_brief.ts';
@@ -10,12 +21,14 @@ import {catalogsOf} from '@/model/catalogs.ts';
 import {dataModelMapOf, dataModelVersionOf} from '@/model/host_message.ts';
 import {agentMessages} from '@/model/messages.ts';
 import {previewProblemsOf, routeOf, surfaceFeedOf, targetOf} from '@/model/preview.ts';
-import {timedEventOf} from '@/model/call_rows.ts';
+import {modelReadingOf, timedEventOf} from '@/model/call_rows.ts';
 import {isProxyModelCall, isReadInFull} from '@/model/model_calls.ts';
 import {candidatesFor, type PrefixBreak, prefixBreakOf} from '@/model/prefix.ts';
 import {type Problem, onlyProblems, turnProblemsOf} from '@/model/problems.ts';
 import {
   isCallEvent,
+  isParse,
+  isPromptGeneration,
   isTurnEvent,
   isWireInput,
   isWireOutput,
@@ -24,7 +37,7 @@ import {
   type TurnRecordEvent,
   unixMillis,
 } from '@/model/record.ts';
-import {replay} from '@/model/replay.ts';
+import {replay, type SurfaceView, type TreeNode} from '@/model/replay.ts';
 import {type Position, replyThrough, type TimelineRow, timelineOf} from '@/model/steps.ts';
 import {openFieldsOf, summaryOf} from '@/model/summary.ts';
 import {insideLineOf} from '@/model/turn_calls.ts';
@@ -48,6 +61,7 @@ import {useSmallWindow} from '@/state/window.ts';
 import {Composer} from './Composer.tsx';
 import {FirstScreen} from './FirstScreen.tsx';
 import {formatDuration, formatOffset, formatStart} from './format.ts';
+import type {StepOnCall} from './ModelCallDetail.tsx';
 import {ResultPane} from './ResultPane.tsx';
 import {StepDetail} from './StepDetail.tsx';
 import {Timeline} from './Timeline.tsx';
@@ -77,6 +91,7 @@ const TIMELINE_SMALL = 340;
 export function TurnView({
   traceId,
   stepId,
+  node,
   selection,
   onSelect,
   onStep,
@@ -94,12 +109,14 @@ export function TurnView({
   heldWidth?: number;
   /** The step the page address holds. */
   stepId: string | undefined;
+  /** The tree node the page address holds. */
+  node: NodeRef | undefined;
   /** Counts the turn list's selections, so selecting the same turn again counts too. */
   selection: number;
   /** Selects a turn, and a step of it when one is named. */
   onSelect: (traceId: string, stepId?: string) => void;
-  /** Selects a step of the turn, or none, putting it in the page address. */
-  onStep: (traceId: string, stepId: string | undefined) => void;
+  /** Selects a step of the turn, or none, and a tree node with it, putting them in the page address. */
+  onStep: (traceId: string, stepId: string | undefined, node?: NodeRef) => void;
 }) {
   const state = useSpectra();
   // Maximize holds from turn to turn until the page is reloaded.
@@ -167,7 +184,8 @@ export function TurnView({
         traceId={traceId}
         view={view}
         stepId={stepId}
-        onStep={next => onStep(traceId, next)}
+        node={node}
+        onStep={(next, nextNode) => onStep(traceId, next, nextNode)}
         onOther={onSelect}
         maximized={maximized}
         onMaximized={setMaximized}
@@ -215,6 +233,7 @@ function TurnBody({
   traceId,
   view,
   stepId: picked,
+  node,
   onStep: setPicked,
   onOther,
   maximized,
@@ -224,7 +243,9 @@ function TurnBody({
   view: Extract<TurnViewState, {status: 'open' | 'closed'}>;
   /** The step picked, as the page address holds it. */
   stepId: string | undefined;
-  onStep: (stepId: string | undefined) => void;
+  /** The tree node selected, as the page address holds it. */
+  node: NodeRef | undefined;
+  onStep: (stepId: string | undefined, node?: NodeRef) => void;
   /** Selects a step of another turn, such as the earlier call a prefix break names. */
   onOther: (traceId: string, stepId: string) => void;
   /** Whether the step's detail takes the result pane's height. */
@@ -245,6 +266,17 @@ function TurnBody({
   const earlier = 'turns' in view.earlier ? view.earlier.turns : undefined;
 
   const timeline = useMemo(() => timelineOf(events, startMs), [events, startMs]);
+  // The A2UI step, worked out when shown: the retries among the model calls, and what the readers know of the catalogs.
+  const retries = useMemo(() => retriesOf(events), [events]);
+  const tags = useMemo(
+    () => new Map([...retries].map(([id, retry]) => [id, `Retry ${retry.attempt}`])),
+    [retries],
+  );
+  const readerCatalog = useMemo(() => readerCatalogOf(state.catalogs), [state.catalogs]);
+  const hasStep = useMemo(
+    () => events.some(event => isParse(event) || isPromptGeneration(event)),
+    [events],
+  );
   // The surfaces are rebuilt only when the wire changes, not as a call's chunks arrive.
   const wireEvents = useWireEvents(events);
   const catalogs = useMemo(() => catalogsOf(state.catalogs), [state.catalogs]);
@@ -388,6 +420,38 @@ function TurnBody({
   }, []);
   const sentA2ui = useMemo(() => agentMessages(wireEvents).length > 0, [wireEvents]);
 
+  // A node selected in the tree selects the parse it came from; one selected in a parse's raw text keeps the parse.
+  const selectNode = (next: NodeRef) => {
+    setPickedSurface(next.surfaceId);
+    const traced = parseOfComponent(
+      events,
+      next.surfaceId,
+      next.componentId,
+      position,
+      readerCatalog,
+    );
+    setPicked(traced === undefined ? selected?.id : traced.parse.spanId, next);
+  };
+  const selectRange = (next: NodeRef) => {
+    setPickedSurface(next.surfaceId);
+    setPicked(selected?.id, next);
+  };
+  // A node the tree shown no longer has is dropped from the address.
+  const nodeShown =
+    node === undefined || pane === undefined
+      ? undefined
+      : surfaces.some(view => view.surfaceId === node.surfaceId && treeHas(view, node.componentId));
+  useEffect(() => {
+    if (nodeShown === false) setPicked(picked, undefined);
+  }, [nodeShown, picked, setPicked]);
+  // The surface in view follows the node the address holds, as it changes.
+  const nodeSurface = node?.surfaceId;
+  const [followedSurface, setFollowedSurface] = useState(nodeSurface);
+  if (nodeSurface !== followedSurface) {
+    setFollowedSurface(nodeSurface);
+    if (nodeSurface !== undefined) setPickedSurface(nodeSurface);
+  }
+
   // The model calls: the header's second line, and the selected call's prefix break against the
   // conversation's earlier calls, this turn's and the earlier turns'.
   const inside = useMemo(
@@ -413,6 +477,19 @@ function TurnBody({
     ];
     return prefixBreakOf(selectedCall, candidatesFor(selectedCall, turns));
   }, [selectedCall, earlier, events, traceId]);
+  const stepOnCall: StepOnCall | undefined =
+    selectedRow?.kind === 'model'
+      ? {
+          ...(retries.has(selectedRow.id) && {
+            retry: retrySentenceOf(events, retries.get(selectedRow.id)!, startMs),
+          }),
+          readBy: readByLinesOf(events, selectedRow.id, startMs),
+          sections: uiSectionsOf(events, modelReadingOf(selectedRow).event),
+          ...(!hasStep && sentA2ui && {hint: state.context?.mode ?? 'run'}),
+          catalogs: state.catalogs ?? [],
+          onParse: parseSpanId => setPicked(parseSpanId),
+        }
+      : undefined;
   const onEarlier = (found: Exclude<PrefixBreak, {form: 'first'}>) => {
     const {traceId: turnOf, call} = found.earlier;
     if (turnOf === traceId) setPicked(call.spanId);
@@ -508,6 +585,7 @@ function TurnBody({
     formatStart(startMs),
     ...(durationMs === undefined ? [] : [formatDuration(durationMs)]),
     ...(protocolVersion === undefined ? [] : [`A2UI ${protocolVersion}`]),
+    ...stepHeaderPartsOf(events, state.catalogs),
     ...(agent === undefined ? [] : [agent]),
   ];
 
@@ -547,6 +625,7 @@ function TurnBody({
             endMs={turnEndMs}
             selected={selected?.id ?? ''}
             problems={byStep}
+            tags={tags}
             live={open}
             following={inView.following}
             {...(filtered && {
@@ -604,6 +683,8 @@ function TurnBody({
                 failed={summary?.outcome === 'failed'}
                 later={position !== undefined && (whole?.surfaces.length ?? 0) > 0}
                 folded={folding}
+                selectedNode={node}
+                onSelectNode={selectNode}
               />
             </ResizablePanel>
             <ResizableHandle />
@@ -643,6 +724,11 @@ function TurnBody({
                   prices={state.prices}
                   prefix={prefix}
                   onEarlier={onEarlier}
+                  catalog={readerCatalog}
+                  selectedNode={node}
+                  onSelectNode={selectRange}
+                  onStep={id => setPicked(id)}
+                  stepOnCall={stepOnCall}
                 />
               )}
             </ResizablePanel>
@@ -689,6 +775,22 @@ function asOfLabel(
 ): string {
   if (row === undefined) return '';
   if (row.row === 'delivery') return `After the delivery at ${formatOffset(row.offsetMs)}`;
+  if (row.parse !== undefined) {
+    // The last wire message traced to the parse, when one is; else right after the parse.
+    const {parse, position} = row;
+    const traced =
+      position !== undefined &&
+      agentMessages(events).some(
+        message =>
+          message.eventIndex === position.eventIndex &&
+          parseOfMessage(events, message.key)?.spanId === parse.spanId,
+      );
+    if (traced) {
+      const at = unixMillis(events[position.eventIndex].startTimeUnixNano) - startMs;
+      return `After the delivery at ${formatOffset(at)}`;
+    }
+    return `Right after the parse at ${formatOffset(row.offsetMs ?? 0)}`;
+  }
   if (row.call !== undefined) {
     const end = timedEventOf(row.call).endTimeUnixNano;
     return end === undefined
@@ -701,6 +803,16 @@ function asOfLabel(
       ? undefined
       : unixMillis(events[row.position.eventIndex].startTimeUnixNano) - startMs);
   return offset === undefined ? '' : `After the step at ${formatOffset(offset)}`;
+}
+
+/** Whether a surface's tree, as shown, holds a component. */
+function treeHas(surface: SurfaceView, componentId: string): boolean {
+  const has = (node: TreeNode): boolean =>
+    node.id === componentId || (!('missing' in node) && node.children.some(has));
+  const {structure} = surface;
+  const roots =
+    'tree' in structure ? [structure.tree, ...structure.notUnderRoot] : structure.unnested;
+  return roots.some(has);
 }
 
 /**

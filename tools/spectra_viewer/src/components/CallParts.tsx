@@ -16,6 +16,19 @@ import {formatOffset} from './format.ts';
 import {Icon} from './icons.tsx';
 import {BlockLabel, JsonBlock, JsonLines} from './JsonBlock.tsx';
 
+/** A teal link in a detail's line, which selects another step. */
+export function DetailLink({onClick, children}: {onClick: () => void; children: ReactNode}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="cursor-pointer text-left font-medium text-brand hover:underline"
+    >
+      {children}
+    </button>
+  );
+}
+
 /** A section of the detail: a small label on a rule, folding what follows when it can. */
 export function Section({
   label,
