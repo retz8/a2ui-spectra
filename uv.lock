@@ -17,8 +17,8 @@ members = [
 
 [[package]]
 name = "a2ui-adk"
-version = "0.1.1.dev171"
-source = { git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_adk&rev=825beac2813a6d0ccef3b6fb4124ad6c3c8419f0#825beac2813a6d0ccef3b6fb4124ad6c3c8419f0" }
+version = "0.2.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "a2ui-agent-sdk" },
     { name = "google-adk", version = "2.7.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
@@ -26,11 +26,15 @@ dependencies = [
     { name = "google-genai", version = "2.33.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "google-genai", version = "2.34.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/83/32/e9a013884bf95c6eb1478a3f755f5e749f8a85bb8205f21339c8a8d03b9e/a2ui_adk-0.2.0.tar.gz", hash = "sha256:6b81f24ef062327559b9bcf5d783aa014249abc56a6addc888597a8ff86ef1f6", size = 36985, upload-time = "2026-11-02T02:42:53.279Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/38/bc/180c4bc8a5a26440251e27c622dd4b60a3c68419e28a3e8220d46d1e421a/a2ui_adk-0.2.0-py3-none-any.whl", hash = "sha256:0bfbb4dd352b160f068160902015451b285c995ba2e0bd12bc22ce3c7524a7c2", size = 25170, upload-time = "2026-11-02T02:42:48.555Z" },
+]
 
 [[package]]
 name = "a2ui-agent-sdk"
-version = "0.9.1.dev171"
-source = { git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_agent&rev=825beac2813a6d0ccef3b6fb4124ad6c3c8419f0#825beac2813a6d0ccef3b6fb4124ad6c3c8419f0" }
+version = "0.10.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "a2ui-core" },
     { name = "antlr4-python3-runtime" },
@@ -38,17 +42,25 @@ dependencies = [
     { name = "pydantic" },
     { name = "pyyaml" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/21/db/7d11ffeeff358b604e406dc2fa1428ff38ad8a6327b51308fa447a391518/a2ui_agent_sdk-0.10.0.tar.gz", hash = "sha256:6ec0ca6e8237584fbd156711064eceb703d431f8dd9af29c201dd9b14d47e1e3", size = 405243, upload-time = "2026-11-02T02:42:51.104Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f3/c8/2dd79dc705aadf5ecf0f2c7b6e68df531d354170c26adb5c9961c65b0184/a2ui_agent_sdk-0.10.0-py3-none-any.whl", hash = "sha256:1d5bdec10456c19d604464f0f5b53cd54aa33d51b128809fef0b5a938a34fa2d", size = 318578, upload-time = "2026-11-02T02:42:45.347Z" },
+]
 
 [[package]]
 name = "a2ui-core"
-version = "0.4.1.dev171"
-source = { git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_core&rev=825beac2813a6d0ccef3b6fb4124ad6c3c8419f0#825beac2813a6d0ccef3b6fb4124ad6c3c8419f0" }
+version = "0.5.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "babel" },
     { name = "jsonschema" },
     { name = "pydantic" },
     { name = "referencing" },
     { name = "regex" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/db/71/0edb713697a23d12618ab47816c9e2abb12c002498ba47e1b7f87a13c2d6/a2ui_core-0.5.0.tar.gz", hash = "sha256:ea1d9a59808bd92c13d55b6af9ae5a21ba6f4f8eb3e874ffc8727b92c9e8cc24", size = 334963, upload-time = "2026-11-02T02:42:49.815Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/57/7f/734cad38a5b595b0bb11171b653dd928e4fdaa10ad569851cdb8d18050df/a2ui_core-0.5.0-py3-none-any.whl", hash = "sha256:609404f78c663126960bcafa4002934a49e76cf29ac928777be9d88d5118ef8c", size = 282941, upload-time = "2026-11-02T02:42:43.482Z" },
 ]
 
 [[package]]
@@ -74,7 +86,7 @@ instruments = [
 
 [package.metadata]
 requires-dist = [
-    { name = "a2ui-agent-sdk", marker = "extra == 'instruments'", git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_agent&rev=825beac2813a6d0ccef3b6fb4124ad6c3c8419f0" },
+    { name = "a2ui-agent-sdk", marker = "extra == 'instruments'", specifier = ">=0.10.0" },
     { name = "opentelemetry-api", specifier = ">=1.39.0" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.39.0" },
     { name = "opentelemetry-instrumentation", specifier = ">=0.60b0" },
@@ -111,13 +123,15 @@ source = { virtual = "conformance/wrapper_driver/python" }
 dependencies = [
     { name = "a2ui-adk" },
     { name = "a2ui-agent-sdk" },
+    { name = "a2ui-core" },
     { name = "a2ui-spectra-instrumentation" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "a2ui-adk", git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_adk&rev=825beac2813a6d0ccef3b6fb4124ad6c3c8419f0" },
-    { name = "a2ui-agent-sdk", git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_agent&rev=825beac2813a6d0ccef3b6fb4124ad6c3c8419f0" },
+    { name = "a2ui-adk", specifier = "==0.2.0" },
+    { name = "a2ui-agent-sdk", specifier = "==0.10.0" },
+    { name = "a2ui-core", specifier = "==0.5.0" },
     { name = "a2ui-spectra-instrumentation", editable = "python/a2ui_spectra_instrumentation" },
 ]
 
@@ -906,7 +920,7 @@ name = "exceptiongroup"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions", marker = "python_full_version < '3.13'" },
+    { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/50/79/66800aadf48771f6b62f7eb014e352e5d06856655206165d775e675a02c9/exceptiongroup-1.3.1.tar.gz", hash = "sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219", size = 30371, upload-time = "2025-11-21T23:01:54.787Z" }
 wheels = [

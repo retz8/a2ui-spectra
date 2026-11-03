@@ -18,7 +18,7 @@ from packaging.version import InvalidVersion, Version
 
 from .hooks import HOOKS, READS, Hook
 from .log import logger
-from .package import ADK, AGENT_SDK, FLOOR, PIN
+from .package import ADK, AGENT_SDK, FLOOR, PINS, RELEASE
 
 _EXPERIMENTAL = ("atom", "elemental")
 
@@ -80,12 +80,12 @@ def _resolve_group(group: str) -> list[Target]:
 def _refuse(distribution: str, version: str | None, why: str) -> None:
     logger.warning(
         "a2ui-spectra-instrumentation left %s %s unpatched: %s; it was written"
-        " against %s at %s (%s)",
+        " against %s, %s (%s)",
         distribution,
         version if version is not None else "(not installed)",
         why,
-        distribution,
-        PIN,
+        PINS[distribution],
+        RELEASE,
         FLOOR,
     )
 

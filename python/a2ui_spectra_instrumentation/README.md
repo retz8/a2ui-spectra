@@ -48,7 +48,7 @@ The spans are the turn record's [producers of the A2UI step](../../specification
 
 ## The pinned API
 
-The wrapper was written against upstream main `825beac28`, with the version floor `a2ui-agent-sdk > 0.9.0`, which is also the package's `instruments` extra. Before hooking, it checks the floor and that each name it hooks resolves to a callable, per distribution:
+The wrapper was written against upstream's releases of 2026-11-02, `a2ui-agent-sdk` 0.10.0 and `a2ui-adk` 0.2.0, with the version floor `a2ui-agent-sdk >= 0.10.0`, which is also the package's `instruments` extra. Before hooking, it checks the floor and that each name it hooks resolves to a callable, per distribution:
 
 | Distribution     | Names                                                                                                                                                                                                                                                                                                                                                                                                        | When one is missing                                                           |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
@@ -59,7 +59,7 @@ The wrapper was written against upstream main `825beac28`, with the version floo
 A refusal is one WARNING line under the logger `a2ui_spectra_instrumentation`, naming the distribution and the version found, the first missing name, and the pin:
 
 ```
-a2ui-spectra-instrumentation left a2ui-agent-sdk 0.9.0 unpatched: it is below the version floor; it was written against a2ui-agent-sdk at upstream main 825beac28 (a2ui-agent-sdk > 0.9.0)
+a2ui-spectra-instrumentation left a2ui-agent-sdk 0.9.0 unpatched: it is below the version floor; it was written against a2ui-agent-sdk 0.10.0, upstream's release of 2026-11-02 (a2ui-agent-sdk >= 0.10.0)
 ```
 
 Under `opentelemetry-instrument`, OpenTelemetry checks the `instruments` extra before it loads the wrapper, and skips it with a DEBUG line of its own when the agent SDK is missing or below the floor.

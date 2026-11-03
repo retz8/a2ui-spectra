@@ -35,9 +35,9 @@ def test_a_missing_core_name_leaves_everything_unpatched(
     [line] = support.lines(caplog)
     assert line.levelno == logging.WARNING
     message = line.getMessage()
-    assert "a2ui-agent-sdk 0.9.1" in message
+    assert "a2ui-agent-sdk 0.10.0" in message
     assert "a2ui.utils.RendererState.check_topology is missing" in message
-    assert "upstream main 825beac28" in message
+    assert "a2ui-agent-sdk 0.10.0, upstream's release of 2026-11-02" in message
 
 
 def test_a_missing_experimental_format_is_skipped_and_the_rest_patched(
@@ -96,7 +96,7 @@ def test_an_sdk_at_the_floor_is_refused(
     message = line.getMessage()
     assert "a2ui-agent-sdk 0.9.0" in message
     assert "below the version floor" in message
-    assert "a2ui-agent-sdk > 0.9.0" in message
+    assert "a2ui-agent-sdk >= 0.10.0" in message
 
 
 def test_the_pinned_sdk_passes_with_no_line(
