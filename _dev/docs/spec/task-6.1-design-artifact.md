@@ -98,7 +98,7 @@ The selected tree node joins the page address, as its surface id and component i
 
 ### 16. A retry
 
-A retry's row carries a grey "Retry 1" tag after the call's name, before the problem mark's column, keeping its width as the timeline narrows. Under the retry's title line, in the place of the prefix break's sentence, a grey sentence: "Retry 1 · the reply of the call at +2.0 s failed to parse · Surface default already exists", the failed parse a teal link that selects it. A retry is grey, never red, and not counted.
+A retry's row carries a grey "Retry 1" tag after the call's name, before the problem mark's column, keeping its width as the timeline narrows. Under the retry's title line, a grey sentence takes the first line of the slot: "Retry 1 · the reply of the call at +2.0 s failed to parse · Surface default already exists", the failed parse a teal link that selects it; the prefix break's sentence sits under it as on any other call. A retry is grey, never red, and not counted.
 
 ### 17. The model call a parse read
 

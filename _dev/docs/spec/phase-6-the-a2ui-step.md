@@ -73,7 +73,7 @@ A `parse` event is tied to the model call of its turn whose response text, or on
 
 ### 13. Parse errors as problems
 
-Each error the parser raised is one problem: each rejected block, the one that ended the parse and each one a stream read past. A failed `prompt_generation` in a turn is one problem, on its own row. A retry is marked with the error that caused it and is not counted.
+Each error the parser raised is one problem: each rejected block, the one that ended the parse and each one a stream read past. A failed `parse` that states no `exception` event is one problem. A failed `prompt_generation` in a turn is one problem, on its own row. A retry is marked with the error that caused it and is not counted.
 
 ### 14. The parse a tree component came from
 
