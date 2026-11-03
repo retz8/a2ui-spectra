@@ -1,10 +1,12 @@
 /**
  * The turn header's second line: the time to the first token and to the
- * first component, the model calls and the tool calls, their tokens, the
+ * first component, the model calls, the retries among them, and the tool
+ * calls, their tokens, the
  * share read from the cache and the estimated cost, from the timeline's call
  * rows so far. A call read from spans only counts with its tokens; the tool
  * calls counted are the full rows, housekeeping left out.
  */
+import {retryCountOf} from './a2ui_step.ts';
 import {type CallRow, callRowsOf, modelReadingOf, timedEventOf} from './call_rows.ts';
 import {callCostOf, formatCost, formatShare, formatTokensBrief, type Prices} from './cost.ts';
 import {firstChunkMs, isReadInFull, usageOf} from './model_calls.ts';
@@ -29,6 +31,8 @@ export function insideLineOf(
   if (firstComponent !== undefined)
     parts.push(`First component ${seconds(firstComponent - startMs)}`);
   if (models.length > 0) parts.push(plural(models.length, 'model call'));
+  const retries = retryCountOf(events);
+  if (retries > 0) parts.push(plural(retries, 'retry').replace(/retrys$/, 'retries'));
   if (tools.length > 0) parts.push(plural(tools.length, 'tool call'));
 
   // A call in flight counts among the calls; its tokens and cost join once it ends.

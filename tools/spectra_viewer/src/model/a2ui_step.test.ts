@@ -19,12 +19,23 @@ import {
   parseOfComponent,
   parseOfMessage,
   parseProblemsOf,
+  parseTitleOf,
+  rangesSentenceOf,
+  readByLinesOf,
   readByOf,
+  readFromOf,
+  readerCatalogOf,
+  retriedByOf,
   retriesOf,
+  retryCountOf,
+  retrySentenceOf,
   sdkOf,
+  sourceLineOfStep,
   stepHeaderPartsOf,
   uiSectionsOf,
 } from './a2ui_step.ts';
+import {type Step, timelineOf} from './steps.ts';
+import {insideLineOf} from './turn_calls.ts';
 import type {KnownCatalog} from './catalogs.ts';
 import {agentMessages} from './messages.ts';
 import {
@@ -425,3 +436,125 @@ void isParse;
 void at;
 void TRACE;
 void (null as unknown as ModelCallEvent);
+
+describe('what the A2UI step says in the detail', () => {
+  const {events} = turnOf('turn_record/v0_1/full_record_retried_parse.json');
+  const startMs = Number(BigInt(events[0].startTimeUnixNano) / 1_000_000n);
+  const parses = events.filter(isParse);
+  const [failedParse, goodParse] = parses;
+
+  it('counts the retries for the header’s second line, after the model calls', () => {
+    assert.equal(retryCountOf(events), 1);
+    assert.equal(retryCountOf(retriedTwice()), 2);
+    const line = insideLineOf(events, startMs, undefined)!;
+    assert.deepEqual(line.slice(2, 4), ['2 model calls', '1 retry']);
+    assert.ok(insideLineOf(retriedTwice(), startMs, undefined)!.includes('2 retries'));
+  });
+
+  it('titles a parse with its format, streamed, and its scope, or "A2UI step spans" without one', () => {
+    const step = timelineOf(events, startMs).find(
+      (row): row is Step => row.row === 'step' && row.parse?.spanId === failedParse.spanId,
+    )!;
+    assert.deepEqual(parseTitleOf(step, startMs), {
+      target: 'Direct JSON · streamed · a2ui-spectra-instrumentation 0.1.0',
+      times: '+2.0 s · 20 ms',
+    });
+    assert.equal(sourceLineOfStep(failedParse), 'a2ui-spectra-instrumentation 0.1.0');
+    const bare = parse({spanId: 'p', start: 0, input: ''});
+    delete bare.attributes['otel.scope.name'];
+    delete bare.attributes['otel.scope.version'];
+    assert.equal(sourceLineOfStep(bare), 'A2UI step spans');
+  });
+
+  it('names the model call a parse read, as a link, or that it is tied to none', () => {
+    assert.deepEqual(readFromOf(events, failedParse, startMs), {
+      text: 'The reply of gemini-3.6-flash at +20 ms',
+      stepId: 'd2b5e8a17c4f9603',
+    });
+    assert.deepEqual(readFromOf([failedParse], failedParse, startMs), {
+      text: 'Tied to no model call',
+    });
+  });
+
+  it('lists the parses that read a model call, each a link', () => {
+    assert.deepEqual(readByLinesOf(events, 'f1c7d4b28e5a3906', startMs), [
+      {text: 'Read by the parse at +5.0 s · Direct JSON', parseSpanId: goodParse.spanId},
+    ]);
+    assert.deepEqual(readByLinesOf(events, 'nobody', startMs), []);
+  });
+
+  it('says why a model call is a retry, the failed parse a link, and names the retry on the parse', () => {
+    const retry = retriesOf(events).get('f1c7d4b28e5a3906')!;
+    assert.deepEqual(retrySentenceOf(events, retry, startMs), {
+      lead: 'Retry 1 · the reply of the call at +20 ms',
+      link: {text: 'failed to parse', parseSpanId: failedParse.spanId},
+      tail: 'Surface default already exists.',
+    });
+    assert.deepEqual(retriedByOf(events, failedParse, startMs), {
+      text: 'Retried by the call at +2.0 s',
+      stepId: 'f1c7d4b28e5a3906',
+    });
+    assert.equal(retriedByOf(events, goodParse, startMs), undefined);
+    assert.deepEqual(retrySentenceOf(events, {attempt: 3, stated: true}, startMs), {
+      lead: 'Retry 3',
+    });
+  });
+
+  it('says why there are no ranges, or where the reader stopped', () => {
+    assert.equal(
+      rangesSentenceOf({ranges: [{surfaceId: 's', componentId: 'c', start: 0, end: 1}]}, 'express'),
+      undefined,
+    );
+    assert.equal(
+      rangesSentenceOf(undefined, undefined),
+      'No component ranges · the parse names no inference format',
+    );
+    assert.equal(
+      rangesSentenceOf({ranges: [], stoppedAt: 3}, 'express'),
+      'No component ranges · the Express reader could not read this text',
+    );
+    assert.equal(
+      rangesSentenceOf(
+        {ranges: [{surfaceId: 's', componentId: 'c', start: 0, end: 1}], stoppedAt: 1204},
+        'express',
+      ),
+      'Component ranges up to character 1,204 · the Express reader stopped there',
+    );
+  });
+
+  it('builds the readers’ catalog from the known catalogs', () => {
+    const catalog = readerCatalogOf([
+      {
+        id: 'https://example.com/c.json',
+        aliases: [],
+        protocolVersion: '1.0',
+        source: 'configured',
+        definition: {
+          components: {
+            Stack: {
+              properties: {
+                component: {const: 'Stack'},
+                children: {
+                  $ref: 'https://a2ui.org/specification/v1_0/common_types.json#/$defs/ChildList',
+                },
+                gap: {type: 'string'},
+                checks: {type: 'array'},
+              },
+            },
+            Label: {properties: {component: {const: 'Label'}, text: {type: 'string'}}},
+          },
+        },
+      },
+    ]);
+    assert.equal(catalog.isComponent('Stack'), true);
+    assert.equal(catalog.isComponent('Event'), false);
+    assert.deepEqual(catalog.propertyOrder('Stack'), ['children', 'gap']);
+    assert.equal(catalog.propertyOrder('Nope'), undefined);
+    assert.equal(catalog.isContainer('Stack'), true);
+    assert.equal(catalog.isContainer('Label'), false);
+    assert.equal(catalog.isContainer('Nope'), undefined);
+    // With no catalogs known, a capitalised name is a component and nothing else is known.
+    assert.equal(readerCatalogOf(undefined).isComponent('Card'), true);
+    assert.equal(readerCatalogOf(undefined).propertyOrder('Card'), undefined);
+  });
+});

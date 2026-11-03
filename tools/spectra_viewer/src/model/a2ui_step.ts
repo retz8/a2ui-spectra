@@ -5,15 +5,17 @@
  * the header's formats and catalogs. The record states what happened; none
  * of this is stored, apart from a retry or a range a producer states itself.
  */
+import {formatDuration, formatOffset} from '../components/format.ts';
 import {catalogName} from './agent_card.ts';
 import {type CallRow, callRowsOf, modelReadingOf, timedEventOf} from './call_rows.ts';
 import type {KnownCatalog} from './catalogs.ts';
+import {modelOf} from './model_calls.ts';
 import {agentMessages, type AgentMessage, isThrough, type Position} from './messages.ts';
 import {segmentsOf} from './prefix.ts';
-import {type ComponentRange, formatNameOf, rangesOfParse} from './ranges.ts';
+import {type ComponentRange, formatNameOf, rangesOfParse, type Reading} from './ranges.ts';
 
 export {formatNameOf};
-import type {ReaderCatalog} from './readers/reading.ts';
+import {ANY_CATALOG, type ReaderCatalog} from './readers/reading.ts';
 import {
   isParse,
   isPromptGeneration,
@@ -21,7 +23,9 @@ import {
   type ParseEvent,
   type PromptGenerationEvent,
   type TurnRecordEvent,
+  unixMillis,
 } from './record.ts';
+import type {Step} from './steps.ts';
 
 /** The SDK an A2UI step event names, as a problem's code names it: "A2UI SDK, Python". */
 export function sdkOf(event: ParseEvent | PromptGenerationEvent): string {
@@ -425,4 +429,204 @@ export function stepHeaderPartsOf(
     }
   }
   return [...formats, ...named];
+}
+
+/** How many of the turn's model calls are retries, for the header's second line. */
+export function retryCountOf(events: readonly TurnRecordEvent[]): number {
+  return retriesOf(events).size;
+}
+
+/**
+ * The source line of an A2UI step span, as the detail header's target and
+ * the spans section name it: its scope's name and version, with no "spans"
+ * word; "A2UI step spans" for a span with no scope name.
+ */
+export function sourceLineOfStep(event: ParseEvent | PromptGenerationEvent): string {
+  const name = event.attributes['otel.scope.name'];
+  const version = event.attributes['otel.scope.version'];
+  if (typeof name !== 'string' || name === '') return 'A2UI step spans';
+  return typeof version === 'string' && version !== '' ? `${name} ${version}` : name;
+}
+
+/** A parse row's title line: its target with its source, then its offset and duration. */
+export function parseTitleOf(step: Step, startMs: number): {target: string; times: string} {
+  const parse = step.parse!;
+  const start = unixMillis(parse.startTimeUnixNano);
+  const times = [formatOffset(start - startMs)];
+  if (parse.endTimeUnixNano !== undefined) {
+    times.push(formatDuration(unixMillis(parse.endTimeUnixNano) - start));
+  }
+  return {
+    target: [step.target, sourceLineOfStep(parse)].filter(part => part !== '').join(' · '),
+    times: times.join(' · '),
+  };
+}
+
+function rowOffsetOf(
+  events: readonly TurnRecordEvent[],
+  rowId: string,
+  startMs: number,
+): string | undefined {
+  const row = modelRowsOf(events).find(row => row.id === rowId);
+  return row === undefined
+    ? undefined
+    : formatOffset(unixMillis(timedEventOf(row).startTimeUnixNano) - startMs);
+}
+
+/** The "Read from" line of a parse: the model call it read, as a link, or that it is tied to none. */
+export function readFromOf(
+  events: readonly TurnRecordEvent[],
+  parse: ParseEvent,
+  startMs: number,
+): {text: string; stepId?: string} {
+  const rowId = readByOf(events).get(parse.spanId);
+  const row = rowId === undefined ? undefined : modelRowsOf(events).find(row => row.id === rowId);
+  if (row === undefined) return {text: 'Tied to no model call'};
+  const model = modelOf(modelReadingOf(row).event);
+  const at = formatOffset(unixMillis(timedEventOf(row).startTimeUnixNano) - startMs);
+  return {text: `The reply of ${model ?? 'the call'} at ${at}`, stepId: row.id};
+}
+
+/** The "Read by the parse" lines of a model call row: one per parse that read it, each a link. */
+export function readByLinesOf(
+  events: readonly TurnRecordEvent[],
+  rowId: string,
+  startMs: number,
+): Array<{text: string; parseSpanId: string}> {
+  const readBy = readByOf(events);
+  return parsesOf(events)
+    .filter(parse => readBy.get(parse.spanId) === rowId)
+    .map(parse => {
+      const at = formatOffset(unixMillis(parse.startTimeUnixNano) - startMs);
+      const format = formatNameOf(parse.attributes['a2ui.parse.inference_format']);
+      return {
+        text: `Read by the parse at ${at}${format === undefined ? '' : ` · ${format}`}`,
+        parseSpanId: parse.spanId,
+      };
+    });
+}
+
+/** A parse's first error message: its status message, else its first exception's. */
+function errorMessageOf(parse: ParseEvent): string | undefined {
+  const message = parse.status?.message;
+  if (message !== undefined && message !== '') return message;
+  const exception = exceptionsOf(parse)[0]?.attributes?.['exception.message'];
+  return typeof exception === 'string' && exception !== '' ? exception : undefined;
+}
+
+/**
+ * The grey sentence under a retry's title line: "Retry 1 · the reply of the
+ * call at +2.0 s", then "failed to parse" as a link that selects the failed
+ * parse, then the error that caused the retry. A retry whose parse is not
+ * known says its number alone.
+ */
+export function retrySentenceOf(
+  events: readonly TurnRecordEvent[],
+  retry: Retry,
+  startMs: number,
+): {lead: string; link?: {text: string; parseSpanId: string}; tail?: string} {
+  const lead = `Retry ${retry.attempt}`;
+  const parse =
+    retry.parseSpanId === undefined
+      ? undefined
+      : parsesOf(events).find(parse => parse.spanId === retry.parseSpanId);
+  if (parse === undefined) return {lead};
+  const readRow = readByOf(events).get(parse.spanId);
+  const at = readRow === undefined ? undefined : rowOffsetOf(events, readRow, startMs);
+  const reply =
+    at === undefined ? 'the reply of the earlier call' : `the reply of the call at ${at}`;
+  const message = errorMessageOf(parse);
+  return {
+    lead: `${lead} · ${reply}`,
+    link: {text: 'failed to parse', parseSpanId: parse.spanId},
+    ...(message !== undefined && {tail: message}),
+  };
+}
+
+/** The link on a failed parse to the call that retried it: "Retried by the call at +5.0 s". */
+export function retriedByOf(
+  events: readonly TurnRecordEvent[],
+  parse: ParseEvent,
+  startMs: number,
+): {text: string; stepId: string} | undefined {
+  for (const [rowId, retry] of retriesOf(events)) {
+    if (retry.parseSpanId !== parse.spanId) continue;
+    const at = rowOffsetOf(events, rowId, startMs);
+    if (at !== undefined) return {text: `Retried by the call at ${at}`, stepId: rowId};
+  }
+  return undefined;
+}
+
+/**
+ * The grey sentence above a parse's raw text when its component ranges are
+ * not all worked out: why there are none, or where the reader stopped.
+ */
+export function rangesSentenceOf(
+  reading: Reading | undefined,
+  format: string | undefined,
+): string | undefined {
+  const name = formatNameOf(format);
+  if (reading === undefined || name === undefined) {
+    return 'No component ranges · the parse names no inference format';
+  }
+  if (reading.stoppedAt === undefined) return undefined;
+  if (reading.ranges.length === 0) {
+    return `No component ranges · the ${name} reader could not read this text`;
+  }
+  return `Component ranges up to character ${reading.stoppedAt.toLocaleString('en-US')} · the ${name} reader stopped there`;
+}
+
+/** A catalog definition's components, by name, as `GET /api/catalogs` serves them. */
+function componentsOf(definition: Record<string, unknown>): Record<string, unknown> {
+  const components = definition.components;
+  return typeof components === 'object' && components !== null && !Array.isArray(components)
+    ? (components as Record<string, unknown>)
+    : {};
+}
+
+/** The property schemas of a component's definition, in the order the schema lists them. */
+function propertiesOf(component: unknown): Array<[string, unknown]> {
+  const properties = (component as {properties?: unknown} | null)?.properties;
+  return typeof properties === 'object' && properties !== null
+    ? Object.entries(properties as Record<string, unknown>)
+    : [];
+}
+
+function holdsChildren(property: unknown): boolean {
+  const ref = (property as {$ref?: unknown} | null)?.$ref;
+  return typeof ref === 'string' && /\/\$defs\/(ChildList|Child)$/.test(ref);
+}
+
+/**
+ * What the readers know of the catalogs, from the definitions the viewer
+ * knows: a name is a component when a definition has it; its positional
+ * arguments fill its properties in the schema's order, the `component`
+ * constant and the checks left out; it holds children when a property is a
+ * child or a child list. With no definitions, the readers' own default.
+ */
+export function readerCatalogOf(known: readonly KnownCatalog[] | undefined): ReaderCatalog {
+  if (known === undefined || known.length === 0) return ANY_CATALOG;
+  const components = new Map<string, unknown>();
+  for (const catalog of known) {
+    for (const [name, component] of Object.entries(componentsOf(catalog.definition))) {
+      if (!components.has(name)) components.set(name, component);
+    }
+  }
+  return {
+    isComponent: name => components.has(name),
+    propertyOrder: name => {
+      const component = components.get(name);
+      if (component === undefined) return undefined;
+      return propertiesOf(component)
+        .filter(([key]) => key !== 'component' && key !== 'id' && key !== 'checks')
+        .map(([key]) => key);
+    },
+    isContainer: name => {
+      const component = components.get(name);
+      if (component === undefined) return undefined;
+      return propertiesOf(component).some(
+        ([key, property]) => key === 'children' || key === 'child' || holdsChildren(property),
+      );
+    },
+  };
 }

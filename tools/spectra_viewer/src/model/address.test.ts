@@ -23,6 +23,33 @@ describe('the page address', () => {
     }
   });
 
+  it('holds the selected tree node after the step, as its surface and component ids, each encoded', () => {
+    const node = {surfaceId: 'restaurant card', componentId: 'book/button'};
+    const hash = writeAddress(TRACE, 'e9f3a6c15b8d2704', node);
+    assert.equal(
+      hash,
+      `#/turns/${TRACE}/steps/e9f3a6c15b8d2704/nodes/restaurant%20card/book%2Fbutton`,
+    );
+    assert.deepEqual(readAddress(hash), {traceId: TRACE, stepId: 'e9f3a6c15b8d2704', node});
+    assert.deepEqual(readAddress(`#/turns/${TRACE}/steps/x/nodes/s`), {});
+  });
+
+  it('replaces the entry when the node changes, as a change of step does', () => {
+    const node = {surfaceId: 's', componentId: 'c'};
+    assert.equal(
+      historyOf({traceId: TRACE, stepId: 'x'}, {traceId: TRACE, stepId: 'x', node}, {own: false}),
+      'replace',
+    );
+    assert.equal(
+      historyOf(
+        {traceId: TRACE, stepId: 'x', node},
+        {traceId: TRACE, stepId: 'x', node},
+        {own: false},
+      ),
+      'none',
+    );
+  });
+
   it('holds no turn when it is not a turn’s address', () => {
     for (const hash of [
       '',
