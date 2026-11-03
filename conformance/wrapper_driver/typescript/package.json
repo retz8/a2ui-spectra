@@ -1,0 +1,51 @@
+{
+  "name": "a2ui-spectra-wrapper-driver-typescript",
+  "private": true,
+  "version": "0.0.0",
+  "description": "The wrapper capture suite's TypeScript driver",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "build": "wireit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "clean": "wireit",
+    "format": "prettier --ignore-path ../../../.prettierignore --write .",
+    "format:check": "prettier --ignore-path ../../../.prettierignore --check ."
+  },
+  "wireit": {
+    "build": {
+      "command": "tsc -b --pretty",
+      "env": {
+        "FORCE_COLOR": "1"
+      },
+      "dependencies": [
+        "../../../typescript/instrumentation:build"
+      ],
+      "files": [
+        "driver.ts",
+        "tsconfig.json"
+      ],
+      "output": [
+        "dist/**"
+      ],
+      "clean": "if-file-deleted"
+    },
+    "clean": {
+      "command": "rm -rf dist .wireit"
+    }
+  },
+  "dependencies": {
+    "@a2ui/agent": "0.1.0",
+    "@opentelemetry/api": "1.9.1",
+    "a2ui-spectra-instrumentation": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.3",
+    "eslint": "^10.4.1",
+    "gts": "^7.0.0",
+    "prettier": "^3.8.4",
+    "typescript": "5.9.3",
+    "wireit": "^0.15.0-pre.2"
+  }
+}

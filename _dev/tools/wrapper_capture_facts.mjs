@@ -102,7 +102,11 @@ function openBlocks(processor, input, wrapped) {
 }
 
 function errorFact(error, block) {
-  const details = Array.isArray(error.details) ? error.details.map(detail => ({...detail})) : [];
+  // The SDK's structured details: a details array whose every item is an object.
+  const structured =
+    Array.isArray(error.details) &&
+    error.details.every(detail => typeof detail === 'object' && detail !== null);
+  const details = structured ? error.details.map(detail => ({...detail})) : [];
   const afterEveryBlock = AFTER_EVERY_BLOCK.test(error.stack ?? '');
   return {
     type: error.constructor.name,

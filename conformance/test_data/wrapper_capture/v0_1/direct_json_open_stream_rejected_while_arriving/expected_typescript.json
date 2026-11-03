@@ -1,0 +1,155 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "b66da877aa09e4bc99991a6403b2e7c2",
+          "spanId": "2995a151e1c5aebb",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000028000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "otel_receiver",
+              "wrapper"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "bfdfa6030bd7aff257eef651c12c9003",
+          "spanId": "8fad60f182390998",
+          "name": "parse",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000010000000",
+          "endTimeUnixNano": "1792800000018000000",
+          "attributes": {
+            "a2ui.event.kind": "parse",
+            "otel.scope.name": "a2ui-spectra-instrumentation",
+            "otel.scope.version": "0.0.0",
+            "a2ui.parse.input": "Here is the restaurant card.\n\n<a2ui-json>\n[\n  {\n    \"version\": \"1.0\",\n    \"createSurface\": {\n      \"surfaceId\": \"restaurant-card\",\n      \"catalogId\": \"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\"\n    }\n  },\n  {\n    \"version\": \"1.0\",\n    \"updateComponents\": {\n      \"surfaceId\": \"restaurant-card\",\n      \"components\": [\n        {\"id\": \"root\", \"component\": \"Card\", \"child\": \"name\"},\n        {\"id\": \"name\", \"component\": \"Text\", \"text\": \"Xi'an Famous Foods\"}\n      ]\n    }\n  }\n]\n</a2ui-json>\nAnd its booking form.\n\n<a2ui-json>\n[\n  {\n    \"version\": \"1.0\",\n    \"createSurface\": {\n      \"surfaceId\": \"booking-form\",\n      \"catalogId\": \"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\"\n    }\n  },\n  {\n    \"version\": \"1.0\",\n    \"updateComponents\": {\n      \"surfaceId\": \"booking-form\",\n      \"components\": [\n        {\"id\": \"root\", \"component\": \"Column\", \"children\": [\"title\", \"bookButton\"]},\n        {\"id\": \"title\", \"component\": \"Text\", \"text\": \"Book a table\"},\n        {\"id\": \"title\", \"component\": \"Text\", \"text\": \"Book a table at Xi'an Famous Foods\"},\n        {\"id\": \"bookButton\", \"component\": \"Button\", \"variant\": \"primary\", \"child\": \"bookButtonText\", \"action\": {\"event\": {\"name\": \"book_table\"}}},\n        {\"id\": \"bookButtonText\", \"component\": \"Text\", \"text\": \"Book\"}\n      ]\n    }\n  }\n]\n</a2ui-json>\nAnd a note.\n\n<a2ui-json>\n[\n  {\n    \"version\": \"1.0\",\n    \"createSurface\": {\n      \"surfaceId\": \"note\",\n      \"catalogId\": \"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\n      \"components\": [\n        {\"id\": \"root\", \"component\": \"Text\", \"text\": \"Booking opens at noon.\"}\n      ]\n    }\n  }\n]\n</a2ui-json>\n",
+            "a2ui.parse.entry_point": "open_stream",
+            "a2ui.parse.streamed": true,
+            "a2ui.parse.inference_format": "direct_json",
+            "a2ui.parse.catalogs": [
+              {
+                "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                "protocolVersion": "v1.0"
+              }
+            ],
+            "a2ui.parse.messages": [
+              {
+                "version": "1.0",
+                "createSurface": {
+                  "surfaceId": "restaurant-card",
+                  "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
+                }
+              },
+              {
+                "version": "1.0",
+                "updateComponents": {
+                  "surfaceId": "restaurant-card",
+                  "components": [
+                    {
+                      "id": "root",
+                      "component": "Card",
+                      "child": "name"
+                    },
+                    {
+                      "id": "name",
+                      "component": "Text",
+                      "text": "Xi'an Famous Foods"
+                    }
+                  ]
+                }
+              },
+              {
+                "version": "1.0",
+                "createSurface": {
+                  "surfaceId": "booking-form",
+                  "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
+                }
+              },
+              {
+                "version": "1.0",
+                "createSurface": {
+                  "surfaceId": "note",
+                  "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                  "components": [
+                    {
+                      "id": "root",
+                      "component": "Text",
+                      "text": "Booking opens at noon."
+                    }
+                  ]
+                }
+              }
+            ],
+            "a2ui.sdk.name": "@a2ui/agent",
+            "a2ui.sdk.version": "0.1.0",
+            "error.type": "A2uiIntegrityError",
+            "a2ui.received.attributes": {
+              "a2ui.event.kind": "parse",
+              "a2ui.parse.input": "Here is the restaurant card.\n\n<a2ui-json>\n[\n  {\n    \"version\": \"1.0\",\n    \"createSurface\": {\n      \"surfaceId\": \"restaurant-card\",\n      \"catalogId\": \"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\"\n    }\n  },\n  {\n    \"version\": \"1.0\",\n    \"updateComponents\": {\n      \"surfaceId\": \"restaurant-card\",\n      \"components\": [\n        {\"id\": \"root\", \"component\": \"Card\", \"child\": \"name\"},\n        {\"id\": \"name\", \"component\": \"Text\", \"text\": \"Xi'an Famous Foods\"}\n      ]\n    }\n  }\n]\n</a2ui-json>\nAnd its booking form.\n\n<a2ui-json>\n[\n  {\n    \"version\": \"1.0\",\n    \"createSurface\": {\n      \"surfaceId\": \"booking-form\",\n      \"catalogId\": \"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\"\n    }\n  },\n  {\n    \"version\": \"1.0\",\n    \"updateComponents\": {\n      \"surfaceId\": \"booking-form\",\n      \"components\": [\n        {\"id\": \"root\", \"component\": \"Column\", \"children\": [\"title\", \"bookButton\"]},\n        {\"id\": \"title\", \"component\": \"Text\", \"text\": \"Book a table\"},\n        {\"id\": \"title\", \"component\": \"Text\", \"text\": \"Book a table at Xi'an Famous Foods\"},\n        {\"id\": \"bookButton\", \"component\": \"Button\", \"variant\": \"primary\", \"child\": \"bookButtonText\", \"action\": {\"event\": {\"name\": \"book_table\"}}},\n        {\"id\": \"bookButtonText\", \"component\": \"Text\", \"text\": \"Book\"}\n      ]\n    }\n  }\n]\n</a2ui-json>\nAnd a note.\n\n<a2ui-json>\n[\n  {\n    \"version\": \"1.0\",\n    \"createSurface\": {\n      \"surfaceId\": \"note\",\n      \"catalogId\": \"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\n      \"components\": [\n        {\"id\": \"root\", \"component\": \"Text\", \"text\": \"Booking opens at noon.\"}\n      ]\n    }\n  }\n]\n</a2ui-json>\n",
+              "a2ui.parse.entry_point": "open_stream",
+              "a2ui.parse.streamed": true,
+              "a2ui.parse.inference_format": "direct_json",
+              "a2ui.parse.catalogs": "[{\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"protocolVersion\":\"v1.0\"}]",
+              "a2ui.parse.messages": "[{\"version\":\"1.0\",\"createSurface\":{\"surfaceId\":\"restaurant-card\",\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\"}},{\"version\":\"1.0\",\"updateComponents\":{\"surfaceId\":\"restaurant-card\",\"components\":[{\"id\":\"root\",\"component\":\"Card\",\"child\":\"name\"},{\"id\":\"name\",\"component\":\"Text\",\"text\":\"Xi'an Famous Foods\"}]}},{\"version\":\"1.0\",\"createSurface\":{\"surfaceId\":\"booking-form\",\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\"}},{\"version\":\"1.0\",\"createSurface\":{\"surfaceId\":\"note\",\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"components\":[{\"id\":\"root\",\"component\":\"Text\",\"text\":\"Booking opens at noon.\"}]}}]",
+              "a2ui.sdk.name": "@a2ui/agent",
+              "a2ui.sdk.version": "0.1.0",
+              "error.type": "A2uiIntegrityError"
+            }
+          },
+          "events": [
+            {
+              "timeUnixNano": "1792800000011000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 328
+              }
+            },
+            {
+              "timeUnixNano": "1792800000013000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 1079
+              }
+            },
+            {
+              "timeUnixNano": "1792800000014000000",
+              "name": "exception",
+              "attributes": {
+                "exception.type": "A2uiIntegrityError",
+                "exception.message": "Duplicate component ID: 'title'",
+                "exception.stacktrace": "(the stack trace, which the comparison checks is present)",
+                "a2ui.parse.block.start": 543,
+                "a2ui.parse.block.end": 1316
+              }
+            },
+            {
+              "timeUnixNano": "1792800000015000000",
+              "name": "a2ui.parse.chunk",
+              "attributes": {
+                "a2ui.parse.chunk.end": 1652
+              }
+            }
+          ],
+          "status": {
+            "code": 2,
+            "message": "Duplicate component ID: 'title'"
+          }
+        }
+      ]
+    }
+  ]
+}

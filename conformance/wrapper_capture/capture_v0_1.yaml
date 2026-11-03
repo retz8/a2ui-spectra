@@ -222,6 +222,14 @@
     python: "test_data/wrapper_capture/v0_1/direct_json_open_stream_chunk_past_rejected_block/expected_python.json"
     typescript: "test_data/wrapper_capture/v0_1/direct_json_open_stream_chunk_past_rejected_block/expected_typescript.json"
 
+- name: direct_json_open_stream_rejected_while_arriving
+  description: "A Direct JSON stream that reads past a block it rejects by its own check while a message arrives, a component id repeated in an updateComponents, whose chunk finishes the block before it: the error's range is the rejected block's, then the next block is read."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/direct_json_open_stream_rejected_while_arriving/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/direct_json_open_stream_rejected_while_arriving/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/direct_json_open_stream_rejected_while_arriving/expected_typescript.json"
+
 - name: tool_call_without_state
   description: "SendA2uiToClientToolset's tool call with the Express block recorded from Gemini as its a2ui_payload, no renderer state bound: the per-block compile path, the tool's result the validated messages."
   action: capture_wrapper
