@@ -45,3 +45,23 @@ const TEST_DATA_DIR = path.join(findConformanceDir(), 'test_data');
 export function readTestData(file: string): TurnRecord {
   return JSON.parse(fs.readFileSync(path.join(TEST_DATA_DIR, file), 'utf8')) as TurnRecord;
 }
+
+const WRAPPER_CAPTURE_DIR = path.join(TEST_DATA_DIR, 'wrapper_capture/v0_1');
+
+/** The wrapper capture suite's expected records: each case's, one per language file it has. */
+export function wrapperCaptureRecords(): Array<{name: string; record: TurnRecord}> {
+  return fs
+    .readdirSync(WRAPPER_CAPTURE_DIR)
+    .sort()
+    .flatMap(caseName => {
+      const dir = path.join(WRAPPER_CAPTURE_DIR, caseName);
+      return fs
+        .readdirSync(dir)
+        .filter(file => file.startsWith('expected') && file.endsWith('.json'))
+        .sort()
+        .map(file => ({
+          name: file === 'expected.json' ? caseName : `${caseName} (${file.slice(9, -5)})`,
+          record: JSON.parse(fs.readFileSync(path.join(dir, file), 'utf8')) as TurnRecord,
+        }));
+    });
+}
