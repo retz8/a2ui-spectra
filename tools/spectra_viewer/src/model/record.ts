@@ -136,9 +136,58 @@ export type WireOutputEvent = EventFields<WireOutputAttributes>;
 export type WireEvent = WireInputEvent | WireOutputEvent;
 export type CheckEvent = EventFields<CheckAttributes>;
 
-/** An event of a kind the viewer does not read yet. */
+/** A model call, a tool call or a framework span, as the viewer reads them. */
 export type OtherEvent = EventFields<{
   'a2ui.event.kind': Exclude<EventKind, 'turn' | 'wire_input' | 'wire_output' | 'check'>;
+  [name: string]: unknown;
+}>;
+
+export type InferenceFormat = 'direct_json' | 'express' | 'elemental' | 'atom';
+
+/** A catalog a prompt was generated on, or a parse read against. */
+export interface CatalogRef {
+  catalogId: string;
+  protocolVersion: string;
+}
+
+/** Where a component's text sits in a parse's input, in UTF-16 code units; `end` exclusive. */
+export interface ComponentRange {
+  surfaceId: string;
+  componentId: string;
+  start: number;
+  end: number;
+}
+
+/** A parse of the A2UI step: one outermost call to a parsing entry point, a stream from opening to closing. */
+export type ParseEvent = EventFields<{
+  'a2ui.event.kind': 'parse';
+  'a2ui.parse.input': string;
+  'a2ui.parse.entry_point': 'parse_response' | 'open_stream' | 'compile' | 'tool_call';
+  'a2ui.parse.wrapped'?: boolean;
+  'a2ui.parse.streamed'?: boolean;
+  'a2ui.parse.inference_format'?: InferenceFormat;
+  'a2ui.parse.catalogs'?: CatalogRef[];
+  'a2ui.parse.messages'?: unknown[];
+  'a2ui.parse.components'?: ComponentRange[];
+  'a2ui.sdk.name'?: string;
+  'a2ui.sdk.version'?: string;
+  'gen_ai.tool.name'?: string;
+  'gen_ai.tool.call.id'?: string;
+  'gen_ai.tool.call.result'?: unknown;
+  'error.type'?: string;
+  [name: string]: unknown;
+}>;
+
+/** A prompt generation of the A2UI step: the UI section the SDK wrote, or its failure. */
+export type PromptGenerationEvent = EventFields<{
+  'a2ui.event.kind': 'prompt_generation';
+  'a2ui.prompt.ui_section'?: string;
+  'a2ui.prompt.inference_format': InferenceFormat;
+  'a2ui.prompt.catalogs': CatalogRef[];
+  'a2ui.sdk.name'?: string;
+  'a2ui.sdk.version'?: string;
+  'gen_ai.tool.name'?: string;
+  'error.type'?: string;
   [name: string]: unknown;
 }>;
 
@@ -155,6 +204,14 @@ export type ModelCallEvent = EventFields<{
 export function isCallEvent(event: TurnRecordEvent): boolean {
   const kind = event.attributes['a2ui.event.kind'];
   return kind === 'model_call' || kind === 'tool_call';
+}
+
+export function isParse(event: TurnRecordEvent): event is ParseEvent {
+  return event.attributes['a2ui.event.kind'] === 'parse';
+}
+
+export function isPromptGeneration(event: TurnRecordEvent): event is PromptGenerationEvent {
+  return event.attributes['a2ui.event.kind'] === 'prompt_generation';
 }
 
 export function isModelCall(event: TurnRecordEvent): event is ModelCallEvent {

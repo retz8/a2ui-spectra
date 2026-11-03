@@ -12,17 +12,11 @@ import {ELEMENTAL_BLOCKS, readElementalBlock} from './readers/elemental.ts';
 import {EXPRESS_BLOCKS, readExpressBlock} from './readers/express.ts';
 import {ANY_CATALOG, type BlockReader, type ReaderCatalog} from './readers/reading.ts';
 
-export type InferenceFormat = 'direct_json' | 'express' | 'elemental' | 'atom';
+import type {ComponentRange, InferenceFormat} from './record.ts';
+
+export type {ComponentRange, InferenceFormat};
 
 export const FORMATS: readonly InferenceFormat[] = ['direct_json', 'express', 'elemental', 'atom'];
-
-/** Where a component's text sits in the parse input, in UTF-16 code units; `end` exclusive. */
-export interface ComponentRange {
-  surfaceId: string;
-  componentId: string;
-  start: number;
-  end: number;
-}
 
 export interface Reading {
   ranges: ComponentRange[];

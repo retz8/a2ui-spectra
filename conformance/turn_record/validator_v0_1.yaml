@@ -56,6 +56,11 @@
   action: validate_turn_record
   fixture: "test_data/turn_record/v0_1/full_record_custom_components.json"
 
+- name: full_record_retried_parse
+  description: "A full record of the A2UI step: a booking card whose first reply fails to parse on a second createSurface of the same surface, the model call retried with the failure appended, its reply parsed and delivered; the prompt generation's UI section in both calls' system prompts. Assembled from the wrapper capture suite's texts, for the viewer's retry, read-by and came-from rules and its Flow 6."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/full_record_retried_parse.json"
+
 - name: prompt_generation_failed
   description: "A toolset's prompt generation that failed: no section, its error type, its exception event with a stack trace, the SDK and the tool."
   action: validate_turn_record
