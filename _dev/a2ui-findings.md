@@ -1674,3 +1674,36 @@ Needs a decision upstream. One way: have the Direct JSON prompt ask for `path` o
 `updateDataModel`, `"/"` for the root, written before `value`, and hold a message with no
 `path` until it closes; a root update written with `"path": "/"` still streams, and the
 conformance case above gains a `path`.
+
+## 44. `@a2ui/markdown-it` 0.2.2 asks for web core 0.14 beside the renderers that bring 0.15
+
+**Component:** `typescript/renderers/markdown-it/package.json`, `peerDependencies`; the npm
+releases of 2026-11-02.
+
+**Severity:** every install of the React, Lit or Angular renderer of that release meets a peer
+range it cannot satisfy. Seen at upstream's release of 2026-11-02, `9e8a9bac5`.
+
+### Issue
+
+`@a2ui/markdown-it` 0.2.2, published on 2026-10-17, declares the peer `@a2ui/web_core`
+`^0.14.0`. The releases of 2026-11-02 publish `@a2ui/web_core` 0.15.0, `@a2ui/react` 0.15.0
+and `@a2ui/angular` 0.14.0, which depend on `@a2ui/web_core` `^0.15.0` and on
+`@a2ui/markdown-it` `^0.2.2` (Angular as a peer), and `@a2ui/lit` 0.15.0, which depends on
+web core `^0.15.0` and takes `@a2ui/markdown-it` `^0.2.2` as a peer. No `@a2ui/markdown-it`
+release came with them, and a caret range on a 0.x version excludes the next minor, so
+`^0.14.0` does not admit 0.15.0. At `9e8a9bac5` the package's `peerDependencies` names
+`"workspace:*"`, which the publish writes as the web core version of the day.
+
+### Reproduction
+
+In a Yarn 4 workspace that depends on `@a2ui/react` 0.15.0 and `@a2ui/web_core` 0.15.0,
+`yarn install` warns:
+
+```
+YN0060: @a2ui/web_core is listed by your project with version 0.15.0, which doesn't satisfy what @a2ui/markdown-it and other dependencies request (but they have non-overlapping ranges!).
+```
+
+### Fix
+
+Publish `@a2ui/markdown-it` with each web core release, or declare a range that spans the
+web core versions it works with.

@@ -98,5 +98,4 @@ The demo, with the restaurant finder in Python and in TypeScript producing the s
 - The A2UI step for A2UIVerse's agents, once they move to `a2ui-agent-sdk` 0.10.0 or later, the release carrying the wrappers' pinned API; they are on PyPI's `a2ui-agent-sdk` 0.9.0, which the wrappers do not support.
 - A second SDK API shape in the wrappers: a hook table per shape, chosen by the pinned-API check, each with its own floor and capture records.
 - The re-pin procedure: the wrapper capture suite run against the new pin.
-- The tool's v1.0 basic catalog copy, `tools/spectra/src/check/schemas/v1_0/catalogs/basic/catalog.json`, copied at Phase 4's pin, brought to the pin's `catalogs/basic/v1/catalog.json`.
-- The tool, the viewer and the preview packages moved from `@a2ui/web_core` 0.14.0 to 0.15.0, the pin's web_core.
+- The coverage roster's v1.0 axis recorded again at the pin, its messages declaring the bare `1.0`: the Node restaurant finder's booking stream, and AG2's once a release of AG2 sends it.
