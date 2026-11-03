@@ -198,10 +198,14 @@ class Event:
         if block is not None:
             attributes["a2ui.parse.block.start"] = block[0]
             attributes["a2ui.parse.block.end"] = block[1]
+            self.placed(attributes, block)
         details = error_details(error)
         if details:
             attributes["a2ui.parse.error.details"] = json_text(details)
         self.span_events.append(("exception", attributes, self.now()))
+
+    def placed(self, attributes: dict[str, AttributeValue], block: Block) -> None:
+        """An error was placed in a block, its range in these attributes."""
 
     def fail(self, error: BaseException) -> None:
         """The outermost call raised: the error is recorded and the event ends."""
@@ -334,6 +338,9 @@ class ParseEvent(Event):
         self.call_id: str | None = None
         self.tool_result: object = None
         self.has_tool_result = False
+        # A stream's placed errors: each one's attributes and the block located
+        # when it surfaced.
+        self.located: list[tuple[dict[str, AttributeValue], Block]] = []
 
     def adopt_parser(self, parser: object, fmt: str | None) -> None:
         if self.format is None:
@@ -381,6 +388,39 @@ class ParseEvent(Event):
             return (0, utf16_length(text))
         done = seen if isinstance(seen, int) else self._done()
         return self._rejected_block(error, text) or self._next_block(text, done)
+
+    def placed(self, attributes: dict[str, AttributeValue], block: Block) -> None:
+        if self.streamed:
+            self.located.append((attributes, block))
+
+    def _state_blocks_whole(self) -> None:
+        """States each of a stream's errors' blocks whole, in the stream's whole input.
+
+        An error is located when it surfaces, in the input fed so far, where a
+        block rejected while it arrives is cut where the input then ended, and
+        a `raw_content` may hold only the part of the block compiled so far. Its
+        range becomes the block of the whole input, as `unwrap` finds it, that
+        holds the located start.
+        """
+        if not self.located:
+            return
+        text = self.text()
+        blocks = (
+            [(start, end) for start, end, _ in self._unwrapped_blocks(text)]
+            if self.wrapped
+            else [(0, utf16_length(text))]
+        )
+        for attributes, (start, end) in self.located:
+            whole = next(
+                (block for block in blocks if block[0] <= start < block[1]), None
+            ) or next(
+                (block for block in blocks if block[0] < end and start < block[1]),
+                None,
+            )
+            if whole is None:
+                continue
+            attributes["a2ui.parse.block.start"] = whole[0]
+            attributes["a2ui.parse.block.end"] = max(whole[1], end)
 
     def _done(self) -> int:
         """The blocks a stream has done: one tree check for each it finished, one error for each it rejected."""
@@ -481,6 +521,7 @@ class ParseEvent(Event):
         self.end()
 
     def attributes(self) -> dict[str, AttributeValue] | None:
+        self._state_blocks_whole()
         attributes: dict[str, AttributeValue] = {
             "a2ui.event.kind": self.kind,
             "a2ui.parse.input": self.text(),
