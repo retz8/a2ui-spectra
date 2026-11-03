@@ -80,7 +80,15 @@ export function RawText({
   // The selected range is scrolled into view as it changes; a revealed block likewise.
   useEffect(() => {
     if (selectedKey === undefined) return;
-    scrollTo(block.current?.querySelector(`[data-component="${CSS.escape(selectedKey)}"]`));
+    // Matched by value: CSS.escape writes the key's U+0000 as U+FFFD, so no selector finds it.
+    const reveal = () =>
+      scrollTo(
+        [...(block.current?.querySelectorAll('[data-component]') ?? [])].find(
+          element => element.getAttribute('data-component') === selectedKey,
+        ),
+      );
+    reveal();
+    return keepInView(block.current, reveal);
   }, [selectedKey]);
   const revealed = useRef<RangeReveal | undefined>(undefined);
   useEffect(() => {
@@ -170,6 +178,32 @@ export function RawText({
       )}
     </section>
   );
+}
+
+/**
+ * Reveals the range again each time the pane scrolling it changes height,
+ * as the split settles after a reload, until the reader scrolls the pane.
+ */
+function keepInView(element: HTMLElement | null, reveal: () => void): (() => void) | undefined {
+  let pane = element?.parentElement ?? null;
+  while (pane !== null && !/(auto|scroll)/.test(getComputedStyle(pane).overflowY)) {
+    pane = pane.parentElement;
+  }
+  if (pane === null) return undefined;
+  let height = pane.clientHeight;
+  const observer = new ResizeObserver(() => {
+    if (pane.clientHeight === height) return;
+    height = pane.clientHeight;
+    reveal();
+  });
+  observer.observe(pane);
+  const events = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const;
+  const stop = () => {
+    observer.disconnect();
+    for (const name of events) pane.removeEventListener(name, stop);
+  };
+  for (const name of events) pane.addEventListener(name, stop, {passive: true});
+  return stop;
 }
 
 function scrollTo(element: Element | null | undefined): void {
