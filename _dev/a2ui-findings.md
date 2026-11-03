@@ -554,34 +554,48 @@ Send the notice in the first turn of a conversation only, or send
 `typescript/agents/a2ui_agent/src/inference-formats/direct-json/response-stream.ts`
 and `json-reader.ts` beside it.
 
-**Severity:** deviation from the v1.0 protocol; at v0.9 and v0.9.1, a deletion
-the reply does not make.
+**Severity:** a deletion the reply does not make, at v0.9, v0.9.1 and v1.0, of
+the data at the message's `path` or of the whole data model; at v1.0 also a
+deviation from the protocol.
+
+**Upstream:** issue #3929, PR #3930.
+
+Checked at `d378d2008` (2026-11-03), not at the commit above.
 
 ### Issue
 
 The Direct JSON response stream emits `updateComponents` and `updateDataModel`
 while they arrive: "A message is emitted, and applied to the state, as soon as
 it reads and the state accepts it, and again each time it grows"
-(`response-stream.ts:98-100`). To read a message still arriving, the partial
+(`response-stream.ts:109-111`). To read a message still arriving, the partial
 reader heals the object the text ends in with the keys read so far
 (`json-reader.ts:332` and `:377`). When a chunk of the model's text ends after an
 `updateDataModel`'s `path` and before its `value`, the stream emits the message
 with no `value`, then again once the value arrives:
 
 ```
-{"version":"v1.0","updateDataModel":{"surfaceId":"s","path":"/items"}}
-{"version":"v1.0","updateDataModel":{"surfaceId":"s","path":"/items","value":["a","b"]}}
+{"version":"1.0","updateDataModel":{"surfaceId":"s","path":"/items"}}
+{"version":"1.0","updateDataModel":{"surfaceId":"s","path":"/items","value":["a","b"]}}
 ```
 
-At v1.0 the first message is invalid: `value` is "(any, required)"
-(`specification/v1_0/docs/a2ui_protocol.md:264`), and the schema requires it
-(`specification/v1_0/json/agent_to_renderer.json:141`). At v0.9 and v0.9.1 it
-is valid and means "If omitted, the key at `path` is removed"
+When the chunk ends before the `path` too, it emits
+`{"version":"1.0","updateDataModel":{"surfaceId":"s"}}`.
+
+At v1.0 these messages are invalid: `value` is "(any, required)"
+(`specification/v1_0/docs/a2ui_protocol.md:266`), and the schema requires it
+(`specification/v1_0/json/agent_to_renderer.json:141`). At v0.9 and v0.9.1 they
+are valid: `value` "If omitted, the key at `path` is removed"
 (`specification/v0_9/docs/a2ui_protocol.md:252`,
-`specification/v0_9_1/docs/a2ui_protocol.md:249`): on it, web_core's v0.9
-`MessageProcessor` takes a data model of `{"items":["a","b"]}` to `{}`. A turn
-that sends a path already holding data removes that data until the full message
-arrives. The stream's own check accepts the message at v1.0 (finding 19).
+`specification/v0_9_1/docs/a2ui_protocol.md:249`), and "If `path` is omitted
+(or is `/`), the entire data model for the surface is replaced"
+(`specification/v0_9/docs/a2ui_protocol.md:245`). web_core's `MessageProcessor`
+applies them as removals at every version, since its v1.0 model accepts them
+(finding 19): a data model of `{"items":["a","b"],"other":1}` goes to
+`{"other":1}`, or to `{}` when the message has no `path`. The full message that
+follows writes only its own `path`, so after a message with no `path` the rest
+of the data model stays removed when the turn ends: streamed in three chunks,
+`{"surfaceId":"s","path":"/items","value":["c","d"]}` leaves
+`{"items":["c","d"]}`, where one chunk leaves `{"items":["c","d"],"other":1}`.
 
 ### Reproduction
 
@@ -590,43 +604,81 @@ basic catalog (`catalogs/basic/v1/catalog.json`) with
 `new A2uiGenerator([new CatalogConfig(catalog)], {}).createProcessor({supportedCatalogIds: [catalogId]}, new DirectJsonFormatFactory())`,
 open a stream with `openStream()`, and feed it a reply whose `<a2ui-json>` block
 holds `createSurface`, `updateComponents` and
-`{"version":"v1.0","updateDataModel":{"surfaceId":"s","path":"/items","value":["a","b"]}}`,
+`{"version":"1.0","updateDataModel":{"surfaceId":"s","path":"/items","value":["a","b"]}}`,
 in two chunks cut right after `"path":"/items",`. The first chunk's parts hold
 the message with no `value`. The same holds at v0.9. The sample itself, run on
-Gemini and asked for v1.0, sent such a message in a turn.
+Gemini and asked for v1.0, sent such a message in a turn. Issue #3929 holds a
+script that streams the message into a `RendererState` and prints the data model
+after each chunk.
 
 ### Fix
 
 Emit a growing `updateDataModel` only once its `value` has begun to arrive.
 
+PR #3930 does this in `emitReady` through `mayGrow`: an open message is emitted
+if it is an `updateComponents`, or an `updateDataModel` that holds `value`. An
+`updateDataModel` that closes without `value` is still emitted, as v0.9's way to
+remove a key.
+
+### Prior art
+
+The Python and Dart streams already hold such a message: Python's `_may_grow`
+(`python/a2ui_agent/src/a2ui/inference_formats/direct_json/response_stream.py:603`)
+and Dart's `_mayGrow`
+(`dart/a2ui_agent/lib/src/inference_formats/direct_json/response_stream.dart:653`)
+let an open `updateDataModel` be emitted only once it holds `value`. Issue #2936
+(closed) was the same class of bug in Python's earlier stream parser, partial
+`updateDataModel` messages sent without their `path`, closed as fixed by #3074.
+
 ## 19. web_core's v1.0 model accepts an `updateDataModel` with no `value`
 
 **Component:** `typescript/core/web_core/src/v1_0/schema/agent-to-renderer.ts`,
-generated by `typescript/core/web_core/src/v1_0/scripts/generate-schemas.mjs`.
+generated by `typescript/core/web_core/src/v1_0/scripts/generate-schemas.mjs`
+through `compileDefToZod` in `typescript/core/web_core/scripts/zod-generator-core.mjs`.
 
-**Severity:** deviation from the v1.0 schema.
+**Severity:** deviation from the v1.0 schema; a v1.0 web renderer applies such a
+message from any agent as a removal of the data at its `path`.
+
+**Upstream:** issue #3929, PR #3930.
+
+Checked at `d378d2008` (2026-11-03), not at the commit above.
 
 ### Issue
 
 The v1.0 schema requires `value` in `updateDataModel`:
 `"required": ["surfaceId", "value"]`
-(`specification/v1_0/json/agent_to_renderer.json:141`). The generated Zod model
-declares it as `'value': z.any()` (`agent-to-renderer.ts:105-109`), and Zod lets
-an object key whose schema accepts `undefined` be missing, so
-`UpdateDataModelMessageSchema` accepts a message without one. The TypeScript
-agent SDK checks each message it streams against these models
-(`typescript/agents/a2ui_agent/src/utils/envelope-validation.ts:63`,
-`renderer-state.ts:794`), so it lets finding 18's message through.
+(`specification/v1_0/json/agent_to_renderer.json:141`), and gives `value` a
+description and no type. json-schema-to-zod compiles it to `'value': z.any()`
+(`agent-to-renderer.ts:105-109`), and Zod lets an object key whose schema
+accepts `undefined` be missing, so `UpdateDataModelMessageSchema` accepts a
+message without one. web_core's `MessageProcessor` validates v1.0 messages with
+`AgentToRendererMessageSchema`
+(`typescript/core/web_core/src/processing/adapters/v1_0.ts:71`), so it applies
+such a message as a removal. The TypeScript agent SDK checks each message it
+streams against the same models
+(`typescript/agents/a2ui_agent/src/utils/envelope-validation.ts:125`,
+`renderer-state.ts:984`), so it lets finding 18's message through. In the v0.9
+and v1.0 schemas, `updateDataModel.value` is the only required property with no
+type. Ajv rejects the message against `agent_to_renderer.json` ("must have
+required property 'value'"), and so does the Python agent SDK's v1.0 model
+(`updateDataModel.value: Field required`).
 
 ### Reproduction
 
-`UpdateDataModelMessageSchema.safeParse({version: 'v1.0', updateDataModel: {surfaceId: 's', path: '/items'}})`
-from `@a2ui/web_core/v1_0` returns `success: true`.
+`UpdateDataModelMessageSchema.safeParse({version: '1.0', updateDataModel: {surfaceId: 's', path: '/items'}})`
+from `@a2ui/web_core/v1_0` returns `success: true`. Given that message after one
+that set `/items` to `["a","b"]`, a v1.0 `MessageProcessor` leaves a data model
+of `{}`.
 
 ### Fix
 
 Have the generator require a required property whose schema accepts any value,
 for example with a refinement that rejects `undefined`.
+
+PR #3930 does this in `compileDefToZod`: a required property whose schema holds
+only `description`, `title`, `examples`, `$comment` or `deprecated` compiles to
+`z.any().refine(value => value !== undefined, 'Required')`. The regenerated
+`agent-to-renderer.ts` gains that one line; no v0.9 output changes.
 
 ## 20. The Python samples still call the `a2ui-a2a` functions #3269 removed or changed
 
@@ -1577,3 +1629,48 @@ Apply an `updateComponents` whose components repeat an id to a `RendererState` f
 
 Pass a structured detail, `{path: '/components/<i>/id', code: 'duplicate_id', message,
 surfaceId}`, in both places.
+
+## 43. A streamed `updateDataModel` whose `value` comes before its `path` replaces the whole data model
+
+**Component:** `typescript/agents/a2ui_agent/src/inference-formats/direct-json/response-stream.ts`
+(`mayGrow` with PR #3930); `python/a2ui_agent/src/a2ui/inference_formats/direct_json/response_stream.py`
+(`_may_grow`); `dart/a2ui_agent/lib/src/inference_formats/direct_json/response_stream.dart`
+(`_mayGrow`).
+
+**Severity:** a reply that writes `value` before `path` replaces the surface's whole data model
+while it streams, and its block is then rejected. Seen at upstream main `d378d2008`
+(2026-11-03) in the TypeScript and Python SDKs, at v0.9 and v1.0; Dart's `_mayGrow` reads the
+same, not run.
+
+### Issue
+
+A stream emits a growing `updateDataModel` once its `value` has begun to arrive. An
+`updateDataModel` with no `path` refers to the whole data model: "If `path` is omitted (or is
+`/`), the entire data model for the surface is replaced"
+(`specification/v0_9/docs/a2ui_protocol.md:245`). JSON gives key order no meaning, so when a
+model writes `value` before `path`, the stream cannot tell a message whose `path` is still to
+come from one with no `path`. It emits `{"surfaceId":"s","value":["c","d"]}`, which replaces the
+whole data model with the list. When the `path` arrives, the full message
+`{"surfaceId":"s","value":["c","d"],"path":"/items"}` fails on the list:
+`Cannot use non-numeric segment 'items' on an array in path '/items'.`
+
+Streaming a root update with no `path` is intended: the conformance case
+`test_chunk_progressive_key_heals_a_partial_string` in
+`conformance/agent/direct_json/response_streaming.yaml` expects
+`{"surfaceId": "s1", "value": {"greeting": "Hel` to be emitted while it arrives. Holding every
+`updateDataModel` with no `path` until it closes would change that case in all SDKs.
+
+### Reproduction
+
+Into a surface holding `{"items":["a","b"],"other":1}`, stream
+`{"version":"1.0","updateDataModel":{"surfaceId":"s","value":["c","d"],"path":"/items"}}`
+cut after `"value":["c","d"],`. The first chunk emits `{"surfaceId":"s","value":["c","d"]}`
+and leaves a data model of `["c","d"]`; the second raises `A2uiValidationError` with the
+message above. The same holds at v0.9, and through `a2ui-agent-sdk` at the same commit.
+
+### Fix
+
+Needs a decision upstream. One way: have the Direct JSON prompt ask for `path` on every
+`updateDataModel`, `"/"` for the root, written before `value`, and hold a message with no
+`path` until it closes; a root update written with `"path": "/"` still streams, and the
+conformance case above gains a `path`.
