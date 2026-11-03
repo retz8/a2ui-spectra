@@ -4,15 +4,18 @@ Spec: `_dev/docs/spec/task-6.5-a2ui-step-in-viewer.md`. The line stays `[WIP]`.
 
 ## Where it stands
 
-Everything in the spec but the by-eye part of its done line is committed on `main`, 9efcc76 to 92ff3ac, not pushed: the four readers proved on the wrapper capture suite, the model's rules, the rows and problems, `a2uiStepErrors` in the listing, the parse's and the failed prompt generation's detail, the retry, Read by, the UI section, the hint, tree node selection and the node in the address, the header's formats and catalogs, the retried-parse full record `full_record_retried_parse.json` and its validator case, the documents of decision 14, and the canvas's retry board with the prefix break's sentence. The viewer's tests, the tool's listing test, the conformance validator, lint, format, the Vite build and the binary build are green locally.
+Everything in the spec but the by-eye part of its done line is committed on `main`, not pushed: 9efcc76 to 92ff3ac for the sub-task, then 8aaaddd, which scrolls a selected tree node's range into view in the raw text and adds the tool's `src/viewer_end_to_end.test.ts`, Flow 6 walked in Chromium on the retried-parse full record, under Node and the binary.
 
-## Blocked on
+The blocker is gone: the off-phase chore 39138b7 moved the tool, the viewer and the preview packages to web core 0.15.0 and v1.0's bare `1.0`, and 4a69f9f settled its backlog lines. On the rebuilt binary, the retried-parse record lists no rejection, and its final tree draws.
 
-A smoke run of the binary on the retried-parse record drew no surfaces: every message was rejected. The pin's v1.0 schema and every wrapper capture record carry `"version": "1.0"`; `@a2ui/web_core` 0.14.0 and the tool's v1.0 schema copy expect `"v1.0"`. The backlog's move to web_core 0.15.0, with the v1.0 schemas and the basic catalog copy re-copied at the pin, runs first as an off-phase chore on `main`.
+Flow 6 was walked headless on the local binary in light, dark and at 1,200 × 760, each board as the canvas draws it. The screenshots are in this session's scratchpad, `/private/tmp/claude-501/-Users-jiohin-Desktop-future-of-sw-a2ui-spectra/1fb4046f-f2dc-4f54-b7ad-3d6a3e3dcf40/scratchpad/flow6/`, which the system clears.
 
 ## Next
 
-1. After the chore: the binary on the retried-parse record in the local store, Flow 6 walked by eye through the tunnel, in light and dark, and the retry turn at 1,200 × 760.
-2. The live part: the Python restaurant finder on Gemini under `run`, the wrapper on, through the tunnel; a parse row, its raw text linked both ways with the tree, the UI section folded in the request, the format and the catalog in the header.
-3. Both need a forwarded port borrowed from A2UIVerse, 5173 so far, once Jioh says its server is idle.
-4. CI green on `main` after a push, then the 6.5 line's done line and its tick.
+1. Flow 6 by eye through the tunnel on the retried-parse record placed in a store, in light and dark, and the retry turn at 1,200 × 760, on a port borrowed from A2UIVerse, 5173 so far, once Jioh says its server is idle.
+2. The live part: the Python restaurant finder at the pin on Gemini under `run`, the wrapper on, through the tunnel; a parse row, its raw text linked both ways with the tree, the UI section folded in the request, the format and the catalog in the header. No environment on the machine runs it yet: the repository's own `.venv` holds the pinned `a2ui-agent-sdk` 0.10.0, `a2ui-adk` 0.2.0 and the wrapper but no `a2a-sdk`, and `../a2ui-upstream/.venv` holds `a2ui-agent-sdk` 0.9.1.dev171, below the wrapper's floor. Installing an upstream sample's packages was refused by this session's permission check, so the install needs Jioh's go-ahead or Jioh's own hands.
+3. CI green on `main` after a push, then the 6.5 line's done line and its tick.
+
+## Open threads
+
+- The built-in preview page loads no icon font, so a basic catalog `Icon` draws its name, such as `star`, over the text beside it. React 0.15.0's changelog names no icon change.
