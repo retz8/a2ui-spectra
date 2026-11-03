@@ -191,6 +191,28 @@ describe('the block an error belongs to', () => {
     assert.deepEqual(blockOf(event), rangeOf(text, rejected));
   });
 
+  it('a stream: a thrown error takes the last note, made as the stream failed, past a returned one the SDK drops', async () => {
+    const processor = await processorOf('direct_json');
+    const state = processor.createState();
+    const apply = state.apply.bind(state);
+    // A fault of the SDK's own, not an A2UI error, while the second block is applied.
+    state.apply = payload => {
+      if (JSON.stringify(payload).includes('"surfaceId":"b"')) throw new TypeError('injected');
+      return apply(payload);
+    };
+    const bad = '[{"version": "1.0", oops}]';
+    const second = messagesOf('b', [{id: 'root', component: 'Text', text: 'Hi'}]);
+    // One chunk: a block the stream reads past, then the block it throws on.
+    const text = `<a2ui-json>${bad}</a2ui-json>\n<a2ui-json>${second}</a2ui-json>\n`;
+    const stream = processor.openStream({afterRejectedBlock: 'continue', state});
+    assert.throws(() => stream.feed(text), TypeError);
+
+    const [event, ...rest] = eventsOf(capture.only(), 'exception');
+    assert.equal(rest.length, 0);
+    assert.equal(event['exception.type'], 'TypeError');
+    assert.deepEqual(blockOf(event), rangeOf(text, second));
+  });
+
   it('a stream: by the blocks done when the stream caught the error, noted at markChecked', async () => {
     const processor = await processorOf('direct_json');
     const bad = '[{"version": "1.0", oops}]';
