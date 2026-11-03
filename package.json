@@ -4,8 +4,10 @@
   "packageManager": "yarn@4.13.0",
   "workspaces": [
     "conformance",
+    "conformance/wrapper_driver/typescript",
     "samples/preview/*",
     "tools/*",
+    "typescript/instrumentation",
     "typescript/preview/*"
   ],
   "scripts": {

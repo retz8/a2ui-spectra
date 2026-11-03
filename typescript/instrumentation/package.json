@@ -1,0 +1,90 @@
+{
+  "name": "a2ui-spectra-instrumentation",
+  "private": true,
+  "version": "0.0.1",
+  "description": "OpenTelemetry instrumentation of the A2UI agent SDK, @a2ui/agent, reporting the A2UI step to Spectra for A2UI.",
+  "license": "Apache-2.0",
+  "keywords": [
+    "a2ui",
+    "opentelemetry",
+    "instrumentation",
+    "spectra"
+  ],
+  "type": "module",
+  "engines": {
+    "node": ">=22.12"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./register": {
+      "types": "./dist/register.d.ts",
+      "default": "./dist/register.js"
+    }
+  },
+  "files": [
+    "dist",
+    "!dist/**/*.test.*",
+    "!dist/testing",
+    "!dist/.tsbuildinfo"
+  ],
+  "scripts": {
+    "build": "wireit",
+    "test": "wireit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "clean": "wireit",
+    "format": "prettier --ignore-path ../../.prettierignore --write .",
+    "format:check": "prettier --ignore-path ../../.prettierignore --check ."
+  },
+  "wireit": {
+    "build": {
+      "command": "tsc -b --pretty",
+      "env": {
+        "FORCE_COLOR": "1"
+      },
+      "files": [
+        "src/**/*.ts",
+        "tsconfig.json"
+      ],
+      "output": [
+        "dist/**"
+      ],
+      "clean": "if-file-deleted"
+    },
+    "test": {
+      "command": "node --test --enable-source-maps --test-reporter spec \"dist/**/*.test.js\"",
+      "dependencies": [
+        "build"
+      ],
+      "files": [
+        "package.json"
+      ],
+      "output": []
+    },
+    "clean": {
+      "command": "rm -rf dist .wireit"
+    }
+  },
+  "dependencies": {
+    "@opentelemetry/exporter-trace-otlp-http": "0.223.0",
+    "@opentelemetry/instrumentation": "0.223.0",
+    "@opentelemetry/sdk-trace-node": "2.12.0"
+  },
+  "devDependencies": {
+    "@a2ui/agent": "0.1.0",
+    "@opentelemetry/api": "1.9.1",
+    "@types/node": "^25.9.3",
+    "eslint": "^10.4.1",
+    "gts": "^7.0.0",
+    "prettier": "^3.8.4",
+    "typescript": "5.9.3",
+    "wireit": "^0.15.0-pre.2"
+  },
+  "peerDependencies": {
+    "@a2ui/agent": ">=0.1.0",
+    "@opentelemetry/api": ">=1.3.0 <1.10.0"
+  }
+}
