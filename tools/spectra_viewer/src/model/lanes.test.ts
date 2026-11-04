@@ -31,4 +31,16 @@ describe("the A2UI step's lanes", () => {
       waitsForToken: false,
     });
   });
+
+  it('draws one that states no end as a dot at its start', () => {
+    const generation = promptGeneration({
+      spanId: 'g',
+      start: 50,
+      failure: {type: 'E', message: 'm'},
+    });
+    delete generation.endTimeUnixNano;
+    const start = unixMillis(at(0));
+    const {byRow} = lanesOf(timelineOf([generation], start), start, start + 1500);
+    assert.deepEqual(byRow.get('g'), {kind: 'dot', at: 50});
+  });
 });

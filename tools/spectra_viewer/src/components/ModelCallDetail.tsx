@@ -142,7 +142,7 @@ export function ModelCallBlocks({
   const spans = row.spans.length > 0 && <AgentSpans row={row} events={events} startMs={startMs} />;
   const retry =
     step.retry === undefined ? null : <RetrySentence retry={step.retry} onParse={step.onParse} />;
-  const afterResponse = (
+  const underResponse = (
     <>
       {step.readBy.map(line => (
         <div key={line.parseSpanId}>
@@ -208,8 +208,12 @@ export function ModelCallBlocks({
               sections={step.sections}
               sectionLabel={sectionLabel}
             />
-            <Response call={call} inFlight={inFlight} label={`Response${from(RESPONSE_NAMES)}`} />
-            {afterResponse}
+            <Response
+              call={call}
+              inFlight={inFlight}
+              label={`Response${from(RESPONSE_NAMES)}`}
+              lead={underResponse}
+            />
           </>
         ) : (
           <p className="rounded-lg bg-tint px-3 py-2.5 text-muted-foreground">
@@ -234,8 +238,7 @@ export function ModelCallBlocks({
         sections={step.sections}
         sectionLabel={sectionLabel}
       />
-      <Response call={call} inFlight={inFlight} />
-      {afterResponse}
+      <Response call={call} inFlight={inFlight} lead={underResponse} />
       <Exchange call={call} startsOpen={false} />
       {spans}
     </>
@@ -251,21 +254,18 @@ function RetrySentence({
   onParse: (parseSpanId: string) => void;
 }) {
   return (
-    <div className="flex items-baseline gap-2.5">
-      <span className="section-label shrink-0">Retry</span>
-      <span className="text-muted-foreground">
-        {retry.lead}
-        {retry.link !== undefined && (
-          <>
-            {' '}
-            <DetailLink onClick={() => onParse(retry.link!.parseSpanId)}>
-              {retry.link.text}
-            </DetailLink>
-          </>
-        )}
-        {retry.tail !== undefined && ` · ${retry.tail}`}
-      </span>
-    </div>
+    <p className="text-muted-foreground">
+      {retry.lead}
+      {retry.link !== undefined && (
+        <>
+          {' '}
+          <DetailLink onClick={() => onParse(retry.link!.parseSpanId)}>
+            {retry.link.text}
+          </DetailLink>
+        </>
+      )}
+      {retry.tail !== undefined && ` · ${retry.tail}`}
+    </p>
   );
 }
 
@@ -696,11 +696,14 @@ function Response({
   call,
   inFlight,
   label = 'Response',
+  lead,
 }: {
   call: ModelCallEvent;
   inFlight: boolean;
   /** "Response", or with the spans it was read from. */
   label?: string;
+  /** What the A2UI step adds, first under the label: "Read by the parse" lines, or the hint. */
+  lead?: ReactNode;
 }) {
   const [open, setOpen] = useState(true);
   const {attributes} = call;
@@ -714,6 +717,7 @@ function Response({
       open={open}
       onToggle={() => setOpen(!open)}
     >
+      {lead}
       {messages.map((message, index) => {
         const {
           role,

@@ -37,12 +37,17 @@ export function toggleBlockFold(label: string): void {
   set(next);
 }
 
-/** Unfolds every block. */
+/** Returns every block to its first fold. */
 export function resetBlockFolds(): void {
   set(new Set());
 }
 
-export function useBlockFold(label: string): BlockFold {
+/**
+ * A block's fold by its label. A block that starts folded, such as a parse's
+ * messages, is open once toggled, and stays so on every step for the session.
+ */
+export function useBlockFold(label: string, startsFolded = false): BlockFold {
   const current = useSyncExternalStore(subscribe, () => folded);
-  return {open: !current.has(label), onToggle: () => toggleBlockFold(label)};
+  const toggled = current.has(label);
+  return {open: startsFolded ? toggled : !toggled, onToggle: () => toggleBlockFold(label)};
 }

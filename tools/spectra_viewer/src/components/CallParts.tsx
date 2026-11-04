@@ -123,6 +123,7 @@ export function TextBlock({label, meta, text}: {label: string; meta?: string; te
     <section className="flex min-w-0 flex-col gap-1.5">
       <BlockLabel label={label} meta={meta} fold={fold}>
         <CopyButton
+          iconFirst
           text={text}
           label={`Copy the ${label.toLowerCase()}`}
           className="h-6 px-1.5 text-xs"

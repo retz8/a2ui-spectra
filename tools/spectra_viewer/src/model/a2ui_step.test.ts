@@ -42,8 +42,10 @@ import {
   isModelCall,
   isParse,
   type ModelCallEvent,
+  type ParseEvent,
   type Turn,
   type TurnRecordEvent,
+  unixMillis,
 } from './record.ts';
 
 function turnOf(file: string, at = -1): Turn {
@@ -195,6 +197,12 @@ describe('the model call a parse read', () => {
       }),
     );
     assert.deepEqual([...readByOf(events)], [['parse-1', 'call-a']]);
+    // Read from a tool call's argument, the parse names the call's tool call, not its reply.
+    const read = events.find(event => event.spanId === 'parse-1') as ParseEvent;
+    assert.match(
+      readFromOf(events, read, unixMillis(at(0))).text,
+      /^The tool call of .+ at \+0 ms$/,
+    );
   });
 
   it('ties a stream opened before its call to the call whose reply holds its input, over an earlier call whose argument its input holds', () => {

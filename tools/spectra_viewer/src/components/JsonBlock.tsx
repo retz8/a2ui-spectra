@@ -24,17 +24,20 @@ export function JsonBlock({
   marks = [],
   reveal,
   folded: foldedAtFirst = [],
+  startsFolded = false,
 }: {
   label: string;
   value: unknown;
   meta?: ReactNode;
+  /** Folded on its label line until opened, as a parse's messages are. */
+  startsFolded?: boolean;
   /** The paths of the values problems mark, as `markedPath` gives them. */
   marks?: readonly string[];
   reveal?: Reveal;
   /** The objects and arrays folded at first, by their JSON Pointers. */
   folded?: readonly string[];
 }) {
-  const fold = useBlockFold(label);
+  const fold = useBlockFold(label, startsFolded);
   const [folded, setFolded] = useState<ReadonlySet<string>>(() => new Set(foldedAtFirst));
   // A reveal unfolds what hides its line before the block is drawn again.
   const [revealed, setRevealed] = useState(reveal);
@@ -67,6 +70,7 @@ export function JsonBlock({
     <section className="flex min-w-0 flex-col gap-1.5">
       <BlockLabel label={label} meta={meta} fold={fold}>
         <CopyButton
+          iconFirst
           text={JSON.stringify(value, null, 2)}
           label={`Copy the ${label.toLowerCase()}`}
           className="h-6 px-1.5 text-xs"

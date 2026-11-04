@@ -487,16 +487,18 @@ function TurnBody({
           sections: uiSectionsOf(events, modelReadingOf(selectedRow).event),
           ...(!hasStep && sentA2ui && {hint: state.context?.mode ?? 'run'}),
           catalogs: state.catalogs ?? [],
-          onParse: parseSpanId => setPicked(parseSpanId),
+          onParse: parseSpanId => {
+            requestTimelineFocus();
+            setPicked(parseSpanId);
+          },
         }
       : undefined;
   const onEarlier = (found: Exclude<PrefixBreak, {form: 'first'}>) => {
     const {traceId: turnOf, call} = found.earlier;
+    // The timeline takes focus once the earlier call is selected, so the keys go on from it.
+    requestTimelineFocus();
     if (turnOf === traceId) setPicked(call.spanId);
-    else {
-      requestTimelineFocus();
-      onOther(turnOf, call.spanId);
-    }
+    else onOther(turnOf, call.spanId);
   };
 
   // The page address holds the step selected, picked or landed on; a pick not in a closed turn gives way.
@@ -727,7 +729,10 @@ function TurnBody({
                   catalog={readerCatalog}
                   selectedNode={node}
                   onSelectNode={selectRange}
-                  onStep={id => setPicked(id)}
+                  onStep={id => {
+                    requestTimelineFocus();
+                    setPicked(id);
+                  }}
                   stepOnCall={stepOnCall}
                 />
               )}
@@ -787,7 +792,7 @@ function asOfLabel(
       );
     if (traced) {
       const at = unixMillis(events[position.eventIndex].startTimeUnixNano) - startMs;
-      return `After the delivery at ${formatOffset(at)}`;
+      return `After the parse’s last message, ${formatOffset(at)}`;
     }
     return `Right after the parse at ${formatOffset(row.offsetMs ?? 0)}`;
   }

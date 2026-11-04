@@ -5,6 +5,7 @@ import {parse, promptGeneration} from '../testing/a2ui_step.ts';
 import {a2uiDelivery, at, byStart, receivedSpan} from '../testing/model_calls.ts';
 import {readRecording} from '../testing/recordings.ts';
 import {isTurnEvent, type Turn, unixMillis} from './record.ts';
+import {insideLineOf} from './turn_calls.ts';
 import {
   deliveryLabel,
   isThrough,
@@ -229,6 +230,12 @@ describe("the A2UI step's rows", () => {
       'send_a2ui_json_to_client | in the agent +100',
       'Parse | send_a2ui_json_to_client · Direct JSON +150',
     ]);
+
+    // Shown as its parse, the toolset's call is not counted among the header's tool calls.
+    assert.equal(insideLineOf(byStart(span, underIt), unixMillis(at(0)), undefined), undefined);
+    assert.ok(
+      insideLineOf(byStart(span, alone), unixMillis(at(0)), undefined)!.includes('1 tool call'),
+    );
   });
 
   it('rows a failed prompt generation, and no prompt generation that succeeded', () => {

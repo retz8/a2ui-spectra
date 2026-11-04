@@ -283,6 +283,22 @@ function lastWireEventBy(events: readonly TurnRecordEvent[], end: bigint): numbe
 }
 
 /**
+ * The tool call rows the toolset's parses joined, by row id: each is shown
+ * as its parse, and the header does not count it among the tool calls.
+ */
+export function toolRowsOfParses(
+  events: readonly TurnRecordEvent[],
+  rows: readonly CallRow[],
+): Set<string> {
+  const ids = new Set<string>();
+  for (const parse of events.filter(isParse)) {
+    const row = toolRowOf(parse, rows);
+    if (row !== undefined) ids.add(row.id);
+  }
+  return ids;
+}
+
+/**
  * The tool call's row a toolset parse belongs to: the row holding the span
  * the parse sits under, else the row of the same `gen_ai.tool.call.id`.
  */

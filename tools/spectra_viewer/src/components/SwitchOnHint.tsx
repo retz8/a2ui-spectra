@@ -2,12 +2,13 @@
  * The hint on a model call of a turn with no A2UI step events: switch the
  * wrapper on to see which text became which component, with how to in
  * both languages, each line as the packages' READMEs give it. Under
- * `attach`, the variables on the first screen go in the agent's shell.
+ * `attach`, each launch line's caption says the variables on the first
+ * screen go in the agent's shell, and the launch is the agent's own.
  */
 import {useState} from 'react';
 
 import {CopyButton} from './CopyButton.tsx';
-import {Icon} from './icons.tsx';
+import {BlockLabel} from './JsonBlock.tsx';
 
 interface Lines {
   language: string;
@@ -48,33 +49,31 @@ const LINES: Lines[] = [
 
 export function SwitchOnHint({mode}: {mode: 'run' | 'attach' | undefined}) {
   const [open, setOpen] = useState(false);
+  const attach = mode === 'attach';
   return (
     <div className="flex flex-col gap-1.5">
       <p className="text-muted-foreground">
         No A2UI step recorded · switch the wrapper on to see which text became which component
-        {mode === 'attach'
-          ? ', with the variables on the first screen set in the agent’s shell'
-          : ''}
       </p>
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen(!open)}
-        className="ease-quick flex h-7 w-fit cursor-pointer items-center gap-1.5 rounded-md px-1 text-xs font-semibold text-muted-foreground hover:bg-tint hover:text-foreground"
-      >
-        <Icon kind={open ? 'chevronDown' : 'chevronRight'} size={12} />
-        How to switch it on
-      </button>
+      <BlockLabel label="How to switch it on" fold={{open, onToggle: () => setOpen(!open)}} />
       {open && (
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-4 pl-0.5 md:grid-cols-2">
           {LINES.map(lines => (
-            <div
-              key={lines.language}
-              className="flex min-w-0 flex-col gap-2 rounded-lg bg-tint px-3 py-2.5"
-            >
-              <span className="font-semibold">{lines.language}</span>
+            <div key={lines.language} className="flex min-w-0 flex-col gap-2">
+              <span className="text-xs font-semibold">{lines.language}</span>
               <Code label="Install" code={lines.install} />
-              <Code label={lines.launch.label} code={lines.launch.code} />
+              <Code
+                label={
+                  attach
+                    ? `${lines.launch.label}, with the variables on the first screen set in the agent’s shell`
+                    : lines.launch.label
+                }
+                code={
+                  attach
+                    ? lines.launch.code.replace(/^a2ui-spectra run -- /, '')
+                    : lines.launch.code
+                }
+              />
               <Code label={lines.line.label} code={lines.line.code} />
             </div>
           ))}
@@ -87,13 +86,13 @@ export function SwitchOnHint({mode}: {mode: 'run' | 'attach' | undefined}) {
 function Code({label, code}: {label: string; code: string}) {
   return (
     <div className="flex min-w-0 flex-col gap-1">
-      <div className="flex items-center gap-2">
+      <div className="flex min-h-6 items-center gap-2">
         <span className="min-w-0 flex-1 text-xs text-muted-foreground">{label}</span>
-        <CopyButton text={code} label={`Copy: ${label}`} className="h-6 px-1.5 text-xs">
+        <CopyButton iconFirst text={code} label={`Copy: ${label}`} className="h-6 px-1.5 text-xs">
           Copy
         </CopyButton>
       </div>
-      <pre className="overflow-x-auto rounded-md bg-panel px-2.5 py-2 font-mono text-xs leading-relaxed whitespace-pre-wrap">
+      <pre className="overflow-x-auto rounded-lg bg-tint px-2.5 py-1.5 font-mono text-xs leading-relaxed wrap-anywhere whitespace-pre-wrap">
         {code}
       </pre>
     </div>

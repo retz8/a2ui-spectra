@@ -25,13 +25,16 @@ export function CopyButton({
   text,
   label,
   className,
+  iconFirst = false,
   children,
 }: {
   text: string;
   /** What the button copies, for its accessible name. */
   label: string;
   className?: string;
-  /** Shown before the icon; an icon alone without it. */
+  /** The icon before the text, as a block's "Copy" draws it; after it, as an address's does. */
+  iconFirst?: boolean;
+  /** The text beside the icon; an icon alone without it. */
   children?: ReactNode;
 }) {
   const [copied, setCopied] = useState(false);
@@ -51,8 +54,12 @@ export function CopyButton({
         });
       }}
     >
-      {children}
-      <Icon kind={copied ? 'checked' : 'copy'} size={children === undefined ? 12 : 14} />
+      {!iconFirst && children}
+      <Icon
+        kind={copied ? 'checked' : 'copy'}
+        size={children === undefined || iconFirst ? 12 : 14}
+      />
+      {iconFirst && children}
     </button>
   );
 }

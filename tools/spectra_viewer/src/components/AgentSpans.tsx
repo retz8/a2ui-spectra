@@ -55,6 +55,7 @@ export function AgentSpans({
   startMs,
   sources: given,
   subject = 'call',
+  lead,
 }: {
   row: CallRow;
   events: readonly TurnRecordEvent[];
@@ -63,6 +64,11 @@ export function AgentSpans({
   sources?: readonly string[];
   /** What the row is, as the spans section names it: "this call", "this parse". */
   subject?: string;
+  /**
+   * A span shown first, with its source line and its translated names: the
+   * toolset's parse, above the tool call's own spans.
+   */
+  lead?: {line: string; event: TurnRecordEvent};
 }) {
   const chain = row.spans;
   const own = new Set(chain.map(keyOf));
@@ -95,6 +101,18 @@ export function AgentSpans({
   return (
     <section aria-label="From the agent’s spans" className="flex min-w-0 flex-col gap-2.5">
       <Section label="From the agent’s spans" open>
+        {lead !== undefined && (
+          <>
+            <p>{lead.line}</p>
+            <Pairs
+              label="Translated"
+              layout="names"
+              pairs={Object.entries(attributesOf(lead.event))
+                .filter(([name]) => !SPAN_NAMES.has(name))
+                .map(([key, value]) => ({key, value: <NameValue value={value} />}))}
+            />
+          </>
+        )}
         <div className="flex flex-col gap-0.5">
           {sources.map(line => (
             <p key={line}>{line}</p>

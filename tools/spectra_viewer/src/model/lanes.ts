@@ -1,7 +1,8 @@
 /**
  * The time lane every timeline row ends in, drawn against the length of the
  * whole turn: a call's, a parse's or a failed prompt generation's bar from
- * its start to its end, a step's or a delivery's dot at its moment. The lane runs from the turn's start to the
+ * its start to its end, a step's or a delivery's dot at its moment, and an
+ * A2UI step span that states no end a dot at its start. The lane runs from the turn's start to the
  * latest of the turn's end and every row's end, so that a span placed after
  * the agent's last reply is never clipped; on a live turn the end is the
  * present, and the scale grows as the turn runs.
@@ -71,13 +72,18 @@ export function lanesOf(rows: readonly TimelineRow[], startMs: number, endMs: nu
     const timed: TurnRecordEvent | undefined =
       row.row === 'step' ? (row.parse ?? row.generation) : undefined;
     if (timed !== undefined) {
-      // A parse or a failed prompt generation: a bar in the darker tone from start to end.
+      // A parse or a failed prompt generation: a bar in the darker tone from
+      // start to end. A span is received once it has ended, so one that states
+      // no end is an instant: a dot at its start.
       const start = unixMillis(timed.startTimeUnixNano) - startMs;
-      const inFlight = timed.endTimeUnixNano === undefined;
-      const end = inFlight
-        ? Math.max(start, endMs - startMs)
-        : unixMillis(timed.endTimeUnixNano!) - startMs;
-      byRow.set(row.id, {kind: 'bar', start, end, inFlight, waitsForToken: false});
+      if (timed.endTimeUnixNano === undefined) {
+        byRow.set(row.id, {kind: 'dot', at: start});
+        latest = Math.max(latest, start);
+        moment = start;
+        continue;
+      }
+      const end = unixMillis(timed.endTimeUnixNano) - startMs;
+      byRow.set(row.id, {kind: 'bar', start, end, inFlight: false, waitsForToken: false});
       latest = Math.max(latest, end);
       moment = start;
       continue;

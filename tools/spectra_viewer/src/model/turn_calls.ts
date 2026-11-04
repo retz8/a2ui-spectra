@@ -4,14 +4,15 @@
  * calls, their tokens, the
  * share read from the cache and the estimated cost, from the timeline's call
  * rows so far. A call read from spans only counts with its tokens; the tool
- * calls counted are the full rows, housekeeping left out.
+ * calls counted are the full rows, housekeeping and the toolset's calls,
+ * shown as their parses, left out.
  */
 import {retryCountOf} from './a2ui_step.ts';
 import {type CallRow, callRowsOf, modelReadingOf, timedEventOf} from './call_rows.ts';
 import {callCostOf, formatCost, formatShare, formatTokensBrief, type Prices} from './cost.ts';
 import {firstChunkMs, isReadInFull, usageOf} from './model_calls.ts';
 import {isWireOutput, type ModelCallEvent, type TurnRecordEvent, unixMillis} from './record.ts';
-import {plural} from './steps.ts';
+import {plural, toolRowsOfParses} from './steps.ts';
 import {isFullToolRow} from './tool_calls.ts';
 
 /** The second line's parts, in order, or none for a turn with no model call and no tool call. */
@@ -22,7 +23,10 @@ export function insideLineOf(
 ): string[] | undefined {
   const rows = callRowsOf(events);
   const models = rows.filter(row => row.kind === 'model');
-  const tools = rows.filter(row => row.kind === 'tool' && isFullToolRow(row));
+  const parsed = toolRowsOfParses(events, rows);
+  const tools = rows.filter(
+    row => row.kind === 'tool' && isFullToolRow(row) && !parsed.has(row.id),
+  );
   if (models.length === 0 && tools.length === 0) return undefined;
   const parts: string[] = [];
   const firstToken = firstTokenMs(models);

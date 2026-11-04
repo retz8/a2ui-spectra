@@ -72,10 +72,17 @@ function stringsIn(value: unknown, found: string[] = []): string[] {
 
 /** The texts a model call answered with: each text part, and each tool call's arguments' strings. */
 function replyTextsOf(row: CallRow): string[] {
+  const {text, toolCalls} = replyPartsOf(row);
+  return [...text, ...toolCalls];
+}
+
+/** A model call's reply texts by where they sit: its text parts, and its tool calls' arguments' strings. */
+function replyPartsOf(row: CallRow): {text: string[]; toolCalls: string[]} {
   const {event} = modelReadingOf(row);
   const messages = event.attributes['gen_ai.output.messages'];
-  if (!Array.isArray(messages)) return [];
+  if (!Array.isArray(messages)) return {text: [], toolCalls: []};
   const texts: string[] = [];
+  const toolCalls: string[] = [];
   for (const message of messages) {
     const parts = (message as {parts?: unknown})?.parts;
     if (!Array.isArray(parts)) continue;
@@ -90,10 +97,18 @@ function replyTextsOf(row: CallRow): string[] {
         arguments?: unknown;
       };
       if (type === 'text' && typeof content === 'string') texts.push(content);
-      if (type === 'tool_call') texts.push(...stringsIn(args));
+      if (type === 'tool_call') toolCalls.push(...stringsIn(args));
     }
   }
-  return texts;
+  return {text: texts, toolCalls};
+}
+
+/** Whether a parse's input sits in one of a call's tool-call arguments and in none of its text. */
+function readFromToolCall(row: CallRow, input: string): boolean {
+  if (input === '') return false;
+  const holds = (text: string) => text !== '' && (text.includes(input) || input.includes(text));
+  const {text, toolCalls} = replyPartsOf(row);
+  return !text.some(holds) && toolCalls.some(holds);
 }
 
 /**
@@ -480,7 +495,11 @@ function rowOffsetOf(
     : formatOffset(unixMillis(timedEventOf(row).startTimeUnixNano) - startMs);
 }
 
-/** The "Read from" line of a parse: the model call it read, as a link, or that it is tied to none. */
+/**
+ * The "Read from" line of a parse: the model call it read, its reply or, when
+ * the input sits in one of its tool-call arguments, its tool call, as a link;
+ * or that it is tied to none.
+ */
 export function readFromOf(
   events: readonly TurnRecordEvent[],
   parse: ParseEvent,
@@ -491,7 +510,8 @@ export function readFromOf(
   if (row === undefined) return {text: 'Tied to no model call'};
   const model = modelOf(modelReadingOf(row).event);
   const at = formatOffset(unixMillis(timedEventOf(row).startTimeUnixNano) - startMs);
-  return {text: `The reply of ${model ?? 'the call'} at ${at}`, stepId: row.id};
+  const read = readFromToolCall(row, parse.attributes['a2ui.parse.input']) ? 'tool call' : 'reply';
+  return {text: `The ${read} of ${model ?? 'the call'} at ${at}`, stepId: row.id};
 }
 
 /** The "Read by the parse" lines of a model call row: one per parse that read it, each a link. */

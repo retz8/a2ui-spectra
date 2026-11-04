@@ -1,8 +1,9 @@
 /**
  * A parse's detail under its problems: the model call it read, the call
- * that retried it, its raw text with its component ranges, its messages,
- * what the toolset returned to the model, and its spans. A failed prompt
- * generation's detail is its spans alone, its problem block above.
+ * that retried it, its raw text with its component ranges, what the
+ * toolset returned to the model, its messages, folded, and its spans. A
+ * failed prompt generation's detail is its spans alone, its problem block
+ * above.
  */
 import {useMemo} from 'react';
 
@@ -23,7 +24,7 @@ import type {
   PromptGenerationEvent,
   TurnRecordEvent,
 } from '@/model/record.ts';
-import type {Step} from '@/model/steps.ts';
+import {plural, type Step} from '@/model/steps.ts';
 
 import {AgentSpans} from './AgentSpans.tsx';
 import {DetailLink} from './CallParts.tsx';
@@ -61,7 +62,7 @@ export function ParseBlocks({
   const retried = retriedByOf(events, parse, startMs);
   const messages = attributes['a2ui.parse.messages'] ?? [];
   const returned = attributes['gen_ai.tool.call.result'];
-  const row: CallRow = step.call ?? {kind: 'tool', id: parse.spanId, spans: [parse as OtherEvent]};
+  const row: CallRow = {kind: 'tool', id: parse.spanId, spans: [parse as OtherEvent]};
   return (
     <>
       <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
@@ -71,13 +72,12 @@ export function ParseBlocks({
         ) : (
           <DetailLink onClick={() => onStep(readFrom.stepId!)}>{readFrom.text}</DetailLink>
         )}
-        {retried !== undefined && (
-          <>
-            <span className="text-muted-foreground">·</span>
-            <DetailLink onClick={() => onStep(retried.stepId)}>{retried.text}</DetailLink>
-          </>
-        )}
       </div>
+      {retried !== undefined && (
+        <div>
+          <DetailLink onClick={() => onStep(retried.stepId)}>{retried.text}</DetailLink>
+        </div>
+      )}
       <RawText
         text={attributes['a2ui.parse.input']}
         ranges={reading?.ranges ?? []}
@@ -87,18 +87,38 @@ export function ParseBlocks({
         reveal={reveal}
         sentence={rangesSentenceOf(reading, attributes['a2ui.parse.inference_format'])}
       />
-      <JsonBlock label="Messages" value={messages} folded={['']} />
-      {returned !== undefined && <JsonBlock label="Returned to the model" value={returned} />}
-      <AgentSpans
-        row={row}
-        events={events}
-        startMs={startMs}
-        subject="parse"
-        sources={[
-          ...(step.call === undefined ? [] : sourceLinesOfCall(step.call)),
-          sourceLineOfStep(parse),
-        ]}
+      {returned !== undefined && (
+        <JsonBlock
+          label="Returned to the model"
+          value={returned}
+          folded={['/validated_a2ui_json']}
+        />
+      )}
+      <JsonBlock
+        label="Messages"
+        meta={plural(messages.length, 'message')}
+        value={messages}
+        startsFolded
       />
+      {step.call === undefined ? (
+        <AgentSpans
+          row={row}
+          events={events}
+          startMs={startMs}
+          subject="parse"
+          sources={[sourceLineOfStep(parse)]}
+        />
+      ) : (
+        // The toolset's parse first, then the tool call's own spans.
+        <AgentSpans
+          row={step.call}
+          events={events}
+          startMs={startMs}
+          subject="tool call"
+          sources={sourceLinesOfCall(step.call)}
+          lead={{line: sourceLineOfStep(parse), event: parse}}
+        />
+      )}
     </>
   );
 }

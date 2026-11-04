@@ -156,7 +156,7 @@ export function RawText({
     <section className="flex min-w-0 flex-col gap-1.5">
       {sentence !== undefined && <p className="text-xs text-muted-foreground">{sentence}</p>}
       <BlockLabel label={label} fold={fold}>
-        <CopyButton text={text} label="Copy the raw text" className="h-6 px-1.5 text-xs">
+        <CopyButton iconFirst text={text} label="Copy the raw text" className="h-6 px-1.5 text-xs">
           Copy
         </CopyButton>
       </BlockLabel>
@@ -206,7 +206,17 @@ function keepInView(element: HTMLElement | null, reveal: () => void): (() => voi
   return stop;
 }
 
+/**
+ * Scrolls a range into view: centred, or, when it is taller than the pane
+ * scrolling it, from its start, as a rejected block of a whole reply is.
+ */
 function scrollTo(element: Element | null | undefined): void {
+  if (element === null || element === undefined) return;
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  element?.scrollIntoView({block: 'center', behavior: reduce ? 'auto' : 'smooth'});
+  let pane = element.parentElement;
+  while (pane !== null && !/(auto|scroll)/.test(getComputedStyle(pane).overflowY)) {
+    pane = pane.parentElement;
+  }
+  const tall = pane !== null && element.getBoundingClientRect().height > pane.clientHeight;
+  element.scrollIntoView({block: tall ? 'start' : 'center', behavior: reduce ? 'auto' : 'smooth'});
 }
