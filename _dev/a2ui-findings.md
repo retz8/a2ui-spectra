@@ -169,7 +169,7 @@ encoding" sections.
 
 **Severity:** specification contradiction.
 
-**Upstream:** PR #3603.
+**Upstream:** PR #3603, merged 2026-11-03.
 
 ### Issue
 
@@ -221,7 +221,7 @@ messages" example.
 
 **Severity:** specification example that fails its own schema.
 
-**Upstream:** PR #3600.
+**Upstream:** PR #3600, merged 2026-11-03.
 
 ### Issue
 
