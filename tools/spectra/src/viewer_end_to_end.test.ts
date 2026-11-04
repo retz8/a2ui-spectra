@@ -1,11 +1,12 @@
 /**
- * The browser end-to-end test of the viewer on a recorded turn: Flow 6,
- * finding out why a turn retried and where the model's text went wrong,
- * walked in Chromium through Playwright on the retried-parse full record,
- * `full_record_retried_parse.json`, placed in the store of a Spectra
- * attached to the stub agent. It runs under Node by default, and against the
- * binary when SPECTRA_BINARY names one. Chromium is installed with
- * Playwright's own command.
+ * The browser end-to-end tests of the viewer on a recorded turn, the
+ * retried-parse full record, `full_record_retried_parse.json`, placed in the
+ * store of a Spectra attached to the stub agent: Flow 6, finding out why a
+ * turn retried and where the model's text went wrong, walked in Chromium
+ * through Playwright; and the built-in preview page drawing the record's
+ * basic catalog icons as their glyphs. They run under Node by default, and
+ * against the binary when SPECTRA_BINARY names one. Chromium is installed
+ * with Playwright's own command.
  */
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -44,7 +45,64 @@ function row(page: Page, text: string): Locator {
     .first();
 }
 
-describe(`Flow 6 in Chromium, ${binary ? 'the binary' : 'under Node'}`, () => {
+/** The retried-parse record's turn, with its trace id, its two parses and its retry. */
+function retriedTurn() {
+  const record = JSON.parse(readFileSync(RECORD, 'utf8')) as TurnRecord;
+  const [turn] = record.turns;
+  const traceId = (turn.events.find(event => isEventOfKind(event, 'turn')) as TurnEvent).traceId;
+  const parses = turn.events.filter(event => event.attributes['a2ui.event.kind'] === 'parse');
+  const calls = turn.events.filter(event => event.attributes['a2ui.event.kind'] === 'model_call');
+  assert.equal(parses.length, 2);
+  assert.equal(calls.length, 2);
+  const [failed, read] = parses;
+  return {turn, traceId, failed, read, retry: calls[1]};
+}
+
+/**
+ * Places the retried turn in a fresh store, attaches Spectra to the stub
+ * agent on it, opens a page and runs the walk; then closes the page and
+ * stops Spectra.
+ */
+async function withViewer(
+  browser: Browser,
+  walk: (page: Page, base: string) => Promise<void>,
+): Promise<void> {
+  const cwd = workingDir();
+  const store = await TurnStore.open(cwd);
+  await store.write(retriedTurn().turn);
+  const [agentPort, port] = await Promise.all([freePort(), freePort()]);
+  await startStub(agentPort, []);
+  const spectra = new SpectraProcess(
+    [
+      'attach',
+      `http://127.0.0.1:${agentPort}`,
+      '--port',
+      String(port),
+      '--proxy-port',
+      String(await freePort()),
+      '--model-proxy-port',
+      String(await freePort()),
+      '--receiver-port',
+      String(await freePort()),
+      '--no-open',
+    ],
+    cwd,
+  );
+  const page = await browser.newPage({
+    viewport: {width: 1440, height: 900},
+    reducedMotion: 'reduce',
+  });
+  try {
+    await spectra.waitFor(/The viewer is at /);
+    await walk(page, `http://127.0.0.1:${port}`);
+  } finally {
+    await page.close();
+    spectra.signal('SIGTERM');
+    await spectra.exited;
+  }
+}
+
+describe(`the viewer on the retried-parse record in Chromium, ${binary ? 'the binary' : 'under Node'}`, () => {
   let browser: Browser;
   before(async () => {
     browser = await chromium.launch();
@@ -54,51 +112,11 @@ describe(`Flow 6 in Chromium, ${binary ? 'the binary' : 'under Node'}`, () => {
   });
 
   it(
-    'opens the retried turn on its failed parse, shows the rejected block, marks the retry with its cause, and ties a final tree node to its range in the retry’s parse',
+    'Flow 6: opens the retried turn on its failed parse, shows the rejected block, marks the retry with its cause, and ties a final tree node to its range in the retry’s parse',
     {timeout: TIMEOUT},
     async () => {
-      const record = JSON.parse(readFileSync(RECORD, 'utf8')) as TurnRecord;
-      const [turn] = record.turns;
-      const traceId = (turn.events.find(event => isEventOfKind(event, 'turn')) as TurnEvent)
-        .traceId;
-      const parses = turn.events.filter(event => event.attributes['a2ui.event.kind'] === 'parse');
-      const calls = turn.events.filter(
-        event => event.attributes['a2ui.event.kind'] === 'model_call',
-      );
-      assert.equal(parses.length, 2);
-      assert.equal(calls.length, 2);
-      const [failed, read] = parses;
-      const retry = calls[1];
-
-      const cwd = workingDir();
-      const store = await TurnStore.open(cwd);
-      await store.write(turn);
-      const [agentPort, port] = await Promise.all([freePort(), freePort()]);
-      await startStub(agentPort, []);
-      const spectra = new SpectraProcess(
-        [
-          'attach',
-          `http://127.0.0.1:${agentPort}`,
-          '--port',
-          String(port),
-          '--proxy-port',
-          String(await freePort()),
-          '--model-proxy-port',
-          String(await freePort()),
-          '--receiver-port',
-          String(await freePort()),
-          '--no-open',
-        ],
-        cwd,
-      );
-      const base = `http://127.0.0.1:${port}`;
-      const page = await browser.newPage({
-        viewport: {width: 1440, height: 900},
-        reducedMotion: 'reduce',
-      });
-      try {
-        await spectra.waitFor(/The viewer is at /);
-
+      const {traceId, failed, read, retry} = retriedTurn();
+      await withViewer(browser, async (page, base) => {
         // 1. The turn opens on its one problem, the failed parse.
         await page.goto(`${base}/#/turns/${traceId}`);
         await page.waitForURL(`${base}/#/turns/${traceId}/steps/${failed.spanId}`);
@@ -146,11 +164,47 @@ describe(`Flow 6 in Chromium, ${binary ? 'the binary' : 'under Node'}`, () => {
         await range.waitFor();
         await page.waitForTimeout(300);
         assert.ok(await inPane(range), 'After a reload, the range is not in view.');
-      } finally {
-        await page.close();
-        spectra.signal('SIGTERM');
-        await spectra.exited;
-      }
+      });
+    },
+  );
+
+  it(
+    'draws the final tree’s basic catalog icons in the built-in preview as their glyphs, not their names',
+    {timeout: TIMEOUT},
+    async () => {
+      const {traceId} = retriedTurn();
+      await withViewer(browser, async (page, base) => {
+        await page.goto(`${base}/#/turns/${traceId}`);
+        await row(page, 'Completed').click();
+        const preview = page
+          .getByRole('group', {name: 'Result panes'})
+          .getByRole('button', {name: 'Preview'});
+        if ((await preview.getAttribute('aria-pressed')) !== 'true') await preview.click();
+
+        const icons = page
+          .frameLocator('iframe[title="Spectra’s built-in preview"]')
+          .locator('i.a2ui-icon');
+        await icons.first().waitFor();
+        // Each icon's name, set in the icon font, is one ligature as wide as the icon's box.
+        const overflowing = await icons.evaluateAll(async all => {
+          const wider = () =>
+            all.flatMap(icon => {
+              const range = icon.ownerDocument.createRange();
+              range.selectNodeContents(icon);
+              const text = range.getBoundingClientRect().width;
+              const box = icon.getBoundingClientRect().width;
+              return text > box + 1 ? [`${icon.textContent} (${text}px in ${box}px)`] : [];
+            });
+          const deadline = Date.now() + 5_000;
+          while (wider().length > 0 && Date.now() < deadline) {
+            await all[0].ownerDocument.fonts.ready;
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+          return {count: all.length, wider: wider()};
+        });
+        assert.ok(overflowing.count > 0, 'The preview drew no icon.');
+        assert.deepEqual(overflowing.wider, [], 'Icons drawn as their names.');
+      });
     },
   );
 });

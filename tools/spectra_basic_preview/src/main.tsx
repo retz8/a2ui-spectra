@@ -4,6 +4,9 @@
  * upstream's React renderer through the React preview adapter, as an
  * adopter's page draws its own catalog.
  */
+// Web core's basic catalog Icon sets the icon's name in the Material Icons font, as a ligature.
+import '@fontsource/material-icons';
+
 import {renderMarkdown} from '@a2ui/markdown-it';
 import {MarkdownContext, type ReactCatalogComponent} from '@a2ui/react/v0_9';
 import {basicCatalog as basicCatalogV10} from '@a2ui/web_core/catalogs/basic/v1';

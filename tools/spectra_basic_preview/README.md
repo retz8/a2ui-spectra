@@ -4,6 +4,8 @@ The page that draws the basic catalog's surfaces in Spectra's Preview pane, with
 
 The page stays light in both of the viewer's themes, as a host's page is: its root carries upstream's `a2ui-light` class, which the basic catalog's styles follow.
 
+The page bundles the Material Icons font, in which web core's basic catalog `Icon` sets an icon's name as a ligature.
+
 ## Commands
 
 From `tools/spectra_basic_preview/`:
