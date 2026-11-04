@@ -1217,6 +1217,9 @@ York" over `message/stream`. The sample logs
 wire one `createSurface default`, then `deleteSurface` and `createSurface`
 twice. Seen in two conversations in the Phase 5 acceptance run, traces
 `9e94333e102bd3b80aa935a6360e45f2` and `a81c164e3082ef3c3bcddf3187490c55`.
+Seen again at upstream `9e8a9bac5` on `a2ui-agent-sdk` 0.10.0 with Spectra's
+wrapper on, trace `a41943c41ad31f0c03e64c3934088ac7`: each stream's input, the
+first attempt's and the retry's, is its call's reply exactly twice over.
 
 ### Fix
 
