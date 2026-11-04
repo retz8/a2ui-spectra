@@ -451,29 +451,59 @@ of text reaches the parser once.
 
 ## 15. The v0.9.1 schemas declare v0.9's `$id`s
 
-**Component:** every schema in `specification/v0_9_1/json/` that declares an
-`$id`, and `specification/v0_9_1/catalogs/basic/catalog.json`.
+**Component:** every schema in `specification/v0_9_1/json/` except
+`common_types.json`.
 
-**Severity:** specification defect.
+**Severity:** specification defect; the v0.9.1 list schemas that a2ui.org
+publishes reject v0.9.1 messages.
+
+**Upstream:** issue #3974, PR #3975.
+
+Checked at `43696ef43` (2026-11-03), not at the commit above.
 
 ### Issue
 
 Each v0.9.1 schema declares the `$id` of its v0.9 counterpart: for example,
 `specification/v0_9_1/json/server_to_client.json:3` declares
 `https://a2ui.org/specification/v0_9/server_to_client.json`, the `$id` of
-`specification/v0_9/json/server_to_client.json`. The same holds for
-`client_capabilities.json`, `client_data_model.json`,
-`client_to_server_list.json`, `client_to_server_list_wrapper.json`,
-`common_types.json`, `sample.json`, `server_capabilities.json`,
-`server_to_client_list.json`, `server_to_client_list_wrapper.json` and the basic
-catalog, `https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json`.
+`specification/v0_9/json/server_to_client.json`. When #1493 created v0.9.1 as a
+copy of v0.9, the two `json/` folders were identical. #1561 then changed the
+`version` of v0.9.1's `server_to_client.json`, `client_to_server.json` and
+`client_data_model.json` from `"const": "v0.9"` to
+`"enum": ["v0.9", "v0.9.1"]` and kept the `$id`s, so the `$id`s of
+`server_to_client.json` and `client_data_model.json` each name two different
+documents. The list, wrapper and sample files refer to these schemas
+relatively, so v0.9.1's resolve to v0.9's.
 
-JSON Schema tools register schemas and resolve `$ref`s by `$id`. A validator
-that holds v0.9 and v0.9.1 together either refuses the second version or
-resolves one version's references to the other's documents. A tool that checks
-both versions has to keep each in its own validator.
+`.github/workflows/docs.yml` publishes each `json/` file at its version root. A
+validator that fetches
+`https://a2ui.org/specification/v0_9_1/server_to_client_list.json` and
+retrieves its references by URL follows its `$id` to
+`https://a2ui.org/specification/v0_9/server_to_client.json`, v0.9's schema, and
+rejects every `"v0.9.1"` message in the list; v0.9.1's
+`client_to_server_list.json` does the same (finding 16). A validator that
+registers the schemas by `$id` cannot hold v0.9 and v0.9.1 together: it refuses
+v0.9.1's `server_to_client.json` and `client_data_model.json`, and a lookup by
+the `$id` of v0.9.1's list returns v0.9's list.
+
+`common_types.json` and the basic catalog are byte-identical to v0.9's and
+share v0.9's `$id`s by design. The catalog's `$id` is its `catalogId`, which the
+v0.9.1 extension specification gives as
+`https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json`, and the
+catalog refers to `common_types.json` by its absolute v0.9 address, 78 times.
 
 ### Reproduction
+
+Fetch `https://a2ui.org/specification/v0_9_1/server_to_client_list.json`,
+compile it with Ajv 8's draft 2020-12 `compileAsync` and a `loadSchema` that
+fetches each reference by URL, supplying the basic catalog for the
+`catalog.json` placeholder, which a2ui.org does not serve (HTTP 404). Validating
+`[{"version":"v0.9.1","deleteSurface":{"surfaceId":"s"}}]` fetches
+`https://a2ui.org/specification/v0_9/server_to_client.json` and fails with
+`/0/version must be equal to constant {"allowedValue":"v0.9"}`. Python's
+`jsonschema` 4.26.0 with a retrieving `referencing.Registry` rejects it with
+`'v0.9' was expected`. With v0.9.1's `server_to_client.json` as the root, the
+message is valid.
 
 With Ajv 8's draft 2020-12 build, `addSchema` the v0.9 and then the v0.9.1
 `server_to_client.json`. The second call throws
@@ -481,8 +511,14 @@ With Ajv 8's draft 2020-12 build, `addSchema` the v0.9 and then the v0.9.1
 
 ### Fix
 
-Give each v0.9.1 file the `$id` of its own path, under
-`https://a2ui.org/specification/v0_9_1/`.
+Give each v0.9.1 schema in `json/` except `common_types.json` the address
+a2ui.org publishes it at, `https://a2ui.org/specification/v0_9_1/<name>.json`,
+and keep `common_types.json` and the basic catalog under v0.9's `$id`s. PR #3975
+does this. It also gives a2ui-core's generated v0.9.1 `server_to_client` schema
+the new `$id`, which a conformance case compares with the file exactly, and has
+the v0.9.1 test runner alias the catalog at both addresses that `catalog.json`
+then resolves to: under `v0_9_1/` from `server_to_client.json`, and under
+`v0_9/` from `common_types.json`.
 
 ## 16. `client_to_server.json` declares no `$id` in v0.9 and v0.9.1
 
@@ -490,6 +526,10 @@ Give each v0.9.1 file the `$id` of its own path, under
 `specification/v0_9_1/json/client_to_server.json`.
 
 **Severity:** specification defect.
+
+**Upstream:** issue #3974, PR #3975.
+
+Checked at `43696ef43` (2026-11-03), not at the commit above.
 
 ### Issue
 
@@ -501,18 +541,27 @@ it as `client_to_server.json` (line 8 in both versions), resolved against its
 own `$id` to `https://a2ui.org/specification/v0_9/client_to_server.json`, which
 no schema declares. A validator that loads the schemas by their `$id`s cannot
 resolve that reference unless it registers `client_to_server.json` under that
-address by hand.
+address by hand, and `client_to_server_list_wrapper.json` fails with it. Nothing
+in the repo compiles either list. `conformance/tests/test_conformance_yaml.py`
+adds the `$id` to v0.9's file by hand before registering it
+(`V09_CLIENT_TO_SERVER`, from #3583), and the Swift schema generator falls back
+to the same address when the file has none.
+
+A validator that retrieves references by URL does get a file at that address,
+since a2ui.org serves v0.9's `client_to_server.json` there: v0.9's list works,
+and v0.9.1's list rejects v0.9.1 messages (finding 15).
 
 ### Reproduction
 
 With Ajv 8's draft 2020-12 build, `addSchema` every v0.9 schema that declares an
 `$id`, and compile `client_to_server_list.json`. It fails with
 `can't resolve reference client_to_server.json from id https://a2ui.org/specification/v0_9/client_to_server_list.json`.
+v0.9.1 fails the same way.
 
 ### Fix
 
 Declare `https://a2ui.org/specification/v0_9/client_to_server.json` in v0.9's
-file, and the v0.9.1 address in v0.9.1's, with finding 15.
+file, and the v0.9.1 address in v0.9.1's, with finding 15. PR #3975 does this.
 
 ## 17. The TypeScript restaurant finder's stub creates `stub-notice` again in every turn
 
