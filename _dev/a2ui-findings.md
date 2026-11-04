@@ -921,6 +921,14 @@ same context. The A2A capture suite's recording
 `conformance/test_data/a2a_capture/v0_1/file_upload_summarizer/artifact_stream_and_send.har`
 in `a2ui-spectra` holds both turns.
 
+The community rizzcharts sample, on the same executor, does the same at
+upstream `9e8a9bac5` with `google-adk` 2.3.0: asked "show my sales breakdown by
+product category for q3" over `message/stream`, its turn carries the three
+messages `SendA2uiToClientToolset`'s tool returned twice, in a status update
+and again in the artifact, and the second `createSurface` is rejected,
+`Surface q3-sales-breakdown already exists.` Seen in the Phase 6 acceptance
+run, trace `cbc0a67c10e4c37223447661094369c6`.
+
 ### Fix
 
 Send each turn's A2UI messages once: keep them out of either the `working`
@@ -1268,7 +1276,8 @@ twice. Seen in two conversations in the Phase 5 acceptance run, traces
 `9e94333e102bd3b80aa935a6360e45f2` and `a81c164e3082ef3c3bcddf3187490c55`.
 Seen again at upstream `9e8a9bac5` on `a2ui-agent-sdk` 0.10.0 with Spectra's
 wrapper on, trace `a41943c41ad31f0c03e64c3934088ac7`: each stream's input, the
-first attempt's and the retry's, is its call's reply exactly twice over.
+first attempt's and the retry's, is its call's reply exactly twice over. Seen
+in the Phase 6 acceptance run, trace `e6cc470d890bdbfbaddff4a9a6687ac3`.
 
 ### Fix
 
@@ -1313,6 +1322,19 @@ turn's record holds three `model_call` events, the third's request carrying
 the retry prompt. Seen in every message-box turn of the Phase 5 acceptance run
 on Gemini, Anthropic and both OpenAI APIs, among them traces
 `54d0bbb3b13b9831…`, `7c7ad7a3617a52c…` and `5d62d220c67d7d3…`.
+
+Seen again at upstream `9e8a9bac5`, on `a2ui-agent-sdk` 0.10.0 with Spectra's
+wrapper on, trace `c7d120f29b28029ec96c08b5709c590a`. The first attempt's
+stream stops on the reply's first block, the whole `<a2ui-json>` payload, with
+`Catalog not found: inline_catalog`, an `A2uiValidationError`, after the
+block's `createSurface` was sent. The retry's stream fails too, but not the
+same way: the model moved the org chart into the basic catalog, and the stream
+stops on `Validation failed for component 'OrgChart':
+components.org-chart.component: Unrecognized component type 'OrgChart'`,
+another `A2uiValidationError`, after the messages before it were sent, so the
+host draws the contact card without its org chart. The example then gives up
+with "I'm sorry, I'm having trouble generating the interface for that request
+right now. Please try again in a moment."
 
 ### Fix
 
