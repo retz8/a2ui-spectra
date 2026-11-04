@@ -197,6 +197,67 @@ describe('the model call a parse read', () => {
     assert.deepEqual([...readByOf(events)], [['parse-1', 'call-a']]);
   });
 
+  it('ties a stream opened before its call to the call whose reply holds its input, over an earlier call whose argument its input holds', () => {
+    // As the Python restaurant finder runs: the stream opens before the call it reads.
+    const text = `Here are the top 3 Chinese restaurants in New York:\n\n${GOOD}`;
+    const events = byStart(
+      modelCall({
+        spanId: 'call-a',
+        start: 0,
+        end: 1000,
+        attributes: {
+          'gen_ai.output.messages': [
+            {
+              role: 'assistant',
+              parts: [
+                {
+                  type: 'tool_call',
+                  id: 'c1',
+                  name: 'get_restaurants',
+                  arguments: {location: 'New York', cuisine: 'Chinese', count: 3},
+                },
+                {type: 'text', content: ''},
+              ],
+            },
+          ],
+        },
+      }),
+      parse({spanId: 'parse-1', start: 1099, end: 2001, input: text, messages: GOOD_MESSAGES}),
+      modelCall({spanId: 'call-b', start: 1100, end: 2000, attributes: reply(text)}),
+    );
+    assert.deepEqual([...readByOf(events)], [['parse-1', 'call-b']]);
+  });
+
+  it('ties a stream fed its call’s reply twice to that call, the one accounting for the most of its input', () => {
+    // The restaurant finder feeds a stream ADK's partial chunks, then the aggregated copy: A2UI finding 31.
+    const text = `Here are the top 3 Chinese restaurants in New York:\n\n${GOOD}`;
+    const events = byStart(
+      modelCall({
+        spanId: 'call-a',
+        start: 0,
+        end: 1000,
+        attributes: {
+          'gen_ai.output.messages': [
+            {
+              role: 'assistant',
+              parts: [
+                {
+                  type: 'tool_call',
+                  id: 'c1',
+                  name: 'get_restaurants',
+                  arguments: {location: 'New York', cuisine: 'Chinese', count: 3},
+                },
+              ],
+            },
+          ],
+        },
+      }),
+      parse({spanId: 'parse-1', start: 1099, end: 2001, input: text + text, errors: [FAILED]}),
+      modelCall({spanId: 'call-b', start: 1100, end: 2000, attributes: reply(text)}),
+    );
+    assert.deepEqual([...readByOf(events)], [['parse-1', 'call-b']]);
+  });
+
   it('ties a parse by time to the latest call started before it when the calls carry no text', () => {
     const events = byStart(
       receivedSpan({spanId: 'span-a', name: 'call_llm', start: 0, end: 1000}),

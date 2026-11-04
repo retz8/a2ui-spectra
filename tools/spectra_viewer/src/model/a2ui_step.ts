@@ -99,9 +99,11 @@ function replyTextsOf(row: CallRow): string[] {
 /**
  * The model call each parse read, by the parse's span id and the call row's
  * id: the row whose reply text, or one of whose tool-call arguments, holds
- * the parse's input or is held in it, the latest such row started before
- * the parse when several; failing that, the latest row started before the
- * parse, unless two started at once. A parse neither rule ties stays out.
+ * the parse's input or is held in it; when several, the one accounting for
+ * the most of the input, as a reply the input holds over a tool call's
+ * argument the input quotes, then the latest started before the parse;
+ * failing that, the latest row started before the parse, unless two
+ * started at once. A parse neither rule ties stays out.
  */
 export function readByOf(events: readonly TurnRecordEvent[]): Map<string, string> {
   const rows = modelRowsOf(events);
@@ -112,13 +114,18 @@ export function readByOf(events: readonly TurnRecordEvent[]): Map<string, string
     const latest = (candidates: CallRow[]): CallRow | undefined =>
       [...candidates].sort((a, b) => (rowStart(a) > rowStart(b) ? -1 : 1))[0];
     if (input !== '') {
-      const holding = rows.filter(row =>
-        replyTextsOf(row).some(
-          text => text !== '' && (text.includes(input) || input.includes(text)),
-        ),
-      );
-      const earlier = holding.filter(row => rowStart(row) < parseStart);
-      const tied = latest(earlier.length > 0 ? earlier : holding);
+      // How much of the input a row's texts account for: all of it when one holds it.
+      const coverage = (row: CallRow): number =>
+        Math.max(
+          0,
+          ...replyTextsOf(row)
+            .filter(text => text !== '' && (text.includes(input) || input.includes(text)))
+            .map(text => Math.min(text.length, input.length)),
+        );
+      const best = Math.max(0, ...rows.map(coverage));
+      const candidates = best === 0 ? [] : rows.filter(row => coverage(row) === best);
+      const earlier = candidates.filter(row => rowStart(row) < parseStart);
+      const tied = latest(earlier.length > 0 ? earlier : candidates);
       if (tied !== undefined) {
         readBy.set(parse.spanId, tied.id);
         continue;
