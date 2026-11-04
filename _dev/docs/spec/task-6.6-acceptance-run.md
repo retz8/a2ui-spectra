@@ -120,3 +120,53 @@ Each question is the sample's own or a finding's reproduction; none is invented 
 - The unit tests, the turn record validator, the five capture suites, the three end-to-end tests and the Python wrapper's checks pass after the fixes, under Node and against the binary, locally and in CI.
 - This spec carries decision 15's last item.
 - The done commit names the forms not checked live, the tall window's height, the worktree's ref `9e8a9bac5` with the installed versions of the four Python SDK packages, `@a2ui/agent`, google-adk, LiteLLM, the OpenTelemetry distro and Node, and the model.
+
+### 18. What the run fixed
+
+- The hint on a model call of a turn with no A2UI step events sits first under the call's Response label, as the Components page and the board of no A2UI step events draw it, where it had followed the response's blocks; its fold line is a block label, "How to switch it on", in the labels' small capitals; the two languages stand side by side with no card of their own; and under `attach` each launch line's caption adds "with the variables on the first screen set in the agent’s shell" and its launch drops `a2ui-spectra run --`, where the sentence above had taken the addition and the launch had kept `run`. Seen on the Node finder's first leg under `attach` and the Python restaurant finder's first leg under `run`.
+- "Read by the parse" lines sit first under the Response label too, before the output, as the retry's board draws them.
+- A retry's sentence is a plain grey line under the title line, as the retry's board and Flow 6's third board draw it; it had carried a "Retry" label of its own.
+- "Retried by the call at +X" stands on its own line under "Read from", as the Components page draws it; it had followed the "Read from" link after a dot.
+- With a parse selected, the result pane's note reads "After the parse’s last message, +X", the boards' wording, where it had read "After the delivery at +X".
+- The prompt's UI section is one region on the faint neutral tint holding its label line, its text under the label and its closing line inset to the label, as the Components page draws it; the label had sat outside the tint, the text unindented.
+- The parse's and the prompt generation's icons are the Icon component's, lines of raw text beside two linked boxes, and lines with a pen; the viewer had drawn angle brackets around a box, and a page.
+- A block's Copy draws its icon before the word, as every board of the A2UI step draws it; an address's copy button keeps its icon after the address.
+- A parse or a failed prompt generation that states no end is an instant, a dot at its start with no duration, as the failed prompt generation's row is drawn; the conformance record `prompt_generation_failed.json`'s had been drawn as a bar to the turn's end, "1.4 s".
+- Show text, and a selected node's range, scroll a range taller than the pane from its start; on the Python restaurant finder's retry, whose rejected block is the whole second copy of the reply, Show text had landed in the block's middle.
+- A link in a step's detail that selects another step, "Read from", "Retried by", "Read by the parse", a retry's "failed to parse" and a prefix break's link in the same turn, gives the timeline focus, so the keys go on from it; focus had fallen to the page. Found walking Flow 6 by the keyboard.
+- "Read from" names the call's tool call, "The tool call of gemini-3.6-flash at +3.1 s", when the parse's input sits in one of its tool calls' arguments and in none of its text, as the Components page and the toolset's board have it; it had always said "The reply of". Seen on rizzcharts.
+- The header's tool call count leaves out the toolset's tool call, shown as its parse, as the toolset's board counts; rizzcharts' turn had read "2 tool calls".
+- A parse's detail lists "Raw text", then the toolset's "Returned to the model", its `validated_a2ui_json` folded, then "Messages", folded on its label line with its count, as the 6.1 spec's decision 8 and the toolset's board have them; "Messages" had come first, open with its array folded inside.
+- A toolset parse's spans section shows the parse's own span first, its scope's source line and its translated names, then the tool call's chain, "Above this tool call", `execute_tool` marked "this tool call", as the toolset's board draws it; the viewer had drawn one chain "Above this parse", marking `execute_tool` "this parse".
+
+### 19. The design canvas
+
+A selected component's tint is its own range: the board of a parse with a node linked, its dark twin and Flow 6's fourth board tint the Card's statement and the Button's object alone, and the Components page's state reads "its own range in the teal-soft tint, its statement in Express or its object in Direct JSON". A rejected block is red whole, between its tags: the Python restaurant finder's failed parse, on Flow 6's boards, the "Turn with the A2UI step" pair and the small window, and the custom-components example's failed parse; Flow 6's second board is titled "2 · Show text: the rejected block is the reply’s second copy, from its createSurface default on". The basic catalog reads "basic, v1.0" and "basic, v0.9" in the headers, the UI sections' labels and the Components page. The hint's captions and lines are the two packages' READMEs', on the board of no A2UI step events and the Components page. The toolset's parse and the failed prompt generation leave `a2ui.event.kind` out of their translated names. Published as version `1793792570-b753`.
+
+### 20. A2UI findings
+
+Findings 31 and 32 gain what the wrapper showed at the pin. Finding 31 names the run's turn, trace `e6cc470d890bdbfbaddff4a9a6687ac3`. Finding 32 gains the first attempt's stream stopping on the reply's first block with `Catalog not found: inline_catalog`, an `A2uiValidationError`, after that block's `createSurface` was sent; the retry's stream failing too, on an `OrgChart` the model moved into the basic catalog, `Unrecognized component type 'OrgChart'`, after the messages before it were sent; the example giving up; and the trace, `c7d120f29b28029ec96c08b5709c590a`. Finding 23 gains the community rizzcharts sample, on the same ADK executor, sending the toolset's three messages twice, in a status update and again in the artifact, its second `createSurface` rejected, trace `cbc0a67c10e4c37223447661094369c6`.
+
+### 21. OpenTelemetry findings
+
+None.
+
+### 22. The sessions
+
+All from the `a2ui-upstream` worktree at `9e8a9bac5`, on `gemini-3.6-flash`, through the tunnel on 5173, from one store in a folder of its own that held `prompt_generation_failed.json` from the start.
+
+1. The Node finder in Direct JSON under `attach`. The first start, with nothing set, stayed up when the restart stopped its shell and not its process, and served one wire-only turn, trace `fecf604c14e3d0945466ce434613d811`, before the first leg's agent took the port. The first leg, the printed model and receiver variables set and no wrapper: trace `3b2de5c23604c1771f2be59295f672a5`, four model calls, the hint with its `attach` sentence. The second leg, through `--import`: the card's example, trace `6b541a9a…`, its stream's parse row "Direct JSON · streamed" opened before the first model call and tied to the fifth, then Book pressed in the preview, trace `86424a2b…`; Flows 1, 3, 4 and 5 walked on the two, Flow 5's link landing on the first turn's call. The Node finder's turns had no problems, so Flow 2 was walked on the failed prompt generation's record in the same session.
+2. The Node finder in Express under `run`, with the one line in `src/index.ts`: trace `e5fcf7e26b6bd2d6e95419ef8cd2c46e`, its parse "Express · streamed", a Card selected in the tree and the raw text clicked back, the UI section open in the second call's request; no framework spans, the wrapper's provider started on the variables `run` set.
+3. The Python restaurant finder under `run` and `opentelemetry-instrument`: the first leg with the wrapper's entry point, `a2ui`, in `OTEL_PYTHON_DISABLED_INSTRUMENTATIONS` beside `click`, trace `7cb85147bab51e0efcb0f241284362c9`, the hint without the `attach` sentence; the second leg with the wrapper, trace `e6cc470d890bdbfbaddff4a9a6687ac3`, finding 31's retry, Flow 6 walked by the mouse and by the keyboard, "Read by the parse" on the retry, the small window as a 1,200 × 760 frame laid over the page, the window taking no resize, the timeline narrowed to 380 px and 340 px, and Maximize on the window as tall as the screen allows, 1,040 px, its page 897 px.
+4. The custom-components example under `run`, with the one line in `__main__.py`, no catalog and no tool server configured: "Who is Alex Jordan?", trace `c7d120f29b28029ec96c08b5709c590a`, finding 32's retry on the first turn, Flow 6 walked by the mouse. Under the one line ADK's own spans arrived too, 204 framework spans: ADK traces through the global tracer provider, and the wrapper's provider became the process's.
+5. Rizzcharts under `run` and `opentelemetry-instrument`, `LITELLM_MODEL=gemini/gemini-3.6-flash`, its v0.9 catalog configured: the card's example, trace `cbc0a67c10e4c37223447661094369c6`, the toolset's tool call as its parse's row, "Parse · send_a2ui_json_to_client · Direct JSON".
+
+Every session was seen in light and dark; the three dark twins were checked board by board after the fixes. Not checked live: the read-past problem form, "The stream rejected this block and read on"; the three ranges sentences; Elemental and Atom; a configured catalog named in the header, rizzcharts' turns using the basic catalog.
+
+### 23. Content, not findings
+
+- A rejected block of a stream fed its reply twice is the whole second copy between its tags, as the record states a block; the canvas marked the failing message alone and is amended to the whole block, and the failing message marked within its block is a backlog line.
+- A component written as its own Express statement tints that statement alone when selected, as a child's object does in Direct JSON; the canvas tinted its descendants' statements too and is amended.
+- Rizzcharts takes the first of the catalogs it negotiates (`agent_executor.py:127`), and the message box lists the basic catalogs before the configured ones, so its turns are in the basic catalog.
+- A muted target squeezed below an ellipsis's width shows a sliver of it.
+- The boards' "System prompt 2,310 tokens", tokens split by where they went, is a feature after v1.

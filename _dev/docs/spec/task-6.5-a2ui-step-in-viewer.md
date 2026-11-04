@@ -16,7 +16,7 @@ The viewer's share of Phase 6: the four position readers and the component range
 
 ### 1. What a selected node tints
 
-The tint is the reader's one range for the selected component, in every format. A component range is one contiguous span, as the record's shape has it: in Express a parent's range holds its children's text because the notation nests them; in Direct JSON a child's object is tinted only when the child is selected. Hover's innermost component means the same in both.
+The tint is the reader's one range for the selected component, in every format. A component range is one contiguous span, as the record's shape has it: in Express a parent's range holds a child's text only where the child is written inline in its call, and a child written as its own statement is tinted only when the child is selected, as a child's object is in Direct JSON. Hover's innermost component means the same in both.
 
 ### 2. The readers
 
