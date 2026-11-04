@@ -4,14 +4,12 @@
  * upstream's React renderer through the React preview adapter, as an
  * adopter's page draws its own catalog.
  */
-// Web core's basic catalog Icon sets the icon's name in the Material Icons font, as a ligature.
-import '@fontsource/material-icons';
-
 import {renderMarkdown} from '@a2ui/markdown-it';
 import {MarkdownContext, type ReactCatalogComponent} from '@a2ui/react/v0_9';
 import {basicCatalog as basicCatalogV10} from '@a2ui/web_core/catalogs/basic/v1';
 import {Catalog} from '@a2ui/web_core/v0_9';
 import {basicCatalog as basicCatalogV09} from '@a2ui/web_core/v0_9/basic_catalog';
+import iconFontUrl from '@fontsource/material-icons/files/material-icons-latin-400-normal.woff2?url';
 import {SpectraPreview} from 'a2ui-spectra-preview-react';
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
@@ -28,6 +26,14 @@ const basicV091 = new Catalog<ReactCatalogComponent>(
   [...basicV09.functions.values()],
   ...(basicV09.themeSchema === undefined ? [] : [basicV09.themeSchema]),
 );
+
+// Web core's basic catalog Icon sets the icon's name in the Material Icons font, as a ligature.
+// The font loads from the start, and an icon's name stays hidden while it does.
+const iconFont = new FontFace('Material Icons', `url(${iconFontUrl}) format('woff2')`, {
+  display: 'block',
+});
+document.fonts.add(iconFont);
+void iconFont.load();
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

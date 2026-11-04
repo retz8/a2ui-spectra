@@ -204,6 +204,16 @@ describe(`the viewer on the retried-parse record in Chromium, ${binary ? 'the bi
         });
         assert.ok(overflowing.count > 0, 'The preview drew no icon.');
         assert.deepEqual(overflowing.wider, [], 'Icons drawn as their names.');
+        // While the font loads, an icon's name is hidden, not drawn in a fallback font.
+        const displays = await icons
+          .first()
+          .evaluate(icon =>
+            [...icon.ownerDocument.fonts]
+              .filter(face => face.family.replace(/["']/g, '') === 'Material Icons')
+              .map(face => face.display),
+          );
+        assert.ok(displays.length > 0, 'The preview declares no Material Icons font.');
+        assert.deepEqual([...new Set(displays)], ['block']);
       });
     },
   );
