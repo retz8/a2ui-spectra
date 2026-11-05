@@ -4,12 +4,13 @@
  * rest of its path. The four APIs on the providers' own hosts are read in
  * full; every other call is recorded raw. Streams pass on chunk by chunk as
  * they arrive. Credentials are removed from what is recorded, never from
- * what is forwarded.
+ * what is forwarded. Armed with a replay's pool, it serves each call the
+ * pool matches from the record, on the path a forwarded reply takes.
  */
 import {randomBytes} from 'node:crypto';
 import {
-  type ClientRequest,
   createServer,
+  type IncomingHttpHeaders,
   type IncomingMessage,
   type OutgoingHttpHeaders,
   request as httpRequest,
@@ -21,6 +22,18 @@ import type {Duplex} from 'node:stream';
 import {SseParser} from '../a2a/sse.js';
 import type {CallToPlace, PlacedCall} from '../placement.js';
 import type {CallEvent, ModelCallEvent, SpanEvent} from '../record/turn_record.js';
+import {exchangeKey, type PoolAnswer, type ReplayPool} from '../replay/pool.js';
+import {
+  answer502,
+  brokeOff,
+  missLine,
+  recordedAnswer,
+  type ReplyMessage,
+  ServedUpstream,
+  unreachedLine,
+  type Upstream,
+  wasStreamed,
+} from '../replay/served.js';
 import {LOOPBACK_ADDRESS, PortTakenError} from '../server.js';
 import {NAME} from '../version.js';
 import {chunkEvent, endToEndHeaders, requestAttributes, responseAttributes} from './exchange.js';
@@ -84,13 +97,19 @@ const AGENT_CLOSED = 'The agent closed the connection before the response ended.
 
 export interface ModelProxy {
   readonly origin: string;
+  /** Serves from the pool until disarmed: each call it matches, its misses answered with a 502, or in the live mode forwarded. */
+  arm(pool: ReplayPool): void;
+  /** Drops the pool: every call is forwarded again. */
+  disarm(): void;
   close(): Promise<void>;
 }
 
 interface ProxyState {
   options: ModelProxyOptions;
   origin: string;
-  inFlight: Set<ClientRequest>;
+  /** The replay's pool while armed. */
+  pool: ReplayPool | undefined;
+  inFlight: Set<Upstream>;
   sockets: Set<Duplex>;
   /** Set when Spectra stops: a call cut off then ends as aborted. */
   closing: boolean;
@@ -105,6 +124,7 @@ export function startModelProxy(options: ModelProxyOptions): Promise<ModelProxy>
   const state: ProxyState = {
     options,
     origin,
+    pool: undefined,
     inFlight: new Set(),
     sockets: new Set(),
     closing: false,
@@ -121,6 +141,12 @@ export function startModelProxy(options: ModelProxyOptions): Promise<ModelProxy>
     server.listen(options.port, LOOPBACK_ADDRESS, () => {
       resolve({
         origin,
+        arm: pool => {
+          state.pool = pool;
+        },
+        disarm: () => {
+          state.pool = undefined;
+        },
         close: () =>
           new Promise(done => {
             state.closing = true;
@@ -312,7 +338,7 @@ class Capture {
     outcome: {
       response?: {
         status: number;
-        headers: IncomingMessage['headers'];
+        headers: IncomingHttpHeaders;
         body?: string;
         streamed: boolean;
       };
@@ -395,10 +421,29 @@ async function forward(
 
   let capture: Capture | undefined;
   const text = await readBody(raw, request.headers['content-encoding']);
-  if (isTokenRequest(request.headers['content-type'], text)) {
-    state.options.log?.(
-      `A token request, ${method} ${target.origin}${target.pathname}, was passed on unrecorded.`,
-    );
+  const exchange = requestAttributes(method, target, headers, text);
+  const token = isTokenRequest(request.headers['content-type'], text);
+  const pool = state.pool;
+  // Armed, the pool answers every call: a token request, which is never recorded, goes live only in the live mode.
+  const answer: PoolAnswer | undefined =
+    pool === undefined
+      ? undefined
+      : token
+        ? pool.mode === 'model_live'
+          ? {type: 'live'}
+          : {type: 'miss'}
+        : pool.model(exchangeKey(exchange));
+  const standIn =
+    state.options.standInOrigin !== undefined && target.origin === state.options.standInOrigin;
+  const reader = token
+    ? undefined
+    : readerFor(method, target.host, target.pathname, target.searchParams, standIn);
+  if (token) {
+    if (answer?.type !== 'miss') {
+      state.options.log?.(
+        `A token request, ${method} ${target.origin}${target.pathname}, was passed on unrecorded.`,
+      );
+    }
   } else {
     const placed = state.options.place({
       what: `a model call to ${target.host}, ${method} ${target.pathname}`,
@@ -406,9 +451,6 @@ async function forward(
       traceparent: request.headers.traceparent,
     });
     if (placed !== undefined) {
-      const standIn =
-        state.options.standInOrigin !== undefined && target.origin === state.options.standInOrigin;
-      const reader = readerFor(method, target.host, target.pathname, target.searchParams, standIn);
       const bodyJsonValue = text === undefined ? undefined : bodyJson(text);
       capture = new Capture(state, placed, reader, start, {
         ...reader?.request({
@@ -416,13 +458,35 @@ async function forward(
           search: target.searchParams,
           body: bodyJsonValue,
         }),
-        ...requestAttributes(method, target, headers, text),
+        ...exchange,
+        ...(answer?.type === 'served' && {'a2ui.replay.served_from': answer.event.spanId}),
       });
     }
   }
 
-  const send = target.protocol === 'https:' ? httpsRequest : httpRequest;
-  const upstream = send(target, {method, headers});
+  if (answer?.type === 'miss') {
+    const line = missLine('model proxy', method, target);
+    state.options.log?.(line);
+    answer502(response, line);
+    capture?.end({failure: {type: 'replay_miss', message: line}});
+    return;
+  }
+
+  let upstream: Upstream;
+  if (answer?.type === 'served') {
+    const recorded = recordedAnswer(answer.event, {
+      broke: brokeOff(answer.event, statedError(answer.event, reader)),
+    });
+    if (recorded.type === 'unreached') {
+      answer502(response, unreachedLine('model proxy', target.host, recorded.failure));
+      capture?.end({failure: recorded.failure});
+      return;
+    }
+    upstream = new ServedUpstream(recorded.reply);
+  } else {
+    const send = target.protocol === 'https:' ? httpsRequest : httpRequest;
+    upstream = send(target, {method, headers});
+  }
   state.inFlight.add(upstream);
   upstream.once('close', () => state.inFlight.delete(upstream));
 
@@ -437,7 +501,9 @@ async function forward(
     capture.agentClosed(() => upstream.destroy(new Error(AGENT_CLOSED)));
   });
 
-  upstream.once('response', reply => relay(state, reply, response, capture));
+  upstream.once('response', reply =>
+    relay(state, reply, response, capture, answer?.type === 'served'),
+  );
 
   upstream.once('error', error => {
     const code = (error as NodeJS.ErrnoException).code;
@@ -459,19 +525,41 @@ async function forward(
   upstream.end(raw);
 }
 
-/** Passes the reply on as received, and reads a copy into the capture, if there is one. */
+/**
+ * The error a reader finds in a recorded stream's chunks: what the response
+ * states, so a call that failed with it did not break off.
+ */
+function statedError(event: CallEvent, reader: ApiReader | undefined): string | undefined {
+  if (reader === undefined || !wasStreamed(event.attributes)) return undefined;
+  const chunks: StreamChunk[] = (event.events ?? [])
+    .filter(chunk => chunk.name === 'a2ui.http.response.chunk')
+    .map(chunk => {
+      const name = chunk.attributes?.['a2ui.http.response.chunk.event'];
+      return {
+        ...(typeof name === 'string' && {event: name}),
+        data: chunk.attributes?.['a2ui.http.response.chunk.body'],
+      };
+    });
+  return reader.stream(chunks).error?.type;
+}
+
+/** Passes the reply on as received, and reads a copy into the capture, if there is one; `served` when the reply is from a replay's record. */
 function relay(
   state: ProxyState,
-  reply: IncomingMessage,
+  reply: ReplyMessage,
   response: ServerResponse,
   capture: Capture | undefined,
+  served = false,
 ): void {
+  const streamed = /^text\/event-stream\b/i.test(String(reply.headers['content-type'] ?? ''));
   if (!response.destroyed) {
     response.writeHead(
       reply.statusCode ?? 502,
       reply.statusMessage,
       endToEndHeaders(reply.headers),
     );
+    // A served stream's headers go out before its first chunk.
+    if (served && streamed) response.flushHeaders();
     reply.pipe(response);
     reply.once('close', () => {
       if (!reply.complete) {
@@ -488,7 +576,6 @@ function relay(
     return;
   }
   const status = reply.statusCode ?? 0;
-  const streamed = /^text\/event-stream\b/i.test(String(reply.headers['content-type'] ?? ''));
   const decoder = decoderFor(reply.headers['content-encoding']);
   const text = new TextDecoder();
   const sse = new SseParser();
@@ -550,11 +637,19 @@ function relay(
   decoder.once('error', error => breakOff(error));
 }
 
-/** Passes a WebSocket upgrade on to the target as a tunnel, unrecorded. */
+/** Passes a WebSocket upgrade on to the target as a tunnel, unrecorded; armed, only in the live mode. */
 function upgrade(state: ProxyState, request: IncomingMessage, socket: Duplex, head: Buffer): void {
   const target = targetOf(state, request.url ?? '/');
   if (target === undefined) {
     socket.end('HTTP/1.1 404 Not Found\r\nconnection: close\r\n\r\n');
+    return;
+  }
+  if (state.pool !== undefined && state.pool.mode !== 'model_live') {
+    const line = missLine('model proxy', request.method ?? 'GET', target);
+    state.options.log?.(line);
+    socket.end(
+      `HTTP/1.1 502 Bad Gateway\r\ncontent-type: text/plain; charset=utf-8\r\nconnection: close\r\n\r\n${line}\n`,
+    );
     return;
   }
   state.options.log?.(

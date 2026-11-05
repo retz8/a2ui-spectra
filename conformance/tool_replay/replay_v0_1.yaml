@@ -1,0 +1,53 @@
+# The tool replay path: each tool capture scenario run against its expected
+# record instead of the tool server, the tool proxy armed with the record and
+# answering as the server; the client must get each reply as recorded, the
+# calls the proxy captures must match the record, and a changed call must
+# miss.
+
+- name: tools
+  description: "initialize and tools/list served by method, notifications/initialized answered with the protocol's 202, and three tools/call served by their params in recorded order, their ids rewritten to the client's: a result, isError kept as a tool error, and a JSON-RPC error."
+  action: replay_tool
+  scenario: tools
+  expect:
+    streamable_http: "test_data/tool_capture/v0_1/tools/streamable_http.json"
+    streamable_http_json: "test_data/tool_capture/v0_1/tools/streamable_http_json.json"
+    http_sse: "test_data/tool_capture/v0_1/tools/http_sse.json"
+
+- name: resources_and_prompts
+  description: "resources/list and prompts/list served by method, resources/read by its URI and prompts/get by its name and arguments, each from the record."
+  action: replay_tool
+  scenario: resources_and_prompts
+  expect:
+    streamable_http: "test_data/tool_capture/v0_1/resources_and_prompts/streamable_http.json"
+    streamable_http_json: "test_data/tool_capture/v0_1/resources_and_prompts/streamable_http_json.json"
+    http_sse: "test_data/tool_capture/v0_1/resources_and_prompts/http_sse.json"
+
+- name: progress_and_logging
+  description: "tools/call progress keyed with its _meta left out and served with its progress notifications, their token rewritten to the client's: in the POST's stream under streamable HTTP; on the carrier under HTTP+SSE, where the log message the server sent on its own is not re-sent."
+  action: replay_tool
+  scenario: progress_and_logging
+  expect:
+    streamable_http: "test_data/tool_capture/v0_1/progress_and_logging/streamable_http.json"
+    http_sse: "test_data/tool_capture/v0_1/progress_and_logging/http_sse.json"
+
+- name: sampling
+  description: "tools/call ask: under streamable HTTP its stream served as recorded, the server's sampling request inside it, and the client's answering POST given the protocol's 202; under HTTP+SSE its result served directly, the sampling request the server initiated not re-sent."
+  action: replay_tool
+  scenario: sampling
+  expect:
+    streamable_http: "test_data/tool_capture/v0_1/sampling/streamable_http.json"
+    http_sse: "test_data/tool_capture/v0_1/sampling/http_sse.json"
+
+- name: session_end
+  description: "The session as recorded under streamable HTTP: Mcp-Session-Id as the recorded initialize answered it, a GET carrier held open with nothing written, and the DELETE answered as recorded."
+  action: replay_tool
+  scenario: session_end
+  expect:
+    streamable_http: "test_data/tool_capture/v0_1/session_end/streamable_http.json"
+
+- name: http_routes
+  description: "HTTP tools served by their method, URL and body: a GET with a query, a POST with a body, a server-sent-event route as one event per recorded chunk, and a 404 as recorded."
+  action: replay_tool
+  scenario: http_routes
+  expect:
+    http: "test_data/tool_capture/v0_1/http_routes/http.json"

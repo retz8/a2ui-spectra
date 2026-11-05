@@ -21,22 +21,23 @@ interface TurnRecordCase {
 }
 
 /**
- * A case of the A2A capture suite or the model capture suite, with its
- * recording and its expected record, or of the tool capture suite, with an
- * expected record per transport its scenario runs over.
+ * A case of the A2A capture suite, the model capture suite or the model
+ * replay suite, with its recording and its expected record, or of the tool
+ * capture suite or the tool replay suite, with an expected record per
+ * transport its scenario runs over.
  */
 type CaptureCase =
   | {
       name: string;
       description: string;
-      action: 'capture_a2a' | 'capture_model';
+      action: 'capture_a2a' | 'capture_model' | 'replay_model';
       traffic: string;
       expect: string;
     }
   | {
       name: string;
       description: string;
-      action: 'capture_tool';
+      action: 'capture_tool' | 'replay_tool';
       scenario: string;
       expect: Record<string, string>;
     }
@@ -328,6 +329,37 @@ for (const {title, suite, root} of CAPTURE_SUITES) {
         [],
         'files no case names',
       );
+    });
+  });
+}
+
+/** The replay suites, which run the capture suites' data: each one's case list and the capture suite it replays. */
+const REPLAY_SUITES = [
+  {
+    title: 'model replay v0.1',
+    suite: path.join(CONFORMANCE_DIR, 'model_replay/replay_v0_1.yaml'),
+    capture: path.join(CONFORMANCE_DIR, 'model_capture/capture_v0_1.yaml'),
+  },
+  {
+    title: 'tool replay v0.1',
+    suite: path.join(CONFORMANCE_DIR, 'tool_replay/replay_v0_1.yaml'),
+    capture: path.join(CONFORMANCE_DIR, 'tool_capture/capture_v0_1.yaml'),
+  },
+];
+
+for (const {title, suite, capture} of REPLAY_SUITES) {
+  const replayCases = loadCases<CaptureCase>(suite);
+  const captureCases = loadCases<CaptureCase>(capture);
+  describe(`${title} cases`, () => {
+    it('every case replays a capture case of the same name, on its data', () => {
+      for (const c of replayCases) {
+        const twin = captureCases.find(item => item.name === c.name);
+        assert.ok(twin !== undefined, `${c.name} names no capture case`);
+        assert.deepEqual(namedFiles(c), namedFiles(twin), `${c.name} names its twin's files`);
+        if ('scenario' in c && 'scenario' in twin) {
+          assert.equal(c.scenario, twin.scenario, `${c.name} runs its twin's scenario`);
+        }
+      }
     });
   });
 }

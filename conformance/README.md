@@ -1,6 +1,6 @@
 # Conformance Testing
 
-Language-agnostic test data for the A2UI turn record, specified in [`specification/turn_record/`](../specification/turn_record), and for the capture paths that write it. A fixture is a turn record.
+Language-agnostic test data for the A2UI turn record, specified in [`specification/turn_record/`](../specification/turn_record), for the capture paths that write it, and for the proxies replaying it. A fixture is a turn record.
 
 ## Suite Structure
 
@@ -121,6 +121,16 @@ A scripted Gemini cache read on a repeated long prefix reported no hit and was n
 | `http`                 | The plain HTTP routes                                  |
 
 The expected records were written by the harness from its first capture, with `SPECTRA_WRITE_TOOL_CAPTURE=1`, and checked by hand against the rules of `_dev/docs/spec/task-5.3-tool-proxy.md`.
+
+### Model replay (`model_replay/`)
+
+- `model_replay/replay_v0_1.yaml`: runs each model capture case against its expected record instead of the provider. Every case uses `action: replay_model` and names the same recording and expected record as the capture case of its name; there are no recordings of its own.
+- A harness arms the model proxy with the expected record in everything-recorded mode, its targets at an origin where nothing listens and its calls' `url.full` moved there, opens one turn and sends each recorded request through the proxy under the prefix of the provider's variable. It checks that the agent's side received each reply as recorded, compared by server-sent events, each one's data by JSON value, or by the body's JSON value, a broken-off reply breaking. It closes the turn and compares the calls the turn holds with the expected record by the capture suite's comparison, each call's `a2ui.replay.served_from` the span id of the recorded call at its place. Then, against the record again, it sends the first request read in full, else the first request, with the last string value of its body changed: the agent's side gets the `502` with the proxy's one line, the terminal gets that line, and the turn holds a failed call with `error.type` `replay_miss` and no response attributes. Spectra's harness is `tools/spectra/src/model_proxy/replay.conformance.test.ts`.
+
+### Tool replay (`tool_replay/`)
+
+- `tool_replay/replay_v0_1.yaml`: runs each tool capture scenario against its expected records instead of the tool server. Every case uses `action: replay_tool` and names the same scenario and expected records as the capture case of its name.
+- A harness makes each expected record concrete, `<origin>` an origin where nothing listens, `<session-N>` a session id, and `<id-N>` the id the SDK's client numbered it, N - 1, then arms the tool proxy with it and runs the scenario over the transport with one turn open. The plain HTTP routes' replies are checked against the recorded calls, by server-sent events or by JSON value. It closes the turn and compares the calls it holds with the expected record by the capture suite's comparison, with the events the server initiated, `kind` `4`, dropped from the expected side, as replay does not re-send them, and the answers the protocol fixes, a notification's and a client's response's `202`, compared without their response headers. Every other call names the recorded call it was served from in `a2ui.replay.served_from`, and those answers name none. Then, against the record again, a client calls the first recorded `tools/call` with one argument changed, or `echo` when the scenario calls no tool, or the routes take a `POST` with a changed body: the call fails with the `502`, the terminal gets the proxy's one line, and the turn holds a failed call with `error.type` `replay_miss` and no response attributes. Spectra's harness is `tools/spectra/src/tool_proxy/replay.conformance.test.ts`.
 
 ### Receiver capture (`receiver_capture/`)
 
@@ -305,6 +315,50 @@ The harness validates with Ajv 8's draft 2020-12 build in strict mode, with Ajv'
 
 A new scenario is written in the harness, which runs it with the MCP SDK's client against the tool server; its expected records are written with `SPECTRA_WRITE_TOOL_CAPTURE=1` and checked by hand.
 
+## Writing cases for `replay_model`
+
+A case replays a `capture_model` case, of the same name, on that case's files.
+
+| Field         | Required | Meaning                                                                                                                             |
+| ------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | yes      | The name of the `capture_model` case it replays.                                                                                    |
+| `description` | yes      | What replay exercises in the recording.                                                                                             |
+| `action`      | yes      | `replay_model`.                                                                                                                     |
+| `traffic`     | yes      | The capture case's recording, relative to `conformance/`.                                                                           |
+| `expect`      | yes      | The capture case's expected record, relative to `conformance/`, which the proxy is armed with.                                      |
+| `readInFull`  | no       | Whether the record's origin is read as the providers' own hosts. `true` by default; `false` reads every call raw, as its twin does. |
+
+```yaml
+- name: anthropic_cache_write_then_read
+  description: 'Two calls on the same long system prompt served from the record, each carrying its recorded token usage, the cache write and the cache read.'
+  action: replay_model
+  traffic: 'test_data/model_capture/v0_1/anthropic/cache_write_then_read.har'
+  expect: 'test_data/model_capture/v0_1/anthropic/cache_write_then_read.json'
+```
+
+## Writing cases for `replay_tool`
+
+A case replays a `capture_tool` case, of the same name, on that case's scenario and expected records.
+
+| Field         | Required | Meaning                                                                                                          |
+| ------------- | -------- | ---------------------------------------------------------------------------------------------------------------- |
+| `name`        | yes      | The name of the `capture_tool` case it replays.                                                                  |
+| `description` | yes      | What replay exercises in the scenario.                                                                           |
+| `action`      | yes      | `replay_tool`.                                                                                                   |
+| `scenario`    | yes      | The capture case's scenario.                                                                                     |
+| `expect`      | yes      | The capture case's expected record of each transport, relative to `conformance/`, which the proxy is armed with. |
+
+```yaml
+- name: session_end
+  description: 'The session as recorded under streamable HTTP: Mcp-Session-Id as the recorded initialize answered it, a GET carrier held open with nothing written, and the DELETE answered as recorded.'
+  action: replay_tool
+  scenario: session_end
+  expect:
+    streamable_http: 'test_data/tool_capture/v0_1/session_end/streamable_http.json'
+```
+
+The conformance package's own test checks that each replay case names a capture case and that case's files.
+
 ## Writing cases for `capture_receiver`
 
 | Field         | Required | Meaning                                                                                                            |
@@ -369,6 +423,7 @@ A new case's valid text is recorded with the recorder, its error text written by
 - Every expected record of the A2A, model, tool, receiver and wrapper capture suites validates against the turn record schema.
 - Every job of the wrapper capture suite matches `WrapperCaptureJob` in `conformance_schema.json`, and a case with a record per language names one for each language its job runs in.
 - Every file under `test_data/a2a_capture/`, `test_data/model_capture/`, `test_data/tool_capture/`, `test_data/receiver_capture/` and `test_data/wrapper_capture/` is named by a case: for the wrapper capture suite, by its job, the files the job names, or its expected records.
+- Every case of the model and tool replay suites names a capture case of its name, and that case's recording or scenario and expected records.
 
 ## Commands
 

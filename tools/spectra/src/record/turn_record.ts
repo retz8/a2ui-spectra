@@ -285,6 +285,8 @@ export interface ModelCallAttributes {
   'server.port'?: number;
   'a2ui.http.request.body'?: unknown;
   'a2ui.http.response.body'?: unknown;
+  /** The span id of the recorded event a replay served this call from; absent on a live call. */
+  'a2ui.replay.served_from'?: string;
   'error.type'?: string;
   [name: string]: unknown;
 }
@@ -317,6 +319,8 @@ export interface ToolCallAttributes {
   'server.port'?: number;
   'a2ui.http.request.body'?: unknown;
   'a2ui.http.response.body'?: unknown;
+  /** The span id of the recorded event a replay served this call from; absent on a live call. */
+  'a2ui.replay.served_from'?: string;
   'error.type'?: string;
   [name: string]: unknown;
 }

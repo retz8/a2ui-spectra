@@ -19,6 +19,12 @@
         "$ref": "#/$defs/CaptureToolTest"
       },
       {
+        "$ref": "#/$defs/ReplayModelTest"
+      },
+      {
+        "$ref": "#/$defs/ReplayToolTest"
+      },
+      {
         "$ref": "#/$defs/CaptureReceiverTest"
       },
       {
@@ -172,6 +178,84 @@
           "minProperties": 1,
           "additionalProperties": false,
           "description": "The expected turn record of each transport the scenario runs over, relative to conformance/.",
+          "properties": {
+            "streamable_http": {
+              "type": "string",
+              "description": "MCP over streamable HTTP, each reply a stream of server-sent events."
+            },
+            "streamable_http_json": {
+              "type": "string",
+              "description": "MCP over streamable HTTP, each reply JSON."
+            },
+            "http_sse": {
+              "type": "string",
+              "description": "MCP over HTTP+SSE."
+            },
+            "http": {
+              "type": "string",
+              "description": "Plain HTTP requests to the server's routes."
+            }
+          }
+        }
+      },
+      "required": ["name", "description", "action", "scenario", "expect"],
+      "additionalProperties": false
+    },
+    "ReplayModelTest": {
+      "type": "object",
+      "description": "Runs one model capture case against its expected record instead of the provider: the model proxy armed with the record in everything-recorded mode, each recorded request sent through it, the replies compared with the recording and the calls it captures with the expected record, then one changed request that must miss.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique name of the test case."
+        },
+        "description": {
+          "type": "string",
+          "description": "What replay exercises in the recording."
+        },
+        "action": {
+          "const": "replay_model"
+        },
+        "traffic": {
+          "type": "string",
+          "description": "Path of the capture case's HAR 1.2 recording, relative to conformance/."
+        },
+        "expect": {
+          "type": "string",
+          "description": "Path of the capture case's expected turn record, relative to conformance/, which the proxy is armed with."
+        },
+        "readInFull": {
+          "type": "boolean",
+          "description": "Whether the record's origin is read as the providers' own hosts. Default true; false reads every call raw, as the capture case does."
+        }
+      },
+      "required": ["name", "description", "action", "traffic", "expect"],
+      "additionalProperties": false
+    },
+    "ReplayToolTest": {
+      "type": "object",
+      "description": "Runs one tool capture scenario against its expected records instead of the tool server: the tool proxy armed with the record of each transport the case names and answering as the server, the calls it captures compared with the record, then one changed call that must miss.",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique name of the test case."
+        },
+        "description": {
+          "type": "string",
+          "description": "What replay exercises in the scenario."
+        },
+        "action": {
+          "const": "replay_tool"
+        },
+        "scenario": {
+          "type": "string",
+          "description": "The name of the capture suite's client scenario the harness runs."
+        },
+        "expect": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "description": "The capture case's expected turn record of each transport, relative to conformance/, which the proxy is armed with.",
           "properties": {
             "streamable_http": {
               "type": "string",

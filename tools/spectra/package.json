@@ -96,6 +96,8 @@
         "../../conformance/model_capture/**",
         "../../conformance/test_data/tool_capture/**",
         "../../conformance/tool_capture/**",
+        "../../conformance/model_replay/**",
+        "../../conformance/tool_replay/**",
         "../../specification/turn_record/v0_1/json/*.json",
         "../../samples/preview/catalog.json",
         "../../samples/preview/*/a2ui-spectra.json",

@@ -7,24 +7,27 @@
  */
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
-import {createServer, request as httpRequest, type Server} from 'node:http';
 import * as path from 'node:path';
 import {after, describe, it} from 'node:test';
-import {fileURLToPath} from 'node:url';
 
 import * as yaml from 'js-yaml';
 
 import {CallPlacer} from '../placement.js';
+import type {Turn, TurnRecord} from '../record/turn_record.js';
 import {
-  isEventOfKind,
-  type ModelCallEvent,
-  type Turn,
-  type TurnRecord,
-} from '../record/turn_record.js';
+  CONFORMANCE_DIR,
+  comparable,
+  freePort,
+  type HarEntry,
+  modelCalls,
+  PREFIXES,
+  readJson,
+  sendEntry,
+} from '../testing/model_traffic.js';
 import {startStandIn} from '../testing/stand_in_provider.js';
 import {turnRecordErrors} from '../testing/turn_record_schema.js';
 import {type ModelProxy, startModelProxy} from './proxy.js';
-import {type Redirection, redirections, type Variable} from './redirection.js';
+import {type Redirection, redirections} from './redirection.js';
 
 interface CaptureModelCase {
   name: string;
@@ -36,160 +39,15 @@ interface CaptureModelCase {
   readInFull?: boolean;
 }
 
-interface HarHeader {
-  name: string;
-  value: string;
-}
-
-interface HarEntry {
-  request: {method: string; url: string; headers: HarHeader[]; postData?: {text: string}};
-  response: {
-    status: number;
-    statusText: string;
-    headers: HarHeader[];
-    content: {text: string};
-    _brokenOff?: boolean;
-  };
-}
-
-/** Walks up from this file until it finds the shared conformance directory. */
-function findConformanceDir(): string {
-  let dir = path.dirname(fileURLToPath(import.meta.url));
-  while (dir !== path.parse(dir).root) {
-    const candidate = path.join(dir, 'conformance', 'conformance_schema.json');
-    if (fs.existsSync(candidate)) {
-      return path.dirname(candidate);
-    }
-    dir = path.dirname(dir);
-  }
-  throw new Error('Could not find conformance/conformance_schema.json');
-}
-
-const CONFORMANCE_DIR = findConformanceDir();
 const SUITE = path.join(CONFORMANCE_DIR, 'model_capture/capture_v0_1.yaml');
 
 const TRACE_ID = 'c'.repeat(32);
 const TURN_SPAN_ID = 'd'.repeat(16);
 
-/** What Spectra generates rather than reads off the traffic, which the comparison skips. */
-const GENERATED_FIELDS = new Set([
-  'traceId',
-  'spanId',
-  'parentSpanId',
-  'startTimeUnixNano',
-  'endTimeUnixNano',
-]);
-/** Timings, where the request went, and the headers the replay adds. */
-const GENERATED_ATTRIBUTES = new Set([
-  'gen_ai.response.time_to_first_chunk',
-  'server.address',
-  'server.port',
-  'http.request.header.host',
-  'http.request.header.content-length',
-  'http.request.header.connection',
-  'http.response.header.date',
-  'http.response.header.content-length',
-]);
-
-/** The variable's prefix each provider's host is sent under, and the path the target base already holds. */
-const PREFIXES: Record<string, {variable: Variable; basePath: string}> = {
-  'generativelanguage.googleapis.com': {variable: 'GOOGLE_GEMINI_BASE_URL', basePath: ''},
-  'api.openai.com': {variable: 'OPENAI_BASE_URL', basePath: '/v1'},
-  'api.anthropic.com': {variable: 'ANTHROPIC_BASE_URL', basePath: ''},
-};
-
-function readJson<T>(file: string): T {
-  return JSON.parse(fs.readFileSync(path.join(CONFORMANCE_DIR, file), 'utf8')) as T;
-}
-
 const proxies: ModelProxy[] = [];
 after(async () => {
   await Promise.all(proxies.map(proxy => proxy.close()));
 });
-
-function freePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server: Server = createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      const port = typeof address === 'object' && address !== null ? address.port : 0;
-      server.close(() => resolve(port));
-    });
-  });
-}
-
-/** One recorded request sent to the proxy under its host's prefix; resolves with what the agent's side received. */
-function send(
-  proxy: ModelProxy,
-  entry: HarEntry,
-): Promise<{status: number; body: string; brokenOff: boolean}> {
-  const origin = new URL(proxy.origin);
-  const url = new URL(entry.request.url);
-  const prefix = PREFIXES[url.hostname] ?? {variable: 'OPENAI_BASE_URL', basePath: '/v1'};
-  const rest = url.pathname.startsWith(prefix.basePath)
-    ? url.pathname.slice(prefix.basePath.length)
-    : url.pathname;
-  const body = entry.request.postData?.text;
-  const headers = Object.fromEntries(
-    entry.request.headers
-      .filter(({name}) => name.toLowerCase() !== 'content-length')
-      .map(({name, value}) => [name, value]),
-  );
-  return new Promise((resolve, reject) => {
-    const request = httpRequest(
-      {
-        host: origin.hostname,
-        port: origin.port,
-        method: entry.request.method,
-        path: `/${prefix.variable}${rest}${url.search}`,
-        headers,
-      },
-      response => {
-        const chunks: Buffer[] = [];
-        const answer = (brokenOff: boolean) =>
-          resolve({
-            status: response.statusCode ?? 0,
-            body: Buffer.concat(chunks).toString('utf8'),
-            brokenOff,
-          });
-        response.on('data', (chunk: Buffer) => chunks.push(chunk));
-        response.once('end', () => answer(false));
-        response.once('aborted', () => answer(true));
-        response.once('error', () => answer(true));
-      },
-    );
-    request.on('error', reject);
-    request.end(body);
-  });
-}
-
-/** An event with what Spectra generates left out, and the request's origin replaced by a marker. */
-function comparable(event: ModelCallEvent): unknown {
-  const attributes = Object.fromEntries(
-    Object.entries(event.attributes)
-      .filter(([name]) => !GENERATED_ATTRIBUTES.has(name))
-      .map(([name, value]) =>
-        name === 'url.full' && typeof value === 'string'
-          ? [name, value.replace(/^https?:\/\/[^/]+/, '<origin>')]
-          : [name, value],
-      ),
-  );
-  const fields = Object.fromEntries(
-    Object.entries(event).filter(([key]) => !GENERATED_FIELDS.has(key)),
-  );
-  return {
-    ...fields,
-    attributes,
-    ...(event.events && {
-      events: event.events.map(({timeUnixNano: _time, ...rest}) => rest),
-    }),
-  };
-}
-
-function modelCalls(turn: Turn): ModelCallEvent[] {
-  return turn.events.filter((event): event is ModelCallEvent => isEventOfKind(event, 'model_call'));
-}
 
 async function runCase(c: CaptureModelCase): Promise<void> {
   const entries = readJson<{log: {entries: HarEntry[]}}>(c.traffic).log.entries;
@@ -228,7 +86,7 @@ async function runCase(c: CaptureModelCase): Promise<void> {
 
   try {
     for (const [index, entry] of entries.entries()) {
-      const received = await send(proxy, entry);
+      const received = await sendEntry(proxy.origin, entry);
       const label = `exchange ${index + 1}, ${entry.request.method} ${new URL(entry.request.url).pathname}`;
       assert.equal(received.status, entry.response.status, `${label}: the status`);
       if (entry.response._brokenOff === true) {

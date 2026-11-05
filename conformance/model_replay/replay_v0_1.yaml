@@ -1,0 +1,84 @@
+# The model replay path: each model capture case run against its expected
+# record instead of the provider, the model proxy armed with the record in
+# everything-recorded mode; each reply must reach the agent's side as
+# recorded, the calls it captures must match the record, and a changed
+# request must miss.
+
+- name: openai_chat_reference_examples
+  description: "Chat Completions served from the record, each request keyed by its method, URL and body: a JSON reply, a stream with its usage in the last chunk, a tool call and the request carrying its result, a usage reporting cached_tokens, an unknown model's 404 served as recorded with its body, and an error object inside a 2xx stream served as its chunks with a clean end."
+  action: replay_model
+  traffic: "test_data/model_capture/v0_1/openai_chat/reference_examples.har"
+  expect: "test_data/model_capture/v0_1/openai_chat/reference_examples.json"
+
+- name: openai_responses_reference_examples
+  description: "The Responses API served from the record: a JSON reply, a stream to response.completed, a function call and the request carrying its output, an unknown model's 404 as recorded, and a stream ending in response.failed served as its chunks with a clean end."
+  action: replay_model
+  traffic: "test_data/model_capture/v0_1/openai_responses/reference_examples.har"
+  expect: "test_data/model_capture/v0_1/openai_responses/reference_examples.json"
+
+- name: anthropic_overloaded_stream
+  description: "A Messages stream carrying an error event, overloaded_error, served as its chunks with a clean end: the replayed call fails as the recorded one did, on the error its chunks state."
+  action: replay_model
+  traffic: "test_data/model_capture/v0_1/anthropic/overloaded_stream.har"
+  expect: "test_data/model_capture/v0_1/anthropic/overloaded_stream.json"
+
+- name: gemini_rate_limited
+  description: "A 429 served as recorded, status and body, the provider's message read from it again as the status message."
+  action: replay_model
+  traffic: "test_data/model_capture/v0_1/gemini/rate_limited.har"
+  expect: "test_data/model_capture/v0_1/gemini/rate_limited.json"
+
+- name: gemini_restaurant_finder_google_genai
+  description: "The Python restaurant finder's three streamed generateContent calls served in recorded order, each keyed by its body, the key the agent sends in x-goog-api-key no part of the key."
+  action: replay_model
+  traffic: "test_data/model_capture/v0_1/gemini/restaurant_finder_google_genai.har"
+  expect: "test_data/model_capture/v0_1/gemini/restaurant_finder_google_genai.json"
+
+- name: gemini_custom_components_litellm
+  description: "The custom-components example's three streamed calls through LiteLLM served from the record, keyed by the URL under the version LiteLLM's custom base leaves out."
+  action: replay_model
+  traffic: "test_data/model_capture/v0_1/gemini/custom_components_litellm.har"
+  expect: "test_data/model_capture/v0_1/gemini/custom_components_litellm.json"
+
+- name: anthropic_custom_components_litellm
+  description: "The custom-components example's three streamed Messages calls through LiteLLM served from the record, the key in x-api-key no part of the key."
+  action: replay_model
+  traffic: "test_data/model_capture/v0_1/anthropic/custom_components_litellm.har"
+  expect: "test_data/model_capture/v0_1/anthropic/custom_components_litellm.json"
+
+- name: anthropic_cache_write_then_read
+  description: "Two calls on the same long system prompt served from the record, each carrying its recorded token usage, the cache write and the cache read."
+  action: replay_model
+  traffic: "test_data/model_capture/v0_1/anthropic/cache_write_then_read.har"
+  expect: "test_data/model_capture/v0_1/anthropic/cache_write_then_read.json"
+
+- name: anthropic_unknown_model
+  description: "An unknown model's 404 served as recorded, the provider's message read from its body again."
+  action: replay_model
+  traffic: "test_data/model_capture/v0_1/anthropic/unknown_model.har"
+  expect: "test_data/model_capture/v0_1/anthropic/unknown_model.json"
+
+- name: gemini_unknown_model_and_count_tokens
+  description: "A 404 on generateContent served as recorded, then countTokens, a call recorded raw, served from the record by the same key."
+  action: replay_model
+  traffic: "test_data/model_capture/v0_1/gemini/unknown_model_and_count_tokens.har"
+  expect: "test_data/model_capture/v0_1/gemini/unknown_model_and_count_tokens.json"
+
+- name: gemini_rate_limited_on_another_host
+  description: "A call recorded raw, at an origin no provider owns, served from the record by its exchange alone."
+  action: replay_model
+  traffic: "test_data/model_capture/v0_1/gemini/rate_limited.har"
+  expect: "test_data/model_capture/v0_1/gemini/rate_limited_raw.json"
+  readInFull: false
+
+- name: openai_chat_custom_components_conversation
+  description: "The custom-components example's conversation on Chat Completions served from the record: the get_contact_info call streamed in pieces, the answer, and the answer again after the validation retry, three requests that share a prefix and differ in their bodies."
+  action: replay_model
+  traffic: "test_data/model_capture/v0_1/openai_chat/custom_components_conversation.har"
+  expect: "test_data/model_capture/v0_1/openai_chat/custom_components_conversation.json"
+
+- name: openai_responses_custom_components_conversation
+  description: "The same conversation on the Responses API served from the record, response.completed carrying each response's usage."
+  action: replay_model
+  traffic: "test_data/model_capture/v0_1/openai_responses/custom_components_conversation.har"
+  expect: "test_data/model_capture/v0_1/openai_responses/custom_components_conversation.json"

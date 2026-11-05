@@ -690,6 +690,9 @@
                   "a2ui.retry.attempt": {
                     "type": "integer",
                     "minimum": 1
+                  },
+                  "a2ui.replay.served_from": {
+                    "$ref": "#/$defs/SpanId"
                   }
                 },
                 "required": ["a2ui.event.kind"],
@@ -771,6 +774,9 @@
                   },
                   "a2ui.mcp.stream.url": {
                     "type": "string"
+                  },
+                  "a2ui.replay.served_from": {
+                    "$ref": "#/$defs/SpanId"
                   },
                   "mcp.protocol.version": {
                     "type": "string"

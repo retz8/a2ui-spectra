@@ -52,6 +52,8 @@
         "../specification/turn_record/**/json/*.json",
         "tool_capture/**",
         "test_data/tool_capture/**",
+        "model_replay/**",
+        "tool_replay/**",
         "receiver_capture/**",
         "test_data/receiver_capture/**",
         "wrapper_capture/**",

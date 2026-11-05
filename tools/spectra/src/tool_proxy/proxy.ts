@@ -6,11 +6,12 @@
  * message, a carrier stream whose messages attach to the events they answer,
  * MCP's session end, or an HTTP tool request recorded raw. Streams pass on
  * event by event as they arrive. Credentials are removed from what is
- * recorded, never from what is forwarded.
+ * recorded, never from what is forwarded. Armed with a replay's pool, it is
+ * the server: each request is answered from the record, or as the protocol
+ * fixes, on the path a forwarded reply takes, and nothing is forwarded.
  */
 import {randomBytes} from 'node:crypto';
 import {
-  type ClientRequest,
   createServer,
   type IncomingHttpHeaders,
   type IncomingMessage,
@@ -40,7 +41,22 @@ import {
 } from '../model_proxy/forwarding.js';
 import type {CallListener} from '../model_proxy/proxy.js';
 import type {CallToPlace, PlacedCall, Unplaced} from '../placement.js';
-import type {SpanEvent, ToolCallEvent} from '../record/turn_record.js';
+import type {CallEvent, SpanEvent, ToolCallEvent} from '../record/turn_record.js';
+import {exchangeKey, type ReplayPool} from '../replay/pool.js';
+import {
+  answer502,
+  brokeOff,
+  missLine,
+  recordedAnswer,
+  recordedEvents,
+  type ReplyMessage,
+  type ServedReply,
+  ServedUpstream,
+  sseText,
+  unreachedLine,
+  type Upstream,
+  wasStreamed,
+} from '../replay/served.js';
 import {LOOPBACK_ADDRESS, PortTakenError} from '../server.js';
 import {NAME} from '../version.js';
 import {
@@ -86,6 +102,10 @@ export interface ToolProxyOptions {
 export interface ToolProxy {
   /** Each listener's origin, in the servers' order. */
   readonly origins: string[];
+  /** Serves from the pool until disarmed, as the server: every request answered from the record, or as the protocol fixes, or a miss. */
+  arm(pool: ReplayPool): void;
+  /** Drops the pool and closes the carriers held open: every request is forwarded again. */
+  disarm(): void;
   close(): Promise<void>;
 }
 
@@ -106,7 +126,11 @@ interface Shared {
   closeGraceMs: number;
   /** Set when Spectra stops: a call cut off then ends as aborted. */
   closing: boolean;
-  inFlight: Set<ClientRequest>;
+  /** The replay's pool while armed. */
+  pool: ReplayPool | undefined;
+  /** The carriers the armed proxy holds open itself, closed when it is disarmed. */
+  held: Set<ServerResponse>;
+  inFlight: Set<Upstream>;
   sockets: Set<Duplex>;
   /** The calls not yet ended. */
   open: Set<ToolCapture>;
@@ -144,6 +168,8 @@ interface Session {
   opening?: {at: bigint; endpoint: {event: SseEvent; at: bigint}; posted: boolean};
   /** HTTP+SSE: the session's `GET` stream URL on the original server, credentials removed, `a2ui.mcp.stream.url`. */
   streamUrl?: string;
+  /** Armed, under HTTP+SSE: the carrier the proxy holds open, where a served reply is written. */
+  outlet?: ServerResponse;
 }
 
 /** One listener, for one tool server. */
@@ -167,6 +193,8 @@ export async function startToolProxy(options: ToolProxyOptions): Promise<ToolPro
     newSpanId: options.newSpanId ?? (() => randomBytes(8).toString('hex')),
     closeGraceMs: options.closeGraceMs ?? DEFAULT_CLOSE_GRACE_MS,
     closing: false,
+    pool: undefined,
+    held: new Set(),
     inFlight: new Set(),
     sockets: new Set(),
     open: new Set(),
@@ -180,6 +208,9 @@ export async function startToolProxy(options: ToolProxyOptions): Promise<ToolPro
     }
     for (const socket of shared.sockets) {
       socket.destroy();
+    }
+    for (const carrier of shared.held) {
+      carrier.destroy();
     }
     const at = shared.now();
     for (const capture of [...shared.open]) {
@@ -207,7 +238,19 @@ export async function startToolProxy(options: ToolProxyOptions): Promise<ToolPro
     await close();
     throw error;
   }
-  return {origins: options.servers.map(server => server.proxyOrigin), close};
+  return {
+    origins: options.servers.map(server => server.proxyOrigin),
+    arm: pool => {
+      shared.pool = pool;
+    },
+    disarm: () => {
+      shared.pool = undefined;
+      for (const carrier of [...shared.held]) {
+        carrier.end();
+      }
+    },
+    close,
+  };
 }
 
 function listen(shared: Shared, server: ToolServer): Promise<Server> {
@@ -223,6 +266,14 @@ function listen(shared: Shared, server: ToolServer): Promise<Server> {
   const http = createServer((request, response) => handle(listener, request, response));
   http.on('upgrade', (request: IncomingMessage, socket: Duplex, head: Buffer) => {
     const target = targetOf(listener, request);
+    if (shared.pool !== undefined) {
+      const line = missLine('tool proxy', request.method ?? 'GET', target);
+      shared.options.log?.(line);
+      socket.end(
+        `HTTP/1.1 502 Bad Gateway\r\ncontent-type: text/plain; charset=utf-8\r\nconnection: close\r\n\r\n${line}\n`,
+      );
+      return;
+    }
     shared.options.log?.(
       `A WebSocket upgrade, ${removeFromUrl(target.origin + target.pathname)}, was passed on unrecorded.`,
     );
@@ -278,7 +329,15 @@ async function route(
     start,
     headers: forwardedHeaders(request, raw, target),
   };
+  const pool = shared.pool;
   if (isTokenRequest(request.headers['content-type'], text)) {
+    if (pool !== undefined) {
+      // A token request is never recorded, so the record cannot answer it.
+      const line = missLine('tool proxy', method, target);
+      shared.options.log?.(line);
+      answer502(response, line);
+      return;
+    }
     shared.options.log?.(
       `A token request, ${method} ${removeFromUrl(target.origin + target.pathname)}, was passed on unrecorded.`,
     );
@@ -291,7 +350,8 @@ async function route(
   } else if (method === 'DELETE' && header(request.headers, 'mcp-session-id') !== undefined) {
     sessionEnd(call);
   } else if (method === 'GET') {
-    getRequest(call);
+    if (pool === undefined) getRequest(call);
+    else armedGet(call, pool);
   } else {
     httpTool(
       call,
@@ -299,6 +359,7 @@ async function route(
         listener,
         placeOf(call, `a tool call to ${target.host}, ${method} ${target.pathname}`),
       ),
+      pool === undefined ? undefined : {served: pool.httpTool(httpToolKey(call))},
     );
   }
 }
@@ -506,12 +567,19 @@ interface Relay {
   agentClosed?(drop: () => void): void;
 }
 
-/** Forwards the request as received, passes the reply back as received, and hands a copy to the relay. */
-function forward(call: Call, relay: Relay): void {
+/**
+ * Forwards the request as received, passes the reply back as received, and
+ * hands a copy to the relay. With `served`, the served reply stands where the
+ * forwarded one would, and nothing is forwarded.
+ */
+function forward(call: Call, relay: Relay, served?: ServedReply): void {
   const {listener, request, raw, target, response} = call;
   const {shared} = listener;
   const send = target.protocol === 'https:' ? httpsRequest : httpRequest;
-  const upstream = send(target, {method: request.method ?? 'GET', headers: call.headers});
+  const upstream: Upstream =
+    served === undefined
+      ? send(target, {method: request.method ?? 'GET', headers: call.headers})
+      : new ServedUpstream(served);
   shared.inFlight.add(upstream);
   upstream.once('close', () => shared.inFlight.delete(upstream));
 
@@ -532,7 +600,7 @@ function forward(call: Call, relay: Relay): void {
     else drop();
   });
 
-  upstream.once('response', reply => {
+  upstream.once('response', (reply: ReplyMessage) => {
     const status = reply.statusCode ?? 502;
     const streamed = /^text\/event-stream\b/i.test(String(reply.headers['content-type'] ?? ''));
     if (!response.destroyed) {
@@ -666,9 +734,25 @@ function recording(capture: ToolCapture | undefined): Relay {
   };
 }
 
-/** An HTTP tool request, recorded raw: the exchange only, named by its method and its path without the query. */
-function httpTool(call: Call, placed: PlacedCall | undefined): void {
+/** An HTTP tool request's key: its exchange's method, URL and body. */
+function httpToolKey(call: Call) {
+  return exchangeKey(
+    requestAttributes(call.request.method ?? 'GET', call.target, call.headers, call.text),
+  );
+}
+
+/**
+ * An HTTP tool request, recorded raw: the exchange only, named by its method
+ * and its path without the query. Armed, it is served the event the pool
+ * matched, or missed when none.
+ */
+function httpTool(
+  call: Call,
+  placed: PlacedCall | undefined,
+  armed?: {served: CallEvent | undefined},
+): void {
   const method = call.request.method ?? 'GET';
+  const served = armed?.served;
   const capture =
     placed === undefined
       ? undefined
@@ -676,10 +760,91 @@ function httpTool(call: Call, placed: PlacedCall | undefined): void {
           start: call.start,
           kind: 3,
           name: `${method} ${call.target.pathname}`,
-          attributes: requestAttributes(method, call.target, call.headers, call.text),
+          attributes: {
+            ...requestAttributes(method, call.target, call.headers, call.text),
+            ...servedFrom(served),
+          },
         });
-  forward(call, recording(capture));
+  const relay = recording(capture);
+  if (armed === undefined) forward(call, relay);
+  else serve(call, relay, served);
 }
+
+/** The attribute naming the recorded event a call was served from. */
+function servedFrom(event: CallEvent | undefined): Record<string, unknown> {
+  return event === undefined ? {} : {'a2ui.replay.served_from': event.spanId};
+}
+
+/** Answers a request the record matched nothing for: the 502 line, the terminal's line, and the call failed with `replay_miss`. */
+function miss(call: Call, relay: Relay): void {
+  const {shared} = call.listener;
+  const line = missLine('tool proxy', call.request.method ?? 'GET', call.target);
+  shared.options.log?.(line);
+  answer502(call.response, line);
+  relay.fail({type: 'replay_miss', message: line}, shared.now(), false);
+}
+
+/**
+ * Serves a recorded event, or misses when there is none: a call with no
+ * response recorded is the 502 line with the recorded failure; any other is
+ * its reply as recorded, its body and chunks passed through `rewrite`, the
+ * chunks of a reply that came on a carrier written on the session's carrier
+ * once the POST is answered.
+ */
+function serve(
+  call: Call,
+  relay: Relay,
+  event: CallEvent | undefined,
+  rewrite?: (body: unknown) => unknown,
+  session?: () => Session,
+): void {
+  if (event === undefined) {
+    miss(call, relay);
+    return;
+  }
+  const {shared} = call.listener;
+  const recorded = recordedAnswer(event, {broke: brokeOff(event), rewrite});
+  if (recorded.type === 'unreached') {
+    answer502(call.response, unreachedLine('tool proxy', call.target.host, recorded.failure));
+    relay.fail(recorded.failure, shared.now(), false);
+    return;
+  }
+  const carried =
+    session === undefined || wasStreamed(event.attributes)
+      ? []
+      : recordedEvents(event, rewrite).filter(chunk => chunk.event !== 'endpoint');
+  forward(call, onCarrier(call.listener, relay, carried, session), recorded.reply);
+}
+
+/** The relay that, once the POST's exchange ended, writes `events` on the session's carrier and reads them there as a forwarded carrier's are. */
+function onCarrier(
+  listener: Listener,
+  relay: Relay,
+  events: SseEvent[],
+  session: (() => Session) | undefined,
+): Relay {
+  if (events.length === 0 || session === undefined) return relay;
+  return {
+    ...relay,
+    end(at, body) {
+      relay.end(at, body);
+      const carrier = session();
+      const outlet = carrier.outlet;
+      // With no carrier open, nothing is written; the call ended as its carrier closed.
+      if (outlet === undefined || outlet.destroyed || outlet.writableEnded) return;
+      for (const event of events) {
+        outlet.write(sseText(event));
+        carrierMessage(listener, carrier, event, listener.shared.now());
+      }
+    },
+  };
+}
+
+/** `202 Accepted` with no body: the protocol's answer to a notification and to a response the client posts. */
+const ACCEPTED: ServedReply = {status: 202, headers: {'content-length': '0'}};
+
+/** `204 No Content`: a session end the record has none of. */
+const NO_CONTENT: ServedReply = {status: 204, headers: {}};
 
 function sessionById(listener: Listener, id: string): Session {
   const key = `sid:${id}`;
@@ -726,6 +891,9 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
   let session = sessionOf(listener, request, target);
   if (session.opening !== undefined) session.opening.posted = true;
   const exchangeRequest = requestAttributes(method, target, call.headers, call.text);
+  const pool = shared.pool;
+  // Armed, a response the client posts gets the protocol's 202.
+  const accepted = pool === undefined ? undefined : ACCEPTED;
 
   if (isResponse(message)) {
     const id = idKey(message.id) ?? '';
@@ -734,18 +902,22 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
       // The response to a server request: the request's event ends at its arrival, with this exchange.
       session.serverRequests.delete(id);
       if (asked === null) {
-        forward(call, {end: () => {}, fail: () => {}});
+        forward(call, {end: () => {}, fail: () => {}}, accepted);
         return;
       }
       asked.set(exchangeRequest);
       const relay = recording(asked);
-      forward(call, {
-        ...relay,
-        event: undefined,
-        end: (_at, body) => relay.end(call.start, body),
-        fail: (failure, _at, reached) => relay.fail(failure, call.start, reached),
-        agentClosed: drop => drop(),
-      });
+      forward(
+        call,
+        {
+          ...relay,
+          event: undefined,
+          end: (_at, body) => relay.end(call.start, body),
+          fail: (failure, _at, reached) => relay.fail(failure, call.start, reached),
+          agentClosed: drop => drop(),
+        },
+        accepted,
+      );
       return;
     }
     // A response to a server request that is no event of its own, such as one inside a POST's own reply.
@@ -767,7 +939,7 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
             name: 'response',
             attributes,
           });
-    forward(call, recording(capture));
+    forward(call, recording(capture), accepted);
     return;
   }
 
@@ -798,6 +970,11 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
     mcpMethod === 'initialize' && session.opening !== undefined ? session.opening : undefined;
   if (opening !== undefined) session.opening = undefined;
   const start = opening?.at ?? call.start;
+  // Armed, a request other than ping is served the event the pool matches, if any.
+  const served =
+    pool !== undefined && asking && mcpMethod !== undefined && mcpMethod !== 'ping'
+      ? pool.mcpRequest(mcpMethod, message.params)
+      : undefined;
   const placed = logged(
     listener,
     shared.options.place({
@@ -809,7 +986,13 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
   const capture =
     placed === undefined
       ? undefined
-      : new ToolCapture(shared, placed, {start, kind: 3, name, attributes, method: mcpMethod});
+      : new ToolCapture(shared, placed, {
+          start,
+          kind: 3,
+          name,
+          attributes: {...attributes, ...servedFrom(served)},
+          method: mcpMethod,
+        });
   if (opening !== undefined) capture?.chunk(opening.endpoint.event, opening.endpoint.at);
 
   let pending: Pending | undefined;
@@ -847,7 +1030,7 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
   let headers: IncomingHttpHeaders = {};
   let streamed = false;
   let sawEventId = false;
-  forward(call, {
+  const relay: Relay = {
     head(replyStatus, replyHeaders, replyStreamed) {
       status = replyStatus;
       headers = replyHeaders;
@@ -909,13 +1092,104 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
       if (capture === undefined) drop();
       else capture.agentClosed(drop);
     },
+  };
+  if (pool === undefined) {
+    forward(call, relay);
+  } else if (!asking) {
+    forward(call, relay, ACCEPTED);
+  } else if (mcpMethod === 'ping') {
+    pong(call, relay, message, () => session);
+  } else {
+    const recordedId = served === undefined ? undefined : recordedRequestId(served);
+    const token = liveProgressToken(message);
+    serve(
+      call,
+      relay,
+      served,
+      body => rewriteIds(body, recordedId, message.id, token),
+      () => session,
+    );
+  }
+}
+
+/** A `ping`'s empty result, the protocol's answer: in the POST's reply, or under HTTP+SSE on the carrier after a 202. */
+function pong(call: Call, relay: Relay, message: JsonRpcMessage, session: () => Session): void {
+  const body = JSON.stringify({jsonrpc: '2.0', id: message.id, result: {}});
+  if (session().key.startsWith('endpoint:')) {
+    forward(
+      call,
+      onCarrier(call.listener, relay, [{event: 'message', data: body}], session),
+      ACCEPTED,
+    );
+    return;
+  }
+  forward(call, relay, {
+    status: 200,
+    headers: {
+      'content-type': 'application/json',
+      'content-length': String(Buffer.byteLength(body)),
+    },
+    body,
   });
+}
+
+/** The JSON-RPC id of the request a recorded event is, as the key the proxy matches on. */
+function recordedRequestId(event: CallEvent): string | undefined {
+  const body = event.attributes['a2ui.http.request.body'];
+  const id =
+    typeof body === 'object' && body !== null && !Array.isArray(body)
+      ? idKey((body as Record<string, unknown>).id)
+      : undefined;
+  return id ?? idKey(event.attributes['jsonrpc.request.id']);
+}
+
+/** The progress token a live request asks its progress under, as it sent it. */
+function liveProgressToken(message: JsonRpcMessage): string | number | undefined {
+  const params = message.params as {_meta?: {progressToken?: unknown}} | undefined;
+  const token = params?._meta?.progressToken;
+  return typeof token === 'string' || typeof token === 'number' ? token : undefined;
+}
+
+/**
+ * A served body or chunk with the live request's own identifiers: the
+ * response to the recorded request takes the live `id`, and a
+ * `notifications/progress` the live progress token, when the live request
+ * asked for progress. Nothing else is touched.
+ */
+function rewriteIds(
+  value: unknown,
+  recordedId: string | undefined,
+  liveId: unknown,
+  liveToken: string | number | undefined,
+): unknown {
+  if (Array.isArray(value)) {
+    return value.map(item => rewriteIds(item, recordedId, liveId, liveToken));
+  }
+  const message = asJsonRpc(value);
+  if (message === undefined) return value;
+  if (isResponse(message) && recordedId !== undefined && idKey(message.id) === recordedId) {
+    return {...message, id: liveId};
+  }
+  if (
+    liveToken !== undefined &&
+    isNotification(message) &&
+    message.method === 'notifications/progress' &&
+    typeof message.params === 'object' &&
+    message.params !== null &&
+    !Array.isArray(message.params)
+  ) {
+    return {...message, params: {...message.params, progressToken: liveToken}};
+  }
+  return value;
 }
 
 /** MCP's session end: a `DELETE` carrying `Mcp-Session-Id`, named `DELETE`, with the session and the exchange. */
 function sessionEnd(call: Call): void {
   const {listener, request, target} = call;
   const session = sessionById(listener, header(request.headers, 'mcp-session-id') ?? '');
+  const pool = listener.shared.pool;
+  // Armed, the record's session end, else 204.
+  const served = pool?.sessionEnd();
   const placed = logged(listener, placeOf(call, `an MCP session end to ${target.host}, DELETE`));
   const capture =
     placed === undefined
@@ -927,17 +1201,21 @@ function sessionEnd(call: Call): void {
           attributes: {
             ...sessionAttributes(session, request),
             ...requestAttributes('DELETE', target, call.headers, call.text),
+            ...servedFrom(served),
           },
         });
-  const relay = recording(capture);
-  forward(call, {
-    ...relay,
+  const recorded = recording(capture);
+  const relay: Relay = {
+    ...recorded,
     end: (at, body) => {
-      relay.end(at, body);
+      recorded.end(at, body);
       // The session is over; a carrier still open keeps its own hold on it.
       listener.sessions.delete(session.key);
     },
-  });
+  };
+  if (pool === undefined) forward(call, relay);
+  else if (served === undefined) forward(call, relay, NO_CONTENT);
+  else serve(call, relay, served);
 }
 
 /**
@@ -997,20 +1275,7 @@ function getRequest(call: Call): void {
       }
       return;
     }
-    const url = new URL(data, listener.server.proxyOrigin);
-    const key = `endpoint:${url.pathname}${url.search}`;
-    const id = url.searchParams.get('session_id') ?? url.searchParams.get('sessionId') ?? undefined;
-    const session: Session = {
-      key,
-      ...(id !== undefined && {id}),
-      pending: new Map(),
-      serverRequests: new Map(),
-      carriers: 0,
-      opening: {at: call.start, endpoint: {event, at}, posted: false},
-      streamUrl: removeFromUrl(target.href),
-    };
-    listener.sessions.set(key, session);
-    becomeCarrier(session);
+    becomeCarrier(openSseSession(listener, call, event, at));
   };
 
   let status = 0;
@@ -1069,6 +1334,76 @@ function getRequest(call: Call): void {
       }
       drop();
     },
+  });
+}
+
+/**
+ * Registers the HTTP+SSE session a carrier's relative `endpoint` event
+ * opens, keyed by the endpoint's path and query, its `initialize` to start
+ * at the carrier's opening with the event as its first chunk.
+ */
+function openSseSession(listener: Listener, call: Call, event: SseEvent, at: bigint): Session {
+  const url = new URL(event.data.trim(), listener.server.proxyOrigin);
+  const key = `endpoint:${url.pathname}${url.search}`;
+  const id = url.searchParams.get('session_id') ?? url.searchParams.get('sessionId') ?? undefined;
+  const session: Session = {
+    key,
+    ...(id !== undefined && {id}),
+    pending: new Map(),
+    serverRequests: new Map(),
+    carriers: 0,
+    opening: {at: call.start, endpoint: {event, at}, posted: false},
+    streamUrl: removeFromUrl(call.target.href),
+  };
+  listener.sessions.set(key, session);
+  return session;
+}
+
+/**
+ * An armed proxy's `GET`, with no server to ask: one whose key matches a
+ * recorded HTTP tool call is served as one; one carrying `Mcp-Session-Id` is
+ * a streamable HTTP carrier, held open with nothing written; one at the
+ * stream path of a recorded HTTP+SSE `initialize` is that session's carrier,
+ * its `endpoint` event written as recorded; anything else is a miss.
+ */
+function armedGet(call: Call, pool: ReplayPool): void {
+  const {listener, request, target} = call;
+  const placeTool = () =>
+    logged(listener, placeOf(call, `a tool call to ${target.host}, GET ${target.pathname}`));
+  const served = pool.httpTool(httpToolKey(call));
+  if (served !== undefined) {
+    httpTool(call, placeTool(), {served});
+    return;
+  }
+  const id = header(request.headers, 'mcp-session-id');
+  if (id !== undefined) {
+    holdCarrier(listener, call, sessionById(listener, id));
+    return;
+  }
+  const opening = pool.sseOpening(target.pathname);
+  if (opening !== undefined) {
+    const [endpoint] = recordedEvents({...opening.event, events: [opening.endpoint]});
+    const session = openSseSession(listener, call, endpoint, listener.shared.now());
+    holdCarrier(listener, call, session, endpoint);
+    return;
+  }
+  httpTool(call, placeTool(), {served: undefined});
+}
+
+/** Answers a `GET` as a carrier the proxy holds open, `200` `text/event-stream`, writing `first` when given, until the client closes it or the proxy is disarmed. */
+function holdCarrier(listener: Listener, call: Call, session: Session, first?: SseEvent): void {
+  const {shared} = listener;
+  const {response} = call;
+  response.writeHead(200, {'content-type': 'text/event-stream', 'cache-control': 'no-cache'});
+  response.flushHeaders();
+  if (first !== undefined) response.write(sseText(first));
+  shared.held.add(response);
+  session.carriers++;
+  if (first !== undefined) session.outlet = response;
+  response.once('close', () => {
+    shared.held.delete(response);
+    if (session.outlet === response) session.outlet = undefined;
+    carrierClosed(listener, session, shared.now());
   });
 }
 
