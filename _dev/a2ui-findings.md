@@ -1063,11 +1063,16 @@ need not repeat it.
 `typescript/renderers/react/src/web_component_node.tsx`;
 `typescript/core/web_core/src/universal/a2ui-lit-element.ts`.
 
-**Severity:** a host cannot keep a surface drawn around a component that fails,
-nor tell which component failed.
+**Severity:** a host cannot tell which component failed. A universal element
+that throws stops updating and keeps its stale content; a React implementation
+that throws takes down the host's whole React root, or the whole surface when a
+host error boundary catches it.
 
-Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24),
-`@a2ui/react` 0.14.0 and `@a2ui/web_core` 0.14.0 on npm, with Lit 3.3.3.
+Checked at `15c5ca9aa` (2026-11-05), `@a2ui/react` 0.15.0 and `@a2ui/web_core`
+0.15.0 on npm, with Lit 3.3.3 and React 19.2.7. First checked at
+`409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24).
+
+**Upstream:** issue #3993.
 
 ### Issue
 
@@ -1080,18 +1085,30 @@ which React mounts through `WebComponentNode`. A throw inside such an element's
 update is caught by Lit's `ReactiveElement.performUpdate`, which marks the
 element updated and rethrows from its asynchronous update loop, so it reaches
 the page only as an unhandled promise rejection carrying the error, with
-nothing that names the element or its component. Web core's error channel is
-not told. A React implementation that throws while rendering meets no boundary
-of the renderer's, and React unmounts the host's whole root.
+nothing that names the element or its component; the element's next update
+re-raises the same error once more, then recovers. `A2uiLitElement.update`
+(`a2ui-lit-element.ts`, line 516) wraps `super.update` with no catch, and web
+core's error channel is not told. A React implementation that throws while
+rendering meets no boundary of the renderer's: without a host boundary, React
+unmounts the host's whole root and reports the error through `reportError`
+(the window's `error` event); with one above `A2uiSurface`, that boundary
+catches it (upstream's `boundary-through-lit` test in
+`typescript/renderers/react/tests/v0_9/universal-components.test.tsx`) and
+replaces the whole surface.
 
 ### Reproduction
 
-Render a v0.9 surface of the basic catalog with a `Text` component through
-`@a2ui/react` 0.14.0's `A2uiSurface`, after replacing
-`customElements.get('a2ui-basic-text').prototype.render` with a function that
-throws a `RangeError`. The window receives an `unhandledrejection` whose reason
-is the `RangeError`; `surface.onError` receives nothing; no report names
-`Text` or the component's id.
+Render a v0.9 surface of the basic catalog with a `Column` holding a `Text` and
+a React `Badge` through `@a2ui/react` 0.15.0's `A2uiSurface`, then replace the
+`a2ui-basic-text` prototype's `render` with a function that throws a
+`RangeError` and call `requestUpdate()` on the element. The process receives an
+`unhandledRejection` whose reason is the `RangeError`; `surface.onError`
+receives nothing; the `Text` keeps its old content and the `Badge` stays
+mounted; no report names `Text` or the component's id. Render the same surface
+with a React implementation that throws in place of the `Text`, with no error
+boundary above `A2uiSurface`: the window receives an `error` event carrying the
+`RangeError`, the container is left empty, and `surface.onError` receives
+nothing.
 
 ### Fix
 
@@ -1100,6 +1117,19 @@ implementation's view, and a catch around `A2uiLitElement`'s update that
 dispatches the error through the surface's error channel with the component's
 id and type and leaves the element as a placeholder, so the rest of the
 surface stays drawn.
+
+### Prior art
+
+Issue #2013 (open) covers placeholders for components that have not arrived or
+have no implementation; its plan lists "exception during render" as out of
+scope and boundaries as later work, and #3756 (merged) writes that into the
+framework adapter blueprint's "Not in this version". PR #2088 (open, stale)
+defined an `error` fallback state but wired it only to the Lit surface's
+context-creation failure. PR #3616 (open) proposes the rule "No adapter-level
+problem reports", which a catch that dispatches from the element would
+contradict. Upstream's `boundary-through-lit` test asserts that a host
+boundary above `A2uiSurface` catches a throw under a Lit parent; a boundary
+inside the renderer would catch it first.
 
 ## 28. Web core's error channel names the component only inside its sentence
 
@@ -1185,44 +1215,53 @@ version's key with every message, an action or a text, as the protocol has it.
 `typescript/renderers/angular/src/core/component-host.component.ts`;
 `typescript/core/web_core/src/universal/a2ui-lit-element.ts`.
 
-**Severity:** a host cannot keep a surface drawn around a component that fails,
-nor tell which component failed.
+**Severity:** a host cannot tell which component failed. A component that
+throws stops updating and keeps its stale content, and the error leaves the
+surface as an unhandled rejection (Lit) or reaches the application's
+`ErrorHandler` alone (Angular).
 
-Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24),
-`@a2ui/lit` 0.14.0, `@a2ui/angular` 0.13.0 and `@a2ui/web_core` 0.14.0 on npm,
-with Lit 3.3.3 and Angular 21.2.
+Checked at `15c5ca9aa` (2026-11-05), `@a2ui/lit` 0.15.0, `@a2ui/angular`
+0.14.0 and `@a2ui/web_core` 0.15.0 on npm, with Lit 3.3.3 and Angular 21.2.17.
+First checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24).
+
+**Upstream:** issue #3993.
 
 ### Issue
 
 Lit: every component the Lit renderer draws, the basic catalog's and a host's
 own, is one of web core's universal elements, an `A2uiLitElement`, whose update
-has no catch (finding 27). `<a2ui-surface>`'s `render()` has a try/catch, but it
-covers only creating the root's context and calling `renderA2uiNode`, which
-returns a directive; each element below renders in its own Lit update cycle,
-outside it.
+has no catch (finding 27). `<a2ui-surface>`'s `render()` has a try/catch, but
+it wraps only the `renderA2uiNode(root)` call, which returns a directive; since
+ff86e043b (#3705) the surface resolves the root through `NodeResolver` and
+creates no context of its own. Each element below renders in its own Lit
+update cycle, outside the try.
 
 Angular: the renderer's native components are Angular components hosted by
 `ComponentHostComponent` through `*ngComponentOutlet`, with no error handling
-around them; a component type missing from the catalog only gets a
-`console.error`. A component whose template throws while drawing reaches the
-application's `ErrorHandler` through Angular's change detection, which hands
-over the error alone, with nothing that names the component or its surface.
-Web core's error channel is not told.
+around them. A component type missing from the catalog is reported: the host
+logs a `console.error`, and the `NodeResolver` dispatches
+`UNKNOWN_COMPONENT_TYPE` on `surface.onError`. A component whose template
+throws while drawing is not: the error reaches the application's
+`ErrorHandler` through Angular's change detection, which hands over the error
+alone, with nothing that names the component or its surface, and Angular has
+no per-component catch to put one in. Web core's error channel is not told.
 
 ### Reproduction
 
 Lit: render a v0.9 surface of the basic catalog plus a custom component, an
-`A2uiLitElement` subclass, through `@a2ui/lit` 0.14.0's `<a2ui-surface>`, then
-replace the custom element's `render` with a function that throws a
-`RangeError` and change a value it binds. The window receives an
-`unhandledrejection` whose reason is the `RangeError`; `surface.onError`
-receives nothing.
+`A2uiLitElement` subclass, through `@a2ui/lit` 0.15.0's `<a2ui-surface>`, then
+make the custom element's `render` throw a `RangeError` and change a value it
+binds. The process receives an `unhandledRejection` whose reason is the
+`RangeError`; `surface.onError` receives nothing; the element keeps its old
+content. The next change to the bound value raises the same `RangeError` once
+more as a second unhandled rejection, then the element renders the new value.
 
-Angular: render the same surface through `@a2ui/angular` 0.13.0's
-`<a2ui-v09-surface>`, with a native custom component made with
-`createComponentImplementation` whose template calls a function that throws,
-then change a value it binds. The application's `ErrorHandler.handleError` receives
-the `RangeError` alone; `surface.onError` receives nothing.
+Angular: render the same surface through `@a2ui/angular` 0.14.0's
+`ComponentHostComponent` (what `<a2ui-v09-surface>` wraps), with a native
+component made with `createComponentImplementation` whose template calls a
+function that throws for one bound value, then set that value. The
+application's `ErrorHandler.handleError` receives the `RangeError` alone;
+`surface.onError` receives nothing; the component keeps its old content.
 
 ### Fix
 
@@ -1232,6 +1271,11 @@ placeholder so the rest of the surface stays drawn: in web core's
 `A2uiLitElement` update, as finding 27 gives it, which covers the Lit renderer
 and the Angular renderer's universal components; and in the Angular renderer's
 `ComponentHostComponent`, around the native component it hosts.
+
+### Prior art
+
+As finding 27: issue #2013 and #3756 leave "exception during render" and
+boundaries for later; PR #3616 proposes "No adapter-level problem reports".
 
 ## 31. The Python restaurant finder retries its model call on `Surface default already exists`
 
