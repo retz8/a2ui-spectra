@@ -69,7 +69,7 @@ Spectra works out the component ranges when shown, from a `parse` event's input 
 
 ### 12. The model call a parse read
 
-A `parse` event is tied to the model call of its turn whose response text, or one of whose tool-call arguments, holds the parse input or is held in it. Failing that, it is tied by time, to the latest model call of the turn that started before the parse started, when exactly one call fits. Otherwise it stays unlinked. This is computed when shown.
+A `parse` event is tied to the model call of its turn whose response text, or one of whose tool-call arguments, holds the parse input or is held in it. When several calls do, it is tied to the one accounting for the most of the input, then to the latest of those that started before the parse, else the latest of them. Failing that, it is tied by time, to the latest model call of the turn that started before the parse started, when exactly one call fits. Otherwise it stays unlinked. This is computed when shown.
 
 ### 13. Parse errors as problems
 
