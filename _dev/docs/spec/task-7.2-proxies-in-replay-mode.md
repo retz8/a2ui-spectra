@@ -26,7 +26,7 @@ The key is three of the exchange's recorded attributes, `http.request.method`, `
 
 ### 3. The key for an MCP request
 
-An MCP request keys by its method and params with `id` and the whole of `params._meta` left out. This amends the Phase 7 spec's decision 6, which left out `params._meta.traceparent` alone.
+An MCP request keys by its method and params with `id` and the whole of `params._meta` left out; params left empty once `_meta` is out count as none, the same as a request with no `params`. Housekeeping, matched by method alone and not consumed, is `initialize`, `tools/list`, `resources/list`, `resources/templates/list`, `prompts/list` and `logging/setLevel`; every other request, `completion/complete`, `resources/subscribe`, `resources/unsubscribe` and the `tasks/` requests included, is consumed by its key in recorded order, as `tools/call` is. This amends the Phase 7 spec's decision 6, which left out `params._meta.traceparent` alone and named four housekeeping methods.
 
 ### 4. The reply as recorded, failure by failure
 
@@ -38,11 +38,11 @@ The served reply carries the recorded response headers minus three kinds: a head
 
 ### 6. The miss
 
-A request with nowhere to go is answered `502`, the status both proxies answer with when they cannot reach the target, with one plain-text line in the proxies' existing form: the proxy named, that it is replaying, that the request matched nothing in the record, and the method and target path with credentials removed. The record holds the call as today's unreached case: the request attributes, no response attributes, status code `2`, `error.type` `replay_miss`, the status message the same line. The terminal gets one line per miss naming the method and path. Under HTTP+SSE the POST itself gets the `502` and nothing is written on the carrier.
+A request with nowhere to go is answered `502`, the status both proxies answer with when they cannot reach the target, with one plain-text line in the proxies' existing form: the proxy named, that it is replaying, that the request matched nothing in the record, and the method and target path with credentials removed. The record holds the call as today's unreached case: the request attributes, no response attributes, status code `2`, `error.type` `replay_miss`, the status message the same line. The terminal gets one line per miss naming the method and path. Under HTTP+SSE the POST itself gets the `502` and nothing is written on the carrier. A token request, which is never recorded, and a WebSocket upgrade get the same answer from an armed proxy, unrecorded, except from the model proxy in the live mode, which passes them on as it does unarmed.
 
 ### 7. Housekeeping the record never saw
 
-An answer the protocol fixes never misses: a notification gets `202 Accepted` with no body, a `ping` gets the empty result, and a JSON-RPC response the client posts gets `202 Accepted`, each whether or not the record holds the method. Every other method with no recorded exchange misses: `tools/list`, `resources/list`, `prompts/list` and `initialize`. An answer the proxy gives from the protocol carries no `served_from`, so housekeeping stands outside decision 9 of the Phase 7 spec, the rule that every call was served from the record: served or not, housekeeping never gates the verdict, and a miss on it still does. Sub-task 7.3 takes this.
+An answer the protocol fixes never misses: a notification gets `202 Accepted` with no body, a `ping` gets the empty result, and a JSON-RPC response the client posts gets `202 Accepted`, each whether or not the record holds the method. Every other method with no recorded exchange misses: `tools/list`, `resources/list`, `resources/templates/list`, `prompts/list`, `logging/setLevel` and `initialize`. An answer the proxy gives from the protocol carries no `served_from`, so housekeeping stands outside decision 9 of the Phase 7 spec, the rule that every call was served from the record: served or not, housekeeping never gates the verdict, and a miss on it still does. Sub-task 7.3 takes this.
 
 ### 8. Server-initiated messages are not replayed
 
