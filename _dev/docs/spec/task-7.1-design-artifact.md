@@ -28,7 +28,7 @@ Phase 7's boards on the existing Design canvas "Spectra viewer UI", https://clau
 | The disabled Replay rows, nothing recorded | The Python restaurant finder captured under `attach` |
 | The context bar replaying, the composer refusing | The Python restaurant finder's conversation, turn 2 of 2 |
 
-A value the records leave open, such as the edited line and the figures, is illustrative and settled on the canvas.
+A value the records leave open, such as the edited line and the figures, is illustrative and settled on the canvas. The boards' find-italian-restaurants.json holds that two-turn conversation, so they read "2 turns", "turn 2 of 2" and "2 turns, the earlier one embedded"; "Components and states" keeps the three-turn forms of the decisions below. The name prompt on the booking turn is prefilled "book-a-table-for-2", the slug of that turn's input in brief, and the fixture carries the name typed over it.
 
 ### 3. Flow 7, save a turn as a fixture and replay it for free, then see where a prompt edit broke the request
 
@@ -45,7 +45,7 @@ Fixtures is the rail's second section. Turns shows the turn list and the turn vi
 
 ### 5. The fixtures list
 
-Grouped like the turn list: one group per fixture, titled by its name, with its turn count and its recorded cost, its turns as rows in order, the fixture's own turn last, each row in the turn row's form. Selecting a row shows that turn in the fixture view, which is how the earlier turns are reached. The list has the same search, matching names and inputs, and collapses to the same strip.
+Grouped like the turn list: one group per fixture, titled by its name, with its turn count and its recorded cost, its turns as rows in order, the fixture's own turn last, each row in the turn row's form. Selecting a row shows that turn in the fixture view, which is how the earlier turns are reached. The list has the same search, matching names and inputs, and collapses to the same strip. An empty folder reads "No fixtures yet."
 
 ### 6. The fixture view's header
 
@@ -57,15 +57,15 @@ One Replay button in the header's action area, on the right, in the fixture view
 
 ### 8. Save as fixture
 
-A button beside Replay in a store turn's header, opening a popover anchored to it: a name field prefilled with the slug of the turn's input in brief, the folder under it in grey, "a2ui-spectra-fixtures/", the `.json` after the field, a Save button; Enter saves, Escape closes. A name with a character outside the allowed set, or one the folder already holds, is said in a line under the field, the clash offering the numbered name in one press. A quiet line states the turn count the fixture will hold, "3 turns, the earlier two embedded". On save the popover's content becomes one line, "Saved as a2ui-spectra-fixtures/find-italian-restaurants.json", the path a copy button, with "Open" as a teal link to the fixture view, and closes on the next click elsewhere. A failure to write stays in the popover as a problem-style line with the system's reason. There is no toast.
+A button beside Replay in a store turn's header, opening a popover anchored to it: a name field prefilled with the slug of the turn's input in brief, the folder under it in grey, "a2ui-spectra-fixtures/", the `.json` after the field, a Save button; Enter saves, Escape closes. A name with a character outside the allowed set, or one the folder already holds, is said in a line under the field, the clash offering the numbered name in one press. A quiet line states the turn count the fixture will hold, "3 turns, the earlier two embedded". On save the popover's content becomes one line, "Saved as a2ui-spectra-fixtures/find-italian-restaurants.json", the path a copy button, with "Open" as a teal link to the fixture view, and closes on the next click elsewhere. A failure to write stays in the popover as a problem-style line with the system's reason. There is no toast. On an open turn's own header the button is disabled.
 
 ### 9. The replayed turn's line, and its reasons as problems
 
-A third quiet line under the header, on a replayed turn only: "Replayed from find-italian-restaurants.json · turn 3 of 3 · everything recorded · passed", the fixture a teal link to its turn in Fixtures, "passed" in the green of a completed badge; a failed verdict reads "· failed" in red, and nothing more on the line. Each verdict reason of the Phase 7 spec's decision 9 joins the one count and the `n` key: a miss is the failed call's problem on its row; a different outcome and different A2UI are problems of the whole turn, on the outcome step as a failure reason is, each in Phase 3's problem block form, a plain sentence first, "The A2UI differs from the record: message 3 of 4 is not the recorded one." or "The turn ended failed; the record ended completed.", and the code second, "A2UI differs · replay", "Outcome differs · replay". The A2UI sentence's message is a link that selects that step, with the recorded message under it as a folded JSON block. The checks' findings stay as on any turn.
+A third quiet line under the header, on a replayed turn only: "Replayed from find-italian-restaurants.json · turn 3 of 3 · everything recorded · passed", the fixture a teal link to its turn in Fixtures, "passed" in the green of a completed badge; a failed verdict reads "· failed" in red, and nothing more on the line; while the turn is open the line carries no verdict. Each verdict reason of the Phase 7 spec's decision 9 joins the one count and the `n` key: a miss is the failed call's problem on its row; a different outcome and different A2UI are problems of the whole turn, on the outcome step as a failure reason is, each in Phase 3's problem block form, a plain sentence first, "The A2UI differs from the record: message 3 of 4 is not the recorded one." or "The turn ended failed; the record ended completed.", and the code second, "A2UI differs · replay", "Outcome differs · replay". The A2UI sentence's message is a link that selects that step, with the recorded message under it as a folded JSON block. The checks' findings stay as on any turn.
 
 ### 10. A served call
 
-On the timeline row, a grey tag after the call's name, "Record", in the place and width the "Retry 1" tag takes; the live calls of a live-mode replay stay bare; a served retry carries both, "Retry 1 · Record". In the detail, under the title line where the retry's sentence sits, a grey sentence: "Served from the record · the call at +2.0 s in find-italian-restaurants.json", the call a teal link to the recorded call in Fixtures. The usage's estimated cost reads "Free · served from the record" in place of the figure, and the header's second line counts the live calls alone, adding "· 2 calls from the record". A tool call served has the same tag and sentence; a housekeeping row served carries the tag too, uncounted as ever. A served call keeps its step type's icon and its provider's colour.
+On the timeline row, a grey tag after the call's name, "Record", in the place and width the "Retry 1" tag takes; the live calls of a live-mode replay stay bare; a served retry carries both, "Retry 1 · Record". In the detail, under the title line where the retry's sentence sits, a grey sentence: "Served from the record · the call at +2.0 s in find-italian-restaurants.json", the call a teal link to the recorded call in Fixtures. The usage's estimated cost reads "Free · served from the record" in place of the figure, and the header's second line counts the live calls alone, adding "· 2 calls from the record"; with no live call it reads "· 2 calls from the record · Free", without tokens or a price table's date. A tool call served has the same tag and sentence; a housekeeping row served carries the tag too, uncounted as ever. A served call keeps its step type's icon and its provider's colour.
 
 ### 11. A miss
 
@@ -73,7 +73,7 @@ The failed call's row carries the red mark and counts as one problem. Its detail
 
 ### 12. The context bar and the composer while a replay runs
 
-The live status takes a third form: "Replaying find-italian-restaurants.json · turn 2 of 3" with the open turn's teal spinner, the fixture name a link, returning to "Live" when the last replayed turn closes. The composer shows "Can't send · a replay is running" in place of its line, Send disabled, in the form the unset-variable refusal uses, and comes back when the replay ends.
+The live status takes a third form: "Replaying find-italian-restaurants.json · turn 2 of 3" with the open turn's teal spinner, the fixture name a link, returning to "Capturing" when the last replayed turn closes. The composer shows "Can't send · a replay is running" in place of its line, Send disabled, in the form the unset-variable refusal uses, and comes back when the replay ends.
 
 ### 13. Dark twins, icons and keys
 
