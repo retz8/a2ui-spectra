@@ -21,7 +21,7 @@ Out of scope:
 
 - Light and dark preview variants, and the Flutter and SwiftUI adapters. After v1.
 - The preview reloading when the catalog changes. Phase 8.
-- Shipping the adapters. Phase 9.
+- Shipping the adapters. Phase 10.
 - The adapter as the renderer-side tap inside a real host app.
 - The screenshot: reserved in the protocol, produced by no adapter of this phase.
 - The message box sending the configured catalogs inline. Backlog.
@@ -80,7 +80,7 @@ A message set that names no carrier: A2UI messages go in; render errors, the sho
 
 ### 13. The core and the adapters
 
-A framework-free core holding the protocol, with thin React, Lit and Angular adapters that take the renderer as a peer dependency at the versions of decision 1. The core takes web core as a peer dependency and holds, on an entry of its own, the processor setup the three adapters share: the action handler, each surface's errors and data model, and the guard on web core's universal elements; each adapter makes its own processor. The Angular adapter reads the page's own `provideA2Ui` config, and is built as upstream builds `@a2ui/angular`, with the ng-packagr builder in partial compilation. They are workspaces in this repo, named with the `a2ui-spectra` prefix, and ship in Phase 9.
+A framework-free core holding the protocol, with thin React, Lit and Angular adapters that take the renderer as a peer dependency at the versions of decision 1. The core takes web core as a peer dependency and holds, on an entry of its own, the processor setup the three adapters share: the action handler, each surface's errors and data model, and the guard on web core's universal elements; each adapter makes its own processor. The Angular adapter reads the page's own `provideA2Ui` config, and is built as upstream builds `@a2ui/angular`, with the ng-packagr builder in partial compilation. They are workspaces in this repo, named with the `a2ui-spectra` prefix, and ship in Phase 10.
 
 ### 14. The built-in preview
 

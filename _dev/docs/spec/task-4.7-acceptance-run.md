@@ -109,7 +109,7 @@ Through A2UIVerse's page, at Narrow and Wide, in light and dark: the recent runs
 
 ### 19. Other documents
 
-- `_dev/TODO.md`: the 4.7 line names this spec; the backlog's CircleCI catalog line is removed once the fix lands; the Phase 9 line gains A2UIVerse's CircleCI preview page committed in A2UIVerse, on the published React adapter.
+- `_dev/TODO.md`: the 4.7 line names this spec; the backlog's CircleCI catalog line is removed once the fix lands; the Phase 10 line gains A2UIVerse's CircleCI preview page committed in A2UIVerse, on the published React adapter.
 - `conformance/README.md` and the stub agent's header comment: the flawed booking conversation's second turn, its recording in the coverage roster unchanged.
 - `_dev/a2ui-findings.md` and the design canvas: as decision 9 has it.
 - A2UIVerse: as decisions 10, 11 and 12 have it.

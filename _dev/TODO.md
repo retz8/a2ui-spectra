@@ -84,11 +84,14 @@ Spec: `_dev/docs/spec/phase-7-fixtures-and-replay.md`.
 ## Phase 8 — The dev loop
 Agent restart and logs, restart on save, re-run the last turn, the preview reloading from the catalog's dev server.
 
-## Phase 9 — Shipping
-The binary on npm, PyPI and GitHub releases, with the curl script. A2UIVerse's CircleCI preview page committed in A2UIVerse, on the published React adapter.
+## Phase 9 — Upstream v1.0 and supported versions
+The upgrade to upstream's v1.0 as its current version; which protocol versions and which upstream SDKs Spectra supports; the basic root README.
 
-## Phase 10 — The case
-The demo, with the restaurant finder in Python and in TypeScript producing the same view and a real misfit found and fixed in minutes; a README; the contribution rule; the proposal as a GitHub Discussion.
+## Phase 10 — Shipping
+The binary on npm, PyPI and GitHub releases, with the curl script; the install steps in the root README. A2UIVerse's CircleCI preview page committed in A2UIVerse, on the published React adapter.
+
+## Phase 11 — The case
+The demo, with the restaurant finder in Python and in TypeScript producing the same view and a real misfit found and fixed in minutes; the demo in the root README; the contribution rule; the proposal as a GitHub Discussion.
 
 ## Backlog
 - A2A's task methods (`tasks/get`, `tasks/cancel`, `tasks/resubscribe`) and push notifications attached to the turn they belong to: a non-blocking send collected by polling, a resumed stream, a cancel as the turn's outcome, and the push webhook proxied.

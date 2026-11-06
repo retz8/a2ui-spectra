@@ -106,7 +106,7 @@ The tool capture suite mirrors the model capture suite in form, cases in a YAML 
 
 ### 15. The change in a2uiverse-apps
 
-In `circleci/agent/app/mcp.py`, `CIRCLECI_MCP_URL` becomes the environment variable's value with the hosted URL as its default; the sign-in module's copy of the URL, the OAuth resource, is untouched, so the token's audience stays the real address; a test that the variable is read joins the one asserting the default; the agent's README's configuration table gains the variable. One bare conventional commit on a2uiverse-apps `main`. Spectra's config for the agent, the `tools` entry naming that variable, is not committed in a2uiverse-apps: the acceptance run passes it from outside the repo, and committing a Spectra config there waits for Phase 9, as the preview page does.
+In `circleci/agent/app/mcp.py`, `CIRCLECI_MCP_URL` becomes the environment variable's value with the hosted URL as its default; the sign-in module's copy of the URL, the OAuth resource, is untouched, so the token's audience stays the real address; a test that the variable is read joins the one asserting the default; the agent's README's configuration table gains the variable. One bare conventional commit on a2uiverse-apps `main`. Spectra's config for the agent, the `tools` entry naming that variable, is not committed in a2uiverse-apps: the acceptance run passes it from outside the repo, and committing a Spectra config there waits for Phase 10, as the preview page does.
 
 ### 16. Done line
 

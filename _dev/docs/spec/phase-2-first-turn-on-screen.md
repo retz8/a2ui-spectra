@@ -24,7 +24,7 @@ Out of scope:
 - Owning the agent's process beyond spawning it and ending it: restart, logs in the browser, restart on save. Phase 8.
 - The config file. Phase 4, with the catalog path and the preview page's URL as its first settings; the agent URL joins it then.
 - Actions, the data model sent by the host, and the preview. Phase 4.
-- The platform matrix. Phase 9.
+- The platform matrix. Phase 10.
 - A2A's task methods and push notifications attached to the turn they belong to. Backlog.
 - A2UI v0.8.
 

@@ -33,7 +33,7 @@ A command-line option takes precedence over the file, and the file over the defa
 
 ### 5. The config schema
 
-The schema the loader validates against is written once, as the same document an editor validates against. The running tool serves it at a fixed path, and the README shows the `$schema` line that points there. A stable public URL for it is Phase 9's.
+The schema the loader validates against is written once, as the same document an editor validates against. The running tool serves it at a fixed path, and the README shows the `$schema` line that points there. A stable public URL for it is Phase 10's.
 
 ### 6. Read once at start
 

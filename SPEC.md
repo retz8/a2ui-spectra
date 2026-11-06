@@ -363,8 +363,9 @@ As read from `upstream/main` at 45633b9 (2026-10-16), unless noted.
 6. **The A2UI step:** the Python and TypeScript wrappers as OpenTelemetry instrumentation; retries and parse errors; raw text linked to the components it became.
 7. **Fixtures and replay:** save as fixture; replay with everything recorded and with tools recorded and the model live, each labelled with its cost; `a2ui-spectra replay`; `a2ui-spectra test` for CI.
 8. **The dev loop:** agent restart and logs, restart on save, re-run the last turn, the preview reloading from the catalog's dev server.
-9. **Shipping:** the binary on npm, PyPI and GitHub releases, with the curl script.
-10. **The case:** the demo, with the restaurant finder in Python and in TypeScript producing the same view and a real misfit found and fixed in minutes; a README; the contribution rule; the proposal as a GitHub Discussion.
+9. **Upstream v1.0 and supported versions:** the upgrade to upstream's v1.0 as its current version; which protocol versions and which upstream SDKs Spectra supports; the basic root README.
+10. **Shipping:** the binary on npm, PyPI and GitHub releases, with the curl script; the install steps in the root README.
+11. **The case:** the demo, with the restaurant finder in Python and in TypeScript producing the same view and a real misfit found and fixed in minutes; the demo in the root README; the contribution rule; the proposal as a GitHub Discussion.
 
 ### After v1: widen coverage and propose the hook
 
