@@ -24,11 +24,33 @@ const sharedOptions = `  --config <path>      The config file. Default: a2ui-spe
                        without a port, such as a tunnel's. Can be repeated.
   --help               Show this help.`;
 
+const headlessOptions = `  --agent-url <url>    The agent's base address, when it is already running.
+                       Takes precedence over the config file's agent.url.
+  --config <path>      The config file. Default: a2ui-spectra.json in the
+                       working directory, when there is one.
+  --proxy-port <n>     The wire proxy's port. Default: ${DEFAULT_PROXY_PORT}.
+  --model-proxy-port <n>
+                       The model proxy's port. Default: ${DEFAULT_MODEL_PROXY_PORT}.
+  --receiver-port <n>  The OpenTelemetry receiver's port. Default: ${DEFAULT_RECEIVER_PORT}.
+  --tool-proxy-port <n>
+                       The tool proxy's port for the config file's first tool
+                       server; each further one takes the next port.
+                       Default: ${DEFAULT_TOOL_PROXY_PORT}.
+  --help               Show this help.`;
+
+const headlessAgent = `The agent comes either way run and attach take it: a command after '--'
+is started with the redirection variables set, as run starts it; --agent-url,
+or agent.url in the config file, names an agent already running, whose shell
+the variables attach prints were set in. No viewer and no browser: the
+status lines go to stderr, and stdout carries the result lines alone.`;
+
 const toolHelp = `${NAME} ${VERSION}: DevTools for A2UI agents.
 
 Usage:
   ${NAME} attach [<agent-url>] [options]
   ${NAME} run [--agent-url <url>] [options] -- <command> [args...]
+  ${NAME} replay <file> [--model-live] [--agent-url <url>] [options] [-- <command> [args...]]
+  ${NAME} test [<folder>] [--agent-url <url>] [options] [-- <command> [args...]]
   ${NAME} <command> --help
   ${NAME} --help
   ${NAME} --version
@@ -36,12 +58,14 @@ Usage:
 Commands:
   attach  Attach to an agent that is already running.
   run     Start the agent's command, then attach to it.
+  replay  Replay one turn record against the agent, headless.
+  test    Replay every fixture under a folder with everything recorded, for CI.
 
 The agent's URL is its base address: its card is read from
 <agent-url>/.well-known/agent-card.json. It may come from the config file
 instead, as agent.url; the command line takes precedence over the file.
 
-Options:
+Options of attach and run:
 ${sharedOptions}
 `;
 
@@ -90,6 +114,49 @@ Options:
 ${sharedOptions}
 `;
 
+const replayHelp = `Usage: ${NAME} replay <file> [--model-live] [--agent-url <url>] [options] [-- <command> [args...]]
+
+Replay a turn record, a fixture or a store turn's file, against the agent:
+each recorded turn's wire input is re-sent through the wire proxy in order,
+the earlier turns first, while the model proxy and the tool proxy answer from
+the record. With everything recorded, the default, no call leaves the
+machine and a request the record does not match is a miss. With --model-live
+a model request the record does not match goes to the provider, so an
+unchanged agent replays for free and a changed prompt pays from the request
+that changed on; a tool request that matches nothing is a miss either way.
+
+${headlessAgent}
+
+One line per recorded turn, with its verdict, the reasons it failed and how
+many of its recorded calls were not asked for, then a line for the record
+with the conversation folder the replayed turns landed in. Exit 0 when the
+record passes, 1 when it fails or the box cannot send, 2 when the file is
+missing or is not a turn record.
+
+Options:
+  --model-live         Tools recorded, the model live.
+${headlessOptions}
+`;
+
+const testHelp = `Usage: ${NAME} test [<folder>] [--agent-url <url>] [options] [-- <command> [args...]]
+
+Replay every fixture under the folder, each with everything recorded in its
+own conversation against the one agent, in path order: every .json file,
+recursively, as the viewer lists them. The folder is the config file's
+fixtures folder when left out, a2ui-spectra-fixtures by default.
+
+${headlessAgent}
+
+One line per fixture with its verdict; under a failed one, its failing turns'
+reasons, a file that is not a turn record with its reason, and the
+conversation folder the replayed turns landed in; then a summary line. Exit 0
+when every fixture passes, 1 otherwise, 2 when the folder is missing or
+holds no .json file.
+
+Options:
+${headlessOptions}
+`;
+
 /** The help text for the tool, or for one command. */
 export function helpText(topic?: CommandName): string {
   switch (topic) {
@@ -97,6 +164,10 @@ export function helpText(topic?: CommandName): string {
       return attachHelp;
     case 'run':
       return runHelp;
+    case 'replay':
+      return replayHelp;
+    case 'test':
+      return testHelp;
     default:
       return toolHelp;
   }

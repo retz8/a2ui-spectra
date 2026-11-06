@@ -25,9 +25,13 @@ import {
   type TurnRecord,
 } from './record/turn_record.js';
 import {ReplayRecordError, replayInputs} from './replay/inputs.js';
-import {ReplayPool} from './replay/pool.js';
+import {hasNothingToServe, ReplayPool} from './replay/pool.js';
 import {verdictOf} from './replay/verdict.js';
 import type {ReplayedTurn, TurnHub} from './turn_hub.js';
+
+/** Why everything-recorded mode refuses a record with no model call and no tool call. */
+export const NOTHING_TO_SERVE =
+  'The record holds no model call and no tool call, so there is nothing to serve with everything recorded.';
 
 /** A send the box refuses, with the HTTP status the server answers with. */
 export class MessageBoxError extends Error {
@@ -319,13 +323,10 @@ export class MessageBox {
       if (error instanceof ReplayRecordError) throw new MessageBoxError(422, error.message);
       throw error;
     }
-    const pool = new ReplayPool(source.record, mode);
-    if (mode === 'recorded' && pool.unserved().length === 0) {
-      throw new MessageBoxError(
-        422,
-        'The record holds no model call and no tool call, so there is nothing to serve with everything recorded. Replay it with the model live.',
-      );
+    if (mode === 'recorded' && hasNothingToServe(source.record)) {
+      throw new MessageBoxError(422, `${NOTHING_TO_SERVE} Replay it with the model live.`);
     }
+    const pool = new ReplayPool(source.record, mode);
 
     const replaying: ReplayState = {source: source.path, mode, turn: 0, turns: inputs.length};
     this.#replaying = replaying;

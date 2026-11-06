@@ -21,3 +21,15 @@ export const consoleOutput: Output = {
     process.stderr.write(`${NAME}: ${line}\n`);
   },
 };
+
+/**
+ * The same output with its status lines written where its error lines go,
+ * for the headless commands: stdout then carries what `print` writes alone.
+ */
+export function statusToStderr(out: Output): Output {
+  return {
+    print: text => out.print(text),
+    info: line => out.error(line),
+    error: line => out.error(line),
+  };
+}

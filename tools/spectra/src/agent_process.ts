@@ -57,25 +57,31 @@ export interface AgentProcessOptions {
   graceMs?: number;
   /** Variables added to Spectra's environment for the command: the redirection. */
   env?: Record<string, string>;
+  /** Where the command's output goes: Spectra's own stdout and stderr, or both to its stderr. */
+  output?: 'inherit' | 'stderr';
 }
 
 /**
  * Starts the command without a shell, with Spectra's environment, the
  * variables given added, and its working directory, writing to Spectra's
- * stdout and stderr, with its input closed. On POSIX systems it leads its
- * own process group.
+ * stdout and stderr, or to its stderr alone, with its input closed. On
+ * POSIX systems it leads its own process group.
  */
 export function startAgentProcess(
   command: string,
   args: readonly string[],
-  {graceMs = STOP_GRACE_MS, env = {}}: AgentProcessOptions = {},
+  {graceMs = STOP_GRACE_MS, env = {}, output = 'inherit'}: AgentProcessOptions = {},
 ): AgentProcess {
   const child = spawn(command, args, {
-    stdio: ['ignore', 'inherit', 'inherit'],
+    stdio: output === 'inherit' ? ['ignore', 'inherit', 'inherit'] : ['ignore', 'pipe', 'pipe'],
     detached: posix,
     env: {...process.env, ...env},
     cwd: process.cwd(),
   });
+  if (output === 'stderr') {
+    child.stdout?.pipe(process.stderr, {end: false});
+    child.stderr?.pipe(process.stderr, {end: false});
+  }
   const exited = new Promise<AgentExit>(resolve => {
     child.once('error', error => resolve({code: null, signal: null, error}));
     child.once('exit', (code, signal) => resolve({code, signal}));

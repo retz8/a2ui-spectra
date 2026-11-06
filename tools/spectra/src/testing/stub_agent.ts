@@ -16,14 +16,23 @@ after(() => {
   for (const stub of stubs) stub.kill('SIGKILL');
 });
 
-/** Starts the stub agent with a behaviour, its canned A2UI conversation by default, and resolves once it listens. */
+/** The stub agent's script, for a command that launches it. */
+export {stubScript};
+
+/**
+ * Starts the stub agent with a behaviour, its canned A2UI conversation by
+ * default, with variables added to its environment, and resolves once it
+ * listens.
+ */
 export function startStub(
   port: number,
   flags: string[],
-  behaviour: '--canned-a2ui' | '--flawed-booking' = '--canned-a2ui',
+  behaviour: '--canned-a2ui' | '--flawed-booking' | '--model-calling' = '--canned-a2ui',
+  env: Record<string, string> = {},
 ): Promise<ChildProcess> {
   const stub = spawn(process.execPath, [stubScript, '--port', String(port), behaviour, ...flags], {
     stdio: ['ignore', 'pipe', 'pipe'],
+    env: {...process.env, ...env},
   });
   stubs.add(stub);
   return new Promise((resolve, reject) => {

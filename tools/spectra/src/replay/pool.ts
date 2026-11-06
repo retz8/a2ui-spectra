@@ -231,3 +231,8 @@ export class ReplayPool {
     return undefined;
   }
 }
+
+/** Whether a record holds nothing the proxies could serve: no model call and no tool call to answer with. */
+export function hasNothingToServe(record: TurnRecord): boolean {
+  return new ReplayPool(record, 'recorded').unserved().length === 0;
+}

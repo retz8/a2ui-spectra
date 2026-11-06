@@ -10,7 +10,7 @@ import {
   exitCodeOf,
   startAgentProcess,
 } from './agent_process.js';
-import type {SessionOptions} from './args.js';
+import type {AgentCommand, HeadlessOptions} from './args.js';
 import {openBrowser} from './browser.js';
 import {CatalogRegistry} from './catalog/registry.js';
 import {ConfigError, type SpectraConfig, substituteVariables} from './config.js';
@@ -39,19 +39,31 @@ import {
 } from './tool_proxy/servers.js';
 import {TurnHub} from './turn_hub.js';
 
-/** The agent's command, under `run`. */
-export interface AgentCommand {
-  command: string;
-  args: string[];
-}
+export type {AgentCommand};
 
 /** The session's settings: the command line's options with the agent's URL settled, and the config. */
-export interface SessionSettings extends Omit<SessionOptions, 'agentUrl' | 'config'> {
+export interface SessionSettings extends Omit<HeadlessOptions, 'agentUrl' | 'config'> {
   agentUrl: URL;
   config: SpectraConfig;
   /** The tool proxy's port for each configured tool server, in config order. */
   toolPorts: number[];
+  /** The viewer's settings under `attach` and `run`; none under the headless commands. */
+  viewer?: {port: number; open: boolean; allowedHosts: string[]};
 }
+
+/** What a headless command works with once the agent's card has answered and the box is ready. */
+export interface HeadlessSession {
+  box: MessageBox;
+  turns: TurnHub;
+  store: TurnStore;
+  /** Aborted once Spectra stops: on a stop signal, or when the agent's process ends. */
+  stopping: AbortSignal;
+  /** Why Spectra is stopping, once it is. */
+  stopReason(): string;
+}
+
+/** A headless command's work, run in place of the viewer; resolves with its exit code. */
+export type HeadlessWork = (session: HeadlessSession) => Promise<number>;
 
 const STOP_SIGNALS: NodeJS.Signals[] =
   process.platform === 'win32' ? ['SIGINT', 'SIGTERM'] : ['SIGINT', 'SIGTERM', 'SIGHUP'];
@@ -69,13 +81,18 @@ const STAND_IN_VARIABLE = 'SPECTRA_PROVIDER_STAND_IN';
  * addresses and opens the browser, then runs until a stop signal, or until
  * the agent's process exits. Each turn the proxy captures is checked and
  * written to the store, then closed on the live stream, and Spectra waits
- * for the turns still open when it stops. Resolves with Spectra's exit code.
+ * for the turns still open when it stops. Given headless work, `replay` or
+ * `test`, it runs that in place of the viewer and the browser once the box
+ * is ready, the agent's output on stderr, and stops when the work is done,
+ * exiting with the work's code, or 1 when the agent's process ended first.
+ * Resolves with Spectra's exit code.
  */
 export async function runSession(
   options: SessionSettings,
   agentCommand: AgentCommand | undefined,
   out: Output,
   viewerDir: string,
+  headless?: HeadlessWork,
 ): Promise<number> {
   let store: TurnStore;
   try {
@@ -158,6 +175,9 @@ export async function runSession(
   let box: MessageBox | undefined;
   let server: ViewerServer | undefined;
   let failed = false;
+  /** Whether the agent's process ended on its own, before Spectra stopped. */
+  let agentExitedEarly = false;
+  let exitCode = 0;
 
   const onSignal = (signal: NodeJS.Signals) => {
     if (!stop.signal.aborted) {
@@ -205,12 +225,16 @@ export async function runSession(
       if (replaced !== undefined) out.info(replaced);
       agent = startAgentProcess(agentCommand.command, agentCommand.args, {
         env: {...environmentOf(redirected), ...toolEnvironmentOf(tools), ...otel.environment},
+        output: headless === undefined ? 'inherit' : 'stderr',
       });
       void agent.exited.then(exit => {
         agentExit = exit;
         if (!stop.signal.aborted) {
+          agentExitedEarly = true;
           const when =
-            server === undefined && exit.error === undefined ? ' before its card answered' : '';
+            server === undefined && box === undefined && exit.error === undefined
+              ? ' before its card answered'
+              : '';
           out.info(`The agent's process ${describeExit(exit)}${when}.`);
           stop.abort();
         }
@@ -301,59 +325,79 @@ export async function runSession(
           log: line => out.info(line),
         },
       });
-      if (box.unavailable !== undefined) {
-        out.info(box.unavailable);
-      }
-      server = await startViewerServer({
-        port: options.port,
-        viewerDir,
-        allowedHosts: options.allowedHosts,
-        api: {
-          store,
-          turns,
+      if (headless !== undefined) {
+        for (const line of startLines(tools)) out.info(line);
+        out.info(`The OpenTelemetry receiver is at ${receiverListener.origin}`);
+        out.info(`Turns are saved in ${store.turnsDir}`);
+        out.info(`Fixtures are saved in ${fixtures.dir}`);
+        const session: HeadlessSession = {
           box,
-          fixtures,
-          catalogs,
-          prices: options.config.prices,
-          context: {
-            ...(typeof card.name === 'string' && {agentName: card.name}),
-            agentUrl: options.agentUrl.href,
-            mode: agentCommand === undefined ? 'attach' : 'run',
-            proxyAddress: proxy.address,
-            previewPages: options.config.preview,
-            fixturesFolder: fixtures.display,
-            ...(agentCommand === undefined && {
-              variables: [...variablesOf(redirected), ...toolVariablesOf(tools), ...otel.printed],
-            }),
-            ...cardDetailsOf(card),
+          turns,
+          store,
+          stopping: stop.signal,
+          stopReason: () =>
+            agentExit !== undefined && agentExitedEarly
+              ? `The agent's process ${describeExit(agentExit)}.`
+              : 'Spectra is stopping.',
+        };
+        exitCode = await headless(session);
+        stop.abort();
+      } else {
+        if (box.unavailable !== undefined) {
+          out.info(box.unavailable);
+        }
+        const viewer = options.viewer ?? {port: 0, open: false, allowedHosts: []};
+        server = await startViewerServer({
+          port: viewer.port,
+          viewerDir,
+          allowedHosts: viewer.allowedHosts,
+          api: {
+            store,
+            turns,
+            box,
+            fixtures,
+            catalogs,
+            prices: options.config.prices,
+            context: {
+              ...(typeof card.name === 'string' && {agentName: card.name}),
+              agentUrl: options.agentUrl.href,
+              mode: agentCommand === undefined ? 'attach' : 'run',
+              proxyAddress: proxy.address,
+              previewPages: options.config.preview,
+              fixturesFolder: fixtures.display,
+              ...(agentCommand === undefined && {
+                variables: [...variablesOf(redirected), ...toolVariablesOf(tools), ...otel.printed],
+              }),
+              ...cardDetailsOf(card),
+            },
           },
-        },
-      });
-      out.info(`The viewer is at ${server.url}`);
-      out.info(`Point a host at the wire proxy: ${proxy.address}`);
-      for (const line of startLines(tools)) out.info(line);
-      out.info(`The OpenTelemetry receiver is at ${receiverListener.origin}`);
-      out.info(`Turns are saved in ${store.turnsDir}`);
-      out.info(`Fixtures are saved in ${fixtures.dir}`);
-      if (agentCommand === undefined) {
-        const lines = attachLines(redirected, [
-          ...exportLines(tools),
-          ...receiverExportLines(otel),
-        ]);
-        out.info(lines.intro);
-        for (const line of lines.exports) out.print(line);
-        out.info(lines.note);
+        });
+        out.info(`The viewer is at ${server.url}`);
+        out.info(`Point a host at the wire proxy: ${proxy.address}`);
+        for (const line of startLines(tools)) out.info(line);
+        out.info(`The OpenTelemetry receiver is at ${receiverListener.origin}`);
+        out.info(`Turns are saved in ${store.turnsDir}`);
+        out.info(`Fixtures are saved in ${fixtures.dir}`);
+        if (agentCommand === undefined) {
+          const lines = attachLines(redirected, [
+            ...exportLines(tools),
+            ...receiverExportLines(otel),
+          ]);
+          out.info(lines.intro);
+          for (const line of lines.exports) out.print(line);
+          out.info(lines.note);
+        }
+        if (viewer.open) {
+          openBrowser(server.url);
+        }
+        await aborted(stop.signal);
       }
-      if (options.open) {
-        openBrowser(server.url);
-      }
-      await aborted(stop.signal);
     }
   } catch (error) {
     failed = true;
     if (error instanceof PortTakenError) {
       const option =
-        error.port === options.port
+        error.port === options.viewer?.port
           ? '--port'
           : error.port === options.proxyPort
             ? '--proxy-port'
@@ -387,13 +431,24 @@ export async function runSession(
     }
   }
 
-  if (failed) {
-    return 1;
+  return finish();
+
+  /** Spectra's exit code, once everything has closed. */
+  function finish(): number {
+    if (failed) {
+      return 1;
+    }
+    if (headless !== undefined) {
+      if (agentExitedEarly) {
+        return 1;
+      }
+      return stoppedBy === undefined ? exitCode : 128 + (constants.signals[stoppedBy] ?? 0);
+    }
+    if (agentExit !== undefined) {
+      return exitCodeOf(agentExit);
+    }
+    return stoppedBy === undefined ? 0 : 128 + (constants.signals[stoppedBy] ?? 0);
   }
-  if (agentExit !== undefined) {
-    return exitCodeOf(agentExit);
-  }
-  return stoppedBy === undefined ? 0 : 128 + (constants.signals[stoppedBy] ?? 0);
 }
 
 function aborted(signal: AbortSignal): Promise<void> {

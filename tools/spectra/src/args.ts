@@ -10,16 +10,20 @@ export const DEFAULT_PROXY_PORT = 9821;
 export const DEFAULT_TOOL_PROXY_PORT = 9824;
 export {DEFAULT_MODEL_PROXY_PORT, DEFAULT_RECEIVER_PORT};
 
-export type CommandName = 'attach' | 'run';
+export type CommandName = 'attach' | 'run' | 'replay' | 'test';
 
-/** What both commands take besides the agent's command. */
-export interface SessionOptions {
+/** The agent's command, after `--`. */
+export interface AgentCommand {
+  command: string;
+  args: string[];
+}
+
+/** What every command takes: the agent, the config file and the proxies' and the receiver's ports. */
+export interface HeadlessOptions {
   /** The agent's base address, when the command line gives it; else the config file may. */
   agentUrl?: URL;
   /** The config file `--config` names; else the default file in the working directory. */
   config?: string;
-  /** The viewer's port. */
-  port: number;
   /** The wire proxy's port. */
   proxyPort: number;
   /** The model proxy's port. */
@@ -28,6 +32,12 @@ export interface SessionOptions {
   toolProxyPort: number;
   /** The OpenTelemetry receiver's port. */
   receiverPort: number;
+}
+
+/** What `attach` and `run` take besides the agent's command: the viewer's options too. */
+export interface SessionOptions extends HeadlessOptions {
+  /** The viewer's port. */
+  port: number;
   /** Whether to open the browser. */
   open: boolean;
   /** Host names the server answers besides the loopback names. */
@@ -38,7 +48,24 @@ export type CommandLine =
   | {name: 'help'; topic?: CommandName}
   | {name: 'version'}
   | {name: 'attach'; options: SessionOptions}
-  | {name: 'run'; options: SessionOptions; command: string; args: string[]};
+  | {name: 'run'; options: SessionOptions; command: string; args: string[]}
+  | {
+      name: 'replay';
+      options: HeadlessOptions;
+      /** The record's file. */
+      file: string;
+      /** Whether the model is live, tools recorded; else everything is recorded. */
+      modelLive: boolean;
+      /** The agent's command, when the command launches it. */
+      command?: AgentCommand;
+    }
+  | {
+      name: 'test';
+      options: HeadlessOptions;
+      /** The fixtures folder, when given; else the config file's. */
+      folder?: string;
+      command?: AgentCommand;
+    };
 
 /** A command line that cannot be run as written. */
 export class UsageError extends Error {
@@ -50,6 +77,21 @@ export class UsageError extends Error {
     this.name = 'UsageError';
   }
 }
+
+const headlessOptions = {
+  config: {type: 'string'},
+  'proxy-port': {type: 'string'},
+  'model-proxy-port': {type: 'string'},
+  'tool-proxy-port': {type: 'string'},
+  'receiver-port': {type: 'string'},
+  'agent-url': {type: 'string'},
+  help: {type: 'boolean'},
+} as const;
+
+const replayOptions = {
+  ...headlessOptions,
+  'model-live': {type: 'boolean'},
+} as const;
 
 const sessionOptions = {
   config: {type: 'string'},
@@ -92,6 +134,12 @@ export function parseCommandLine(argv: readonly string[]): CommandLine {
   if (first === 'run') {
     return parseRun(rest);
   }
+  if (first === 'replay') {
+    return parseReplay(rest);
+  }
+  if (first === 'test') {
+    return parseTest(rest);
+  }
   if (first.startsWith('-')) {
     throw new UsageError(`Unknown option '${first}'.`);
   }
@@ -120,33 +168,76 @@ function parseRun(argv: string[]): CommandLine {
   if (values.help) {
     return {name: 'help', topic: 'run'};
   }
-  const terminator = tokens.find(token => token.kind === 'option-terminator');
-  const before = tokens.filter(
-    token =>
-      token.kind === 'positional' && (terminator === undefined || token.index < terminator.index),
-  );
-  if (before.length > 0 && before[0].kind === 'positional') {
+  const before = positionalsBefore(tokens);
+  if (before.length > 0) {
     throw new UsageError(
-      `Unexpected argument '${before[0].value}'. The agent's command goes after '--'.`,
+      `Unexpected argument '${before[0]}'. The agent's command goes after '--'.`,
       'run',
     );
   }
-  if (terminator === undefined) {
-    throw new UsageError("run needs the agent's command after '--'.", 'run');
-  }
-  const command = argv.slice(terminator.index + 1);
-  if (command.length === 0) {
+  const command = agentCommandOf(argv, tokens, 'run');
+  if (command === undefined) {
     throw new UsageError("run needs the agent's command after '--'.", 'run');
   }
   return {
     name: 'run',
     options: sessionOptionsFrom(values, values['agent-url'], 'run'),
-    command: command[0],
-    args: command.slice(1),
+    command: command.command,
+    args: command.args,
   };
 }
 
-type Options = typeof sessionOptions | typeof runOptions;
+function parseReplay(argv: string[]): CommandLine {
+  const {values, tokens} = parse(argv, replayOptions, 'replay');
+  if (values.help) {
+    return {name: 'help', topic: 'replay'};
+  }
+  const [file, ...more] = positionalsBefore(tokens);
+  if (file === undefined) {
+    throw new UsageError("replay needs the record's file.", 'replay');
+  }
+  if (more.length > 0) {
+    throw new UsageError(`Unexpected argument '${more[0]}'.`, 'replay');
+  }
+  const command = agentCommandOf(argv, tokens, 'replay');
+  return {
+    name: 'replay',
+    options: headlessOptionsFrom(values, values['agent-url'], 'replay'),
+    file,
+    modelLive: values['model-live'] === true,
+    ...(command !== undefined && {command}),
+  };
+}
+
+function parseTest(argv: string[]): CommandLine {
+  const {values, tokens} = parse(argv, headlessOptions, 'test');
+  if (values.help) {
+    return {name: 'help', topic: 'test'};
+  }
+  const [folder, ...more] = positionalsBefore(tokens);
+  if (more.length > 0) {
+    throw new UsageError(`Unexpected argument '${more[0]}'.`, 'test');
+  }
+  const command = agentCommandOf(argv, tokens, 'test');
+  return {
+    name: 'test',
+    options: headlessOptionsFrom(values, values['agent-url'], 'test'),
+    ...(folder !== undefined && {folder}),
+    ...(command !== undefined && {command}),
+  };
+}
+
+type Options =
+  typeof sessionOptions | typeof runOptions | typeof headlessOptions | typeof replayOptions;
+
+/** A parsed token: a positional, an option, or the `--` terminator, at its index in the arguments. */
+interface Token {
+  kind: 'positional' | 'option' | 'option-terminator';
+  index: number;
+  value?: string;
+}
+
+type Tokens = readonly Token[];
 
 function parse<T extends Options>(argv: string[], options: T, topic: CommandName) {
   try {
@@ -162,12 +253,41 @@ function parse<T extends Options>(argv: string[], options: T, topic: CommandName
   }
 }
 
+/** The positional arguments before `--`, in order. */
+function positionalsBefore(tokens: Tokens): string[] {
+  const terminator = tokens.find(token => token.kind === 'option-terminator');
+  return tokens.flatMap(token =>
+    token.kind === 'positional' &&
+    token.value !== undefined &&
+    (terminator === undefined || token.index < terminator.index)
+      ? [token.value]
+      : [],
+  );
+}
+
+/** The agent's command after `--`, when there is a `--`; a `--` with nothing after it is a usage error. */
+function agentCommandOf(
+  argv: string[],
+  tokens: Tokens,
+  topic: CommandName,
+): AgentCommand | undefined {
+  const terminator = tokens.find(token => token.kind === 'option-terminator');
+  if (terminator === undefined) {
+    return undefined;
+  }
+  const command = argv.slice(terminator.index + 1);
+  if (command.length === 0) {
+    throw new UsageError(`${topic} needs the agent's command after '--'.`, topic);
+  }
+  return {command: command[0], args: command.slice(1)};
+}
+
 /**
  * The agent's URL: the command line's, else the config file's. Neither is a
  * usage error naming both ways.
  */
 export function agentUrlOf(
-  options: SessionOptions,
+  options: HeadlessOptions,
   config: SpectraConfig,
   topic: CommandName,
 ): URL {
@@ -176,29 +296,31 @@ export function agentUrlOf(
     throw new UsageError(
       topic === 'attach'
         ? `attach needs the agent's URL: its <agent-url> argument, or agent.url in ${CONFIG_FILE}.`
-        : `run needs the agent's URL: --agent-url, or agent.url in ${CONFIG_FILE}.`,
+        : `${topic} needs the agent's URL: --agent-url, or agent.url in ${CONFIG_FILE}.`,
       topic,
     );
   }
   return url;
 }
 
-function sessionOptionsFrom(
-  values: {
-    config?: string;
-    port?: string;
-    'proxy-port'?: string;
-    'model-proxy-port'?: string;
-    'tool-proxy-port'?: string;
-    'receiver-port'?: string;
-    'no-open'?: boolean;
-    'allow-host'?: string[];
-  },
-  agentUrl: string | undefined,
+interface PortValues {
+  config?: string;
+  'proxy-port'?: string;
+  'model-proxy-port'?: string;
+  'tool-proxy-port'?: string;
+  'receiver-port'?: string;
+}
+
+/** The ports read from their options, with the defaults, each pair of them different. */
+function portsFrom(
+  values: PortValues & {port?: string},
   topic: CommandName,
-): SessionOptions {
-  const ports = [
-    ['--port', parsePort(values.port, DEFAULT_VIEWER_PORT, '--port', topic)],
+  withViewer: boolean,
+): Array<readonly [string, number]> {
+  const ports: Array<readonly [string, number]> = [
+    ...(withViewer
+      ? [['--port', parsePort(values.port, DEFAULT_VIEWER_PORT, '--port', topic)] as const]
+      : []),
     ['--proxy-port', parsePort(values['proxy-port'], DEFAULT_PROXY_PORT, '--proxy-port', topic)],
     [
       '--model-proxy-port',
@@ -212,7 +334,7 @@ function sessionOptionsFrom(
       '--tool-proxy-port',
       parsePort(values['tool-proxy-port'], DEFAULT_TOOL_PROXY_PORT, '--tool-proxy-port', topic),
     ],
-  ] as const;
+  ];
   for (const [i, [option, port]] of ports.entries()) {
     const same = ports.slice(i + 1).find(([, other]) => other === port);
     if (same !== undefined) {
@@ -222,14 +344,43 @@ function sessionOptionsFrom(
       );
     }
   }
+  return ports;
+}
+
+function headlessOptionsFrom(
+  values: PortValues,
+  agentUrl: string | undefined,
+  topic: CommandName,
+): HeadlessOptions {
+  const port = Object.fromEntries(portsFrom(values, topic, false));
   return {
     ...(agentUrl !== undefined && {agentUrl: parseAgentUrl(agentUrl, topic)}),
     ...(values.config !== undefined && {config: values.config}),
-    port: ports[0][1],
-    proxyPort: ports[1][1],
-    modelProxyPort: ports[2][1],
-    receiverPort: ports[3][1],
-    toolProxyPort: ports[4][1],
+    proxyPort: port['--proxy-port'],
+    modelProxyPort: port['--model-proxy-port'],
+    receiverPort: port['--receiver-port'],
+    toolProxyPort: port['--tool-proxy-port'],
+  };
+}
+
+function sessionOptionsFrom(
+  values: PortValues & {
+    port?: string;
+    'no-open'?: boolean;
+    'allow-host'?: string[];
+  },
+  agentUrl: string | undefined,
+  topic: CommandName,
+): SessionOptions {
+  const port = Object.fromEntries(portsFrom(values, topic, true));
+  return {
+    ...(agentUrl !== undefined && {agentUrl: parseAgentUrl(agentUrl, topic)}),
+    ...(values.config !== undefined && {config: values.config}),
+    port: port['--port'],
+    proxyPort: port['--proxy-port'],
+    modelProxyPort: port['--model-proxy-port'],
+    receiverPort: port['--receiver-port'],
+    toolProxyPort: port['--tool-proxy-port'],
     open: !values['no-open'],
     allowedHosts: (values['allow-host'] ?? []).map(name => parseHostName(name, topic)),
   };
@@ -242,7 +393,7 @@ function sessionOptionsFrom(
  * error.
  */
 export function toolProxyPorts(
-  options: SessionOptions,
+  options: HeadlessOptions & {port?: number},
   servers: number,
   topic: CommandName,
 ): number[] {
@@ -255,12 +406,12 @@ export function toolProxyPorts(
       topic,
     );
   }
-  const others = [
-    ['--port', options.port],
+  const others: Array<readonly [string, number]> = [
+    ...(options.port !== undefined ? [['--port', options.port] as const] : []),
     ['--proxy-port', options.proxyPort],
     ['--model-proxy-port', options.modelProxyPort],
     ['--receiver-port', options.receiverPort],
-  ] as const;
+  ];
   for (const [option, port] of others) {
     if (ports.includes(port)) {
       throw new UsageError(

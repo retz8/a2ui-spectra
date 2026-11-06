@@ -3,6 +3,7 @@ import {describe, it} from 'node:test';
 
 import {
   agentUrlOf,
+  DEFAULT_MODEL_PROXY_PORT,
   DEFAULT_PROXY_PORT,
   DEFAULT_RECEIVER_PORT,
   DEFAULT_TOOL_PROXY_PORT,
@@ -216,5 +217,140 @@ describe('parseCommandLine', () => {
       () => parseCommandLine(['run', '--agent-url', 'http://a']),
       (error: unknown) => error instanceof UsageError && error.topic === 'run',
     );
+  });
+});
+
+describe('the headless commands', () => {
+  it("reads replay with the record's file and the defaults", () => {
+    const commandLine = parseCommandLine(['replay', 'fixtures/greet-ada.json']);
+    assert.ok(commandLine.name === 'replay');
+    assert.equal(commandLine.file, 'fixtures/greet-ada.json');
+    assert.equal(commandLine.modelLive, false);
+    assert.equal(commandLine.command, undefined);
+    assert.equal(commandLine.options.agentUrl, undefined);
+    assert.equal(commandLine.options.config, undefined);
+    assert.equal(commandLine.options.proxyPort, DEFAULT_PROXY_PORT);
+    assert.equal(commandLine.options.modelProxyPort, DEFAULT_MODEL_PROXY_PORT);
+    assert.equal(commandLine.options.toolProxyPort, DEFAULT_TOOL_PROXY_PORT);
+    assert.equal(commandLine.options.receiverPort, DEFAULT_RECEIVER_PORT);
+    assert.ok(!('port' in commandLine.options));
+    assert.ok(!('open' in commandLine.options));
+    assert.ok(!('allowedHosts' in commandLine.options));
+  });
+
+  it("reads replay with every option and the agent's command after --, untouched", () => {
+    const commandLine = parseCommandLine([
+      'replay',
+      'greet-ada.json',
+      '--model-live',
+      '--agent-url',
+      'http://localhost:10004',
+      '--config',
+      'spectra/config.json',
+      '--proxy-port',
+      '7001',
+      '--model-proxy-port',
+      '7002',
+      '--tool-proxy-port',
+      '7003',
+      '--receiver-port',
+      '7004',
+      '--',
+      'uv',
+      'run',
+      '.',
+      '--port',
+      '10004',
+    ]);
+    assert.ok(commandLine.name === 'replay');
+    assert.equal(commandLine.file, 'greet-ada.json');
+    assert.equal(commandLine.modelLive, true);
+    assert.equal(commandLine.options.agentUrl?.href, 'http://localhost:10004/');
+    assert.equal(commandLine.options.config, 'spectra/config.json');
+    assert.equal(commandLine.options.proxyPort, 7001);
+    assert.equal(commandLine.options.modelProxyPort, 7002);
+    assert.equal(commandLine.options.toolProxyPort, 7003);
+    assert.equal(commandLine.options.receiverPort, 7004);
+    assert.deepEqual(commandLine.command, {command: 'uv', args: ['run', '.', '--port', '10004']});
+  });
+
+  it('reads test with and without the folder', () => {
+    const bare = parseCommandLine(['test']);
+    assert.ok(bare.name === 'test');
+    assert.equal(bare.folder, undefined);
+    assert.equal(bare.command, undefined);
+    assert.equal(bare.options.proxyPort, DEFAULT_PROXY_PORT);
+    const given = parseCommandLine(['test', 'ci/fixtures', '--agent-url', 'http://localhost:1']);
+    assert.ok(given.name === 'test');
+    assert.equal(given.folder, 'ci/fixtures');
+    assert.equal(given.options.agentUrl?.href, 'http://localhost:1/');
+    const launched = parseCommandLine(['test', '--', 'node', 'agent.js']);
+    assert.ok(launched.name === 'test');
+    assert.equal(launched.folder, undefined);
+    assert.deepEqual(launched.command, {command: 'node', args: ['agent.js']});
+  });
+
+  it('names the command whose help to show', () => {
+    assert.deepEqual(parseCommandLine(['replay', '--help']), {name: 'help', topic: 'replay'});
+    assert.deepEqual(parseCommandLine(['test', '--help']), {name: 'help', topic: 'test'});
+    assert.throws(
+      () => parseCommandLine(['replay']),
+      (error: unknown) => error instanceof UsageError && error.topic === 'replay',
+    );
+    assert.throws(
+      () => parseCommandLine(['test', '--model-live']),
+      (error: unknown) => error instanceof UsageError && error.topic === 'test',
+    );
+  });
+
+  it('rejects what it cannot run', () => {
+    usageError(['replay'], /replay needs the record's file/);
+    usageError(['replay', 'a.json', 'b.json'], /Unexpected argument 'b.json'/);
+    usageError(['replay', 'a.json', '--port', '1'], /Unknown option '--port'/);
+    usageError(['replay', 'a.json', '--no-open'], /Unknown option '--no-open'/);
+    usageError(['replay', 'a.json', '--allow-host', 'x'], /Unknown option '--allow-host'/);
+    usageError(['test', '--model-live'], /Unknown option '--model-live'/);
+    usageError(['test', 'a', 'b'], /Unexpected argument 'b'/);
+    usageError(['replay', 'a.json', '--'], /after '--'/);
+    usageError(['test', '--'], /after '--'/);
+    usageError(
+      ['replay', 'a.json', '--proxy-port', '9822'],
+      /--proxy-port and --model-proxy-port are both 9822/,
+    );
+    usageError(['test', '--agent-url', 'not a url'], /is not a URL/);
+  });
+
+  it("asks replay and test for the agent's URL as --agent-url", () => {
+    const config = {
+      headers: {},
+      catalogs: [],
+      preview: [],
+      tools: [],
+      prices: {},
+      fixtures: '/tmp/fixtures',
+    };
+    const options = {
+      proxyPort: DEFAULT_PROXY_PORT,
+      modelProxyPort: DEFAULT_MODEL_PROXY_PORT,
+      toolProxyPort: DEFAULT_TOOL_PROXY_PORT,
+      receiverPort: DEFAULT_RECEIVER_PORT,
+    };
+    assert.throws(
+      () => agentUrlOf(options, config, 'replay'),
+      (error: unknown) =>
+        error instanceof UsageError &&
+        /replay needs the agent's URL: --agent-url, or agent.url in a2ui-spectra.json/.test(
+          error.message,
+        ),
+    );
+    assert.throws(
+      () => agentUrlOf(options, config, 'test'),
+      (error: unknown) =>
+        error instanceof UsageError && /^test needs the agent's URL/.test(error.message),
+    );
+    assert.deepEqual(toolProxyPorts(options, 2, 'test'), [
+      DEFAULT_TOOL_PROXY_PORT,
+      DEFAULT_TOOL_PROXY_PORT + 1,
+    ]);
   });
 });

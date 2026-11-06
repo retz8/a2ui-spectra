@@ -23,11 +23,26 @@
  *   `updateDataModel` that names no surface. A later message in the same
  *   conversation gets a completed task holding a booking summary, a new
  *   surface whose Text binds a path its data model never fills.
+ * - With `--model-calling`, it calls the model: a message sends a Gemini
+ *   request to the API at `GOOGLE_GEMINI_BASE_URL`, with its prompt as the
+ *   system instruction and `get_restaurants` as a tool; a function call in
+ *   the reply is answered by the `echo` tool of the MCP server whose URL
+ *   `SPECTRA_STUB_TOOL_SERVER_URL` names, over streamable HTTP, the client
+ *   connected for the call and the session ended after it, and the model is
+ *   asked again with the function response; the final reply's text goes
+ *   before its `<a2ui-json>` block, whose messages are the A2UI parts, and
+ *   the task completes. A failed call fails the task. The conversation's
+ *   history is kept by context id. It is written for the stand-in provider
+ *   playing the model capture suite's Gemini restaurant finder recording,
+ *   which answers by method and path in recorded order whatever the body.
  *
  * Options:
  *   --port <n>          The port to listen on, on 127.0.0.1. Default: $PORT, or 10013.
  *   --canned-a2ui       Hold the canned A2UI conversation instead of waiting for a cancel.
  *   --flawed-booking    Be the Flawed Booking Agent instead of waiting for a cancel.
+ *   --model-calling     Call the model and the tool server instead of waiting for a cancel.
+ *   --prompt <text>     The system instruction --model-calling sends; a change to it
+ *                       changes every model request.
  *   --a2a-0.3-first     List the A2A 0.3 interface before the A2A 1.0 one in the card.
  *
  * Run from conformance/ after `yarn build`: `node dist/stub_agent/stub_agent.js
@@ -57,6 +72,8 @@ import {
   type RequestContext,
 } from '@a2a-js/sdk/server';
 import {agentCardHandler, jsonRpcHandler, UserBuilder} from '@a2a-js/sdk/server/express';
+import {Client} from '@modelcontextprotocol/sdk/client/index.js';
+import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 /** How long a task stays open without a cancel before it completes. */
 const OPEN_FOR_MS = 60_000;
@@ -99,6 +116,34 @@ type A2uiVersion = (typeof A2UI_VERSIONS)[number];
 /** The version the Flawed Booking Agent answers in, whatever the host offers. */
 const FLAWED_VERSION = A2UI_VERSIONS[2];
 
+/** The version the model-calling mode answers in: the one the recording's model wrote. */
+const MODEL_CALLING_VERSION = A2UI_VERSIONS[2];
+
+/** The model the model-calling mode asks for, the recording's. */
+const GEMINI_MODEL = 'gemini-3.6-flash';
+
+/** The variable the model-calling mode reads its tool server's URL from. */
+const TOOL_SERVER_VARIABLE = 'SPECTRA_STUB_TOOL_SERVER_URL';
+
+const DEFAULT_PROMPT =
+  'You are a restaurant finder. Call get_restaurants for a list of restaurants, then answer with the A2UI messages inside <a2ui-json> tags.';
+
+/** The tool the model-calling mode declares, as the restaurant finder declares it. */
+const GET_RESTAURANTS = {
+  name: 'get_restaurants',
+  description:
+    "Call this tool to get a list of restaurants based on a cuisine and location.\n'count' is the number of restaurants to return.",
+  parameters: {
+    type: 'object',
+    properties: {
+      cuisine: {type: 'string'},
+      location: {type: 'string'},
+      count: {type: 'integer'},
+    },
+    required: ['cuisine', 'location'],
+  },
+};
+
 /** The send and stream methods of A2A 0.3 and 1.0. */
 const TURN_METHODS = new Set([
   'message/send',
@@ -115,7 +160,7 @@ const SAMPLE_CATALOG_ID =
 
 const SAMPLE_SURFACE_ID = 'volume';
 
-type Behaviour = 'wait-for-cancel' | 'canned-a2ui' | 'flawed-booking';
+type Behaviour = 'wait-for-cancel' | 'canned-a2ui' | 'flawed-booking' | 'model-calling';
 
 interface Options {
   port: number;
@@ -123,6 +168,8 @@ interface Options {
   a2a03First: boolean;
   /** The bearer token each JSON-RPC request must carry; none when not given. */
   bearerToken?: string;
+  /** The system instruction the model-calling mode sends. */
+  prompt: string;
 }
 
 function optionsFromArgs(args: string[]): Options {
@@ -132,6 +179,8 @@ function optionsFromArgs(args: string[]): Options {
       port: {type: 'string'},
       'canned-a2ui': {type: 'boolean', default: false},
       'flawed-booking': {type: 'boolean', default: false},
+      'model-calling': {type: 'boolean', default: false},
+      prompt: {type: 'string'},
       'a2a-0.3-first': {type: 'boolean', default: false},
       'bearer-token': {type: 'string'},
     },
@@ -140,19 +189,24 @@ function optionsFromArgs(args: string[]): Options {
   if (!Number.isInteger(port) || port <= 0) {
     throw new Error('--port takes a port number.');
   }
-  if (values['canned-a2ui'] && values['flawed-booking']) {
-    throw new Error('--canned-a2ui and --flawed-booking are two behaviours; pick one.');
+  const chosen = (
+    [
+      ['--canned-a2ui', 'canned-a2ui'],
+      ['--flawed-booking', 'flawed-booking'],
+      ['--model-calling', 'model-calling'],
+    ] as const
+  ).filter(
+    ([option]) => values[option.slice(2) as 'canned-a2ui' | 'flawed-booking' | 'model-calling'],
+  );
+  if (chosen.length > 1) {
+    throw new Error(`${chosen.map(([option]) => option).join(' and ')} are behaviours; pick one.`);
   }
-  const behaviour: Behaviour = values['canned-a2ui']
-    ? 'canned-a2ui'
-    : values['flawed-booking']
-      ? 'flawed-booking'
-      : 'wait-for-cancel';
   return {
     port,
-    behaviour,
+    behaviour: chosen[0]?.[1] ?? 'wait-for-cancel',
     a2a03First: values['a2a-0.3-first'],
     ...(values['bearer-token'] !== undefined && {bearerToken: values['bearer-token']}),
+    prompt: values.prompt ?? DEFAULT_PROMPT,
   };
 }
 
@@ -200,6 +254,17 @@ const SKILLS: Record<Behaviour, AgentCard['skills'][number]> = {
     outputModes: ['text', A2UI_MIME_TYPE],
     securityRequirements: [],
   },
+  'model-calling': {
+    id: 'model_calling',
+    name: 'Restaurant finder through the model',
+    description:
+      'Asks the model, answers its tool call over MCP, and sends the A2UI the model wrote.',
+    tags: ['a2ui'],
+    examples: ['Top 2 Chinese restaurants in New York'],
+    inputModes: ['text'],
+    outputModes: ['text', A2UI_MIME_TYPE],
+    securityRequirements: [],
+  },
 };
 
 const DESCRIPTIONS: Record<Behaviour, string> = {
@@ -207,6 +272,7 @@ const DESCRIPTIONS: Record<Behaviour, string> = {
     'Opens a task for each message and keeps its stream open until the host cancels it.',
   'canned-a2ui': 'Asks for a name in A2UI, then greets it.',
   'flawed-booking': 'Answers a booking request with a booking form whose A2UI has mistakes.',
+  'model-calling': 'Asks the model and its tool server, and sends the A2UI the model wrote.',
 };
 
 function agentCard({port, behaviour, a2a03First}: Options): AgentCard {
@@ -700,17 +766,176 @@ function echoA2uiExtension(
   };
 }
 
-const EXECUTORS: Record<Behaviour, () => AgentExecutor> = {
+interface GeminiPart {
+  text?: string;
+  functionCall?: {id?: string; name: string; args: Record<string, unknown>};
+  functionResponse?: {id?: string; name: string; response: Record<string, unknown>};
+  thoughtSignature?: string;
+}
+
+interface GeminiContent {
+  role: 'user' | 'model';
+  parts: GeminiPart[];
+}
+
+/**
+ * One Gemini request through the base URL variable, streamed; the reply's
+ * parts, its text parts joined into one, a function call kept as received.
+ */
+async function generate(prompt: string, contents: GeminiContent[]): Promise<GeminiPart[]> {
+  const base = process.env.GOOGLE_GEMINI_BASE_URL?.trim().replace(/\/+$/, '');
+  if (base === undefined || base === '') {
+    throw new Error('GOOGLE_GEMINI_BASE_URL is not set, and the stub calls no model without it.');
+  }
+  const response = await fetch(
+    `${base}/v1beta/models/${GEMINI_MODEL}:streamGenerateContent?alt=sse`,
+    {
+      method: 'POST',
+      headers: {'content-type': 'application/json', 'x-goog-api-key': 'stub-agent-key'},
+      body: JSON.stringify({
+        contents,
+        systemInstruction: {parts: [{text: prompt}]},
+        tools: [{functionDeclarations: [GET_RESTAURANTS]}],
+        generationConfig: {},
+      }),
+    },
+  );
+  const body = await response.text();
+  if (!response.ok) {
+    throw new Error(`The model API answered ${response.status}: ${body.trim()}`);
+  }
+  const parts: GeminiPart[] = [];
+  let text = '';
+  for (const line of body.split('\n')) {
+    if (!line.startsWith('data:')) continue;
+    const chunk = JSON.parse(line.slice('data:'.length).trim()) as {
+      candidates?: Array<{content?: {parts?: GeminiPart[]}}>;
+    };
+    for (const part of chunk.candidates?.[0]?.content?.parts ?? []) {
+      if (part.text !== undefined) text += part.text;
+      else parts.push(part);
+    }
+  }
+  if (text !== '') parts.push({text});
+  return parts;
+}
+
+/** Answers a function call by the tool server's `echo` tool over MCP, the client connected for the call. */
+async function answerFunctionCall(name: string, args: Record<string, unknown>): Promise<string> {
+  const url = process.env[TOOL_SERVER_VARIABLE]?.trim();
+  if (url === undefined || url === '') {
+    throw new Error(`${TOOL_SERVER_VARIABLE} is not set, so the ${name} call cannot be answered.`);
+  }
+  const client = new Client({name: 'spectra-stub-agent', version: '0.0.1'});
+  const transport = new StreamableHTTPClientTransport(new URL(url));
+  await client.connect(transport);
+  try {
+    const result = await client.callTool({name: 'echo', arguments: {text: JSON.stringify(args)}});
+    const content = result.content as Array<{type: string; text?: string}>;
+    return content
+      .filter(item => item.type === 'text')
+      .map(item => item.text ?? '')
+      .join('');
+  } finally {
+    await transport.terminateSession().catch(() => {});
+    await client.close();
+  }
+}
+
+/** The text before a reply's `<a2ui-json>` block, and the block's messages; no block, no messages. */
+function splitA2ui(reply: string): {text: string; messages: Array<Record<string, unknown>>} {
+  const match = reply.match(/<a2ui-json>([\s\S]*?)<\/a2ui-json>/);
+  if (match === null || match.index === undefined) {
+    return {text: reply.trim(), messages: []};
+  }
+  return {
+    text: reply.slice(0, match.index).trim(),
+    messages: JSON.parse(match[1]) as Array<Record<string, unknown>>,
+  };
+}
+
+class ModelCallingExecutor implements AgentExecutor {
+  readonly #prompt: string;
+  /** Each conversation's contents so far, by context id. */
+  readonly #histories = new Map<string, GeminiContent[]>();
+
+  constructor(prompt: string) {
+    this.#prompt = prompt;
+  }
+
+  cancelTask = async (_taskId: string, _eventBus: ExecutionEventBus): Promise<void> => {};
+
+  async execute(context: RequestContext, eventBus: ExecutionEventBus): Promise<void> {
+    eventBus.publish(
+      AgentEvent.task(
+        context.task === undefined
+          ? newTask(context)
+          : {
+              ...context.task,
+              status: {
+                state: TaskState.TASK_STATE_WORKING,
+                timestamp: new Date().toISOString(),
+                message: undefined,
+              },
+            },
+      ),
+    );
+    const a2a03 = isA2a03(context.context.requestedVersion);
+    const text = context.userMessage.parts
+      .flatMap(part => (part.content?.$case === 'text' ? [part.content.value] : []))
+      .join('\n');
+    const history: GeminiContent[] = [
+      ...(this.#histories.get(context.contextId) ?? []),
+      {role: 'user', parts: [{text}]},
+    ];
+    try {
+      let reply = await generate(this.#prompt, history);
+      for (let round = 0; round < 3; round++) {
+        const call = reply.find(part => part.functionCall !== undefined)?.functionCall;
+        if (call === undefined) break;
+        history.push({role: 'model', parts: reply});
+        const result = await answerFunctionCall(call.name, call.args);
+        history.push({
+          role: 'user',
+          parts: [
+            {
+              functionResponse: {
+                ...(call.id !== undefined && {id: call.id}),
+                name: call.name,
+                response: {result},
+              },
+            },
+          ],
+        });
+        reply = await generate(this.#prompt, history);
+      }
+      history.push({role: 'model', parts: reply});
+      this.#histories.set(context.contextId, history);
+      const answer = splitA2ui(reply.map(part => part.text ?? '').join(''));
+      publishStatus(eventBus, context, TaskState.TASK_STATE_COMPLETED, [
+        ...(answer.text === '' ? [] : [textPart(answer.text)]),
+        ...a2uiParts(answer.messages, a2a03),
+      ]);
+    } catch (error) {
+      publishStatus(eventBus, context, TaskState.TASK_STATE_FAILED, [
+        textPart(`The turn failed: ${error instanceof Error ? error.message : String(error)}`),
+      ]);
+    }
+  }
+}
+
+const EXECUTORS: Record<Behaviour, (options: Options) => AgentExecutor> = {
   'wait-for-cancel': () => new WaitForCancelExecutor(),
   'canned-a2ui': () => new CannedA2uiExecutor(),
   'flawed-booking': () => new FlawedBookingExecutor(),
+  'model-calling': ({prompt}) => new ModelCallingExecutor(prompt),
 };
 
 const options = optionsFromArgs(process.argv.slice(2));
 const requestHandler = new DefaultRequestHandler(
   agentCard(options),
   new InMemoryTaskStore(),
-  EXECUTORS[options.behaviour](),
+  EXECUTORS[options.behaviour](options),
 );
 const app = express();
 app.use(
@@ -727,6 +952,12 @@ if (options.behaviour === 'canned-a2ui') {
     JSON_RPC_PATH,
     express.json(),
     echoA2uiExtension(() => FLAWED_VERSION),
+  );
+} else if (options.behaviour === 'model-calling') {
+  app.use(
+    JSON_RPC_PATH,
+    express.json(),
+    echoA2uiExtension(() => MODEL_CALLING_VERSION),
   );
 }
 app.use(

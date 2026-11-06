@@ -25,7 +25,10 @@ export interface Exit {
 
 /** Spectra running as a process, with its stdout and stderr collected. */
 export class SpectraProcess {
+  /** Both streams, in arrival order. */
   output = '';
+  stdout = '';
+  stderr = '';
   readonly exited: Promise<Exit>;
   readonly #child: ChildProcess;
   #listeners: Array<() => void> = [];
@@ -41,10 +44,14 @@ export class SpectraProcess {
       cwd,
       env: {...process.env, ...env},
     });
-    for (const stream of [this.#child.stdout, this.#child.stderr]) {
+    for (const [stream, name] of [
+      [this.#child.stdout, 'stdout'],
+      [this.#child.stderr, 'stderr'],
+    ] as const) {
       stream?.setEncoding('utf8');
       stream?.on('data', (chunk: string) => {
         this.output += chunk;
+        this[name] += chunk;
         for (const listener of this.#listeners) listener();
       });
     }
@@ -104,10 +111,14 @@ export function workingDir(): string {
   return dir;
 }
 
-export async function finished(args: string[], cwd?: string): Promise<Exit & {output: string}> {
-  const spectra = new SpectraProcess(args, cwd);
+export async function finished(
+  args: string[],
+  cwd?: string,
+  env?: Record<string, string>,
+): Promise<Exit & {output: string; stdout: string; stderr: string}> {
+  const spectra = new SpectraProcess(args, cwd, env);
   const exit = await spectra.exited;
-  return {...exit, output: spectra.output};
+  return {...exit, output: spectra.output, stdout: spectra.stdout, stderr: spectra.stderr};
 }
 
 export function freePort(): Promise<number> {

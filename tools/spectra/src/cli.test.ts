@@ -4,7 +4,15 @@
  * compiled binary, the same cases run against the binary instead.
  */
 import assert from 'node:assert/strict';
-import {mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync} from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import {createServer, request as httpRequest, type Server} from 'node:http';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
@@ -725,6 +733,88 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
       await closeServer(holder);
       await closeServer(agent);
     }
+  });
+
+  describe('replay and test before the agent is reached', () => {
+    it('prints their help, and lists them in the tool help', {timeout: TIMEOUT}, async () => {
+      const tool = await finished(['--help']);
+      assert.match(
+        tool.output,
+        /replay <file> \[--model-live\] \[--agent-url <url>\] \[options\] \[-- <command> \[args\.\.\.\]\]/,
+      );
+      assert.match(
+        tool.output,
+        /test \[<folder>\] \[--agent-url <url>\] \[options\] \[-- <command> \[args\.\.\.\]\]/,
+      );
+      const replay = await finished(['replay', '--help']);
+      assert.equal(replay.code, 0);
+      assert.match(replay.output, /--model-live/);
+      assert.doesNotMatch(replay.output, /--no-open|--allow-host|--port <n>/);
+      const test = await finished(['test', '--help']);
+      assert.equal(test.code, 0);
+      assert.match(test.output, /fixtures/);
+      assert.doesNotMatch(test.output, /--model-live/);
+    });
+
+    it(
+      'exits 2 on a record file that is missing or is not a turn record',
+      {timeout: TIMEOUT},
+      async () => {
+        const cwd = workingDir();
+        const missing = await finished(['replay', 'missing.json'], cwd);
+        assert.equal(missing.code, 2, missing.output);
+        assert.match(missing.stderr, /a2ui-spectra: No file at missing\.json\./);
+        assert.match(missing.stderr, /Run 'a2ui-spectra replay --help' for usage\./);
+        assert.equal(missing.stdout, '');
+        writeFileSync(path.join(cwd, 'notes.txt'), 'not json');
+        const notRecord = await finished(['replay', 'notes.txt'], cwd);
+        assert.equal(notRecord.code, 2, notRecord.output);
+        assert.match(
+          notRecord.stderr,
+          /a2ui-spectra: notes\.txt does not read as a turn record: The file is not JSON/,
+        );
+      },
+    );
+
+    it(
+      'exits 2 on a fixtures folder that is missing or holds no .json file',
+      {timeout: TIMEOUT},
+      async () => {
+        const cwd = workingDir();
+        const bare = await finished(['test'], cwd);
+        assert.equal(bare.code, 2, bare.output);
+        assert.match(bare.stderr, /a2ui-spectra: No folder at a2ui-spectra-fixtures\./);
+        const given = await finished(['test', 'ci/fixtures'], cwd);
+        assert.equal(given.code, 2, given.output);
+        assert.match(given.stderr, /a2ui-spectra: No folder at ci\/fixtures\./);
+        mkdirSync(path.join(cwd, 'empty'));
+        writeFileSync(path.join(cwd, 'empty', 'readme.txt'), '');
+        const empty = await finished(['test', 'empty'], cwd);
+        assert.equal(empty.code, 2, empty.output);
+        assert.match(empty.stderr, /a2ui-spectra: empty holds no \.json file\./);
+        assert.equal(empty.stdout, '');
+      },
+    );
+
+    it(
+      'refuses the viewer options and asks for the agent as --agent-url',
+      {timeout: TIMEOUT},
+      async () => {
+        const cwd = workingDir();
+        writeFileSync(path.join(cwd, 'any.json'), '{}');
+        const viewerOption = await finished(['replay', 'any.json', '--no-open'], cwd);
+        assert.equal(viewerOption.code, 2, viewerOption.output);
+        assert.match(viewerOption.stderr, /Unknown option '--no-open'/);
+        mkdirSync(path.join(cwd, 'fixtures'));
+        writeFileSync(path.join(cwd, 'fixtures', 'a.json'), '{}');
+        const noAgent = await finished(['test', 'fixtures'], cwd);
+        assert.equal(noAgent.code, 2, noAgent.output);
+        assert.match(
+          noAgent.stderr,
+          /test needs the agent's URL: --agent-url, or agent\.url in a2ui-spectra\.json/,
+        );
+      },
+    );
   });
 
   describe('run', () => {

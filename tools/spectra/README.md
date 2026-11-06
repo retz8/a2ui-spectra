@@ -13,12 +13,15 @@ The `a2ui-spectra` command: it attaches to a running A2UI agent over A2A, puts a
 ```
 a2ui-spectra attach [<agent-url>] [options]
 a2ui-spectra run [--agent-url <url>] [options] -- <command> [args...]
+a2ui-spectra replay <file> [--model-live] [--agent-url <url>] [options] [-- <command> [args...]]
+a2ui-spectra test [<folder>] [--agent-url <url>] [options] [-- <command> [args...]]
 a2ui-spectra <command> --help
 a2ui-spectra --version
 ```
 
 - `attach` attaches to an agent that is already running at `<agent-url>`. It prints the variables to set in the agent's shell so that its model and tool calls go through the model proxy and the tool proxy, and its exports reach the OpenTelemetry receiver; see [Redirection](#redirection).
 - `run` starts the agent's command, then attaches to it. The command after `--` starts without a shell, with Spectra's environment and working directory, the redirection variables added, and writes to Spectra's terminal. Other environment variables go before `a2ui-spectra`.
+- `replay` and `test` are headless, no viewer and no browser: `replay` replays one turn record and `test` every fixture under a folder, for CI; see [The commands `replay` and `test`](#the-commands-replay-and-test).
 
 The agent's URL is its base address. It may come from [the config file](#the-config-file) instead, as `agent.url`; the command line takes precedence over the file, and with neither Spectra stops with a usage error naming both. Both commands start the model proxy, the tool proxy and the OpenTelemetry receiver, then wait, with no time limit, until the agent's card answers at `<agent-url>/.well-known/agent-card.json`, saying why they wait, the status the card answered with or that it did not answer, once and again whenever the reason changes; then they start the wire proxy and the viewer, print their addresses and open the browser.
 
@@ -35,6 +38,19 @@ The agent's URL is its base address. It may come from [the config file](#the-con
 | `--allow-host <name>`    | Also answer requests addressed to `<name>`, a host name without a port, such as a tunnel's. Can be repeated.          |                                                                 |
 
 A port that is taken is an error at start, and Spectra's ports must differ, each tool server's included. The viewer's server listens on loopback only and answers requests addressed to `localhost`, `127.0.0.1` and `[::1]`, plus the names given with `--allow-host`. Ports and allowed hosts are command-line only.
+
+### The commands `replay` and `test`
+
+Both run headless, under the config file as `run` is, and take the agent either way `run` and `attach` do: a command after `--` is started with the redirection variables set, as `run` starts it; `--agent-url <url>`, else the config file's `agent.url`, names an agent already running, whose shell the variables `attach` prints were set in. Both take `--config` and the four port options, `--proxy-port`, `--model-proxy-port`, `--tool-proxy-port` and `--receiver-port`, with `run`'s defaults; the viewer's `--port`, `--no-open` and `--allow-host` are refused as unknown options. Both wait for the agent's card with no time limit, as `run` and `attach` do.
+
+The status lines, the start-up lines, the card wait, the proxies' lines, the box's line per replayed turn, a miss's line and the launched agent's own output, go to stderr with the `a2ui-spectra:` prefix. Stdout carries the result lines alone, so `a2ui-spectra test > results.txt` keeps the verdicts.
+
+- **`a2ui-spectra replay <file>`** replays one record, a fixture or a store turn's file, in everything-recorded mode, or with the model live under `--model-live`; see [Replay](#replay). It prints one line per recorded turn, `turn 2 of 3: passed`, or `failed` with the reasons in parentheses, each a sentence `a2ui.replay.reasons` carries, or `not sent` with the reason when the replay stopped before it, and `; 2 of the recorded calls were not asked for` when any were; then a closing line for the record, `fixtures/greet-ada.json: passed; the replayed turns are in .a2ui-spectra/turns/<conversation>`. It exits 0 when the record passes and 1 when it fails.
+- **`a2ui-spectra test [<folder>]`** replays every `.json` file under the folder, recursively, in path order, each with everything recorded in its own conversation against the one agent, the listing of [Fixtures](#fixtures). The folder is the config file's fixtures folder when left out. It prints one line per fixture, `greet-ada: passed`, with the unasked calls when any; under a failed fixture, its failing turns' lines, indented, and the conversation folder its turns landed in; a file that is not a turn record as `notes: failed (The file is not JSON: …)`; a record with no model call and no tool call as failed, there being nothing to serve, before anything is sent; a fixture not run, the agent's process having ended, as `later: not run (The agent's process exited with code 1.)`. A fixture whose turn could not be sent fails with that reason and the next is tried. Then a summary line, `3 fixtures: 2 passed, 1 failed`. It exits 0 when every fixture passes and 1 otherwise.
+
+The exit codes beyond 0 and 1: 2 for what is wrong before the agent is reached, said before the agent is launched or its card waited for, a `replay` file that is missing or does not read as a turn record, a `test` folder that is missing or holds no `.json` file, and a usage error as for any command; 1 when the message box cannot send, the configured headers' variables unset or the card listing no A2A version the box speaks, said before anything is sent; 1 when the agent's process ends mid-run, the remaining turns reported as not sent and the remaining fixtures as not run, the agent's exit said on stderr and not returned. `replay` without `--model-live` on a record with nothing to serve exits 1 before the agent is reached, its line naming the flag.
+
+One warning: when a record replays with no model call and no tool call reaching the proxies and none of its recorded calls asked for, stderr says so and names the two causes, an agent already running whose shell lacks the variables, and an agent that hardcodes its model or tool endpoints. The verdict is not changed by it; such a turn passes when its outcome and A2UI match the record, and the live calls it made were paid for.
 
 ## The config file
 
@@ -163,7 +179,7 @@ Calls are placed in their turns as the model proxy's are. MCP housekeeping befor
 
 ## Replay
 
-A replay re-sends a record's wire inputs through the wire proxy, the earlier turns first and then the turn, while the model proxy and the tool proxy answer from the record. The message box is the driver, so a replayed conversation is a box conversation like any other: the composer can continue it live once the replay ends. From the viewer, Replay sits in a fixture's header and in a store turn's header.
+A replay re-sends a record's wire inputs through the wire proxy, the earlier turns first and then the turn, while the model proxy and the tool proxy answer from the record. The message box is the driver, so a replayed conversation is a box conversation like any other: the composer can continue it live once the replay ends. From the viewer, Replay sits in a fixture's header and in a store turn's header; from the terminal, `a2ui-spectra replay <file>` replays one record and `a2ui-spectra test [<folder>]` every fixture under a folder, as [The commands `replay` and `test`](#the-commands-replay-and-test) describes.
 
 - **What is re-sent.** Each recorded turn's wire input, its parts written back from the record's GenAI shape, the A2UI MIME type as `application/a2ui+json`, its capabilities under their keys and its data model under its version's key, the other metadata unchanged. The record keeps no transport envelope: the A2A version and send or stream come from the live agent's card as the box chooses them, and the extensions header carries the URIs of the versions the recorded capabilities are keyed by, else the recorded turn's protocol version, else none.
 - **The ids.** The first turn is sent with no `contextId`, so the agent opens a new conversation, and each later turn carries the `contextId` the agent named. A recorded request that carried a task id, the turn after one that ended waiting for input, is sent with the live previous turn's task id when that turn ended waiting for input, and with none when it did not; a request recorded without one goes without one. `messageId` is fresh for each send. The wire proxy adds the new turn's `traceparent` as for any host.
@@ -351,7 +367,7 @@ From `tools/spectra/`:
 - `yarn build:binary`: compiles the binary into `dist/a2ui-spectra`.
 - `yarn generate:otlp`: generates `src/receiver/gen/` from `proto/` with `buf` and `protoc-gen-es`, both dev dependencies, so that the build needs no protobuf compiler. The generated code is checked in; `@bufbuild/protobuf` is its runtime dependency.
 - `yarn test`: builds the tool, the conformance workspace, whose stub agent the end-to-end tests run, and the three preview adapters, which the sample catalog apps' dev servers serve from their builds, then runs the unit tests, the command-line test and the end-to-end tests under Node's test runner. The browser end-to-end test needs Playwright's Chromium, as under [Prerequisites](#prerequisites).
-- `SPECTRA_BINARY=dist/a2ui-spectra yarn test`: runs the same tests with the command-line test and the end-to-end tests against the binary.
+- `SPECTRA_BINARY=dist/a2ui-spectra yarn test`: runs the same tests with the command-line test and the end-to-end tests against the binary. The commands end-to-end test records the stub agent's model-calling conversation against the stand-in provider playing the Gemini restaurant finder recording, then runs `replay` and `test` on it, the stand-in stopped, in both agent forms.
 - `yarn lint` and `yarn lint:fix`: ESLint with the root ESLint preset.
 - `yarn format` and `yarn format:check`: Prettier, with the root `.prettierignore`.
 - `node dist/cli.js <command>`: runs the built tool under Node.

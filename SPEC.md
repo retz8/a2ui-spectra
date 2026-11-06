@@ -242,8 +242,8 @@ Settings beyond the defaults go in an optional config file committed in the repo
 **4. Fixtures:**
 
 - **Save as fixture** writes the turn record.
-- Replay runs from the viewer or with `a2ui-spectra replay <file>`.
-- `a2ui-spectra test <fixtures folder>` runs every fixture with model and tools recorded.
+- Replay runs from the viewer or with `a2ui-spectra replay <file>`, with everything recorded or, under `--model-live`, with tools recorded and the model live.
+- `a2ui-spectra test [<folder>]` runs every fixture under the folder, the fixtures folder by default, with model and tools recorded, and exits 0 when every one passes.
 
 ### Browser, terminal, editor
 
