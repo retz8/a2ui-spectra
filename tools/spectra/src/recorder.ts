@@ -35,6 +35,8 @@ export class TurnRecorder {
   readonly #newSpanId: () => string;
   readonly #onRecorded: (turn: Turn) => void;
   readonly #open = new Set<string>();
+  /** Attributes to write onto a turn's turn event, by trace id, until the turn is recorded. */
+  readonly #annotations = new Map<string, Record<string, unknown>>();
   readonly #writing = new Set<Promise<void>>();
   #onIdle: Array<() => void> = [];
 
@@ -56,6 +58,15 @@ export class TurnRecorder {
     }
   };
 
+  /**
+   * Adds attributes to a turn's turn event, written with the turn when it
+   * closes: what a host knows about the turn it opened, such as a replay's
+   * provenance, which the capture path cannot see.
+   */
+  annotate(traceId: string, attributes: Record<string, unknown>): void {
+    this.#annotations.set(traceId, {...this.#annotations.get(traceId), ...attributes});
+  }
+
   /** Resolves once no turn is open and every write has finished. */
   idle(): Promise<void> {
     return new Promise(resolve => {
@@ -64,7 +75,8 @@ export class TurnRecorder {
     });
   }
 
-  #record(turn: Turn): void {
+  #record(closed: Turn): void {
+    const turn = this.#annotated(closed);
     let checked = turn;
     const writing: Promise<void> = this.#store
       .write(turn, earlierTurns => {
@@ -86,6 +98,22 @@ export class TurnRecorder {
       this.#writing.delete(writing);
       this.#checkIdle();
     });
+  }
+
+  /** The turn with the attributes it was annotated with on its turn event; the turn as it came when there are none. */
+  #annotated(turn: Turn): Turn {
+    const turnEvent = turn.events.find((event): event is TurnEvent => isEventOfKind(event, 'turn'));
+    if (turnEvent === undefined) return turn;
+    const attributes = this.#annotations.get(turnEvent.traceId);
+    if (attributes === undefined) return turn;
+    this.#annotations.delete(turnEvent.traceId);
+    return {
+      events: turn.events.map(event =>
+        event === turnEvent
+          ? {...turnEvent, attributes: {...turnEvent.attributes, ...attributes}}
+          : event,
+      ),
+    };
   }
 
   /** The turn with its check events; the turn as it came when it has no protocol version, or when the checks fail. */

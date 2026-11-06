@@ -14,9 +14,8 @@ import path from 'node:path';
 import {describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
 
-import {SseParser} from './a2a/sse.js';
 import type {ListedTurn, SessionContext} from './api.js';
-import type {MessageBoxState, SentMessage} from './message_box.js';
+import type {MessageBoxState} from './message_box.js';
 import type {CatalogListing} from './catalog/registry.js';
 import {CONFIG_FILE} from './config.js';
 import {VARIABLES} from './model_proxy/redirection.js';
@@ -33,6 +32,7 @@ import {
 } from './record/turn_record.js';
 import {folderOf} from './store/store.js';
 import {binary, freePort, SpectraProcess, workingDir} from './testing/spectra_process.js';
+import {boxSettled, getJson, LiveStream, sendMessage} from './testing/live_api.js';
 import {startStub} from './testing/stub_agent.js';
 import {turnRecordErrors} from './testing/turn_record_schema.js';
 
@@ -43,98 +43,6 @@ const BASIC_V0_9 = 'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.j
 const BASIC_V0_9_1 = 'https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json';
 const BASIC_V1_0 = 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json';
 const TIMEOUT = 60_000;
-
-interface LiveEvent {
-  event: string;
-  data: {traceId: string; turn?: Turn};
-}
-
-/** The live stream, read in the background, its events kept in order. */
-class LiveStream {
-  readonly events: LiveEvent[] = [];
-  readonly ready: Promise<void>;
-  readonly #stop = new AbortController();
-  #waiters: Array<() => void> = [];
-
-  constructor(url: string) {
-    this.ready = fetch(url, {signal: this.#stop.signal}).then(response => {
-      void this.#read(response);
-    });
-  }
-
-  /** Resolves with the turn closed for the trace id, once the stream has sent it. */
-  async closed(traceId: string, timeoutMs = 20_000): Promise<Turn> {
-    const deadline = Date.now() + timeoutMs;
-    for (;;) {
-      const found = this.events.find(e => e.event === 'turn_closed' && e.data.traceId === traceId);
-      if (found?.data.turn !== undefined) return found.data.turn;
-      if (Date.now() > deadline) {
-        throw new Error(`No turn_closed for ${traceId} on the live stream.`);
-      }
-      await new Promise<void>(resolve => {
-        this.#waiters.push(resolve);
-        setTimeout(resolve, 200);
-      });
-    }
-  }
-
-  close(): void {
-    this.#stop.abort();
-  }
-
-  async #read(response: Response): Promise<void> {
-    const sse = new SseParser();
-    const text = new TextDecoder();
-    try {
-      for await (const chunk of response.body ?? []) {
-        for (const event of sse.push(text.decode(chunk as Uint8Array, {stream: true}))) {
-          this.events.push({event: event.event ?? 'message', data: JSON.parse(event.data)});
-        }
-        const waiters = this.#waiters;
-        this.#waiters = [];
-        for (const wake of waiters) wake();
-      }
-    } catch {
-      // Closed by the test.
-    }
-  }
-}
-
-async function getJson<T>(url: string): Promise<{status: number; body: T}> {
-  const response = await fetch(url);
-  return {status: response.status, body: (await response.json()) as T};
-}
-
-async function sendMessage(
-  base: string,
-  input: string | {action: Record<string, unknown>},
-  conversationId?: string,
-  dataModel?: Record<string, unknown>,
-): Promise<SentMessage> {
-  const response = await fetch(`${base}/api/message-box/messages`, {
-    method: 'POST',
-    headers: {'content-type': 'application/json'},
-    body: JSON.stringify({
-      ...(typeof input === 'string' ? {text: input} : input),
-      conversationId,
-      dataModel,
-    }),
-  });
-  const body = (await response.json()) as SentMessage & {error?: string};
-  assert.equal(response.status, 200, body.error);
-  return body;
-}
-
-/** Resolves with the box's state once none of its conversations has an open turn. */
-async function boxSettled(base: string): Promise<MessageBoxState> {
-  const deadline = Date.now() + 10_000;
-  for (;;) {
-    const {body} = await getJson<MessageBoxState>(`${base}/api/message-box`);
-    if (body.conversations.every(conversation => conversation.openTurn === undefined)) return body;
-    assert.ok(Date.now() < deadline, 'The message box kept its turn open.');
-    await new Promise(resolve => setTimeout(resolve, 50));
-  }
-}
 
 function turnEventOf(turn: Turn): TurnEvent {
   const turnEvent = turn.events.find((event): event is TurnEvent => isEventOfKind(event, 'turn'));
@@ -256,6 +164,7 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
             mode: 'attach',
             proxyAddress: `http://127.0.0.1:${proxyPort}/`,
             previewPages: [],
+            fixturesFolder: 'a2ui-spectra-fixtures',
             variables: [
               ...VARIABLES.map(name => ({
                 name,

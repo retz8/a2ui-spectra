@@ -4,6 +4,8 @@ import type {CallListener, CallNotification} from './model_proxy/proxy.js';
 import {
   type CallEvent,
   isEventOfKind,
+  type ReplayMode,
+  type ReplayVerdict,
   type TurnRecordEvent,
   type SpanEvent,
   type Turn,
@@ -11,6 +13,19 @@ import {
   type WireInputEvent,
   type WireOutputEvent,
 } from './record/turn_record.js';
+
+/** One replayed turn as the replay's end reports it. */
+export type ReplayedTurn =
+  | {
+      traceId: string;
+      /** The trace id of the recorded turn it stands for. */
+      recordedTurn: string;
+      verdict: ReplayVerdict;
+      /** How many of the recorded turn's calls were never asked for. */
+      unconsumed: number;
+    }
+  /** A recorded turn the replay stopped before, with why. */
+  | {recordedTurn: string; notSent: string};
 
 /** An open turn, as the listing shows it. */
 export interface OpenTurn {
@@ -46,7 +61,21 @@ export type LiveEvent =
    * calls whose links grew, the turn event when its capture paths changed.
    * A subscriber replaces each by its span id.
    */
-  | {type: 'turn_amended'; traceId: string; events: TurnRecordEvent[]};
+  | {type: 'turn_amended'; traceId: string; events: TurnRecordEvent[]}
+  /** A replay started: the record's path, the mode, and how many turns it holds. */
+  | {type: 'replay_started'; source: string; mode: ReplayMode; turns: number}
+  /** A replayed turn opened: its number of the total, and the recorded turn it stands for. */
+  | {type: 'replay_turn'; traceId: string; recordedTurn: string; turn: number; turns: number}
+  /** The replay ended: the record's verdict, and each turn's. */
+  | {
+      type: 'replay_ended';
+      source: string;
+      mode: ReplayMode;
+      verdict: ReplayVerdict;
+      turns: ReplayedTurn[];
+    }
+  /** A file joined, changed in or left the fixtures folder; the listing is to be read again. */
+  | {type: 'fixtures_changed'};
 
 /** A live event, and for a turn opened, the `messageId` of the host's message. */
 export type HubEvent = LiveEvent & {messageId?: string};
@@ -148,6 +177,16 @@ export class TurnHub {
     }
     this.#emit({type: 'turn_amended', traceId, events});
   };
+
+  /** Passes an event outside any turn, a replay's or the fixtures folder's, to the listeners. */
+  notify(
+    event: Extract<
+      LiveEvent,
+      {type: 'replay_started' | 'replay_turn' | 'replay_ended' | 'fixtures_changed'}
+    >,
+  ): void {
+    this.#emit(event);
+  }
 
   /** Takes each turn the recorder has checked and finished writing, and closes it. */
   readonly onRecorded = (turn: Turn): void => {

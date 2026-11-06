@@ -363,4 +363,29 @@ describe('the replay pool', () => {
     );
     assert.equal(pool.sseOpening('/other'), undefined);
   });
+
+  it('names the recorded calls never served: a consumed exchange and housekeeping that was asked for count as served', () => {
+    const hello = modelCall('0000000000000001', 10);
+    const again = modelCall('0000000000000002', 20, {
+      'a2ui.http.request.body': {model: 'claude', n: 2},
+    });
+    const list = mcpCall('0000000000000003', 30, 'tools/list', undefined);
+    const call = mcpCall('0000000000000004', 40, 'tools/call', {name: 'get', arguments: {}});
+    const pool = new ReplayPool(record([hello, again, list], [call]), 'recorded');
+    assert.deepEqual(
+      pool.unserved().map(event => event.spanId),
+      ['0000000000000001', '0000000000000002', '0000000000000003', '0000000000000004'],
+    );
+    pool.model(exchangeKey(hello.attributes));
+    pool.mcpRequest('tools/list', undefined);
+    assert.deepEqual(
+      pool.unserved().map(event => event.spanId),
+      ['0000000000000002', '0000000000000004'],
+    );
+    pool.mcpRequest('tools/call', {name: 'get', arguments: {}});
+    assert.deepEqual(
+      pool.unserved().map(event => event.spanId),
+      ['0000000000000002'],
+    );
+  });
 });

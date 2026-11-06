@@ -4,16 +4,30 @@ import {
   type BoxInput,
   boxRequest,
   type BoxInterface,
+  type BoxRequest,
   capabilitiesFor,
   chooseInterface,
   type InterfaceChoice,
+  type PreparedMessage,
+  preparedRequest,
   readReplySummary,
   type ReplySummary,
 } from './a2a/client.js';
+import {joinInputMetadata} from './a2a/metadata.js';
+import {a2aPart} from './a2a/parts.js';
 import type {A2aVersion} from './a2a/protocol.js';
 import type {CatalogOffer} from './catalog/registry.js';
-import {isEventOfKind, type Turn, type TurnEvent} from './record/turn_record.js';
-import type {TurnHub} from './turn_hub.js';
+import {
+  isEventOfKind,
+  type ReplayMode,
+  type Turn,
+  type TurnEvent,
+  type TurnRecord,
+} from './record/turn_record.js';
+import {ReplayRecordError, replayInputs} from './replay/inputs.js';
+import {ReplayPool} from './replay/pool.js';
+import {verdictOf} from './replay/verdict.js';
+import type {ReplayedTurn, TurnHub} from './turn_hub.js';
 
 /** A send the box refuses, with the HTTP status the server answers with. */
 export class MessageBoxError extends Error {
@@ -36,6 +50,16 @@ export interface BoxConversation {
   openTurn?: string;
 }
 
+/** The replay running, as the read route returns it. */
+export interface ReplayState {
+  /** The record's path, as the turns' provenance names it. */
+  source: string;
+  mode: ReplayMode;
+  /** The number of the turn being replayed, of the total; 0 before the first opens. */
+  turn: number;
+  turns: number;
+}
+
 /** What the read route returns. */
 export interface MessageBoxState {
   /** The conversations the box started while Spectra runs, oldest first. */
@@ -46,12 +70,43 @@ export interface MessageBoxState {
   unsetVariables?: string[];
   /** The A2A version of the interface the box sends to, when the card lists one it speaks. */
   a2aVersion?: A2aVersion;
+  /** The replay running, while one does. */
+  replay?: ReplayState;
 }
 
 /** What the send route answers with. */
 export interface SentMessage {
   traceId: string;
   conversationId?: string;
+}
+
+/** What a replay answers with once its first turn has opened. */
+export interface ReplayStarted {
+  /** The first replayed turn's trace id. */
+  traceId: string;
+  /** How many turns the record holds. */
+  turns: number;
+}
+
+/** A record to replay, and the path its turns' provenance names. */
+export interface ReplaySource {
+  /** The record file's path, relative to the working directory when under it. */
+  path: string;
+  record: TurnRecord;
+}
+
+/** What the box asks of the session during a replay. */
+export interface ReplayHooks {
+  /** Arms both proxies with the pool, before the first send. */
+  arm(pool: ReplayPool): void;
+  /** Disarms both, once the last replayed turn has closed. */
+  disarm(): void;
+  /** Writes the replay's provenance on a turn's turn event, as the turn opens. */
+  annotate(traceId: string, attributes: Record<string, unknown>): void;
+  /** Writes the verdict on a replayed turn's turn event, once the turn has closed and been written. */
+  amend(traceId: string, attributes: Record<string, unknown>): Promise<void>;
+  /** Takes one terminal line. */
+  log(line: string): void;
 }
 
 /** A conversation the box holds, with what it carries into the next send. */
@@ -73,6 +128,8 @@ export interface MessageBoxOptions {
   unsetVariables?: readonly string[];
   /** The catalog ids to advertise under each version; the basic catalogs alone when not given. */
   offer?: CatalogOffer;
+  /** What a replay needs of the session; without it, replay is refused. */
+  replay?: ReplayHooks;
   fetch?: typeof fetch;
   newMessageId?: () => string;
 }
@@ -82,7 +139,8 @@ export interface MessageBoxOptions {
  * proxy, holding each conversation it starts. A send starts a conversation or
  * continues one of them, and answers once the proxy opens its turn; the reply
  * is read in the background for the conversation and the task to carry into
- * the conversation's next send.
+ * the conversation's next send. A replay re-sends a record's wire inputs as
+ * one new conversation, the proxies armed with the record's calls meanwhile.
  */
 export class MessageBox {
   readonly #target: InterfaceChoice;
@@ -90,6 +148,7 @@ export class MessageBox {
   readonly #headers: Readonly<Record<string, string>>;
   readonly #unsetVariables: readonly string[];
   readonly #capabilities: Readonly<Record<string, unknown>> | undefined;
+  readonly #replayHooks: ReplayHooks | undefined;
   readonly #fetch: typeof fetch;
   readonly #newMessageId: () => string;
   readonly #stop = new AbortController();
@@ -97,9 +156,12 @@ export class MessageBox {
   /** Turns waited for: by the host message's id until they open, by trace id until they close. */
   readonly #opening = new Map<string, (traceId: string) => void>();
   readonly #closing = new Map<string, (turn: Turn) => void>();
+  /** The provenance to write on a replayed turn as it opens, by the host message's id. */
+  readonly #provenance = new Map<string, Record<string, unknown>>();
   #requestId = 0;
   /** Oldest first; a new conversation joins once its first turn opens. */
   readonly #conversations: Conversation[] = [];
+  #replaying: ReplayState | undefined;
 
   constructor(options: MessageBoxOptions) {
     this.#target = chooseInterface(options.card);
@@ -107,10 +169,16 @@ export class MessageBox {
     this.#headers = options.headers ?? {};
     this.#unsetVariables = options.unsetVariables ?? [];
     this.#capabilities = options.offer === undefined ? undefined : capabilitiesFor(options.offer);
+    this.#replayHooks = options.replay;
     this.#fetch = options.fetch ?? fetch;
     this.#newMessageId = options.newMessageId ?? randomUUID;
     this.#unsubscribe = this.#turns.subscribe(event => {
       if (event.type === 'turn_opened' && event.messageId !== undefined) {
+        const provenance = this.#provenance.get(event.messageId);
+        if (provenance !== undefined) {
+          this.#provenance.delete(event.messageId);
+          this.#replayHooks?.annotate(event.traceId, provenance);
+        }
         this.#opening.get(event.messageId)?.(event.traceId);
       } else if (event.type === 'turn_closed') {
         this.#closing.get(event.traceId)?.(event.turn);
@@ -151,6 +219,7 @@ export class MessageBox {
       ...(unavailable !== undefined && {unavailable}),
       ...(this.#unsetVariables.length > 0 && {unsetVariables: [...this.#unsetVariables]}),
       ...(this.#target.kind === 'found' && {a2aVersion: this.#target.version}),
+      ...(this.#replaying !== undefined && {replay: {...this.#replaying}}),
     };
   }
 
@@ -161,9 +230,12 @@ export class MessageBox {
    * it. An action only continues a conversation.
    */
   async send(input: string | BoxInput, conversationId?: string): Promise<SentMessage> {
-    const unavailable = this.unavailable;
-    if (this.#target.kind !== 'found' || unavailable !== undefined) {
-      throw new MessageBoxError(422, unavailable ?? '');
+    const target = this.#available();
+    if (this.#replaying !== undefined) {
+      throw new MessageBoxError(
+        409,
+        'A replay is running. The message box sends again once it ends.',
+      );
     }
     const content: BoxInput = typeof input === 'string' ? {text: input} : input;
     if ('action' in content && conversationId === undefined) {
@@ -189,13 +261,11 @@ export class MessageBox {
         'A turn is still open in this conversation. Wait for it to close, or start a new conversation.',
       );
     }
-    const target: BoxInterface = this.#target;
-    const messageId = this.#newMessageId();
     const request = boxRequest(
       target,
       {
         ...content,
-        messageId,
+        messageId: this.#newMessageId(),
         ...(conversation.conversationId !== undefined && {
           contextId: conversation.conversationId,
         }),
@@ -207,8 +277,206 @@ export class MessageBox {
         headers: this.#headers,
       },
     );
-    conversation.open = true;
+    const {traceId} = await this.#dispatch(conversation, target, request);
+    return {
+      traceId,
+      ...(conversation.conversationId !== undefined && {
+        conversationId: conversation.conversationId,
+      }),
+    };
+  }
 
+  /**
+   * Replays a record as one new conversation: both proxies armed with the
+   * record's calls, each recorded turn's wire input re-sent in order, the
+   * earlier turns first, in the live interface's A2A version, the first with
+   * no `contextId` and each later one with the id the agent named, a task id
+   * where the record carried one and the live previous turn ended waiting
+   * for input. Resolves once the first turn opens; the rest runs on, each
+   * turn's provenance written as it opens and its verdict once it has closed,
+   * and the proxies disarmed after the last. A turn that cannot be sent stops
+   * the replay, the rest reported as not sent.
+   */
+  async replay(source: ReplaySource, mode: ReplayMode): Promise<ReplayStarted> {
+    const target = this.#available();
+    const hooks = this.#replayHooks;
+    if (hooks === undefined) {
+      throw new MessageBoxError(422, 'Replay is not available in this session.');
+    }
+    if (this.#replaying !== undefined) {
+      throw new MessageBoxError(409, 'A replay is running. Wait for it to end.');
+    }
+    if (
+      this.#turns.openTurns().length > 0 ||
+      this.#conversations.some(conversation => conversation.open !== undefined)
+    ) {
+      throw new MessageBoxError(409, 'A turn is open. Wait for it to close before replaying.');
+    }
+    let inputs;
+    try {
+      inputs = replayInputs(source.record);
+    } catch (error) {
+      if (error instanceof ReplayRecordError) throw new MessageBoxError(422, error.message);
+      throw error;
+    }
+    const pool = new ReplayPool(source.record, mode);
+    if (mode === 'recorded' && pool.unserved().length === 0) {
+      throw new MessageBoxError(
+        422,
+        'The record holds no model call and no tool call, so there is nothing to serve with everything recorded. Replay it with the model live.',
+      );
+    }
+
+    const replaying: ReplayState = {source: source.path, mode, turn: 0, turns: inputs.length};
+    this.#replaying = replaying;
+    hooks.arm(pool);
+    this.#turns.notify({type: 'replay_started', source: source.path, mode, turns: inputs.length});
+    const conversation: Conversation = {turns: []};
+    const replayed: ReplayedTurn[] = [];
+    const recordedTurns = source.record.turns.map(turn => ({
+      traceId: traceIdOf(turn),
+      turn,
+    }));
+
+    const end = () => {
+      hooks.disarm();
+      this.#replaying = undefined;
+      this.#turns.notify({
+        type: 'replay_ended',
+        source: source.path,
+        mode,
+        verdict: replayed.every(turn => 'verdict' in turn && turn.verdict === 'passed')
+          ? 'passed'
+          : 'failed',
+        turns: replayed,
+      });
+    };
+    const notSent = (from: number, reason: string) => {
+      for (const {traceId} of recordedTurns.slice(from)) {
+        replayed.push({recordedTurn: traceId, notSent: reason});
+      }
+    };
+
+    /** Sends recorded turn `index`, and resolves with its trace id and the closed turn's verdict work. */
+    const sendTurn = async (index: number): Promise<{traceId: string; finished: Promise<void>}> => {
+      const input = inputs[index];
+      const recorded = recordedTurns[index];
+      const messageId = this.#newMessageId();
+      const message: PreparedMessage = {
+        parts: input.parts.map(part => a2aPart(part, target.version)),
+        messageId,
+        ...(conversation.conversationId !== undefined && {
+          contextId: conversation.conversationId,
+        }),
+        ...(input.carriesTask &&
+          conversation.taskId !== undefined && {taskId: conversation.taskId}),
+      };
+      const metadata = joinInputMetadata(input.metadata);
+      if (metadata !== undefined) message.metadata = metadata;
+      const request = preparedRequest(target, message, ++this.#requestId, {
+        extensions: input.extensions,
+        headers: this.#headers,
+      });
+      this.#provenance.set(messageId, {
+        'a2ui.replay.source': source.path,
+        'a2ui.replay.turn': recorded.traceId,
+        'a2ui.replay.mode': mode,
+      });
+      let dispatched: {traceId: string; closed: Promise<Turn>};
+      try {
+        dispatched = await this.#dispatch(conversation, target, request, messageId);
+      } finally {
+        this.#provenance.delete(messageId);
+      }
+      replaying.turn = index + 1;
+      this.#turns.notify({
+        type: 'replay_turn',
+        traceId: dispatched.traceId,
+        recordedTurn: recorded.traceId,
+        turn: index + 1,
+        turns: inputs.length,
+      });
+      const finished = dispatched.closed.then(async turn => {
+        const verdict = verdictOf(recorded.turn, turn);
+        await hooks.amend(dispatched.traceId, {
+          'a2ui.replay.verdict': verdict.verdict,
+          ...(verdict.reasons.length > 0 && {'a2ui.replay.reasons': verdict.reasons}),
+        });
+        const unconsumed = pool.unserved().filter(call => call.traceId === recorded.traceId).length;
+        replayed.push({
+          traceId: dispatched.traceId,
+          recordedTurn: recorded.traceId,
+          verdict: verdict.verdict,
+          unconsumed,
+        });
+        hooks.log(
+          `Replay of ${source.path}, turn ${index + 1} of ${inputs.length}: ${verdict.verdict}` +
+            (verdict.reasons.length > 0
+              ? ` (${verdict.reasons.map(reason => reason.message).join(' ')})`
+              : '') +
+            (unconsumed > 0
+              ? `; ${unconsumed} of the recorded calls ${unconsumed === 1 ? 'was' : 'were'} not asked for.`
+              : '.'),
+        );
+      });
+      return {traceId: dispatched.traceId, finished};
+    };
+
+    let first: {traceId: string; finished: Promise<void>};
+    try {
+      first = await sendTurn(0);
+    } catch (error) {
+      notSent(0, error instanceof Error ? error.message : String(error));
+      end();
+      throw error;
+    }
+    void (async () => {
+      try {
+        await first.finished;
+        for (let index = 1; index < inputs.length; index++) {
+          try {
+            const {finished} = await sendTurn(index);
+            await finished;
+          } catch (error) {
+            notSent(index, error instanceof Error ? error.message : String(error));
+            break;
+          }
+        }
+      } finally {
+        end();
+      }
+    })();
+    return {traceId: first.traceId, turns: inputs.length};
+  }
+
+  /** Stops reading any reply still coming. */
+  close(): void {
+    this.#stop.abort();
+    this.#unsubscribe();
+  }
+
+  /** The interface the box sends to, or the refusal when it cannot send. */
+  #available(): BoxInterface {
+    const unavailable = this.unavailable;
+    if (this.#target.kind !== 'found' || unavailable !== undefined) {
+      throw new MessageBoxError(422, unavailable ?? '');
+    }
+    return this.#target;
+  }
+
+  /**
+   * Posts a request to the wire proxy in a conversation and resolves once the
+   * proxy opens its turn, with the turn's trace id and the closed turn to
+   * come; the reply is read in the background to carry the conversation on.
+   * A new conversation joins the box's once its first turn opens.
+   */
+  async #dispatch(
+    conversation: Conversation,
+    target: BoxInterface,
+    request: BoxRequest,
+    messageId = messageIdOf(request),
+  ): Promise<{traceId: string; closed: Promise<Turn>}> {
+    conversation.open = true;
     const opened = new Promise<string>(resolve => this.#opening.set(messageId, resolve));
     const responding = this.#fetch(target.url, {
       method: 'POST',
@@ -240,29 +508,17 @@ export class MessageBox {
     const closed = new Promise<Turn>(resolve => this.#closing.set(traceId, resolve));
     conversation.open = traceId;
     conversation.turns.push(traceId);
-    if (conversationId === undefined) {
+    if (!this.#conversations.includes(conversation)) {
       this.#conversations.push(conversation);
     }
-    void this.#finish(conversation, traceId, target, responding, closed);
-    return {
-      traceId,
-      ...(conversation.conversationId !== undefined && {
-        conversationId: conversation.conversationId,
-      }),
-    };
-  }
-
-  /** Stops reading any reply still coming. */
-  close(): void {
-    this.#stop.abort();
-    this.#unsubscribe();
+    return {traceId, closed: this.#finish(conversation, traceId, target, responding, closed)};
   }
 
   /**
    * Reads the reply to its end and waits for the turn to close, then carries
    * its conversation on: its id, from the reply or else from the closed turn
    * when the reply broke off, and the task when the turn ended waiting for
-   * input.
+   * input. Resolves with the closed turn.
    */
   async #finish(
     conversation: Conversation,
@@ -270,7 +526,7 @@ export class MessageBox {
     target: BoxInterface,
     responding: Promise<Response>,
     closed: Promise<Turn>,
-  ): Promise<void> {
+  ): Promise<Turn> {
     let summary: ReplySummary = {};
     try {
       summary = await readReplySummary(await responding, target.version);
@@ -285,7 +541,19 @@ export class MessageBox {
     const waiting = summary.state === 'input-required' || summary.state === 'auth-required';
     conversation.taskId = waiting ? summary.taskId : undefined;
     conversation.open = undefined;
+    return turn;
   }
+}
+
+/** The `messageId` of the message a request carries. */
+function messageIdOf(request: BoxRequest): string {
+  const body = JSON.parse(request.body) as {params?: {message?: {messageId?: string}}};
+  return body.params?.message?.messageId ?? '';
+}
+
+/** A recorded turn's trace id, from its turn event. */
+function traceIdOf(turn: Turn): string {
+  return turn.events.find(event => isEventOfKind(event, 'turn'))?.traceId ?? '';
 }
 
 /** "`A` is not set …" or "`A` and `B` are not set …", as the composer's line says it. */

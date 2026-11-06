@@ -63,6 +63,8 @@ export class TurnStore {
   readonly dir: string;
   /** Where the turn record files are. */
   readonly turnsDir: string;
+  /** The working directory Spectra was launched from, which paths are shown relative to. */
+  readonly #workingDir: string;
   /** Records whose file failed to write, kept for this run, by file. */
   readonly #unwritten = new Map<string, TurnRecord>();
   /** The last write of each conversation folder, so one folder's files are written one at a time. */
@@ -72,7 +74,8 @@ export class TurnStore {
   /** How many times this run has written each file, by file. */
   readonly #revisions = new Map<string, number>();
 
-  private constructor(dir: string) {
+  private constructor(workingDir: string, dir: string) {
+    this.#workingDir = workingDir;
     this.dir = dir;
     this.turnsDir = path.join(dir, 'turns');
   }
@@ -83,7 +86,7 @@ export class TurnStore {
    * when the store's directory is created.
    */
   static async open(workingDir: string): Promise<TurnStore> {
-    const store = new TurnStore(path.resolve(workingDir, STORE_DIR));
+    const store = new TurnStore(path.resolve(workingDir), path.resolve(workingDir, STORE_DIR));
     try {
       let created = true;
       try {
@@ -214,6 +217,16 @@ export class TurnStore {
       .filter(name => FILE_NAME.test(name))
       .map(name => `${folder}/${name}`)
       .concat([...this.#unwritten.keys()].filter(file => path.posix.dirname(file) === folder));
+  }
+
+  /** A stored turn's file path as shown: relative to the working directory. */
+  displayPathOf(file: string): string {
+    return path.relative(this.#workingDir, this.#pathOf(file));
+  }
+
+  /** Whether a file is kept in memory from a failed write, with no file on disk to show for it. */
+  isUnwritten(file: string): boolean {
+    return this.#unwritten.has(file);
   }
 
   /**

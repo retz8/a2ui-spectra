@@ -120,19 +120,26 @@ A `parse` made by a tool call is tied to that call by its parent, not by a link:
 
 `kind` is `3`, client. The event follows OpenTelemetry's GenAI remote agent invocation: `name` is `invoke_agent {gen_ai.agent.name}`, or `invoke_agent` when the name is unknown. `status` is required: `code` `2` when the outcome is `failed`.
 
-| Attribute                    | Type            | Required | Meaning                                                                                                 |
-| ---------------------------- | --------------- | -------- | ------------------------------------------------------------------------------------------------------- |
-| `a2ui.event.kind`            | string          | yes      | `"turn"`.                                                                                               |
-| `gen_ai.operation.name`      | string          | yes      | `"invoke_agent"`.                                                                                       |
-| `gen_ai.agent.name`          | string          | no       | The agent's name, from its card.                                                                        |
-| `gen_ai.conversation.id`     | string          | no       | The conversation the turn belongs to: A2A's `contextId`, AG-UI's `threadId`.                            |
-| `a2ui.turn.outcome`          | string          | yes      | `completed`, `failed`, `cancelled` or `waiting_for_input`.                                              |
-| `a2ui.turn.protocol_version` | string          | no       | The A2UI protocol version the turn used, in the record's form, such as `"v0.9.1"` or `"v1.0"`.          |
-| `a2ui.turn.capture_paths`    | array of string | yes      | The capture paths active for the turn: `wire`, `model_proxy`, `tool_proxy`, `otel_receiver`, `wrapper`. |
-| `a2ui.turn.writer.name`      | string          | yes      | The program that wrote the record.                                                                      |
-| `a2ui.turn.writer.version`   | string          | yes      | Its version.                                                                                            |
+| Attribute                    | Type             | Required | Meaning                                                                                                                                      |
+| ---------------------------- | ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `a2ui.event.kind`            | string           | yes      | `"turn"`.                                                                                                                                    |
+| `gen_ai.operation.name`      | string           | yes      | `"invoke_agent"`.                                                                                                                            |
+| `gen_ai.agent.name`          | string           | no       | The agent's name, from its card.                                                                                                             |
+| `gen_ai.conversation.id`     | string           | no       | The conversation the turn belongs to: A2A's `contextId`, AG-UI's `threadId`.                                                                 |
+| `a2ui.turn.outcome`          | string           | yes      | `completed`, `failed`, `cancelled` or `waiting_for_input`.                                                                                   |
+| `a2ui.turn.protocol_version` | string           | no       | The A2UI protocol version the turn used, in the record's form, such as `"v0.9.1"` or `"v1.0"`.                                               |
+| `a2ui.turn.capture_paths`    | array of string  | yes      | The capture paths active for the turn: `wire`, `model_proxy`, `tool_proxy`, `otel_receiver`, `wrapper`.                                      |
+| `a2ui.turn.writer.name`      | string           | yes      | The program that wrote the record.                                                                                                           |
+| `a2ui.turn.writer.version`   | string           | yes      | Its version.                                                                                                                                 |
+| `a2ui.replay.source`         | string           | no       | On a replayed turn: the path of the record file replayed, relative to the working directory when under it.                                   |
+| `a2ui.replay.turn`           | string           | no       | On a replayed turn: the trace id of the recorded turn this one stands for.                                                                   |
+| `a2ui.replay.mode`           | string           | no       | On a replayed turn: `recorded`, everything served from the record, or `model_live`, a model call that matches nothing going to the provider. |
+| `a2ui.replay.verdict`        | string           | no       | On a replayed turn, once it closed: `passed` or `failed`, its verdict against the recorded turn.                                             |
+| `a2ui.replay.reasons`        | array of reasons | no       | On a replayed turn that failed: why, each a `code`, a `message` and, when one message is concerned, its `path`.                              |
 
 GenAI's required `gen_ai.provider.name` is left out: no provider value applies to an agent reached over an agent protocol.
+
+**A replayed turn** is a turn like any other, captured through the same path, and says what it stands for: `a2ui.replay.source`, the record file replayed; `a2ui.replay.turn`, the recorded turn it re-sent; and `a2ui.replay.mode`. Once it has closed, `a2ui.replay.verdict` says whether it passed against that recorded turn: no call missed, its outcome is the recorded one, and the A2UI messages the agent sent equal the recorded ones by JSON value, in order, as the flattened sequence of the `a2ui` parts of its wire outputs, an array part contributing its elements. A failed turn lists its reasons in `a2ui.replay.reasons`, in the check findings' style: `REPLAY_MISS`, one per call that matched nothing in the record, naming its method and path; `OUTCOME_DIFFERS`, naming both outcomes; `A2UI_DIFFERS`, naming the first message that differs, or the two counts, its `path` a JSON Pointer from the turn object to that message in this turn. The verdict is taken once, when the turn closes, and does not change when the source record does. The provenance is written as the turn opens, so a turn still open carries no verdict.
 
 A turn with no `model_call` event and `model_proxy` in its capture paths had no model call through the model proxy. A turn without `model_proxy` in its capture paths says nothing about model calls at the network edge. The same holds for each capture path.
 
@@ -530,6 +537,11 @@ Every attribute the record defines itself is in the `a2ui.` namespace, named `a2
 | `a2ui.sdk.version`                  | string                    | `prompt_generation`, `parse`           |
 | `a2ui.retry.attempt`                | integer                   | `model_call`                           |
 | `a2ui.replay.served_from`           | string                    | `model_call`, `tool_call`              |
+| `a2ui.replay.source`                | string                    | `turn`                                 |
+| `a2ui.replay.turn`                  | string                    | `turn`                                 |
+| `a2ui.replay.mode`                  | string                    | `turn`                                 |
+| `a2ui.replay.verdict`               | string                    | `turn`                                 |
+| `a2ui.replay.reasons`               | array of reasons          | `turn`                                 |
 | `a2ui.check.name`                   | string                    | `check`                                |
 | `a2ui.check.passed`                 | boolean                   | `check`                                |
 | `a2ui.check.protocol_version`       | string                    | `check`                                |

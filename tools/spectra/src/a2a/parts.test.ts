@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import {wirePart} from './parts.js';
+import {a2aPart, wirePart} from './parts.js';
 
 const surface = {version: 'v0.9', createSurface: {surfaceId: 's1', catalogId: 'basic'}};
 
@@ -175,5 +175,104 @@ describe('wirePart, A2A 1.0', () => {
       content: {total: 3},
       mime_type: 'application/json',
     });
+  });
+});
+
+/** The hand-written parts of both versions, each read into the record and written back. */
+const ROUND_TRIPS: Array<['0.3' | '1.0', Record<string, unknown>]> = [
+  ['0.3', {kind: 'text', text: 'Hello'}],
+  ['0.3', {kind: 'text', text: 'Hello', metadata: {lang: 'en'}}],
+  ['0.3', {kind: 'file', file: {bytes: 'iVBORw0K', mimeType: 'image/png', name: 'chart.png'}}],
+  ['0.3', {kind: 'file', file: {uri: 'https://example.com/menu.pdf', mimeType: 'application/pdf'}}],
+  ['0.3', {kind: 'file', file: {uri: 'https://example.com/clip'}}],
+  ['0.3', {kind: 'data', data: surface, metadata: {mimeType: 'application/a2ui+json'}}],
+  [
+    '0.3',
+    {
+      kind: 'data',
+      data: [surface],
+      metadata: {mimeType: 'application/a2ui+json', source: 'planner'},
+    },
+  ],
+  ['0.3', {kind: 'data', data: surface}],
+  [
+    '0.3',
+    {
+      kind: 'data',
+      data: {id: 'call-1', name: 'get_restaurants', args: {cuisine: 'Chinese'}},
+      metadata: {adk_type: 'function_call'},
+    },
+  ],
+  ['0.3', {kind: 'text', text: '{}', metadata: {mimeType: 'application/a2ui+json'}}],
+  ['0.3', {kind: 'video', url: 'https://example.com/v'}],
+  ['1.0', {text: 'Hello'}],
+  ['1.0', {text: '# Menu', mediaType: 'text/markdown', filename: 'menu.md'}],
+  ['1.0', {raw: 'UklGRg==', mediaType: 'audio/wav', filename: 'hello.wav'}],
+  ['1.0', {url: 'https://example.com/v.mp4', mediaType: 'video/mp4'}],
+  ['1.0', {data: [surface], mediaType: 'application/a2ui+json'}],
+  ['1.0', {data: [surface], mediaType: 'application/a2ui+json', metadata: {source: 'planner'}}],
+  ['1.0', {data: {total: 3}, mediaType: 'application/json'}],
+  ['1.0', {data: {total: 3}, mediaType: 'application/json', filename: 'totals.json'}],
+  ['1.0', {reasoning: 'thinking'}],
+];
+
+describe('a2aPart, the record part written back as an A2A part', () => {
+  for (const [version, part] of ROUND_TRIPS) {
+    it(`round-trips ${JSON.stringify(part)} under A2A ${version}`, () => {
+      assert.deepEqual(a2aPart(wirePart(part, version), version), part);
+    });
+  }
+
+  it('writes the canonical A2UI MIME type in the metadata under A2A 0.3, whatever place or spelling it was read from', () => {
+    const expected = {kind: 'data', data: surface, metadata: {mimeType: 'application/a2ui+json'}};
+    assert.deepEqual(
+      a2aPart(
+        wirePart({kind: 'data', data: surface, mimeType: 'application/a2ui+json'}, '0.3'),
+        '0.3',
+      ),
+      expected,
+    );
+    assert.deepEqual(
+      a2aPart(
+        wirePart(
+          {kind: 'data', data: surface, metadata: {mimeType: 'application/json+a2ui'}},
+          '0.3',
+        ),
+        '0.3',
+      ),
+      expected,
+    );
+  });
+
+  it('writes the A2UI MIME type as the media type under A2A 1.0, whatever place it was read from', () => {
+    assert.deepEqual(
+      a2aPart(
+        wirePart({data: [surface], metadata: {mimeType: 'application/a2ui+json'}}, '1.0'),
+        '1.0',
+      ),
+      {data: [surface], mediaType: 'application/a2ui+json'},
+    );
+  });
+
+  it("writes a part recorded under one A2A version in the other's form, dropping what it has no place for", () => {
+    const recorded = wirePart(
+      {text: '# Menu', mediaType: 'text/markdown', filename: 'menu.md'},
+      '1.0',
+    );
+    assert.deepEqual(a2aPart(recorded, '0.3'), {kind: 'text', text: '# Menu'});
+    const file = wirePart(
+      {kind: 'file', file: {bytes: 'iVBORw0K', mimeType: 'image/png', name: 'chart.png'}},
+      '0.3',
+    );
+    assert.deepEqual(a2aPart(file, '1.0'), {
+      raw: 'iVBORw0K',
+      mediaType: 'image/png',
+      filename: 'chart.png',
+    });
+    const a2ui = wirePart(
+      {kind: 'data', data: surface, metadata: {mimeType: 'application/a2ui+json'}},
+      '0.3',
+    );
+    assert.deepEqual(a2aPart(a2ui, '1.0'), {data: surface, mediaType: 'application/a2ui+json'});
   });
 });

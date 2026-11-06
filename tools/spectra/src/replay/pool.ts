@@ -11,12 +11,12 @@ import {isDeepStrictEqual} from 'node:util';
 import {
   type CallEvent,
   isEventOfKind,
+  type ReplayMode,
   type SpanEvent,
   type TurnRecord,
 } from '../record/turn_record.js';
 
-/** `recorded`, everything served from the record; `model_live`, a model call that matches nothing goes to the provider. */
-export type ReplayMode = 'recorded' | 'model_live';
+export type {ReplayMode};
 
 /** What keys a model call and an HTTP tool: three of the exchange's attributes, compared by deep JSON equality. */
 export interface ExchangeKey {
@@ -78,7 +78,10 @@ export function paramsKey(params: unknown): unknown {
 /** A recorded call's place in the pool. */
 interface Entry {
   event: CallEvent;
+  /** Served once and done with: a request outside housekeeping. */
   consumed: boolean;
+  /** Served at least once, housekeeping included. */
+  served: boolean;
 }
 
 /** Takes the first entry not yet consumed that matches. */
@@ -86,6 +89,7 @@ function take(entries: Entry[], matches: (event: CallEvent) => boolean): CallEve
   const entry = entries.find(item => !item.consumed && matches(item.event));
   if (entry === undefined) return undefined;
   entry.consumed = true;
+  entry.served = true;
   return entry.event;
 }
 
@@ -103,6 +107,8 @@ export class ReplayPool {
   readonly #httpTools: Entry[] = [];
   /** MCP requests: a client's request with its id, by its method and params. */
   readonly #mcp: Entry[] = [];
+  /** Every entry, in pool order. */
+  readonly #all: Entry[] = [];
   /** MCP's session ends, `DELETE`s carrying `Mcp-Session-Id`. */
   readonly #sessionEnds: CallEvent[] = [];
 
@@ -125,15 +131,20 @@ export class ReplayPool {
 
   #add(event: CallEvent): void {
     const attributes = event.attributes;
+    const entry: Entry = {event, consumed: false, served: false};
     if (attributes['a2ui.event.kind'] === 'model_call') {
-      this.#model.push({event, consumed: false});
+      this.#model.push(entry);
+      this.#all.push(entry);
       return;
     }
     // An operation the server initiated is never re-sent.
     if (event.kind === 4) return;
     if (typeof attributes['mcp.method.name'] === 'string') {
       // A client's notification is answered as the protocol fixes; a request is served.
-      if (attributes['jsonrpc.request.id'] !== undefined) this.#mcp.push({event, consumed: false});
+      if (attributes['jsonrpc.request.id'] !== undefined) {
+        this.#mcp.push(entry);
+        this.#all.push(entry);
+      }
       return;
     }
     // A client's response to a server request is answered as the protocol fixes.
@@ -143,8 +154,14 @@ export class ReplayPool {
       return;
     }
     if (attributes['http.request.method'] !== undefined) {
-      this.#httpTools.push({event, consumed: false});
+      this.#httpTools.push(entry);
+      this.#all.push(entry);
     }
+  }
+
+  /** The recorded calls never served, in pool order: a consumed exchange and housekeeping that was asked for count as served. */
+  unserved(): CallEvent[] {
+    return this.#all.filter(entry => !entry.served).map(entry => entry.event);
   }
 
   /** A model request: the first exchange with its key not yet served; else live in the live mode, a miss otherwise. */
@@ -170,8 +187,9 @@ export class ReplayPool {
    */
   mcpRequest(method: string, params: unknown): CallEvent | undefined {
     if (HOUSEKEEPING.has(method)) {
-      return this.#mcp.findLast(entry => entry.event.attributes['mcp.method.name'] === method)
-        ?.event;
+      const entry = this.#mcp.findLast(item => item.event.attributes['mcp.method.name'] === method);
+      if (entry !== undefined) entry.served = true;
+      return entry?.event;
     }
     const key = paramsKey(params);
     return take(this.#mcp, recorded => {
@@ -194,14 +212,18 @@ export class ReplayPool {
    * chunk is an `endpoint` event, with that event.
    */
   sseOpening(pathname: string): {event: CallEvent; endpoint: SpanEvent} | undefined {
-    for (const {event} of [...this.#mcp].reverse()) {
+    for (const entry of [...this.#mcp].reverse()) {
+      const {event} = entry;
       if (event.attributes['mcp.method.name'] !== 'initialize') continue;
       const first = event.events?.[0];
       if (first?.attributes?.['a2ui.http.response.chunk.event'] !== 'endpoint') continue;
       const streamUrl = event.attributes['a2ui.mcp.stream.url'];
       if (typeof streamUrl !== 'string') continue;
       try {
-        if (new URL(streamUrl).pathname === pathname) return {event, endpoint: first};
+        if (new URL(streamUrl).pathname === pathname) {
+          entry.served = true;
+          return {event, endpoint: first};
+        }
       } catch {
         continue;
       }

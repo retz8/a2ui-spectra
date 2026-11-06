@@ -1,12 +1,15 @@
 import type {Modality, WirePart} from '../record/turn_record.js';
 import {type A2aVersion, isRecord} from './protocol.js';
 
+/** The MIME type of a data part that carries A2UI, as the extension specification gives it. */
+export const A2UI_MIME_TYPE = 'application/a2ui+json';
+
 /**
  * The MIME types that mark a data part as A2UI: the extension
  * specification's, and the deprecated spelling upstream's Python A2A
  * extension still writes.
  */
-const A2UI_MIME_TYPES = new Set(['application/a2ui+json', 'application/json+a2ui']);
+const A2UI_MIME_TYPES = new Set([A2UI_MIME_TYPE, 'application/json+a2ui']);
 
 function isA2uiMimeType(value: unknown): boolean {
   return typeof value === 'string' && A2UI_MIME_TYPES.has(value.split(';')[0].trim().toLowerCase());
@@ -145,4 +148,80 @@ function withoutKey(
   }
   const {[key]: _dropped, ...rest} = record;
   return rest;
+}
+
+/**
+ * The record's part written back as an A2A part of the version given, the
+ * mirror of `wirePart`. A text, an A2UI part, other data, a blob and a URI
+ * take their version's shape, the metadata, MIME type and name going back
+ * where that version keeps them and dropped where it has no place for them;
+ * the A2UI MIME type, dropped at capture, is written as its canonical
+ * spelling, in the part's metadata under A2A 0.3 and as its media type
+ * under A2A 1.0. Any other part is written as its `content`, the original
+ * part `wirePart` kept there.
+ */
+export function a2aPart(part: WirePart, version: A2aVersion): unknown {
+  const fields = part as Record<string, unknown>;
+  const metadata = isRecord(fields.metadata) ? fields.metadata : undefined;
+  const mimeType = typeof fields.mime_type === 'string' ? fields.mime_type : undefined;
+  const name = typeof fields.name === 'string' ? fields.name : undefined;
+  switch (part.type) {
+    case 'text':
+      return version === '0.3'
+        ? {kind: 'text', text: part.content, ...(metadata && {metadata})}
+        : {
+            text: part.content,
+            ...(mimeType && {mediaType: mimeType}),
+            ...(name && {filename: name}),
+            ...(metadata && {metadata}),
+          };
+    case 'a2ui':
+      return version === '0.3'
+        ? {kind: 'data', data: part.content, metadata: {mimeType: A2UI_MIME_TYPE, ...metadata}}
+        : {
+            data: part.content,
+            mediaType: A2UI_MIME_TYPE,
+            ...(name && {filename: name}),
+            ...(metadata && {metadata}),
+          };
+    case 'data':
+      return version === '0.3'
+        ? {
+            kind: 'data',
+            data: fields.content,
+            ...(mimeType && {mimeType}),
+            ...(metadata && {metadata}),
+          }
+        : {
+            data: fields.content,
+            ...(mimeType && {mediaType: mimeType}),
+            ...(name && {filename: name}),
+            ...(metadata && {metadata}),
+          };
+    case 'blob':
+    case 'uri': {
+      const content =
+        part.type === 'blob'
+          ? version === '0.3'
+            ? {bytes: fields.content}
+            : {raw: fields.content}
+          : version === '0.3'
+            ? {uri: fields.uri}
+            : {url: fields.uri};
+      return version === '0.3'
+        ? {
+            kind: 'file',
+            file: {...content, ...(mimeType && {mimeType}), ...(name && {name})},
+            ...(metadata && {metadata}),
+          }
+        : {
+            ...content,
+            ...(mimeType && {mediaType: mimeType}),
+            ...(name && {filename: name}),
+            ...(metadata && {metadata}),
+          };
+    }
+    default:
+      return 'content' in fields ? fields.content : part;
+  }
 }

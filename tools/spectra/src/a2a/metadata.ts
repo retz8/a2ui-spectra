@@ -59,3 +59,32 @@ export function splitInputMetadata(
     ...(Object.keys(rest).length > 0 && {metadata: rest}),
   };
 }
+
+/**
+ * The record's three attributes written back as a host message's metadata,
+ * the mirror of `splitInputMetadata`: the capabilities split back by version,
+ * v0.9 and v0.9.1 under the client key and v1.0 under the renderer key, each
+ * key present only when it has entries; the data model under the key its own
+ * version picks; the other metadata unchanged. Nothing when the input carried
+ * no metadata.
+ */
+export function joinInputMetadata({
+  capabilities,
+  dataModel,
+  metadata,
+}: InputMetadata): Record<string, unknown> | undefined {
+  const joined: Record<string, unknown> = {...metadata};
+  if (capabilities !== undefined) {
+    const client: Record<string, unknown> = {};
+    const renderer: Record<string, unknown> = {};
+    for (const [version, value] of Object.entries(capabilities)) {
+      (recordFormOf(version).startsWith('v1.') ? renderer : client)[version] = value;
+    }
+    if (Object.keys(client).length > 0) joined[CAPABILITIES_KEYS[0]] = client;
+    if (Object.keys(renderer).length > 0) joined[CAPABILITIES_KEYS[1]] = renderer;
+  }
+  if (dataModel !== undefined) {
+    joined[dataModelKeyFor(dataModel.version)] = dataModel;
+  }
+  return Object.keys(joined).length > 0 ? joined : undefined;
+}

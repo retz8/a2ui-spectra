@@ -14,6 +14,7 @@ import type {SessionOptions} from './args.js';
 import {openBrowser} from './browser.js';
 import {CatalogRegistry} from './catalog/registry.js';
 import {ConfigError, type SpectraConfig, substituteVariables} from './config.js';
+import {FixturesFolder} from './fixtures/fixtures.js';
 import {MessageBox, unsetVariablesClause} from './message_box.js';
 import {type ModelProxy, startModelProxy} from './model_proxy/proxy.js';
 import {attachLines, environmentOf, redirections, variablesOf} from './model_proxy/redirection.js';
@@ -22,7 +23,7 @@ import {CallPlacer} from './placement.js';
 import {type ReceiverListener, startReceiverListener} from './receiver/listener.js';
 import {SpanReceiver} from './receiver/receiver.js';
 import {receiverExportLines, receiverVariables, replacedLine} from './receiver/variables.js';
-import type {CapturePath, Turn} from './record/turn_record.js';
+import {type CapturePath, isEventOfKind, type Turn, type TurnEvent} from './record/turn_record.js';
 import {TurnRecorder} from './recorder.js';
 import {LOOPBACK_ADDRESS, PortTakenError, startViewerServer, type ViewerServer} from './server.js';
 import {TurnStore} from './store/store.js';
@@ -120,6 +121,8 @@ export async function runSession(
   }
   const turns = new TurnHub();
   const recorder = new TurnRecorder(store, out, {onRecorded: turns.onRecorded, catalogs});
+  const fixtures = new FixturesFolder(options.config.fixtures, process.cwd());
+  const stopWatching = fixtures.watch(() => turns.notify({type: 'fixtures_changed'}));
   const alwaysCapturePaths: CapturePath[] =
     agentCommand === undefined
       ? []
@@ -265,12 +268,38 @@ export async function runSession(
           turns.isOpen(traceId) || (await store.list()).some(turn => turn.traceId === traceId),
         warn: line => out.info(line),
       });
+      const armed = {modelProxy, toolProxy};
       box = new MessageBox({
         card: rewriteCard(card, proxy.origin),
         turns,
         headers,
         unsetVariables: unset,
         offer: catalogs.offer(),
+        replay: {
+          arm: pool => {
+            armed.modelProxy.arm(pool);
+            armed.toolProxy?.arm(pool);
+          },
+          disarm: () => {
+            armed.modelProxy.disarm();
+            armed.toolProxy?.disarm();
+          },
+          annotate: (traceId, attributes) => recorder.annotate(traceId, attributes),
+          amend: async (traceId, attributes) => {
+            const amended = await store.amend(traceId, (turn: Turn): Turn => ({
+              events: turn.events.map(event =>
+                isEventOfKind(event, 'turn')
+                  ? {...event, attributes: {...event.attributes, ...attributes}}
+                  : event,
+              ),
+            }));
+            const turnEvent = amended?.turn.events.find((event): event is TurnEvent =>
+              isEventOfKind(event, 'turn'),
+            );
+            if (turnEvent !== undefined) turns.onAmended(traceId, [turnEvent]);
+          },
+          log: line => out.info(line),
+        },
       });
       if (box.unavailable !== undefined) {
         out.info(box.unavailable);
@@ -283,6 +312,7 @@ export async function runSession(
           store,
           turns,
           box,
+          fixtures,
           catalogs,
           prices: options.config.prices,
           context: {
@@ -291,6 +321,7 @@ export async function runSession(
             mode: agentCommand === undefined ? 'attach' : 'run',
             proxyAddress: proxy.address,
             previewPages: options.config.preview,
+            fixturesFolder: fixtures.display,
             ...(agentCommand === undefined && {
               variables: [...variablesOf(redirected), ...toolVariablesOf(tools), ...otel.printed],
             }),
@@ -303,6 +334,7 @@ export async function runSession(
       for (const line of startLines(tools)) out.info(line);
       out.info(`The OpenTelemetry receiver is at ${receiverListener.origin}`);
       out.info(`Turns are saved in ${store.turnsDir}`);
+      out.info(`Fixtures are saved in ${fixtures.dir}`);
       if (agentCommand === undefined) {
         const lines = attachLines(redirected, [
           ...exportLines(tools),
@@ -335,6 +367,7 @@ export async function runSession(
       out.error(`Spectra failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   } finally {
+    stopWatching();
     await server?.close();
     box?.close();
     await proxy?.close();

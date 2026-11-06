@@ -439,6 +439,28 @@
                   },
                   "a2ui.turn.writer.version": {
                     "type": "string"
+                  },
+                  "a2ui.replay.source": {
+                    "type": "string",
+                    "description": "On a replayed turn: the path of the record file replayed, relative to the working directory when under it."
+                  },
+                  "a2ui.replay.turn": {
+                    "$ref": "#/$defs/TraceId",
+                    "description": "On a replayed turn: the trace id of the recorded turn this one stands for."
+                  },
+                  "a2ui.replay.mode": {
+                    "enum": ["recorded", "model_live"]
+                  },
+                  "a2ui.replay.verdict": {
+                    "enum": ["passed", "failed"],
+                    "description": "On a replayed turn, once it closed: its verdict against the recorded turn."
+                  },
+                  "a2ui.replay.reasons": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/ReplayReason"
+                    },
+                    "description": "On a replayed turn that failed: why."
                   }
                 },
                 "required": [
@@ -1154,6 +1176,23 @@
       },
       "required": ["events"],
       "additionalProperties": false
+    },
+    "ReplayReason": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "enum": ["REPLAY_MISS", "OUTCOME_DIFFERS", "A2UI_DIFFERS"]
+        },
+        "message": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": ["code", "message"],
+      "additionalProperties": false,
+      "description": "One reason a replayed turn failed its verdict, in the check findings' style: a JSON Pointer from the turn object to the message concerned, when one is."
     }
   }
 }

@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import {capabilitiesFor} from './a2a/client.js';
-import {MessageBox, MessageBoxError} from './message_box.js';
-import type {Turn} from './record/turn_record.js';
-import {TurnHub} from './turn_hub.js';
+import {MessageBox, MessageBoxError, type ReplayHooks} from './message_box.js';
+import type {ModelCallEvent, Turn, TurnOutcome, TurnRecord} from './record/turn_record.js';
+import type {ReplayPool} from './replay/pool.js';
+import {type HubEvent, TurnHub} from './turn_hub.js';
 
 const URL_1_0 = 'http://127.0.0.1:10999/a2a';
 const CARD_1_0 = {
@@ -51,14 +52,28 @@ class FakeProxy {
   };
 
   /** Closes a turn as the recorder does, once the reply has been read. */
-  async close(traceId: string, conversationId?: string): Promise<void> {
+  async close(traceId: string, conversationId?: string, outcome?: TurnOutcome): Promise<void> {
     await new Promise(resolve => setTimeout(resolve, 10));
-    this.turns.onRecorded(turnOf(traceId, conversationId));
+    this.turns.onRecorded(turnOf(traceId, conversationId, outcome));
     await new Promise(resolve => setTimeout(resolve, 0));
+  }
+
+  /** Closes each turn as it opens, with the next closing given, as the agent's replies would end them. */
+  closeAsOpened(closings: Array<{conversationId?: string; outcome?: TurnOutcome}>): void {
+    const pending = [...closings];
+    this.turns.subscribe(event => {
+      if (event.type !== 'turn_opened') return;
+      const next = pending.shift();
+      if (next !== undefined) void this.close(event.traceId, next.conversationId, next.outcome);
+    });
   }
 }
 
-function turnOf(traceId: string, conversationId?: string): Turn {
+function turnOf(
+  traceId: string,
+  conversationId?: string,
+  outcome: TurnOutcome = 'completed',
+): Turn {
   return {
     events: [
       {
@@ -72,7 +87,7 @@ function turnOf(traceId: string, conversationId?: string): Turn {
           'a2ui.event.kind': 'turn',
           'gen_ai.operation.name': 'invoke_agent',
           ...(conversationId !== undefined && {'gen_ai.conversation.id': conversationId}),
-          'a2ui.turn.outcome': 'completed',
+          'a2ui.turn.outcome': outcome,
           'a2ui.turn.capture_paths': ['wire'],
           'a2ui.turn.writer.name': 'a2ui-spectra',
           'a2ui.turn.writer.version': '0.0.1',
@@ -121,6 +136,7 @@ function boxOn(
     headers?: Record<string, string>;
     unsetVariables?: string[];
     offer?: {'v0.9': string[]; 'v0.9.1': string[]; 'v1.0': string[]};
+    replay?: ReplayHooks;
   } = {},
 ): MessageBox {
   let ids = 0;
@@ -407,6 +423,436 @@ describe('the message box', () => {
     await assert.rejects(box.send('Hi'), {status: 502});
     assert.equal(calls, 2);
     assert.deepEqual(box.state(), {a2aVersion: '1.0', conversations: []});
+    box.close();
+  });
+});
+
+/** What the box asks of the session during a replay, each call kept. */
+class FakeHooks implements ReplayHooks {
+  pools: ReplayPool[] = [];
+  disarmed = 0;
+  annotated: Array<[string, Record<string, unknown>]> = [];
+  amended: Array<[string, Record<string, unknown>]> = [];
+  lines: string[] = [];
+  arm(pool: ReplayPool): void {
+    this.pools.push(pool);
+  }
+  disarm(): void {
+    this.disarmed++;
+  }
+  annotate(traceId: string, attributes: Record<string, unknown>): void {
+    this.annotated.push([traceId, attributes]);
+  }
+  async amend(traceId: string, attributes: Record<string, unknown>): Promise<void> {
+    this.amended.push([traceId, attributes]);
+  }
+  log(line: string): void {
+    this.lines.push(line);
+  }
+}
+
+const CAPABILITIES = {'v0.9.1': {supportedCatalogIds: ['a']}, '1.0': {supportedCatalogIds: ['b']}};
+const RECORDED = ['1'.repeat(32), '2'.repeat(32), '3'.repeat(32)];
+
+/** A recorded turn: its turn event with the outcome, and the host's text with its capabilities and metadata. */
+function recordedTurn(
+  traceId: string,
+  outcome: TurnOutcome,
+  input: Record<string, unknown> = {'a2ui.wire.capabilities': CAPABILITIES},
+  calls: ModelCallEvent[] = [],
+): Turn {
+  const turn = turnOf(traceId, 'recorded-ctx', outcome);
+  return {
+    events: [
+      ...turn.events,
+      {
+        traceId,
+        spanId: '0000000000000001',
+        parentSpanId: '0000000000000000',
+        name: 'wire_input',
+        kind: 1,
+        startTimeUnixNano: '1792576800100000000',
+        attributes: {
+          'a2ui.event.kind': 'wire_input',
+          'a2ui.wire.message': {role: 'user', parts: [{type: 'text', content: 'Hi'}]},
+          ...input,
+        },
+      },
+      ...calls,
+    ],
+  };
+}
+
+function modelCall(traceId: string, spanId: string): ModelCallEvent {
+  return {
+    traceId,
+    spanId,
+    parentSpanId: '0000000000000000',
+    name: 'chat',
+    kind: 3,
+    startTimeUnixNano: '1792576800200000000',
+    endTimeUnixNano: '1792576800300000000',
+    attributes: {
+      'a2ui.event.kind': 'model_call',
+      'http.request.method': 'POST',
+      'url.full': 'https://api.anthropic.com/v1/messages',
+      'a2ui.http.request.body': {model: 'claude', messages: [{role: 'user', content: 'Hi'}]},
+    },
+    status: {code: 1},
+  };
+}
+
+function recordOf(...turns: Turn[]): TurnRecord {
+  return {version: 'v0.1', turns: turns as TurnRecord['turns']};
+}
+
+const SOURCE = 'a2ui-spectra-fixtures/hello.json';
+
+function replayEvents(events: HubEvent[]): HubEvent[] {
+  return events.filter(event => event.type.startsWith('replay_'));
+}
+
+/** Resolves once the hub has sent the replay's end. */
+async function ended(events: HubEvent[]): Promise<Extract<HubEvent, {type: 'replay_ended'}>> {
+  const deadline = Date.now() + 5000;
+  for (;;) {
+    const found = events.find(event => event.type === 'replay_ended');
+    if (found !== undefined) return found as Extract<HubEvent, {type: 'replay_ended'}>;
+    assert.ok(Date.now() < deadline, 'The replay ended.');
+    await new Promise(resolve => setTimeout(resolve, 5));
+  }
+}
+
+describe('the message box replaying a record', () => {
+  it('re-sends each recorded turn in order as one new conversation, the first with no contextId, the next with the one the agent named and the task after a turn that ended waiting for input', async () => {
+    const proxy = new FakeProxy();
+    const hooks = new FakeHooks();
+    const box = boxOn(proxy, CARD_1_0, {replay: hooks});
+    const events: HubEvent[] = [];
+    proxy.turns.subscribe(event => events.push(event));
+    proxy.replies.push(
+      streamReply('TASK_STATE_INPUT_REQUIRED'),
+      streamReply('TASK_STATE_COMPLETED'),
+    );
+    proxy.closeAsOpened([
+      {conversationId: 'ctx-1', outcome: 'waiting_for_input'},
+      {conversationId: 'ctx-1', outcome: 'completed'},
+    ]);
+    const record = recordOf(
+      recordedTurn(RECORDED[0], 'waiting_for_input', {
+        'a2ui.wire.capabilities': CAPABILITIES,
+        'a2ui.wire.metadata': {source: 'planner'},
+      }),
+      recordedTurn(RECORDED[1], 'completed', {
+        'a2ui.wire.message': {
+          role: 'user',
+          parts: [{type: 'a2ui', content: {version: '1.0', action: {name: 'go'}}}],
+        },
+        'a2ui.wire.data_model': {version: '1.0', surfaces: {s1: {}}},
+      }),
+    );
+
+    const started = await box.replay({path: SOURCE, record}, 'model_live');
+    assert.deepEqual(started, {traceId: proxy.sent[0].traceId, turns: 2});
+    assert.deepEqual(box.state().replay, {source: SOURCE, mode: 'model_live', turn: 1, turns: 2});
+    const end = await ended(events);
+
+    assert.equal(proxy.sent.length, 2);
+    const [first, second] = proxy.sent;
+    assert.deepEqual(first.message, {
+      messageId: 'm-1',
+      role: 'ROLE_USER',
+      parts: [{text: 'Hi'}],
+      metadata: {
+        source: 'planner',
+        a2uiClientCapabilities: {'v0.9.1': CAPABILITIES['v0.9.1']},
+        a2uiRendererCapabilities: {'1.0': CAPABILITIES['1.0']},
+      },
+    });
+    assert.equal(
+      first.headers['a2a-extensions'],
+      'https://a2ui.org/a2a-extension/a2ui/v0.9.1, https://a2ui.org/a2a-extension/a2ui/v1.0',
+    );
+    assert.deepEqual(second.message, {
+      messageId: 'm-2',
+      role: 'ROLE_USER',
+      parts: [{data: {version: '1.0', action: {name: 'go'}}, mediaType: 'application/a2ui+json'}],
+      contextId: 'ctx-1',
+      taskId: 't-1',
+      metadata: {a2uiRendererDataModel: {version: '1.0', surfaces: {s1: {}}}},
+    });
+    assert.equal(
+      second.headers['a2a-extensions'],
+      undefined,
+      'The second input offered nothing the record shows.',
+    );
+
+    assert.equal(hooks.pools.length, 1, 'Armed once, before the first send.');
+    assert.equal(hooks.disarmed, 1);
+    assert.deepEqual(hooks.annotated, [
+      [
+        first.traceId,
+        {
+          'a2ui.replay.source': SOURCE,
+          'a2ui.replay.turn': RECORDED[0],
+          'a2ui.replay.mode': 'model_live',
+        },
+      ],
+      [
+        second.traceId,
+        {
+          'a2ui.replay.source': SOURCE,
+          'a2ui.replay.turn': RECORDED[1],
+          'a2ui.replay.mode': 'model_live',
+        },
+      ],
+    ]);
+    assert.deepEqual(hooks.amended, [
+      [first.traceId, {'a2ui.replay.verdict': 'passed'}],
+      [second.traceId, {'a2ui.replay.verdict': 'passed'}],
+    ]);
+    assert.deepEqual(replayEvents(events), [
+      {type: 'replay_started', source: SOURCE, mode: 'model_live', turns: 2},
+      {type: 'replay_turn', traceId: first.traceId, recordedTurn: RECORDED[0], turn: 1, turns: 2},
+      {type: 'replay_turn', traceId: second.traceId, recordedTurn: RECORDED[1], turn: 2, turns: 2},
+      end,
+    ]);
+    assert.deepEqual(end, {
+      type: 'replay_ended',
+      source: SOURCE,
+      mode: 'model_live',
+      verdict: 'passed',
+      turns: [
+        {traceId: first.traceId, recordedTurn: RECORDED[0], verdict: 'passed', unconsumed: 0},
+        {traceId: second.traceId, recordedTurn: RECORDED[1], verdict: 'passed', unconsumed: 0},
+      ],
+    });
+    assert.equal(box.state().replay, undefined);
+    assert.deepEqual(box.state().conversations, [
+      {conversationId: 'ctx-1', turns: [first.traceId, second.traceId]},
+    ]);
+
+    // The replayed conversation goes on from the composer.
+    proxy.replies.push(streamReply('TASK_STATE_COMPLETED'));
+    const more = await box.send('More', 'ctx-1');
+    assert.equal(proxy.sent[2].message.contextId, 'ctx-1');
+    await proxy.close(more.traceId, 'ctx-1');
+    box.close();
+  });
+
+  it('sends no task id when the live previous turn did not end waiting for input, nor for a request recorded without one', async () => {
+    const proxy = new FakeProxy();
+    const hooks = new FakeHooks();
+    const box = boxOn(proxy, CARD_1_0, {replay: hooks});
+    const events: HubEvent[] = [];
+    proxy.turns.subscribe(event => events.push(event));
+    proxy.replies.push(
+      streamReply('TASK_STATE_COMPLETED'),
+      streamReply('TASK_STATE_INPUT_REQUIRED'),
+      streamReply('TASK_STATE_COMPLETED'),
+    );
+    proxy.closeAsOpened([
+      {conversationId: 'ctx-1', outcome: 'completed'},
+      {conversationId: 'ctx-1', outcome: 'waiting_for_input'},
+      {conversationId: 'ctx-1', outcome: 'completed'},
+    ]);
+    // Recorded: waiting, completed, completed. Live: completed, waiting, completed.
+    const record = recordOf(
+      recordedTurn(RECORDED[0], 'waiting_for_input'),
+      recordedTurn(RECORDED[1], 'completed'),
+      recordedTurn(RECORDED[2], 'completed'),
+    );
+    await box.replay({path: SOURCE, record}, 'model_live');
+    const end = await ended(events);
+    assert.deepEqual(
+      proxy.sent.map(({message}) => [message.contextId, message.taskId]),
+      [
+        [undefined, undefined],
+        ['ctx-1', undefined],
+        ['ctx-1', undefined],
+      ],
+    );
+    assert.equal(end.verdict, 'failed');
+    assert.deepEqual(
+      hooks.amended.map(([, attributes]) => attributes),
+      [
+        {
+          'a2ui.replay.verdict': 'failed',
+          'a2ui.replay.reasons': [
+            {
+              code: 'OUTCOME_DIFFERS',
+              message: 'The turn ended completed; the record ended waiting for input.',
+            },
+          ],
+        },
+        {
+          'a2ui.replay.verdict': 'failed',
+          'a2ui.replay.reasons': [
+            {
+              code: 'OUTCOME_DIFFERS',
+              message: 'The turn ended waiting for input; the record ended completed.',
+            },
+          ],
+        },
+        {'a2ui.replay.verdict': 'passed'},
+      ],
+    );
+    box.close();
+  });
+
+  it('counts the recorded calls a turn never asked for, says so on the terminal, and does not fail the verdict for them', async () => {
+    const proxy = new FakeProxy();
+    const hooks = new FakeHooks();
+    const box = boxOn(proxy, CARD_1_0, {replay: hooks});
+    const events: HubEvent[] = [];
+    proxy.turns.subscribe(event => events.push(event));
+    proxy.replies.push(streamReply('TASK_STATE_COMPLETED'));
+    proxy.closeAsOpened([{conversationId: 'ctx-1'}]);
+    const record = recordOf(
+      recordedTurn(RECORDED[0], 'completed', undefined, [
+        modelCall(RECORDED[0], 'aaaaaaaaaaaaaaaa'),
+        modelCall(RECORDED[0], 'bbbbbbbbbbbbbbbb'),
+      ]),
+    );
+    await box.replay({path: SOURCE, record}, 'recorded');
+    const end = await ended(events);
+    assert.deepEqual(end.turns, [
+      {traceId: proxy.sent[0].traceId, recordedTurn: RECORDED[0], verdict: 'passed', unconsumed: 2},
+    ]);
+    assert.deepEqual(hooks.lines, [
+      `Replay of ${SOURCE}, turn 1 of 1: passed; 2 of the recorded calls were not asked for.`,
+    ]);
+    box.close();
+  });
+
+  it('refuses to start while a turn is open anywhere, while a replay runs, and refuses a send while it runs', async () => {
+    const proxy = new FakeProxy();
+    const hooks = new FakeHooks();
+    const box = boxOn(proxy, CARD_1_0, {replay: hooks});
+    const record = recordOf(recordedTurn(RECORDED[0], 'completed'));
+    proxy.turns.onTurn({
+      type: 'turn_opened',
+      traceId: 'f'.repeat(32),
+      spanId: '0'.repeat(16),
+      startTimeUnixNano: '1792576800000000000',
+    });
+    await assert.rejects(box.replay({path: SOURCE, record}, 'model_live'), {
+      status: 409,
+      message: 'A turn is open. Wait for it to close before replaying.',
+    });
+    proxy.turns.onRecorded(turnOf('f'.repeat(32)));
+    assert.equal(hooks.pools.length, 0);
+
+    proxy.replies.push(streamReply('TASK_STATE_COMPLETED'));
+    const started = await box.replay({path: SOURCE, record}, 'model_live');
+    await assert.rejects(box.replay({path: SOURCE, record}, 'model_live'), {
+      status: 409,
+      message: 'A replay is running. Wait for it to end.',
+    });
+    await assert.rejects(box.send('Hi'), {
+      status: 409,
+      message: 'A replay is running. The message box sends again once it ends.',
+    });
+    const events: HubEvent[] = [];
+    proxy.turns.subscribe(event => events.push(event));
+    await proxy.close(started.traceId, 'ctx-1');
+    await ended(events);
+    proxy.replies.push(streamReply('TASK_STATE_COMPLETED'));
+    await box.send('Hi');
+    box.close();
+  });
+
+  it('refuses everything recorded on a record with nothing to serve, a record it cannot read, and any replay when it cannot send', async () => {
+    const proxy = new FakeProxy();
+    const hooks = new FakeHooks();
+    const box = boxOn(proxy, CARD_1_0, {replay: hooks});
+    const empty = recordOf(recordedTurn(RECORDED[0], 'completed'));
+    await assert.rejects(box.replay({path: SOURCE, record: empty}, 'recorded'), {
+      status: 422,
+      message:
+        'The record holds no model call and no tool call, so there is nothing to serve with everything recorded. Replay it with the model live.',
+    });
+    const noInput = recordOf(turnOf(RECORDED[0], 'recorded-ctx'));
+    await assert.rejects(box.replay({path: SOURCE, record: noInput}, 'model_live'), {
+      status: 422,
+      message: 'Turn 1 of the record has no wire input, so there is nothing to send for it.',
+    });
+    assert.equal(hooks.pools.length, 0);
+    const unavailable = boxOn(proxy, CARD_1_0, {replay: hooks, unsetVariables: ['TOKEN']});
+    await assert.rejects(unavailable.replay({path: SOURCE, record: empty}, 'model_live'), {
+      status: 422,
+    });
+    const noHooks = boxOn(proxy);
+    await assert.rejects(noHooks.replay({path: SOURCE, record: empty}, 'model_live'), {
+      status: 422,
+      message: 'Replay is not available in this session.',
+    });
+    box.close();
+    unavailable.close();
+    noHooks.close();
+  });
+
+  it('stops at a turn it cannot send, reporting it and the rest as not sent, the record failed, the proxies disarmed', async () => {
+    const proxy = new FakeProxy();
+    const hooks = new FakeHooks();
+    let sends = 0;
+    const turns = proxy.turns;
+    const box = new MessageBox({
+      card: CARD_1_0,
+      turns,
+      replay: hooks,
+      newMessageId: () => `m-${++sends}`,
+      fetch: (input, init) =>
+        sends === 1 ? proxy.fetch(input, init) : Promise.reject(new Error('connect ECONNREFUSED')),
+    });
+    const events: HubEvent[] = [];
+    turns.subscribe(event => events.push(event));
+    proxy.replies.push(streamReply('TASK_STATE_COMPLETED'));
+    proxy.closeAsOpened([{conversationId: 'ctx-1'}]);
+    const record = recordOf(
+      recordedTurn(RECORDED[0], 'completed'),
+      recordedTurn(RECORDED[1], 'completed'),
+      recordedTurn(RECORDED[2], 'completed'),
+    );
+    const started = await box.replay({path: SOURCE, record}, 'model_live');
+    const end = await ended(events);
+    assert.deepEqual(end.turns, [
+      {traceId: started.traceId, recordedTurn: RECORDED[0], verdict: 'passed', unconsumed: 0},
+      {
+        recordedTurn: RECORDED[1],
+        notSent: 'The message box could not reach the wire proxy: connect ECONNREFUSED',
+      },
+      {
+        recordedTurn: RECORDED[2],
+        notSent: 'The message box could not reach the wire proxy: connect ECONNREFUSED',
+      },
+    ]);
+    assert.equal(end.verdict, 'failed');
+    assert.equal(hooks.disarmed, 1);
+    assert.equal(box.state().replay, undefined);
+    box.close();
+  });
+
+  it('rejects when the first turn cannot be sent, the replay over before it began', async () => {
+    const hooks = new FakeHooks();
+    const turns = new TurnHub();
+    const box = new MessageBox({
+      card: CARD_1_0,
+      turns,
+      replay: hooks,
+      fetch: () => Promise.reject(new Error('connect ECONNREFUSED')),
+    });
+    const events: HubEvent[] = [];
+    turns.subscribe(event => events.push(event));
+    const record = recordOf(recordedTurn(RECORDED[0], 'completed'));
+    await assert.rejects(box.replay({path: SOURCE, record}, 'model_live'), {status: 502});
+    assert.equal(hooks.pools.length, 1);
+    assert.equal(hooks.disarmed, 1);
+    assert.equal(box.state().replay, undefined);
+    assert.deepEqual(
+      replayEvents(events).map(event => event.type),
+      ['replay_started', 'replay_ended'],
+    );
     box.close();
   });
 });

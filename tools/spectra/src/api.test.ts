@@ -1,15 +1,16 @@
 import assert from 'node:assert/strict';
-import {mkdtempSync, rmSync, writeFileSync} from 'node:fs';
+import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {createServer} from 'node:http';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {after, describe, it} from 'node:test';
 
 import {SseParser} from './a2a/sse.js';
-import type {ListedTurn, SessionContext} from './api.js';
+import type {FixturesListing, ListedTurn, SessionContext} from './api.js';
 import {CatalogRegistry} from './catalog/registry.js';
 import {CONFIG_SCHEMA, type PriceOverride} from './config.js';
-import {MessageBox} from './message_box.js';
+import {FixturesFolder} from './fixtures/fixtures.js';
+import {MessageBox, type ReplayHooks} from './message_box.js';
 import type {Turn, TurnRecord, WireInputEvent, WirePart} from './record/turn_record.js';
 import {startViewerServer, type ViewerServer} from './server.js';
 import {TurnStore} from './store/store.js';
@@ -45,6 +46,7 @@ const CONTEXT: SessionContext = {
   mode: 'run',
   proxyAddress: 'http://127.0.0.1:1/a2a',
   previewPages: ['http://localhost:5174/spectra-preview'],
+  fixturesFolder: 'a2ui-spectra-fixtures',
   a2aVersions: ['0.3.0'],
   a2uiExtensions: [
     {
@@ -103,7 +105,20 @@ function openTurn(turns: TurnHub, n: number): void {
   });
 }
 
-async function serve(heartbeatMs = 60_000, prices?: Record<string, PriceOverride>) {
+/** Replay hooks that do nothing, so the box can be asked to replay against the proxy this test has none of. */
+const NO_HOOKS: ReplayHooks = {
+  arm: () => {},
+  disarm: () => {},
+  annotate: () => {},
+  amend: async () => {},
+  log: () => {},
+};
+
+async function serve(
+  heartbeatMs = 60_000,
+  prices?: Record<string, PriceOverride>,
+  options: {replay?: boolean} = {},
+) {
   const dir = mkdtempSync(path.join(tmpdir(), 'spectra-api-'));
   dirs.push(dir);
   const store = await TurnStore.open(dir);
@@ -116,8 +131,10 @@ async function serve(heartbeatMs = 60_000, prices?: Record<string, PriceOverride
       ],
     },
     turns,
+    ...(options.replay && {replay: NO_HOOKS}),
     fetch: () => Promise.reject(new Error('No proxy in this test.')),
   });
+  const fixtures = new FixturesFolder(path.join(dir, 'a2ui-spectra-fixtures'), dir);
   const port = await freePort();
   const server = await startViewerServer({
     port,
@@ -127,6 +144,7 @@ async function serve(heartbeatMs = 60_000, prices?: Record<string, PriceOverride
       store,
       turns,
       box,
+      fixtures,
       heartbeatMs,
       context: CONTEXT,
       catalogs: CatalogRegistry.builtIn(),
@@ -135,13 +153,13 @@ async function serve(heartbeatMs = 60_000, prices?: Record<string, PriceOverride
   });
   servers.push(server);
   const base = `http://127.0.0.1:${port}`;
-  return {store, turns, box, base};
+  return {store, turns, box, fixtures, base, dir};
 }
 
-async function getJson(url: string): Promise<{status: number; body: unknown}> {
+async function getJson<T = unknown>(url: string): Promise<{status: number; body: T}> {
   const response = await fetch(url);
   assert.match(response.headers.get('content-type') ?? '', /^application\/json/);
-  return {status: response.status, body: await response.json()};
+  return {status: response.status, body: (await response.json()) as T};
 }
 
 function post(url: string, body: unknown, type = 'application/json') {
@@ -471,6 +489,230 @@ describe('the API', () => {
     assert.equal((await post(`${base}/api/message-box/messages`, 'Hi', 'text/plain')).status, 415);
     assert.equal((await post(`${base}/api/turns`, {})).status, 405);
     assert.equal((await fetch(`${base}/api/message-box/messages`)).status, 405);
+    assert.equal((await fetch(`${base}/api/replays`)).status, 405);
+    assert.equal((await post(`${base}/api/fixtures/x`, {})).status, 405);
     assert.equal((await fetch(`${base}/api/nothing`)).status, 404);
+  });
+
+  it('saves a turn as a fixture by name, answering the path written, and refuses a bad name, a clash, an open turn and an unknown one', async () => {
+    const {store, turns, fixtures, base, dir} = await serve();
+    const closed = closedTurn(1, 'ctx-1');
+    closed.events.push(wireInput(1, {type: 'text', content: 'Book a table for 2'}));
+    const {record} = await store.write(closed);
+    openTurn(turns, 2);
+
+    const saved = await post(`${base}/api/fixtures`, {
+      traceId: trace(1),
+      name: 'book-a-table-for-2',
+    });
+    assert.equal(saved.status, 201);
+    assert.deepEqual(await saved.json(), {
+      name: 'book-a-table-for-2',
+      path: path.join('a2ui-spectra-fixtures', 'book-a-table-for-2.json'),
+    });
+    const file = path.join(dir, 'a2ui-spectra-fixtures', 'book-a-table-for-2.json');
+    assert.deepEqual(JSON.parse(readFileSync(file, 'utf8')), record);
+    assert.deepEqual((await fixtures.read('book-a-table-for-2')).record, record);
+
+    const clash = await post(`${base}/api/fixtures`, {
+      traceId: trace(1),
+      name: 'book-a-table-for-2',
+    });
+    assert.equal(clash.status, 409);
+    assert.deepEqual(await clash.json(), {
+      error: 'a2ui-spectra-fixtures/book-a-table-for-2.json exists already.',
+      suggested: 'book-a-table-for-2-2',
+    });
+    const badName = await post(`${base}/api/fixtures`, {traceId: trace(1), name: 'a b'});
+    assert.equal(badName.status, 400);
+    assert.match(
+      ((await badName.json()) as {error: string}).error,
+      /^A fixture's name uses letters/,
+    );
+    const open = await post(`${base}/api/fixtures`, {traceId: trace(2), name: 'open'});
+    assert.equal(open.status, 409);
+    assert.deepEqual(await open.json(), {
+      error: 'The turn is still open, so it has no record yet.',
+    });
+    const unknown = await post(`${base}/api/fixtures`, {traceId: trace(9), name: 'unknown'});
+    assert.equal(unknown.status, 404);
+    for (const body of [{}, {traceId: trace(1)}, {name: 'x'}, {traceId: 1, name: 'x'}, []]) {
+      assert.equal((await post(`${base}/api/fixtures`, body)).status, 400, JSON.stringify(body));
+    }
+  });
+
+  it('saves a turn kept in memory after its write failed', async () => {
+    const {store, base, dir} = await serve();
+    writeFileSync(path.join(store.turnsDir, 'ctx-1'), 'not a folder');
+    await assert.rejects(store.write(closedTurn(1, 'ctx-1')));
+    const saved = await post(`${base}/api/fixtures`, {traceId: trace(1), name: 'kept'});
+    assert.equal(saved.status, 201);
+    const file = path.join(dir, 'a2ui-spectra-fixtures', 'kept.json');
+    assert.deepEqual((JSON.parse(readFileSync(file, 'utf8')) as TurnRecord).turns, [
+      closedTurn(1, 'ctx-1'),
+    ]);
+  });
+
+  it("lists the fixtures with their turns in the listing's form, a bad file with its reason, and serves each one's record", async () => {
+    const {store, fixtures, base, dir} = await serve();
+    assert.deepEqual((await getJson(`${base}/api/fixtures`)).body, {
+      folder: 'a2ui-spectra-fixtures',
+      fixtures: [],
+    });
+    const first = closedTurn(1, 'ctx-1');
+    first.events.push(wireInput(1, {type: 'text', content: 'Hi'}));
+    await store.write(first);
+    const second = closedTurn(2, 'ctx-1');
+    second.events.push(wireInput(2, {type: 'text', content: 'Book a table'}));
+    const {record} = await store.write(second);
+    await fixtures.save(record, 'booking');
+    mkdirSync(path.join(fixtures.dir, 'nested'));
+    writeFileSync(path.join(fixtures.dir, 'nested', 'bad.json'), '{');
+
+    const {status, body} = await getJson<FixturesListing>(`${base}/api/fixtures`);
+    assert.equal(status, 200);
+    assert.equal(body.folder, 'a2ui-spectra-fixtures');
+    assert.equal(body.fixtures.length, 2);
+    const [booking, bad] = body.fixtures;
+    assert.equal(booking.name, 'booking');
+    assert.equal(booking.path, path.join('a2ui-spectra-fixtures', 'booking.json'));
+    assert.match(booking.savedAt, /^\d{4}-\d{2}-\d{2}T/);
+    assert.deepEqual(booking.turns, [
+      {
+        traceId: trace(1),
+        conversationId: 'ctx-1',
+        startTime: '2026-10-21T10:00:01.000Z',
+        outcome: 'completed',
+        durationMs: 500,
+        input: {text: 'Hi'},
+        rejections: 0,
+      },
+      {
+        traceId: trace(2),
+        conversationId: 'ctx-1',
+        startTime: '2026-10-21T10:00:02.000Z',
+        outcome: 'completed',
+        durationMs: 500,
+        input: {text: 'Book a table'},
+        rejections: 0,
+      },
+    ]);
+    assert.equal(booking.error, undefined);
+    assert.equal(bad.name, 'nested/bad');
+    assert.equal(bad.turns, undefined);
+    assert.match(bad.error ?? '', /^The file is not JSON: /);
+
+    const served = await getJson<TurnRecord>(`${base}/api/fixtures/booking`);
+    assert.equal(served.status, 200);
+    assert.deepEqual(served.body, record);
+    assert.equal((await getJson(`${base}/api/fixtures/missing`)).status, 404);
+    const unreadable = await getJson(`${base}/api/fixtures/nested/bad`);
+    assert.equal(unreadable.status, 422);
+    assert.match((unreadable.body as {error: string}).error, /^The file is not JSON: /);
+    assert.equal((await getJson(`${base}/api/fixtures/../x`)).status, 404);
+    rmSync(path.join(dir, 'a2ui-spectra-fixtures'), {recursive: true});
+    assert.deepEqual((await getJson(`${base}/api/fixtures`)).body, {
+      folder: 'a2ui-spectra-fixtures',
+      fixtures: [],
+    });
+  });
+
+  it('starts a replay from a fixture or a store turn, and refuses what the box refuses, a bad body, an unknown source and a turn with no file', async () => {
+    const {store, fixtures, base} = await serve(60_000, undefined, {replay: true});
+    const closed = closedTurn(1, 'ctx-1');
+    closed.events.push(wireInput(1, {type: 'text', content: 'Hi'}));
+    const {record} = await store.write(closed);
+    await fixtures.save(record, 'hello');
+
+    for (const body of [
+      {},
+      {mode: 'recorded'},
+      {source: {fixture: 'hello'}},
+      {source: {fixture: 'hello'}, mode: 'all'},
+      {source: {}, mode: 'recorded'},
+      {source: {fixture: 'hello', traceId: trace(1)}, mode: 'recorded'},
+      {source: 'hello', mode: 'recorded'},
+    ]) {
+      assert.equal((await post(`${base}/api/replays`, body)).status, 400, JSON.stringify(body));
+    }
+    assert.equal(
+      (await post(`${base}/api/replays`, {source: {fixture: 'missing'}, mode: 'model_live'}))
+        .status,
+      404,
+    );
+    assert.equal(
+      (await post(`${base}/api/replays`, {source: {traceId: trace(9)}, mode: 'model_live'})).status,
+      404,
+    );
+    const nothing = await post(`${base}/api/replays`, {
+      source: {fixture: 'hello'},
+      mode: 'recorded',
+    });
+    assert.equal(nothing.status, 422);
+    assert.match(((await nothing.json()) as {error: string}).error, /nothing to serve/);
+    // The box sends, and the proxy this test has none of is unreachable: the source was read.
+    const fromFixture = await post(`${base}/api/replays`, {
+      source: {fixture: 'hello'},
+      mode: 'model_live',
+    });
+    assert.equal(fromFixture.status, 502);
+    assert.deepEqual(await fromFixture.json(), {
+      error: 'The message box could not reach the wire proxy: No proxy in this test.',
+    });
+    const fromStore = await post(`${base}/api/replays`, {
+      source: {traceId: trace(1)},
+      mode: 'model_live',
+    });
+    assert.equal(fromStore.status, 502);
+
+    writeFileSync(path.join(store.turnsDir, 'ctx-2'), 'not a folder');
+    await assert.rejects(store.write(closedTurn(2, 'ctx-2')));
+    const unwritten = await post(`${base}/api/replays`, {
+      source: {traceId: trace(2)},
+      mode: 'model_live',
+    });
+    assert.equal(unwritten.status, 422);
+    assert.deepEqual(await unwritten.json(), {
+      error:
+        "The turn's record was not written to the store, so there is no file to replay. Save it as a fixture first.",
+    });
+
+    const {base: without} = await serve();
+    const unavailable = await post(`${without}/api/replays`, {
+      source: {fixture: 'hello'},
+      mode: 'model_live',
+    });
+    assert.equal(unavailable.status, 404, 'That session has no such fixture.');
+  });
+
+  it("passes a replay's events and the fixtures folder's change on the live stream", async () => {
+    const {turns, base} = await serve();
+    const response = await fetch(`${base}/api/stream`);
+    const reader = response.body!.getReader();
+    const sse = new SseParser();
+    const text = new TextDecoder();
+    const events: Array<{event?: string; data: unknown}> = [];
+    turns.notify({type: 'fixtures_changed'});
+    turns.notify({
+      type: 'replay_started',
+      source: 'a2ui-spectra-fixtures/hello.json',
+      mode: 'recorded',
+      turns: 1,
+    });
+    while (events.length < 2) {
+      const {value, done} = await reader.read();
+      assert.equal(done, false);
+      for (const event of sse.push(text.decode(value, {stream: true}))) {
+        events.push({event: event.event, data: JSON.parse(event.data)});
+      }
+    }
+    await reader.cancel();
+    assert.deepEqual(events, [
+      {event: 'fixtures_changed', data: {}},
+      {
+        event: 'replay_started',
+        data: {source: 'a2ui-spectra-fixtures/hello.json', mode: 'recorded', turns: 1},
+      },
+    ]);
   });
 });

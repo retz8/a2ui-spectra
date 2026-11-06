@@ -20,19 +20,25 @@
         },
         "headers": {
           "type": "object",
-          "additionalProperties": {"type": "string"},
+          "additionalProperties": {
+            "type": "string"
+          },
           "description": "Headers the message box adds to every request it makes to the agent, the card fetch included. ${VAR} in a value is replaced from Spectra's environment, so the file holds variable names, never values. The box's own transport headers win over a header of the same name."
         }
       }
     },
     "catalogs": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "description": "Paths of catalog definition files, each carrying its own catalogId. A relative path is relative to this file's directory. Read once at start; a change needs a restart."
     },
     "preview": {
       "type": "array",
-      "items": {"type": "string"},
+      "items": {
+        "type": "string"
+      },
       "description": "The preview pages: the URL of each page built with a Spectra preview adapter, starting with http:// or https://."
     },
     "tools": {
@@ -84,6 +90,10 @@
           }
         }
       }
+    },
+    "fixtures": {
+      "type": "string",
+      "description": "The fixtures folder, where Save as fixture writes and test and the viewer's Fixtures list read. A relative path is relative to this file's directory. a2ui-spectra-fixtures/ beside this file when left out."
     }
   }
 }

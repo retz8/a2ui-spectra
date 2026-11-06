@@ -32,13 +32,15 @@ async function configError(options: {cwd: string; path?: string}, pattern: RegEx
 }
 
 describe('loadConfig', () => {
-  it('is empty when the working directory has no config file', async () => {
-    assert.deepEqual(await loadConfig({cwd: freshDir()}), {
+  it('is empty when the working directory has no config file, the fixtures folder its default there', async () => {
+    const cwd = freshDir();
+    assert.deepEqual(await loadConfig({cwd}), {
       headers: {},
       catalogs: [],
       preview: [],
       tools: [],
       prices: {},
+      fixtures: path.join(cwd, 'a2ui-spectra-fixtures'),
     });
   });
 
@@ -87,6 +89,23 @@ describe('loadConfig', () => {
     assert.deepEqual(config.headers, {});
     assert.deepEqual(config.catalogs, []);
     assert.deepEqual(config.preview, []);
+    assert.equal(config.fixtures, path.join(cwd, 'a2ui-spectra-fixtures'));
+  });
+
+  it("reads the fixtures folder, relative to the config file's directory, its default beside the file", async () => {
+    const cwd = freshDir();
+    const elsewhere = freshDir();
+    write(elsewhere, 'spectra.json', {fixtures: './fixtures/spectra'});
+    const relative = await loadConfig({cwd, path: path.join(elsewhere, 'spectra.json')});
+    assert.equal(relative.fixtures, path.join(elsewhere, 'fixtures', 'spectra'));
+    write(elsewhere, 'absolute.json', {fixtures: path.join(cwd, 'fx')});
+    const absolute = await loadConfig({cwd, path: path.join(elsewhere, 'absolute.json')});
+    assert.equal(absolute.fixtures, path.join(cwd, 'fx'));
+    write(elsewhere, 'default.json', {});
+    const byDefault = await loadConfig({cwd, path: path.join(elsewhere, 'default.json')});
+    assert.equal(byDefault.fixtures, path.join(elsewhere, 'a2ui-spectra-fixtures'));
+    write(cwd, CONFIG_FILE, {fixtures: 3});
+    await configError({cwd}, /fixtures must be a string/);
   });
 
   it('stops on a file it cannot read or that holds what it does not know', async () => {
@@ -104,7 +123,7 @@ describe('loadConfig', () => {
     write(cwd, 'unknown.json', {header: {}});
     await configError(
       {cwd, path: 'unknown.json'},
-      /unknown\.json: 'header' is not a setting; the settings are agent, catalogs, preview, tools and prices/,
+      /unknown\.json: 'header' is not a setting; the settings are agent, catalogs, preview, tools, prices and fixtures/,
     );
     write(cwd, 'nested.json', {agent: {uri: 'http://a'}});
     await configError(

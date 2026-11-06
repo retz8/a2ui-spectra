@@ -7,6 +7,7 @@ import {
   boxRequest,
   capabilitiesFor,
   chooseInterface,
+  preparedRequest,
   readReplySummary,
 } from './client.js';
 
@@ -258,6 +259,77 @@ describe('boxRequest', () => {
       ) as {params: {message: {metadata: unknown}}}
     ).params.message;
     assert.deepEqual(metadata, {...A2UI_CAPABILITIES, a2uiRendererDataModel: dataModel});
+  });
+});
+
+describe('preparedRequest, a message sent as it stands', () => {
+  const parts = [
+    {kind: 'text', text: 'Book a table'},
+    {kind: 'data', data: {n: 2}},
+  ];
+  const metadata = {a2uiClientCapabilities: {'v0.9.1': {supportedCatalogIds: ['a']}}, source: 'x'};
+
+  it('sends the parts and the metadata verbatim with the ids, and the extensions given', () => {
+    const request = preparedRequest(
+      {version: '0.3', url: PROXY, streaming: true},
+      {parts, metadata, messageId: 'm-9', contextId: 'ctx-1', taskId: 't-1'},
+      3,
+      {
+        extensions: ['https://a2ui.org/a2a-extension/a2ui/v0.9.1'],
+        headers: {Authorization: 'Bearer t'},
+      },
+    );
+    assert.deepEqual(request.headers, {
+      authorization: 'Bearer t',
+      'content-type': 'application/json',
+      accept: 'text/event-stream',
+      'x-a2a-extensions': 'https://a2ui.org/a2a-extension/a2ui/v0.9.1',
+    });
+    assert.deepEqual(JSON.parse(request.body), {
+      jsonrpc: '2.0',
+      id: 3,
+      method: 'message/stream',
+      params: {
+        message: {
+          kind: 'message',
+          messageId: 'm-9',
+          role: 'user',
+          parts,
+          contextId: 'ctx-1',
+          taskId: 't-1',
+          metadata,
+        },
+      },
+    });
+  });
+
+  it('sends no extensions header when given none, and no metadata when the message has none', () => {
+    const request = preparedRequest(
+      {version: '1.0', url: PROXY, streaming: false},
+      {parts: [{text: 'Hi'}], messageId: 'm-1'},
+      1,
+      {extensions: []},
+    );
+    assert.deepEqual(request.headers, {
+      'content-type': 'application/json',
+      accept: 'application/json',
+      'a2a-version': '1.0',
+    });
+    assert.deepEqual(JSON.parse(request.body), {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'SendMessage',
+      params: {message: {messageId: 'm-1', role: 'ROLE_USER', parts: [{text: 'Hi'}]}},
+    });
+  });
+
+  it("offers every version Spectra supports when the extensions are not given, as the box's own request does", () => {
+    const request = preparedRequest(
+      {version: '1.0', url: PROXY, streaming: true},
+      {parts: [{text: 'Hi'}], messageId: 'm-1'},
+      1,
+    );
+    assert.equal(request.headers['a2a-extensions'], A2UI_EXTENSION_URIS.join(', '));
   });
 });
 

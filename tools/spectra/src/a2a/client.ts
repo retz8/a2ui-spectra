@@ -6,6 +6,9 @@
 import {type CatalogOffer, CatalogRegistry} from '../catalog/registry.js';
 import {JSONRPC} from './card.js';
 import {dataModelKeyFor} from './metadata.js';
+import {A2UI_MIME_TYPE} from './parts.js';
+
+export {A2UI_MIME_TYPE};
 import {type A2aVersion, isRecord, readReply, type TaskState} from './protocol.js';
 import {SseParser} from './sse.js';
 
@@ -101,9 +104,6 @@ function majorMinor(version: string): string | undefined {
   return /^(\d+\.\d+)(?:\.\d+)?$/.exec(version.trim())?.[1];
 }
 
-/** The MIME type of a data part that carries A2UI, as the extension specification gives it. */
-export const A2UI_MIME_TYPE = 'application/a2ui+json';
-
 /**
  * What a host message carries: a text, or one A2UI action message,
  * `{version, action}`, with the data model map, `{version, surfaces}`, when
@@ -134,6 +134,25 @@ export interface RequestOptions {
 }
 
 /**
+ * A message sent as it stands: its parts and its metadata already in the
+ * interface's version's form, and the conversation it continues.
+ */
+export interface PreparedMessage {
+  parts: unknown[];
+  metadata?: Record<string, unknown>;
+  messageId: string;
+  contextId?: string;
+  taskId?: string;
+}
+
+export interface PreparedRequestOptions {
+  /** The A2UI extension URIs of the extensions header; none sends no header. Every version Spectra supports when not given. */
+  extensions?: readonly string[];
+  /** The configured headers, added to the request; the box's own transport headers win over them. */
+  headers?: Readonly<Record<string, string>>;
+}
+
+/**
  * The send or stream request for the interface's A2A version, with Spectra's
  * offer: every supported A2UI extension in the version's extensions header,
  * and the capabilities in the message's metadata, beside the data model
@@ -148,7 +167,46 @@ export function boxRequest(
   id: number,
   {capabilities = A2UI_CAPABILITIES, headers = {}}: RequestOptions = {},
 ): BoxRequest {
-  const extensions = A2UI_EXTENSION_URIS.join(', ');
+  const metadata = {
+    ...capabilities,
+    ...(message.dataModel !== undefined && {
+      [dataModelKeyFor(message.dataModel.version)]: message.dataModel,
+    }),
+  };
+  const part =
+    target.version === '0.3'
+      ? 'text' in message
+        ? {kind: 'text', text: message.text}
+        : {kind: 'data', data: message.action, metadata: {mimeType: A2UI_MIME_TYPE}}
+      : 'text' in message
+        ? {text: message.text}
+        : {data: [message.action], mediaType: A2UI_MIME_TYPE};
+  return preparedRequest(
+    target,
+    {
+      parts: [part],
+      metadata,
+      messageId: message.messageId,
+      ...(message.contextId !== undefined && {contextId: message.contextId}),
+      ...(message.taskId !== undefined && {taskId: message.taskId}),
+    },
+    id,
+    {headers},
+  );
+}
+
+/**
+ * The send or stream request for the interface's A2A version carrying a
+ * message as it stands: its parts and metadata verbatim, the extensions
+ * header listing the URIs given, and the configured headers under the box's
+ * own transport headers.
+ */
+export function preparedRequest(
+  target: BoxInterface,
+  message: PreparedMessage,
+  id: number,
+  {extensions = A2UI_EXTENSION_URIS, headers = {}}: PreparedRequestOptions = {},
+): BoxRequest {
   const conversation = {
     ...(message.contextId !== undefined && {contextId: message.contextId}),
     ...(message.taskId !== undefined && {taskId: message.taskId}),
@@ -156,19 +214,17 @@ export function boxRequest(
   const configured = Object.fromEntries(
     Object.entries(headers).map(([name, value]) => [name.toLowerCase(), value]),
   );
-  const metadata = {
-    ...capabilities,
-    ...(message.dataModel !== undefined && {
-      [dataModelKeyFor(message.dataModel.version)]: message.dataModel,
-    }),
-  };
+  const metadata = message.metadata === undefined ? {} : {metadata: message.metadata};
+  const accept = target.streaming ? 'text/event-stream' : 'application/json';
+  const extensionsHeader = (name: string) =>
+    extensions.length > 0 ? {[name]: extensions.join(', ')} : {};
   if (target.version === '0.3') {
     return {
       headers: {
         ...configured,
         'content-type': 'application/json',
-        accept: target.streaming ? 'text/event-stream' : 'application/json',
-        'x-a2a-extensions': extensions,
+        accept,
+        ...extensionsHeader('x-a2a-extensions'),
       },
       body: JSON.stringify({
         jsonrpc: '2.0',
@@ -179,13 +235,9 @@ export function boxRequest(
             kind: 'message',
             messageId: message.messageId,
             role: 'user',
-            parts: [
-              'text' in message
-                ? {kind: 'text', text: message.text}
-                : {kind: 'data', data: message.action, metadata: {mimeType: A2UI_MIME_TYPE}},
-            ],
+            parts: message.parts,
             ...conversation,
-            metadata,
+            ...metadata,
           },
         },
       }),
@@ -195,9 +247,9 @@ export function boxRequest(
     headers: {
       ...configured,
       'content-type': 'application/json',
-      accept: target.streaming ? 'text/event-stream' : 'application/json',
+      accept,
       'a2a-version': '1.0',
-      'a2a-extensions': extensions,
+      ...extensionsHeader('a2a-extensions'),
     },
     body: JSON.stringify({
       jsonrpc: '2.0',
@@ -208,13 +260,9 @@ export function boxRequest(
         message: {
           messageId: message.messageId,
           role: 'ROLE_USER',
-          parts: [
-            'text' in message
-              ? {text: message.text}
-              : {data: [message.action], mediaType: A2UI_MIME_TYPE},
-          ],
+          parts: message.parts,
           ...conversation,
-          metadata,
+          ...metadata,
         },
       },
     }),

@@ -102,6 +102,21 @@ export type TurnOutcome = 'completed' | 'failed' | 'cancelled' | 'waiting_for_in
 
 export type CapturePath = 'wire' | 'model_proxy' | 'tool_proxy' | 'otel_receiver' | 'wrapper';
 
+/** `recorded`, everything served from the record; `model_live`, a model call that matches nothing goes to the provider. */
+export type ReplayMode = 'recorded' | 'model_live';
+
+export type ReplayVerdict = 'passed' | 'failed';
+
+export type ReplayReasonCode = 'REPLAY_MISS' | 'OUTCOME_DIFFERS' | 'A2UI_DIFFERS';
+
+/** One reason a replayed turn failed its verdict, in the check findings' style. */
+export interface ReplayReason {
+  code: ReplayReasonCode;
+  message: string;
+  /** A JSON Pointer from the turn object to the message concerned, when one is. */
+  path?: string;
+}
+
 export interface TurnAttributes {
   'a2ui.event.kind': 'turn';
   'gen_ai.operation.name': 'invoke_agent';
@@ -115,6 +130,15 @@ export interface TurnAttributes {
   /** The program that wrote the record. */
   'a2ui.turn.writer.name': string;
   'a2ui.turn.writer.version': string;
+  /** On a replayed turn: the path of the record file replayed, relative to the working directory when under it. */
+  'a2ui.replay.source'?: string;
+  /** On a replayed turn: the trace id of the recorded turn this one stands for. */
+  'a2ui.replay.turn'?: TraceId;
+  'a2ui.replay.mode'?: ReplayMode;
+  /** On a replayed turn, once it closed: its verdict against the recorded turn. */
+  'a2ui.replay.verdict'?: ReplayVerdict;
+  /** On a replayed turn that failed: why. */
+  'a2ui.replay.reasons'?: ReplayReason[];
 }
 
 /** The root of the turn: a client span with no parent, an end time and a status. */

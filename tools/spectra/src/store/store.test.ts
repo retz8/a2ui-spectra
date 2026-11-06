@@ -270,4 +270,20 @@ describe('the store', () => {
     const [stored] = await store.list();
     assert.equal((await store.read(stored.file)).turns[0].events.length, 2);
   });
+
+  it("gives a stored turn's file path as shown, relative to the working directory, and knows a file kept in memory from a failed write", async () => {
+    const cwd = workingDir();
+    const store = await TurnStore.open(cwd);
+    await store.write(turnOf('1', T0, 'ctx-1'));
+    const [written] = await store.list();
+    assert.equal(
+      store.displayPathOf(written.file),
+      path.join(STORE_DIR, 'turns', 'ctx-1', `2026-10-24T15-30-12.123Z_${'1'.repeat(32)}.json`),
+    );
+    assert.equal(store.isUnwritten(written.file), false);
+    writeFileSync(path.join(store.turnsDir, 'ctx-2'), 'not a folder');
+    await assert.rejects(store.write(turnOf('2', T0, 'ctx-2')));
+    const [unwritten] = (await store.list()).filter(stored => stored.conversationId === 'ctx-2');
+    assert.equal(store.isUnwritten(unwritten.file), true);
+  });
 });

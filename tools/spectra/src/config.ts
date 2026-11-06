@@ -1,7 +1,8 @@
 /**
  * The config file: `a2ui-spectra.json` in the directory Spectra is launched
  * from, or the file `--config` names, with the agent's URL and headers, the
- * catalog paths, the preview pages and the tool servers. The file is validated against
+ * catalog paths, the preview pages, the tool servers, the prices and the
+ * fixtures folder. The file is validated against
  * `config.schema.json`, the schema the running tool serves for editors, and
  * is read strictly: a file that does not parse, a setting of the wrong type
  * or a key Spectra does not know stops Spectra at start. Only the default
@@ -45,7 +46,12 @@ export interface SpectraConfig {
   tools: ToolServerConfig[];
   /** The prices that replace the price table's, by model id as requested. */
   prices: Record<string, PriceOverride>;
+  /** The fixtures folder, as an absolute path: the setting, else `a2ui-spectra-fixtures/` beside the file or in the working directory. */
+  fixtures: string;
 }
+
+/** The fixtures folder's name when the config file names none. */
+export const DEFAULT_FIXTURES_FOLDER = 'a2ui-spectra-fixtures';
 
 /** A model's price from the config file, in USD per million tokens. */
 export interface PriceOverride {
@@ -75,6 +81,7 @@ interface ConfigShape {
   preview?: string[];
   tools?: Array<{variable: string; url: string}>;
   prices?: Record<string, PriceOverride>;
+  fixtures?: string;
 }
 
 const validate = new Ajv2020({allErrors: false}).compile<ConfigShape>(schema);
@@ -88,7 +95,14 @@ export async function loadConfig({cwd, path: given}: LoadOptions): Promise<Spect
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
       if (given === undefined) {
-        return {headers: {}, catalogs: [], preview: [], tools: [], prices: {}};
+        return {
+          headers: {},
+          catalogs: [],
+          preview: [],
+          tools: [],
+          prices: {},
+          fixtures: path.join(cwd, DEFAULT_FIXTURES_FOLDER),
+        };
       }
       throw new ConfigError(`The config file ${file} does not exist.`);
     }
@@ -120,6 +134,7 @@ export async function loadConfig({cwd, path: given}: LoadOptions): Promise<Spect
     preview: [...(json.preview ?? [])],
     tools: readTools(json.tools ?? [], file),
     prices: {...(json.prices ?? {})},
+    fixtures: path.resolve(dir, json.fixtures ?? DEFAULT_FIXTURES_FOLDER),
   };
 }
 

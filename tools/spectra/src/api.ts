@@ -3,9 +3,17 @@ import type {IncomingMessage, ServerResponse} from 'node:http';
 import type {CardDetails} from './a2a/card.js';
 import type {CatalogRegistry} from './catalog/registry.js';
 import {CONFIG_SCHEMA, type PriceOverride} from './config.js';
+import {
+  FixtureClashError,
+  FixtureNameError,
+  FixtureNotFoundError,
+  FixtureReadError,
+  type FixturesFolder,
+} from './fixtures/fixtures.js';
 import {type ListingFields, listingFieldsOf} from './listing.js';
-import {type MessageBox, MessageBoxError} from './message_box.js';
+import {type MessageBox, MessageBoxError, type ReplaySource} from './message_box.js';
 import {pricesAnswer} from './prices.js';
+import {isEventOfKind, type ReplayMode, type Turn, type TurnRecord} from './record/turn_record.js';
 import type {StoredTurn, TurnStore} from './store/store.js';
 import type {HubEvent, TurnHub} from './turn_hub.js';
 
@@ -20,6 +28,8 @@ export interface SessionContext extends CardDetails {
   proxyAddress: string;
   /** The config file's preview pages, in config order. */
   previewPages: string[];
+  /** The fixtures folder's path as shown, relative to the working directory when under it. */
+  fixturesFolder: string;
   /** Under `attach`, the variables and values `attach` prints, to set in the agent's shell. */
   variables?: Array<{name: string; value: string}>;
 }
@@ -29,6 +39,7 @@ export interface Api {
   store: TurnStore;
   turns: TurnHub;
   box: MessageBox;
+  fixtures: FixturesFolder;
   /** The catalog definitions Spectra knows. */
   catalogs: CatalogRegistry;
   context: SessionContext;
@@ -46,6 +57,27 @@ export interface ListedTurn extends Partial<ListingFields> {
   startTime: string;
   /** Set on a turn still open. */
   open?: true;
+}
+
+/** One fixture of the folder, as the fixtures listing gives it. */
+export interface ListedFixture {
+  /** The path relative to the folder without `.json`, `/` between folders. */
+  name: string;
+  /** The file's path as shown. */
+  path: string;
+  /** The file's modification time, as an ISO 8601 UTC time. */
+  savedAt: string;
+  /** The record's turns in the turn listing's form, oldest first, when the file reads as a record. */
+  turns?: ListedTurn[];
+  /** Why the file does not read as a record, when it does not. */
+  error?: string;
+}
+
+export interface FixturesListing {
+  /** The folder's path as shown. */
+  folder: string;
+  /** Every `.json` under the folder, in path order. */
+  fixtures: ListedFixture[];
 }
 
 /**
@@ -80,6 +112,11 @@ const HEARTBEAT_MS = 2000;
  * - `GET /api/message-box`: the conversations the message box started.
  * - `POST /api/message-box/messages`: sends `{"text": …}`, continuing one of them by its
  *   `conversationId`, or else in a new conversation.
+ * - `GET /api/fixtures`: the fixtures folder's files, each with its turns in the listing's form.
+ * - `GET /api/fixtures/<name>`: a fixture's record.
+ * - `POST /api/fixtures`: saves a turn's record as a fixture, `{"traceId": …, "name": …}`.
+ * - `POST /api/replays`: replays a fixture or a store turn, `{"source": {"fixture": …} or
+ *   {"traceId": …}, "mode": "recorded" or "model_live"}`.
  * - `GET /api/catalogs`: the catalog definitions Spectra knows.
  * - `GET /api/prices`: LiteLLM's price table as copied, its release and date, and the config's prices.
  * - `GET /api/config.schema.json`: the schema the config file is validated against.
@@ -108,6 +145,7 @@ async function answer(
   response: ServerResponse,
 ): Promise<void> {
   const turn = /^GET \/api\/turns\/([0-9a-f]{32})$/.exec(route);
+  const fixture = /^GET \/api\/fixtures\/(.+)$/.exec(route);
   if (route === 'GET /api/context') {
     sendJson(response, 200, api.context);
   } else if (route === 'GET /api/turns') {
@@ -120,6 +158,14 @@ async function answer(
     sendJson(response, 200, api.box.state());
   } else if (route === 'POST /api/message-box/messages') {
     await sendMessage(api.box, request, response);
+  } else if (route === 'GET /api/fixtures') {
+    sendJson(response, 200, await listFixtures(api));
+  } else if (fixture !== null) {
+    await sendFixture(api, decodeURIComponent(fixture[1]), response);
+  } else if (route === 'POST /api/fixtures') {
+    await saveFixture(api, request, response);
+  } else if (route === 'POST /api/replays') {
+    await startReplay(api, request, response);
   } else if (route === 'GET /api/catalogs') {
     sendJson(response, 200, api.catalogs.listing());
   } else if (route === 'GET /api/prices') {
@@ -136,16 +182,168 @@ async function answer(
 function isRoute(pathname: string): boolean {
   return (
     /^\/api\/turns(\/[0-9a-f]{32})?$/.test(pathname) ||
+    /^\/api\/fixtures(\/.+)?$/.test(pathname) ||
     [
       '/api/context',
       '/api/stream',
       '/api/message-box',
       '/api/message-box/messages',
+      '/api/replays',
       '/api/catalogs',
       '/api/prices',
       '/api/config.schema.json',
     ].includes(pathname)
   );
+}
+
+/** The fixtures folder's files, each one's turns in the listing's form. */
+async function listFixtures(api: Api): Promise<FixturesListing> {
+  const {folder, fixtures} = await api.fixtures.list();
+  return {
+    folder,
+    fixtures: fixtures.map(({name, path, savedAt, record, error}) => ({
+      name,
+      path,
+      savedAt,
+      ...(record !== undefined && {turns: listedTurnsOf(record, api.catalogs)}),
+      ...(error !== undefined && {error}),
+    })),
+  };
+}
+
+/** A record's turns in the listing's form, oldest first, each after the turns before it. */
+function listedTurnsOf(record: TurnRecord, catalogs: CatalogRegistry): ListedTurn[] {
+  const listed: ListedTurn[] = [];
+  record.turns.forEach((turn: Turn, index) => {
+    const turnEvent = turn.events.find(event => isEventOfKind(event, 'turn'));
+    if (turnEvent === undefined) return;
+    const conversationId = turnEvent.attributes['gen_ai.conversation.id'];
+    listed.push({
+      traceId: turnEvent.traceId,
+      ...(conversationId !== undefined && {conversationId}),
+      startTime: new Date(Number(BigInt(turnEvent.startTimeUnixNano) / 1_000_000n)).toISOString(),
+      ...listingFieldsOf(turn, record.turns.slice(0, index), catalogs),
+    });
+  });
+  return listed;
+}
+
+async function sendFixture(api: Api, name: string, response: ServerResponse): Promise<void> {
+  try {
+    sendJson(response, 200, (await api.fixtures.read(name)).record);
+  } catch (error) {
+    if (error instanceof FixtureNotFoundError || error instanceof FixtureNameError) {
+      sendJson(response, 404, {error: `No fixture is named ${name}.`});
+    } else if (error instanceof FixtureReadError) {
+      sendJson(response, 422, {error: error.message});
+    } else {
+      throw error;
+    }
+  }
+}
+
+/** The record of a stored turn, or the answer that says why there is none. */
+async function storedRecord(
+  api: Api,
+  traceId: string,
+  response: ServerResponse,
+): Promise<{record: TurnRecord; stored: StoredTurn} | undefined> {
+  if (api.turns.isOpen(traceId)) {
+    sendJson(response, 409, {error: 'The turn is still open, so it has no record yet.'});
+    return undefined;
+  }
+  const stored = (await api.store.list()).find(turn => turn.traceId === traceId);
+  if (stored === undefined) {
+    sendJson(response, 404, {error: 'No turn has this trace id.'});
+    return undefined;
+  }
+  return {record: await api.store.read(stored.file), stored};
+}
+
+async function saveFixture(
+  api: Api,
+  request: IncomingMessage,
+  response: ServerResponse,
+): Promise<void> {
+  const body = await readJson(request);
+  const {traceId, name} = (isObject(body) ? body : {}) as {traceId?: unknown; name?: unknown};
+  if (typeof traceId !== 'string' || typeof name !== 'string') {
+    sendJson(response, 400, {
+      error: 'Save with {"traceId": "<the turn\'s trace id>", "name": "<the fixture\'s name>"}.',
+    });
+    return;
+  }
+  const found = await storedRecord(api, traceId, response);
+  if (found === undefined) return;
+  try {
+    sendJson(response, 201, await api.fixtures.save(found.record, name));
+  } catch (error) {
+    if (error instanceof FixtureNameError) {
+      sendJson(response, 400, {error: error.message});
+    } else if (error instanceof FixtureClashError) {
+      sendJson(response, 409, {error: error.message, suggested: error.suggested});
+    } else {
+      throw error;
+    }
+  }
+}
+
+async function startReplay(
+  api: Api,
+  request: IncomingMessage,
+  response: ServerResponse,
+): Promise<void> {
+  const body = await readJson(request);
+  const {source, mode} = (isObject(body) ? body : {}) as {source?: unknown; mode?: unknown};
+  const fixtureName =
+    isObject(source) && typeof source.fixture === 'string' ? source.fixture : undefined;
+  const traceId =
+    isObject(source) && typeof source.traceId === 'string' ? source.traceId : undefined;
+  if (
+    (fixtureName === undefined) === (traceId === undefined) ||
+    (mode !== 'recorded' && mode !== 'model_live')
+  ) {
+    sendJson(response, 400, {
+      error:
+        'Replay with {"source": {"fixture": "<name>"} or {"traceId": "<a turn\'s trace id>"}, "mode": "recorded" or "model_live"}.',
+    });
+    return;
+  }
+  let replaySource: ReplaySource;
+  if (fixtureName !== undefined) {
+    try {
+      replaySource = await api.fixtures.read(fixtureName);
+    } catch (error) {
+      if (error instanceof FixtureNotFoundError || error instanceof FixtureNameError) {
+        sendJson(response, 404, {error: `No fixture is named ${fixtureName}.`});
+      } else if (error instanceof FixtureReadError) {
+        sendJson(response, 422, {error: error.message});
+      } else {
+        throw error;
+      }
+      return;
+    }
+  } else {
+    const found = await storedRecord(api, traceId as string, response);
+    if (found === undefined) return;
+    if (api.store.isUnwritten(found.stored.file)) {
+      sendJson(response, 422, {
+        error:
+          "The turn's record was not written to the store, so there is no file to replay. Save it as a fixture first.",
+      });
+      return;
+    }
+    replaySource = {record: found.record, path: api.store.displayPathOf(found.stored.file)};
+  }
+  try {
+    sendJson(response, 202, await api.box.replay(replaySource, mode as ReplayMode));
+  } catch (error) {
+    if (error instanceof MessageBoxError) {
+      sendJson(response, error.status, {error: error.message});
+    } else {
+      throw error;
+    }
+  }
 }
 
 /** The store's turns and the open turns, newest first. */

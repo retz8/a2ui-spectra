@@ -102,7 +102,7 @@ describe('the turn hub', () => {
     const events: HubEvent[] = [];
     hub.subscribe(event => events.push(event), {catchUp: true});
     assert.deepEqual(
-      events.map(event => [event.type, event.traceId]),
+      events.map(event => [event.type, 'traceId' in event ? event.traceId : undefined]),
       [
         ['turn_opened', TRACE_B],
         ['wire_event', TRACE_B],
@@ -260,6 +260,31 @@ describe('the turn hub', () => {
     // A written turn's amendment is passed on, and kept for no catch-up.
     hub.onAmended(TRACE_A, [span]);
     assert.equal(live[live.length - 1].type, 'turn_amended');
+    const later: HubEvent[] = [];
+    hub.subscribe(event => later.push(event), {catchUp: true});
+    assert.deepEqual(later, []);
+  });
+
+  it('passes an event outside any turn, such as a replay starting or the fixtures folder changing, to its listeners, and does not catch a later subscriber up on it', () => {
+    const hub = new TurnHub();
+    const seen: HubEvent[] = [];
+    hub.subscribe(event => seen.push(event));
+    hub.notify({type: 'fixtures_changed'});
+    hub.notify({
+      type: 'replay_started',
+      source: 'a2ui-spectra-fixtures/hello.json',
+      mode: 'recorded',
+      turns: 2,
+    });
+    assert.deepEqual(seen, [
+      {type: 'fixtures_changed'},
+      {
+        type: 'replay_started',
+        source: 'a2ui-spectra-fixtures/hello.json',
+        mode: 'recorded',
+        turns: 2,
+      },
+    ]);
     const later: HubEvent[] = [];
     hub.subscribe(event => later.push(event), {catchUp: true});
     assert.deepEqual(later, []);
