@@ -1845,3 +1845,62 @@ YN0060: @a2ui/web_core is listed by your project with version 0.15.0, which does
 
 Publish `@a2ui/markdown-it` with each web core release, or declare a range that spans the
 web core versions it works with.
+
+## 45. Lit's `<a2ui-surface>` builds two `NodeResolver`s on first mount when `surface` is set before it attaches
+
+**Component:** `typescript/renderers/lit/src/surface/a2ui-surface.ts` (`connectedCallback`,
+`willUpdate`, `subscribeToRoot`).
+
+**Severity:** a Lit host that mounts a surface the usual way gets every resolver report twice
+and evaluates the surface's bindings twice. The conformance suite does not see it, because its
+harness mounts in the other order.
+
+Checked at `7791823d0` (2026-11-06), with `@a2ui/web_core` and `@a2ui/lit` 0.15.0 built from
+it. Not reported upstream: no issue or open PR found for this, and none touching the file.
+
+### Issue
+
+`connectedCallback` calls `subscribeToRoot()` when `surface` is set and nothing is subscribed
+yet (lines 88-93). `willUpdate` calls it again when `surface` is among the changed properties
+(lines 79-83). A `surface` set before the element attaches meets both on first mount: the
+property is set, the element attaches and `connectedCallback` subscribes, then the first update
+reports `surface` as changed and `willUpdate` subscribes again. Each `subscribeToRoot()` disposes
+the previous resolver and builds a new `NodeResolver` (line 123).
+
+`NodeResolver` keeps its record of dispatched errors per instance
+(`typescript/core/web_core/src/resolution/node-resolver.ts`, `dispatchedErrors`), so the second
+resolver reports everything again, and it binds every component again.
+
+Lit's template binding is that order: it sets `.surface=${surface}` before it inserts the
+element. `samples/client/lit/shell/app.ts` (line 807) and
+`samples/community/mcp/a2ui-kanban/client/src/app.ts` (line 705) mount it this way. The Lit
+adapter harness (`typescript/renderers/lit/src/tests/adapter_harness.ts`) and
+`src/tests/a2ui-surface.test.ts` attach first and set `surface` afterwards, so the adapter
+conformance suite, which expects these reports on `surface.onError`, never mounts in the order
+that doubles them.
+
+A host cannot tell these duplicates from separate failures, because their payloads are identical
+(finding 28).
+
+### Reproduction
+
+A v0.9 surface with a `Text` bound to a counting local function and a `Column` template over 3
+items whose component has a type the catalog does not define, mounted three ways, counting
+`surface.onError` reports and calls of the function:
+
+```
+template .surface=${surface}: reports=6 (3 template instances), function calls=4
+surface set, then attached: reports=6 (3 template instances), function calls=4
+attached, then surface set (the harness order): reports=3 (3 template instances), function calls=2
+```
+
+The React and Angular surfaces gave one report per failure in finding 28's reproduction. The
+function's 2 calls under one resolver are a separate matter, not chased here. A function that
+calls the agent was not tried.
+
+### Fix
+
+Skip `subscribeToRoot()` when already subscribed to the same surface. A temporary guard at the
+top of it, comparing `this.surface` to the surface last subscribed while `this.unsubscribe` is
+set, gave 3 reports and 2 calls in all three orders, and `@a2ui/lit`'s `node --test` stayed at
+126 passed and 3 skipped. A regression test needs to mount with `surface` set before attaching.
