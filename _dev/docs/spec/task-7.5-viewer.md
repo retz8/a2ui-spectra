@@ -46,7 +46,7 @@ The count `replay_ended` carries is not shown in the viewer. The event ends the 
 
 ### 8. What the viewer reads and computes
 
-Every fixture's record is read when the listing arrives, and read again when its saved time changes, for the group titles' recorded cost. The name prefilled at save is the server's slug of the turn's input in brief, computed in the viewer by the same rule. The disabled everything-recorded row mirrors the server's nothing-to-serve rule, no model call and no tool call event across the record's turns; the server's refusal is the authority and is shown in the popover as it answers.
+Every fixture's record is read when the listing arrives, and read again when its saved time changes, for the group titles' recorded cost. The name prefilled at save is the server's slug of the turn's input in brief, computed in the viewer by the same rule. The disabled everything-recorded row mirrors the server's nothing-to-serve rule, no model call and no tool call event across the record's turns; the server's refusal is the authority and is shown in the popover as it answers. The turn listing gains `replayDifferences`, a replayed turn's different outcome and different A2UI, so the list row counts what the header counts. The recorded cost prices every ended model call of the record, a served call's recorded tokens included.
 
 ### 9. Every fixture lists
 
@@ -54,7 +54,7 @@ The fixtures list shows every fixture in the folder, whatever agent recorded it,
 
 ### 10. The canvas's amendments
 
-Drawn before the build: a detail board for the live call of a live-mode replay, decision 6, in the "Fixtures and replay" row of "Turn view details"; and on "Components and states", the third line's form for a store-turn source and the fixture line's form with "no longer in the folder".
+Drawn before the build: a detail board for the live call of a live-mode replay, decision 6, in the "Fixtures and replay" row of "Turn view details"; and on "Components and states", the third line's forms for a store-turn source and for a source gone, the fixture line's forms with "no longer in the folder" and with the reason a file does not read as a record, the served sentence's unlinked form, the live call's sentence, and the fixtures list's row for a file that is not a turn record.
 
 ### 11. The tests and the live check
 

@@ -41,7 +41,7 @@ Four boards:
 
 ### 4. The rail switches the panels
 
-Fixtures is the rail's second section. Turns shows the turn list and the turn view as today; Fixtures shows, in their places, the fixtures list and the fixture view. The context bar stays; the composer is not shown in Fixtures. A replay started from the fixture view switches the rail to Turns and follows the first replayed turn as it opens, as the box's send is followed; the fixture stays selected in Fixtures. The page address carries the fixture and the selected turn and step, so a replayed turn's line links straight to the source turn and Back walks between the two sections.
+Fixtures is the rail's second section. Turns shows the turn list and the turn view as today; Fixtures shows, in their places, the fixtures list and the fixture view. The context bar stays; the composer is not shown in Fixtures. A replay started from the fixture view switches the rail to Turns and follows the first replayed turn as it opens, as the box's send is followed; the fixture stays selected in Fixtures. The page address carries the fixture and the selected turn and step, as `#/fixtures/<name>/turns/<trace id>` followed by the step and the node, so a replayed turn's line links straight to the source turn and Back walks between the two sections; each section remembers the address it was last on for the session.
 
 ### 5. The fixtures list
 
@@ -65,7 +65,7 @@ A third quiet line under the header, on a replayed turn only: "Replayed from fin
 
 ### 10. A served call
 
-On the timeline row, a grey tag after the call's name, "Record", in the place and width the "Retry 1" tag takes; the live calls of a live-mode replay stay bare; a served retry carries both, "Retry 1 · Record". In the detail, under the title line where the retry's sentence sits, a grey sentence: "Served from the record · the call at +2.0 s in find-italian-restaurants.json", the call a teal link to the recorded call in Fixtures. The usage's estimated cost reads "Free · served from the record" in place of the figure, and the header's second line counts the live calls alone, adding "· 2 calls from the record"; with no live call it reads "· 2 calls from the record · Free", without tokens or a price table's date. A tool call served has the same tag and sentence; a housekeeping row served carries the tag too, uncounted as ever. A served call keeps its step type's icon and its provider's colour.
+On the timeline row, a grey tag after the call's name, "Record", in the place and width the "Retry 1" tag takes; the live calls of a live-mode replay stay bare; a served retry carries both, "Retry 1 · Record". In the detail, under the title line where the retry's sentence sits, a grey sentence: "Served from the record · the call at +2.0 s in find-italian-restaurants.json", the call a teal link to the recorded call in Fixtures. The usage's estimated cost reads "Free · served from the record" in place of the figure, and the header's second line counts the live calls alone, adding "· 2 calls from the record"; with no live call it reads "· 2 calls from the record · Free", without tokens or a price table's date. A tool call served has the same tag and sentence; a housekeeping row served carries the tag too, uncounted as ever. A served call keeps its step type's icon and its provider's colour. A live call of a live-mode replay stays bare on its row, and its detail has one grey sentence in the same place, "Went to the model · matched nothing in the record", its prefix break read against the source record's calls too, "Prefix breaks in the system prompt · against the recorded call at +2.0 s in find-italian-restaurants.json", without the problem block.
 
 ### 11. A miss
 
@@ -77,7 +77,7 @@ The live status takes a third form: "Replaying find-italian-restaurants.json · 
 
 ### 13. Dark twins, icons and keys
 
-Dark twins: the Screens pair, the fixture view; the replayed turn with the miss selected; the Replay popover open. Icons: the Fixtures section's icon in the rail, a saved card; the Replay action's icon; the Record tag carries no icon. No new step icon. No new keys; Save as fixture and Replay are header actions reached by Tab, and the list of keys is unchanged.
+Dark twins: the Screens pair, the fixture view; the replayed turn with the miss selected; the Replay popover open. Icons: the Fixtures section's icon in the rail, a saved card; the Replay action's icon; the Record tag carries no icon. No new step icon. No new keys; Save as fixture and Replay are header actions reached by Tab, and the list of keys is unchanged. "Turn view details" gains the live call of a live-mode replay as a detail board in its "Fixtures and replay" row, light only. "Components and states" gains the third line's form for a store-turn source and for a source gone, the fixture line's forms with "no longer in the folder" and with the reason a file does not read as a record, the served sentence's unlinked form, the live call's sentence, and the fixtures list's row for a file that is not a turn record.
 
 ### 14. What other sub-tasks and documents take from this
 
