@@ -1131,7 +1131,7 @@ contradict. Upstream's `boundary-through-lit` test asserts that a host
 boundary above `A2uiSurface` catches a throw under a Lit parent; a boundary
 inside the renderer would catch it first.
 
-## 28. Web core's error channel names the component only inside its sentence
+## 28. Web core's resolver reports name the component only inside their sentence
 
 **Component:** `typescript/core/web_core/src/resolution/node-resolver.ts`
 (`NodeResolver.dispatchOnce`); `typescript/core/web_core/src/state/surface-model.ts`
@@ -1141,34 +1141,54 @@ inside the renderer would catch it first.
 **Severity:** a host or a tool that receives a surface's errors cannot tie one
 to its component without parsing the English sentence.
 
-Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24) and
-`@a2ui/web_core` 0.14.0 on npm.
+**Upstream:** issue #4018, PR #4019.
+
+Checked at `7791823d0` (2026-11-06), with `@a2ui/web_core` and `@a2ui/react`
+0.15.0 built from it, and for Lit and Angular at `551bd0f48` (2026-11-05), which
+differs from it by a docs page. First checked at
+`409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24) and `@a2ui/web_core`
+0.14.0 on npm.
 
 ### Issue
 
 `NodeResolver.dispatchOnce(code, componentId, dataPath, message)` receives the
 component's id and data path, uses them to dispatch each error once, and
-dispatches `{code, message}` only (`node-resolver.ts`, lines 140-156). Its two
+dispatches `{code, message}` only (`node-resolver.ts`, lines 146-162). Its two
 callers, `UNKNOWN_COMPONENT_TYPE` and `CYCLIC_REFERENCE`, put the component's
-id only into the message text. `A2uiErrorPayload` carries `code`, `message`,
-`surfaceId`, `expression` and `details`, and no field for a component
-(`surface-model.ts`, lines 63-75). The React renderer reports an unresolved
-child reference the same way, as
-`{code: 'UNRESOLVED_CHILD_REFERENCE', message}` (`node-view.tsx`, line 104).
+id only into the message text. The `UNKNOWN_COMPONENT_TYPE` sentence holds no
+data path, so the instances of one template send identical reports.
+`A2uiErrorPayload` carries `code`, `message`, `surfaceId`, `functionCallId`,
+`expression`, `details` and an index signature, and declares no field for a
+component (`surface-model.ts`, lines 77-91). The React renderer reports an
+unresolved child reference the same way, as
+`{code: 'UNRESOLVED_CHILD_REFERENCE', message}` (`node-view.tsx`, line 140).
+That code exists only in React. The resolver's two reach Lit and Angular too,
+since #3705 and #3706 moved them onto `NodeResolver`.
+
+Other reports name no component at all. `EXPRESSION_ERROR`, for a function
+missing from the catalog, gives the function in `expression`; `DataContext`
+dispatches it and does not know its component.
 
 ### Reproduction
 
-Feed web core 0.14.0's `MessageProcessor` a v0.9 surface holding a component
-whose type its catalog does not define, render it with `@a2ui/react` 0.14.0's
-`A2uiSurface`, and subscribe to `surface.onError`: the payload is
+Feed web core's `MessageProcessor` a v0.9 or v1.0 surface whose root has a type
+its catalog does not define, resolve it with `NodeResolver`, and subscribe to
+`surface.onError`: the payload is
 `{code: 'UNKNOWN_COMPONENT_TYPE', message: "Component '<id>' has type '<type>', which is not in catalog '<catalog id>'.", surfaceId}`,
-with the component's id in the sentence alone.
+with the component's id in the sentence alone, while the root node carries
+`componentId` and `type` as fields. A cycle gives the same shape as
+`CYCLIC_REFERENCE`. React's `A2uiSurface`, Lit's `<a2ui-surface>` and Angular's
+`ComponentHostComponent` deliver the same shape at v0.9.
 
 ### Fix
 
-Add `componentId`, and the data path for a component inside a template, to
-`A2uiErrorPayload`, and pass them from `dispatchOnce` and from the renderer's
-unresolved-reference report.
+Add `componentId` and `componentType` to `A2uiErrorPayload`, and pass them from
+`dispatchOnce` and from the renderer's unresolved-reference report.
+
+PR #4019 does this and leaves the data path out: the instance does not change
+what to fix, and the framework adapter blueprint's `A2uiErrorInfo` has no data
+path either. PR #4016, open, adds the same two fields for its
+`COMPONENT_RENDER_ERROR`.
 
 ## 29. No sample client sends the data model a surface asks for
 
