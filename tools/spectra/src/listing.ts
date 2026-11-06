@@ -39,6 +39,11 @@ export interface ListingFields {
   failedCalls?: number;
   /** The A2UI step's errors, when any: each parse error and each failed prompt generation. */
   a2uiStepErrors?: number;
+  /**
+   * A replayed turn's different outcome and different A2UI, when it has them:
+   * the verdict's reasons other than a miss, which `failedCalls` counts.
+   */
+  replayDifferences?: number;
 }
 
 export function inputBriefOf(event: WireInputEvent): InputBrief | undefined {
@@ -63,6 +68,13 @@ export function inputBriefOf(event: WireInputEvent): InputBrief | undefined {
  * The listing's fields of a closed turn, after the conversation's earlier
  * turns its record holds; nothing for a turn with no turn event.
  */
+/** How many of a replayed turn's verdict reasons are problems of the whole turn: a miss is its call's. */
+function replayDifferencesOf(turn: Turn): number {
+  const event = turn.events.find(candidate => isEventOfKind(candidate, 'turn'));
+  const reasons = event?.attributes['a2ui.replay.reasons'] ?? [];
+  return reasons.filter(reason => reason.code !== 'REPLAY_MISS').length;
+}
+
 export function listingFieldsOf(
   turn: Turn,
   earlierTurns: readonly Turn[] = [],
@@ -91,6 +103,7 @@ export function listingFieldsOf(
   // A failed call is one problem on its row, as the viewer's timeline rows it.
   const failedCalls = failedCallsOf(turn.events);
   const a2uiStepErrors = a2uiStepErrorsOf(turn.events);
+  const replayDifferences = replayDifferencesOf(turn);
   const conversation = feedConversation(turn, earlierTurns, catalogs);
   try {
     return {
@@ -100,6 +113,7 @@ export function listingFieldsOf(
       rejections: unfoldedRejections(conversation, findings ?? []),
       ...(failedCalls > 0 && {failedCalls}),
       ...(a2uiStepErrors > 0 && {a2uiStepErrors}),
+      ...(replayDifferences > 0 && {replayDifferences}),
     };
   } finally {
     conversation.dispose();

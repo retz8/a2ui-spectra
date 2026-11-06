@@ -2,7 +2,10 @@ import {Popover} from 'radix-ui';
 import {Fragment} from 'react';
 
 import type {SessionContext} from '@/api.ts';
+import type {Address} from '@/model/address.ts';
 import {catalogName, shownUrl, transportLine} from '@/model/agent_card.ts';
+import {sourceAddressOf, sourceName} from '@/model/provenance.ts';
+import {liveStatusOf} from '@/state/selectors.ts';
 import {useSpectra} from '@/state/spectra.ts';
 
 import {CopyButton} from './CopyButton.tsx';
@@ -16,9 +19,12 @@ import {Icon} from './icons.tsx';
 export function ContextBar({
   context,
   connected,
+  onAddress,
 }: {
   context: SessionContext | undefined;
   connected: boolean | undefined;
+  /** Follows a link to where a replay's source is. */
+  onAddress: (address: Address) => void;
 }) {
   const name = context?.agentName ?? 'The agent';
   return (
@@ -34,7 +40,7 @@ export function ContextBar({
         </span>
       )}
       <span className="h-4 w-px bg-border" />
-      <LiveStatus connected={connected} />
+      <LiveStatus connected={connected} onAddress={onAddress} />
       <div className="flex-1" />
       {context !== undefined && (
         <>
@@ -104,9 +110,20 @@ function AgentPopover({context, name}: {context: SessionContext; name: string}) 
   );
 }
 
-/** Whether the page hears Spectra's live stream. */
-export function LiveStatus({connected}: {connected: boolean | undefined}) {
-  if (connected === false) {
+/**
+ * Whether the page hears Spectra's live stream, and, while a replay runs, the
+ * record replayed and its turn, the source named and linked as the replayed
+ * turn's line does.
+ */
+export function LiveStatus({
+  connected,
+  onAddress,
+}: {
+  connected: boolean | undefined;
+  onAddress?: (address: Address) => void;
+}) {
+  const status = liveStatusOf(useSpectra());
+  if (connected === false || status.form === 'down') {
     return (
       <span
         role="status"
@@ -114,6 +131,32 @@ export function LiveStatus({connected}: {connected: boolean | undefined}) {
       >
         <Icon kind="dot" size={10} />
         Not connected to Spectra · reconnecting
+      </span>
+    );
+  }
+  if (status.form === 'replaying') {
+    const to = sourceAddressOf(status.source, status.recordedTurn);
+    return (
+      <span
+        role="status"
+        className="inline-flex min-w-0 items-center gap-1.5 text-xs font-medium whitespace-nowrap"
+      >
+        <Icon kind="open" size={14} className="text-brand" />
+        <span className="min-w-0 truncate">
+          Replaying{' '}
+          {to === undefined || onAddress === undefined ? (
+            sourceName(status.source)
+          ) : (
+            <button
+              type="button"
+              onClick={() => onAddress(to)}
+              className="cursor-pointer font-medium text-brand hover:underline"
+            >
+              {sourceName(status.source)}
+            </button>
+          )}
+          {status.turn !== undefined && ` · ${status.turn}`}
+        </span>
       </span>
     );
   }

@@ -8,10 +8,12 @@ import type {ReaderCatalog} from '@/model/readers/reading.ts';
 import {markedPath} from '@/model/json_lines.ts';
 import type {PrefixBreak} from '@/model/prefix.ts';
 import type {Problem} from '@/model/problems.ts';
+import type {CallReplay, RecordedCall} from '@/model/provenance.ts';
 import {useBlockFold} from '@/state/block_folds.ts';
 import {isWireInput, type TurnRecordEvent, unixMillis, type WireEvent} from '@/model/record.ts';
 import {deliveryLabel, plural, type Step, type TimelineRow} from '@/model/steps.ts';
 
+import {DetailLink} from './CallParts.tsx';
 import {brandIconOf, formatOffset, toneOf} from './format.ts';
 import {Icon} from './icons.tsx';
 import {BlockLabel, JsonBlock, type Reveal} from './JsonBlock.tsx';
@@ -48,6 +50,8 @@ export function StepDetail({
   onSelectNode,
   onStep,
   stepOnCall,
+  callReplay,
+  onRecorded,
 }: {
   row: TimelineRow;
   events: readonly TurnRecordEvent[];
@@ -74,6 +78,10 @@ export function StepDetail({
   onStep: (stepId: string) => void;
   /** What the A2UI step adds to a model call's detail. */
   stepOnCall: StepOnCall | undefined;
+  /** What the call was, in a replayed turn. */
+  callReplay: CallReplay | undefined;
+  /** Selects a recorded call in its source. */
+  onRecorded: (recorded: RecordedCall) => void;
 }) {
   const call = row.row === 'step' ? row.call : undefined;
   const title =
@@ -187,7 +195,7 @@ export function StepDetail({
                 key={index}
                 className="flex items-start gap-2.5 rounded-lg bg-problem-soft px-3 py-2.5"
               >
-                <ProblemText problem={problem} />
+                <ProblemText problem={problem} onStep={onStep} />
               </div>
             ) : (
               <button
@@ -204,6 +212,19 @@ export function StepDetail({
               </button>
             );
           })}
+          {problems.flatMap((problem, index) =>
+            problem.recorded === undefined
+              ? []
+              : [
+                  <JsonBlock
+                    key={index}
+                    label="Recorded message"
+                    meta={problem.recorded.meta}
+                    value={problem.recorded.value}
+                    startsFolded
+                  />,
+                ],
+          )}
           {folded.map((line, index) => (
             <p key={index} className="text-xs leading-relaxed text-muted-foreground">
               {line}
@@ -233,9 +254,17 @@ export function StepDetail({
               prefix={prefix}
               onEarlier={onEarlier}
               step={stepOnCall}
+              replay={callReplay}
+              onRecorded={onRecorded}
             />
           ) : call?.kind === 'tool' ? (
-            <ToolCallBlocks row={call} events={events} startMs={startMs} />
+            <ToolCallBlocks
+              row={call}
+              events={events}
+              startMs={startMs}
+              {...(callReplay !== undefined && {replay: callReplay})}
+              onRecorded={onRecorded}
+            />
           ) : (
             <StepBlocks
               step={row}
@@ -251,13 +280,24 @@ export function StepDetail({
   );
 }
 
-/** A problem's plain sentence, then its code. */
-function ProblemText({problem}: {problem: Problem}) {
+/** A problem's plain sentence, the words that select a step a link, then its code. */
+function ProblemText({problem, onStep}: {problem: Problem; onStep?: (stepId: string) => void}) {
+  const {link} = problem;
   return (
     <>
       <Icon kind="failed" size={14} className="mt-0.5 text-problem" />
       <span className="flex min-w-0 flex-col gap-0.5">
-        <span className="font-medium">{problem.sentence}</span>
+        <span className="font-medium">
+          {link === undefined || onStep === undefined ? (
+            problem.sentence
+          ) : (
+            <>
+              {link.before}
+              <DetailLink onClick={() => onStep(link.stepId)}>{link.text}</DetailLink>
+              {link.after}
+            </>
+          )}
+        </span>
         <span className="text-xs text-muted-strong">{problem.code}</span>
         {problem.note !== undefined && (
           <span className="text-xs text-muted-foreground">{problem.note}</span>

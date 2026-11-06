@@ -5,12 +5,15 @@
  * share read from the cache and the estimated cost, from the timeline's call
  * rows so far. A call read from spans only counts with its tokens; the tool
  * calls counted are the full rows, housekeeping and the toolset's calls,
- * shown as their parses, left out.
+ * shown as their parses, left out. A replayed turn counts its live calls
+ * alone, adding how many came from the record; with no live call it is free,
+ * with no tokens or price table's date.
  */
 import {retryCountOf} from './a2ui_step.ts';
 import {type CallRow, callRowsOf, modelReadingOf, timedEventOf} from './call_rows.ts';
 import {callCostOf, formatCost, formatShare, formatTokensBrief, type Prices} from './cost.ts';
 import {firstChunkMs, isReadInFull, usageOf} from './model_calls.ts';
+import {isMissCall, isServedRow} from './provenance.ts';
 import {isWireOutput, type ModelCallEvent, type TurnRecordEvent, unixMillis} from './record.ts';
 import {plural, toolRowsOfParses} from './steps.ts';
 import {isFullToolRow} from './tool_calls.ts';
@@ -29,18 +32,29 @@ export function insideLineOf(
   );
   if (models.length === 0 && tools.length === 0) return undefined;
   const parts: string[] = [];
-  const firstToken = firstTokenMs(models);
+  const liveModels = models.filter(row => !isServedRow(row));
+  const liveTools = tools.filter(row => !isServedRow(row));
+  const served = models.length + tools.length - liveModels.length - liveTools.length;
+  // A miss was answered by the proxy: no token of it came from a model.
+  const firstToken = firstTokenMs(
+    models.filter(row => row.proxy === undefined || !isMissCall(row.proxy)),
+  );
   if (firstToken !== undefined) parts.push(`First token ${seconds(firstToken - startMs)}`);
   const firstComponent = firstComponentMs(events);
   if (firstComponent !== undefined)
     parts.push(`First component ${seconds(firstComponent - startMs)}`);
-  if (models.length > 0) parts.push(plural(models.length, 'model call'));
+  if (liveModels.length > 0) parts.push(plural(liveModels.length, 'model call'));
   const retries = retryCountOf(events);
   if (retries > 0) parts.push(plural(retries, 'retry').replace(/retrys$/, 'retries'));
-  if (tools.length > 0) parts.push(plural(tools.length, 'tool call'));
+  if (liveTools.length > 0) parts.push(plural(liveTools.length, 'tool call'));
+  if (served > 0) parts.push(`${plural(served, 'call')} from the record`);
+  if (served > 0 && liveModels.length === 0 && liveTools.length === 0) {
+    parts.push('Free');
+    return parts;
+  }
 
   // A call in flight counts among the calls; its tokens and cost join once it ends.
-  const ended = models
+  const ended = liveModels
     .filter(row => timedEventOf(row).endTimeUnixNano !== undefined)
     .map(row => modelReadingOf(row).event);
   const usages = ended.map(usageOf).filter(usage => usage.input !== undefined);
@@ -65,7 +79,7 @@ export function insideLineOf(
         : `LiteLLM prices ${prices?.date ?? ''}`,
     );
   }
-  const raw = models.filter(
+  const raw = liveModels.filter(
     row => row.proxy !== undefined && !isReadInFull(row.proxy as ModelCallEvent),
   ).length;
   if (raw > 0) parts.push(`${plural(raw, 'call')} recorded raw`);

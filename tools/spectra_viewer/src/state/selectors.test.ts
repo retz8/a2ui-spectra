@@ -3,6 +3,7 @@ import {describe, it} from 'node:test';
 
 import type {ListedTurn, MessageBoxState} from '../api.ts';
 import {composerOf} from './selectors.ts';
+import {NO_FIXTURES} from './fixtures.ts';
 import type {SpectraState} from './spectra.ts';
 
 function stateOf(
@@ -16,6 +17,8 @@ function stateOf(
     closed: new Map(),
     records: new Map(),
     pending: new Map(),
+    fixtures: NO_FIXTURES,
+    replayTurns: new Map(),
     box,
     ...parts,
   };

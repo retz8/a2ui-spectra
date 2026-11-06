@@ -5,6 +5,7 @@ import type {ListedTurn} from '../api.ts';
 import type {SurfaceView} from '../model/replay.ts';
 import {keepsPending, type PendingAction, pendingOf, type Press} from './press.ts';
 import {actionRefusalOf, composerOf} from './selectors.ts';
+import {NO_FIXTURES} from './fixtures.ts';
 import type {SpectraState} from './spectra.ts';
 
 function stateOf(turns: ListedTurn[], live: SpectraState['live'] = new Map()): SpectraState {
@@ -15,6 +16,8 @@ function stateOf(turns: ListedTurn[], live: SpectraState['live'] = new Map()): S
     closed: new Map(),
     records: new Map(),
     pending: new Map(),
+    fixtures: NO_FIXTURES,
+    replayTurns: new Map(),
     box: {conversations: [{conversationId: 'c', turns: ['a', 'b']}]},
   };
 }

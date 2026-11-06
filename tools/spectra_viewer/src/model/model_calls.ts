@@ -251,6 +251,13 @@ export function failureOf(call: ModelCallEvent): CallFailure | undefined {
   const type = text(call.attributes['error.type']) ?? 'error';
   const status = count(call.attributes['http.response.status_code']);
   const api = apiOf(call);
+  // A miss's line is the Error block's; the agent got it as the proxy's answer.
+  if (type === 'replay_miss') {
+    return {
+      sentence: 'This request matched nothing in the record.',
+      code: `replay_miss · ${providerOf(call) ?? hostOf(call)}`,
+    };
+  }
   let sentence: string;
   if (/^\d{3}$/.test(type)) {
     sentence = `The model API answered ${statusLine(Number(type))}.`;

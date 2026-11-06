@@ -2,6 +2,7 @@ import {type InputBrief, inputBriefOfTurn} from './input_brief.ts';
 import {agentMessages} from './messages.ts';
 import {a2uiStepErrorsOf} from './a2ui_step.ts';
 import {failedCallsOf} from './call_rows.ts';
+import {differencesOf} from './provenance.ts';
 import {
   type CheckEvent,
   isCallEvent,
@@ -31,6 +32,8 @@ export interface RowFields {
   failedCalls?: number;
   /** The A2UI step's errors: each parse error and each failed prompt generation, when any. */
   a2uiStepErrors?: number;
+  /** A replayed turn's different outcome and different A2UI, when it has them. */
+  replayDifferences?: number;
 }
 
 export function rowFieldsOf(turn: Turn): RowFields {
@@ -41,6 +44,7 @@ export function rowFieldsOf(turn: Turn): RowFields {
   const checks = turn.events.filter(isCheck);
   const failedCalls = failedCallsOf(turn.events);
   const a2uiStepErrors = a2uiStepErrorsOf(turn.events);
+  const replayDifferences = differencesOf(turn.events);
   return {
     ...(outcome !== undefined && {outcome}),
     ...(agentName !== undefined && {agentName}),
@@ -56,6 +60,7 @@ export function rowFieldsOf(turn: Turn): RowFields {
     }),
     ...(failedCalls > 0 && {failedCalls}),
     ...(a2uiStepErrors > 0 && {a2uiStepErrors}),
+    ...(replayDifferences > 0 && {replayDifferences}),
   };
 }
 

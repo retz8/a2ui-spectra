@@ -147,6 +147,14 @@ function isTurnEvent(event: unknown): boolean {
   );
 }
 
+/**
+ * A segment of a listed fixture's name: a file dropped in by hand lists and
+ * replays under any name, so all it may not be is a way out of the folder.
+ */
+function isListedSegment(segment: string): boolean {
+  return segment !== '' && segment !== '.' && segment !== '..' && !/[\\/\0]/.test(segment);
+}
+
 export class FixturesFolder {
   /** The folder's absolute path. */
   readonly dir: string;
@@ -214,7 +222,7 @@ export class FixturesFolder {
   /** A fixture's record by its name, with its path as shown. */
   async read(name: string): Promise<{record: TurnRecord; path: string}> {
     const segments = name.split('/');
-    if (!segments.every(isFixtureName)) throw new FixtureNameError();
+    if (!segments.every(isListedSegment)) throw new FixtureNameError();
     let text: string;
     try {
       text = await readFile(

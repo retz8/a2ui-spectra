@@ -1,4 +1,5 @@
 import {Tooltip} from 'radix-ui';
+import type {ReactNode} from 'react';
 
 import {cn} from '@/lib/utils';
 import type {CheckLine, CheckState} from '@/model/check_state.ts';
@@ -13,7 +14,9 @@ import {Icon} from './icons.tsx';
  * beside it, the problem count pressed to keep only the steps with problems,
  * one quiet line of the start, the duration, the A2UI version, the agent
  * and the short ids, and, for a turn with model calls, a second quiet line
- * of their times, tokens, cache use and estimated cost.
+ * of their times, tokens, cache use and estimated cost. Save as fixture and
+ * Replay sit on the right of the first line; in the fixture view, the fixture
+ * line sits above it; on a replayed turn, a third quiet line says where from.
  */
 export function TurnHeader({
   title,
@@ -26,6 +29,9 @@ export function TurnHeader({
   traceId,
   conversationId,
   inside,
+  fixtureLine,
+  actions,
+  replayLine,
 }: {
   title: string;
   status: TurnStatus;
@@ -40,14 +46,24 @@ export function TurnHeader({
   conversationId: string | undefined;
   /** The second line's parts, for a turn with model calls. */
   inside?: readonly string[];
+  /** The line above the title, in the fixture view. */
+  fixtureLine?: ReactNode;
+  /** The header's action area. */
+  actions?: ReactNode;
+  /** The third line, on a replayed turn. */
+  replayLine?: ReactNode;
 }) {
   return (
     <header className="flex shrink-0 flex-col gap-1.5 border-b px-4 pt-3.5 pb-3">
+      {fixtureLine}
       <div className="flex min-w-0 items-center gap-3">
         <h1 className="min-w-0 truncate text-lg leading-tight font-semibold">{title}</h1>
         <OutcomeBadge status={status} />
         {check !== undefined && (
           <CheckChip check={check} checks={checks} filtered={filtered} onFilter={onFilter} />
+        )}
+        {actions !== undefined && (
+          <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>
         )}
       </div>
       <div className="flex min-w-0 items-center gap-1.5 overflow-hidden text-xs whitespace-nowrap text-muted-foreground">
@@ -75,6 +91,7 @@ export function TurnHeader({
           {inside.join(' · ')}
         </div>
       )}
+      {replayLine}
     </header>
   );
 }

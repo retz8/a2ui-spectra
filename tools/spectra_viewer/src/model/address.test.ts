@@ -1,7 +1,16 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import {historyOf, readAddress, writeAddress} from './address.ts';
+import {
+  hashOf,
+  historyOf,
+  readAddress,
+  rememberAddress,
+  sectionHash,
+  sectionOf,
+  writeAddress,
+  writeFixtureAddress,
+} from './address.ts';
 
 const TRACE = 'f94fdb8f0e8f6531c1d2a3b4c5d6e7f8';
 const OTHER = '09b758f035afb6d5a1b2c3d4e5f60718';
@@ -98,5 +107,109 @@ describe('historyOf', () => {
       ),
       'none',
     );
+  });
+});
+
+describe('the address of the Fixtures section', () => {
+  const NAME = 'nested/find-italian-restaurants';
+
+  it('holds the fixture by its name, encoded, and its turn by the recorded trace id', () => {
+    const hash = writeFixtureAddress(NAME, TRACE);
+    assert.equal(hash, `#/fixtures/nested%2Ffind-italian-restaurants/turns/${TRACE}`);
+    assert.deepEqual(readAddress(hash), {section: 'fixtures', fixture: NAME, traceId: TRACE});
+  });
+
+  it('follows the turn with the step and the node, as the Turns address carries them', () => {
+    const node = {surfaceId: 'restaurant card', componentId: 'book/button'};
+    const hash = writeFixtureAddress(NAME, TRACE, 'outcome', node);
+    assert.equal(
+      hash,
+      `#/fixtures/nested%2Ffind-italian-restaurants/turns/${TRACE}/steps/outcome/nodes/restaurant%20card/book%2Fbutton`,
+    );
+    assert.deepEqual(readAddress(hash), {
+      section: 'fixtures',
+      fixture: NAME,
+      traceId: TRACE,
+      stepId: 'outcome',
+      node,
+    });
+  });
+
+  it('reads the bare forms: the section alone, and a fixture with no turn', () => {
+    assert.equal(writeFixtureAddress(), '#/fixtures');
+    assert.deepEqual(readAddress('#/fixtures'), {section: 'fixtures'});
+    assert.equal(writeFixtureAddress('a'), '#/fixtures/a');
+    assert.deepEqual(readAddress('#/fixtures/a'), {section: 'fixtures', fixture: 'a'});
+  });
+
+  it('reads as no address when its turn is not a turn', () => {
+    for (const hash of ['#/fixtures/a/turns/xyz', '#/fixtures/a/b', `#/fixtures//turns/${TRACE}`]) {
+      assert.deepEqual(readAddress(hash), {});
+    }
+  });
+
+  it('writes back what it reads, in either section', () => {
+    for (const hash of [
+      '#/fixtures',
+      '#/fixtures/a',
+      `#/fixtures/a/turns/${TRACE}/steps/outcome`,
+      `#/turns/${TRACE}`,
+      `#/turns/${TRACE}/steps/outcome`,
+    ]) {
+      assert.equal(hashOf(readAddress(hash)), hash);
+    }
+    assert.equal(hashOf({}), '#/turns');
+    assert.equal(sectionOf(readAddress('#/fixtures')), 'fixtures');
+    assert.equal(sectionOf(readAddress(`#/turns/${TRACE}`)), 'turns');
+  });
+});
+
+describe('historyOf, across the sections', () => {
+  const inFixture = {section: 'fixtures', fixture: 'a', traceId: TRACE} as const;
+
+  it('adds an entry on switching sections', () => {
+    assert.equal(historyOf({traceId: TRACE}, inFixture, {own: false}), 'push');
+    assert.equal(historyOf(inFixture, {traceId: TRACE}, {own: false}), 'push');
+    assert.equal(historyOf({traceId: TRACE}, {section: 'fixtures'}, {own: false}), 'push');
+  });
+
+  it('adds an entry on selecting a fixture turn, of the same fixture or another', () => {
+    assert.equal(historyOf(inFixture, {...inFixture, traceId: OTHER}, {own: false}), 'push');
+    assert.equal(historyOf(inFixture, {...inFixture, fixture: 'b'}, {own: false}), 'push');
+  });
+
+  it('replaces the entry for a step or a node, and for the viewer’s own move', () => {
+    const node = {surfaceId: 's', componentId: 'c'};
+    assert.equal(historyOf(inFixture, {...inFixture, stepId: 'x'}, {own: false}), 'replace');
+    assert.equal(
+      historyOf({...inFixture, stepId: 'x'}, {...inFixture, stepId: 'x', node}, {own: false}),
+      'replace',
+    );
+    assert.equal(historyOf({section: 'fixtures'}, inFixture, {own: true}), 'replace');
+    assert.equal(historyOf(inFixture, inFixture, {own: false}), 'none');
+  });
+});
+
+describe('the address each section was last on', () => {
+  const turn = `#/turns/${TRACE}/steps/outcome`;
+  const fixture = writeFixtureAddress('a', TRACE, 'outcome');
+
+  it('keeps each section’s last address for the switch back', () => {
+    let remembered = rememberAddress({}, turn);
+    remembered = rememberAddress(remembered, fixture);
+    assert.equal(sectionHash('turns', remembered), turn);
+    assert.equal(sectionHash('fixtures', remembered), fixture);
+  });
+
+  it('goes to the bare address of a section not yet visited', () => {
+    assert.equal(sectionHash('turns', {}), '#/turns');
+    assert.equal(sectionHash('fixtures', {}), '#/fixtures');
+  });
+
+  it('is not moved by an address of Turns with no turn, and stays the same object when nothing changes', () => {
+    const remembered = rememberAddress({}, turn);
+    assert.equal(rememberAddress(remembered, ''), remembered);
+    assert.equal(rememberAddress(remembered, '#/turns'), remembered);
+    assert.equal(rememberAddress(remembered, turn), remembered);
   });
 });

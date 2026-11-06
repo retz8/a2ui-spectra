@@ -19,6 +19,7 @@ export interface GroupedTurn {
   input?: InputBrief;
   findings?: number;
   rejections?: number;
+  replayDifferences?: number;
 }
 
 export interface TurnGroup<T extends GroupedTurn = GroupedTurn> {

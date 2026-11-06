@@ -15,6 +15,7 @@ import {
   sourceOfNames,
   timedEventOf,
 } from '@/model/call_rows.ts';
+import type {CallReplay, RecordedCall, ToolMissList} from '@/model/provenance.ts';
 import type {OtherEvent, TurnRecordEvent} from '@/model/record.ts';
 import {useBlockFold} from '@/state/block_folds.ts';
 import {
@@ -26,7 +27,8 @@ import {
 } from '@/model/tool_calls.ts';
 
 import {AgentSpans} from './AgentSpans.tsx';
-import {Exchange, Pairs, TextBlock} from './CallParts.tsx';
+import {DetailLink, Exchange, Pairs, ReplaySentence, TextBlock} from './CallParts.tsx';
+import {formatOffset} from './format.ts';
 import {BlockLabel, JsonBlock, JsonLines} from './JsonBlock.tsx';
 
 /** MCP's names, in the order the block lists them; any other MCP or JSON-RPC name follows. */
@@ -41,10 +43,16 @@ export function ToolCallBlocks({
   row,
   events,
   startMs,
+  replay,
+  onRecorded,
 }: {
   row: CallRow;
   events: readonly TurnRecordEvent[];
   startMs: number;
+  /** What the call was, in a replayed turn. */
+  replay?: CallReplay;
+  /** Selects a recorded call in its source. */
+  onRecorded: (recorded: RecordedCall) => void;
 }) {
   const {fromSpans} = readingOf(row);
   const from = (names: readonly string[]) => {
@@ -63,6 +71,10 @@ export function ToolCallBlocks({
     (proxy.attributes['http.request.method'] !== undefined || (proxy.events ?? []).length > 0);
   return (
     <>
+      {replay?.kind === 'served' && <ReplaySentence replay={replay} onRecorded={onRecorded} />}
+      {replay?.kind === 'toolMiss' && (
+        <RecordedRequests list={replay.list} onRecorded={onRecorded} />
+      )}
       {args !== undefined && (
         <JsonBlock
           label={`${full ? 'Arguments' : 'Params'}${from(['gen_ai.tool.call.arguments'])}`}
@@ -74,10 +86,51 @@ export function ToolCallBlocks({
       ) : (
         inFlight && <p className="text-muted-foreground">No result yet.</p>
       )}
+      {replay?.kind === 'toolMiss' && proxy?.status?.message !== undefined && (
+        <TextBlock label="Error" meta="HTTP 502" text={proxy.status.message} />
+      )}
       {hasExchange && <Exchange call={proxy} startsOpen={!mcp} tool />}
       {mcp && <McpNames proxy={proxy} />}
       {row.spans.length > 0 && <AgentSpans row={row} events={events} startMs={startMs} />}
     </>
+  );
+}
+
+/** A tool miss's list: the recorded requests of the same method and tool, each its arguments in brief and a link to it. */
+function RecordedRequests({
+  list,
+  onRecorded,
+}: {
+  list: ToolMissList;
+  onRecorded: (recorded: RecordedCall) => void;
+}) {
+  const fold = useBlockFold('Recorded requests');
+  if (list.rows.length === 0) {
+    return (
+      <p className="text-muted-foreground">No recorded request of this tool to compare with.</p>
+    );
+  }
+  return (
+    <section className="flex min-w-0 flex-col gap-1.5">
+      <BlockLabel label="Recorded requests" meta={list.of} fold={fold} />
+      {fold.open && (
+        <div className="flex flex-col rounded-lg bg-tint py-1 text-xs">
+          {list.rows.map(({args, recorded}) => (
+            <div
+              key={recorded.call.spanId}
+              className="flex h-7 min-w-0 items-center gap-2 pr-3 pl-8.5"
+            >
+              <span className="min-w-0 flex-1 truncate font-mono font-medium">{args}</span>
+              <span className="shrink-0">
+                <DetailLink onClick={() => onRecorded(recorded)}>
+                  the call at {formatOffset(recorded.offsetMs)}, turn {recorded.turn}
+                </DetailLink>
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

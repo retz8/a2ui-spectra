@@ -96,7 +96,9 @@ export function SectionedText({
           <span className="h-px flex-1 bg-muted-foreground" />
         </span>
         <span className="mb-1.5 grid grid-cols-diff gap-x-2.5 gap-y-0.5">
-          <span className="font-sans text-xs leading-5 text-muted-foreground">Earlier call</span>
+          <span className="font-sans text-xs leading-5 text-muted-foreground">
+            {marker.earlierLabel ?? 'Earlier call'}
+          </span>
           {line(marker.earlier)}
           <span className="font-sans text-xs leading-5 text-muted-foreground">This call</span>
           {line(marker.current)}

@@ -3,7 +3,7 @@ import {type KeyboardEvent, type RefObject, useEffect, useMemo, useRef} from 're
 import type {ListedTurn} from '@/api.ts';
 import {scrollIntoColumn} from '@/lib/scroll.ts';
 import {cn} from '@/lib/utils';
-import {groupTurns, stripOf} from '@/model/turn_groups.ts';
+import {stripOf, type TurnGroup} from '@/model/turn_groups.ts';
 
 import {STATUS_ICONS, toneOf} from './format.ts';
 import {Icon} from './icons.tsx';
@@ -15,8 +15,9 @@ import {Icon} from './icons.tsx';
  * where the list was collapsed, expands it back in place. The icons are one
  * Tab stop, and the up and down arrows select their turns.
  */
-export function Strip({
-  turns,
+export function Strip<T extends ListedTurn>({
+  groups,
+  fixtures = false,
   selected,
   onSelect,
   open,
@@ -24,7 +25,10 @@ export function Strip({
   buttonRef,
   expands = false,
 }: {
-  turns: readonly ListedTurn[];
+  /** The list's groups, whose turns it shows in the list's order. */
+  groups: ReadonlyArray<TurnGroup<T>>;
+  /** Whether it stands for the fixtures list. */
+  fixtures?: boolean;
   selected: string | undefined;
   onSelect: (traceId: string) => void;
   /** Whether the full list is open over the turn view. */
@@ -34,7 +38,8 @@ export function Strip({
   /** Whether the button expands the list in place rather than opening it over the turn view. */
   expands?: boolean;
 }) {
-  const strip = useMemo(() => stripOf(groupTurns(turns)), [turns]);
+  const strip = useMemo(() => stripOf(groups), [groups]);
+  const name = fixtures ? 'fixtures' : 'turn';
   const list = useRef<HTMLDivElement>(null);
   const index = strip.findIndex(({turn}) => turn.traceId === selected);
 
@@ -54,14 +59,14 @@ export function Strip({
 
   return (
     <section
-      aria-label="Turns"
+      aria-label={fixtures ? 'Fixtures' : 'Turns'}
       className="flex w-13 shrink-0 flex-col items-center gap-1 rounded-xl bg-panel py-2.5 shadow-panel"
     >
       <button
         ref={buttonRef}
         type="button"
-        aria-label={expands ? 'Expand the turn list' : 'Open the turn list'}
-        title={expands ? 'Expand the turn list' : 'Open the turn list'}
+        aria-label={`${expands ? 'Expand' : 'Open'} the ${name} list`}
+        title={`${expands ? 'Expand' : 'Open'} the ${name} list`}
         aria-expanded={open}
         onClick={onOpen}
         className={cn(
@@ -69,13 +74,13 @@ export function Strip({
           open ? 'bg-brand-soft text-brand' : 'bg-tint text-foreground hover:bg-border',
         )}
       >
-        <Icon kind="turns" size={16} />
+        <Icon kind={fixtures ? 'fixtures' : 'turns'} size={16} />
       </button>
       <div className="my-1 h-px w-6 shrink-0 bg-border" />
       <div
         ref={list}
         role="listbox"
-        aria-label="Turns"
+        aria-label={fixtures ? 'Fixtures' : 'Turns'}
         tabIndex={strip.length > 0 ? 0 : -1}
         aria-activedescendant={index === -1 ? undefined : domIdOf(strip[index].turn.traceId)}
         onKeyDown={onKeyDown}

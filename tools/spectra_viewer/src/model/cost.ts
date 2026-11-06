@@ -195,6 +195,30 @@ export function callCostOf(call: ModelCallEvent, prices: Prices | undefined): Ca
   return {kind: 'priced', usd: costOf(usage, price), source: price.source};
 }
 
+/**
+ * What a call's detail says of its cost: the estimate and where its price came
+ * from; a call served from the record reads free, with no price to name.
+ */
+export function shownCostOf(
+  call: ModelCallEvent,
+  prices: Prices | undefined,
+): {value?: string; note?: string} {
+  if (typeof call.attributes['a2ui.replay.served_from'] === 'string') {
+    return {value: 'Free · served from the record'};
+  }
+  const cost = callCostOf(call, prices);
+  if (cost.kind === 'priced') {
+    return {
+      value: formatCost(cost.usd),
+      note:
+        cost.source === 'config'
+          ? 'Price from the config'
+          : `LiteLLM prices · ${prices?.date ?? ''}`,
+    };
+  }
+  return cost.kind === 'unpriced' ? {note: `No price for ${cost.model}`} : {};
+}
+
 /** A cost in dollars, to two significant figures and at most four decimals: $0.024, $0.20, $0.0009. */
 export function formatCost(usd: number): string {
   if (usd === 0) return '$0';

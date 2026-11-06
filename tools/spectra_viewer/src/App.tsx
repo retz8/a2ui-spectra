@@ -2,6 +2,8 @@ import {useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore}
 import {usePanelRef} from 'react-resizable-panels';
 
 import {ContextBar} from '@/components/ContextBar.tsx';
+import {FixturesList} from '@/components/FixturesList.tsx';
+import {FixtureView} from '@/components/FixtureView.tsx';
 import {KeysDialog} from '@/components/KeysDialog.tsx';
 import {Rail} from '@/components/Rail.tsx';
 import {Strip} from '@/components/Strip.tsx';
@@ -9,7 +11,18 @@ import {TurnList} from '@/components/TurnList.tsx';
 import {TurnView} from '@/components/TurnView.tsx';
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
 import {cn} from '@/lib/utils';
-import {type Address, historyOf, type NodeRef, readAddress, writeAddress} from '@/model/address.ts';
+import {
+  type Address,
+  hashOf,
+  historyOf,
+  type NodeRef,
+  readAddress,
+  rememberAddress,
+  type RememberedSections,
+  type Section,
+  sectionHash,
+  sectionOf,
+} from '@/model/address.ts';
 import {
   agentChoicesOf,
   agentOfSelection,
@@ -18,8 +31,16 @@ import {
   offersPicker,
   turnsOfAgent,
 } from '@/model/agents.ts';
+import {
+  type FixtureGroup,
+  fixtureGroupsOf,
+  fixtureRowId,
+  recordedCostText,
+} from '@/model/fixtures.ts';
 import {followNewest} from '@/model/follow.ts';
 import {pageKeyOf} from '@/model/keys.ts';
+import {groupTurns} from '@/model/turn_groups.ts';
+import {fixtureAddressOf, replayedTurnToFollow} from '@/state/fixtures.ts';
 import {rememberedSize, rememberSize} from '@/state/layout.ts';
 import {previewHost} from '@/state/preview_host.ts';
 import {useRenderErrorsInView} from '@/state/render_errors.ts';
@@ -64,19 +85,16 @@ function subscribeToHash(listener: () => void): () => void {
 }
 
 /**
- * The page address: the selected turn and its step. Changing the turn adds an
- * entry to the browser's history; changing the step, or the viewer's own
- * move, replaces it.
+ * The page address: the section, the selected turn and its step. Changing the
+ * section, the fixture or the turn adds an entry to the browser's history;
+ * changing the step, or the viewer's own move, replaces it.
  */
-function useAddress(): [
-  Address,
-  (traceId: string, stepId?: string, own?: boolean, node?: NodeRef) => void,
-] {
+function useAddress(): [Address, (to: Address, own?: boolean) => void, string] {
   const hash = useSyncExternalStore(subscribeToHash, () => window.location.hash);
   const address = useMemo(() => readAddress(hash), [hash]);
-  const go = useCallback((traceId: string, stepId?: string, own = false, node?: NodeRef) => {
-    const next = writeAddress(traceId, stepId, node);
-    switch (historyOf(readAddress(window.location.hash), {traceId, stepId, node}, {own})) {
+  const moveTo = useCallback((to: Address, own = false) => {
+    const next = hashOf(to);
+    switch (historyOf(readAddress(window.location.hash), to, {own})) {
       case 'push':
         window.location.hash = next;
         break;
@@ -88,13 +106,33 @@ function useAddress(): [
         break;
     }
   }, []);
-  return [address, go];
+  return [address, moveTo, hash];
 }
 
 export function App() {
   const state = useSpectra();
-  const [address, go] = useAddress();
-  const selected = address.traceId;
+  const [address, moveTo, hash] = useAddress();
+  const section = sectionOf(address);
+  const inFixtures = section === 'fixtures';
+  const selected = inFixtures ? undefined : address.traceId;
+  const go = useCallback(
+    (traceId: string, stepId?: string, own = false, node?: NodeRef) =>
+      moveTo(
+        {
+          traceId,
+          ...(stepId !== undefined && {stepId}),
+          ...(node !== undefined && {node}),
+        },
+        own,
+      ),
+    [moveTo],
+  );
+  // Each section remembers the address it was last on, so that its selection survives a visit to the other.
+  const [remembered, setRemembered] = useState<RememberedSections>({});
+  const rememberedNow = rememberAddress(remembered, hash);
+  if (rememberedNow !== remembered) setRemembered(rememberedNow);
+  // The composer's text survives a visit to Fixtures, where the composer is not shown.
+  const [draft, setDraft] = useState('');
   const [selections, setSelections] = useState(0);
   const small = useSmallWindow();
   // The turn list is a strip below 1,280px wide. On a wide window it collapses to the strip and
@@ -157,9 +195,40 @@ export function App() {
     if (refocus) stripButton.current?.focus();
   }, []);
 
+  // A replay started from this page is followed as its turns open, as the box's send is, however
+  // fast they land, until another turn is selected.
+  const [followedReplay, setFollowedReplay] = useState<string | undefined>();
+  const followedTo = useRef<string | undefined>(undefined);
+  const replayTarget =
+    followedReplay === undefined
+      ? undefined
+      : replayedTurnToFollow(state.replayTurns, followedReplay);
+  useEffect(() => {
+    if (replayTarget === undefined || replayTarget === followedTo.current || inFixtures) return;
+    followedTo.current = replayTarget;
+    go(replayTarget, undefined, true);
+  }, [replayTarget, inFixtures, go]);
+  // A move the page's own panes ask for, a link or Back's like, stops following; a step's does not.
+  const goTo = useCallback(
+    (to: Address, own = false) => {
+      if (!own) setFollowedReplay(undefined);
+      moveTo(to, own);
+    },
+    [moveTo],
+  );
+  const onReplayStarted = useCallback(
+    (traceId: string) => {
+      followedTo.current = traceId;
+      setFollowedReplay(traceId);
+      moveTo({traceId});
+    },
+    [moveTo],
+  );
+
   // Selecting the turn in view again keeps its step; selecting another adds a history entry.
   const pick = useCallback(
     (traceId: string) => {
+      setFollowedReplay(undefined);
       setSelections(count => count + 1);
       if (traceId !== readAddress(window.location.hash).traceId) go(traceId);
     },
@@ -209,8 +278,33 @@ export function App() {
   useEffect(() => {
     const next = followNewest(newestBefore.current, newest, selected);
     newestBefore.current = newest;
-    if (next !== undefined) go(next, undefined, true);
-  }, [newest, selected, go]);
+    if (next !== undefined && !inFixtures) go(next, undefined, true);
+  }, [newest, selected, go, inFixtures]);
+
+  // A bare Fixtures address opens the newest fixture, and a fixture its own turn.
+  const fixtureMove = fixtureAddressOf(address, state.fixtures);
+  useEffect(() => {
+    if (fixtureMove !== undefined) moveTo(fixtureMove, true);
+  }, [fixtureMove, moveTo]);
+  const fixtureRecords = state.fixtures.records;
+  const fixtureGroups = useMemo<FixtureGroup[]>(
+    () =>
+      fixtureGroupsOf(state.fixtures.listed, name =>
+        recordedCostText(fixtureRecords.get(name)?.record?.turns, state.prices),
+      ),
+    [state.fixtures.listed, fixtureRecords, state.prices],
+  );
+  const selectedRow =
+    address.fixture !== undefined && address.traceId !== undefined
+      ? fixtureRowId(address.fixture, address.traceId)
+      : undefined;
+  const pickRow = (rowId: string) => {
+    const row = fixtureGroups.flatMap(group => group.turns).find(turn => turn.traceId === rowId);
+    if (row === undefined) return;
+    if (row.fixture === address.fixture && row.recorded === address.traceId) return;
+    moveTo({section: 'fixtures', fixture: row.fixture, traceId: row.recorded});
+  };
+  const turnGroups = useMemo(() => groupTurns(listed), [listed]);
 
   // `/` focuses the turn list's search, opening the overlay on a small window and expanding a collapsed list; `?` lists the keys.
   useEffect(() => {
@@ -273,53 +367,101 @@ export function App() {
         },
       }
     : undefined;
-  const turnView = (
+  const heldWidth = swing === undefined ? undefined : landingWidth;
+  const turnView = inFixtures ? (
+    <FixtureView
+      address={address}
+      onAddress={goTo}
+      onReplayStarted={onReplayStarted}
+      {...(heldWidth !== undefined && {heldWidth})}
+    />
+  ) : (
     <TurnView
       listEmpty={state.loaded && listed.length === 0}
-      heldWidth={swing === undefined ? undefined : landingWidth}
+      heldWidth={heldWidth}
       traceId={selected}
       stepId={address.stepId}
       node={address.node}
       selection={selections}
       onSelect={(traceId, stepId) => go(traceId, stepId)}
       onStep={onStep}
+      onAddress={goTo}
+      onReplayStarted={onReplayStarted}
+      draft={draft}
+      onDraft={setDraft}
     />
   );
+  const stripOfSection = (props: {open: boolean; expands?: boolean; onOpen: () => void}) =>
+    inFixtures ? (
+      <Strip
+        groups={fixtureGroups}
+        fixtures
+        selected={selectedRow}
+        onSelect={pickRow}
+        buttonRef={stripButton}
+        {...props}
+      />
+    ) : (
+      <Strip
+        groups={turnGroups}
+        selected={selected}
+        onSelect={pick}
+        buttonRef={stripButton}
+        {...props}
+      />
+    );
+  const hrefOf = (each: Section) => sectionHash(each, rememberedNow);
   return (
     <div className="flex h-screen min-w-185 bg-canvas">
-      <Rail keysOpen={keysOpen} onKeys={() => setKeysOpen(true)} />
+      <Rail
+        section={section}
+        hrefOf={hrefOf}
+        keysOpen={keysOpen}
+        onKeys={() => setKeysOpen(true)}
+      />
       <div className="flex min-w-0 flex-1 flex-col">
-        <ContextBar context={state.context} connected={state.connected} />
+        <ContextBar context={state.context} connected={state.connected} onAddress={goTo} />
         <div className="relative flex min-h-0 flex-1 gap-2 pr-2 pb-2">
-          {small && (
-            <Strip
-              turns={listed}
-              selected={selected}
-              onSelect={pick}
-              open={overlay !== undefined}
-              onOpen={() =>
-                overlay === undefined ? setOverlay('list') : closeOverlay({refocus: true})
-              }
-              buttonRef={stripButton}
-            />
-          )}
+          {small &&
+            stripOfSection({
+              open: overlay !== undefined,
+              onOpen: () =>
+                overlay === undefined ? setOverlay('list') : closeOverlay({refocus: true}),
+            })}
           {small && overlay !== undefined && (
             <div ref={overlayBox} className="absolute top-0 bottom-2 left-15 z-30 w-74">
-              <TurnList
-                turns={listed}
-                loaded={state.loaded}
-                agents={agents}
-                selected={selected}
-                onSelect={(traceId, how) => {
-                  pick(traceId);
-                  // A turn pressed closes the overlay; the arrows move through it, and Enter closes it on the turn reached.
-                  if (how === 'press') closeOverlay({refocus: true});
-                }}
-                onChoose={() => closeOverlay({refocus: true})}
-                searchRef={search}
-                autoFocus={overlay}
-                className="shadow-overlay"
-              />
+              {inFixtures ? (
+                <FixturesList
+                  groups={fixtureGroups}
+                  loaded={state.fixtures.loaded}
+                  selected={selectedRow}
+                  onSelect={(rowId, how) => {
+                    pickRow(rowId);
+                    if (how === 'press') closeOverlay({refocus: true});
+                  }}
+                  onChoose={() => closeOverlay({refocus: true})}
+                  searchRef={search}
+                  autoFocus={overlay}
+                  className="shadow-overlay"
+                />
+              ) : (
+                <TurnList
+                  turns={listed}
+                  groups={turnGroups}
+                  loaded={state.loaded}
+                  agents={agents}
+                  selected={selected}
+                  onSelect={(traceId, how) => {
+                    pick(traceId);
+                    // A turn pressed closes the overlay; the arrows move through it, and Enter closes it on the turn reached.
+                    if (how === 'press') closeOverlay({refocus: true});
+                  }}
+                  onChoose={() => closeOverlay({refocus: true})}
+                  searchRef={search}
+                  autoFocus={overlay}
+                  className="shadow-overlay"
+                />
+              )}
             </div>
           )}
           <ResizablePanelGroup
@@ -362,15 +504,27 @@ export function App() {
                     style={swing === undefined ? undefined : {width: swingWidth}}
                     inert={swing === undefined && turnListCollapsed}
                   >
-                    <TurnList
-                      turns={listed}
-                      loaded={state.loaded}
-                      agents={agents}
-                      selected={selected}
-                      onSelect={pick}
-                      searchRef={search}
-                      onCollapse={() => startSwing('collapse')}
-                    />
+                    {inFixtures ? (
+                      <FixturesList
+                        groups={fixtureGroups}
+                        loaded={state.fixtures.loaded}
+                        selected={selectedRow}
+                        onSelect={pickRow}
+                        searchRef={search}
+                        onCollapse={() => startSwing('collapse')}
+                      />
+                    ) : (
+                      <TurnList
+                        turns={listed}
+                        groups={turnGroups}
+                        loaded={state.loaded}
+                        agents={agents}
+                        selected={selected}
+                        onSelect={pick}
+                        searchRef={search}
+                        onCollapse={() => startSwing('collapse')}
+                      />
+                    )}
                   </div>
                   {stripInPanel && (
                     <div
@@ -380,15 +534,11 @@ export function App() {
                         swing === 'expand' && 'strip-leave pointer-events-none',
                       )}
                     >
-                      <Strip
-                        turns={listed}
-                        selected={selected}
-                        onSelect={pick}
-                        open={false}
-                        expands
-                        onOpen={() => startSwing('expand')}
-                        buttonRef={stripButton}
-                      />
+                      {stripOfSection({
+                        open: false,
+                        expands: true,
+                        onOpen: () => startSwing('expand'),
+                      })}
                     </div>
                   )}
                 </div>

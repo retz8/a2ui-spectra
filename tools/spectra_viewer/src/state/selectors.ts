@@ -4,7 +4,17 @@
  */
 import {useEffect} from 'react';
 
-import type {Turn, TurnOutcome} from '../model/record.ts';
+import {
+  type Provenance,
+  provenanceOf,
+  replayWhereOf,
+  type ResolvedSource,
+  resolveSource,
+  numberIn,
+  storeTraceOf,
+  traceIdOfTurn,
+} from '../model/provenance.ts';
+import type {Turn, TurnOutcome, TurnRecordEvent} from '../model/record.ts';
 import {briefText} from '../model/turn_groups.ts';
 import {type LiveTurn, spectra, type SpectraState} from './spectra.ts';
 
@@ -116,6 +126,8 @@ export interface ComposerView {
   refused?: string[];
   /** Why the input waits. */
   waiting?: string;
+  /** That a replay is running: the refusal takes the line's place, and no send goes out until it ends. */
+  replaying?: true;
   target: ComposerTarget;
 }
 
@@ -126,6 +138,15 @@ export interface ComposerView {
  * no turn in view, or with a conversation it cannot continue.
  */
 export function composerOf(
+  state: SpectraState,
+  inView: {traceId?: string; startsNew?: boolean},
+): ComposerView {
+  const {box} = state;
+  const view = composerTargetOf(state, inView);
+  return box.replay === undefined ? view : {...view, replaying: true};
+}
+
+function composerTargetOf(
   state: SpectraState,
   inView: {traceId?: string; startsNew?: boolean},
 ): ComposerView {
@@ -185,6 +206,137 @@ export function actionRefusalOf(target: ComposerTarget): string | undefined {
     case 'new':
       return 'Started by another host or in an earlier run · an action can only be sent in a conversation the message box started';
   }
+}
+
+/** A replayed turn's provenance: on its turn event once closed; while open, from the stream's turn event. */
+export function provenanceOfTurn(
+  state: SpectraState,
+  traceId: string,
+  events: readonly TurnRecordEvent[],
+): Provenance | undefined {
+  const closed = provenanceOf(events);
+  if (closed !== undefined) return closed;
+  const live = state.replayTurns.get(traceId);
+  if (live !== undefined) {
+    return {source: live.source, recordedTurn: live.recordedTurn, mode: live.mode, reasons: []};
+  }
+  // A page opened during a replay has heard no turn event: the box says which turn is running.
+  const {replay} = state.box;
+  if (replay === undefined || replay.turn === 0 || !state.live.has(traceId)) return undefined;
+  const heard = [...state.replayTurns.values()].some(
+    turn => turn.source === replay.source && turn.turn === replay.turn,
+  );
+  return heard
+    ? undefined
+    : {source: replay.source, recordedTurn: '', mode: replay.mode, reasons: []};
+}
+
+/** Where a replayed turn's source is now, and its turns once read. */
+export interface SourceInView {
+  resolved: ResolvedSource;
+  turns?: readonly Turn[];
+  /** The record to read through the turn route, for its turns. */
+  needs?: string;
+}
+
+/**
+ * Resolves a replay's source, a fixture's record already read for the group
+ * costs, a store turn's through the turn route: the source file's own turn
+ * when listed, which holds the conversation replayed, else the recorded turn.
+ */
+export function sourceInView(
+  state: SpectraState,
+  provenance: Pick<Provenance, 'source' | 'recordedTurn'>,
+): SourceInView {
+  const resolved = resolveSource(provenance.source, provenance.recordedTurn, {
+    fixtures: state.fixtures.listed,
+    turns: state.turns,
+  });
+  if (resolved.kind === 'fixture') {
+    const turns = state.fixtures.records.get(resolved.name)?.record?.turns;
+    return {resolved, ...(turns !== undefined && {turns})};
+  }
+  if (resolved.kind === 'gone') return {resolved};
+  const own = storeTraceOf(provenance.source);
+  const traceId =
+    own !== undefined && state.turns.some(turn => turn.traceId === own && !turn.open)
+      ? own
+      : resolved.traceId;
+  const record = state.records.get(traceId);
+  if (record === undefined) return {resolved, needs: traceId};
+  return 'record' in record ? {resolved, turns: record.record.turns} : {resolved};
+}
+
+/** The third line under a replayed turn's header, or what the context bar names. */
+export interface ReplayLine {
+  source: ResolvedSource;
+  /** The turn's number and the mode. */
+  where: string;
+  verdict?: 'passed' | 'failed';
+}
+
+/**
+ * A replayed turn's third line: its number of the total from the source's
+ * turns, the listing's or the stream's; with no source to count against, its
+ * number alone, from its place in its own conversation.
+ */
+export function replayLineOf(
+  state: SpectraState,
+  traceId: string,
+  provenance: Provenance,
+  source: SourceInView,
+  position: number,
+): ReplayLine {
+  const {resolved} = source;
+  const listed =
+    resolved.kind === 'fixture'
+      ? state.fixtures.listed.find(fixture => fixture.name === resolved.name)?.turns
+      : undefined;
+  const live = state.replayTurns.get(traceId);
+  const number =
+    numberIn(
+      source.turns?.map(turn => ({traceId: traceIdOfTurn(turn)})),
+      provenance.recordedTurn,
+    ) ??
+    numberIn(listed, provenance.recordedTurn) ??
+    (live !== undefined
+      ? {turn: live.turn, turns: live.turns}
+      : state.box.replay !== undefined && state.live.has(traceId)
+        ? {turn: state.box.replay.turn, turns: state.box.replay.turns}
+        : {turn: position});
+  return {
+    source: resolved,
+    where: replayWhereOf(provenance.mode, number),
+    ...(provenance.verdict !== undefined && {verdict: provenance.verdict}),
+  };
+}
+
+/** The context bar's live status: not connected, capturing, or replaying a record, its turn of the total. */
+export type LiveStatusView =
+  | {form: 'connecting'}
+  | {form: 'down'}
+  | {form: 'capturing'}
+  | {form: 'replaying'; source: ResolvedSource; recordedTurn?: string; turn?: string};
+
+export function liveStatusOf(state: SpectraState): LiveStatusView {
+  if (state.connected === false) return {form: 'down'};
+  const {replay} = state.box;
+  if (replay === undefined)
+    return state.connected === true ? {form: 'capturing'} : {form: 'connecting'};
+  const running = [...state.replayTurns.values()].find(
+    turn => turn.source === replay.source && turn.turn === replay.turn,
+  );
+  // Before the first turn opens, a store source's own turn is known from its file's name.
+  const recordedTurn = running?.recordedTurn ?? storeTraceOf(replay.source) ?? '';
+  return {
+    form: 'replaying',
+    source: resolveSource(replay.source, recordedTurn, {
+      fixtures: state.fixtures.listed,
+      turns: state.turns,
+    }),
+    ...(recordedTurn !== '' && {recordedTurn}),
+    ...(replay.turn > 0 && {turn: `turn ${replay.turn} of ${replay.turns}`}),
+  };
 }
 
 /** Asks the store for the records a pane needs. */

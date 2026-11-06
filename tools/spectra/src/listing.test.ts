@@ -238,6 +238,23 @@ describe('listingFieldsOf', () => {
     assert.equal(listingFieldsOf({events: [turnEvent, call(b, 1)]})?.failedCalls, undefined);
   });
 
+  it("counts a replayed turn's different outcome and different A2UI, a miss by its failed call", () => {
+    const reasons = [
+      {code: 'REPLAY_MISS', message: 'A model call matched nothing in the record: POST /x.'},
+      {code: 'OUTCOME_DIFFERS', message: 'The turn ended failed; the record ended completed.'},
+      {
+        code: 'A2UI_DIFFERS',
+        message: 'The A2UI differs from the record: message 1 of 1 is not the recorded one.',
+      },
+    ];
+    const replayed = {
+      ...turnEvent,
+      attributes: {...turnEvent.attributes, 'a2ui.replay.reasons': reasons},
+    } as typeof turnEvent;
+    assert.equal(listingFieldsOf({events: [replayed]})?.replayDifferences, 2);
+    assert.equal(listingFieldsOf({events: [turnEvent]})?.replayDifferences, undefined);
+  });
+
   it('counts the failed rows of the tool and receiver capture suites as the viewer does', () => {
     const count = (file: string, turn = -1) => {
       const {turns} = readTestData(file);

@@ -15,7 +15,7 @@ import {
   sourcesOfRow,
   timedEventOf,
 } from '@/model/call_rows.ts';
-import {callCostOf, formatCost, formatShare, formatTokens, type Prices} from '@/model/cost.ts';
+import {formatShare, formatTokens, type Prices, shownCostOf} from '@/model/cost.ts';
 import {
   apiOf,
   figuresOf,
@@ -31,12 +31,21 @@ import {formatNameOf} from '@/model/ranges.ts';
 import {catalogName} from '@/model/agent_card.ts';
 import type {KnownCatalog} from '@/model/catalogs.ts';
 import {type Marker, partName, partText, type PrefixBreak} from '@/model/prefix.ts';
+import {type CallReplay, isMissCall, type RecordedCall} from '@/model/provenance.ts';
 import {type ModelCallEvent, type TurnRecordEvent, unixMillis} from '@/model/record.ts';
 import {plural} from '@/model/steps.ts';
 import {useBlockFold} from '@/state/block_folds.ts';
 
 import {AgentSpans} from './AgentSpans.tsx';
-import {asList, DetailLink, Exchange, Pairs, Section, TextBlock} from './CallParts.tsx';
+import {
+  asList,
+  DetailLink,
+  Exchange,
+  Pairs,
+  ReplaySentence,
+  Section,
+  TextBlock,
+} from './CallParts.tsx';
 import {SectionedText} from './SectionedText.tsx';
 import {SwitchOnHint} from './SwitchOnHint.tsx';
 import {formatDuration, formatOffset, formatTime} from './format.ts';
@@ -128,6 +137,8 @@ export function ModelCallBlocks({
   prefix,
   onEarlier,
   step,
+  replay,
+  onRecorded,
 }: {
   row: CallRow;
   events: readonly TurnRecordEvent[];
@@ -137,11 +148,21 @@ export function ModelCallBlocks({
   /** Selects the call the prefix break compared this one with. */
   onEarlier: (found: Exclude<PrefixBreak, {form: 'first'}>) => void;
   step: StepOnCall;
+  /** What the call was, in a replayed turn. */
+  replay: CallReplay | undefined;
+  /** Selects a recorded call in its source. */
+  onRecorded: (recorded: RecordedCall) => void;
 }) {
   const {event: call, fromSpans} = modelReadingOf(row);
   const spans = row.spans.length > 0 && <AgentSpans row={row} events={events} startMs={startMs} />;
-  const retry =
-    step.retry === undefined ? null : <RetrySentence retry={step.retry} onParse={step.onParse} />;
+  const retry = (
+    <>
+      {step.retry !== undefined && <RetrySentence retry={step.retry} onParse={step.onParse} />}
+      {(replay?.kind === 'served' || replay?.kind === 'live') && (
+        <ReplaySentence replay={replay} onRecorded={onRecorded} />
+      )}
+    </>
+  );
   const underResponse = (
     <>
       {step.readBy.map(line => (
@@ -230,7 +251,9 @@ export function ModelCallBlocks({
     <>
       {usageOf(call).input !== undefined && <UsageFigures call={call} prices={prices} />}
       {retry}
-      {prefix !== undefined && <PrefixSentence found={prefix} onEarlier={onEarlier} />}
+      {prefix !== undefined && (
+        <PrefixSentence found={prefix} miss={replay?.kind === 'modelMiss'} onEarlier={onEarlier} />
+      )}
       <Request
         call={call}
         startsOpen={!inFlight && !failed}
@@ -281,19 +304,11 @@ function UsageFigures({
   label?: string;
 }) {
   const ratio = hitRatioOf(usageOf(call));
-  const cost = callCostOf(call, prices);
+  const {value, note} = shownCostOf(call, prices);
   const derived = [
     ...(ratio === undefined ? [] : [{name: 'Hit ratio', value: formatShare(ratio)}]),
-    ...(cost.kind === 'priced' ? [{name: 'Estimated cost', value: formatCost(cost.usd)}] : []),
+    ...(value === undefined ? [] : [{name: 'Estimated cost', value}]),
   ];
-  const note =
-    cost.kind === 'priced'
-      ? cost.source === 'config'
-        ? 'Price from the config'
-        : `LiteLLM prices · ${prices?.date ?? ''}`
-      : cost.kind === 'unpriced'
-        ? `No price for ${cost.model}`
-        : undefined;
   return (
     <div className="flex flex-wrap gap-x-10 gap-y-3">
       <FigureGroup
@@ -335,16 +350,25 @@ function FigureGroup({
 /** The prefix break's sentence, in one of its four forms, the earlier call a link that selects it. */
 function PrefixSentence({
   found,
+  miss = false,
   onEarlier,
 }: {
   found: PrefixBreak;
+  /** Whether the call is a replay's miss: with nothing to compare with, the sentence says so. */
+  miss?: boolean;
   onEarlier: (found: Exclude<PrefixBreak, {form: 'first'}>) => void;
 }) {
   let sentence: ReactNode;
   if (found.form === 'first') {
-    sentence = `First ${found.model} call in this conversation`;
+    sentence = miss
+      ? `No recorded call of ${found.model} to compare with.`
+      : `First ${found.model} call in this conversation`;
   } else {
-    const at = formatTime(unixMillis(found.earlier.call.startTimeUnixNano));
+    const {recorded} = found.earlier;
+    const at =
+      recorded === undefined
+        ? formatTime(unixMillis(found.earlier.call.startTimeUnixNano))
+        : formatOffset(recorded.offsetMs);
     const link = (text: string) => (
       <button
         type="button"
@@ -355,14 +379,23 @@ function PrefixSentence({
         {text}
       </button>
     );
+    const named = recorded === undefined ? `the call at ${at}` : `the recorded call at ${at}`;
+    const source = recorded === undefined ? '' : ` in ${recorded.name}`;
     sentence =
       found.form === 'shares_earlier' ? (
-        <>Shares all of {link('the earlier call’s request')}</>
+        <>
+          Shares all of {link(recorded === undefined ? 'the earlier call’s request' : named)}
+          {source}
+        </>
       ) : found.form === 'shares_this' ? (
-        <>Shares all of its request with {link(`the call at ${at}`)}</>
+        <>
+          Shares all of its request with {link(named)}
+          {source}
+        </>
       ) : (
         <>
-          Prefix breaks in {partName(found)} · against {link(`the call at ${at}`)}
+          Prefix breaks in {partName(found)} · against {link(named)}
+          {source}
         </>
       );
   }
@@ -419,7 +452,9 @@ function MarkedText({
             <span className="h-px flex-1 bg-muted-foreground" />
           </span>
           <span className="mb-1.5 grid grid-cols-diff gap-x-2.5 gap-y-0.5">
-            <span className="font-sans text-xs leading-5 text-muted-foreground">Earlier call</span>
+            <span className="font-sans text-xs leading-5 text-muted-foreground">
+              {marker.earlierLabel ?? 'Earlier call'}
+            </span>
             {line(marker.earlier)}
             <span className="font-sans text-xs leading-5 text-muted-foreground">This call</span>
             {line(marker.current)}
@@ -451,7 +486,9 @@ function Request({
 }) {
   const sectionsIn = (segment: number) => sections.filter(section => section.segment === segment);
   const labelOf = sectionLabel ?? (() => 'Generated by the A2UI SDK');
-  const [open, setOpen] = useState(startsOpen || marker !== undefined);
+  // A marker can arrive after the detail, with the record it was compared against: it opens the section until toggled.
+  const [toggled, setOpen] = useState<boolean | undefined>();
+  const open = toggled ?? (startsOpen || marker !== undefined);
   const {attributes} = call;
   const tools = asList(attributes['gen_ai.tool.definitions']);
   const system = asList(attributes['gen_ai.system_instructions']);
@@ -710,6 +747,7 @@ function Response({
   const messages = asList(attributes['gen_ai.output.messages']);
   const status = attributes['http.response.status_code'];
   const errorBody = call.status?.code === 2 ? attributes['a2ui.http.response.body'] : undefined;
+  const missed = isMissCall(call) && call.status?.message !== undefined;
   return (
     <Section
       label={label}
@@ -744,7 +782,8 @@ function Response({
           value={errorBody}
         />
       )}
-      {messages.length === 0 && errorBody === undefined && (
+      {missed && <TextBlock label="Error" meta="HTTP 502" text={call.status!.message!} />}
+      {messages.length === 0 && errorBody === undefined && !missed && (
         <p className="text-muted-foreground">
           {inFlight ? 'Nothing from the stream yet.' : 'The response holds no message.'}
         </p>

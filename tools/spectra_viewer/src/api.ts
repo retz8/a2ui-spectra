@@ -3,6 +3,7 @@ import type {KnownCatalog} from './model/catalogs.ts';
 import type {Prices} from './model/cost.ts';
 import type {A2aVersion, ActionMessage, DataModelMap} from './model/host_message.ts';
 import type {InputBrief} from './model/input_brief.ts';
+import type {ReplayMode} from './model/provenance.ts';
 import type {
   OtherEvent,
   Turn,
@@ -12,7 +13,7 @@ import type {
   WireEvent,
 } from './model/record.ts';
 
-export type {KnownCatalog};
+export type {KnownCatalog, ReplayMode};
 
 /** One entry of the turn listing. */
 export interface ListedTurn {
@@ -33,6 +34,8 @@ export interface ListedTurn {
   failedCalls?: number;
   /** The A2UI step's errors: each parse error and each failed prompt generation, when any. */
   a2uiStepErrors?: number;
+  /** A replayed turn's different outcome and different A2UI, when it has them. */
+  replayDifferences?: number;
   /** The render errors the preview counts, set by the viewer while the turn is in view. */
   renderErrors?: number;
 }
@@ -62,6 +65,8 @@ export interface SessionContext {
   a2uiExtensions: A2uiExtension[];
   /** The first example of each of the card's skills, in card order. */
   examples: string[];
+  /** The fixtures folder's path as shown. */
+  fixturesFolder: string;
 }
 
 /** A conversation the message box started. */
@@ -81,7 +86,43 @@ export interface MessageBoxState {
   unsetVariables?: string[];
   /** The A2A version of the interface the box sends to, when the card lists one it speaks. */
   a2aVersion?: A2aVersion;
+  /** The replay running, while one does. */
+  replay?: ReplayState;
 }
+
+/** The replay running. */
+export interface ReplayState {
+  /** The record's path, as the turns' provenance names it. */
+  source: string;
+  mode: ReplayMode;
+  /** The number of the turn being replayed, of the total; 0 before the first opens. */
+  turn: number;
+  turns: number;
+}
+
+/** One file of the fixtures folder, as the listing gives it. */
+export interface ListedFixture {
+  /** Its path relative to the folder without `.json`, `/` between folders. */
+  name: string;
+  /** Its path as shown. */
+  path: string;
+  /** Its modification time, as an ISO 8601 UTC time. */
+  savedAt: string;
+  /** The record's turns in the turn listing's form, oldest first, when the file reads as a record. */
+  turns?: ListedTurn[];
+  /** Why the file does not read as a record, when it does not. */
+  error?: string;
+}
+
+export interface FixturesListing {
+  /** The folder's path as shown. */
+  folder: string;
+  /** Every `.json` under the folder, in path order. */
+  fixtures: ListedFixture[];
+}
+
+/** What to replay: a fixture by its name, or a store turn by its trace id. */
+export type ReplaySource = {fixture: string} | {traceId: string};
 
 /** One response chunk of a call, as the record holds it: a span event named `a2ui.http.response.chunk`. */
 export interface CallChunk {
@@ -111,25 +152,47 @@ export interface LiveEvents {
    * Each replaces the event of its span id, or is added.
    */
   turn_amended: {traceId: string; events: TurnRecordEvent[]};
+  replay_started: {source: string; mode: ReplayMode; turns: number};
+  /** As each replayed turn opens: the recorded turn it stands for, and its number of the total. */
+  replay_turn: {traceId: string; recordedTurn: string; turn: number; turns: number};
+  replay_ended: {
+    source: string;
+    mode: ReplayMode;
+    verdict: 'passed' | 'failed';
+    turns: ReadonlyArray<
+      | {traceId: string; recordedTurn: string; verdict: 'passed' | 'failed'; unconsumed: number}
+      | {recordedTurn: string; notSent: string}
+    >;
+  };
+  /** A file joined, changed in or left the fixtures folder; the listing is to be read again. */
+  fixtures_changed: Record<string, never>;
   heartbeat: Record<string, never>;
 }
 
 /** A route's refusal, with the server's message. */
 export class ApiError extends Error {
   readonly status: number;
+  /** What a clash suggests in its place: the first free numbered name. */
+  readonly suggested?: string;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, suggested?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    if (suggested !== undefined) this.suggested = suggested;
   }
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, init);
-  const body = (await response.json().catch(() => undefined)) as {error?: string} | undefined;
+  const body = (await response.json().catch(() => undefined)) as
+    {error?: string; suggested?: string} | undefined;
   if (!response.ok) {
-    throw new ApiError(response.status, body?.error ?? `The server answered ${response.status}.`);
+    throw new ApiError(
+      response.status,
+      body?.error ?? `The server answered ${response.status}.`,
+      body?.suggested,
+    );
   }
   return body as T;
 }
@@ -183,6 +246,29 @@ export function sendMessage(
   conversationId?: string,
 ): Promise<{traceId: string; conversationId?: string}> {
   return post('/api/message-box/messages', {...input, conversationId});
+}
+
+/** The fixtures folder's files, each one's turns in the listing's form. */
+export function listFixtures(): Promise<FixturesListing> {
+  return request<FixturesListing>('/api/fixtures');
+}
+
+/** A fixture's record, by its name, each segment of the path encoded. */
+export function getFixture(name: string): Promise<TurnRecord> {
+  return request<TurnRecord>(`/api/fixtures/${name.split('/').map(encodeURIComponent).join('/')}`);
+}
+
+/** Saves a stored turn's record whole under a name. */
+export function saveFixture(traceId: string, name: string): Promise<{name: string; path: string}> {
+  return post('/api/fixtures', {traceId, name});
+}
+
+/** Starts a replay; answers once its first turn opens. */
+export function startReplay(
+  source: ReplaySource,
+  mode: ReplayMode,
+): Promise<{traceId: string; turns: number}> {
+  return post('/api/replays', {source, mode});
 }
 
 export const STREAM_PATH = '/api/stream';

@@ -1,4 +1,5 @@
 import {cn} from '@/lib/utils';
+import type {Section} from '@/model/address.ts';
 import {chooseTheme, type ThemeChoice, useTheme} from '@/state/theme.ts';
 
 import {Icon, type IconKind, Mark} from './icons.tsx';
@@ -9,8 +10,27 @@ const THEMES: Array<{choice: ThemeChoice; icon: IconKind; label: string}> = [
   {choice: 'dark', icon: 'moon', label: 'Dark'},
 ];
 
-/** The left rail: Spectra's mark and name, the sections, and at its foot the list of keys and the theme switch. */
-export function Rail({keysOpen, onKeys}: {keysOpen: boolean; onKeys: () => void}) {
+const SECTIONS: Array<{section: Section; icon: IconKind; label: string}> = [
+  {section: 'turns', icon: 'turns', label: 'Turns'},
+  {section: 'fixtures', icon: 'fixtures', label: 'Fixtures'},
+];
+
+/**
+ * The left rail: Spectra's mark and name, the sections, each a link to the
+ * address it was last on, and at its foot the list of keys and the theme
+ * switch.
+ */
+export function Rail({
+  section,
+  hrefOf,
+  keysOpen,
+  onKeys,
+}: {
+  section: Section;
+  hrefOf: (section: Section) => string;
+  keysOpen: boolean;
+  onKeys: () => void;
+}) {
   const theme = useTheme();
   return (
     <nav
@@ -21,13 +41,24 @@ export function Rail({keysOpen, onKeys}: {keysOpen: boolean; onKeys: () => void}
         <Mark size={24} />
         <span className="text-xs font-semibold">Spectra</span>
       </div>
-      <div
-        aria-current="page"
-        className="flex w-12 flex-col items-center gap-1 rounded-lg bg-brand-soft pt-2 pb-1.5 text-brand"
-      >
-        <Icon kind="turns" size={20} />
-        <span className="text-xs font-semibold">Turns</span>
-      </div>
+      {SECTIONS.map(({section: each, icon, label}) => (
+        <a
+          key={each}
+          href={hrefOf(each)}
+          aria-current={each === section ? 'page' : undefined}
+          className={cn(
+            'ease-quick flex w-13 flex-col items-center gap-1 rounded-lg pt-2 pb-1.5',
+            each === section
+              ? 'bg-brand-soft text-brand'
+              : 'text-muted-foreground hover:bg-tint hover:text-foreground',
+          )}
+        >
+          <Icon kind={icon} size={20} />
+          <span className={cn('text-xs', each === section ? 'font-semibold' : 'font-medium')}>
+            {label}
+          </span>
+        </a>
+      ))}
       <div className="flex-1" />
       <button
         type="button"

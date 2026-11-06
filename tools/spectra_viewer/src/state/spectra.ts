@@ -9,20 +9,38 @@ import {
   type BoxInput,
   getCatalogs,
   getContext,
+  getFixture,
   getMessageBox,
   getPrices,
   getRecord,
   type KnownCatalog,
+  listFixtures,
   type ListedTurn,
   listTurns,
   type LiveEvents,
   type MessageBoxState,
+  type ReplayMode,
+  type ReplaySource,
+  saveFixture,
   sendMessage,
   type SessionContext,
+  startReplay,
   STREAM_PATH,
 } from '../api.ts';
 import type {Prices} from '../model/cost.ts';
 import {isTurnEvent, type Turn, type TurnRecordEvent} from '../model/record.ts';
+import {
+  fixtureFailed,
+  fixtureNotHeld,
+  fixtureRead,
+  fixturesListed,
+  type FixturesState,
+  NO_FIXTURES,
+  replayEnded,
+  replayStarted,
+  replayTurn,
+  type ReplayTurn,
+} from './fixtures.ts';
 import {
   callChanged,
   closedRow,
@@ -54,6 +72,10 @@ export interface SpectraState {
   /** Amendments of turns whose record is on its way, by trace id, applied when it comes. */
   pending: ReadonlyMap<string, readonly TurnRecordEvent[]>;
   box: MessageBoxState;
+  /** The fixtures folder as listed, and the records read from it. */
+  fixtures: FixturesState;
+  /** The replayed turns heard on the stream this session, by trace id. */
+  replayTurns: ReadonlyMap<string, ReplayTurn>;
   /** The session, once read. */
   context?: SessionContext;
   /** The catalog definitions Spectra knows, once read; the same array until they change. */
@@ -88,6 +110,8 @@ class Spectra {
     records: new Map(),
     pending: new Map(),
     box: {conversations: []},
+    fixtures: NO_FIXTURES,
+    replayTurns: new Map(),
   };
   readonly #listeners = new Set<() => void>();
   #started = false;
@@ -143,6 +167,55 @@ class Spectra {
     const {traceId} = await sendMessage(input, conversationId);
     await this.#refreshBox();
     return traceId;
+  }
+
+  /**
+   * Starts a replay, of a fixture or a store turn; answers with the trace id
+   * of its first turn, once it opens, or the server's refusal.
+   */
+  async replay(source: ReplaySource, mode: ReplayMode): Promise<string> {
+    const {traceId} = await startReplay(source, mode);
+    void this.#refreshBox();
+    return traceId;
+  }
+
+  /** Saves a stored turn's record as a fixture; the listing is read again at once. */
+  async saveFixture(traceId: string, name: string): Promise<{name: string; path: string}> {
+    const saved = await saveFixture(traceId, name);
+    void this.#readFixtures();
+    return saved;
+  }
+
+  /** Reads a fixture the listing has not shown yet, as an address can name one. */
+  ensureFixture(name: string): void {
+    if (this.#state.fixtures.records.has(name)) return;
+    this.#readFixture(name, undefined);
+  }
+
+  #readFixture(name: string, savedAt: string | undefined): void {
+    this.#set({fixtures: fixtureNotHeld(this.#state.fixtures, name)});
+    getFixture(name).then(
+      record => this.#set({fixtures: fixtureRead(this.#state.fixtures, name, savedAt, record)}),
+      (error: unknown) =>
+        this.#set({
+          fixtures: fixtureFailed(
+            this.#state.fixtures,
+            name,
+            error instanceof Error ? error.message : String(error),
+          ),
+        }),
+    );
+  }
+
+  /** Reads the listing, and each fixture's record that is new or whose saved time changed. */
+  async #readFixtures(): Promise<void> {
+    try {
+      const {fixtures, read} = fixturesListed(this.#state.fixtures, await listFixtures());
+      this.#set({fixtures});
+      for (const {name, savedAt} of read) this.#readFixture(name, savedAt);
+    } catch {
+      // The check marks the page as not connected; the stream's next open reads again.
+    }
   }
 
   #connect(): void {
@@ -204,6 +277,16 @@ class Spectra {
       // A turn the page holds in no form: its record is read once, and its list row from it.
       if (fetch !== undefined) this.ensureRecord(fetch, {row: true});
     });
+    on('replay_started', data => this.#set(replayStarted(this.#state, data)));
+    on('replay_turn', data => {
+      this.#set(replayTurn(this.#state, data));
+      void this.#refreshBox();
+    });
+    on('replay_ended', () => {
+      this.#set(replayEnded(this.#state));
+      void this.#refreshBox();
+    });
+    on('fixtures_changed', () => void this.#readFixtures());
     on('heartbeat', () => {});
   }
 
@@ -267,6 +350,7 @@ class Spectra {
           : catalogs;
       this.#set({loaded: true, turns: sortRows([...rows.values()]), box, context, catalogs: known});
       if (this.#state.prices === undefined) void this.#readPrices();
+      void this.#readFixtures();
     } catch {
       // The check marks the page as not connected; the stream's next open reads again.
     }

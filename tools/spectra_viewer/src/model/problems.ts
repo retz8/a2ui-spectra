@@ -13,15 +13,17 @@
  */
 import {generationProblemOf, parseProblemsOf} from './a2ui_step.ts';
 import {type CallRow, sourceOfSpan} from './call_rows.ts';
-import {locateFinding} from './messages.ts';
+import {agentMessages, locateFinding} from './messages.ts';
 import {type CallFailure, failureOf} from './model_calls.ts';
 import {
   isCheck,
   isModelCall,
   isTurnEvent,
   type ModelCallEvent,
+  type Turn,
   type TurnRecordEvent,
 } from './record.ts';
+import {provenanceOf} from './provenance.ts';
 import {toolFailureOf} from './tool_calls.ts';
 import type {Rejection} from './replay.ts';
 import type {TimelineRow} from './steps.ts';
@@ -43,6 +45,10 @@ export interface Problem {
   note?: string;
   /** A parse error's rejected block in the parse's input, to show in its raw text. */
   range?: {start: number; end: number};
+  /** The words of the sentence that select a step: the message a different A2UI names. */
+  link?: {before: string; text: string; after: string; stepId: string};
+  /** The recorded message under it, folded. */
+  recorded?: {meta: string; value: unknown};
 }
 
 /**
@@ -74,6 +80,8 @@ export function turnProblemsOf(
   events: readonly TurnRecordEvent[],
   timeline: readonly TimelineRow[],
   rejections: readonly Rejection[],
+  /** The recorded turn a replayed turn stands for, when its source still holds it. */
+  recordedTurn?: Turn,
 ): TurnProblems {
   const stepOfMessage = new Map<string, string>();
   for (const row of timeline) {
@@ -142,7 +150,50 @@ export function turnProblemsOf(
       code: given ? 'The reason the agent gave · outcome failed' : 'outcome failed',
     });
   }
+  problems.push(...verdictProblemsOf(events, stepOfMessage, recordedTurn));
   return {problems, folded};
+}
+
+/** The words of a different A2UI's sentence that name the message. */
+const NAMED_MESSAGE = /^(.*?)(message (\d+) of \d+)(.*)$/;
+
+/**
+ * A failed verdict's reasons that are problems of the whole turn, on the
+ * outcome step: a different outcome and different A2UI, each a plain sentence
+ * over its code. A miss is the failed call's own problem, on its row.
+ */
+function verdictProblemsOf(
+  events: readonly TurnRecordEvent[],
+  stepOfMessage: ReadonlyMap<string, string>,
+  recordedTurn: Turn | undefined,
+): Problem[] {
+  return (provenanceOf(events)?.reasons ?? []).flatMap((reason): Problem[] => {
+    if (reason.code === 'OUTCOME_DIFFERS') {
+      return [{stepId: 'outcome', sentence: reason.message, code: 'Outcome differs · replay'}];
+    }
+    if (reason.code !== 'A2UI_DIFFERS') return [];
+    const problem: Problem = {
+      stepId: 'outcome',
+      sentence: reason.message,
+      code: 'A2UI differs · replay',
+    };
+    const named = NAMED_MESSAGE.exec(reason.message);
+    if (named === null) return [problem];
+    const [, before, text, number, after] = named;
+    const location = locateFinding(events, reason.path);
+    const stepId = location === undefined ? undefined : stepOfMessage.get(location.key);
+    const message =
+      recordedTurn === undefined
+        ? undefined
+        : agentMessages(recordedTurn.events)[Number(number) - 1]?.message;
+    return [
+      {
+        ...problem,
+        ...(stepId !== undefined && {link: {before, text, after, stepId}}),
+        ...(message !== undefined && {recorded: {meta: text, value: message}}),
+      },
+    ];
+  });
 }
 
 /**
@@ -209,9 +260,9 @@ export function rowFailureOf(row: CallRow): CallFailure | undefined {
 
 /**
  * A turn's problem count, from what the listing gives: the findings, the
- * unfolded rejections, the failed call rows, the A2UI step's errors and a
- * failed outcome; and, while the turn is in view, the render errors its
- * preview counts.
+ * unfolded rejections, the failed call rows, the A2UI step's errors, a replay's
+ * different outcome and different A2UI and a failed outcome; and, while the
+ * turn is in view, the render errors its preview counts.
  */
 export function listedProblemCount(turn: {
   outcome?: string;
@@ -219,6 +270,7 @@ export function listedProblemCount(turn: {
   rejections?: number;
   failedCalls?: number;
   a2uiStepErrors?: number;
+  replayDifferences?: number;
   renderErrors?: number;
 }): number {
   return (
@@ -226,6 +278,7 @@ export function listedProblemCount(turn: {
     (turn.rejections ?? 0) +
     (turn.failedCalls ?? 0) +
     (turn.a2uiStepErrors ?? 0) +
+    (turn.replayDifferences ?? 0) +
     (turn.outcome === 'failed' ? 1 : 0) +
     (turn.renderErrors ?? 0)
   );

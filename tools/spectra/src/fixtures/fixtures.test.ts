@@ -162,6 +162,8 @@ describe('the fixtures folder', () => {
       assert.equal(error.message, 'The file is not a turn record v0.1: it is not an object.');
       return true;
     });
+    writeFileSync(path.join(folder.dir, 'my notes.json'), JSON.stringify(record));
+    assert.equal((await folder.read('my notes')).record.version, 'v0.1');
     await assert.rejects(folder.read('../hello'), FixtureNameError);
     await assert.rejects(folder.read('..'), FixtureNameError);
   });

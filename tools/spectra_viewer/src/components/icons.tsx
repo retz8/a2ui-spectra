@@ -9,6 +9,20 @@ import {type ReactNode, useId} from 'react';
 import {cn} from '@/lib/utils';
 
 const PATHS = {
+  fixtures: (
+    <>
+      <rect x="3" y="4.5" width="18" height="15" rx="2.5" />
+      <path d="M13.5 4.5v7.25l2.75-1.75L19 11.75V4.5" />
+      <path d="M6.5 11h3.5M6.5 15h7" />
+    </>
+  ),
+  replay: (
+    <>
+      <path d="M4 12a8 8 0 1 0 2.6-5.9L4 8.5" />
+      <path d="M4 4v4.5h4.5" />
+      <path d="M10.25 9.25l4.5 2.75-4.5 2.75z" />
+    </>
+  ),
   completed: (
     <>
       <circle cx="12" cy="12" r="9" />

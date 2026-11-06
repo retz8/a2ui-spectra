@@ -7,6 +7,7 @@ import {type ReactNode, useState} from 'react';
 
 import {cn} from '@/lib/utils';
 import {statusLine} from '@/model/model_calls.ts';
+import type {CallReplay, RecordedCall} from '@/model/provenance.ts';
 import type {ModelCallEvent, OtherEvent, SpanEvent} from '@/model/record.ts';
 import {plural} from '@/model/steps.ts';
 import {useBlockFold} from '@/state/block_folds.ts';
@@ -26,6 +27,40 @@ export function DetailLink({onClick, children}: {onClick: () => void; children: 
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * The grey sentence under a call's title line, where a retry's sits: served
+ * from the record, the recorded call a link; or gone to the model.
+ */
+export function ReplaySentence({
+  replay,
+  onRecorded,
+}: {
+  replay: Extract<CallReplay, {kind: 'served' | 'live'}>;
+  onRecorded: (recorded: RecordedCall) => void;
+}) {
+  if (replay.kind === 'live') {
+    return (
+      <p className="text-muted-foreground">Went to the model · matched nothing in the record</p>
+    );
+  }
+  const {recorded, name} = replay;
+  return (
+    <p className="text-muted-foreground">
+      Served from the record ·{' '}
+      {recorded === undefined ? (
+        name
+      ) : (
+        <>
+          <DetailLink onClick={() => onRecorded(recorded)}>
+            the call at {formatOffset(recorded.offsetMs)}
+          </DetailLink>{' '}
+          in {name}
+        </>
+      )}
+    </p>
   );
 }
 
@@ -158,7 +193,10 @@ export function Exchange({
   const attributes = call.attributes as Record<string, unknown>;
   const method = String(attributes['http.request.method'] ?? '');
   const url = typeof attributes['url.full'] === 'string' ? attributes['url.full'] : '';
-  const status = attributes['http.response.status_code'];
+  // A miss holds no response attributes; the proxy answered it with its `502` line.
+  const status =
+    attributes['http.response.status_code'] ??
+    (attributes['error.type'] === 'replay_miss' ? 502 : undefined);
   const chunks = (call.events ?? []).filter(event => event.name === 'a2ui.http.response.chunk');
   let host = '';
   let parameters: Array<{key: string; value: string; removed?: boolean}> = [];

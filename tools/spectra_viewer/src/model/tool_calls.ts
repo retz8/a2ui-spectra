@@ -45,7 +45,7 @@ export function toolHostOf(event: OtherEvent): string {
 }
 
 /** The path of the request's URL, without the query; from the event's name when the URL does not parse. */
-function pathOf(event: OtherEvent): string | undefined {
+export function pathOfEvent(event: OtherEvent): string | undefined {
   const url = urlOf(event);
   if (url !== undefined) return url.pathname;
   const recorded = text(event.attributes['url.full']);
@@ -92,7 +92,7 @@ export function toolRowTextOf(row: CallRow): {label: string; target: string} {
     return {label, target: host === '' ? 'MCP' : `MCP · ${host}`};
   }
   const method = text(proxy.attributes['http.request.method']);
-  const path = pathOf(proxy);
+  const path = pathOfEvent(proxy);
   const label = method !== undefined && path !== undefined ? `${method} ${path}` : proxy.name;
   return {label, target: host === '' ? 'HTTP' : `HTTP · ${host}`};
 }
@@ -205,6 +205,13 @@ export function toolFailureOf(proxy: OtherEvent): CallFailure | undefined {
   if (proxy.status?.code !== 2) return undefined;
   const type = text(proxy.attributes['error.type']) ?? 'error';
   const protocol = isMcpEvent(proxy) ? 'MCP' : 'HTTP';
+  // A miss's line is the Error block's; the agent got it as the proxy's answer.
+  if (type === 'replay_miss') {
+    return {
+      sentence: 'This request matched nothing in the record.',
+      code: `replay_miss · ${protocol}`,
+    };
+  }
   let sentence: string;
   let code: string;
   if (/^-?\d+$/.test(type) && !/^\d{3}$/.test(type)) {

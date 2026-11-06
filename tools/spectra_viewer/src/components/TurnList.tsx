@@ -1,5 +1,13 @@
 import {DropdownMenu} from 'radix-ui';
-import {type KeyboardEvent, type RefObject, useEffect, useMemo, useRef, useState} from 'react';
+import {
+  type KeyboardEvent,
+  type ReactNode,
+  type RefObject,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import type {ListedTurn} from '@/api.ts';
 import {scrollIntoColumn} from '@/lib/scroll.ts';
@@ -8,7 +16,7 @@ import {type AgentChoice, agentLabel, type AgentShown} from '@/model/agents.ts';
 import {groupItemId, type ListKey, listItemsOf, moveInList, turnItemId} from '@/model/list_keys.ts';
 import {listedProblemCount} from '@/model/problems.ts';
 import {plural} from '@/model/steps.ts';
-import {briefText, groupTurns, searchGroups, type TurnGroup} from '@/model/turn_groups.ts';
+import {briefText, searchGroups, type TurnGroup} from '@/model/turn_groups.ts';
 
 import {
   formatClock,
@@ -18,7 +26,7 @@ import {
   type TurnStatus,
   toneOf,
 } from './format.ts';
-import {Icon} from './icons.tsx';
+import {Icon, type IconKind} from './icons.tsx';
 
 /** The agent picker's choices, the agent shown and what picking one does. */
 export interface AgentPicker {
@@ -29,15 +37,32 @@ export interface AgentPicker {
   onPick: (shown: AgentShown) => void;
 }
 
+/** What a group's header says. */
+export interface GroupLine {
+  title: string;
+  time: string;
+  meta: string;
+  icon: IconKind;
+  /** Stands in place of its rows, for a file that does not read as a turn record. */
+  reason?: string;
+}
+
 /**
- * The turn list: the turns grouped by conversation, newest first, with a
- * search, and the agent picker when the store holds more than one agent's
- * turns.
+ * A list of groups of turn rows, with a search: the turn list and the
+ * fixtures list are each one of these. Each row's `traceId` names it.
  */
-export function TurnList({
-  turns,
-  loaded,
-  agents,
+export function GroupedList<T extends ListedTurn>({
+  heading,
+  count,
+  headerExtra,
+  groups,
+  searchOf,
+  lineOf,
+  searchLabel,
+  treeLabel,
+  collapseLabel,
+  emptyText,
+  noMatchText,
   selected,
   onSelect,
   searchRef,
@@ -46,18 +71,27 @@ export function TurnList({
   onCollapse,
   className,
 }: {
-  /** The turns of the agent shown. */
-  turns: readonly ListedTurn[];
-  loaded: boolean;
-  agents?: AgentPicker;
+  heading: string;
+  count: number;
+  /** Beside the heading: the agent picker. */
+  headerExtra?: ReactNode;
+  groups: ReadonlyArray<TurnGroup<T>>;
+  searchOf: (groups: ReadonlyArray<TurnGroup<T>>, query: string) => Array<TurnGroup<T>>;
+  lineOf: (group: TurnGroup<T>) => GroupLine;
+  searchLabel: string;
+  treeLabel: string;
+  collapseLabel: string;
+  /** What it says with no group. */
+  emptyText: string;
+  noMatchText: (query: string) => string;
   selected: string | undefined;
-  /** Selects a turn, pressed or reached with the arrows. */
-  onSelect: (traceId: string, how: 'press' | 'key') => void;
+  /** Selects a row, pressed or reached with the arrows. */
+  onSelect: (id: string, how: 'press' | 'key') => void;
   /** The search field, for `/` to focus. */
   searchRef?: RefObject<HTMLInputElement | null>;
   /** What takes focus as the list is shown, as the overlay opens. */
   autoFocus?: 'list' | 'search';
-  /** Enter on a turn: the overlay closes on the turn reached. */
+  /** Enter on a row: the overlay closes on the row reached. */
   onChoose?: () => void;
   /** Collapses the list to its strip, on a wide window. */
   onCollapse?: () => void;
@@ -69,8 +103,7 @@ export function TurnList({
   const ownSearch = useRef<HTMLInputElement>(null);
   const search = searchRef ?? ownSearch;
   const tree = useRef<HTMLDivElement>(null);
-  const groups = useMemo(() => groupTurns(turns), [turns]);
-  const shown = useMemo(() => searchGroups(groups, query), [groups, query]);
+  const shown = useMemo(() => searchOf(groups, query), [searchOf, groups, query]);
 
   // A group that gains the selection opens, even one closed by hand, as when following selects a new turn in it.
   // The keys' place moves to the selection, wherever it came from.
@@ -92,9 +125,11 @@ export function TurnList({
     else if (autoFocus === 'list') tree.current?.focus();
   }, [autoFocus, search]);
 
-  const isOpen = (group: TurnGroup<ListedTurn>) =>
+  const isOpen = (group: TurnGroup<T>) =>
     toggled.get(group.key) ??
-    (query.trim() !== '' || group.turns.some(turn => turn.traceId === selected));
+    (query.trim() !== '' ||
+      group.turns.some(turn => turn.traceId === selected) ||
+      lineOf(group).reason !== undefined);
   const items = listItemsOf(shown, isOpen);
   // The line the keys move from: the one they last moved to, else the selected turn, else the first.
   const current =
@@ -132,7 +167,7 @@ export function TurnList({
 
   return (
     <section
-      aria-label="Turns"
+      aria-label={heading}
       className={cn(
         'flex h-full min-h-0 flex-col overflow-hidden rounded-xl bg-panel shadow-panel',
         className,
@@ -140,14 +175,14 @@ export function TurnList({
     >
       <div className="flex shrink-0 flex-col gap-2.5 px-3.5 pt-3.5 pb-2.5">
         <div className="flex items-baseline gap-2">
-          <h2 className="text-base font-semibold">Turns</h2>
-          {agents !== undefined && <AgentMenu agents={agents} />}
-          <span className="text-xs text-muted-foreground">{turns.length}</span>
+          <h2 className="text-base font-semibold">{heading}</h2>
+          {headerExtra}
+          <span className="text-xs text-muted-foreground">{count}</span>
           {onCollapse !== undefined && (
             <button
               type="button"
-              aria-label="Collapse the turn list"
-              title="Collapse the turn list"
+              aria-label={collapseLabel}
+              title={collapseLabel}
               onClick={onCollapse}
               className="ease-quick ml-auto flex size-6 cursor-pointer items-center justify-center self-center rounded-md text-muted-foreground hover:bg-tint hover:text-foreground"
             >
@@ -162,25 +197,21 @@ export function TurnList({
             type="search"
             value={query}
             onChange={event => setQuery(event.target.value)}
-            placeholder="Search turns"
-            aria-label="Search turns"
+            placeholder={searchLabel}
+            aria-label={searchLabel}
             className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
           />
           <kbd className="rounded border px-1.5 text-xs leading-4 text-muted-foreground">/</kbd>
         </label>
       </div>
-      {groups.length === 0 && (
-        <p className="mx-4 my-6 text-muted-foreground">
-          {loaded ? 'No turns yet.' : 'Reading the turns…'}
-        </p>
-      )}
+      {groups.length === 0 && <p className="mx-4 my-6 text-muted-foreground">{emptyText}</p>}
       {groups.length > 0 && shown.length === 0 && (
-        <p className="mx-4 my-6 text-muted-foreground">No turn matches “{query.trim()}”.</p>
+        <p className="mx-4 my-6 text-muted-foreground">{noMatchText(query.trim())}</p>
       )}
       <div
         ref={tree}
         role="tree"
-        aria-label="Turns by conversation"
+        aria-label={treeLabel}
         tabIndex={items.length > 0 ? 0 : -1}
         aria-activedescendant={currentId === undefined ? undefined : domIdOf(currentId)}
         onKeyDown={onKeyDown}
@@ -190,6 +221,7 @@ export function TurnList({
           <Group
             key={group.key}
             group={group}
+            line={lineOf(group)}
             open={isOpen(group)}
             selected={selected}
             active={currentId}
@@ -197,14 +229,69 @@ export function TurnList({
               press(groupItemId(group.key));
               setToggled(new Map(toggled).set(group.key, !isOpen(group)));
             }}
-            onSelect={traceId => {
-              press(turnItemId(traceId));
-              onSelect(traceId, 'press');
+            onSelect={id => {
+              press(turnItemId(id));
+              onSelect(id, 'press');
             }}
           />
         ))}
       </div>
     </section>
+  );
+}
+
+/** A conversation's header: its first message, its newest turn's status and time, its agent and its turn count. */
+function lineOfConversation(group: TurnGroup<ListedTurn>): GroupLine {
+  const newest = group.turns[0];
+  return {
+    title: briefText(group.title) || 'A turn',
+    time: formatClock(newest.startTime),
+    meta: [group.agentName, plural(group.turns.length, 'turn')].filter(Boolean).join(' · '),
+    icon: STATUS_ICONS[statusOf(newest)],
+  };
+}
+
+/**
+ * The turn list: the turns grouped by conversation, newest first, with a
+ * search, and the agent picker when the store holds more than one agent's
+ * turns.
+ */
+export function TurnList({
+  turns,
+  groups,
+  loaded,
+  agents,
+  ...list
+}: {
+  /** The turns of the agent shown. */
+  turns: readonly ListedTurn[];
+  /** Those turns grouped. */
+  groups: ReadonlyArray<TurnGroup<ListedTurn>>;
+  loaded: boolean;
+  agents?: AgentPicker;
+  selected: string | undefined;
+  onSelect: (traceId: string, how: 'press' | 'key') => void;
+  searchRef?: RefObject<HTMLInputElement | null>;
+  autoFocus?: 'list' | 'search';
+  onChoose?: () => void;
+  onCollapse?: () => void;
+  className?: string;
+}) {
+  return (
+    <GroupedList
+      heading="Turns"
+      count={turns.length}
+      {...(agents !== undefined && {headerExtra: <AgentMenu agents={agents} />})}
+      groups={groups}
+      searchOf={searchGroups}
+      lineOf={lineOfConversation}
+      searchLabel="Search turns"
+      treeLabel="Turns by conversation"
+      collapseLabel="Collapse the turn list"
+      emptyText={loaded ? 'No turns yet.' : 'Reading the turns…'}
+      noMatchText={query => `No turn matches “${query}”.`}
+      {...list}
+    />
   );
 }
 
@@ -311,24 +398,23 @@ function statusOf(turn: ListedTurn): TurnStatus {
   return turn.open ? 'open' : (turn.outcome ?? 'open');
 }
 
-function Group({
+function Group<T extends ListedTurn>({
   group,
+  line,
   open,
   selected,
   active,
   onToggle,
   onSelect,
 }: {
-  group: TurnGroup<ListedTurn>;
+  group: TurnGroup<T>;
+  line: GroupLine;
   open: boolean;
   selected: string | undefined;
   active: string | undefined;
   onToggle: () => void;
-  onSelect: (traceId: string) => void;
+  onSelect: (id: string) => void;
 }) {
-  const newest = group.turns[0];
-  const icon = STATUS_ICONS[statusOf(newest)];
-  const meta = [group.agentName, plural(group.turns.length, 'turn')].filter(Boolean).join(' · ');
   const id = groupItemId(group.key);
   return (
     <div className="fade-in-quick pt-0.5 pb-1">
@@ -346,18 +432,14 @@ function Group({
           active === id && ACTIVE,
         )}
       >
-        <Icon kind={icon} size={16} className={cn('mt-0.5', toneOf(icon))} />
+        <Icon kind={line.icon} size={16} className={cn('mt-0.5', toneOf(line.icon))} />
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline gap-2">
-            <span className="min-w-0 flex-1 truncate font-medium">
-              {briefText(group.title) || 'A turn'}
-            </span>
-            <span className="shrink-0 text-xs text-muted-foreground">
-              {formatClock(newest.startTime)}
-            </span>
+            <span className="min-w-0 flex-1 truncate font-medium">{line.title}</span>
+            <span className="shrink-0 text-xs text-muted-foreground">{line.time}</span>
           </span>
           <span className="mt-px flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="truncate">{meta}</span>
+            <span className="truncate">{line.meta}</span>
             <ProblemMark count={group.problems} size={12} />
           </span>
         </span>
@@ -367,12 +449,13 @@ function Group({
           className="mt-0.5 text-muted-foreground"
         />
       </button>
+      {open && line.reason !== undefined && (
+        <p className="mb-1 ml-8 pr-2 text-xs leading-4 wrap-anywhere text-muted-foreground">
+          {line.reason}
+        </p>
+      )}
       {open && (
-        <div
-          role="group"
-          aria-label={briefText(group.title)}
-          className="flex flex-col gap-px pl-3.5"
-        >
+        <div role="group" aria-label={line.title} className="flex flex-col gap-px pl-3.5">
           {group.turns.map(turn => (
             <Row
               key={turn.traceId}

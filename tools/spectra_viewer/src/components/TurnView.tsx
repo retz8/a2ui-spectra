@@ -12,7 +12,7 @@ import {
   stepHeaderPartsOf,
   uiSectionsOf,
 } from '@/model/a2ui_step.ts';
-import type {NodeRef} from '@/model/address.ts';
+import type {Address, NodeRef} from '@/model/address.ts';
 import {checkLinesOf, checkStateOf} from '@/model/check_state.ts';
 import {keptPick, nextProblem, pickedRowId, pickForKey, stepInView} from '@/model/follow.ts';
 import {inputBriefOfTurn} from '@/model/input_brief.ts';
@@ -23,7 +23,23 @@ import {agentMessages} from '@/model/messages.ts';
 import {previewProblemsOf, routeOf, surfaceFeedOf, targetOf} from '@/model/preview.ts';
 import {modelReadingOf, timedEventOf} from '@/model/call_rows.ts';
 import {isProxyModelCall, isReadInFull} from '@/model/model_calls.ts';
-import {candidatesFor, type PrefixBreak, prefixBreakOf} from '@/model/prefix.ts';
+import {fixtureLinePartsOf} from '@/model/fixtures.ts';
+import {
+  candidatesFor,
+  type PrefixBreak,
+  prefixBreakOf,
+  recordedCandidatesFor,
+  replayPrefixBreakOf,
+} from '@/model/prefix.ts';
+import {
+  callReplayOf,
+  type RecordedCall,
+  recordedCallsOf,
+  rowTagsOf,
+  sourceAddressOf,
+  sourceName,
+  traceIdOfTurn,
+} from '@/model/provenance.ts';
 import {type Problem, onlyProblems, turnProblemsOf} from '@/model/problems.ts';
 import {
   isCallEvent,
@@ -34,6 +50,7 @@ import {
   isWireOutput,
   type ModelCallEvent,
   type Turn,
+  type TurnRecord,
   type TurnRecordEvent,
   unixMillis,
 } from '@/model/record.ts';
@@ -53,12 +70,21 @@ import {
   usePendingAction,
 } from '@/state/press.ts';
 import {setRenderErrorsInView} from '@/state/render_errors.ts';
-import {type TurnView as TurnViewState, turnViewOf, useNeededRecords} from '@/state/selectors.ts';
+import type {SavedState} from '@/state/fixtures.ts';
+import {
+  provenanceOfTurn,
+  replayLineOf,
+  sourceInView,
+  type TurnView as TurnViewState,
+  turnViewOf,
+  useNeededRecords,
+} from '@/state/selectors.ts';
 import {useSpectra} from '@/state/spectra.ts';
 import {requestTimelineFocus} from '@/state/timeline_focus.ts';
 import {useSmallWindow} from '@/state/window.ts';
 
 import {Composer} from './Composer.tsx';
+import {FixtureLine, ReplayControl, ReplayedLine, SaveAsFixture} from './FixtureControls.tsx';
 import {FirstScreen} from './FirstScreen.tsx';
 import {formatDuration, formatOffset, formatStart} from './format.ts';
 import type {StepOnCall} from './ModelCallDetail.tsx';
@@ -95,8 +121,12 @@ export function TurnView({
   selection,
   onSelect,
   onStep,
+  onAddress,
+  onReplayStarted,
   listEmpty,
   heldWidth,
+  draft,
+  onDraft,
 }: {
   traceId: string | undefined;
   /** Whether the turn list, showing the agent picked, has no turn. */
@@ -117,6 +147,13 @@ export function TurnView({
   onSelect: (traceId: string, stepId?: string) => void;
   /** Selects a step of the turn, or none, and a tree node with it, putting them in the page address. */
   onStep: (traceId: string, stepId: string | undefined, node?: NodeRef) => void;
+  /** Goes to an address, in either section. */
+  onAddress: (address: Address) => void;
+  /** A replay started from the header: its first turn has opened. */
+  onReplayStarted: (traceId: string) => void;
+  /** The composer's text, kept across a visit to Fixtures. */
+  draft: string;
+  onDraft: (text: string) => void;
 }) {
   const state = useSpectra();
   // Maximize holds from turn to turn until the page is reloaded.
@@ -125,7 +162,6 @@ export function TurnView({
   const view: TurnViewState =
     traceId === undefined ? {status: 'none'} : turnViewOf(state, traceId, needs);
   useNeededRecords(needs);
-  const [draft, setDraft] = useState('');
   const input = useRef<HTMLTextAreaElement>(null);
   // A new conversation asked for holds until a turn is selected.
   const selected = `${selection}:${traceId ?? ''}`;
@@ -164,7 +200,7 @@ export function TurnView({
         connected={state.connected}
         canSend={state.box.unavailable === undefined}
         onExample={example => {
-          setDraft(example);
+          onDraft(example);
           input.current?.focus();
         }}
       />
@@ -187,6 +223,8 @@ export function TurnView({
         node={node}
         onStep={(next, nextNode) => onStep(traceId, next, nextNode)}
         onOther={onSelect}
+        onAddress={onAddress}
+        onReplayStarted={onReplayStarted}
         maximized={maximized}
         onMaximized={setMaximized}
       />
@@ -201,7 +239,7 @@ export function TurnView({
         {body}
         <Composer
           text={draft}
-          onText={setDraft}
+          onText={onDraft}
           inputRef={input}
           onSent={onSelect}
           traceId={traceId}
@@ -221,7 +259,7 @@ export function TurnView({
   );
 }
 
-function Empty({children}: {children: string}) {
+export function Empty({children}: {children: string}) {
   return (
     <div className="flex min-h-0 flex-1 items-center justify-center p-8 text-center text-muted-foreground">
       {children}
@@ -229,15 +267,18 @@ function Empty({children}: {children: string}) {
   );
 }
 
-function TurnBody({
+export function TurnBody({
   traceId,
   view,
   stepId: picked,
   node,
   onStep: setPicked,
   onOther,
+  onAddress,
+  onReplayStarted,
   maximized,
   onMaximized,
+  fixture,
 }: {
   traceId: string;
   view: Extract<TurnViewState, {status: 'open' | 'closed'}>;
@@ -248,9 +289,15 @@ function TurnBody({
   onStep: (stepId: string | undefined, node?: NodeRef) => void;
   /** Selects a step of another turn, such as the earlier call a prefix break names. */
   onOther: (traceId: string, stepId: string) => void;
+  /** Goes to an address, in either section: a replay's source. */
+  onAddress: (address: Address) => void;
+  /** A replay started from the header: its first turn has opened. */
+  onReplayStarted: (traceId: string) => void;
   /** Whether the step's detail takes the result pane's height. */
   maximized: boolean;
   onMaximized: (maximized: boolean) => void;
+  /** The fixture the turn is read from, in the fixture view. */
+  fixture?: {name: string; record: TurnRecord; saved: SavedState};
 }) {
   const state = useSpectra();
   const small = useSmallWindow();
@@ -268,9 +315,30 @@ function TurnBody({
   const timeline = useMemo(() => timelineOf(events, startMs), [events, startMs]);
   // The A2UI step, worked out when shown: the retries among the model calls, and what the readers know of the catalogs.
   const retries = useMemo(() => retriesOf(events), [events]);
-  const tags = useMemo(
-    () => new Map([...retries].map(([id, retry]) => [id, `Retry ${retry.attempt}`])),
-    [retries],
+  const tags = useMemo(() => rowTagsOf(timeline, retries), [timeline, retries]);
+  // A replayed turn: what it came from, where that is now, and the source's turns once read.
+  const provenance = useMemo(
+    () => provenanceOfTurn(state, traceId, events),
+    [state, traceId, events],
+  );
+  const source = useMemo(
+    () => (provenance === undefined ? undefined : sourceInView(state, provenance)),
+    [state, provenance],
+  );
+  const sourceNeeds = source?.needs;
+  const neededSource = useMemo(
+    () => (sourceNeeds === undefined ? [] : [sourceNeeds]),
+    [sourceNeeds],
+  );
+  useNeededRecords(neededSource);
+  const sourceTurns = source?.turns;
+  const recordedCalls = useMemo(
+    () => (sourceTurns === undefined ? [] : recordedCallsOf(sourceTurns)),
+    [sourceTurns],
+  );
+  const recordedTurn = useMemo(
+    () => sourceTurns?.find(each => traceIdOfTurn(each) === provenance?.recordedTurn),
+    [sourceTurns, provenance?.recordedTurn],
   );
   const readerCatalog = useMemo(() => readerCatalogOf(state.catalogs), [state.catalogs]);
   const hasStep = useMemo(
@@ -286,8 +354,8 @@ function TurnBody({
   );
   // The record's problems: the checks' findings, web core's rejections and a failed outcome.
   const recorded = useMemo(
-    () => turnProblemsOf(events, timeline, whole?.rejections ?? []),
-    [events, timeline, whole],
+    () => turnProblemsOf(events, timeline, whole?.rejections ?? [], recordedTurn),
+    [events, timeline, whole, recordedTurn],
   );
   const recordedByStep = useMemo(
     () => countBy(recorded.problems, problem => problem.stepId),
@@ -466,6 +534,7 @@ function TurnBody({
     isReadInFull(selectedRow.proxy as ModelCallEvent)
       ? (selectedRow.proxy as ModelCallEvent)
       : undefined;
+  const sourceLabel = source === undefined ? undefined : sourceName(source.resolved);
   const prefix = useMemo(() => {
     if (selectedCall === undefined || earlier === undefined) return undefined;
     const turns = [
@@ -475,8 +544,16 @@ function TurnBody({
       })),
       {traceId, calls: events.filter(isProxyModelCall)},
     ];
-    return prefixBreakOf(selectedCall, candidatesFor(selectedCall, turns));
-  }, [selectedCall, earlier, events, traceId]);
+    const conversation = candidatesFor(selectedCall, turns);
+    if (provenance === undefined || sourceLabel === undefined) {
+      return prefixBreakOf(selectedCall, conversation);
+    }
+    return replayPrefixBreakOf(selectedCall, {
+      mode: provenance.mode,
+      conversation,
+      recorded: recordedCandidatesFor(selectedCall, recordedCalls, sourceLabel),
+    });
+  }, [selectedCall, earlier, events, traceId, provenance, sourceLabel, recordedCalls]);
   const stepOnCall: StepOnCall | undefined =
     selectedRow?.kind === 'model'
       ? {
@@ -493,13 +570,26 @@ function TurnBody({
           },
         }
       : undefined;
+  const toRecorded = (turnOf: string, spanId: string) => {
+    const to = source === undefined ? undefined : sourceAddressOf(source.resolved, turnOf, spanId);
+    if (to !== undefined) onAddress(to);
+  };
   const onEarlier = (found: Exclude<PrefixBreak, {form: 'first'}>) => {
-    const {traceId: turnOf, call} = found.earlier;
+    const {traceId: turnOf, call, recorded} = found.earlier;
     // The timeline takes focus once the earlier call is selected, so the keys go on from it.
     requestTimelineFocus();
-    if (turnOf === traceId) setPicked(call.spanId);
+    if (recorded !== undefined) toRecorded(turnOf, call.spanId);
+    else if (turnOf === traceId) setPicked(call.spanId);
     else onOther(turnOf, call.spanId);
   };
+  const onRecorded = ({traceId: turnOf, call}: RecordedCall) => {
+    requestTimelineFocus();
+    toRecorded(turnOf, call.spanId);
+  };
+  const callReplay =
+    selectedRow === undefined || provenance === undefined || source === undefined
+      ? undefined
+      : callReplayOf(selectedRow, provenance, source.resolved, sourceTurns);
 
   // The page address holds the step selected, picked or landed on; a pick not in a closed turn gives way.
   const shownId = inView.selected ? selected?.id : undefined;
@@ -573,6 +663,11 @@ function TurnBody({
 
   const row = state.turns.find(listed => listed.traceId === traceId);
   const input = turn === undefined ? undefined : inputBriefOfTurn(turn);
+  // What a replay of this turn sends: the whole fixture, or the turn's conversation up to it.
+  const recordTurns = fixture?.record.turns ?? [
+    ...(earlier ?? []),
+    ...(turn === undefined ? [{events: [...events]}] : [turn]),
+  ];
   const title = briefText(input ?? row?.input) || 'A turn';
   const agent = summary?.agentName ?? row?.agentName ?? state.context?.agentName;
   // An open turn's duration runs to its newest step, or to the present while a call is in
@@ -604,6 +699,45 @@ function TurnBody({
         traceId={traceId}
         conversationId={summary?.conversationId ?? (open ? view.live.conversationId : undefined)}
         {...(inside !== undefined && {inside})}
+        fixtureLine={
+          fixture === undefined ? undefined : (
+            <FixtureLine
+              file={`${fixture.name}.json`}
+              parts={fixtureLinePartsOf({
+                turns: fixture.record.turns,
+                prices: state.prices,
+                saved: fixture.saved.text,
+              })}
+            />
+          )
+        }
+        actions={
+          <>
+            {fixture === undefined && (
+              <SaveAsFixture
+                traceId={traceId}
+                input={input ?? row?.input}
+                turns={(earlier?.length ?? 0) + 1}
+                disabled={open}
+                onOpenFixture={name => onAddress({section: 'fixtures', fixture: name})}
+              />
+            )}
+            <ReplayControl
+              source={fixture === undefined ? {traceId} : {fixture: fixture.name}}
+              turns={recordTurns}
+              onStarted={onReplayStarted}
+            />
+          </>
+        }
+        replayLine={
+          provenance === undefined || source === undefined ? undefined : (
+            <ReplayedLine
+              line={replayLineOf(state, traceId, provenance, source, (earlier?.length ?? 0) + 1)}
+              recordedTurn={provenance.recordedTurn}
+              onAddress={onAddress}
+            />
+          )
+        }
       />
       <ResizablePanelGroup
         orientation="horizontal"
@@ -734,6 +868,8 @@ function TurnBody({
                     setPicked(id);
                   }}
                   stepOnCall={stepOnCall}
+                  callReplay={callReplay}
+                  onRecorded={onRecorded}
                 />
               )}
             </ResizablePanel>

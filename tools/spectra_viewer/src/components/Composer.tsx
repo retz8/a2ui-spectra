@@ -87,7 +87,8 @@ export function Composer({
       ? STATUS_ICONS[target.open ? 'open' : (target.outcome ?? 'open')]
       : 'plus';
   const label = turnOpen ? 'A turn is open' : labelOf(target);
-  const disabled = view.waiting !== undefined || sending;
+  const replaying = view.replaying === true;
+  const disabled = view.waiting !== undefined || sending || replaying;
   // A header's variable that is not set: the field stays, Send does not, and the reason takes the label's place.
   const refused = view.refused;
   // An action only continues a conversation the box started; elsewhere the reason takes the label's place.
@@ -165,7 +166,12 @@ export function Composer({
   return (
     <div className="flex shrink-0 flex-col gap-2 border-t px-4 pt-2.5 pb-3.5">
       <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-        {refused !== undefined ? (
+        {replaying ? (
+          <>
+            <Icon kind="failed" size={14} />
+            <span className="min-w-0 truncate">Can't send · a replay is running</span>
+          </>
+        ) : refused !== undefined ? (
           <span className="min-w-0 truncate">{refusedLine(refused)}</span>
         ) : actionRefused !== undefined ? (
           <>
@@ -179,7 +185,7 @@ export function Composer({
           </>
         )}
         <div className="flex-1" />
-        {target.kind !== 'new' && (
+        {target.kind !== 'new' && !replaying && (
           <button
             type="button"
             onClick={() => {
@@ -225,9 +231,13 @@ export function Composer({
             onKeyDown={onKeyDown}
             disabled={disabled}
             placeholder={
-              turnOpen
-                ? 'Waiting for the turn to finish'
-                : (view.waiting ?? (waitsForInput ? `Reply to ${agent}` : `Message ${agent}`))
+              replaying
+                ? waitsForInput
+                  ? `Reply to ${agent}`
+                  : `Message ${agent}`
+                : turnOpen
+                  ? 'Waiting for the turn to finish'
+                  : (view.waiting ?? (waitsForInput ? `Reply to ${agent}` : `Message ${agent}`))
             }
             className="max-h-33 min-w-0 flex-1 resize-none bg-transparent py-1.5 text-sm leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-default"
           />

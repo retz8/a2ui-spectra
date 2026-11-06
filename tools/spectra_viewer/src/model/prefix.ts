@@ -97,6 +97,8 @@ export interface Candidate {
   call: ModelCallEvent;
   /** The trace id of the turn it is in. */
   traceId: string;
+  /** A call of a replay's source record: its start after its turn's, and how the source reads. */
+  recorded?: {offsetMs: number; name: string};
 }
 
 /** The two lines around a break: the text before the differing span, the span, and the text after it. */
@@ -112,6 +114,8 @@ export interface Marker {
   current: LineParts;
   /** This call's text of the segment after that line. */
   after: string;
+  /** What the first line is called, when it is not the earlier call's. */
+  earlierLabel?: string;
 }
 
 /** The prefix break's sentence, in its four forms, with the call it was compared with. */
@@ -230,7 +234,10 @@ export function prefixBreakOf(
     earlier: candidate,
     part: segment.part,
     ...(message !== undefined && {message}),
-    marker: markerOf(earlierText, segment.text, found.offset, found.segment),
+    marker: {
+      ...markerOf(earlierText, segment.text, found.offset, found.segment),
+      ...(candidate.recorded !== undefined && {earlierLabel: 'Recorded call'}),
+    },
   };
 }
 
@@ -253,6 +260,52 @@ export function candidatesFor(
       )
       .map(other => ({call: other, traceId})),
   );
+}
+
+/** A replay's candidates: the source record's model calls read in full with this call's model. */
+export function recordedCandidatesFor(
+  call: ModelCallEvent,
+  recorded: ReadonlyArray<{call: {spanId: string}; traceId: string; offsetMs: number}>,
+  name: string,
+): Candidate[] {
+  const model = call.attributes['gen_ai.request.model'];
+  if (typeof model !== 'string') return [];
+  return recorded.flatMap(found => {
+    const other = found.call as ModelCallEvent;
+    if (
+      other.attributes['a2ui.event.kind'] !== 'model_call' ||
+      !isReadInFull(other) ||
+      other.attributes['gen_ai.request.model'] !== model
+    ) {
+      return [];
+    }
+    return [{call: other, traceId: found.traceId, recorded: {offsetMs: found.offsetMs, name}}];
+  });
+}
+
+/**
+ * The prefix break of a call in a replayed turn: a miss against the record
+ * alone, in the miss's own form; a live call of a live-mode replay against the
+ * conversation and the record together, the first call of a conversation so
+ * reading against the call it would have been served; a served call against
+ * the conversation, as on any turn.
+ */
+export function replayPrefixBreakOf(
+  call: ModelCallEvent,
+  {
+    mode,
+    conversation,
+    recorded,
+  }: {
+    mode: 'recorded' | 'model_live';
+    conversation: readonly Candidate[];
+    recorded: readonly Candidate[];
+  },
+): PrefixBreak | undefined {
+  if (call.attributes['error.type'] === 'replay_miss') return prefixBreakOf(call, recorded);
+  const live =
+    mode === 'model_live' && typeof call.attributes['a2ui.replay.served_from'] !== 'string';
+  return prefixBreakOf(call, live ? [...conversation, ...recorded] : conversation);
 }
 
 /** The part a break is in, as the sentence names it. */
