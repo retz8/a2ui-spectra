@@ -171,7 +171,8 @@ describe(`fixtures and replay against the stub agent, ${binary ? 'the binary' : 
             [second.traceId, 'passed'],
           ],
         );
-        assert.match(spectra.output, /Replay of fixtures\/greet-ada\.json, turn 2 of 2: passed\./);
+        // The stream's event can arrive before Spectra's terminal line is read: wait for the line.
+        await spectra.waitFor(/Replay of fixtures\/greet-ada\.json, turn 2 of 2: passed\./);
 
         // Each replayed turn's record carries the provenance and the verdict, and validates.
         for (const [index, turn] of replayed.entries()) {
@@ -241,7 +242,7 @@ describe(`fixtures and replay against the stub agent, ${binary ? 'the binary' : 
           /^\/events\/\d+\/attributes\/a2ui\.wire\.message\/parts\/\d+\/content(\/0)?$/,
         );
         assert.deepEqual(turnRecordErrors(failedRecord), []);
-        assert.match(spectra.output, /turn 2 of 2: failed \(The A2UI differs from the record/);
+        await spectra.waitFor(/turn 2 of 2: failed \(The A2UI differs from the record/);
 
         // A file dropped into a nested folder shows at once.
         mkdirSync(path.join(cwd, 'fixtures', 'nested'));
