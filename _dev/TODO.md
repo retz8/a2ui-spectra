@@ -12,8 +12,17 @@ Each phase's full section, its sub-tasks and what landed, as it closed: `_dev/TO
 - **Phase 6 — The A2UI step** · done 2026-11-04 · spec `_dev/docs/spec/phase-6-the-a2ui-step.md`
 - **Phase 7 — Fixtures and replay** · done 2026-11-09 · spec `_dev/docs/spec/phase-7-fixtures-and-replay.md`
 
-## Phase 8 — The dev loop
+## Phase 8 — The dev loop [WIP]
 Agent restart and logs, restart on save, re-run the last turn, the preview reloading from the catalog's dev server.
+Spec: `_dev/docs/spec/phase-8-the-dev-loop.md`.
+
+- [ ] **8.1** The design artifact — Phase 8's boards on the existing canvas, in light and dark: the context bar with Restart and Logs and the live status's forms, starting, waiting for the card, running, restarting, down with its exit line; the logs drawer with lines, restart dividers and turn markers; the turn list's restart divider; Re-run in the header with its disabled notes and the re-run turn's header line; the preview pane's reloading and stopped-answering states; the agent popover's catalog line after a failed read; the Flow row, edit, save, restart, re-run, see; the 1,200 × 760 board. (parallel with 8.2, 8.4 and 8.5)
+- [ ] **8.2** The agent's process under `run` — Spectra outliving the agent, the viewer, the wire proxy and the box starting with the launch; the restart with the cut of open turns, the stop of the group and the card read again, the session following the card; the process's state and events on the API and the stream; the Restart route; the terminal lines; the README's line on the agent's output corrected. (parallel with 8.1, 8.4 and 8.5)
+- [ ] **8.3** Logs and the save watcher — the output buffer, its echo to the terminal, its route and events, the restart dividers; the watcher on the working directory with the ignore list and the debounce, the `watch` setting and its schema, the file named in the terminal. (after 8.2)
+- [ ] **8.4** Re-run — the replay driver's third mode with no pool armed and no verdict; `live` in the turn record's prose and schema; the API's mode. (parallel with 8.1, 8.2 and 8.5)
+- [ ] **8.5** The catalog's loop — each configured catalog file watched and read again, its stream event and the viewer's refetch, a bad read keeping the last good definition; the preview pane's reload handling on the iframe's load event. (parallel with 8.1, 8.2 and 8.4)
+- [ ] **8.6** The viewer — Restart and Logs in the context bar, the live status's forms, the logs drawer with its dividers and turn markers, the turn list's restart divider, Re-run in the header with its states and the re-run turn's line, the first screen's starting and down forms, the composer's state while the agent is down. (after 8.1, 8.2, 8.3 and 8.4)
+- [ ] **8.7** The acceptance run — the Python restaurant finder, the Node restaurant finder and the custom-components example through the tunnel at the pin: the loop on each, edit, save, restart, re-run, see; a crash at launch and after a save, with the logs; the preview reload on the React, Lit and Angular sample pages; a catalog definition change; every board in light and dark; the documents. (last)
 
 ## Phase 9 — Upstream v1.0 and supported versions
 The upgrade to upstream's v1.0 as its current version; which protocol versions and which upstream SDKs Spectra supports; the basic root README.
@@ -44,3 +53,4 @@ The demo, with the restaurant finder in Python and in TypeScript producing the s
 - A rejected block's failing message marked within it in the raw text, the messages a stream accepted and sent before it left plain.
 - A JUnit or other report format for `a2ui-spectra test`, for the CI systems that read one; v1 prints plain terminal lines.
 - The tool proxy keeping the MCP session housekeeping it saw outside any turn, such as an `initialize` an agent sends at start, in the record it writes next, so that a replay of that agent serves its `initialize`; at the Phase 7 pin the targets connect inside the turn.
+- `a2ui-spectra replay <file> --live`, the replay driver's third mode on the command line, every call live, refused by `test` as `--model-live` is.
