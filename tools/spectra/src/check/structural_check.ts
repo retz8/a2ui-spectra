@@ -1,15 +1,16 @@
 /**
  * The structural check, on each surface the turn touched as it stands at the
  * turn's close in web core's state: a walk from `root` over web core's child
- * references finds a child id with no component, a component the walk never
- * reaches, and a surface with no `root`. What web core refused to let into
- * the state, a cycle or self-reference, a duplicate component id in one
- * message and a broken composition rule, is a finding on the message web
- * core threw on, in web core's own words. A surface the turn names that no
- * `createSurface` of the conversation created is a finding on the first
- * message of the turn naming it. A surface whose catalog has no definition is
- * skipped, as the Phase 4 spec has it: without the catalog's reference map
- * there are no child references to walk.
+ * references finds a child id with no component, a component this turn's
+ * messages carried that the walk never reaches, and a surface with no `root`; a
+ * component an earlier turn left unreachable is not reported again. What web
+ * core refused to let into the state, a cycle or self-reference, a duplicate
+ * component id in one message and a broken composition rule, is a finding on
+ * the message web core threw on, in web core's own words. A surface the turn
+ * names that no `createSurface` of the conversation created is a finding on the
+ * first message of the turn naming it. A surface whose catalog has no
+ * definition is skipped, as the Phase 4 spec has it: without the catalog's
+ * reference map there are no child references to walk.
  */
 import type {Finding} from '../record/turn_record.js';
 import type {CheckResult} from './check_event.js';
@@ -87,10 +88,12 @@ export function checkStructural(conversation: Conversation): CheckResult {
     for (const id of model.keys) {
       if (visited.has(id)) continue;
       const carrier = conversation.carrier(surfaceId, id);
+      // Only a component this turn carried is judged; an earlier turn's left behind is not reported again.
+      if (carrier?.own !== true) continue;
       findings.push({
         code: 'COMPONENT_UNREACHABLE',
         surfaceId,
-        ...(carrier?.own && {path: carrier.path}),
+        path: carrier.path,
         message: `The component '${id}' in the surface '${surfaceId}' is not reachable from '${rootId}'.`,
       });
     }

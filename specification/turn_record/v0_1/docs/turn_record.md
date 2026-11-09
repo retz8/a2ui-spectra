@@ -369,7 +369,7 @@ The checks:
 
 - **`schema`:** each A2UI message the agent sent matches the schema of its protocol version.
 - **`catalog`:** each component the agent sent matches its catalog's definition, and so do the function calls and the theme the catalog defines.
-- **`structural`:** on each surface the turn touched, as it stands at the turn's close: every child id points to an existing component, a component has the id `root`, every component is reachable from it, nothing loops back on itself, no id is given to two components in one message, and the catalog's composition rules hold; and every surface a message names was created.
+- **`structural`:** on each surface the turn touched, as it stands at the turn's close: every child id points to an existing component, a component has the id `root`, every component this turn's messages carried is reachable from it, nothing loops back on itself, no id is given to two components in one message, and the catalog's composition rules hold; and every surface a message names was created. A component an earlier turn left unreachable is not reported again.
 - **`binding`:** on the same surfaces, every path the UI binds to has a value in the data model.
 
 A skipped surface is an object:
@@ -403,7 +403,7 @@ The codes:
 | `COMPONENT_UNKNOWN`                   | `catalog`           | A component type the catalog does not define.                                                                                                  |
 | `FUNCTION_UNKNOWN`                    | `catalog`           | A function the catalog does not define.                                                                                                        |
 | `CHILD_NOT_FOUND`                     | `structural`        | A child id with no component.                                                                                                                  |
-| `COMPONENT_UNREACHABLE`               | `structural`        | A component the root does not reach.                                                                                                           |
+| `COMPONENT_UNREACHABLE`               | `structural`        | A component this turn's messages carried that the root does not reach.                                                                         |
 | `ROOT_MISSING`                        | `structural`        | No component with the id `root`.                                                                                                               |
 | `CYCLIC_REFERENCE`                    | `structural`        | A component that reaches itself.                                                                                                               |
 | `DUPLICATE_COMPONENT_ID`              | `structural`        | An id given to two components in one message.                                                                                                  |

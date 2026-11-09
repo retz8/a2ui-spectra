@@ -364,6 +364,71 @@ describe('the structural check', () => {
     ]);
   });
 
+  it('gives no finding for the components an earlier turn left behind when this turn repaints the surface', () => {
+    const earlier = testTurn({
+      messages: [
+        createSurface('s'),
+        updateComponents('s', [
+          {id: 'root', component: 'Column', children: ['a', 'b']},
+          {id: 'a', component: 'Text', text: 'A'},
+          {id: 'b', component: 'Text', text: 'B'},
+        ]),
+      ],
+    });
+    const later = testTurn({
+      messages: [
+        updateComponents('s', [
+          {id: 'root', component: 'Column', children: ['c']},
+          {id: 'c', component: 'Text', text: 'C'},
+        ]),
+      ],
+    });
+    assert.deepEqual(run(later, [earlier]), {findings: [], skipped: []});
+  });
+
+  it("reports a component this turn adds to an earlier turn's surface that nothing reaches, at the component", () => {
+    const earlier = testTurn({
+      messages: [
+        createSurface('s'),
+        updateComponents('s', [{id: 'root', component: 'Text', text: 'A'}]),
+      ],
+    });
+    const later = testTurn({
+      messages: [updateComponents('s', [{id: 'toast', component: 'Text', text: 'T'}])],
+    });
+    assert.deepEqual(run(later, [earlier]).findings, [
+      {
+        code: 'COMPONENT_UNREACHABLE',
+        surfaceId: 's',
+        path: `${pointer(0)}/updateComponents/components/0`,
+        message: "The component 'toast' in the surface 's' is not reachable from 'root'.",
+      },
+    ]);
+  });
+
+  it('reports a component an earlier turn carried that this turn sends again, still unreached, at the component', () => {
+    const earlier = testTurn({
+      messages: [
+        createSurface('s'),
+        updateComponents('s', [
+          {id: 'root', component: 'Text', text: 'A'},
+          {id: 'lost', component: 'Text', text: 'B'},
+        ]),
+      ],
+    });
+    const later = testTurn({
+      messages: [updateComponents('s', [{id: 'lost', component: 'Text', text: 'B again'}])],
+    });
+    assert.deepEqual(run(later, [earlier]).findings, [
+      {
+        code: 'COMPONENT_UNREACHABLE',
+        surfaceId: 's',
+        path: `${pointer(0)}/updateComponents/components/0`,
+        message: "The component 'lost' in the surface 's' is not reachable from 'root'.",
+      },
+    ]);
+  });
+
   it('does not re-check a surface the turn did not touch', () => {
     const earlier = testTurn({
       messages: [

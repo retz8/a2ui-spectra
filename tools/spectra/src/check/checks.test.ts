@@ -151,11 +151,9 @@ describe('the four checks on recorded turns', () => {
         earlierV1(7, 'stub-notice', 'confirmation'),
       ],
       'react_client/node_restaurant_finder_text_and_action.json': [{}, {}],
-      // The wizard's second step replaces the root and leaves the first step's components behind.
-      'strathweb_booking_wizard/send_then_stream.json': [
-        {},
-        {structural: {codes: Array.from({length: 5}, () => 'COMPONENT_UNREACHABLE'), skipped: []}},
-      ],
+      // The wizard's second step sends `step` and `nav` again with new children and leaves the first
+      // step's components behind: an earlier turn's, so the structural check does not report them.
+      'strathweb_booking_wizard/send_then_stream.json': [{}, {}],
       'stub_agent/cancel_a2a_0_3.json': [null],
       'stub_agent/cancel_a2a_1_0.json': [null],
       'stub_agent/flawed_booking_a2a_1_0.json': [
