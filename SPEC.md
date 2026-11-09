@@ -71,6 +71,8 @@ None of them sees inside the turn (the exact model request, the raw response, to
 
   A cache keyed by the exact request means an unchanged request never reaches the model twice. This is the record-and-replay pattern of Ruby's VCR and Netflix's Polly.js, applied to model calls.
 
+  The two modes differ in what a miss does. In both, a request identical to a recorded one is served from the record. With everything recorded, a request that matches nothing is an error and no call leaves the machine; with the model live, a model request that matches nothing goes to the provider, so a replay after a prompt edit pays only from the point where the request changed. A tool request that matches nothing has no live fallback in either mode.
+
 - A test command that runs every fixture with model and tools recorded, for CI.
 
 **The dev loop**
@@ -178,12 +180,14 @@ catalog ──▶ prompt generator ──▶ prompt ──▶ model ──▶ ra
 
 ## Replay and storage
 
-- **Model calls:** the model proxy records and replays them, keyed by the exact request content. Credentials are not part of the key.
-- **Tool calls:** the tool proxy does the same for MCP servers and HTTP tools.
-- **Replaying a fixture:** start the agent pointed at Spectra in replay mode, then send the recorded request over the wire.
+- **Model calls:** the model proxy records and replays them, keyed by the exact request content: the method, the URL as the proxy would forward it with credential parameters removed, and the body, compared by value when it is JSON. Headers and credentials are not part of the key.
+- **Tool calls:** the tool proxy does the same for MCP servers and HTTP tools. An MCP request keys by its method and params, its `id` and `params._meta` left out.
+- **The order:** requests with the same key are served in recorded order, each once, from one pool holding every recorded turn's calls; one more is a miss.
+- **Replaying a fixture:** start the agent pointed at Spectra in replay mode, then send the recorded request over the wire, the conversation's earlier turns first.
+- **The verdict:** a replayed turn passes when every call was served from the record, its outcome is the recorded one, and its A2UI messages equal the recorded ones by value, in order. The checks run on it as on any turn and report beside the verdict without gating it. A record passes when every turn passes.
 - **Storage:** plain files.
   - Turns captured during development go to a local store that git ignores, by default.
-  - Save as fixture writes the turn record where the adopter decides. What content is safe to commit is the adopter's call.
+  - Save as fixture writes the turn record, whole, as `<name>.json` in the fixtures folder: the config file's `fixtures` setting, `a2ui-spectra-fixtures/` beside the config file by default, a visible folder outside the store. Every `.json` under it, recursively, lists and replays as a fixture. What content is safe to commit is the adopter's call.
   - Credentials are stripped at the proxy before anything reaches disk, always.
 
 ## Preview

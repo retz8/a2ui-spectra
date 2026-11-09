@@ -1904,3 +1904,41 @@ Skip `subscribeToRoot()` when already subscribed to the same surface. A temporar
 top of it, comparing `this.surface` to the surface last subscribed while `this.unsubscribe` is
 set, gave 3 reports and 2 calls in all three orders, and `@a2ui/lit`'s `node --test` stayed at
 126 passed and 3 skipped. A regression test needs to mount with `surface` set before attaching.
+
+## 46. The Python restaurant finder abandons ADK's run generator when its stream fails, and ADK's span fails to detach
+
+**Component:** `samples/agent/adk/restaurant_finder/agent.py`, with `google-adk` 2.3.0's
+`Runner.run_async`.
+
+**Severity:** an error traceback logged on every retried turn, and ADK's `invocation` span left
+attached past its turn. No turn failed for it. Seen at upstream `9e8a9bac5`.
+
+### Issue
+
+`token_stream` iterates `runner.run_async(...)` (`agent.py:286-302`), and the sample feeds it to
+`stream_response_to_parts` (`agent.py:307-308`). When the stream rejects a block, as on finding
+31's `Surface default already exists.`, the `ValueError` leaves `stream_response_to_parts`, and
+`token_stream` and ADK's generator under it are left suspended at a `yield`, neither closed. ADK
+holds its `invocation` span current across that `yield`: `_run_with_trace` runs inside
+`with tracer.start_as_current_span('invocation')` (`google/adk/runners.py:1045`), and
+`_run_node_async` yields each event from inside it (`runners.py:572`). The abandoned generator is
+closed later, outside the task that opened it: ADK logs `Root node restaurant_agent was
+cancelled.`, the `GeneratorExit` arrives at `runners.py:572`, and OpenTelemetry's context detach
+raises `ValueError: <Token var=<ContextVar name='current_context' …>> was created in a different
+Context`, logged by `opentelemetry.context` as `Failed to detach context`.
+
+### Reproduction
+
+Run the sample with a Gemini key, with or without `opentelemetry-instrument`, and send "Top 3
+Chinese restaurants in New York" over `message/stream`. After `A2UI stream failed: Surface default
+already exists. (Attempt 1)` and `Retrying... (1/2)`, the log holds `Root node restaurant_agent
+was cancelled.` and the traceback above. Seen on every retried turn of the Phase 7 acceptance run,
+under `attach` with nothing set in the agent's shell, trace `dada348a9de3c3e051938a1b8c98bf18`,
+and under `run`; the custom-components example logs the same traceback after its own retries,
+with `Root node contact_agent was cancelled.`
+
+### Fix
+
+Close the generator where it is abandoned, in the task that opened it: iterate `token_stream()`
+under `contextlib.aclosing` in `agent.py`, so the `ValueError` path closes ADK's generator in
+place. Not tried.
