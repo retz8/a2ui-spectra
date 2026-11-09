@@ -102,6 +102,25 @@ describe('a record with nothing to serve', () => {
     assert.equal(hasNothingToServe([turnOf(), turnOf(CALL)]), false);
   });
 
+  it("leaves out a model call or tool call read from the agent's spans, as the server's pool does", () => {
+    const fromSpans = (kind: 'model_call' | 'tool_call', spanId: string): TurnRecordEvent => ({
+      traceId: 'f'.repeat(32),
+      spanId,
+      name:
+        kind === 'model_call'
+          ? 'generate_content gemini-3.6-flash'
+          : 'execute_tool get_restaurants',
+      kind: 1,
+      startTimeUnixNano: '0',
+      endTimeUnixNano: '1',
+      attributes: {'a2ui.event.kind': kind, 'a2ui.received.dialect': 'adk'},
+      status: {code: 1},
+    });
+    const spans = [fromSpans('model_call', 'd'.repeat(16)), fromSpans('tool_call', 'e'.repeat(16))];
+    assert.equal(hasNothingToServe([turnOf(...spans)]), true);
+    assert.equal(hasNothingToServe([turnOf(CALL, ...spans)]), false);
+  });
+
   it("mirrors the server's pool on the tool calls it leaves out", () => {
     const request = {'mcp.method.name': 'tools/call', 'jsonrpc.request.id': 1};
     assert.equal(hasNothingToServe([turnOf(tool(request))]), false);

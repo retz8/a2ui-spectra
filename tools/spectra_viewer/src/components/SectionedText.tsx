@@ -10,7 +10,7 @@ import {type ReactNode, useState} from 'react';
 
 import {cn} from '@/lib/utils';
 import type {UiSection} from '@/model/a2ui_step.ts';
-import type {Marker} from '@/model/prefix.ts';
+import {type Marker, resumeAfterLine} from '@/model/prefix.ts';
 import {useBlockFold} from '@/state/block_folds.ts';
 
 import {CopyButton} from './CopyButton.tsx';
@@ -75,7 +75,7 @@ export function SectionedText({
     ) {
       return text.slice(piece.start, piece.end);
     }
-    const lineLength = marker.current.join('').length;
+    const resumeAt = resumeAfterLine(marker, text);
     const line = ([before, differing, after]: readonly [string, string, string]) => (
       <span className="min-w-0 break-words whitespace-pre-wrap">
         {before}
@@ -103,7 +103,9 @@ export function SectionedText({
           <span className="font-sans text-xs leading-5 text-muted-foreground">This call</span>
           {line(marker.current)}
         </span>
-        {text.slice(Math.min(piece.end, breakAt + lineLength), piece.end).replace(/^\n/, '')}
+        {text
+          .slice(Math.max(piece.start, Math.min(piece.end, resumeAt)), piece.end)
+          .replace(/^\n/, '')}
       </>
     );
   };

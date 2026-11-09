@@ -191,6 +191,49 @@ function changedCall(calls: ToolCallEvent[]): {name: string; arguments: Record<s
   return {name, arguments: args};
 }
 
+/**
+ * Posts a changed `tools/call` on an HTTP+SSE carrier it opens itself, and
+ * returns the message the carrier carries for it once the POST got its 502.
+ */
+async function missOnCarrier(
+  sseUrl: URL,
+  call: {name: string; arguments: Record<string, unknown>},
+): Promise<unknown> {
+  const abort = new AbortController();
+  const stream = await fetch(sseUrl, {
+    headers: {accept: 'text/event-stream'},
+    signal: abort.signal,
+  });
+  assert.ok(stream.body !== null, 'the carrier opens');
+  const reader = stream.body.pipeThrough(new TextDecoderStream()).getReader();
+  const parser = new SseParser();
+  const pending: Array<{event?: string; data: string}> = [];
+  const next = async (): Promise<{event?: string; data: string}> => {
+    while (pending.length === 0) {
+      const {value, done} = await reader.read();
+      assert.ok(!done, 'the carrier stays open');
+      pending.push(...parser.push(value));
+    }
+    return pending.shift()!;
+  };
+  try {
+    const endpoint = await next();
+    assert.equal(endpoint.event, 'endpoint');
+    const posted = await fetch(new URL(endpoint.data, sseUrl), {
+      method: 'POST',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify({jsonrpc: '2.0', id: 'changed-1', method: 'tools/call', params: call}),
+    });
+    assert.equal(posted.status, 502, 'the changed request gets the 502');
+    await posted.text();
+    const message = await next();
+    assert.equal(message.event, 'message');
+    return JSON.parse(message.data);
+  } finally {
+    abort.abort();
+  }
+}
+
 async function runCase(c: ReplayToolCase, transport: Transport, expectFile: string): Promise<void> {
   const expected = JSON.parse(
     fs.readFileSync(path.join(CONFORMANCE_DIR, expectFile), 'utf8'),
@@ -297,6 +340,16 @@ async function runCase(c: ReplayToolCase, transport: Transport, expectFile: stri
       assert.equal(answer.status, 502, 'the changed request gets the 502');
       assert.deepEqual(lines, [(await answer.text()).trimEnd()], 'the 502 carries the line');
       missName = 'POST /api/json';
+    } else if (transport === 'http_sse') {
+      // Under HTTP+SSE the client waits for its reply on the carrier: the miss answers there too.
+      const call = changedCall(toolCalls(record.turns[0]));
+      const error = await missOnCarrier(new URL(server.value), call);
+      assert.deepEqual(error, {
+        jsonrpc: '2.0',
+        id: 'changed-1',
+        error: {code: -32603, message: lines[0]},
+      });
+      missName = `tools/call ${call.name}`;
     } else {
       const call = changedCall(toolCalls(record.turns[0]));
       await withClient(transport, new URL(server.value), async client => {

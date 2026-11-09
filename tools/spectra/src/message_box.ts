@@ -17,6 +17,7 @@ import {joinInputMetadata} from './a2a/metadata.js';
 import {a2aPart} from './a2a/parts.js';
 import type {A2aVersion} from './a2a/protocol.js';
 import type {CatalogOffer} from './catalog/registry.js';
+import {type InputBrief, inputBriefOf} from './listing.js';
 import {
   isEventOfKind,
   type ReplayMode,
@@ -166,6 +167,8 @@ export class MessageBox {
   /** Oldest first; a new conversation joins once its first turn opens. */
   readonly #conversations: Conversation[] = [];
   #replaying: ReplayState | undefined;
+  /** Turns another host opened while a replay runs, named on the terminal once their input comes. */
+  readonly #foreign = new Set<string>();
 
   constructor(options: MessageBoxOptions) {
     this.#target = chooseInterface(options.card);
@@ -177,14 +180,29 @@ export class MessageBox {
     this.#fetch = options.fetch ?? fetch;
     this.#newMessageId = options.newMessageId ?? randomUUID;
     this.#unsubscribe = this.#turns.subscribe(event => {
-      if (event.type === 'turn_opened' && event.messageId !== undefined) {
-        const provenance = this.#provenance.get(event.messageId);
-        if (provenance !== undefined) {
+      if (event.type === 'turn_opened') {
+        const provenance =
+          event.messageId === undefined ? undefined : this.#provenance.get(event.messageId);
+        if (provenance !== undefined && event.messageId !== undefined) {
           this.#provenance.delete(event.messageId);
           this.#replayHooks?.annotate(event.traceId, provenance);
+        } else if (this.#replaying !== undefined) {
+          this.#foreign.add(event.traceId);
         }
-        this.#opening.get(event.messageId)?.(event.traceId);
+        if (event.messageId !== undefined) this.#opening.get(event.messageId)?.(event.traceId);
+      } else if (
+        event.type === 'wire_event' &&
+        this.#foreign.has(event.traceId) &&
+        isEventOfKind(event.event, 'wire_input')
+      ) {
+        this.#foreign.delete(event.traceId);
+        const source = this.#replaying?.source ?? 'the record';
+        this.#replayHooks?.log(
+          `A turn from another host opened while ${source} replays: ${briefLine(inputBriefOf(event.event))}, ` +
+            `trace ${event.traceId}. Its model and tool calls meet the record the proxies are replaying.`,
+        );
       } else if (event.type === 'turn_closed') {
+        this.#foreign.delete(event.traceId);
         this.#closing.get(event.traceId)?.(event.turn);
       }
     });
@@ -564,4 +582,12 @@ export function unsetVariablesClause(variables: readonly string[]): string {
       ? variables.join('')
       : `${variables.slice(0, -1).join(', ')} and ${variables[variables.length - 1]}`;
   return `${names} ${variables.length === 1 ? 'is' : 'are'} not set in Spectra's environment`;
+}
+
+/** A turn's input in brief, as a terminal line names it. */
+function briefLine(input: InputBrief | undefined): string {
+  if (input === undefined) return 'a message with no parts';
+  if ('text' in input) return `“${input.text}”`;
+  if ('action' in input) return `the action “${input.action}”`;
+  return `a ${input.partType} part`;
 }

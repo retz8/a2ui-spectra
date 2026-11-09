@@ -431,7 +431,7 @@ describe('the tool proxy in replay', () => {
     );
   });
 
-  it('opens an HTTP+SSE carrier with the recorded endpoint, and writes a served reply on it with the live id', async () => {
+  it("opens an HTTP+SSE carrier with the recorded endpoint, writes a served reply on it with the live id, and a miss's JSON-RPC error", async () => {
     const setup = await setUp('/sse');
     const initialize = recordedRequest(
       '00000000000000e1',
@@ -463,7 +463,16 @@ describe('the tool proxy in replay', () => {
     });
     assert.equal(missed.status, 502, 'the POST itself gets the 502');
     await eventually(() => setup.ended.length === 2, 'initialize and the miss ended');
-    assert.equal(carrier.events.length, 2, 'nothing more on the carrier');
+    // The client waits for its reply on the carrier: the miss's JSON-RPC error goes there.
+    await eventually(() => carrier.events.length === 3, "the miss's error on the carrier");
+    assert.equal(carrier.events[2].event, 'message');
+    assert.deepEqual(JSON.parse(carrier.events[2].data), {
+      jsonrpc: '2.0',
+      id: 1,
+      error: {code: -32603, message: missed.body.trim()},
+    });
+    assert.equal(setup.ended[1].attributes['error.type'], 'replay_miss');
+    assert.equal(setup.ended[1].events, undefined, 'the error on the carrier is not recorded');
 
     const [opened] = setup.ended;
     assert.equal(opened.name, 'initialize');

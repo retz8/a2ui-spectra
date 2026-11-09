@@ -6,7 +6,7 @@
  * moved.
  */
 import {Popover} from 'radix-ui';
-import {type FormEvent, useState} from 'react';
+import {type FormEvent, useEffect, useRef, useState} from 'react';
 
 import {ApiError, type ReplaySource} from '@/api.ts';
 import {cn} from '@/lib/utils';
@@ -297,6 +297,11 @@ function SavePrompt({
   const [failure, setFailure] = useState<string | undefined>();
   const [refusal, setRefusal] = useState<Refusal | undefined>();
   const [saved, setSaved] = useState<{name: string; path: string} | undefined>();
+  // The form leaves with the field that had focus: the saved line takes it, so Tab reaches Open.
+  const savedLine = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (saved !== undefined) savedLine.current?.querySelector('button')?.focus();
+  }, [saved]);
   const taken = state.fixtures.listed.map(fixture => fixture.name);
   const problem = refusal?.name === name ? refusal : nameProblemOf(name, taken);
   const off = name === '' || problem !== undefined || saving;
@@ -325,7 +330,10 @@ function SavePrompt({
 
   if (saved !== undefined) {
     return (
-      <div className="flex w-114 min-w-0 items-center gap-1.5 text-xs whitespace-nowrap">
+      <div
+        ref={savedLine}
+        className="flex w-114 min-w-0 items-center gap-1.5 text-xs whitespace-nowrap"
+      >
         <span className="shrink-0 text-muted-foreground">Saved as</span>
         <CopyButton
           text={saved.path}

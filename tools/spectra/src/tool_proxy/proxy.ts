@@ -1099,6 +1099,8 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
     forward(call, relay, ACCEPTED);
   } else if (mcpMethod === 'ping') {
     pong(call, relay, message, () => session);
+  } else if (served === undefined && session.key.startsWith('endpoint:')) {
+    missOnCarrier(call, relay, message, session);
   } else {
     const recordedId = served === undefined ? undefined : recordedRequestId(served);
     const token = liveProgressToken(message);
@@ -1110,6 +1112,21 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
       () => session,
     );
   }
+}
+
+/**
+ * A miss under HTTP+SSE: the 502 line on the POST, as for any miss, and the
+ * request's JSON-RPC error on the session's carrier, where its client waits
+ * for the reply, so the failed call reaches the agent's code as an MCP
+ * error. The error is not recorded: the call is the failed `replay_miss`.
+ */
+function missOnCarrier(call: Call, relay: Relay, message: JsonRpcMessage, session: Session): void {
+  const line = missLine('tool proxy', call.request.method ?? 'GET', call.target);
+  miss(call, relay);
+  const outlet = session.outlet;
+  if (outlet === undefined || outlet.destroyed || outlet.writableEnded) return;
+  const error = {jsonrpc: '2.0', id: message.id, error: {code: -32603, message: line}};
+  outlet.write(sseText({event: 'message', data: JSON.stringify(error)}));
 }
 
 /** A `ping`'s empty result, the protocol's answer: in the POST's reply, or under HTTP+SSE on the carrier after a 202. */

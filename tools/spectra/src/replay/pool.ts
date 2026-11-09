@@ -132,6 +132,8 @@ export class ReplayPool {
   #add(event: CallEvent): void {
     const attributes = event.attributes;
     const entry: Entry = {event, consumed: false, served: false};
+    // A call read from the agent's spans carries no exchange: nothing to serve.
+    if (attributes['http.request.method'] === undefined) return;
     if (attributes['a2ui.event.kind'] === 'model_call') {
       this.#model.push(entry);
       this.#all.push(entry);

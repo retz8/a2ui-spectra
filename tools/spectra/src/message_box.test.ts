@@ -725,6 +725,53 @@ describe('the message box replaying a record', () => {
     box.close();
   });
 
+  it("names on the terminal a host app's turn that opens while the replay runs, its calls meeting the armed pool", async () => {
+    const proxy = new FakeProxy();
+    const hooks = new FakeHooks();
+    const box = boxOn(proxy, CARD_1_0, {replay: hooks});
+    const events: HubEvent[] = [];
+    proxy.turns.subscribe(event => events.push(event));
+    proxy.replies.push(streamReply('TASK_STATE_COMPLETED'));
+    const record = recordOf(recordedTurn(RECORDED[0], 'completed'));
+    const started = await box.replay({path: SOURCE, record}, 'model_live');
+    // Another host's turn, through the wire proxy, while the replayed turn is open.
+    const host = 'e'.repeat(32);
+    proxy.turns.onTurn({
+      type: 'turn_opened',
+      traceId: host,
+      spanId: '0'.repeat(16),
+      startTimeUnixNano: '1792576800000000000',
+      messageId: 'host-1',
+    });
+    proxy.turns.onTurn({
+      type: 'wire_event',
+      traceId: host,
+      event: {
+        traceId: host,
+        spanId: '1'.repeat(16),
+        parentSpanId: '0'.repeat(16),
+        name: 'wire_input',
+        kind: 1,
+        startTimeUnixNano: '1792576800000000000',
+        attributes: {
+          'a2ui.event.kind': 'wire_input',
+          'a2ui.wire.message': {
+            role: 'user',
+            parts: [{type: 'text', content: 'Who is Alex Jordan?'}],
+          },
+        },
+      },
+    });
+    await proxy.close(started.traceId, 'ctx-1');
+    await ended(events);
+    assert.deepEqual(hooks.lines, [
+      `A turn from another host opened while ${SOURCE} replays: “Who is Alex Jordan?”, trace ${host}. Its model and tool calls meet the record the proxies are replaying.`,
+      `Replay of ${SOURCE}, turn 1 of 1: passed.`,
+    ]);
+    proxy.turns.onRecorded(turnOf(host));
+    box.close();
+  });
+
   it('refuses to start while a turn is open anywhere, while a replay runs, and refuses a send while it runs', async () => {
     const proxy = new FakeProxy();
     const hooks = new FakeHooks();

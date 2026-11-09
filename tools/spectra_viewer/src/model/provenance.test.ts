@@ -316,6 +316,36 @@ describe('a served call', () => {
     ]);
   });
 
+  it('stays free beside a live tool call: a replay pays for the model alone', () => {
+    // The Python restaurant finder's get_restaurants, a function in the agent's process, runs live.
+    const inAgent = {
+      traceId: TRACE,
+      spanId: '7'.repeat(16),
+      parentSpanId: '0'.repeat(16),
+      name: 'execute_tool get_restaurants',
+      kind: 1,
+      startTimeUnixNano: at(15),
+      endTimeUnixNano: at(16),
+      attributes: {
+        'a2ui.event.kind': 'tool_call',
+        'a2ui.received.dialect': 'adk',
+        'gen_ai.operation.name': 'execute_tool',
+        'gen_ai.tool.name': 'get_restaurants',
+      },
+      status: {code: 1},
+    } as OtherEvent;
+    const events = [
+      served('5'.repeat(16), 10, '1'.repeat(16)),
+      inAgent,
+      served('6'.repeat(16), 20, '1'.repeat(16)),
+    ];
+    assert.deepEqual(insideLineOf(events, START, PRICES)?.slice(-3), [
+      '1 tool call',
+      '2 calls from the record',
+      'Free',
+    ]);
+  });
+
   it('counts the live calls alone beside them, with their tokens and cost', () => {
     const events = [served('5'.repeat(16), 10, '1'.repeat(16)), request('6'.repeat(16), 20)];
     const line = insideLineOf(events, START, PRICES);

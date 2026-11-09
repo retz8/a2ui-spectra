@@ -6,7 +6,7 @@
  * rows so far. A call read from spans only counts with its tokens; the tool
  * calls counted are the full rows, housekeeping and the toolset's calls,
  * shown as their parses, left out. A replayed turn counts its live calls
- * alone, adding how many came from the record; with no live call it is free,
+ * alone, adding how many came from the record; with no live model call it is free,
  * with no tokens or price table's date.
  */
 import {retryCountOf} from './a2ui_step.ts';
@@ -48,7 +48,8 @@ export function insideLineOf(
   if (retries > 0) parts.push(plural(retries, 'retry').replace(/retrys$/, 'retries'));
   if (liveTools.length > 0) parts.push(plural(liveTools.length, 'tool call'));
   if (served > 0) parts.push(`${plural(served, 'call')} from the record`);
-  if (served > 0 && liveModels.length === 0 && liveTools.length === 0) {
+  // A replay pays for the model alone: a live tool call, such as a function in the agent's process, costs nothing.
+  if (served > 0 && liveModels.length === 0) {
     parts.push('Free');
     return parts;
   }

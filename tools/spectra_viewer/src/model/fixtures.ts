@@ -72,6 +72,7 @@ export function savedTurnsLine(turns: number): string {
 
 /** Whether a tool call event is one the pool would answer with, as the server's pool reads it. */
 function isServableTool(event: OtherEvent): boolean {
+  if (event.attributes['http.request.method'] === undefined) return false;
   if (event.kind === 4) return false;
   if (typeof event.attributes['mcp.method.name'] === 'string') {
     return event.attributes['jsonrpc.request.id'] !== undefined;
@@ -84,7 +85,8 @@ function isServableTool(event: OtherEvent): boolean {
 export function hasNothingToServe(turns: readonly Turn[]): boolean {
   return !turns.some(turn =>
     turn.events.some(event => {
-      if (isModelCall(event)) return true;
+      // A call read from the agent's spans carries no exchange: nothing to serve.
+      if (isModelCall(event)) return event.attributes['http.request.method'] !== undefined;
       return (
         event.attributes['a2ui.event.kind'] === 'tool_call' && isServableTool(event as OtherEvent)
       );

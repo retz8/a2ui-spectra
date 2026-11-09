@@ -2,7 +2,14 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import {modelCall, rawCall} from '../testing/model_calls.ts';
-import {candidatesFor, partName, prefixBreakOf, segmentsOf} from './prefix.ts';
+import {
+  candidatesFor,
+  markerOf,
+  partName,
+  prefixBreakOf,
+  resumeAfterLine,
+  segmentsOf,
+} from './prefix.ts';
 
 const HEAD = 'You are a helpful contact lookup assistant.\n\n';
 const TAIL = '\n\nButtons that represent the main action SHOULD include "variant": "primary".';
@@ -240,5 +247,24 @@ describe('prefixBreakOf', () => {
       prefixBreakOf(inFlight, candidatesFor(inFlight, [turn('t', one, inFlight)]))?.form,
       'breaks',
     );
+  });
+});
+
+describe("the text after the break's line", () => {
+  it('resumes at the next line, though the line is shown clipped', () => {
+    // The Python restaurant finder's UI description, one word added to its booking line.
+    const line = (word: string) =>
+      `-   If the query is to book a restaurant (e.g., "USER_WANTS_TO_BOOK..."), you MUST ${word}use the \`BOOKING_FORM_EXAMPLE\` template.`;
+    const head =
+      '## UI Description:\n\n-   If the number of restaurants is more than 5, use TWO_COLUMN.\n';
+    const tail =
+      '\n-   If the query is a booking submission, you MUST use the `CONFIRMATION_EXAMPLE` template.\n';
+    const earlier = `${head}${line('')}${tail}`;
+    const current = `${head}${line('always ')}${tail}`;
+    let offset = 0;
+    while (earlier[offset] === current[offset]) offset += 1;
+    const marker = markerOf(earlier, current, offset, 0);
+    assert.ok(marker.current[0].startsWith('…'), 'the line is shown clipped');
+    assert.equal(current.slice(resumeAfterLine(marker, current)), tail.slice(1));
   });
 });

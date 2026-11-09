@@ -185,6 +185,11 @@ export function markerOf(
   };
 }
 
+/** Where this call's text resumes after the break's line: its shown parts are clipped, so their length is not the line's. */
+export function resumeAfterLine(marker: Marker, text: string): number {
+  return text.length - marker.after.length;
+}
+
 /**
  * The prefix break of a call read in full, against the candidates: the model
  * calls read in full with the same model id as requested, in the same

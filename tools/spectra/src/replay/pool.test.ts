@@ -9,7 +9,7 @@ import type {
   TurnEvent,
   TurnRecord,
 } from '../record/turn_record.js';
-import {exchangeKey, paramsKey, ReplayPool} from './pool.js';
+import {exchangeKey, hasNothingToServe, paramsKey, ReplayPool} from './pool.js';
 
 const TRACE = 'a'.repeat(32);
 const TURN = 'b'.repeat(16);
@@ -362,6 +362,45 @@ describe('the replay pool', () => {
       '/messages?sessionId=s1',
     );
     assert.equal(pool.sseOpening('/other'), undefined);
+  });
+
+  it("leaves out a model call or tool call read from the agent's spans: it carries no exchange to serve", () => {
+    // As the Python restaurant finder's turn records ADK's spans under opentelemetry-instrument.
+    const fromSpans = (
+      spanId: string,
+      start: number,
+      kind: 'model_call' | 'tool_call',
+      name: string,
+    ) => ({
+      traceId: TRACE,
+      spanId,
+      parentSpanId: TURN,
+      name,
+      kind: 1,
+      startTimeUnixNano: String(start),
+      endTimeUnixNano: String(start + 1),
+      attributes: {
+        'a2ui.event.kind': kind,
+        'a2ui.received.dialect': 'adk',
+        'gen_ai.operation.name': kind === 'model_call' ? 'generate_content' : 'execute_tool',
+        'gen_ai.request.model': 'gemini-3.6-flash',
+      },
+      status: {code: 1},
+    });
+    const proxied = modelCall('0000000000000001', 10);
+    const spans = [
+      fromSpans('0000000000000002', 11, 'model_call', 'call_llm'),
+      fromSpans('0000000000000003', 12, 'model_call', 'generate_content gemini-3.6-flash'),
+      fromSpans('0000000000000004', 13, 'tool_call', 'execute_tool get_restaurants'),
+    ] as CallEvent[];
+    const pool = new ReplayPool(record([proxied, ...spans]), 'recorded');
+    assert.deepEqual(
+      pool.unserved().map(event => event.spanId),
+      ['0000000000000001'],
+    );
+    assert.equal(served(pool.model(exchangeKey(proxied.attributes))), '0000000000000001');
+    assert.deepEqual(pool.unserved(), []);
+    assert.equal(hasNothingToServe(record(spans)), true, 'spans alone are nothing to serve');
   });
 
   it('names the recorded calls never served: a consumed exchange and housekeeping that was asked for count as served', () => {
