@@ -332,6 +332,8 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
         let recordedTurns: string[];
         try {
           await spectra.waitFor(/The viewer is at /);
+          // Under run the viewer serves before the card answers, and the box sends once it has.
+          await spectra.waitFor(/The agent's card answered/);
           live = new LiveStream(`${base}/api/stream`);
           await live.ready;
           const first = await sendMessage(base, 'Top 2 Chinese restaurants in New York');

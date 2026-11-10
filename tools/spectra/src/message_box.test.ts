@@ -903,3 +903,161 @@ describe('the message box replaying a record', () => {
     box.close();
   });
 });
+
+describe("the message box following the agent's process under run", () => {
+  const CARD_0_3 = {url: 'http://127.0.0.1:10999/', protocolVersion: '0.3.0'};
+
+  it('refuses by the state of the process, then by the card, then by an unset variable, the first that applies winning', async () => {
+    const proxy = new FakeProxy();
+    let ids = 0;
+    const box = new MessageBox({
+      turns: proxy.turns,
+      fetch: proxy.fetch,
+      newMessageId: () => `m-${++ids}`,
+      unsetVariables: ['TOKEN'],
+    });
+    const refusal = async (expected: string) => {
+      assert.equal(box.unavailable, expected);
+      assert.equal(box.state().unavailable, expected);
+      await assert.rejects(box.send('Hi'), {status: 422, message: expected});
+    };
+    box.setAgentState('starting');
+    await refusal("Can't send · the agent is starting");
+    box.setAgentState('waiting');
+    await refusal("Can't send · waiting for the agent's card");
+    assert.equal(box.state().a2aVersion, undefined);
+
+    box.setCard({name: 'No interface', supportedInterfaces: []});
+    box.setAgentState('running');
+    await refusal("Can't send · the agent's card lists no interface to reach it at");
+    box.setCard({url: 'http://127.0.0.1:10999/', preferredTransport: 'GRPC'});
+    await refusal("Can't send · the agent's card lists no A2A JSON-RPC interface, only GRPC");
+    box.setCard({
+      url: 'http://127.0.0.1:10999/',
+      preferredTransport: 'GRPC',
+      additionalInterfaces: [{url: 'http://127.0.0.1:10999/', transport: 'HTTP+JSON'}],
+    });
+    await refusal(
+      "Can't send · the agent's card lists no A2A JSON-RPC interface, only GRPC, HTTP+JSON",
+    );
+    box.setCard({
+      supportedInterfaces: [{url: URL_1_0, protocolBinding: 'JSONRPC', protocolVersion: '2.0'}],
+    });
+    await refusal(
+      'The message box cannot send to this agent: its card lists A2A JSON-RPC only at version 2.0, ' +
+        'and the box speaks A2A 0.3 and 1.0. Hosts pointed at the wire proxy are not affected.',
+    );
+    box.setCard(CARD_1_0);
+    await refusal("Can't send · TOKEN is not set in Spectra's environment");
+
+    box.setAgentState('restarting');
+    await refusal("Can't send · the agent is restarting");
+    box.setAgentState('down');
+    await refusal("Can't send · the agent is down");
+    assert.equal(proxy.sent.length, 0);
+    box.close();
+  });
+
+  it('sends to the latest card: its interface, its A2A version and its choice of send or stream', async () => {
+    const proxy = new FakeProxy();
+    const box = boxOn(proxy, CARD_1_0);
+    proxy.replies.push(streamReply('TASK_STATE_COMPLETED'), async () =>
+      Response.json({
+        jsonrpc: '2.0',
+        id: 2,
+        result: {kind: 'message', messageId: 'r-1', role: 'agent', contextId: 'ctx-2', parts: []},
+      }),
+    );
+    await proxy.close((await box.send('Hi')).traceId);
+    assert.equal(proxy.sent[0].url, URL_1_0);
+    assert.equal(proxy.sent[0].headers.accept, 'text/event-stream');
+    assert.equal(box.state().a2aVersion, '1.0');
+
+    box.agentEnded('The agent was restarted.');
+    box.setCard(CARD_0_3);
+    assert.equal(box.state().a2aVersion, '0.3');
+    await proxy.close((await box.send('Hi again')).traceId);
+    assert.equal(proxy.sent[1].url, 'http://127.0.0.1:10999/');
+    assert.equal(proxy.sent[1].headers.accept, 'application/json');
+    assert.equal(proxy.sent[1].message.kind, 'message', 'An A2A 0.3 message.');
+    box.close();
+  });
+
+  it("keeps each conversation's id and drops its task id when the agent's process ends", async () => {
+    const proxy = new FakeProxy();
+    const box = boxOn(proxy);
+    proxy.replies.push(
+      streamReply('TASK_STATE_INPUT_REQUIRED'),
+      streamReply('TASK_STATE_INPUT_REQUIRED'),
+    );
+    await proxy.close((await box.send('Hi')).traceId);
+    box.agentEnded("The agent's process exited with code 1.");
+    const next = await box.send('Ada', 'ctx-1');
+    await proxy.close(next.traceId);
+    assert.equal(next.conversationId, 'ctx-1');
+    assert.equal(proxy.sent[1].message.contextId, 'ctx-1');
+    assert.equal(proxy.sent[1].message.taskId, undefined, 'The task lived in the stopped process.');
+    assert.deepEqual(
+      box.state().conversations.map(conversation => conversation.conversationId),
+      ['ctx-1'],
+    );
+    box.close();
+  });
+
+  it('carries no task on from a reply read across the end of the process', async () => {
+    const proxy = new FakeProxy();
+    const box = boxOn(proxy);
+    proxy.replies.push(
+      streamReply('TASK_STATE_INPUT_REQUIRED'),
+      streamReply('TASK_STATE_COMPLETED'),
+    );
+    const first = await box.send('Hi');
+    box.agentEnded('The agent was restarted.');
+    await proxy.close(first.traceId);
+    await proxy.close((await box.send('Ada', 'ctx-1')).traceId);
+    assert.equal(proxy.sent[1].message.contextId, 'ctx-1');
+    assert.equal(proxy.sent[1].message.taskId, undefined);
+    box.close();
+  });
+
+  it("stops a replay when the agent's process ends, its remaining turns not sent with the reason", async () => {
+    const proxy = new FakeProxy();
+    const hooks = new FakeHooks();
+    const box = boxOn(proxy, CARD_1_0, {replay: hooks});
+    const events: HubEvent[] = [];
+    proxy.turns.subscribe(event => events.push(event));
+    proxy.replies.push(brokenReply());
+    const record = recordOf(
+      recordedTurn(RECORDED[0], 'completed'),
+      recordedTurn(RECORDED[1], 'completed'),
+      recordedTurn(RECORDED[2], 'completed'),
+    );
+    const started = await box.replay({path: SOURCE, record}, 'model_live');
+    box.setAgentState('restarting');
+    box.agentEnded('The agent was restarted.');
+    // The restart's cut fails the open turn.
+    await proxy.close(started.traceId, 'ctx-1', 'failed');
+    const end = await ended(events);
+    assert.deepEqual(end.turns, [
+      {traceId: started.traceId, recordedTurn: RECORDED[0], verdict: 'failed', unconsumed: 0},
+      {recordedTurn: RECORDED[1], notSent: 'The agent was restarted.'},
+      {recordedTurn: RECORDED[2], notSent: 'The agent was restarted.'},
+    ]);
+    assert.equal(end.verdict, 'failed');
+    assert.equal(proxy.sent.length, 1, 'Nothing was sent after the process ended.');
+    assert.equal(hooks.disarmed, 1);
+    assert.equal(box.state().replay, undefined);
+
+    // The next replay is not stopped by the earlier end.
+    box.setAgentState('running');
+    events.length = 0;
+    proxy.replies.push(streamReply('TASK_STATE_COMPLETED'));
+    proxy.closeAsOpened([{conversationId: 'ctx-2'}]);
+    await box.replay(
+      {path: SOURCE, record: recordOf(recordedTurn(RECORDED[0], 'completed'))},
+      'model_live',
+    );
+    assert.equal((await ended(events)).verdict, 'passed');
+    box.close();
+  });
+});

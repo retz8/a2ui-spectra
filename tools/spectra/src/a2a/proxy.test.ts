@@ -427,6 +427,81 @@ describe('the wire proxy', () => {
     assert.ok(turnEvent.status?.message);
   });
 
+  it("cuts the open turns' connections, each failing as a broken connection, and leaves other requests", async () => {
+    const held: ServerResponse[] = [];
+    const {proxy, notifications} = await setUp((request, _body, response) => {
+      if (request.method === 'GET') {
+        // A request that is no turn, held open.
+        response.writeHead(200, {'content-type': 'text/plain'});
+        response.write('held');
+        held.push(response);
+        return;
+      }
+      response.writeHead(200, {'content-type': 'text/event-stream'});
+      response.write(
+        `data: ${JSON.stringify({jsonrpc: '2.0', id: 1, result: {kind: 'status-update', taskId: 't', contextId: 'c', status: {state: 'working'}, final: false}})}\n\n`,
+      );
+    });
+    let streamed = false;
+    const turn = send(proxy, {
+      method: 'POST',
+      body: jsonRpc('message/stream', {message: userMessage}),
+      onData: () => (streamed = true),
+    }).then(
+      () => 'ended',
+      () => 'broken',
+    );
+    let other = '';
+    const otherDone = send(proxy, {path: '/other', onData: chunk => (other += chunk)}).then(
+      () => 'ended',
+      () => 'broken',
+    );
+    const deadline = Date.now() + 5000;
+    while (!streamed || other === '') {
+      assert.ok(Date.now() < deadline, 'Both requests are open.');
+      await new Promise(resolve => setTimeout(resolve, 10));
+    }
+
+    proxy.cut();
+    assert.equal(await turn, 'broken', 'The host sees the stream break.');
+    const {turnEvent, outputs} = await closedTurn(notifications);
+    assert.equal(outputs.length, 1);
+    assert.equal(turnEvent.attributes['a2ui.turn.outcome'], 'failed');
+    assert.deepEqual(turnEvent.status, {
+      code: 2,
+      message: 'The connection to the agent broke before the reply ended.',
+    });
+    for (const response of held) response.end(' on');
+    assert.equal(await otherDone, 'ended');
+    assert.equal(other, 'held on');
+  });
+
+  it("names each turn's agent from the latest card, and names none once a card has no name", async () => {
+    const {proxy, notifications} = await setUp((_request, _body, response) => {
+      response.writeHead(200, {'content-type': 'application/json'});
+      response.end(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          id: 1,
+          result: {kind: 'message', messageId: 'r', role: 'agent', parts: []},
+        }),
+      );
+    });
+    const names: Array<string | undefined> = [];
+    for (const name of ['keep', 'Second agent', undefined]) {
+      if (name !== 'keep') proxy.setAgentName(name);
+      notifications.length = 0;
+      await send(proxy, {method: 'POST', body: jsonRpc('message/send', {message: userMessage})});
+      const {turnEvent} = await closedTurn(notifications);
+      names.push(turnEvent.attributes['gen_ai.agent.name']);
+      assert.equal(
+        turnEvent.name,
+        names.at(-1) === undefined ? 'invoke_agent' : `invoke_agent ${names.at(-1)}`,
+      );
+    }
+    assert.deepEqual(names, ['Test Agent', 'Second agent', undefined]);
+  });
+
   describe('trace context', () => {
     const HOST_TRACE = '4bf92f3577b34da6a3ce929d0e0e4736';
     const HOST_PARENT = '00f067aa0ba902b7';

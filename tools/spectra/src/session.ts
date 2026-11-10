@@ -1,15 +1,17 @@
 import {constants} from 'node:os';
 
-import {cardDetailsOf, checkTransport, rewriteCard} from './a2a/card.js';
+import {cardDetailsOf, checkTransport, rewriteCard, type TransportCheck} from './a2a/card.js';
 import {startWireProxy, type WireProxy} from './a2a/proxy.js';
-import {agentCardUrl, waitForAgentCard} from './agent_card.js';
+import {type AgentCard, agentCardUrl, waitForAgentCard} from './agent_card.js';
 import {
   type AgentExit,
   type AgentProcess,
   describeExit,
-  exitCodeOf,
+  forceKilledLine,
   startAgentProcess,
 } from './agent_process.js';
+import {AgentSupervisor} from './agent_supervisor.js';
+import type {SessionContext} from './api.js';
 import type {AgentCommand, HeadlessOptions} from './args.js';
 import {openBrowser} from './browser.js';
 import {CatalogRegistry} from './catalog/registry.js';
@@ -75,17 +77,21 @@ const STOP_SIGNALS: NodeJS.Signals[] =
 const STAND_IN_VARIABLE = 'SPECTRA_PROVIDER_STAND_IN';
 
 /**
- * Runs `attach`, or `run` when given the agent's command: opens the store,
- * waits for the agent's card, checks the card offers A2A over JSON-RPC,
- * starts the wire proxy, the message box and the server, prints their
- * addresses and opens the browser, then runs until a stop signal, or until
- * the agent's process exits. Each turn the proxy captures is checked and
- * written to the store, then closed on the live stream, and Spectra waits
- * for the turns still open when it stops. Given headless work, `replay` or
- * `test`, it runs that in place of the viewer and the browser once the box
- * is ready, the agent's output on stderr, and stops when the work is done,
- * exiting with the work's code, or 1 when the agent's process ended first.
- * Resolves with Spectra's exit code.
+ * Runs `attach`, or `run` when given the agent's command. `attach` opens the
+ * store, waits for the agent's card, checks the card offers A2A over
+ * JSON-RPC, starts the wire proxy, the message box and the server, prints
+ * their addresses and opens the browser, then runs until a stop signal.
+ * `run` binds every listener first, the wire proxy and the viewer included,
+ * prints their addresses, starts the agent's command and opens the browser
+ * at once; it reads the card at each start of the command, outlives whatever
+ * the agent's process does, and runs until a stop signal. Each turn the
+ * proxy captures is checked and written to the store, then closed on the
+ * live stream, and Spectra waits for the turns still open when it stops.
+ * Given headless work, `replay` or `test`, it runs that in place of the
+ * viewer and the browser once the box is ready, in `attach`'s order, the
+ * agent's output on stderr, and stops when the work is done, exiting with
+ * the work's code, or 1 when the agent's process ended first. Resolves with
+ * Spectra's exit code.
  */
 export async function runSession(
   options: SessionSettings,
@@ -166,8 +172,11 @@ export async function runSession(
 
   const stop = new AbortController();
   let stoppedBy: NodeJS.Signals | undefined;
+  /** The agent's process under the headless commands, which end when it does. */
   let agent: AgentProcess | undefined;
   let agentExit: AgentExit | undefined;
+  /** The agent's process under `run`, which Spectra outlives. */
+  let supervisor: AgentSupervisor | undefined;
   let proxy: WireProxy | undefined;
   let modelProxy: ModelProxy | undefined;
   let toolProxy: ToolProxy | undefined;
@@ -183,14 +192,16 @@ export async function runSession(
     if (!stop.signal.aborted) {
       stoppedBy = signal;
       out.info(
-        agent === undefined || agentExit !== undefined
-          ? 'Stopping.'
-          : "Stopping the agent's process. Press Ctrl-C again to force it.",
+        agentAlive()
+          ? "Stopping the agent's process. Press Ctrl-C again to force it."
+          : 'Stopping.',
       );
+      supervisor?.beginStop();
       stop.abort();
-    } else if (agent !== undefined && agentExit === undefined) {
+    } else if (agentAlive()) {
       out.info("Forcing the agent's process to stop.");
-      agent.kill();
+      agent?.kill();
+      supervisor?.kill();
     }
   };
   for (const signal of STOP_SIGNALS) {
@@ -220,70 +231,25 @@ export async function runSession(
       onSpans: received => spans.takeSpans(received),
       onLogs: received => spans.takeLogs(received),
     });
-    if (agentCommand !== undefined) {
-      const replaced = replacedLine(otel);
-      if (replaced !== undefined) out.info(replaced);
-      agent = startAgentProcess(agentCommand.command, agentCommand.args, {
-        env: {...environmentOf(redirected), ...toolEnvironmentOf(tools), ...otel.environment},
-        output: headless === undefined ? 'inherit' : 'stderr',
-      });
-      void agent.exited.then(exit => {
-        agentExit = exit;
-        if (!stop.signal.aborted) {
-          agentExitedEarly = true;
-          const when =
-            server === undefined && box === undefined && exit.error === undefined
-              ? ' before its card answered'
-              : '';
-          out.info(`The agent's process ${describeExit(exit)}${when}.`);
-          stop.abort();
-        }
-      });
-    }
-
+    const agentEnvironment = {
+      ...environmentOf(redirected),
+      ...toolEnvironmentOf(tools),
+      ...otel.environment,
+    };
     const cardUrl = agentCardUrl(options.agentUrl);
-    const card = await waitForAgentCard(cardUrl, {
-      signal: stop.signal,
-      headers,
-      onWaiting: reason =>
-        out.info(
-          `Waiting for the agent's card at ${cardUrl.href}: ${reason}. ` +
-            (agentCommand === undefined
-              ? "The agent's URL is attach's <agent-url> argument, or agent.url in the config file."
-              : "Change the agent's URL with --agent-url, or agent.url in the config file.") +
-            (unset.length > 0 ? ` ${unsetVariablesClause(unset)}.` : ''),
-        ),
-    });
-
-    if (card !== undefined && !stop.signal.aborted) {
-      const transport = checkTransport(card);
-      if (transport.kind === 'no_interface') {
-        out.error(
-          "The agent's card lists no interface to reach it at. A2A 1.0 requires the card's " +
-            'supportedInterfaces, and A2A 0.3 its url, so hosts that follow the card cannot reach ' +
-            'the agent either.',
-        );
-        stop.abort();
-        return 1;
-      }
-      if (transport.kind === 'no_jsonrpc') {
-        out.error(
-          `The agent's card lists no A2A JSON-RPC interface, only ${transport.transports.join(', ')}. ` +
-            'Spectra captures A2A over JSON-RPC only.',
-        );
-        stop.abort();
-        return 1;
-      }
-      if (transport.kind === 'jsonrpc_later') {
-        out.info(
-          `The agent's card prefers ${transport.preferred} to JSON-RPC. ` +
-            "Hosts that follow the card's preference bypass the wire proxy, and their turns are not captured.",
-        );
-      }
-      proxy = await startWireProxy({
+    const waitLine = (reason: string, hint: boolean): string =>
+      `Waiting for the agent's card at ${cardUrl.href}: ${reason}.` +
+      (hint
+        ? agentCommand === undefined
+          ? " The agent's URL is attach's <agent-url> argument, or agent.url in the config file."
+          : " Change the agent's URL with --agent-url, or agent.url in the config file."
+        : '') +
+      (unset.length > 0 ? ` ${unsetVariablesClause(unset)}.` : '');
+    const openWireProxy = (agentName: string | undefined): Promise<WireProxy> =>
+      startWireProxy({
         port: options.proxyPort,
         agentUrl: options.agentUrl,
-        agentName: typeof card.name === 'string' ? card.name : undefined,
+        agentName,
         onTurn: notification => {
           placer.onTurn(notification);
           turns.onTurn(notification);
@@ -292,9 +258,10 @@ export async function runSession(
           turns.isOpen(traceId) || (await store.list()).some(turn => turn.traceId === traceId),
         warn: line => out.info(line),
       });
-      const armed = {modelProxy, toolProxy};
-      box = new MessageBox({
-        card: rewriteCard(card, proxy.origin),
+    const armed = {modelProxy, toolProxy};
+    const openBox = (card: AgentCard | undefined): MessageBox =>
+      new MessageBox({
+        ...(card !== undefined && {card}),
         turns,
         headers,
         unsetVariables: unset,
@@ -325,60 +292,165 @@ export async function runSession(
           log: line => out.info(line),
         },
       });
-      if (headless !== undefined) {
-        for (const line of startLines(tools)) out.info(line);
-        out.info(`The OpenTelemetry receiver is at ${receiverListener.origin}`);
-        out.info(`Turns are saved in ${store.turnsDir}`);
-        out.info(`Fixtures are saved in ${fixtures.dir}`);
-        const session: HeadlessSession = {
-          box,
-          turns,
-          store,
-          stopping: stop.signal,
-          stopReason: () =>
-            agentExit !== undefined && agentExitedEarly
-              ? `The agent's process ${describeExit(agentExit)}.`
-              : 'Spectra is stopping.',
-        };
-        exitCode = await headless(session);
-        stop.abort();
-      } else {
-        if (box.unavailable !== undefined) {
-          out.info(box.unavailable);
-        }
-        const viewer = options.viewer ?? {port: 0, open: false, allowedHosts: []};
-        server = await startViewerServer({
-          port: viewer.port,
-          viewerDir,
-          allowedHosts: viewer.allowedHosts,
-          api: {
-            store,
-            turns,
-            box,
-            fixtures,
-            catalogs,
-            prices: options.config.prices,
-            context: {
-              ...(typeof card.name === 'string' && {agentName: card.name}),
-              agentUrl: options.agentUrl.href,
-              mode: agentCommand === undefined ? 'attach' : 'run',
-              proxyAddress: proxy.address,
-              previewPages: options.config.preview,
-              fixturesFolder: fixtures.display,
-              ...(agentCommand === undefined && {
-                variables: [...variablesOf(redirected), ...toolVariablesOf(tools), ...otel.printed],
-              }),
-              ...cardDetailsOf(card),
-            },
+    const viewer = options.viewer ?? {port: 0, open: false, allowedHosts: []};
+
+    if (agentCommand !== undefined && headless === undefined) {
+      // Under `run` every listener binds before the command starts, and the card is read at each start.
+      const wire = await openWireProxy(undefined);
+      proxy = wire;
+      const session = openBox(undefined);
+      box = session;
+      const context: SessionContext = {
+        agentUrl: options.agentUrl.href,
+        mode: 'run',
+        proxyAddress: wire.address,
+        previewPages: options.config.preview,
+        fixturesFolder: fixtures.display,
+      };
+      supervisor = new AgentSupervisor({
+        command: agentCommand,
+        env: agentEnvironment,
+        cardUrl,
+        headers,
+        out,
+        waitLine,
+        notify: event => turns.notify(event),
+        session: {
+          stateChanged: state => session.setAgentState(state),
+          processEnded: reason => session.agentEnded(reason),
+          cutOpenTurns: () => wire.cut(),
+          cardAnswered: card => {
+            const name = typeof card.name === 'string' ? card.name : undefined;
+            wire.setAgentName(name);
+            session.setCard(rewriteCard(card, wire.origin));
+            delete context.agentName;
+            Object.assign(context, name !== undefined && {agentName: name}, cardDetailsOf(card));
+            const transport = checkTransport(card);
+            const line = transportLine(transport);
+            if (transport.kind === 'no_interface' || transport.kind === 'no_jsonrpc') {
+              if (line !== undefined) out.error(line);
+            } else {
+              if (line !== undefined) out.info(line);
+              if (session.cardRefusal !== undefined) out.info(session.cardRefusal);
+            }
           },
+        },
+      });
+      server = await startViewerServer({
+        port: viewer.port,
+        viewerDir,
+        allowedHosts: viewer.allowedHosts,
+        api: {
+          store,
+          turns,
+          box: session,
+          fixtures,
+          catalogs,
+          prices: options.config.prices,
+          context,
+          agent: supervisor,
+        },
+      });
+      const replaced = replacedLine(otel);
+      if (replaced !== undefined) out.info(replaced);
+      out.info(`The viewer is at ${server.url}`);
+      out.info(`Point a host at the wire proxy: ${wire.address}`);
+      for (const line of startLines(tools)) out.info(line);
+      out.info(`The OpenTelemetry receiver is at ${receiverListener.origin}`);
+      out.info(`Turns are saved in ${store.turnsDir}`);
+      out.info(`Fixtures are saved in ${fixtures.dir}`);
+      supervisor.start();
+      if (viewer.open) {
+        openBrowser(server.url);
+      }
+      await aborted(stop.signal);
+    } else {
+      if (agentCommand !== undefined) {
+        const replaced = replacedLine(otel);
+        if (replaced !== undefined) out.info(replaced);
+        agent = startAgentProcess(agentCommand.command, agentCommand.args, {
+          env: agentEnvironment,
+          output: 'stderr',
         });
-        out.info(`The viewer is at ${server.url}`);
-        out.info(`Point a host at the wire proxy: ${proxy.address}`);
-        for (const line of startLines(tools)) out.info(line);
-        out.info(`The OpenTelemetry receiver is at ${receiverListener.origin}`);
-        out.info(`Turns are saved in ${store.turnsDir}`);
-        out.info(`Fixtures are saved in ${fixtures.dir}`);
-        if (agentCommand === undefined) {
+        void agent.exited.then(exit => {
+          agentExit = exit;
+          if (!stop.signal.aborted) {
+            agentExitedEarly = true;
+            const when =
+              box === undefined && exit.error === undefined ? ' before its card answered' : '';
+            out.info(`The agent's process ${describeExit(exit)}${when}.`);
+            stop.abort();
+          }
+        });
+      }
+
+      const card = await waitForAgentCard(cardUrl, {
+        signal: stop.signal,
+        headers,
+        onWaiting: reason => out.info(waitLine(reason, true)),
+      });
+
+      if (card !== undefined && !stop.signal.aborted) {
+        const transport = checkTransport(card);
+        const line = transportLine(transport);
+        if (transport.kind === 'no_interface' || transport.kind === 'no_jsonrpc') {
+          if (line !== undefined) out.error(line);
+          stop.abort();
+          return 1;
+        }
+        if (line !== undefined) out.info(line);
+        proxy = await openWireProxy(typeof card.name === 'string' ? card.name : undefined);
+        box = openBox(rewriteCard(card, proxy.origin));
+        if (headless !== undefined) {
+          for (const line of startLines(tools)) out.info(line);
+          out.info(`The OpenTelemetry receiver is at ${receiverListener.origin}`);
+          out.info(`Turns are saved in ${store.turnsDir}`);
+          out.info(`Fixtures are saved in ${fixtures.dir}`);
+          const session: HeadlessSession = {
+            box,
+            turns,
+            store,
+            stopping: stop.signal,
+            stopReason: () =>
+              agentExit !== undefined && agentExitedEarly
+                ? `The agent's process ${describeExit(agentExit)}.`
+                : 'Spectra is stopping.',
+          };
+          exitCode = await headless(session);
+          stop.abort();
+        } else {
+          if (box.unavailable !== undefined) {
+            out.info(box.unavailable);
+          }
+          server = await startViewerServer({
+            port: viewer.port,
+            viewerDir,
+            allowedHosts: viewer.allowedHosts,
+            api: {
+              store,
+              turns,
+              box,
+              fixtures,
+              catalogs,
+              prices: options.config.prices,
+              context: {
+                ...(typeof card.name === 'string' && {agentName: card.name}),
+                agentUrl: options.agentUrl.href,
+                mode: 'attach',
+                proxyAddress: proxy.address,
+                previewPages: options.config.preview,
+                fixturesFolder: fixtures.display,
+                variables: [...variablesOf(redirected), ...toolVariablesOf(tools), ...otel.printed],
+                ...cardDetailsOf(card),
+              },
+            },
+          });
+          out.info(`The viewer is at ${server.url}`);
+          out.info(`Point a host at the wire proxy: ${proxy.address}`);
+          for (const line of startLines(tools)) out.info(line);
+          out.info(`The OpenTelemetry receiver is at ${receiverListener.origin}`);
+          out.info(`Turns are saved in ${store.turnsDir}`);
+          out.info(`Fixtures are saved in ${fixtures.dir}`);
           const lines = attachLines(redirected, [
             ...exportLines(tools),
             ...receiverExportLines(otel),
@@ -386,11 +458,11 @@ export async function runSession(
           out.info(lines.intro);
           for (const line of lines.exports) out.print(line);
           out.info(lines.note);
+          if (viewer.open) {
+            openBrowser(server.url);
+          }
+          await aborted(stop.signal);
         }
-        if (viewer.open) {
-          openBrowser(server.url);
-        }
-        await aborted(stop.signal);
       }
     }
   } catch (error) {
@@ -411,6 +483,7 @@ export async function runSession(
       out.error(`Spectra failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   } finally {
+    supervisor?.beginStop();
     stopWatching();
     await server?.close();
     box?.close();
@@ -420,9 +493,11 @@ export async function runSession(
     await toolProxy?.close();
     await recorder.idle();
     if (agent !== undefined) {
-      await agent.stop();
+      const stopped = await agent.stop();
+      if (stopped.forceKilled) out.info(forceKilledLine());
       agentExit = await agent.exited;
     }
+    await supervisor?.stop();
     // The receiver listens until the agent has gone, for the spans its exporter flushes as it stops.
     await receiverListener?.close();
     await spans.idle();
@@ -444,10 +519,40 @@ export async function runSession(
       }
       return stoppedBy === undefined ? exitCode : 128 + (constants.signals[stoppedBy] ?? 0);
     }
-    if (agentExit !== undefined) {
-      return exitCodeOf(agentExit);
-    }
     return stoppedBy === undefined ? 0 : 128 + (constants.signals[stoppedBy] ?? 0);
+  }
+
+  /** Whether the agent's own process is running, under `run` and the headless commands. */
+  function agentAlive(): boolean {
+    return supervisor?.alive ?? (agent !== undefined && agentExit === undefined);
+  }
+}
+
+/**
+ * What the terminal says of where a card puts JSON-RPC: that it lists no
+ * interface or no JSON-RPC interface, an error, or that it prefers another
+ * transport; nothing for a card that puts JSON-RPC first.
+ */
+function transportLine(transport: TransportCheck): string | undefined {
+  switch (transport.kind) {
+    case 'no_interface':
+      return (
+        "The agent's card lists no interface to reach it at. A2A 1.0 requires the card's " +
+        'supportedInterfaces, and A2A 0.3 its url, so hosts that follow the card cannot reach ' +
+        'the agent either.'
+      );
+    case 'no_jsonrpc':
+      return (
+        `The agent's card lists no A2A JSON-RPC interface, only ${transport.transports.join(', ')}. ` +
+        'Spectra captures A2A over JSON-RPC only.'
+      );
+    case 'jsonrpc_later':
+      return (
+        `The agent's card prefers ${transport.preferred} to JSON-RPC. ` +
+        "Hosts that follow the card's preference bypass the wire proxy, and their turns are not captured."
+      );
+    case 'jsonrpc_first':
+      return undefined;
   }
 }
 

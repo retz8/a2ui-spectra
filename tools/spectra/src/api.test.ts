@@ -6,7 +6,8 @@ import path from 'node:path';
 import {after, describe, it} from 'node:test';
 
 import {SseParser} from './a2a/sse.js';
-import type {FixturesListing, ListedTurn, SessionContext} from './api.js';
+import type {AgentSnapshot, RestartCause} from './agent_supervisor.js';
+import type {AgentApi, FixturesListing, ListedTurn, SessionContext} from './api.js';
 import {CatalogRegistry} from './catalog/registry.js';
 import {CONFIG_SCHEMA, type PriceOverride} from './config.js';
 import {FixturesFolder} from './fixtures/fixtures.js';
@@ -117,7 +118,7 @@ const NO_HOOKS: ReplayHooks = {
 async function serve(
   heartbeatMs = 60_000,
   prices?: Record<string, PriceOverride>,
-  options: {replay?: boolean} = {},
+  options: {replay?: boolean; agent?: AgentApi} = {},
 ) {
   const dir = mkdtempSync(path.join(tmpdir(), 'spectra-api-'));
   dirs.push(dir);
@@ -149,6 +150,7 @@ async function serve(
       context: CONTEXT,
       catalogs: CatalogRegistry.builtIn(),
       ...(prices !== undefined && {prices}),
+      ...(options.agent !== undefined && {agent: options.agent}),
     },
   });
   servers.push(server);
@@ -492,6 +494,47 @@ describe('the API', () => {
     assert.equal((await fetch(`${base}/api/replays`)).status, 405);
     assert.equal((await post(`${base}/api/fixtures/x`, {})).status, 405);
     assert.equal((await fetch(`${base}/api/nothing`)).status, 404);
+    assert.equal((await post(`${base}/api/agent`, {})).status, 405);
+    assert.equal((await fetch(`${base}/api/agent/restart`)).status, 405);
+    assert.equal((await post(`${base}/api/agent/restart`, {}, 'text/plain')).status, 415);
+  });
+
+  it("serves the agent's process and restarts it at once under run, and answers 404 to both where Spectra did not start the agent", async () => {
+    const attached = await serve();
+    const none = await getJson<{error: string}>(`${attached.base}/api/agent`);
+    assert.equal(none.status, 404);
+    assert.equal(
+      none.body.error,
+      'Spectra did not start this agent, so it has no process to report.',
+    );
+    const refused = await post(`${attached.base}/api/agent/restart`, {});
+    assert.equal(refused.status, 404);
+    assert.deepEqual(await refused.json(), {
+      error: 'Spectra did not start this agent, so it cannot restart it.',
+    });
+
+    const snapshot: AgentSnapshot = {
+      command: 'uv run .',
+      state: {state: 'down', exit: 'exited with code 1', seq: 5},
+      events: [
+        {type: 'agent_restarted', seq: 3, time: '2026-11-10T09:00:00.000Z', cause: {kind: 'press'}},
+        {
+          type: 'agent_exited',
+          seq: 4,
+          time: '2026-11-10T09:00:04.250Z',
+          exit: 'exited with code 1',
+        },
+      ],
+    };
+    const causes: RestartCause[] = [];
+    const {base} = await serve(60_000, undefined, {
+      agent: {snapshot: () => snapshot, restart: cause => causes.push(cause)},
+    });
+    assert.deepEqual(await getJson(`${base}/api/agent`), {status: 200, body: snapshot});
+    const accepted = await post(`${base}/api/agent/restart`, {});
+    assert.equal(accepted.status, 202);
+    assert.deepEqual(await accepted.json(), {accepted: true});
+    assert.deepEqual(causes, [{kind: 'press'}]);
   });
 
   it('saves a turn as a fixture by name, answering the path written, and refuses a bad name, a clash, an open turn and an unknown one', async () => {
@@ -685,7 +728,7 @@ describe('the API', () => {
     assert.equal(unavailable.status, 404, 'That session has no such fixture.');
   });
 
-  it("passes a replay's events and the fixtures folder's change on the live stream", async () => {
+  it("passes a replay's events, the fixtures folder's change and the agent's process on the live stream", async () => {
     const {turns, base} = await serve();
     const response = await fetch(`${base}/api/stream`);
     const reader = response.body!.getReader();
@@ -699,7 +742,20 @@ describe('the API', () => {
       mode: 'recorded',
       turns: 1,
     });
-    while (events.length < 2) {
+    turns.notify({type: 'agent_state', state: 'waiting', reason: 'connection refused', seq: 2});
+    turns.notify({
+      type: 'agent_restarted',
+      seq: 3,
+      time: '2026-11-10T09:00:00.000Z',
+      cause: {kind: 'press'},
+    });
+    turns.notify({
+      type: 'agent_exited',
+      seq: 4,
+      time: '2026-11-10T09:00:04.250Z',
+      exit: 'exited with code 1',
+    });
+    while (events.length < 5) {
       const {value, done} = await reader.read();
       assert.equal(done, false);
       for (const event of sse.push(text.decode(value, {stream: true}))) {
@@ -712,6 +768,15 @@ describe('the API', () => {
       {
         event: 'replay_started',
         data: {source: 'a2ui-spectra-fixtures/hello.json', mode: 'recorded', turns: 1},
+      },
+      {event: 'agent_state', data: {state: 'waiting', reason: 'connection refused', seq: 2}},
+      {
+        event: 'agent_restarted',
+        data: {seq: 3, time: '2026-11-10T09:00:00.000Z', cause: {kind: 'press'}},
+      },
+      {
+        event: 'agent_exited',
+        data: {seq: 4, time: '2026-11-10T09:00:04.250Z', exit: 'exited with code 1'},
       },
     ]);
   });

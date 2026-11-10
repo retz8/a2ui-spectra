@@ -1,6 +1,7 @@
 import type {IncomingMessage, ServerResponse} from 'node:http';
 
 import type {CardDetails} from './a2a/card.js';
+import type {AgentSnapshot, RestartCause} from './agent_supervisor.js';
 import type {CatalogRegistry} from './catalog/registry.js';
 import {CONFIG_SCHEMA, type PriceOverride} from './config.js';
 import {
@@ -17,9 +18,13 @@ import {isEventOfKind, type ReplayMode, type Turn, type TurnRecord} from './reco
 import type {StoredTurn, TurnStore} from './store/store.js';
 import type {HubEvent, TurnHub} from './turn_hub.js';
 
-/** What the context bar, the agent's popover and the first screen show of the session. */
-export interface SessionContext extends CardDetails {
-  /** The agent's name, from its card. */
+/**
+ * What the context bar, the agent's popover and the first screen show of the
+ * session. What the card states is the latest card's, kept until a later card
+ * replaces it, and absent under `run` before any card has answered.
+ */
+export interface SessionContext extends Partial<CardDetails> {
+  /** The agent's name, from its latest card. */
   agentName?: string;
   /** The agent's own URL, the one Spectra was given. */
   agentUrl: string;
@@ -34,6 +39,12 @@ export interface SessionContext extends CardDetails {
   variables?: Array<{name: string; value: string}>;
 }
 
+/** The agent's process under `run`, as the API reads and restarts it. */
+export interface AgentApi {
+  snapshot(): AgentSnapshot;
+  restart(cause: RestartCause): void;
+}
+
 /** What the API serves from. */
 export interface Api {
   store: TurnStore;
@@ -43,6 +54,8 @@ export interface Api {
   /** The catalog definitions Spectra knows. */
   catalogs: CatalogRegistry;
   context: SessionContext;
+  /** The agent's process, under `run`; none under `attach`, where Spectra did not start the agent. */
+  agent?: AgentApi;
   /** The config file's prices, by model id as requested. */
   prices?: Readonly<Record<string, PriceOverride>>;
   /** How often the live stream sends its heartbeat. */
@@ -105,7 +118,10 @@ const HEARTBEAT_MS = 2000;
  * the caller serves.
  *
  * - `GET /api/context`: the session: the agent's name and URL, the mode, the wire proxy's address,
- *   the configured preview pages, and what the agent's card states.
+ *   the configured preview pages, and what the agent's latest card states.
+ * - `GET /api/agent`: under `run`, the agent's command as launched, its process's state and the
+ *   session's restarts and exits.
+ * - `POST /api/agent/restart`: under `run`, restarts the agent's process; answers at once.
  * - `GET /api/turns`: the turns, newest first.
  * - `GET /api/turns/<trace id>`: a closed turn's record.
  * - `GET /api/stream`: the live stream, as server-sent events.
@@ -148,6 +164,24 @@ async function answer(
   const fixture = /^GET \/api\/fixtures\/(.+)$/.exec(route);
   if (route === 'GET /api/context') {
     sendJson(response, 200, api.context);
+  } else if (route === 'GET /api/agent') {
+    if (api.agent === undefined) {
+      sendJson(response, 404, {
+        error: 'Spectra did not start this agent, so it has no process to report.',
+      });
+    } else {
+      sendJson(response, 200, api.agent.snapshot());
+    }
+  } else if (route === 'POST /api/agent/restart') {
+    if (api.agent === undefined) {
+      sendJson(response, 404, {
+        error: 'Spectra did not start this agent, so it cannot restart it.',
+      });
+    } else {
+      request.resume();
+      api.agent.restart({kind: 'press'});
+      sendJson(response, 202, {accepted: true});
+    }
   } else if (route === 'GET /api/turns') {
     sendJson(response, 200, {turns: await listTurns(api)});
   } else if (turn !== null) {
@@ -185,6 +219,8 @@ function isRoute(pathname: string): boolean {
     /^\/api\/fixtures(\/.+)?$/.test(pathname) ||
     [
       '/api/context',
+      '/api/agent',
+      '/api/agent/restart',
       '/api/stream',
       '/api/message-box',
       '/api/message-box/messages',

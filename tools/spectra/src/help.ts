@@ -85,9 +85,12 @@ ${sharedOptions}
 
 const runHelp = `Usage: ${NAME} run [--agent-url <url>] [options] -- <command> [args...]
 
-Start the agent's command, wait until the agent's card answers at
-<url>/.well-known/agent-card.json, then attach to it as attach does. The URL
-may come from the config file instead, as agent.url.
+Start the wire proxy, the model proxy, the tool proxy, the OpenTelemetry
+receiver and the viewer, then the agent's command, and open the browser at
+once. The agent's card is read at <url>/.well-known/agent-card.json each time
+the command starts; until it answers, the viewer shows the agent as starting
+and the message box does not send. The URL may come from the config file
+instead, as agent.url.
 
 The command after '--' starts without a shell, with Spectra's environment and
 working directory, and writes to Spectra's terminal. Spectra adds the model
@@ -105,8 +108,10 @@ variables go before ${NAME}:
   LITELLM_MODEL=gemini/gemini-2.5-flash \\
     ${NAME} run --agent-url http://localhost:10004 -- uv run .
 
-When the command exits, Spectra exits with its exit code. When Spectra stops,
-it stops the command and everything it started; a second Ctrl-C forces it.
+When the command exits, Spectra keeps running: the viewer shows the agent
+down with its exit line, and Restart starts the command again. Only Ctrl-C or
+a stop signal ends Spectra, with its own exit code. It then stops the command
+and everything it started; a second Ctrl-C forces it.
 
 Options:
   --agent-url <url>    The agent's base address. Takes precedence over the

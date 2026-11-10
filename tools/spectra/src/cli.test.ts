@@ -5,6 +5,7 @@
  */
 import assert from 'node:assert/strict';
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -19,6 +20,9 @@ import path from 'node:path';
 import {describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
 
+import type {AgentSnapshot} from './agent_supervisor.js';
+import type {ListedTurn, SessionContext} from './api.js';
+import type {MessageBoxState, ReplayStarted} from './message_box.js';
 import {VARIABLES} from './model_proxy/redirection.js';
 import {
   type CheckEvent,
@@ -29,6 +33,7 @@ import {
 } from './record/turn_record.js';
 import {FAKE_TOOL_TOKEN, SEND_REPLY, startFakeAgent, STREAM_REPLY} from './testing/fake_agent.js';
 import {FAKE_PROVIDER_KEY, startFakeProvider} from './testing/fake_provider.js';
+import {boxSettled, getJson, LiveStream, postJson, sendMessage} from './testing/live_api.js';
 import {binary, finished, freePort, SpectraProcess, workingDir} from './testing/spectra_process.js';
 import {turnRecordErrors} from './testing/turn_record_schema.js';
 import {VERSION} from './version.js';
@@ -111,6 +116,7 @@ async function eventually(check: () => boolean, timeoutMs = 3000) {
 }
 
 const viewerUrl = /The viewer is at http:\/\/localhost:(\d+)\//;
+const cardAnswered = /The agent's card answered: Fake agent\./;
 const proxyAddress = /Point a host at the wire proxy: http:\/\/127\.0\.0\.1:(\d+)\//;
 
 function jsonRpc(method: string): string {
@@ -198,7 +204,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
     ]);
     await spectra.waitFor(
       new RegExp(
-        `Waiting for the agent's card at http://localhost:${agentPort}/\\.well-known/agent-card\\.json`,
+        `Waiting for the agent's card at http://localhost:${agentPort}/\\.well-known/agent-card\\.json: ` +
+          "connection refused\\. The agent's URL is attach's <agent-url> argument, or agent\\.url in the config file\\.",
       ),
     );
     const agent = await startFakeAgent(agentPort);
@@ -240,6 +247,20 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         body: '{}',
       });
       assert.equal(json.status, 404);
+
+      // Spectra did not start this agent: it reports no process, and refuses Restart.
+      const process = await send(port, {path: '/api/agent'});
+      assert.equal(process.status, 404);
+      assert.match(process.body, /Spectra did not start this agent/);
+      const restart = await send(port, {
+        method: 'POST',
+        path: '/api/agent/restart',
+        headers: {'content-type': 'application/json'},
+        body: '{}',
+      });
+      assert.equal(restart.status, 404);
+      assert.match(restart.body, /Spectra did not start this agent/);
+      assert.doesNotMatch(spectra.output, /Starting the agent|The agent's card answered/);
 
       spectra.signal('SIGTERM');
       const exit = await spectra.exited;
@@ -858,7 +879,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         try {
           const pidFile = path.join(dir, 'grandchild.pid');
           const spectra = new SpectraProcess(await runArgs(['--grandchild-pid-file', pidFile]));
-          await spectra.waitFor(viewerUrl);
+          await spectra.waitFor(cardAnswered);
           const grandchild = Number(readFileSync(pidFile, 'utf8'));
           assert.ok(isAlive(grandchild));
 
@@ -877,41 +898,17 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
 
     it('forces the agent on a second stop signal', {timeout: TIMEOUT}, async () => {
       const spectra = new SpectraProcess(await runArgs(['--ignore-sigterm']));
-      await spectra.waitFor(viewerUrl);
+      await spectra.waitFor(cardAnswered);
       spectra.signal('SIGTERM');
       await spectra.waitFor(/Press Ctrl-C again to force it/);
+      const forcedAt = Date.now();
       spectra.signal('SIGINT');
       const exit = await spectra.exited;
-      assert.equal(exit.code, 128 + 9, spectra.output);
+      // Spectra's exit code is its own, the first stop signal's.
+      assert.equal(exit.code, 128 + 15, spectra.output);
+      assert.match(spectra.output, /Forcing the agent's process to stop\./);
+      assert.ok(Date.now() - forcedAt < 5000, 'The agent went at once, not after the grace.');
     });
-
-    it("exits with the agent's exit code when the agent exits", {timeout: TIMEOUT}, async () => {
-      const result = await finished(await runArgs(['--exit-after-card', '4']));
-      assert.equal(result.code, 4, result.output);
-      assert.match(result.output, /The agent's process exited with code 4/);
-    });
-
-    it(
-      'exits with the exit code of an agent that exits before its card answers',
-      {
-        timeout: TIMEOUT,
-      },
-      async () => {
-        const args = await runArgs([]);
-        const command = args.indexOf('--');
-        const result = await finished([
-          ...args.slice(0, command + 1),
-          process.execPath,
-          '-e',
-          'process.exit(3)',
-        ]);
-        assert.equal(result.code, 3, result.output);
-        assert.match(
-          result.output,
-          /The agent's process exited with code 3 before its card answered/,
-        );
-      },
-    );
 
     it(
       'does not load a .env file from its working directory',
@@ -924,7 +921,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           writeFileSync(path.join(dir, '.env'), 'SPECTRA_TEST_DOTENV=loaded\n');
           const args = await runArgs([]);
           const command = args.indexOf('--');
-          const result = await finished(
+          const spectra = new SpectraProcess(
             [
               ...args.slice(0, command + 1),
               process.execPath,
@@ -933,21 +930,13 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
             ],
             dir,
           );
-          assert.equal(result.code, 5, result.output);
-          assert.match(result.output, /dotenv=undefined/);
+          await spectra.waitFor(/The agent's process exited with code 5/);
+          assert.match(spectra.output, /dotenv=undefined/);
+          spectra.signal('SIGTERM');
+          assert.equal((await spectra.exited).code, 128 + 15, spectra.output);
         } finally {
           rmSync(dir, {recursive: true, force: true});
         }
-      },
-    );
-
-    it(
-      "stops the agent's process when its card lists no JSON-RPC interface",
-      {timeout: TIMEOUT},
-      async () => {
-        const result = await finished(await runArgs(['--transports', 'GRPC']));
-        assert.equal(result.code, 1, result.output);
-        assert.match(result.output, /lists no A2A JSON-RPC interface/);
       },
     );
 
@@ -958,20 +947,22 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         const args = await runArgs([]);
         const command = args.indexOf('--');
         const modelProxyPort = args[args.indexOf('--model-proxy-port') + 1];
-        const result = await finished([
+        const spectra = new SpectraProcess([
           ...args.slice(0, command + 1),
           process.execPath,
           '-e',
           "process.stdout.write('gemini=' + process.env.GEMINI_API_BASE + ' anthropic=' + process.env.ANTHROPIC_API_BASE + ' openai=' + process.env.OPENAI_BASE_URL + '\\n'); process.exit(6)",
         ]);
-        assert.equal(result.code, 6, result.output);
+        await spectra.waitFor(/The agent's process exited with code 6/);
         assert.match(
-          result.output,
+          spectra.output,
           new RegExp(
             `gemini=http://127\\.0\\.0\\.1:${modelProxyPort}/GEMINI_API_BASE anthropic=http://127\\.0\\.0\\.1:${modelProxyPort}/ANTHROPIC_API_BASE openai=http://127\\.0\\.0\\.1:${modelProxyPort}/OPENAI_BASE_URL`,
           ),
         );
-        assert.doesNotMatch(result.output, /set these in the agent's shell/);
+        assert.doesNotMatch(spectra.output, /set these in the agent's shell/);
+        spectra.signal('SIGTERM');
+        assert.equal((await spectra.exited).code, 128 + 15, spectra.output);
       },
     );
 
@@ -990,6 +981,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           const [, shownPort] = await spectra.waitFor(viewerUrl);
           const port = Number(shownPort);
           const [, shownProxyPort] = await spectra.waitFor(proxyAddress);
+          await spectra.waitFor(cardAnswered);
           const context = JSON.parse((await send(port, {path: '/api/context'})).body) as {
             mode: string;
             variables?: unknown;
@@ -1076,6 +1068,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           const [, shownPort] = await spectra.waitFor(viewerUrl);
           const port = Number(shownPort);
           const [, shownProxyPort] = await spectra.waitFor(proxyAddress);
+          await spectra.waitFor(cardAnswered);
           assert.match(
             spectra.output,
             /In the agent's environment, Spectra replaced OTEL_EXPORTER_OTLP_ENDPOINT from http:\/\/collector\.example:4318\/ and OTEL_EXPORTER_OTLP_TRACES_PROTOCOL from grpc, so that its exports reach Spectra's OpenTelemetry receiver\. They are not passed on\./,
@@ -1193,6 +1186,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           const [, shownPort] = await spectra.waitFor(viewerUrl);
           const port = Number(shownPort);
           const [, shownProxyPort] = await spectra.waitFor(proxyAddress);
+          await spectra.waitFor(cardAnswered);
           await spectra.waitFor(
             new RegExp(
               `The tool proxy for FAKE_TOOL_URL is at http://127\\.0\\.0\\.1:${toolProxyPort}, forwarding to http://127\\.0\\.0\\.1:${toolPort}`,
@@ -1252,15 +1246,640 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
       },
     );
 
-    it('reports a command that cannot start', {timeout: TIMEOUT}, async () => {
-      const args = await runArgs([]);
-      const command = args.indexOf('--');
-      const result = await finished([
-        ...args.slice(0, command + 1),
-        'a2ui-spectra-test-no-such-command',
-      ]);
-      assert.equal(result.code, 127, result.output);
-      assert.match(result.output, /The agent's process could not start/);
+    describe("the agent's process", () => {
+      /** Spectra under `run` with the fake agent as its command, or with the command given. */
+      async function launch(agentArgs: string[], command?: string[]) {
+        const args = await runArgs(agentArgs);
+        const cut = args.indexOf('--');
+        const spectra = new SpectraProcess(
+          command === undefined ? args : [...args.slice(0, cut + 1), ...command],
+        );
+        const number = (option: string) => Number(args[args.indexOf(option) + 1]);
+        await spectra.waitFor(viewerUrl);
+        return {
+          spectra,
+          base: `http://127.0.0.1:${number('--port')}`,
+          port: number('--port'),
+          proxyPort: number('--proxy-port'),
+          agentPort: Number(new URL(args[args.indexOf('--agent-url') + 1]).port),
+          /** The fake agent's command as launched, as the route and the terminal name it. */
+          command: (command ?? args.slice(cut + 1)).join(' '),
+        };
+      }
+
+      const agentOf = async (base: string) =>
+        (await getJson<AgentSnapshot>(`${base}/api/agent`)).body;
+      const boxOf = async (base: string) =>
+        (await getJson<MessageBoxState>(`${base}/api/message-box`)).body;
+      const press = (base: string) =>
+        postJson<{accepted?: boolean}>(`${base}/api/agent/restart`, {});
+
+      /** Resolves with the route's answer once the state is the one named, past the number given. */
+      async function stateIs(base: string, state: string, after = 0): Promise<AgentSnapshot> {
+        const deadline = Date.now() + 15_000;
+        for (;;) {
+          const agent = await agentOf(base);
+          if (agent.state.state === state && agent.state.seq > after) return agent;
+          assert.ok(
+            Date.now() < deadline,
+            `The agent's state is ${JSON.stringify(agent.state)}, not ${state}.`,
+          );
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+      }
+
+      /** The states the stream sent after the number given, in order. */
+      const statesOn = (live: LiveStream, after = 0) =>
+        live.events
+          .filter(event => event.event === 'agent_state' && Number(event.data.seq) > after)
+          .map(event => String(event.data.state));
+
+      const count = (text: string, pattern: RegExp) => text.match(pattern)?.length ?? 0;
+      const idle = [process.execPath, '-e', 'setInterval(() => {}, 1000)'];
+      /** A command that stays up without listening, appending its process id to the file. */
+      const idleWithPid = (pidFile: string) => [
+        process.execPath,
+        '-e',
+        `require('node:fs').appendFileSync(${JSON.stringify(pidFile)}, process.pid + '\\n'); setInterval(() => {}, 1000)`,
+      ];
+      const pidsIn = (file: string) =>
+        existsSync(file)
+          ? readFileSync(file, 'utf8').trim().split('\n').filter(Boolean).map(Number)
+          : [];
+      const tempDir = () => mkdtempSync(path.join(tmpdir(), 'spectra-test-'));
+
+      async function stopped(spectra: SpectraProcess) {
+        spectra.signal('SIGTERM');
+        assert.equal((await spectra.exited).code, 128 + 15, spectra.output);
+      }
+
+      it(
+        'serves the viewer and the wire proxy before the card answers, the state walking starting, waiting, running',
+        {timeout: TIMEOUT},
+        async () => {
+          // The agent listens and leaves its card unanswered, so the first attempt stays open.
+          let held = true;
+          const {spectra, base, port, proxyPort, agentPort, command} = await launch([], idle);
+          const agent = await startFakeAgent(agentPort, {holdCard: () => held});
+          let live: LiveStream | undefined;
+          try {
+            await spectra.waitFor(
+              new RegExp(`Starting the agent: ${command.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\n`),
+            );
+            assert.ok(
+              spectra.output.indexOf('The viewer is at') <
+                spectra.output.indexOf('Starting the agent'),
+              'The addresses print before the command starts.',
+            );
+            assert.deepEqual(await agentOf(base), {
+              command,
+              state: {state: 'starting', seq: 1},
+              events: [],
+            });
+            live = new LiveStream(`${base}/api/stream`);
+            await live.ready;
+            assert.equal((await send(port)).status, 200, 'The viewer answers.');
+            assert.equal(
+              (await send(proxyPort, {path: '/headers'})).status,
+              200,
+              'The wire proxy forwards.',
+            );
+            assert.equal((await boxOf(base)).unavailable, "Can't send · the agent is starting");
+            const before = (await getJson<SessionContext>(`${base}/api/context`)).body;
+            assert.deepEqual(before, {
+              agentUrl: `http://localhost:${agentPort}/`,
+              mode: 'run',
+              proxyAddress: `http://127.0.0.1:${proxyPort}/`,
+              previewPages: [],
+              fixturesFolder: 'a2ui-spectra-fixtures',
+            });
+
+            const waiting = await live.until(event => event.event === 'agent_state');
+            assert.deepEqual(waiting.data, {
+              state: 'waiting',
+              reason: 'no answer within 2 seconds',
+              seq: 2,
+            });
+            assert.deepEqual((await agentOf(base)).state, waiting.data);
+            assert.match(
+              spectra.output,
+              /Waiting for the agent's card at .*: no answer within 2 seconds\. Change the agent's URL with --agent-url, or agent\.url in the config file\./,
+            );
+            const waitingLine = "Can't send · waiting for the agent's card";
+            assert.equal((await boxOf(base)).unavailable, waitingLine);
+            const refused = await postJson<{error: string}>(`${base}/api/message-box/messages`, {
+              text: 'Hi',
+            });
+            assert.deepEqual(refused, {status: 422, body: {error: waitingLine}});
+
+            held = false;
+            const running = await live.until(
+              event => event.event === 'agent_state' && event.data.state === 'running',
+            );
+            assert.deepEqual(running.data, {state: 'running', seq: 3});
+            // On the state's event the context and the box are current.
+            const context = (await getJson<SessionContext>(`${base}/api/context`)).body;
+            assert.deepEqual(context, {
+              ...before,
+              agentName: 'Fake agent',
+              a2aVersions: [],
+              a2uiExtensions: [],
+              examples: [],
+            });
+            assert.equal((await boxOf(base)).unavailable, undefined);
+            assert.deepEqual(statesOn(live), ['waiting', 'running']);
+            await spectra.waitFor(cardAnswered);
+            await stopped(spectra);
+          } finally {
+            live?.close();
+            await closeServer(agent);
+          }
+        },
+      );
+
+      it(
+        'stops on a taken viewer or wire proxy port before the command has started',
+        {timeout: TIMEOUT},
+        async () => {
+          const dir = tempDir();
+          try {
+            for (const option of ['--port', '--proxy-port']) {
+              const marker = path.join(dir, `started${option}`);
+              const args = await runArgs([]);
+              const cut = args.indexOf('--');
+              const taken = Number(args[args.indexOf(option) + 1]);
+              const holder = createServer();
+              await new Promise<void>(resolve =>
+                holder.listen(taken, '127.0.0.1', () => resolve()),
+              );
+              try {
+                const result = await finished([
+                  ...args.slice(0, cut + 1),
+                  process.execPath,
+                  '-e',
+                  `require('node:fs').writeFileSync(${JSON.stringify(marker)}, 'started'); setInterval(() => {}, 1000)`,
+                ]);
+                assert.equal(result.code, 1, result.output);
+                assert.match(
+                  result.output,
+                  new RegExp(`Port ${taken} is taken\\. Choose another port with ${option}\\.`),
+                );
+                assert.doesNotMatch(result.output, /Starting the agent/);
+                assert.equal(existsSync(marker), false, 'The command never started.');
+              } finally {
+                await closeServer(holder);
+              }
+            }
+          } finally {
+            rmSync(dir, {recursive: true, force: true});
+          }
+        },
+      );
+
+      it(
+        'keeps serving when the agent exits on its own, before its card and after it, down with the exit line',
+        {timeout: TIMEOUT},
+        async () => {
+          const early = await launch([], [process.execPath, '-e', 'process.exit(3)']);
+          await early.spectra.waitFor(
+            /The agent's process exited with code 3 before its card answered\. Restart it from the viewer\./,
+          );
+          const down = await stateIs(early.base, 'down');
+          assert.equal(down.state.state === 'down' && down.state.exit, 'exited with code 3');
+          assert.equal(down.events.length, 1);
+          const [exited] = down.events;
+          assert.ok(exited.type === 'agent_exited');
+          assert.equal(exited.exit, 'exited with code 3');
+          assert.match(exited.time, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+          assert.ok(
+            exited.seq < down.state.seq,
+            'The exit is numbered before the state it led to.',
+          );
+          assert.equal((await send(early.port)).status, 200, 'Spectra keeps serving.');
+          assert.equal((await boxOf(early.base)).unavailable, "Can't send · the agent is down");
+          early.spectra.signal('SIGTERM');
+          assert.equal((await early.spectra.exited).code, 128 + 15, early.spectra.output);
+          assert.match(early.spectra.output, /a2ui-spectra: Stopping\.\n/);
+
+          const late = await launch(['--exit-after-card', '4']);
+          await late.spectra.waitFor(cardAnswered);
+          await late.spectra.waitFor(
+            /The agent's process exited with code 4\. Restart it from the viewer\./,
+          );
+          const after = await stateIs(late.base, 'down');
+          assert.equal(after.state.state === 'down' && after.state.exit, 'exited with code 4');
+          assert.deepEqual(
+            after.events.map(event => event.type),
+            ['agent_exited'],
+          );
+          const context = (await getJson<SessionContext>(`${late.base}/api/context`)).body;
+          assert.equal(context.agentName, 'Fake agent', "The last card's details are kept.");
+          await stopped(late.spectra);
+        },
+      );
+
+      it(
+        'keeps serving when the command cannot start, down with its could-not-start line',
+        {timeout: TIMEOUT},
+        async () => {
+          const {spectra, base} = await launch([], ['a2ui-spectra-test-no-such-command']);
+          await spectra.waitFor(
+            /The agent's process could not start: .+\. Restart it from the viewer\./,
+          );
+          const down = await stateIs(base, 'down');
+          assert.match(down.state.state === 'down' ? down.state.exit : '', /^could not start: /);
+          assert.doesNotMatch(spectra.output, /before its card answered/);
+          await stopped(spectra);
+        },
+      );
+
+      it(
+        'stops a member of the group that outlives the command, then reports down',
+        {timeout: TIMEOUT, skip: !posix},
+        async () => {
+          const dir = tempDir();
+          try {
+            const pidFile = path.join(dir, 'grandchild.pid');
+            const {spectra, base} = await launch([
+              '--grandchild-pid-file',
+              pidFile,
+              '--exit-after-card',
+              '0',
+            ]);
+            await spectra.waitFor(cardAnswered);
+            const grandchild = Number(readFileSync(pidFile, 'utf8'));
+            await stateIs(base, 'down');
+            assert.equal(isAlive(grandchild), false, 'Down means nothing of the group is running.');
+            await spectra.waitFor(
+              /The agent's process exited with code 0\. Restart it from the viewer\./,
+            );
+            await stopped(spectra);
+          } finally {
+            rmSync(dir, {recursive: true, force: true});
+          }
+        },
+      );
+
+      it(
+        'restarts with a streaming turn open: the turn fails as a broken connection, the process is gone well inside the grace, and the state walks restarting, waiting, running',
+        {timeout: TIMEOUT},
+        async () => {
+          const dir = tempDir();
+          const hold = path.join(dir, 'hold');
+          const pidFile = path.join(dir, 'agent.pid');
+          writeFileSync(hold, '');
+          // The agent waits for its open requests on the stop signal, as uvicorn does.
+          const {spectra, base} = await launch([
+            '--streaming',
+            '--wait-for-open-requests',
+            '--hold-stream-while-file',
+            hold,
+            '--pid-file',
+            pidFile,
+          ]);
+          const live = new LiveStream(`${base}/api/stream`);
+          try {
+            await spectra.waitFor(cardAnswered);
+            const before = await stateIs(base, 'running');
+            const sent = await sendMessage(base, 'Hi');
+            await live.until(
+              event =>
+                event.event === 'wire_event' &&
+                event.data.traceId === sent.traceId &&
+                JSON.stringify(event.data).includes('wire_output'),
+            );
+
+            const pressedAt = Date.now();
+            assert.deepEqual(await press(base), {status: 202, body: {accepted: true}});
+            const turn = await live.closed(sent.traceId);
+            const turnEvent = turn.events.find(event => isEventOfKind(event, 'turn'));
+            assert.equal(turnEvent?.attributes['a2ui.turn.outcome'], 'failed');
+            assert.deepEqual(turnEvent?.status, {
+              code: 2,
+              message: 'The connection to the agent broke before the reply ended.',
+            });
+            // Nothing of the agent's process is in the record: only what the wire saw.
+            assert.deepEqual(
+              turn.events.map(event => event.attributes['a2ui.event.kind']),
+              ['turn', 'wire_input', 'wire_output', 'check', 'check', 'check', 'check'],
+            );
+
+            await live.until(
+              event =>
+                event.event === 'agent_state' &&
+                event.data.state === 'starting' &&
+                Number(event.data.seq) > before.state.seq,
+            );
+            assert.ok(
+              Date.now() - pressedAt < 5000,
+              'The cut ended the wait for the open stream: the process went well inside the 10 seconds.',
+            );
+            const after = await stateIs(base, 'running', before.state.seq);
+            assert.deepEqual(statesOn(live, before.state.seq), [
+              'restarting',
+              'starting',
+              'waiting',
+              'running',
+            ]);
+            const [first, second] = pidsIn(pidFile);
+            assert.ok(first !== undefined && second !== undefined && first !== second);
+            assert.equal(isAlive(first), false);
+            assert.ok(isAlive(second));
+
+            assert.equal(after.events.length, 1);
+            const [restarted] = after.events;
+            assert.ok(restarted.type === 'agent_restarted');
+            assert.deepEqual(restarted.cause, {kind: 'press'});
+            assert.ok(restarted.seq > before.state.seq && restarted.seq < after.state.seq);
+            assert.deepEqual(
+              live.events
+                .filter(event => event.event === 'agent_restarted')
+                .map(event => event.data),
+              [restarted].map(({type: _type, ...data}) => data),
+            );
+            assert.match(
+              spectra.output,
+              /Restarting the agent: Restart was pressed in the viewer\./,
+            );
+            assert.equal(count(spectra.output, /Starting the agent: /g), 2);
+            assert.equal(count(spectra.output, /The agent's card answered: Fake agent\./g), 2);
+            // The second wait says no hint, a card having answered once.
+            const waits = spectra.output.match(/Waiting for the agent's card at [^\n]*\n/g) ?? [];
+            assert.ok(waits.length >= 1);
+            assert.doesNotMatch(waits.at(-1) ?? '', /Change the agent's URL/);
+            assert.doesNotMatch(spectra.output, /Restart it from the viewer|force-killed/);
+            await stopped(spectra);
+          } finally {
+            live.close();
+            rmSync(dir, {recursive: true, force: true});
+          }
+        },
+      );
+
+      it(
+        'takes a press in the other states: down it spawns, during a card wait it stops the starting process and starts another, and during the stop it adds nothing',
+        {timeout: TIMEOUT},
+        async () => {
+          const dir = tempDir();
+          try {
+            // Down: the press spawns.
+            const down = await launch(['--exit-after-card', '4']);
+            const first = await stateIs(down.base, 'down');
+            assert.equal((await press(down.base)).status, 202);
+            const again = await stateIs(down.base, 'down', first.state.seq);
+            assert.deepEqual(
+              again.events.map(event => event.type),
+              ['agent_exited', 'agent_restarted', 'agent_exited'],
+            );
+            assert.equal(count(down.spectra.output, /Starting the agent: /g), 2);
+            await stopped(down.spectra);
+
+            // A card wait: the starting process is stopped and the command spawned again.
+            const waitPids = path.join(dir, 'wait.pid');
+            const waiting = await launch([], idleWithPid(waitPids));
+            const live = new LiveStream(`${waiting.base}/api/stream`);
+            try {
+              const wait = await stateIs(waiting.base, 'waiting');
+              assert.equal(
+                wait.state.state === 'waiting' && wait.state.reason,
+                'connection refused',
+              );
+              // The starting process is up once it has written its process id.
+              assert.ok(await eventually(() => pidsIn(waitPids).length === 1));
+              assert.equal((await press(waiting.base)).status, 202);
+              const second = await stateIs(waiting.base, 'waiting', wait.state.seq);
+              assert.deepEqual(statesOn(live, wait.state.seq), [
+                'restarting',
+                'starting',
+                'waiting',
+              ]);
+              assert.deepEqual(
+                second.events.map(event => event.type),
+                ['agent_restarted'],
+              );
+              assert.ok(await eventually(() => pidsIn(waitPids).length === 2));
+              const [stoppedPid, startedPid] = pidsIn(waitPids);
+              assert.equal(isAlive(stoppedPid), false);
+              assert.ok(isAlive(startedPid));
+            } finally {
+              live.close();
+            }
+            await stopped(waiting.spectra);
+
+            // Restarting: a press during the stop adds nothing, and none is queued behind it.
+            const stopPids = path.join(dir, 'stop.pid');
+            const slow = await launch(['--stop-delay', '1500', '--pid-file', stopPids]);
+            const running = await stateIs(slow.base, 'running');
+            assert.equal((await press(slow.base)).status, 202);
+            await stateIs(slow.base, 'restarting', running.state.seq);
+            assert.equal((await press(slow.base)).status, 202);
+            assert.equal((await press(slow.base)).status, 202);
+            const back = await stateIs(slow.base, 'running', running.state.seq);
+            await new Promise(resolve => setTimeout(resolve, 500));
+            const settled = await agentOf(slow.base);
+            assert.deepEqual(settled.state, back.state, 'No second restart followed.');
+            assert.deepEqual(
+              settled.events.map(event => event.type),
+              ['agent_restarted'],
+            );
+            assert.equal(pidsIn(stopPids).length, 2);
+            assert.equal(count(slow.spectra.output, /Starting the agent: /g), 2);
+            assert.equal(count(slow.spectra.output, /Restarting the agent: /g), 1);
+            await stopped(slow.spectra);
+          } finally {
+            rmSync(dir, {recursive: true, force: true});
+          }
+        },
+      );
+
+      it(
+        "follows a card that changed between launches: the context, the box's choice of send or stream, and the agent's name on new turns",
+        {timeout: TIMEOUT},
+        async () => {
+          const dir = tempDir();
+          const cardFile = path.join(dir, 'card.json');
+          const {spectra, base, proxyPort} = await launch(['--card-file', cardFile]);
+          const methods = async () =>
+            (
+              JSON.parse((await send(proxyPort, {path: '/requests'})).body) as Array<{
+                method: string;
+              }>
+            ).map(request => request.method);
+          const listed = async (traceId: string) =>
+            (await getJson<{turns: ListedTurn[]}>(`${base}/api/turns`)).body.turns.find(
+              turn => turn.traceId === traceId,
+            );
+          try {
+            await spectra.waitFor(cardAnswered);
+            const first = await stateIs(base, 'running');
+            const sent = await sendMessage(base, 'Hi');
+            await boxSettled(base);
+            assert.deepEqual(await methods(), ['message/send']);
+            assert.equal((await listed(sent.traceId))?.agentName, 'Fake agent');
+
+            writeFileSync(cardFile, JSON.stringify({name: 'Second agent', streaming: true}));
+            assert.equal((await press(base)).status, 202);
+            await stateIs(base, 'running', first.state.seq);
+            await spectra.waitFor(/The agent's card answered: Second agent\./);
+            const context = (await getJson<SessionContext>(`${base}/api/context`)).body;
+            assert.equal(context.agentName, 'Second agent');
+            const streamed = await sendMessage(base, 'Hi again');
+            await boxSettled(base);
+            assert.deepEqual(await methods(), ['message/stream'], 'The new process got a stream.');
+            const turn = await listed(streamed.traceId);
+            assert.equal(turn?.agentName, 'Second agent');
+            assert.equal(turn?.outcome, 'waiting_for_input');
+            assert.equal((await listed(sent.traceId))?.agentName, 'Fake agent');
+            await stopped(spectra);
+          } finally {
+            rmSync(dir, {recursive: true, force: true});
+          }
+        },
+      );
+
+      it(
+        'carries on when a card fails the transport check after a restart, the box refusing with its line until a restart with a good card',
+        {timeout: TIMEOUT},
+        async () => {
+          const dir = tempDir();
+          const cardFile = path.join(dir, 'card.json');
+          const {spectra, base} = await launch(['--card-file', cardFile]);
+          try {
+            await spectra.waitFor(cardAnswered);
+            const first = await stateIs(base, 'running');
+            assert.equal((await boxOf(base)).unavailable, undefined);
+
+            writeFileSync(cardFile, JSON.stringify({transports: ['GRPC']}));
+            assert.equal((await press(base)).status, 202);
+            const second = await stateIs(base, 'running', first.state.seq);
+            await spectra.waitFor(
+              /The agent's card lists no A2A JSON-RPC interface, only GRPC\. Spectra captures A2A over JSON-RPC only\./,
+            );
+            const line = "Can't send · the agent's card lists no A2A JSON-RPC interface, only GRPC";
+            assert.equal((await boxOf(base)).unavailable, line);
+            assert.deepEqual(
+              await postJson<{error: string}>(`${base}/api/message-box/messages`, {text: 'Hi'}),
+              {status: 422, body: {error: line}},
+            );
+
+            writeFileSync(cardFile, JSON.stringify({transports: []}));
+            assert.equal((await press(base)).status, 202);
+            const third = await stateIs(base, 'running', second.state.seq);
+            await spectra.waitFor(/The agent's card lists no interface to reach it at\./);
+            assert.equal(
+              (await boxOf(base)).unavailable,
+              "Can't send · the agent's card lists no interface to reach it at",
+            );
+
+            writeFileSync(cardFile, JSON.stringify({}));
+            assert.equal((await press(base)).status, 202);
+            await stateIs(base, 'running', third.state.seq);
+            assert.equal((await boxOf(base)).unavailable, undefined);
+            await sendMessage(base, 'Hi');
+            await boxSettled(base);
+            await stopped(spectra);
+          } finally {
+            rmSync(dir, {recursive: true, force: true});
+          }
+        },
+      );
+
+      it(
+        'sends the conversation id and no task id after a restart, for a conversation that was waiting for input',
+        {timeout: TIMEOUT},
+        async () => {
+          const {spectra, base, proxyPort} = await launch(['--streaming']);
+          const messages = async () =>
+            (
+              JSON.parse((await send(proxyPort, {path: '/requests'})).body) as Array<{
+                params: {message: {contextId?: string; taskId?: string}};
+              }>
+            ).map(({params}) => ({
+              contextId: params.message.contextId,
+              taskId: params.message.taskId,
+            }));
+          await spectra.waitFor(cardAnswered);
+          const first = await stateIs(base, 'running');
+          await sendMessage(base, 'Hi');
+          await boxSettled(base);
+          await sendMessage(base, 'Ada', 'ctx-1');
+          await boxSettled(base);
+          assert.deepEqual(await messages(), [
+            {contextId: undefined, taskId: undefined},
+            {contextId: 'ctx-1', taskId: 't-1'},
+          ]);
+
+          assert.equal((await press(base)).status, 202);
+          await stateIs(base, 'running', first.state.seq);
+          const box = await boxOf(base);
+          assert.deepEqual(
+            box.conversations.map(conversation => conversation.conversationId),
+            ['ctx-1'],
+            'The box keeps its conversation.',
+          );
+          await sendMessage(base, 'Again', 'ctx-1');
+          await boxSettled(base);
+          assert.deepEqual(await messages(), [{contextId: 'ctx-1', taskId: undefined}]);
+          await stopped(spectra);
+        },
+      );
+
+      it(
+        'stops a replay running at a restart, its remaining turns not sent with "The agent was restarted."',
+        {timeout: TIMEOUT},
+        async () => {
+          const dir = tempDir();
+          const hold = path.join(dir, 'hold');
+          const {spectra, base} = await launch(['--streaming', '--hold-stream-while-file', hold]);
+          const live = new LiveStream(`${base}/api/stream`);
+          try {
+            await spectra.waitFor(cardAnswered);
+            const first = await stateIs(base, 'running');
+            await sendMessage(base, 'Hi');
+            await boxSettled(base);
+            const second = await sendMessage(base, 'Ada', 'ctx-1');
+            await boxSettled(base);
+
+            // The replay's first turn stays open until the restart cuts it.
+            writeFileSync(hold, '');
+            const started = await postJson<ReplayStarted>(`${base}/api/replays`, {
+              source: {traceId: second.traceId},
+              mode: 'model_live',
+            });
+            assert.equal(started.status, 202, JSON.stringify(started.body));
+            assert.equal(started.body.turns, 2);
+            assert.equal((await press(base)).status, 202);
+            const ended = await live.until(event => event.event === 'replay_ended');
+            const turns = ended.data.turns as Array<Record<string, unknown>>;
+            assert.equal(turns.length, 2);
+            assert.equal(turns[0].traceId, started.body.traceId);
+            assert.equal(turns[0].verdict, 'failed');
+            assert.equal(turns[1].notSent, 'The agent was restarted.');
+            assert.equal(turns[1].traceId, undefined);
+            assert.equal(ended.data.verdict, 'failed');
+            rmSync(hold);
+            await stateIs(base, 'running', first.state.seq);
+            assert.equal((await boxOf(base)).replay, undefined);
+            await stopped(spectra);
+          } finally {
+            live.close();
+            rmSync(dir, {recursive: true, force: true});
+          }
+        },
+      );
+
+      it('words the wait for a refused connection itself', {timeout: TIMEOUT}, async () => {
+        const {spectra, base, agentPort} = await launch([], idle);
+        await spectra.waitFor(
+          new RegExp(
+            `Waiting for the agent's card at http://localhost:${agentPort}/\\.well-known/agent-card\\.json: ` +
+              "connection refused\\. Change the agent's URL with --agent-url, or agent\\.url in the config file\\.\n",
+          ),
+        );
+        const waiting = await stateIs(base, 'waiting');
+        assert.deepEqual(waiting.state, {state: 'waiting', reason: 'connection refused', seq: 2});
+        await stopped(spectra);
+      });
     });
   });
 });

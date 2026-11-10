@@ -24,7 +24,7 @@ export interface WireProxyOptions {
   port: number;
   /** The agent's base address. */
   agentUrl: URL;
-  /** The agent's name, from its card. */
+  /** The agent's name, from its card, until `setAgentName` replaces it. */
   agentName?: string;
   /** Called as each turn is captured. */
   onTurn?: TurnListener;
@@ -42,6 +42,10 @@ export interface WireProxy {
   readonly origin: string;
   /** The address to point a host at: the proxy's origin with the agent's base path. */
   readonly address: string;
+  /** Names the agent on the turns captured from now on, from its latest card; none when the card has no name. */
+  setAgentName(name: string | undefined): void;
+  /** Ends the open turns' connections to the agent, as a restart of its process does first. */
+  cut(): void;
   close(): Promise<void>;
 }
 
@@ -75,7 +79,11 @@ function endToEndHeaders(headers: IncomingHttpHeaders): OutgoingHttpHeaders {
 /** What the proxy keeps across requests. */
 interface ProxyState {
   origin: string;
+  /** The agent's name on the turns captured from now on. */
+  agentName: string | undefined;
   inFlight: Set<ClientRequest>;
+  /** The requests in flight that opened a turn. */
+  turnsInFlight: Set<ClientRequest>;
   /** Whether the host has been told once that it reuses trace ids. */
   warnedReuse: boolean;
 }
@@ -91,7 +99,14 @@ interface ProxyState {
 export function startWireProxy(options: WireProxyOptions): Promise<WireProxy> {
   const origin = `http://${LOOPBACK_ADDRESS}:${options.port}`;
   const inFlight = new Set<ClientRequest>();
-  const state: ProxyState = {origin, inFlight, warnedReuse: false};
+  const turnsInFlight = new Set<ClientRequest>();
+  const state: ProxyState = {
+    origin,
+    agentName: options.agentName,
+    inFlight,
+    turnsInFlight,
+    warnedReuse: false,
+  };
   const server = createServer((request, response) => forward(options, state, request, response));
   return new Promise((resolve, reject) => {
     server.once('error', (error: NodeJS.ErrnoException) => {
@@ -101,6 +116,14 @@ export function startWireProxy(options: WireProxyOptions): Promise<WireProxy> {
       resolve({
         origin,
         address: origin + options.agentUrl.pathname,
+        setAgentName: name => {
+          state.agentName = name;
+        },
+        cut: () => {
+          for (const upstream of turnsInFlight) {
+            upstream.destroy();
+          }
+        },
         close: () =>
           new Promise(done => {
             for (const upstream of inFlight) {
@@ -171,7 +194,11 @@ async function forwardRead(
   const send = options.agentUrl.protocol === 'https:' ? httpsRequest : httpRequest;
   const upstream = send(target, {method: request.method, headers});
   state.inFlight.add(upstream);
-  upstream.once('close', () => state.inFlight.delete(upstream));
+  if (found.name === 'turn') state.turnsInFlight.add(upstream);
+  upstream.once('close', () => {
+    state.inFlight.delete(upstream);
+    state.turnsInFlight.delete(upstream);
+  });
 
   response.once('close', () => {
     if (!response.writableFinished) {
@@ -235,7 +262,7 @@ async function classify(
     return {
       name: 'turn',
       capture: TurnCapture.open(turnRequest, {
-        agentName: options.agentName,
+        agentName: state.agentName,
         writer: {name: NAME, version: VERSION},
         listener: options.onTurn ?? (() => {}),
         ...(adopted !== undefined && {traceId: adopted}),

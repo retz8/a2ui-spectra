@@ -13,6 +13,7 @@ import {
   readReplySummary,
   type ReplySummary,
 } from './a2a/client.js';
+import {checkTransport} from './a2a/card.js';
 import {joinInputMetadata} from './a2a/metadata.js';
 import {a2aPart} from './a2a/parts.js';
 import type {A2aVersion} from './a2a/protocol.js';
@@ -44,6 +45,20 @@ export class MessageBoxError extends Error {
     this.name = 'MessageBoxError';
   }
 }
+
+/**
+ * Where the agent's process stands under `run`, as the box refuses by it. Under
+ * `attach` and the headless commands the box is not told, and it stays running.
+ */
+export type BoxAgentState = 'starting' | 'waiting' | 'running' | 'restarting' | 'down';
+
+/** The box's reason while the agent's process cannot be sent to. */
+const AGENT_STATE_REFUSALS: Readonly<Record<Exclude<BoxAgentState, 'running'>, string>> = {
+  starting: "Can't send · the agent is starting",
+  waiting: "Can't send · waiting for the agent's card",
+  restarting: "Can't send · the agent is restarting",
+  down: "Can't send · the agent is down",
+};
 
 /** A conversation the box started, as the read route returns it. */
 export interface BoxConversation {
@@ -124,8 +139,11 @@ interface Conversation {
 }
 
 export interface MessageBoxOptions {
-  /** The agent's card, its JSON-RPC endpoints pointed at the wire proxy. */
-  card: Record<string, unknown>;
+  /**
+   * The agent's card, its JSON-RPC endpoints pointed at the wire proxy; none
+   * under `run` until the first card answers, when `setCard` gives it.
+   */
+  card?: Record<string, unknown>;
   turns: TurnHub;
   /** The configured headers, their variables replaced, added to every request. */
   headers?: Readonly<Record<string, string>>;
@@ -146,9 +164,17 @@ export interface MessageBoxOptions {
  * is read in the background for the conversation and the task to carry into
  * the conversation's next send. A replay re-sends a record's wire inputs as
  * one new conversation, the proxies armed with the record's calls meanwhile.
+ * Under `run` it follows the agent's process: the latest card, and the
+ * process's state, by which it refuses.
  */
 export class MessageBox {
-  readonly #target: InterfaceChoice;
+  #card: Record<string, unknown> | undefined;
+  #target: InterfaceChoice | undefined;
+  #agentState: BoxAgentState = 'running';
+  /** Counts the ends of the agent's process, so a reply read across one carries no task on. */
+  #agentLaunch = 0;
+  /** Stops the replay running, with the sentence its remaining turns are reported not sent with. */
+  #stopReplay: ((reason: string) => void) | undefined;
   readonly #turns: TurnHub;
   readonly #headers: Readonly<Record<string, string>>;
   readonly #unsetVariables: readonly string[];
@@ -171,7 +197,7 @@ export class MessageBox {
   readonly #foreign = new Set<string>();
 
   constructor(options: MessageBoxOptions) {
-    this.#target = chooseInterface(options.card);
+    if (options.card !== undefined) this.setCard(options.card);
     this.#turns = options.turns;
     this.#headers = options.headers ?? {};
     this.#unsetVariables = options.unsetVariables ?? [];
@@ -208,12 +234,47 @@ export class MessageBox {
     });
   }
 
+  /** Follows a card: the interface the box sends to, and its choice of send or stream, are this card's from now on. */
+  setCard(card: Record<string, unknown>): void {
+    this.#card = card;
+    this.#target = chooseInterface(card);
+  }
+
+  /** Follows the agent's process under `run`: the box refuses by its state until it is running. */
+  setAgentState(state: BoxAgentState): void {
+    this.#agentState = state;
+  }
+
   /**
-   * Why the box cannot send to this agent, or nothing when it can: the card
-   * lists no JSON-RPC interface the box speaks, or a configured header names
-   * a variable that is not set in Spectra's environment.
+   * The agent's process ended, by a restart or on its own: every conversation
+   * keeps its id and drops its task id, which named state that lived in the
+   * stopped process, and a replay running stops, its remaining turns reported
+   * not sent with the reason given.
    */
-  get unavailable(): string | undefined {
+  agentEnded(reason: string): void {
+    this.#agentLaunch++;
+    for (const conversation of this.#conversations) {
+      conversation.taskId = undefined;
+    }
+    this.#stopReplay?.(reason);
+  }
+
+  /**
+   * Why the latest card leaves the box unable to send, or nothing when it
+   * does not: it lists no interface, no JSON-RPC interface, or JSON-RPC only
+   * at versions the box does not speak.
+   */
+  get cardRefusal(): string | undefined {
+    if (this.#card === undefined || this.#target === undefined) {
+      return AGENT_STATE_REFUSALS.waiting;
+    }
+    const transport = checkTransport(this.#card);
+    if (transport.kind === 'no_interface') {
+      return "Can't send · the agent's card lists no interface to reach it at";
+    }
+    if (transport.kind === 'no_jsonrpc') {
+      return `Can't send · the agent's card lists no A2A JSON-RPC interface, only ${transport.transports.join(', ')}`;
+    }
     if (this.#target.kind !== 'found') {
       const versions = this.#target.versions;
       return (
@@ -221,6 +282,23 @@ export class MessageBox {
         `${versions.length === 1 ? 'version' : 'versions'} ${versions.join(', ')}, and the box ` +
         'speaks A2A 0.3 and 1.0. Hosts pointed at the wire proxy are not affected.'
       );
+    }
+    return undefined;
+  }
+
+  /**
+   * Why the box cannot send to this agent, or nothing when it can, the first
+   * that applies: the agent's process is not running, its card lists no
+   * JSON-RPC interface the box speaks, or a configured header names a
+   * variable that is not set in Spectra's environment.
+   */
+  get unavailable(): string | undefined {
+    if (this.#agentState !== 'running') {
+      return AGENT_STATE_REFUSALS[this.#agentState];
+    }
+    const cardRefusal = this.cardRefusal;
+    if (cardRefusal !== undefined) {
+      return cardRefusal;
     }
     if (this.#unsetVariables.length > 0) {
       return `Can't send · ${unsetVariablesClause(this.#unsetVariables)}`;
@@ -240,7 +318,7 @@ export class MessageBox {
       })),
       ...(unavailable !== undefined && {unavailable}),
       ...(this.#unsetVariables.length > 0 && {unsetVariables: [...this.#unsetVariables]}),
-      ...(this.#target.kind === 'found' && {a2aVersion: this.#target.version}),
+      ...(this.#target?.kind === 'found' && {a2aVersion: this.#target.version}),
       ...(this.#replaying !== undefined && {replay: {...this.#replaying}}),
     };
   }
@@ -317,7 +395,8 @@ export class MessageBox {
    * for input. Resolves once the first turn opens; the rest runs on, each
    * turn's provenance written as it opens and its verdict once it has closed,
    * and the proxies disarmed after the last. A turn that cannot be sent stops
-   * the replay, the rest reported as not sent.
+   * the replay, the rest reported as not sent, and so does the end of the
+   * agent's process, the open turn having failed.
    */
   async replay(source: ReplaySource, mode: ReplayMode): Promise<ReplayStarted> {
     const target = this.#available();
@@ -357,9 +436,15 @@ export class MessageBox {
       turn,
     }));
 
+    /** Why the agent's process ended while this replay ran, once it has. */
+    let agentEnded: string | undefined;
+    this.#stopReplay = reason => {
+      agentEnded ??= reason;
+    };
     const end = () => {
       hooks.disarm();
       this.#replaying = undefined;
+      this.#stopReplay = undefined;
       this.#turns.notify({
         type: 'replay_ended',
         source: source.path,
@@ -453,6 +538,10 @@ export class MessageBox {
       try {
         await first.finished;
         for (let index = 1; index < inputs.length; index++) {
+          if (agentEnded !== undefined) {
+            notSent(index, agentEnded);
+            break;
+          }
           try {
             const {finished} = await sendTurn(index);
             await finished;
@@ -477,7 +566,7 @@ export class MessageBox {
   /** The interface the box sends to, or the refusal when it cannot send. */
   #available(): BoxInterface {
     const unavailable = this.unavailable;
-    if (this.#target.kind !== 'found' || unavailable !== undefined) {
+    if (this.#target?.kind !== 'found' || unavailable !== undefined) {
       throw new MessageBoxError(422, unavailable ?? '');
     }
     return this.#target;
@@ -525,19 +614,24 @@ export class MessageBox {
     }
 
     const closed = new Promise<Turn>(resolve => this.#closing.set(traceId, resolve));
+    const launch = this.#agentLaunch;
     conversation.open = traceId;
     conversation.turns.push(traceId);
     if (!this.#conversations.includes(conversation)) {
       this.#conversations.push(conversation);
     }
-    return {traceId, closed: this.#finish(conversation, traceId, target, responding, closed)};
+    return {
+      traceId,
+      closed: this.#finish(conversation, traceId, target, responding, closed, launch),
+    };
   }
 
   /**
    * Reads the reply to its end and waits for the turn to close, then carries
    * its conversation on: its id, from the reply or else from the closed turn
    * when the reply broke off, and the task when the turn ended waiting for
-   * input. Resolves with the closed turn.
+   * input and the agent's process is the one that answered it. Resolves with
+   * the closed turn.
    */
   async #finish(
     conversation: Conversation,
@@ -545,6 +639,7 @@ export class MessageBox {
     target: BoxInterface,
     responding: Promise<Response>,
     closed: Promise<Turn>,
+    launch: number,
   ): Promise<Turn> {
     let summary: ReplySummary = {};
     try {
@@ -558,7 +653,7 @@ export class MessageBox {
     conversation.conversationId ??=
       summary.contextId ?? turnEvent?.attributes['gen_ai.conversation.id'];
     const waiting = summary.state === 'input-required' || summary.state === 'auth-required';
-    conversation.taskId = waiting ? summary.taskId : undefined;
+    conversation.taskId = waiting && launch === this.#agentLaunch ? summary.taskId : undefined;
     conversation.open = undefined;
     return turn;
   }

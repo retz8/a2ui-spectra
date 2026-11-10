@@ -1,4 +1,5 @@
 import type {TurnListener} from './a2a/turn.js';
+import type {AgentLiveEvent} from './agent_supervisor.js';
 import {inputBriefOf, type InputBrief} from './listing.js';
 import type {CallListener, CallNotification} from './model_proxy/proxy.js';
 import {
@@ -75,7 +76,13 @@ export type LiveEvent =
       turns: ReplayedTurn[];
     }
   /** A file joined, changed in or left the fixtures folder; the listing is to be read again. */
-  | {type: 'fixtures_changed'};
+  | {type: 'fixtures_changed'}
+  /**
+   * Under `run`, the agent's process: its state whole at each change, a
+   * restart with its time and its cause, and an exit the agent took on its
+   * own with its time and its exit line, each numbered in one order.
+   */
+  | AgentLiveEvent;
 
 /** A live event, and for a turn opened, the `messageId` of the host's message. */
 export type HubEvent = LiveEvent & {messageId?: string};
@@ -178,11 +185,20 @@ export class TurnHub {
     this.#emit({type: 'turn_amended', traceId, events});
   };
 
-  /** Passes an event outside any turn, a replay's or the fixtures folder's, to the listeners. */
+  /** Passes an event outside any turn, a replay's, the fixtures folder's or the agent's process's, to the listeners. */
   notify(
     event: Extract<
       LiveEvent,
-      {type: 'replay_started' | 'replay_turn' | 'replay_ended' | 'fixtures_changed'}
+      {
+        type:
+          | 'replay_started'
+          | 'replay_turn'
+          | 'replay_ended'
+          | 'fixtures_changed'
+          | 'agent_state'
+          | 'agent_restarted'
+          | 'agent_exited';
+      }
     >,
   ): void {
     this.#emit(event);

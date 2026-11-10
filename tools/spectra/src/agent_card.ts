@@ -29,7 +29,9 @@ export interface FetchOptions {
 /**
  * Fetches the agent's card once. Returns the card when the agent answers with
  * a JSON object, and else why not: the status it answered with, that its
- * body is not a JSON object, or that it did not answer.
+ * body is not a JSON object, or that it did not answer, a refused connection
+ * and an attempt that ran out of time in Spectra's own words, the same under
+ * Node and under the binary.
  */
 export async function fetchAgentCard(
   cardUrl: URL,
@@ -43,9 +45,7 @@ export async function fetchAgentCard(
       signal: signal ? AbortSignal.any([signal, timeout]) : timeout,
     });
   } catch (error) {
-    return {
-      missing: `it did not answer (${error instanceof Error ? error.message : String(error)})`,
-    };
+    return {missing: unansweredReason(error, timeoutMs)};
   }
   if (!response.ok) {
     await response.body?.cancel();
@@ -58,6 +58,30 @@ export async function fetchAgentCard(
     return {missing: `it answered ${response.status} with no JSON object`};
   }
   return isObject(card) ? {card} : {missing: `it answered ${response.status} with no JSON object`};
+}
+
+/** Why an attempt got no answer: the two common causes in Spectra's words, any other in the runtime's. */
+function unansweredReason(error: unknown, timeoutMs: number): string {
+  if (errorCodeOf(error) === 'ECONNREFUSED') {
+    return 'connection refused';
+  }
+  if (error instanceof Error && error.name === 'TimeoutError') {
+    const seconds = timeoutMs / 1000;
+    return `no answer within ${seconds} ${seconds === 1 ? 'second' : 'seconds'}`;
+  }
+  return `it did not answer (${error instanceof Error ? error.message : String(error)})`;
+}
+
+/** The system error code of a failed fetch: on the error under Bun, on its cause under Node. */
+function errorCodeOf(error: unknown): unknown {
+  if (typeof error !== 'object' || error === null) {
+    return undefined;
+  }
+  const {code, cause} = error as {code?: unknown; cause?: unknown};
+  if (typeof code === 'string') {
+    return code;
+  }
+  return typeof cause === 'object' && cause !== null ? (cause as {code?: unknown}).code : undefined;
 }
 
 export interface WaitOptions extends Omit<FetchOptions, 'signal'> {

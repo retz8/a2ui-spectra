@@ -57,6 +57,9 @@ describe('fetching the card', () => {
             response.end(JSON.stringify({name: 'Guarded', seen: request.headers['x-tenant']}));
           }
           return;
+        case '/silent/.well-known/agent-card.json':
+          // Never answered.
+          return;
         case '/changing/.well-known/agent-card.json':
           response.writeHead(answers < 2 ? 503 : 401);
           response.end();
@@ -93,6 +96,24 @@ describe('fetching the card', () => {
     );
     assert.ok(unreachable.missing);
     assert.match(unreachable.missing, /^it did not answer \(.+\)$/);
+  });
+
+  it('words a refused connection and an attempt that ran out of time itself', async () => {
+    const closed = createServer();
+    await new Promise<void>(resolve => closed.listen(0, '127.0.0.1', () => resolve()));
+    const address = closed.address();
+    assert.ok(typeof address === 'object' && address !== null);
+    await new Promise(resolve => closed.close(resolve));
+    assert.deepEqual(
+      await fetchAgentCard(new URL(`http://127.0.0.1:${address.port}/.well-known/agent-card.json`)),
+      {missing: 'connection refused'},
+    );
+    assert.deepEqual(await fetchAgentCard(cardOf('/silent'), {timeoutMs: 1000}), {
+      missing: 'no answer within 1 second',
+    });
+    assert.deepEqual(await fetchAgentCard(cardOf('/silent'), {timeoutMs: 200}), {
+      missing: 'no answer within 0.2 seconds',
+    });
   });
 
   it('sends the headers it is given with the fetch', async () => {

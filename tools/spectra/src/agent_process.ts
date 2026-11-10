@@ -1,5 +1,4 @@
 import {type ChildProcess, spawn} from 'node:child_process';
-import {constants} from 'node:os';
 
 /** How the agent's process ended. */
 export interface AgentExit {
@@ -12,20 +11,6 @@ export interface AgentExit {
 /** The time a stopped process gets before it is force-killed, as `docker stop` waits. */
 export const STOP_GRACE_MS = 10_000;
 
-/** The exit code a shell would report for this ending. */
-export function exitCodeOf(exit: AgentExit): number {
-  if (exit.error !== undefined) {
-    return 127;
-  }
-  if (exit.code !== null) {
-    return exit.code;
-  }
-  if (exit.signal !== null) {
-    return 128 + (constants.signals[exit.signal] ?? 0);
-  }
-  return 1;
-}
-
 /** Describes an ending in words, for Spectra's own output. */
 export function describeExit(exit: AgentExit): string {
   if (exit.error !== undefined) {
@@ -37,6 +22,21 @@ export function describeExit(exit: AgentExit): string {
   return `was ended by ${exit.signal ?? 'an unknown cause'}`;
 }
 
+/** How a stop went. */
+export interface AgentStop {
+  /** Whether the group outlived the grace period and was force-killed. */
+  forceKilled: boolean;
+}
+
+/** What the terminal says when a stop ran out its grace period. */
+export function forceKilledLine(graceMs: number = STOP_GRACE_MS): string {
+  const seconds = graceMs / 1000;
+  return (
+    `The agent's process did not stop within ${seconds} ${seconds === 1 ? 'second' : 'seconds'}, ` +
+    'so it was force-killed.'
+  );
+}
+
 /** The agent's command, started under `run`. */
 export interface AgentProcess {
   /** Settles when the command's own process exits. */
@@ -44,8 +44,10 @@ export interface AgentProcess {
   /**
    * Stops the command and everything it started: the stop signal to its
    * process group, then a force-kill if the group outlives the grace period.
+   * Resolves once the group has gone, or has been force-killed, with whether
+   * the grace ran out.
    */
-  stop(): Promise<void>;
+  stop(): Promise<AgentStop>;
   /** Force-kills the command and everything it started, at once. */
   kill(): void;
 }
@@ -86,7 +88,7 @@ export function startAgentProcess(
     child.once('error', error => resolve({code: null, signal: null, error}));
     child.once('exit', (code, signal) => resolve({code, signal}));
   });
-  let stopping: Promise<void> | undefined;
+  let stopping: Promise<AgentStop> | undefined;
   return {
     exited,
     stop() {
@@ -103,20 +105,23 @@ async function stopGroup(
   child: ChildProcess,
   exited: Promise<AgentExit>,
   graceMs: number,
-): Promise<void> {
+): Promise<AgentStop> {
   if (child.pid === undefined) {
-    return;
+    return {forceKilled: false};
   }
   signalGroup(child, 'SIGTERM');
   const deadline = Date.now() + graceMs;
+  let forceKilled = false;
   while (groupAlive(child)) {
     if (Date.now() >= deadline) {
       signalGroup(child, 'SIGKILL');
+      forceKilled = true;
       break;
     }
     await delay(50);
   }
   await exited;
+  return {forceKilled};
 }
 
 function signalGroup(child: ChildProcess, signal: NodeJS.Signals): void {
