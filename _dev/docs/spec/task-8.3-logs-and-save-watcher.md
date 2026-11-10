@@ -30,7 +30,7 @@ The buffer is one ordered list of three kinds of entry: an output line, with its
 
 - **Started:** written at every start of the command, the first launch included, with the command as launched.
 - **Stopped:** written once for each process that ended, with the exit line in the terminal's words. It carries the cause when a restart stopped the process, the press or the changed file, and no cause when the agent exited on its own. A command that cannot start reads a started divider followed by a stopped divider with its could-not-start line. Nothing is written when Spectra itself is stopping.
-- **Position:** the stopped divider follows that process's last line. A restart does not wait on a stream that something outside the process group still holds open, the case of the sub-task 8.2 spec's decision on a process the stop cannot reach; lines arriving later are kept and echoed as they come.
+- **Position:** the stopped divider follows that process's last line. A restart does not wait on a stream that something outside the process group still holds open, the case of the sub-task 8.2 spec's decision on a process the stop cannot reach: the divider waits a quarter of a second at most for the streams to end, and lines arriving later are kept and echoed as they come.
 
 ### 5. The route and the stream
 
@@ -47,7 +47,7 @@ Under `run` Spectra sets `PYTHONUNBUFFERED=1` in the agent's environment, unless
 
 ### 7. What is watched, and how
 
-On by default under `run`: the working directory, recursively, every file outside the default ignore list. The watch is one recursive `fs.watch` per watched folder, the ignore list applied to the events. A single file listed in `watch` is watched through its folder, since a save that replaces the file would end a watch on the file itself. The debounce is a quiet spell: the restart comes 100 ms after the last change, as the fixtures folder watcher's does.
+On by default under `run`: the working directory, recursively, every file outside the default ignore list. The watch is one recursive `fs.watch` per watched folder, the ignore list applied to the events. A single file listed in `watch` is watched through its folder, since a save that replaces the file would end a watch on the file itself. The debounce is a quiet spell: the restart comes 100 ms after the last change, as the fixtures folder watcher's does. Only a file is a save: a folder made or removed restarts nothing. macOS reports a change of a watched folder itself under the folder's own name, as a file of that name inside it; such a path that is not on the disk is the folder, and no save.
 
 On Linux the recursive watch walks into the ignored folders, one watch per folder under Bun and one per file and folder under Node 22, against inotify's per-user limit; narrowing `watch` cuts it.
 
@@ -113,19 +113,25 @@ The viewer shows nothing about the watcher itself; it shows each restart, with t
 - A watch that fails while Spectra runs gets the same line. Spectra carries on, and the Restart control still works.
 - A listed folder that is removed while Spectra runs is no longer watched. The terminal says so and says to stop and start Spectra. It is not picked up again when it reappears.
 
-### 15. Bun's watcher on macOS
+### 15. The watchers on macOS
 
-Bun, which compiles the binary, has two open issues on macOS: opening or closing one watcher drops events for the others while the stream is rebuilt, oven-sh/bun issue 44385, and a non-recursive watch nested inside a recursive one makes the recursive one lose events, issue 44780. The second is Spectra's situation at a first launch: the fixtures folder does not exist yet, so its watcher watches the working directory non-recursively, inside the save watcher's recursive watch of the same directory. The save-restart case runs against the binary as well as under Node. The first-launch case, a save while the fixtures folder does not exist yet, is checked by hand under the binary on macOS and recorded in the sub-task's wrap-up, CI running on Linux.
+Bun, which compiles the binary, has two open issues on macOS: opening or closing one watcher drops events for the others while the stream is rebuilt, oven-sh/bun issue 44385, and a non-recursive watch nested inside a recursive one makes the recursive one lose events, issue 44780. The first holds under Node 22 as well, found in this sub-task: with the fixtures folder's watch reopened as the folder first appeared, a save written in the same moment never reached the save watcher, about one run in two. The second is Spectra's situation at a first launch: the fixtures folder does not exist yet, so its watcher watches the working directory non-recursively, inside the save watcher's recursive watch of the same directory.
+
+So no watcher is opened or closed while Spectra runs, where restart on save watches the folder that holds the fixtures folder: the save watcher's own watch tells the fixtures folder's changes, each once after its quiet spell, and the fixtures folder has no watch of its own. Where no watched folder holds it, under `attach`, with `watch` off or narrowed away from it, the fixtures folder keeps its own watch.
+
+The save-restart case runs against the binary as well as under Node. The first-launch case, a save while the fixtures folder does not exist yet and as it appears, is a command-line case, run on macOS under Node and against the binary; CI runs it on Linux.
 
 ### 16. The fixtures folder watcher's test
 
 The failure is reproduced under load first, and its cause found. The fix goes where the cause is: the watcher, when it misses or doubles a change; the test, when its counts depend on the machine's speed, rewritten to assert what the watcher promises, one call per quiet spell, with no count that rests on a timing margin. Done when the cause is written down and the test no longer rests on a margin. The save watcher's own tests hold to the same standard: they assert the restart and its cause, never a count of restarts that depends on how fast the machine delivered the events.
 
+The cause, as found: the test changed the folder before the watch was in place. The watcher sets its watch up after a look at the disk, and returned before that; and on macOS a watch reports nothing for a moment after it is set up, with no sign of when it begins, nodejs/node issue 52601. On a loaded machine the folder's first file was written inside that gap and never told, one run in twelve. The watch now says when it is in place, the test waits for that and makes each change again until it is told, and the promise of one call per quiet spell is tested on the quiet spell itself, with the clock in the test's hands. The exact counts of calls are gone.
+
 ### 17. The tests
 
 The rules are tested without any file event; real saves appear only in the command-line cases.
 
-The command-line test, under `run`, under Node and against the binary, with the fake agent extended to play each case:
+The command-line test, under `run`, under Node and against the binary, with the fake agent or a one-line command playing each case; a case that saves a file saves it again until Spectra says so:
 
 1. The output: the fake agent writes to both streams; the terminal carries each on its own stream, byte for byte, without Spectra's prefix; the route gives the entries after a started divider; the `agent_log` events merge with the route by number.
 2. An unfinished line shows in the terminal at once and enters the buffer at its newline, or as a last line when the process ends.
@@ -133,7 +139,7 @@ The command-line test, under `run`, under Node and against the binary, with the 
 4. The cap: past 1,000 lines the oldest are gone, and the route's count and the event's oldest number follow.
 5. `PYTHONUNBUFFERED` is in the agent's environment, and a value from Spectra's own environment is kept.
 6. A save restarts the agent: the cause names the file on the restart event, in the terminal's line and on the stopped divider.
-7. An ignored write, then a watched one: the one restart names the watched file.
+7. An ignored write, then a watched one, with the fixtures folder appearing between them: every restart names the watched file, and the stream says the fixtures folder changed.
 8. A save while down starts the agent; a save during a card wait stops the starting process and starts again.
 9. `watch: false`: the off line at start, and a save restarts nothing, shown by a press afterwards being the only restart event.
 10. A save of the config file: no restart, and the terminal's line.
@@ -141,6 +147,7 @@ The command-line test, under `run`, under Node and against the binary, with the 
 
 Without file events:
 
+- The quiet spell: one call, the spell after the last notice.
 - The line split: newline and carriage return, a character across two chunks, the 16 KiB split.
 - The buffer: the cap, and a divider leaving with its lines.
 - The path decisions: the dot rule, each name on the list, an explicit entry winning, an exclusion, the deepest entry deciding, the file named for a window.
@@ -155,7 +162,8 @@ Beside these: `attach` answers `404` on the logs route; the existing `replay` an
   - The agent's process section gains the logs: the buffer, the line rules, the dividers, the route `GET /api/agent/logs` and the `agent_log` event.
   - The same section gains restart on save: what is watched, the default ignore list, the quiet spell, a save in each state, the cause, the lines at start, the config file's line, a watch that fails, a removed folder, and the Linux cost with the advice to narrow `watch`.
   - The config file's example and its list gain `watch`.
-  - The layout's entries for the new files, the fake agent's options and the new cases.
+  - The fixtures section: the fixtures folder's changes told by the save watcher's watch.
+  - The layout's entries for the new files and the new cases.
 - The config schema gains `watch`.
 - `run`'s help text gains a sentence on restart on save and the `watch` setting.
 - The Phase 8 spec, amended in place: its decision on restart on save gains the dot rule and the editors' files in place of the named caches, `true` and the `!` exclusions on the setting, a save while the agent is down starting it, and a save of the config file; its decision on the logs gains the 16 KiB split and the buffering variable.
@@ -165,7 +173,7 @@ Beside these: `attach` answers `404` on the logs route; the existing `replay` an
 
 ### 19. What other sub-tasks take from this
 
-- Sub-task 8.5, the catalog's loop: its catalog file watchers sit in the same tree as the save watcher, so the two Bun issues apply to it. A save of a catalog file in a watched folder restarts the agent as any file does.
+- Sub-task 8.5, the catalog's loop: its catalog file watchers sit in the same tree as the save watcher, so decision 15 applies to it: a catalog file in a watched folder is told through the save watcher's watch, and any watch of its own is opened at start, never while Spectra runs. A save of a catalog file in a watched folder restarts the agent as any file does.
 - Sub-task 8.6, the viewer: the route and the event as decision 5 sets them, the save's cause on the restart event, and the buffer's first entry being a started divider. Whether the drawer draws that first divider is for the canvas to say.
 - Sub-task 8.7, the acceptance run: the first-launch check under the binary on macOS. For the Node restaurant finder, what is watched depends on the directory Spectra is launched from.
 
@@ -180,4 +188,4 @@ Beside these: `attach` answers `404` on the logs route; the existing `replay` an
 
 ## Open items
 
-- Symbolic links: what `fs.watch` does with a link inside a watched folder differs by platform. The implementation finds out and states it in the README, with the advice to list a linked folder in `watch` by its real path.
+- Symbolic links on Linux. On macOS a link inside a watched folder is not followed, under Node 22 and in the binary alike, checked in this sub-task: a write in a linked folder, by its real path or through the link, and a write to a linked file's target are not told. Linux is not checked. The README says so, with the advice to list a linked folder in `watch` by its real path.

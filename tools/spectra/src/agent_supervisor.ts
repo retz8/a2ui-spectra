@@ -1,5 +1,13 @@
 import {type AgentCard, waitForAgentCard} from './agent_card.js';
 import {
+  LineSplitter,
+  type LogAdded,
+  LogBuffer,
+  type LogSnapshot,
+  type NewLogEntry,
+  type RestartCause,
+} from './agent_log.js';
+import {
   type AgentExit,
   type AgentProcess,
   describeExit,
@@ -26,10 +34,7 @@ export type AgentState =
 /** A state with its number in the session's order, shared with the session's events. */
 export type NumberedAgentState = AgentState & {seq: number};
 
-/** What caused a restart: a press of Restart in the viewer. */
-export interface RestartCause {
-  kind: 'press';
-}
+export type {RestartCause};
 
 /** One event of the session: a restart, or an exit the agent took on its own. */
 export type AgentSessionEvent =
@@ -49,8 +54,11 @@ export type AgentSessionEvent =
       exit: string;
     };
 
-/** What the stream sends of the agent's process. */
-export type AgentLiveEvent = ({type: 'agent_state'} & NumberedAgentState) | AgentSessionEvent;
+/** What the stream sends of the agent's process: its states, its events, and its output as it enters the buffer. */
+export type AgentLiveEvent =
+  | ({type: 'agent_state'} & NumberedAgentState)
+  | AgentSessionEvent
+  | ({type: 'agent_log'} & LogAdded);
 
 /** What `GET /api/agent` gives. */
 export interface AgentSnapshot {
@@ -92,6 +100,14 @@ export interface AgentSupervisorOptions {
   cardIntervalMs?: number;
 }
 
+/**
+ * How long a stopped divider waits for the ended process's streams to end,
+ * so that it follows the process's last line. They end with the process,
+ * unless something outside its process group still holds them open, which a
+ * restart does not wait on.
+ */
+const OUTPUT_DRAIN_MS = 250;
+
 /** One start of the command. */
 interface Launch {
   process: AgentProcess;
@@ -106,13 +122,16 @@ interface Launch {
   stoppedBySpectra: boolean;
   /** Whether nothing of it is running any more and its end has been dealt with. */
   ended: boolean;
+  /** Whether its stopped divider has been written. */
+  dividerWritten: boolean;
 }
 
 /**
  * The agent's process under `run`: starts the command, reads the card at each
  * start, and restarts it on request. Spectra outlives whatever the process
  * does: an exit leaves the state down, and only Spectra's own stop ends it.
- * Each state and each event is numbered in one order.
+ * Each state and each event is numbered in one order. The command's output
+ * is echoed as it arrives and kept, with a divider at each start and stop.
  */
 export class AgentSupervisor {
   readonly #options: AgentSupervisorOptions;
@@ -129,6 +148,7 @@ export class AgentSupervisor {
   /** Whether Spectra's own stop has begun; nothing is spawned from then on. */
   #stopping = false;
   #cardAnsweredOnce = false;
+  readonly #log = new LogBuffer();
 
   constructor(options: AgentSupervisorOptions) {
     this.#options = options;
@@ -146,6 +166,11 @@ export class AgentSupervisor {
   /** The command as launched, the state as it stands and the session's events. */
   snapshot(): AgentSnapshot {
     return {command: this.#command, state: {...this.#state}, events: [...this.#events]};
+  }
+
+  /** The agent's output as the buffer holds it. */
+  logs(): LogSnapshot {
+    return this.#log.snapshot();
   }
 
   /** Whether the command's own process is running. */
@@ -211,17 +236,48 @@ export class AgentSupervisor {
     this.#options.notify(event);
   }
 
+  /** Enters the entries into the buffer and sends them on, together. */
+  #enter(entries: NewLogEntry[]): void {
+    if (entries.length === 0) return;
+    this.#options.notify({type: 'agent_log', ...this.#log.add(entries)});
+  }
+
   /** Starts the command and its card wait. */
   #spawn(): void {
     const {command, env, out} = this.#options;
     out.info(`Starting the agent: ${this.#command}`);
+    this.#enter([{type: 'started', command: this.#command}]);
+    const splitters = {stdout: new LineSplitter(), stderr: new LineSplitter()};
+    const line =
+      (stream: 'stdout' | 'stderr') =>
+      (text: string): NewLogEntry => ({
+        type: 'line',
+        stream,
+        text,
+      });
     const launch: Launch = {
-      process: startAgentProcess(command.command, command.args, {env, graceMs: this.#graceMs}),
+      process: startAgentProcess(command.command, command.args, {
+        env,
+        graceMs: this.#graceMs,
+        // Each chunk is echoed as it arrived, on the stream it was written to, then split into lines for the buffer.
+        onOutput: (stream, chunk) => {
+          (stream === 'stdout' ? process.stdout : process.stderr).write(chunk);
+          this.#enter(splitters[stream].push(chunk).map(line(stream)));
+        },
+      }),
       wait: new AbortController(),
       cardAnswered: false,
       stoppedBySpectra: false,
       ended: false,
+      dividerWritten: false,
     };
+    // What a stream held unfinished at its end is its last line.
+    void launch.process.outputEnded.then(() => {
+      this.#enter([
+        ...splitters.stdout.end().map(line('stdout')),
+        ...splitters.stderr.end().map(line('stderr')),
+      ]);
+    });
     const first = this.#launch === undefined;
     this.#launch = launch;
     if (!first) {
@@ -286,6 +342,7 @@ export class AgentSupervisor {
     if (this.#stopping) {
       return;
     }
+    await this.#writeStopped(launch);
     const when =
       launch.cardAnswered || launch.exit.error !== undefined ? '' : ' before its card answered';
     out.info(`The agent's process ${exit}${when}. Restart it from the viewer.`);
@@ -326,6 +383,9 @@ export class AgentSupervisor {
         this.#setState({state: 'restarting'});
         session.cutOpenTurns();
         await this.#stopProcess(launch);
+        if (!this.#stopping) {
+          await this.#writeStopped(launch, cause);
+        }
       }
     } finally {
       this.#restartPending = false;
@@ -333,6 +393,21 @@ export class AgentSupervisor {
     if (!this.#stopping) {
       this.#spawn();
     }
+  }
+
+  /**
+   * Writes the ended process's stopped divider, once, after its last line:
+   * with its exit line, and the cause when a restart stopped it.
+   */
+  async #writeStopped(launch: Launch, cause?: RestartCause): Promise<void> {
+    if (launch.dividerWritten) return;
+    launch.dividerWritten = true;
+    const exit = launch.exit ?? (await launch.process.exited);
+    await Promise.race([
+      launch.process.outputEnded,
+      new Promise<void>(resolve => setTimeout(resolve, OUTPUT_DRAIN_MS).unref()),
+    ]);
+    this.#enter([{type: 'stopped', exit: describeExit(exit), ...(cause !== undefined && {cause})}]);
   }
 
   /** Stops the launch's process group with the stop signal, then the force-kill after the grace. */
@@ -350,5 +425,7 @@ function causeSentence(cause: RestartCause): string {
   switch (cause.kind) {
     case 'press':
       return 'Restart was pressed in the viewer.';
+    case 'save':
+      return `${cause.file} changed.`;
   }
 }

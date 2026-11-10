@@ -80,7 +80,8 @@ export type LiveEvent =
   /**
    * Under `run`, the agent's process: its state whole at each change, a
    * restart with its time and its cause, and an exit the agent took on its
-   * own with its time and its exit line, each numbered in one order.
+   * own with its time and its exit line, each numbered in one order; and its
+   * output as it enters the buffer, the entries of one read together.
    */
   | AgentLiveEvent;
 
@@ -197,7 +198,8 @@ export class TurnHub {
           | 'fixtures_changed'
           | 'agent_state'
           | 'agent_restarted'
-          | 'agent_exited';
+          | 'agent_exited'
+          | 'agent_log';
       }
     >,
   ): void {

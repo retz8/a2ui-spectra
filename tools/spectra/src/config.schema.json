@@ -94,6 +94,13 @@
     "fixtures": {
       "type": "string",
       "description": "The fixtures folder, where Save as fixture writes and test and the viewer's Fixtures list read. A relative path is relative to this file's directory. a2ui-spectra-fixtures/ beside this file when left out."
+    },
+    "watch": {
+      "type": ["boolean", "array"],
+      "items": {
+        "type": "string"
+      },
+      "description": "What restart on save watches under run. Left out or true: the working directory, every file outside the default ignore list. false, for an agent that reloads itself, or an empty list: nothing. A list is everything that is watched: each entry a folder, watched recursively, or a file, relative to this file's directory; an entry starting with ! is excluded, a path and not a pattern, and the deepest entry covering a path decides. A listed path that does not exist stops run at start."
     }
   }
 }

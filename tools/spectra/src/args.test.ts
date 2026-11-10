@@ -156,6 +156,7 @@ describe('parseCommandLine', () => {
       tools: [],
       prices: {},
       fixtures: '/tmp/a2ui-spectra-fixtures',
+      watch: {paths: ['/tmp'], excluded: []},
     };
     const attach = parseCommandLine(['attach']);
     assert.ok(attach.name === 'attach');
@@ -328,6 +329,7 @@ describe('the headless commands', () => {
       tools: [],
       prices: {},
       fixtures: '/tmp/fixtures',
+      watch: {paths: ['/tmp'], excluded: []},
     };
     const options = {
       proxyPort: DEFAULT_PROXY_PORT,

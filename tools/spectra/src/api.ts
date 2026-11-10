@@ -1,6 +1,7 @@
 import type {IncomingMessage, ServerResponse} from 'node:http';
 
 import type {CardDetails} from './a2a/card.js';
+import type {LogSnapshot} from './agent_log.js';
 import type {AgentSnapshot, RestartCause} from './agent_supervisor.js';
 import type {CatalogRegistry} from './catalog/registry.js';
 import {CONFIG_SCHEMA, type PriceOverride} from './config.js';
@@ -43,6 +44,7 @@ export interface SessionContext extends Partial<CardDetails> {
 export interface AgentApi {
   snapshot(): AgentSnapshot;
   restart(cause: RestartCause): void;
+  logs(): LogSnapshot;
 }
 
 /** What the API serves from. */
@@ -122,6 +124,7 @@ const HEARTBEAT_MS = 2000;
  * - `GET /api/agent`: under `run`, the agent's command as launched, its process's state and the
  *   session's restarts and exits.
  * - `POST /api/agent/restart`: under `run`, restarts the agent's process; answers at once.
+ * - `GET /api/agent/logs`: under `run`, the agent's output as the buffer holds it, with its dividers.
  * - `GET /api/turns`: the turns, newest first.
  * - `GET /api/turns/<trace id>`: a closed turn's record.
  * - `GET /api/stream`: the live stream, as server-sent events.
@@ -182,6 +185,14 @@ async function answer(
       api.agent.restart({kind: 'press'});
       sendJson(response, 202, {accepted: true});
     }
+  } else if (route === 'GET /api/agent/logs') {
+    if (api.agent === undefined) {
+      sendJson(response, 404, {
+        error: 'Spectra did not start this agent, so it has no logs to report.',
+      });
+    } else {
+      sendJson(response, 200, api.agent.logs());
+    }
   } else if (route === 'GET /api/turns') {
     sendJson(response, 200, {turns: await listTurns(api)});
   } else if (turn !== null) {
@@ -221,6 +232,7 @@ function isRoute(pathname: string): boolean {
       '/api/context',
       '/api/agent',
       '/api/agent/restart',
+      '/api/agent/logs',
       '/api/stream',
       '/api/message-box',
       '/api/message-box/messages',

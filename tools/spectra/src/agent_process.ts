@@ -50,6 +50,12 @@ export interface AgentProcess {
   stop(): Promise<AgentStop>;
   /** Force-kills the command and everything it started, at once. */
   kill(): void;
+  /**
+   * Settles when both of the command's streams have ended, when they are
+   * handed to `onOutput`: at once when it could not start, and not while
+   * something it started still holds them open.
+   */
+  readonly outputEnded: Promise<void>;
 }
 
 const posix = process.platform !== 'win32';
@@ -61,26 +67,36 @@ export interface AgentProcessOptions {
   env?: Record<string, string>;
   /** Where the command's output goes: Spectra's own stdout and stderr, or both to its stderr. */
   output?: 'inherit' | 'stderr';
+  /**
+   * Takes each chunk the command writes, as it arrives, with the stream it
+   * was written to, in place of `output`: both streams are piped, and
+   * nothing is written for the command.
+   */
+  onOutput?: (stream: 'stdout' | 'stderr', chunk: Buffer) => void;
 }
 
 /**
  * Starts the command without a shell, with Spectra's environment, the
  * variables given added, and its working directory, writing to Spectra's
- * stdout and stderr, or to its stderr alone, with its input closed. On
- * POSIX systems it leads its own process group.
+ * stdout and stderr, or to its stderr alone, or to the taker of its output,
+ * with its input closed. On POSIX systems it leads its own process group.
  */
 export function startAgentProcess(
   command: string,
   args: readonly string[],
-  {graceMs = STOP_GRACE_MS, env = {}, output = 'inherit'}: AgentProcessOptions = {},
+  {graceMs = STOP_GRACE_MS, env = {}, output = 'inherit', onOutput}: AgentProcessOptions = {},
 ): AgentProcess {
+  const piped = onOutput !== undefined || output === 'stderr';
   const child = spawn(command, args, {
-    stdio: output === 'inherit' ? ['ignore', 'inherit', 'inherit'] : ['ignore', 'pipe', 'pipe'],
+    stdio: piped ? ['ignore', 'pipe', 'pipe'] : ['ignore', 'inherit', 'inherit'],
     detached: posix,
     env: {...process.env, ...env},
     cwd: process.cwd(),
   });
-  if (output === 'stderr') {
+  if (onOutput !== undefined) {
+    child.stdout?.on('data', (chunk: Buffer) => onOutput('stdout', chunk));
+    child.stderr?.on('data', (chunk: Buffer) => onOutput('stderr', chunk));
+  } else if (output === 'stderr') {
     child.stdout?.pipe(process.stderr, {end: false});
     child.stderr?.pipe(process.stderr, {end: false});
   }
@@ -88,9 +104,14 @@ export function startAgentProcess(
     child.once('error', error => resolve({code: null, signal: null, error}));
     child.once('exit', (code, signal) => resolve({code, signal}));
   });
+  const outputEnded = new Promise<void>(resolve => {
+    child.once('error', () => resolve());
+    child.once('close', () => resolve());
+  });
   let stopping: Promise<AgentStop> | undefined;
   return {
     exited,
+    outputEnded,
     stop() {
       stopping ??= stopGroup(child, exited, graceMs);
       return stopping;

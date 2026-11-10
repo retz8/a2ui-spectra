@@ -11,6 +11,7 @@ import {mkdir, readdir, readFile, rename, rm, stat, writeFile} from 'node:fs/pro
 import path from 'node:path';
 
 import type {InputBrief} from '../listing.js';
+import {quietSpell} from '../quiet_spell.js';
 import {isEventOfKind, type TurnRecord} from '../record/turn_record.js';
 
 /** A fixture's typed name: ASCII letters, digits, `-`, `_` and `.`, not starting with a dot. */
@@ -275,23 +276,18 @@ export class FixturesFolder {
   /**
    * Calls back once, after a quiet spell, when files join, change in or
    * leave the folder; the folder's parent is watched for the folder itself
-   * while it is missing. Returns the call that stops watching.
+   * while it is missing. The watch is set up after a look at the disk, so
+   * `ready` says when it is in place: a change made before that is not told.
    */
-  watch(onChange: () => void, debounceMs = 100): () => void {
+  watch(onChange: () => void, debounceMs = 100): FolderWatch {
     let watcher: FSWatcher | undefined;
-    let timer: NodeJS.Timeout | undefined;
     let stopped = false;
-    const notice = () => {
-      if (timer !== undefined) clearTimeout(timer);
-      timer = setTimeout(() => {
-        timer = undefined;
-        if (!stopped) onChange();
-      }, debounceMs);
-      timer.unref();
-    };
+    const spell = quietSpell(() => {
+      if (!stopped) onChange();
+    }, debounceMs);
     const watchFolder = () => {
       watcher?.close();
-      watcher = watch(this.dir, {recursive: true}, () => notice());
+      watcher = watch(this.dir, {recursive: true}, () => spell.notice());
       watcher.unref();
       watcher.on('error', () => watchParent());
     };
@@ -304,8 +300,9 @@ export class FixturesFolder {
             // The folder appeared: watch it, and say so.
             void stat(this.dir).then(
               () => {
+                if (stopped) return;
                 watchFolder();
-                notice();
+                spell.notice();
               },
               () => {},
             );
@@ -317,20 +314,36 @@ export class FixturesFolder {
         watcher = undefined;
       }
     };
-    void stat(this.dir).then(
+    const ready = stat(this.dir).then(
       () => {
-        if (!stopped) watchFolder();
+        if (stopped) return;
+        try {
+          watchFolder();
+        } catch {
+          // The folder went between the look and the watch.
+          watchParent();
+        }
       },
       () => {
         if (!stopped) watchParent();
       },
     );
-    return () => {
-      stopped = true;
-      if (timer !== undefined) clearTimeout(timer);
-      watcher?.close();
+    return {
+      ready,
+      stop: () => {
+        stopped = true;
+        spell.cancel();
+        watcher?.close();
+      },
     };
   }
+}
+
+/** A watch of the fixtures folder, as started. */
+export interface FolderWatch {
+  /** Settles once the watch is in place. */
+  ready: Promise<void>;
+  stop(): void;
 }
 
 async function exists(file: string): Promise<boolean> {

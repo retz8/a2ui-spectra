@@ -6,6 +6,7 @@ import path from 'node:path';
 import {after, describe, it} from 'node:test';
 
 import {SseParser} from './a2a/sse.js';
+import type {LogSnapshot} from './agent_log.js';
 import type {AgentSnapshot, RestartCause} from './agent_supervisor.js';
 import type {AgentApi, FixturesListing, ListedTurn, SessionContext} from './api.js';
 import {CatalogRegistry} from './catalog/registry.js';
@@ -497,9 +498,10 @@ describe('the API', () => {
     assert.equal((await post(`${base}/api/agent`, {})).status, 405);
     assert.equal((await fetch(`${base}/api/agent/restart`)).status, 405);
     assert.equal((await post(`${base}/api/agent/restart`, {}, 'text/plain')).status, 415);
+    assert.equal((await post(`${base}/api/agent/logs`, {})).status, 405);
   });
 
-  it("serves the agent's process and restarts it at once under run, and answers 404 to both where Spectra did not start the agent", async () => {
+  it("serves the agent's process and its logs and restarts it at once under run, and answers 404 to each where Spectra did not start the agent", async () => {
     const attached = await serve();
     const none = await getJson<{error: string}>(`${attached.base}/api/agent`);
     assert.equal(none.status, 404);
@@ -513,6 +515,33 @@ describe('the API', () => {
       error: 'Spectra did not start this agent, so it cannot restart it.',
     });
 
+    const noLogs = await getJson<{error: string}>(`${attached.base}/api/agent/logs`);
+    assert.deepEqual(noLogs, {
+      status: 404,
+      body: {error: 'Spectra did not start this agent, so it has no logs to report.'},
+    });
+
+    const logs: LogSnapshot = {
+      entries: [
+        {n: 1, type: 'started', time: '2026-11-10T09:00:00.000Z', command: 'uv run .'},
+        {
+          n: 2,
+          type: 'line',
+          time: '2026-11-10T09:00:00.412Z',
+          stream: 'stderr',
+          text: 'INFO:     Started server process [4242]',
+        },
+        {
+          n: 3,
+          type: 'stopped',
+          time: '2026-11-10T09:00:04.250Z',
+          exit: 'exited with code 143',
+          cause: {kind: 'save', file: 'prompt_builder.py'},
+        },
+      ],
+      lines: 1,
+      cap: 1000,
+    };
     const snapshot: AgentSnapshot = {
       command: 'uv run .',
       state: {state: 'down', exit: 'exited with code 1', seq: 5},
@@ -528,9 +557,10 @@ describe('the API', () => {
     };
     const causes: RestartCause[] = [];
     const {base} = await serve(60_000, undefined, {
-      agent: {snapshot: () => snapshot, restart: cause => causes.push(cause)},
+      agent: {snapshot: () => snapshot, restart: cause => causes.push(cause), logs: () => logs},
     });
     assert.deepEqual(await getJson(`${base}/api/agent`), {status: 200, body: snapshot});
+    assert.deepEqual(await getJson(`${base}/api/agent/logs`), {status: 200, body: logs});
     const accepted = await post(`${base}/api/agent/restart`, {});
     assert.equal(accepted.status, 202);
     assert.deepEqual(await accepted.json(), {accepted: true});

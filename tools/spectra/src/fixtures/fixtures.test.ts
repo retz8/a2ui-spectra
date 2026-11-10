@@ -168,34 +168,68 @@ describe('the fixtures folder', () => {
     await assert.rejects(folder.read('..'), FixtureNameError);
   });
 
-  it('watches the folder, once it exists, and says once when files join or leave it', async () => {
+  it('watches the folder, once it exists, and says when files join or leave it', async () => {
     const cwd = freshDir();
     const folder = folderIn(cwd);
     let changes = 0;
-    const stop = folder.watch(() => changes++, 50);
+    const watching = folder.watch(() => changes++, 50);
     try {
-      await folder.save(record, 'first');
-      await settled(() => changes >= 1);
-      assert.equal(changes, 1, 'The folder appearing with its first file is one change.');
-      mkdirSync(path.join(folder.dir, 'nested'));
-      writeFileSync(path.join(folder.dir, 'nested', 'second.json'), JSON.stringify(record));
-      writeFileSync(path.join(folder.dir, 'third.json'), JSON.stringify(record));
-      await settled(() => changes >= 2);
-      assert.equal(changes, 2, 'Two files written together are one change.');
-      rmSync(path.join(folder.dir, 'third.json'));
-      await settled(() => changes >= 3);
+      await watching.ready;
+      // The folder appears with its first file.
+      await told(
+        () => changes,
+        async () => {
+          rmSync(folder.dir, {recursive: true, force: true});
+          await folder.save(record, 'first');
+        },
+      );
+      // Files join it, nested and at the top.
+      const nested = path.join(folder.dir, 'nested', 'second.json');
+      await told(
+        () => changes,
+        () => {
+          mkdirSync(path.dirname(nested), {recursive: true});
+          writeFileSync(nested, JSON.stringify(record));
+          writeFileSync(path.join(folder.dir, 'third.json'), JSON.stringify(record));
+        },
+      );
+      // A file leaves it.
+      await told(
+        () => changes,
+        () => {
+          writeFileSync(path.join(folder.dir, 'third.json'), JSON.stringify(record));
+          rmSync(path.join(folder.dir, 'third.json'));
+        },
+      );
     } finally {
-      stop();
+      watching.stop();
     }
+    const after = changes;
+    await new Promise(resolve => setTimeout(resolve, 200));
+    assert.equal(changes, after, 'Nothing is said once the watch has stopped.');
   });
 });
 
-async function settled(done: () => boolean, timeoutMs = 3000): Promise<void> {
+/**
+ * Resolves once a change is told. On macOS a watch reports nothing for a
+ * moment after it is set up, with no sign of when it begins (nodejs/node
+ * issue 52601), so the change is made again until it is told: no wait here
+ * rests on how fast the machine is.
+ */
+async function told(
+  count: () => number,
+  change: () => void | Promise<void>,
+  timeoutMs = 20_000,
+): Promise<void> {
+  const before = count();
   const deadline = Date.now() + timeoutMs;
-  while (!done()) {
-    assert.ok(Date.now() < deadline, 'The change was noticed.');
-    await new Promise(resolve => setTimeout(resolve, 20));
+  for (;;) {
+    await change();
+    const again = Date.now() + 500;
+    while (Date.now() < again) {
+      if (count() > before) return;
+      await new Promise(resolve => setTimeout(resolve, 20));
+    }
+    assert.ok(Date.now() < deadline, 'The change was told.');
   }
-  // Let a debounced second notice land, were one to come.
-  await new Promise(resolve => setTimeout(resolve, 150));
 }

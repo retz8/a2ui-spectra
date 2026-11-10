@@ -93,7 +93,11 @@ and the message box does not send. The URL may come from the config file
 instead, as agent.url.
 
 The command after '--' starts without a shell, with Spectra's environment and
-working directory, and writes to Spectra's terminal. Spectra adds the model
+working directory, and writes to Spectra's terminal, which echoes its output
+as written and keeps it for the viewer's logs. A save in the working
+directory restarts the agent; the config file's watch setting lists what is
+watched instead, or is false for an agent that reloads itself. Spectra sets
+PYTHONUNBUFFERED=1 for the command unless it is set. Spectra adds the model
 providers' base-URL variables, GOOGLE_GEMINI_BASE_URL, OPENAI_BASE_URL,
 ANTHROPIC_BASE_URL, ANTHROPIC_API_BASE and GEMINI_API_BASE, pointing at its
 model proxy, which forwards each call to the address the variable had before,

@@ -1,3 +1,4 @@
+import {stat} from 'node:fs/promises';
 import {constants} from 'node:os';
 
 import {cardDetailsOf, checkTransport, rewriteCard, type TransportCheck} from './a2a/card.js';
@@ -27,6 +28,7 @@ import {SpanReceiver} from './receiver/receiver.js';
 import {receiverExportLines, receiverVariables, replacedLine} from './receiver/variables.js';
 import {type CapturePath, isEventOfKind, type Turn, type TurnEvent} from './record/turn_record.js';
 import {TurnRecorder} from './recorder.js';
+import {startSaveWatcher} from './save_watcher.js';
 import {LOOPBACK_ADDRESS, PortTakenError, startViewerServer, type ViewerServer} from './server.js';
 import {TurnStore} from './store/store.js';
 import {startToolProxy, type ToolProxy} from './tool_proxy/proxy.js';
@@ -142,10 +144,30 @@ export async function runSession(
     }
     throw error;
   }
+  // Under `run` a listed watch path that does not exist stops Spectra, as a missing catalog file does.
+  const watching = agentCommand !== undefined && headless === undefined;
+  if (watching) {
+    for (const listed of options.config.watch.paths) {
+      const exists = await stat(listed).then(
+        () => true,
+        () => false,
+      );
+      if (!exists) {
+        out.error(`The watch path ${listed} does not exist.`);
+        return 1;
+      }
+    }
+  }
   const turns = new TurnHub();
   const recorder = new TurnRecorder(store, out, {onRecorded: turns.onRecorded, catalogs});
   const fixtures = new FixturesFolder(options.config.fixtures, process.cwd());
-  const stopWatching = fixtures.watch(() => turns.notify({type: 'fixtures_changed'}));
+  const fixturesChanged = () => turns.notify({type: 'fixtures_changed'});
+  // Under `run` with restart on save, the save watcher's own watch tells the fixtures folder's
+  // changes when it holds the folder; else the folder has its own.
+  let stopWatching =
+    watching && options.config.watch.paths.length > 0
+      ? () => {}
+      : fixtures.watch(fixturesChanged).stop;
   const alwaysCapturePaths: CapturePath[] =
     agentCommand === undefined
       ? []
@@ -177,6 +199,8 @@ export async function runSession(
   let agentExit: AgentExit | undefined;
   /** The agent's process under `run`, which Spectra outlives. */
   let supervisor: AgentSupervisor | undefined;
+  /** Stops the watch that restarts the agent on a save, under `run`. */
+  let stopSaveWatcher: (() => void) | undefined;
   let proxy: WireProxy | undefined;
   let modelProxy: ModelProxy | undefined;
   let toolProxy: ToolProxy | undefined;
@@ -307,9 +331,13 @@ export async function runSession(
         previewPages: options.config.preview,
         fixturesFolder: fixtures.display,
       };
-      supervisor = new AgentSupervisor({
+      const agentProcess = new AgentSupervisor({
         command: agentCommand,
-        env: agentEnvironment,
+        // Python holds its stdout back when it is not a terminal, and the agent's streams are pipes.
+        env: {
+          ...agentEnvironment,
+          ...(process.env.PYTHONUNBUFFERED === undefined && {PYTHONUNBUFFERED: '1'}),
+        },
         cardUrl,
         headers,
         out,
@@ -336,6 +364,7 @@ export async function runSession(
           },
         },
       });
+      supervisor = agentProcess;
       server = await startViewerServer({
         port: viewer.port,
         viewerDir,
@@ -359,6 +388,28 @@ export async function runSession(
       out.info(`The OpenTelemetry receiver is at ${receiverListener.origin}`);
       out.info(`Turns are saved in ${store.turnsDir}`);
       out.info(`Fixtures are saved in ${fixtures.dir}`);
+      const watch = options.config.watch;
+      if (watch.paths.length === 0) {
+        out.info(`Restart on save is off: watch is false in ${options.config.file}.`);
+      } else {
+        out.info(
+          `A save in ${orList(watch.paths)} restarts the agent. ` +
+            'Set watch to false in the config file when the agent reloads itself.',
+        );
+        const saveWatcher = await startSaveWatcher({
+          watch,
+          ignoredPaths: [store.dir, fixtures.dir],
+          ...(options.config.file !== undefined && {configFile: options.config.file}),
+          workingDir: process.cwd(),
+          onSave: file => agentProcess.restart({kind: 'save', file}),
+          log: line => out.info(line),
+          observed: [{folder: fixtures.dir, onChange: fixturesChanged}],
+        });
+        stopSaveWatcher = () => saveWatcher.stop();
+        if (!saveWatcher.observing.includes(fixtures.dir)) {
+          stopWatching = fixtures.watch(fixturesChanged).stop;
+        }
+      }
       supervisor.start();
       if (viewer.open) {
         openBrowser(server.url);
@@ -484,6 +535,7 @@ export async function runSession(
     }
   } finally {
     supervisor?.beginStop();
+    stopSaveWatcher?.();
     stopWatching();
     await server?.close();
     box?.close();
@@ -554,6 +606,13 @@ function transportLine(transport: TransportCheck): string | undefined {
     case 'jsonrpc_first':
       return undefined;
   }
+}
+
+/** The paths as one phrase: `a`, `a or b`, `a, b or c`. */
+function orList(paths: readonly string[]): string {
+  return paths.length <= 1
+    ? paths.join('')
+    : `${paths.slice(0, -1).join(', ')} or ${paths[paths.length - 1]}`;
 }
 
 function aborted(signal: AbortSignal): Promise<void> {

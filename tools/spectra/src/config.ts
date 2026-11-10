@@ -1,8 +1,8 @@
 /**
  * The config file: `a2ui-spectra.json` in the directory Spectra is launched
  * from, or the file `--config` names, with the agent's URL and headers, the
- * catalog paths, the preview pages, the tool servers, the prices and the
- * fixtures folder. The file is validated against
+ * catalog paths, the preview pages, the tool servers, the prices, the
+ * fixtures folder and what restart on save watches. The file is validated against
  * `config.schema.json`, the schema the running tool serves for editors, and
  * is read strictly: a file that does not parse, a setting of the wrong type
  * or a key Spectra does not know stops Spectra at start. Only the default
@@ -15,6 +15,7 @@ import {Ajv2020, type ErrorObject} from 'ajv/dist/2020.js';
 
 import schema from './config.schema.json' with {type: 'json'};
 import {VARIABLES as MODEL_VARIABLES} from './model_proxy/redirection.js';
+import type {WatchPaths} from './save_watcher.js';
 
 /** The config file's name, looked for in the directory Spectra is launched from. */
 export const CONFIG_FILE = 'a2ui-spectra.json';
@@ -48,6 +49,12 @@ export interface SpectraConfig {
   prices: Record<string, PriceOverride>;
   /** The fixtures folder, as an absolute path: the setting, else `a2ui-spectra-fixtures/` beside the file or in the working directory. */
   fixtures: string;
+  /**
+   * What restart on save watches under `run`, as absolute paths: the working
+   * directory when the file does not say, nothing when `watch` is false or
+   * an empty list.
+   */
+  watch: WatchPaths;
 }
 
 /** The fixtures folder's name when the config file names none. */
@@ -82,9 +89,13 @@ interface ConfigShape {
   tools?: Array<{variable: string; url: string}>;
   prices?: Record<string, PriceOverride>;
   fixtures?: string;
+  watch?: boolean | string[];
 }
 
-const validate = new Ajv2020({allErrors: false}).compile<ConfigShape>(schema);
+// `watch` is a boolean or a list, a union of types.
+const validate = new Ajv2020({allErrors: false, allowUnionTypes: true}).compile<ConfigShape>(
+  schema,
+);
 
 /** Reads the config file, or the defaults when the default file is absent. */
 export async function loadConfig({cwd, path: given}: LoadOptions): Promise<SpectraConfig> {
@@ -102,6 +113,7 @@ export async function loadConfig({cwd, path: given}: LoadOptions): Promise<Spect
           tools: [],
           prices: {},
           fixtures: path.join(cwd, DEFAULT_FIXTURES_FOLDER),
+          watch: {paths: [cwd], excluded: []},
         };
       }
       throw new ConfigError(`The config file ${file} does not exist.`);
@@ -135,7 +147,33 @@ export async function loadConfig({cwd, path: given}: LoadOptions): Promise<Spect
     tools: readTools(json.tools ?? [], file),
     prices: {...(json.prices ?? {})},
     fixtures: path.resolve(dir, json.fixtures ?? DEFAULT_FIXTURES_FOLDER),
+    watch: readWatch(json.watch, dir, cwd, file),
   };
+}
+
+/**
+ * What is watched: the working directory when the setting is left out or
+ * true, nothing when it is false, else the list, each entry relative to the
+ * config file's directory, an entry starting with `!` excluded.
+ */
+function readWatch(
+  setting: boolean | string[] | undefined,
+  dir: string,
+  cwd: string,
+  file: string,
+): WatchPaths {
+  if (setting === undefined || setting === true) return {paths: [cwd], excluded: []};
+  if (setting === false) return {paths: [], excluded: []};
+  const watch: WatchPaths = {paths: [], excluded: []};
+  for (const [index, entry] of setting.entries()) {
+    const excluded = entry.startsWith('!');
+    const written = excluded ? entry.slice(1) : entry;
+    if (written === '') {
+      throw new ConfigError(`${file}: watch[${index}] names no path: '${entry}'.`);
+    }
+    (excluded ? watch.excluded : watch.paths).push(path.resolve(dir, written));
+  }
+  return watch;
 }
 
 /** A POSIX environment variable name. */
@@ -231,8 +269,11 @@ function sentence(error: ErrorObject | undefined): string {
       : `${name} is not a setting; ${setting} takes ${list(known)}`;
   }
   if (error.keyword === 'type') {
-    const type = (error.params as {type: string}).type;
-    return `${setting} must be ${type === 'array' || type === 'object' ? 'an' : 'a'} ${type}`;
+    const {type} = error.params as {type: string | string[]};
+    const types = Array.isArray(type) ? type : type.split(',');
+    return `${setting} must be ${types
+      .map(one => `${one === 'array' || one === 'object' ? 'an' : 'a'} ${one}`)
+      .join(' or ')}`;
   }
   return `${setting || 'the file'} ${error.message ?? 'is not valid'}`;
 }

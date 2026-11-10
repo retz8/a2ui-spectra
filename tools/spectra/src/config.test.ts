@@ -41,7 +41,57 @@ describe('loadConfig', () => {
       tools: [],
       prices: {},
       fixtures: path.join(cwd, 'a2ui-spectra-fixtures'),
+      watch: {paths: [cwd], excluded: []},
     });
+  });
+
+  it('watches the working directory by default, and when watch is true, wherever the config file is', async () => {
+    const cwd = freshDir();
+    const elsewhere = freshDir();
+    write(elsewhere, 'spectra.json', {});
+    const unset = await loadConfig({cwd, path: path.join(elsewhere, 'spectra.json')});
+    assert.deepEqual(unset.watch, {paths: [cwd], excluded: []});
+    write(elsewhere, 'spectra.json', {watch: true});
+    const on = await loadConfig({cwd, path: path.join(elsewhere, 'spectra.json')});
+    assert.deepEqual(on.watch, {paths: [cwd], excluded: []});
+  });
+
+  it('watches nothing when watch is false or an empty list', async () => {
+    const cwd = freshDir();
+    write(cwd, CONFIG_FILE, {watch: false});
+    assert.deepEqual((await loadConfig({cwd})).watch, {paths: [], excluded: []});
+    write(cwd, CONFIG_FILE, {watch: []});
+    assert.deepEqual((await loadConfig({cwd})).watch, {paths: [], excluded: []});
+  });
+
+  it("reads a watch list relative to the config file's directory, an entry starting with ! excluded", async () => {
+    const cwd = freshDir();
+    const elsewhere = freshDir();
+    write(elsewhere, 'spectra.json', {
+      watch: ['.', 'src', '../shared', '!sessions.db', '!data', path.join(cwd, 'lib')],
+    });
+    const config = await loadConfig({cwd, path: path.join(elsewhere, 'spectra.json')});
+    assert.deepEqual(config.watch, {
+      paths: [
+        elsewhere,
+        path.join(elsewhere, 'src'),
+        path.resolve(elsewhere, '..', 'shared'),
+        path.join(cwd, 'lib'),
+      ],
+      excluded: [path.join(elsewhere, 'sessions.db'), path.join(elsewhere, 'data')],
+    });
+  });
+
+  it('refuses a watch setting of another type, and an entry that names no path', async () => {
+    const cwd = freshDir();
+    write(cwd, CONFIG_FILE, {watch: 3});
+    await configError({cwd}, /watch must be a boolean or an array/);
+    write(cwd, CONFIG_FILE, {watch: ['src', 3]});
+    await configError({cwd}, /watch\[1\] must be a string/);
+    write(cwd, CONFIG_FILE, {watch: ['src', '!']});
+    await configError({cwd}, /watch\[1\] names no path: '!'/);
+    write(cwd, CONFIG_FILE, {watch: ['']});
+    await configError({cwd}, /watch\[0\] names no path: ''/);
   });
 
   it('reads a2ui-spectra.json from the working directory', async () => {
@@ -78,7 +128,9 @@ describe('loadConfig', () => {
     assert.deepEqual(byAbsolutePath.catalogs, [path.join(elsewhere, 'catalog.json')]);
     // A relative --config path is relative to the working directory.
     const byRelativePath = await loadConfig({cwd: elsewhere, path: 'nested/spectra.json'});
-    assert.deepEqual(byRelativePath, byAbsolutePath);
+    // What is watched by default is the working directory, which differs between the two.
+    assert.deepEqual({...byRelativePath, watch: byAbsolutePath.watch}, byAbsolutePath);
+    assert.deepEqual(byRelativePath.watch, {paths: [elsewhere], excluded: []});
   });
 
   it('takes an empty object, and settings left out, as the defaults', async () => {
@@ -123,7 +175,7 @@ describe('loadConfig', () => {
     write(cwd, 'unknown.json', {header: {}});
     await configError(
       {cwd, path: 'unknown.json'},
-      /unknown\.json: 'header' is not a setting; the settings are agent, catalogs, preview, tools, prices and fixtures/,
+      /unknown\.json: 'header' is not a setting; the settings are agent, catalogs, preview, tools, prices, fixtures and watch/,
     );
     write(cwd, 'nested.json', {agent: {uri: 'http://a'}});
     await configError(

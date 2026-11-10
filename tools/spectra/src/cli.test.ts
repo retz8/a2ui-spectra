@@ -20,6 +20,7 @@ import path from 'node:path';
 import {describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
 
+import type {LogEntry, LogSnapshot} from './agent_log.js';
 import type {AgentSnapshot} from './agent_supervisor.js';
 import type {ListedTurn, SessionContext} from './api.js';
 import type {MessageBoxState, ReplayStarted} from './message_box.js';
@@ -260,7 +261,11 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
       });
       assert.equal(restart.status, 404);
       assert.match(restart.body, /Spectra did not start this agent/);
+      const logs = await send(port, {path: '/api/agent/logs'});
+      assert.equal(logs.status, 404);
+      assert.match(logs.body, /Spectra did not start this agent/);
       assert.doesNotMatch(spectra.output, /Starting the agent|The agent's card answered/);
+      assert.doesNotMatch(spectra.output, /restarts the agent|Restart on save/);
 
       spectra.signal('SIGTERM');
       const exit = await spectra.exited;
@@ -1248,11 +1253,18 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
 
     describe("the agent's process", () => {
       /** Spectra under `run` with the fake agent as its command, or with the command given. */
-      async function launch(agentArgs: string[], command?: string[]) {
+      async function launch(
+        agentArgs: string[],
+        command?: string[],
+        cwd?: string,
+        env?: Record<string, string>,
+      ) {
         const args = await runArgs(agentArgs);
         const cut = args.indexOf('--');
         const spectra = new SpectraProcess(
           command === undefined ? args : [...args.slice(0, cut + 1), ...command],
+          cwd,
+          env,
         );
         const number = (option: string) => Number(args[args.indexOf(option) + 1]);
         await spectra.waitFor(viewerUrl);
@@ -1865,6 +1877,505 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
             live.close();
             rmSync(dir, {recursive: true, force: true});
           }
+        },
+      );
+
+      const logsOf = async (base: string) =>
+        (await getJson<LogSnapshot>(`${base}/api/agent/logs`)).body;
+      /** The route's entries as short words: a line's text, or a divider's kind. */
+      const words = (entries: LogEntry[]) =>
+        entries.map(entry => (entry.type === 'line' ? entry.text : entry.type));
+      /** Resolves with the route's answer once it holds what the check asks for. */
+      async function logsHold(
+        base: string,
+        check: (logs: LogSnapshot) => boolean,
+      ): Promise<LogSnapshot> {
+        const deadline = Date.now() + 15_000;
+        for (;;) {
+          const logs = await logsOf(base);
+          if (check(logs)) return logs;
+          assert.ok(Date.now() < deadline, `The logs hold ${JSON.stringify(words(logs.entries))}.`);
+          await new Promise(resolve => setTimeout(resolve, 25));
+        }
+      }
+      /** A command that writes what the script says once the file exists, and stays up. */
+      const onFile = (file: string, before: string, script: string) => [
+        process.execPath,
+        '-e',
+        `const fs = require('node:fs'); ${before}; ` +
+          `const wait = setInterval(() => { if (!fs.existsSync(${JSON.stringify(file)})) return; ` +
+          `clearInterval(wait); ${script}; }, 20); setInterval(() => {}, 1000)`,
+      ];
+      /**
+       * Saves the file until Spectra says what the pattern asks for. A watch
+       * reports nothing for a moment after it is set up, with no sign of when
+       * it begins, so no single save rests on how fast the machine is.
+       */
+      async function savedUntil(spectra: SpectraProcess, file: string, pattern: RegExp) {
+        const deadline = Date.now() + 15_000;
+        for (let attempt = 1; ; attempt++) {
+          writeFileSync(file, `saved ${attempt}\n`);
+          try {
+            await spectra.waitFor(pattern, 1000);
+            return;
+          } catch (error) {
+            if (Date.now() > deadline) throw error;
+          }
+        }
+      }
+      /** The session's restarts a save caused, by the file each names. */
+      const savedFiles = (agent: AgentSnapshot) =>
+        agent.events.flatMap(event =>
+          event.type === 'agent_restarted' && event.cause.kind === 'save' ? [event.cause.file] : [],
+        );
+
+      it(
+        "echoes the agent's output byte for byte on the stream it was written to, and keeps it as numbered entries on the route and the stream",
+        {timeout: TIMEOUT},
+        async () => {
+          const dir = tempDir();
+          const go = path.join(dir, 'go');
+          const {spectra, base, command} = await launch(
+            [],
+            onFile(
+              go,
+              "process.stdout.write('first\\n')",
+              "process.stdout.write('out \\u001b[32mone\\u001b[0m\\r\\nout two\\n'); process.stderr.write('err one\\n')",
+            ),
+          );
+          const live = new LiveStream(`${base}/api/stream`);
+          try {
+            await live.ready;
+            const before = await logsHold(base, logs => logs.entries.length === 2);
+            assert.deepEqual(before, {
+              entries: [
+                {n: 1, type: 'started', time: before.entries[0].time, command},
+                {n: 2, type: 'line', time: before.entries[1].time, stream: 'stdout', text: 'first'},
+              ],
+              lines: 1,
+              cap: 1000,
+            });
+            assert.match(before.entries[0].time, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+
+            writeFileSync(go, '');
+            const after = await logsHold(base, logs => logs.lines === 4);
+            const texts = (stream: string) =>
+              after.entries.flatMap(entry =>
+                entry.type === 'line' && entry.stream === stream ? [entry.text] : [],
+              );
+            assert.deepEqual(texts('stdout'), ['first', 'out \u001b[32mone\u001b[0m', 'out two']);
+            assert.deepEqual(texts('stderr'), ['err one']);
+            assert.deepEqual(
+              after.entries.map(entry => entry.n),
+              [1, 2, 3, 4, 5],
+            );
+            assert.ok(
+              after.entries.every(
+                (entry, index, all) => index === 0 || all[index - 1].time <= entry.time,
+              ),
+              'The times never go backwards.',
+            );
+
+            // The terminal carries each chunk as written, on its own stream, without Spectra's prefix.
+            assert.ok(spectra.stdout.includes('first\n'));
+            assert.ok(spectra.stdout.includes('out \u001b[32mone\u001b[0m\r\nout two\n'));
+            assert.ok(spectra.stderr.includes('err one\n'));
+            assert.equal(spectra.stderr.includes('out two'), false);
+            // The command's own text, which names the line, is on stdout in "Starting the agent".
+            assert.equal(spectra.stdout.includes('\nerr one\n'), false);
+            assert.doesNotMatch(spectra.output, /a2ui-spectra: (first|out|err one)/);
+
+            // What the stream sent after the first read merges with it by number.
+            await live.until(
+              event =>
+                event.event === 'agent_log' &&
+                (event.data.entries as LogEntry[]).some(entry => entry.n === 5),
+            );
+            const sent = live.events
+              .filter(event => event.event === 'agent_log')
+              .map(event => event.data as unknown as {entries: LogEntry[]; oldest: number});
+            assert.ok(sent.every(event => event.oldest === 1));
+            const merged = [
+              ...before.entries,
+              ...sent.flatMap(event => event.entries).filter(entry => entry.n > 2),
+            ];
+            assert.deepEqual(merged, after.entries);
+            // The two lines of one write travel in one event.
+            const one = sent.find(event => event.entries.some(entry => entry.n === 3));
+            assert.ok(
+              one?.entries.some(entry => entry.type === 'line' && entry.text === 'out two'),
+            );
+            await stopped(spectra);
+          } finally {
+            live.close();
+            rmSync(dir, {recursive: true, force: true});
+          }
+        },
+      );
+
+      it(
+        'shows an unfinished line in the terminal at once and enters it at its newline, or as a last line when the process ends',
+        {timeout: TIMEOUT},
+        async () => {
+          const dir = tempDir();
+          const go = path.join(dir, 'go');
+          try {
+            const {spectra, base} = await launch(
+              [],
+              onFile(
+                go,
+                "process.stdout.write('half')",
+                "process.stdout.write(' whole\\n'); process.stderr.write('last words'); process.exit(0)",
+              ),
+            );
+            await spectra.waitFor(/half/);
+            assert.deepEqual(words((await logsOf(base)).entries), ['started']);
+            writeFileSync(go, '');
+            await stateIs(base, 'down');
+            const logs = await logsHold(base, held => held.entries.at(-1)?.type === 'stopped');
+            assert.deepEqual(words(logs.entries), [
+              'started',
+              'half whole',
+              'last words',
+              'stopped',
+            ]);
+            const last = logs.entries.at(-1);
+            // An exit the agent took on its own carries no cause.
+            assert.deepEqual(last, {
+              n: 4,
+              type: 'stopped',
+              time: last?.time,
+              exit: 'exited with code 0',
+            });
+            assert.ok(spectra.stderr.includes('last words'));
+            await stopped(spectra);
+          } finally {
+            rmSync(dir, {recursive: true, force: true});
+          }
+        },
+      );
+
+      it(
+        'writes a stopped divider with the press and the exit line, then a started one, at a restart, and a started then a stopped one for a command that cannot start',
+        {timeout: TIMEOUT},
+        async () => {
+          const {spectra, base, command} = await launch([]);
+          const first = await stateIs(base, 'running');
+          await press(base);
+          await stateIs(base, 'running', first.state.seq);
+          const logs = await logsHold(
+            base,
+            held => held.entries.filter(entry => entry.type === 'started').length === 2,
+          );
+          const dividers = logs.entries.filter(entry => entry.type !== 'line');
+          assert.deepEqual(dividers, [
+            {n: 1, type: 'started', time: dividers[0].time, command},
+            {
+              n: dividers[1].n,
+              type: 'stopped',
+              time: dividers[1].time,
+              exit: posix
+                ? 'was ended by SIGTERM'
+                : dividers[1].type === 'stopped' && dividers[1].exit,
+              cause: {kind: 'press'},
+            },
+            {n: dividers[1].n + 1, type: 'started', time: dividers[2].time, command},
+          ]);
+          await stopped(spectra);
+
+          const missing = await launch([], ['a2ui-spectra-test-no-such-command']);
+          await stateIs(missing.base, 'down');
+          const none = await logsHold(missing.base, held => held.entries.length === 2);
+          assert.deepEqual(words(none.entries), ['started', 'stopped']);
+          const [, could] = none.entries;
+          assert.ok(could.type === 'stopped');
+          assert.match(could.exit, /^could not start: /);
+          assert.equal(could.cause, undefined);
+          await stopped(missing.spectra);
+        },
+      );
+
+      it(
+        "keeps the last 1,000 lines, the route's count and the event's oldest number following",
+        {timeout: TIMEOUT},
+        async () => {
+          const dir = tempDir();
+          const go = path.join(dir, 'go');
+          const {spectra, base} = await launch(
+            [],
+            onFile(
+              go,
+              '',
+              "process.stdout.write(Array.from({length: 1005}, (_, i) => 'line ' + (i + 1)).join('\\n') + '\\n')",
+            ),
+          );
+          const live = new LiveStream(`${base}/api/stream`);
+          try {
+            await live.ready;
+            writeFileSync(go, '');
+            const logs = await logsHold(base, held => words(held.entries).at(-1) === 'line 1005');
+            assert.equal(logs.lines, 1000);
+            assert.equal(logs.entries.length, 1000);
+            // The started divider left with the lines before it; the first line was the second entry.
+            assert.deepEqual([logs.entries[0].n, words(logs.entries)[0]], [7, 'line 6']);
+            const last = await live.until(
+              event =>
+                event.event === 'agent_log' &&
+                (event.data.entries as LogEntry[]).some(entry => entry.n === 1006),
+            );
+            assert.equal(last.data.oldest, 7);
+            await stopped(spectra);
+          } finally {
+            live.close();
+            rmSync(dir, {recursive: true, force: true});
+          }
+        },
+      );
+
+      it(
+        "sets PYTHONUNBUFFERED in the agent's environment, and keeps a value Spectra's own environment sets",
+        {timeout: TIMEOUT},
+        async () => {
+          const show = [
+            process.execPath,
+            '-e',
+            "process.stdout.write('unbuffered=' + process.env.PYTHONUNBUFFERED + '\\n'); process.exit(7)",
+          ];
+          // Without the variable in this test's own environment, Spectra sets it.
+          if (process.env.PYTHONUNBUFFERED === undefined) {
+            const set = await launch([], show);
+            await set.spectra.waitFor(/The agent's process exited with code 7/);
+            assert.match(set.spectra.output, /unbuffered=1\n/);
+            await stopped(set.spectra);
+          }
+          const kept = await launch([], show, undefined, {PYTHONUNBUFFERED: 'kept'});
+          await kept.spectra.waitFor(/The agent's process exited with code 7/);
+          assert.match(kept.spectra.output, /unbuffered=kept\n/);
+          await stopped(kept.spectra);
+        },
+      );
+
+      it(
+        'restarts the agent on a save, the cause naming the file on the restart event, in the terminal and on the stopped divider',
+        {timeout: TIMEOUT},
+        async () => {
+          const cwd = workingDir();
+          const {spectra, base} = await launch([], undefined, cwd);
+          await spectra.waitFor(/Starting the agent/);
+          assert.ok(
+            spectra.output.includes(
+              `a2ui-spectra: A save in ${realpathSync(cwd)} restarts the agent. ` +
+                'Set watch to false in the config file when the agent reloads itself.\n',
+            ),
+            spectra.output,
+          );
+          assert.ok(
+            spectra.output.indexOf('restarts the agent.') <
+              spectra.output.indexOf('Starting the agent'),
+            'The line comes before the command starts.',
+          );
+          const first = await stateIs(base, 'running');
+          await savedUntil(
+            spectra,
+            path.join(cwd, 'prompt_builder.py'),
+            /a2ui-spectra: Restarting the agent: prompt_builder\.py changed\.\n/,
+          );
+          const again = await stateIs(base, 'running', first.state.seq);
+          assert.ok(savedFiles(again).length > 0);
+          assert.ok(savedFiles(again).every(file => file === 'prompt_builder.py'));
+          assert.deepEqual(
+            again.events.map(event => event.type).filter(type => type !== 'agent_restarted'),
+            [],
+          );
+          const logs = await logsHold(base, held =>
+            held.entries.some(entry => entry.type === 'stopped'),
+          );
+          const divider = logs.entries.find(entry => entry.type === 'stopped');
+          assert.ok(divider?.type === 'stopped');
+          assert.deepEqual(divider.cause, {kind: 'save', file: 'prompt_builder.py'});
+          await stopped(spectra);
+        },
+      );
+
+      it(
+        'names the watched file when an ignored write came first',
+        {timeout: TIMEOUT},
+        async () => {
+          const cwd = workingDir();
+          const {spectra, base} = await launch([], undefined, cwd);
+          const live = new LiveStream(`${base}/api/stream`);
+          await live.ready;
+          const first = await stateIs(base, 'running');
+          for (const folder of ['node_modules', '.wireit', path.join('src', '__pycache__')]) {
+            mkdirSync(path.join(cwd, folder), {recursive: true});
+            writeFileSync(path.join(cwd, folder, 'written.js'), 'ignored');
+          }
+          writeFileSync(path.join(cwd, 'src', '.agent.py.swp'), 'ignored');
+          writeFileSync(path.join(cwd, '.DS_Store'), 'ignored');
+          mkdirSync(path.join(cwd, 'a2ui-spectra-fixtures'));
+          writeFileSync(path.join(cwd, 'a2ui-spectra-fixtures', 'greet.json'), '{}');
+          const file = path.join('src', 'agent.py');
+          await savedUntil(
+            spectra,
+            path.join(cwd, file),
+            /a2ui-spectra: Restarting the agent: src.agent\.py changed\.\n/,
+          );
+          const again = await stateIs(base, 'running', first.state.seq);
+          assert.ok(savedFiles(again).length > 0);
+          assert.deepEqual(
+            savedFiles(again).filter(saved => saved !== file),
+            [],
+          );
+          // The fixtures folder appearing is told through the same watch, and is no save.
+          await live.until(event => event.event === 'fixtures_changed');
+          live.close();
+          await stopped(spectra);
+        },
+      );
+
+      it(
+        'starts a down agent on a save, and stops a starting process and starts another on a save during a card wait',
+        {timeout: TIMEOUT, skip: !posix},
+        async () => {
+          const cwd = workingDir();
+          const down = await launch([], [process.execPath, '-e', 'process.exit(3)'], cwd);
+          const exited = await stateIs(down.base, 'down');
+          await savedUntil(
+            down.spectra,
+            path.join(cwd, 'fix.py'),
+            /a2ui-spectra: Restarting the agent: fix\.py changed\.\n/,
+          );
+          // The command exits again, with a restart by the save between the two exits.
+          const again = await logsHold(
+            down.base,
+            held => held.entries.filter(entry => entry.type === 'started').length >= 2,
+          );
+          assert.deepEqual(words(again.entries).slice(0, 3), ['started', 'stopped', 'started']);
+          const after = await stateIs(down.base, 'down', exited.state.seq);
+          assert.ok(savedFiles(after).includes('fix.py'));
+          await stopped(down.spectra);
+
+          const dir = tempDir();
+          try {
+            const pidFile = path.join(dir, 'pids');
+            const waitCwd = workingDir();
+            const waiting = await launch([], idleWithPid(pidFile), waitCwd);
+            await stateIs(waiting.base, 'waiting');
+            const [firstPid] = pidsIn(pidFile);
+            await savedUntil(
+              waiting.spectra,
+              path.join(waitCwd, 'agent.py'),
+              /a2ui-spectra: Restarting the agent: agent\.py changed\.\n/,
+            );
+            assert.ok(
+              await eventually(() => pidsIn(pidFile).length >= 2 && !isAlive(firstPid), 10_000),
+              'The starting process was stopped and the command started again.',
+            );
+            await stopped(waiting.spectra);
+          } finally {
+            rmSync(dir, {recursive: true, force: true});
+          }
+        },
+      );
+
+      it(
+        'watches nothing when watch is false: the off line at start, and a press afterwards the only restart',
+        {timeout: TIMEOUT},
+        async () => {
+          const cwd = workingDir();
+          writeFileSync(path.join(cwd, 'a2ui-spectra.json'), JSON.stringify({watch: false}));
+          const {spectra, base} = await launch([], undefined, cwd);
+          await spectra.waitFor(/Starting the agent/);
+          assert.ok(
+            spectra.output.includes(
+              `a2ui-spectra: Restart on save is off: watch is false in ${path.join(realpathSync(cwd), 'a2ui-spectra.json')}.\n`,
+            ),
+            spectra.output,
+          );
+          const first = await stateIs(base, 'running');
+          writeFileSync(path.join(cwd, 'agent.py'), 'saved');
+          // Long enough for a watch to have restarted, had there been one.
+          await new Promise(resolve => setTimeout(resolve, 500));
+          await press(base);
+          const again = await stateIs(base, 'running', first.state.seq);
+          assert.deepEqual(
+            again.events.map(event => event.type === 'agent_restarted' && event.cause),
+            [{kind: 'press'}],
+          );
+          assert.doesNotMatch(spectra.output, /changed\./);
+          await stopped(spectra);
+        },
+      );
+
+      it(
+        'restarts nothing on a save of the config file, and says to stop and start Spectra',
+        {timeout: TIMEOUT},
+        async () => {
+          const cwd = workingDir();
+          const config = path.join(cwd, 'a2ui-spectra.json');
+          writeFileSync(config, JSON.stringify({}));
+          const {spectra, base} = await launch([], undefined, cwd);
+          const first = await stateIs(base, 'running');
+          const told =
+            /a2ui-spectra: a2ui-spectra\.json changed\. Spectra reads it at start, so stop Spectra and start it again to apply it\.\n/;
+          const deadline = Date.now() + 15_000;
+          for (;;) {
+            writeFileSync(config, JSON.stringify({watch: ['.', '!sessions.db']}));
+            if (await spectra.waitFor(told, 1000).catch(() => undefined)) break;
+            assert.ok(Date.now() < deadline, spectra.output);
+          }
+          await savedUntil(
+            spectra,
+            path.join(cwd, 'agent.py'),
+            /a2ui-spectra: Restarting the agent: agent\.py changed\.\n/,
+          );
+          const again = await stateIs(base, 'running', first.state.seq);
+          assert.deepEqual(
+            savedFiles(again).filter(saved => saved !== 'agent.py'),
+            [],
+          );
+          await stopped(spectra);
+        },
+      );
+
+      it(
+        'stops at start on a watch path that does not exist, before the command has started, and not on a missing exclusion',
+        {timeout: TIMEOUT},
+        async () => {
+          const cwd = workingDir();
+          writeFileSync(
+            path.join(cwd, 'a2ui-spectra.json'),
+            JSON.stringify({watch: ['.', 'no-such-folder']}),
+          );
+          const result = await finished(await runArgs([]), cwd);
+          assert.equal(result.code, 1, result.output);
+          assert.ok(
+            result.output.includes(
+              `a2ui-spectra: The watch path ${path.join(realpathSync(cwd), 'no-such-folder')} does not exist.\n`,
+            ),
+            result.output,
+          );
+          assert.doesNotMatch(result.output, /Starting the agent/);
+
+          const excluded = workingDir();
+          writeFileSync(
+            path.join(excluded, 'a2ui-spectra.json'),
+            JSON.stringify({watch: ['.', '!sessions.db']}),
+          );
+          const {spectra, base} = await launch([], undefined, excluded);
+          const first = await stateIs(base, 'running');
+          writeFileSync(path.join(excluded, 'sessions.db'), 'written by the agent');
+          await savedUntil(
+            spectra,
+            path.join(excluded, 'agent.py'),
+            /a2ui-spectra: Restarting the agent: agent\.py changed\.\n/,
+          );
+          const again = await stateIs(base, 'running', first.state.seq);
+          assert.deepEqual(
+            savedFiles(again).filter(saved => saved !== 'agent.py'),
+            [],
+          );
+          await stopped(spectra);
         },
       );
 
