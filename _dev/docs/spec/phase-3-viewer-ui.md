@@ -22,7 +22,7 @@ Monospace appears only inside JSON and code. Times, durations, message types and
 
 ### 3. The frame: a left rail and a context bar
 
-A left rail holds Spectra's mark with its name under it, and the sections: Turns, joined by Fixtures in Phase 7. Turns shows the turn list and the turn view; Fixtures shows, in their places, the fixtures list and the fixture view, the context bar staying and the composer not shown. A context bar above the turn list and the turn view shows the attached agent's name, the mode (`run` or `attach`), the live status and the wire proxy's address with a copy button. A popover on the agent's name holds the agent's URL, and every A2A version and A2UI extension its card states, in card order, each extension with its catalogs, or "None advertised" when the card states no A2UI extension. The live status replaces the separate bar that says the live stream is down. From Phase 8, Restart and Logs sit on the right of the context bar, and the logs open as a drawer at the bottom of the page.
+A left rail holds Spectra's mark with its name under it, and the sections: Turns, joined by Fixtures in Phase 7. Turns shows the turn list and the turn view; Fixtures shows, in their places, the fixtures list and the fixture view, the context bar staying and the composer not shown. A context bar above the turn list and the turn view shows the attached agent's name, the mode (`run` or `attach`), the live status and the wire proxy's address with a copy button. A popover on the agent's name holds the agent's URL, and every A2A version and A2UI extension its card states, in card order, each extension with its catalogs, or "None advertised" when the card states no A2UI extension. The live status replaces the separate bar that says the live stream is down. From Phase 8, under `run` only, Restart and Logs sit at the context bar's right end, after the wire proxy's address, and the logs open as a drawer at the bottom of the page; under `attach` the bar ends with the address.
 
 ### 4. The turn list: grouped by conversation
 
@@ -74,7 +74,7 @@ The page address holds the turn and the selected step; changing the turn adds an
 
 ### 16. The first screen
 
-With no turns, the turn view shows, centred: the agent's name and its live status; the first example of each of the agent card's skills, in card order, as prompts that fill the composer in one click; and the second route, the wire proxy's address to point a host app at, with a copy button. The composer is focused.
+With no turns, the turn view shows, centred: the agent's name and its live status; the first example of each of the agent card's skills, in card order, as prompts that fill the composer in one click; and the second route, the wire proxy's address to point a host app at, with a copy button. The composer is focused. From Phase 8, under `run`, until the agent's card answers the first screen takes one of two forms, the agent's command standing for its name: starting, with the live status's waiting form and a line saying the message box opens when the card answers, the proxy's address staying and the composer disabled; or down, with the exit line, the last twelve lines of output, Open Logs and Restart.
 
 ### 17. Identity: Spectra's own mark, A2UI's teal
 
