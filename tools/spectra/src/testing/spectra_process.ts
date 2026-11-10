@@ -92,11 +92,34 @@ export class SpectraProcess {
   signal(signal: NodeJS.Signals): void {
     this.#child.kill(signal);
   }
+
+  /**
+   * Stops Spectra as a user does, so that it stops the agent it launched: the
+   * stop signal, then a second one, which forces the agent's process group,
+   * then a force-kill of Spectra itself when it still has not gone. An agent
+   * left behind would hold the pipes Spectra gave it, and the test run open.
+   */
+  async stop(): Promise<void> {
+    const gone = (ms: number) =>
+      new Promise<boolean>(resolve => {
+        const timer = setTimeout(() => resolve(false), ms);
+        void this.exited.then(() => {
+          clearTimeout(timer);
+          resolve(true);
+        });
+      });
+    this.signal('SIGTERM');
+    if (await gone(3000)) return;
+    this.signal('SIGINT');
+    if (await gone(2000)) return;
+    this.signal('SIGKILL');
+    await this.exited;
+  }
 }
 
 const running = new Set<SpectraProcess>();
-after(() => {
-  for (const spectra of running) spectra.signal('SIGKILL');
+after(async () => {
+  await Promise.all([...running].map(spectra => spectra.stop()));
 });
 
 const workingDirs: string[] = [];
