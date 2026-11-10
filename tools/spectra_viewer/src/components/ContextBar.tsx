@@ -63,15 +63,20 @@ function AgentPopover({context, name}: {context: SessionContext; name: string}) 
   const {catalogs} = useSpectra();
   const rows: Array<[label: string, value: string]> = [
     ['Address', shownUrl(context.agentUrl)],
-    ['Transport', transportLine(context.a2aVersions)],
-    ...(context.a2uiExtensions.length === 0
-      ? [['A2UI', 'None advertised'] as [string, string]]
-      : context.a2uiExtensions.flatMap(extension => [
-          ['A2UI', extension.version] as [string, string],
-          ...extension.catalogIds.map(
-            id => ['Catalog', catalogName(id, catalogs)] as [string, string],
-          ),
-        ])),
+    // Under run, until a card has answered, the popover holds the address and the mode alone.
+    ...(context.a2aVersions === undefined
+      ? []
+      : [['Transport', transportLine(context.a2aVersions)] as [string, string]]),
+    ...(context.a2uiExtensions === undefined
+      ? []
+      : context.a2uiExtensions.length === 0
+        ? [['A2UI', 'None advertised'] as [string, string]]
+        : context.a2uiExtensions.flatMap(extension => [
+            ['A2UI', extension.version] as [string, string],
+            ...extension.catalogIds.map(
+              id => ['Catalog', catalogName(id, catalogs)] as [string, string],
+            ),
+          ])),
     [
       'Mode',
       context.mode === 'run' ? 'Launched by Spectra (run)' : 'Attached to a running agent (attach)',

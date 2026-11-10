@@ -287,6 +287,8 @@ class Spectra {
       void this.#refreshBox();
     });
     on('fixtures_changed', () => void this.#readFixtures());
+    // The agent's process changed state under run: the context and the box follow its card and its state.
+    on('agent_state', () => void this.#reload());
     on('heartbeat', () => {});
   }
 

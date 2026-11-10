@@ -59,12 +59,12 @@ export interface SessionContext {
   previewPages?: string[];
   /** Under `attach`, the variables and values to set in the agent's shell, as `attach` prints them. */
   variables?: Array<{name: string; value: string}>;
-  /** The A2A versions the card states, in card order. */
-  a2aVersions: string[];
-  /** The A2UI extensions the card advertises, in card order. */
-  a2uiExtensions: A2uiExtension[];
-  /** The first example of each of the card's skills, in card order. */
-  examples: string[];
+  /** The A2A versions the latest card states, in card order; none under `run` before any card has answered. */
+  a2aVersions?: string[];
+  /** The A2UI extensions the latest card advertises, in card order; none before any card has answered. */
+  a2uiExtensions?: A2uiExtension[];
+  /** The first example of each of the latest card's skills, in card order; none before any card has answered. */
+  examples?: string[];
   /** The fixtures folder's path as shown. */
   fixturesFolder: string;
 }
@@ -166,6 +166,8 @@ export interface LiveEvents {
   };
   /** A file joined, changed in or left the fixtures folder; the listing is to be read again. */
   fixtures_changed: Record<string, never>;
+  /** Under `run`, the state of the agent's process, whole, at each change; the context and the box are current by then. */
+  agent_state: {state: string; seq: number; reason?: string; exit?: string};
   heartbeat: Record<string, never>;
 }
 
