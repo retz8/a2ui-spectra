@@ -1770,33 +1770,47 @@ surfaceId}`, in both places.
 
 ## 43. A streamed `updateDataModel` whose `value` comes before its `path` replaces the whole data model
 
-**Component:** `typescript/agents/a2ui_agent/src/inference-formats/direct-json/response-stream.ts`
-(`mayGrow` with PR #3930); `python/a2ui_agent/src/a2ui/inference_formats/direct_json/response_stream.py`
+**Component:** `python/a2ui_agent/src/a2ui/inference_formats/direct_json/response_stream.py`
 (`_may_grow`); `dart/a2ui_agent/lib/src/inference_formats/direct_json/response_stream.dart`
-(`_mayGrow`).
+(`_mayGrow`); `typescript/agents/a2ui_agent/src/inference-formats/direct-json/response-stream.ts`
+(`emitReady` on main, `mayGrow` with PR #3930).
 
 **Severity:** a reply that writes `value` before `path` replaces the surface's whole data model
-while it streams, and its block is then rejected. Seen at upstream main `d378d2008`
-(2026-11-03) in the TypeScript and Python SDKs, at v0.9 and v1.0; Dart's `_mayGrow` reads the
-same, not run.
+while it streams. With a list `value` its block is then rejected; with an object `value` nothing
+raises, and the turn ends with the value's keys at the root, the value again at `path`, and the
+data model's other keys gone. Reproduced without a model; no model is recorded writing `value`
+first, and the message schema in the Direct JSON prompt lists `path` before `value`.
+
+**Upstream:** issue #4132.
+
+Checked at `862af8214` (2026-11-10), not at the commit above: run in the Python SDK and in the
+TypeScript SDK, on main and on PR #3930's head `776d7d24c`, at v0.9 and v1.0. Dart's `_mayGrow`
+reads the same, not run. v0.8 and v0.9.1 not run.
 
 ### Issue
 
-A stream emits a growing `updateDataModel` once its `value` has begun to arrive. An
-`updateDataModel` with no `path` refers to the whole data model: "If `path` is omitted (or is
-`/`), the entire data model for the surface is replaced"
-(`specification/v0_9/docs/a2ui_protocol.md:245`). JSON gives key order no meaning, so when a
-model writes `value` before `path`, the stream cannot tell a message whose `path` is still to
-come from one with no `path`. It emits `{"surfaceId":"s","value":["c","d"]}`, which replaces the
-whole data model with the list. When the `path` arrives, the full message
-`{"surfaceId":"s","value":["c","d"],"path":"/items"}` fails on the list:
-`Cannot use non-numeric segment 'items' on an array in path '/items'.`
+A stream emits a growing `updateDataModel` once its `value` has begun to arrive; on main the
+TypeScript stream emits every open `updateDataModel`, and PR #3930 narrows that to one holding
+`value`. None waits for `path`. An `updateDataModel` with no `path` refers to the whole data
+model: "If `path` is omitted (or is `/`), the entire data model for the surface is replaced"
+(`specification/v0_9/docs/a2ui_protocol.md:539`, `specification/v1_0/docs/a2ui_protocol.md:1043`).
+JSON gives key order no meaning, so when a model writes `value` before `path`, the stream cannot
+tell a message whose `path` is still to come from one with no `path`. It emits
+`{"surfaceId":"s","value":["c","d"]}`, which replaces the whole data model with the list. When
+the `path` arrives, the stream applies the full message
+`{"surfaceId":"s","value":["c","d"],"path":"/items"}` on top of that, and it fails on the list:
+`Cannot use non-numeric segment 'items' on an array in path '/items'.` With an object value the
+full message is accepted: `{"surfaceId":"s","value":{"n":1},"path":"/items"}` leaves
+`{"n":1,"items":{"n":1}}`.
 
-Streaming a root update with no `path` is intended: the conformance case
-`test_chunk_progressive_key_heals_a_partial_string` in
-`conformance/agent/direct_json/response_streaming.yaml` expects
-`{"surfaceId": "s1", "value": {"greeting": "Hel` to be emitted while it arrives. Holding every
-`updateDataModel` with no `path` until it closes would change that case in all SDKs.
+Streaming a root update with no `path` is intended. Five cases in
+`conformance/agent/direct_json/response_streaming.yaml` expect one to be emitted while it
+arrives: `test_chunk_progressive_key_heals_a_partial_string`,
+`test_chunk_data_model_grows_across_chunks`, `test_stream_data_model_grows_v09`,
+`test_stream_data_model_cut_key_and_value_v09` and
+`test_stream_data_model_keeps_earlier_entries_v09`. Holding every `updateDataModel` with no
+`path` until it closes fails those five in the Python SDK, and three unit tests under
+`python/a2ui_agent/tests/parser/`; not tried in TypeScript or Dart.
 
 ### Reproduction
 
@@ -1804,14 +1818,29 @@ Into a surface holding `{"items":["a","b"],"other":1}`, stream
 `{"version":"1.0","updateDataModel":{"surfaceId":"s","value":["c","d"],"path":"/items"}}`
 cut after `"value":["c","d"],`. The first chunk emits `{"surfaceId":"s","value":["c","d"]}`
 and leaves a data model of `["c","d"]`; the second raises `A2uiValidationError` with the
-message above. The same holds at v0.9, and through `a2ui-agent-sdk` at the same commit.
+message above. With `"value":{"n":1}` the first chunk emits `{"surfaceId":"s","value":{"n":1}}`,
+the second emits the full message, and the data model ends as `{"n":1,"items":{"n":1}}`, where
+one chunk leaves `{"items":{"n":1},"other":1}`. With `path` written first, two chunks leave
+what one chunk leaves. The same holds at v0.9. Issue #4132 holds the script.
 
 ### Fix
 
 Needs a decision upstream. One way: have the Direct JSON prompt ask for `path` on every
 `updateDataModel`, `"/"` for the root, written before `value`, and hold a message with no
-`path` until it closes; a root update written with `"path": "/"` still streams, and the
-conformance case above gains a `path`.
+`path` until it closes; a root update written with `"path": "/"` still streams, and the five
+conformance cases above gain a `path`.
+
+Issue #4132 proposes this and asks whether a root update may stream only when it writes
+`"path": "/"` first. No PR is open. The stream's half, one more condition in Python's
+`_may_grow`, left the one-chunk data model in every case of the reproduction.
+
+### Prior art
+
+Issue #2936 (closed 2026-11-02) was the same symptom in Python's earlier stream parser: partial
+`updateDataModel` messages sent without their `path`, which replaced the whole data model. It
+was closed as fixed by #3074, which keeps the `path` on partial updates; the stream keeps it
+only when `path` comes before `value`. Findings 18 and 19 (issue #3929, PR #3930) are the
+opposite order in the TypeScript stream.
 
 ## 44. `@a2ui/markdown-it` 0.2.2 asks for web core 0.14 beside the renderers that bring 0.15
 
