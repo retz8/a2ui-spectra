@@ -88,6 +88,8 @@ export type LiveEvent =
   | {type: 'replay_ended'; source: string; mode: 'live'; turns: LiveReplayedTurn[]}
   /** A file joined, changed in or left the fixtures folder; the listing is to be read again. */
   | {type: 'fixtures_changed'}
+  /** A configured catalog file was read again, or its read failed; the catalog listing is to be read again. */
+  | {type: 'catalogs_changed'}
   /**
    * Under `run`, the agent's process: its state whole at each change, a
    * restart with its time and its cause, and an exit the agent took on its
@@ -197,7 +199,7 @@ export class TurnHub {
     this.#emit({type: 'turn_amended', traceId, events});
   };
 
-  /** Passes an event outside any turn, a replay's, the fixtures folder's or the agent's process's, to the listeners. */
+  /** Passes an event outside any turn, a replay's, the fixtures folder's, the catalog files' or the agent's process's, to the listeners. */
   notify(
     event: Extract<
       LiveEvent,
@@ -207,6 +209,7 @@ export class TurnHub {
           | 'replay_turn'
           | 'replay_ended'
           | 'fixtures_changed'
+          | 'catalogs_changed'
           | 'agent_state'
           | 'agent_restarted'
           | 'agent_exited'

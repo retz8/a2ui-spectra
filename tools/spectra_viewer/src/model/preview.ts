@@ -83,13 +83,96 @@ export interface PreviewPageState {
   label: string;
   /**
    * `waiting` until it first answers or times out; `ready` once it said it is
-   * ready in the protocol's version; `unanswered` when it did not answer in
-   * time; `mismatch` when it speaks another version of the protocol.
+   * ready in the protocol's version; `reloading` when a ready page loaded
+   * again and has not answered yet, its claims kept meanwhile; `unanswered`
+   * when it did not answer in time; `mismatch` when it speaks another version
+   * of the protocol.
    */
-  status: 'waiting' | 'ready' | 'unanswered' | 'mismatch';
+  status: PageStatus;
   claims: Claim[];
   /** The protocol version a mismatched page speaks. */
   protocol?: number;
+  /** Whether the page has been reloading for long enough that the Preview header says so. */
+  reloadingNoted?: boolean;
+}
+
+export type PageStatus = 'waiting' | 'ready' | 'reloading' | 'unanswered' | 'mismatch';
+
+/** How long a page has to say it is ready, and how long a ready that came first is owed its document's load. */
+export const ANSWER_MS = 5000;
+
+/** How close a page's second ready is to its last, no load between, to be the same document's. */
+export const SAME_DOCUMENT_MS = 1000;
+
+/**
+ * What is open between a page's readies and its iframe's loads. A page's
+ * ready and its load come in either order, a built page's ready first and a
+ * dev server's page's load first, and a page on another origin cannot be seen
+ * to begin a reload, so the two are paired, each document's load with its
+ * ready.
+ */
+export interface Pairing {
+  /** Until when the page's last ready is owed its document's load. */
+  owedUntil?: number;
+  /** Whether a load is waiting for its document's ready. */
+  loadWaiting?: boolean;
+  /** When the page's last ready came, no load since. */
+  lastReady?: number;
+}
+
+/**
+ * What a ready does to the pairing. One that comes while a load is waiting
+ * answers it, and is owed nothing. One within a second of the page's last
+ * ready, no load between, is the same document's, as React's development
+ * mode mounts twice, and changes nothing. Any other is owed one load, its
+ * own document's, for the answer window.
+ */
+export function readyOf(pairing: Pairing, now: number): Pairing {
+  if (pairing.loadWaiting === true) return {lastReady: now};
+  if (pairing.lastReady !== undefined && now - pairing.lastReady <= SAME_DOCUMENT_MS) {
+    return pairing;
+  }
+  return {owedUntil: now + ANSWER_MS, lastReady: now};
+}
+
+/**
+ * What a load of a page's iframe does. A load that is owed changes nothing,
+ * and nothing is owed after it. One that is not owed is a new document that
+ * has not answered, and waits for its ready: a ready page is reloading, and
+ * the answer timer is to be armed; a page in any other state is left as it
+ * is.
+ */
+export function loadOf(
+  page: {status: PageStatus} & Pairing,
+  now: number,
+): {status: PageStatus; arm: boolean; pairing: Pairing} {
+  if (page.owedUntil !== undefined && now <= page.owedUntil) {
+    return {status: page.status, arm: false, pairing: {}};
+  }
+  return page.status === 'ready'
+    ? {status: 'reloading', arm: true, pairing: {loadWaiting: true}}
+    : {status: page.status, arm: false, pairing: {loadWaiting: true}};
+}
+
+/**
+ * How long a page reloads before the Preview header says so. A healthy page
+ * on a dev server answers within milliseconds of its load, 0 to 15 ms as
+ * measured, and the note would flicker for it.
+ */
+export const RELOADING_NOTE_MS = 200;
+
+/**
+ * The Preview header's quiet note of the page drawing the surface: its
+ * label, and that it is reloading once it has been for a moment.
+ */
+export function pageNoteOf(page: PreviewPageState): {text: string; reloading: boolean} {
+  const reloading = page.status === 'reloading' && page.reloadingNoted === true;
+  return {text: reloading ? `${page.label} · reloading` : page.label, reloading};
+}
+
+/** A page that did not answer in time: unanswered, claiming nothing. */
+export function timedOut<P extends PreviewPageState>(page: P): P {
+  return {...page, status: 'unanswered', claims: []};
 }
 
 export type Route<P extends PreviewPageState = PreviewPageState> =
@@ -117,11 +200,17 @@ function claimsTarget(page: PreviewPageState, target: SurfaceTarget): boolean {
   );
 }
 
+/** Whether a page's claims stand: it is ready, or reloading with the claims it last made. */
+function answers(page: PreviewPageState): boolean {
+  return page.status === 'ready' || page.status === 'reloading';
+}
+
 /**
  * The page that draws a surface: the first, in the order given, that is
  * ready and claims every catalog the surface's messages name. A page still
  * waiting for its first answer ahead of it holds the surface until it
- * answers or times out.
+ * answers or times out, and a page that is reloading keeps the surfaces it
+ * claimed until it answers again or times out.
  */
 export function routeOf<P extends PreviewPageState>(
   pages: readonly P[],
@@ -129,9 +218,9 @@ export function routeOf<P extends PreviewPageState>(
 ): Route<P> {
   for (const page of pages) {
     if (page.status === 'waiting') return {kind: 'waiting'};
-    if (page.status === 'ready' && claimsTarget(page, target)) return {kind: 'page', page};
+    if (answers(page) && claimsTarget(page, target)) return {kind: 'page', page};
   }
-  const ready = pages.filter(page => page.status === 'ready');
+  const ready = pages.filter(answers);
   const unclaimed =
     target.catalogIds.find(
       id =>

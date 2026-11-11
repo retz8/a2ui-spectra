@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import {capabilitiesFor} from './a2a/client.js';
+import type {CatalogOffer} from './catalog/registry.js';
 import {MessageBox, MessageBoxError, type ReplayHooks} from './message_box.js';
 import type {ModelCallEvent, Turn, TurnOutcome, TurnRecord} from './record/turn_record.js';
 import type {ReplayPool} from './replay/pool.js';
@@ -135,7 +136,7 @@ function boxOn(
   options: {
     headers?: Record<string, string>;
     unsetVariables?: string[];
-    offer?: {'v0.9': string[]; 'v0.9.1': string[]; 'v1.0': string[]};
+    offer?: CatalogOffer | (() => CatalogOffer);
     replay?: ReplayHooks;
   } = {},
 ): MessageBox {
@@ -377,6 +378,20 @@ describe('the message box', () => {
     proxy.replies.push(streamReply('TASK_STATE_COMPLETED'));
     await proxy.close((await box.send('Hi')).traceId);
     assert.deepEqual(proxy.sent[0].message.metadata, capabilitiesFor(offer));
+    box.close();
+  });
+
+  it('advertises the offer as it stands at each send, when it is given as it changes', async () => {
+    const proxy = new FakeProxy();
+    let offer = {'v0.9': ['a'], 'v0.9.1': ['a'], 'v1.0': []};
+    const box = boxOn(proxy, CARD_1_0, {offer: () => offer});
+    proxy.replies.push(streamReply('TASK_STATE_COMPLETED'));
+    await proxy.close((await box.send('Hi')).traceId);
+    assert.deepEqual(proxy.sent[0].message.metadata, capabilitiesFor(offer));
+    offer = {'v0.9': ['a/v2'], 'v0.9.1': ['a/v2'], 'v1.0': []};
+    proxy.replies.push(streamReply('TASK_STATE_COMPLETED'));
+    await proxy.close((await box.send('Again')).traceId);
+    assert.deepEqual(proxy.sent[1].message.metadata, capabilitiesFor(offer));
     box.close();
   });
 

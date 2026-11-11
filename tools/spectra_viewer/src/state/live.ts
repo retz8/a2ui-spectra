@@ -19,6 +19,14 @@ import {
 } from '../model/record.ts';
 import {openFieldsOf, rowFieldsOf} from '../model/summary.ts';
 
+/**
+ * The stream events on which the viewer reads again everything it loads at
+ * connect, the turn list, the box, the context and the catalog listing: the
+ * agent's process changing state, and a configured catalog file read again,
+ * whose definition the list's counts and Structure both follow.
+ */
+export const RELOAD_EVENTS = ['agent_state', 'catalogs_changed'] as const;
+
 /** An open turn, as the live stream has sent it so far. */
 export interface LiveTurn {
   traceId: string;

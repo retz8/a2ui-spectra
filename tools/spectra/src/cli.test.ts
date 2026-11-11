@@ -23,6 +23,7 @@ import {fileURLToPath} from 'node:url';
 import type {LogEntry, LogSnapshot} from './agent_log.js';
 import type {AgentSnapshot} from './agent_supervisor.js';
 import type {ListedTurn, SessionContext} from './api.js';
+import type {CatalogListing} from './catalog/registry.js';
 import type {MessageBoxState, ReplayStarted} from './message_box.js';
 import {VARIABLES} from './model_proxy/redirection.js';
 import {
@@ -30,7 +31,9 @@ import {
   isEventOfKind,
   type ModelCallEvent,
   type ToolCallEvent,
+  type Turn,
   type TurnRecord,
+  type WireInputEvent,
 } from './record/turn_record.js';
 import {FAKE_TOOL_TOKEN, SEND_REPLY, startFakeAgent, STREAM_REPLY} from './testing/fake_agent.js';
 import {FAKE_PROVIDER_KEY, startFakeProvider} from './testing/fake_provider.js';
@@ -839,6 +842,258 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           noAgent.stderr,
           /test needs the agent's URL: --agent-url, or agent\.url in a2ui-spectra\.json/,
         );
+      },
+    );
+  });
+
+  describe('the configured catalog files read again', () => {
+    /** A small v0.9 definition of the catalog a file names, with the components given. */
+    function notes(catalogId: string, components: string[]): string {
+      return JSON.stringify({
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        catalogId,
+        title: 'Notes',
+        components: Object.fromEntries(
+          components.map(name => [
+            name,
+            {
+              type: 'object',
+              properties: {component: {const: name}, text: {type: 'string'}},
+              required: ['component'],
+            },
+          ]),
+        ),
+        $defs: {anyComponent: {oneOf: components.map(name => ({$ref: `#/components/${name}`}))}},
+      });
+    }
+
+    /** A surface in the notes catalog whose root is a Card. */
+    const cardSurface = [
+      {version: 'v0.9', createSurface: {surfaceId: 'notes', catalogId: 'notes'}},
+      {
+        version: 'v0.9',
+        updateComponents: {
+          surfaceId: 'notes',
+          components: [{id: 'root', component: 'Card', text: 'Saved'}],
+        },
+      },
+    ];
+
+    /**
+     * Spectra attached to the fake agent, in a directory whose config file
+     * names `./catalogs/notes.json`, the notes catalog with a Note alone.
+     */
+    async function attached() {
+      const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+        freePort(),
+        freePort(),
+        freePort(),
+        freePort(),
+      ]);
+      const cwd = workingDir();
+      const file = path.join(cwd, 'catalogs', 'notes.json');
+      mkdirSync(path.join(cwd, 'catalogs'));
+      writeFileSync(file, notes('notes', ['Note']));
+      writeFileSync(
+        path.join(cwd, 'a2ui-spectra.json'),
+        JSON.stringify({catalogs: ['./catalogs/notes.json']}),
+      );
+      const agent = await startFakeAgent(agentPort, {streaming: true, a2ui: () => cardSurface});
+      const spectra = new SpectraProcess(
+        [
+          'attach',
+          `http://localhost:${agentPort}`,
+          '--port',
+          String(port),
+          '--proxy-port',
+          String(proxyPort),
+          '--model-proxy-port',
+          String(modelProxyPort),
+          '--receiver-port',
+          String(await freePort()),
+          '--no-open',
+        ],
+        cwd,
+      );
+      await spectra.waitFor(viewerUrl);
+      const base = `http://127.0.0.1:${port}`;
+      const live = new LiveStream(`${base}/api/stream`);
+      await live.ready;
+      return {
+        spectra,
+        base,
+        live,
+        file,
+        async close() {
+          live.close();
+          spectra.signal('SIGTERM');
+          await spectra.exited;
+          await closeServer(agent);
+        },
+      };
+    }
+
+    const configuredOf = async (base: string) =>
+      (await getJson<CatalogListing>(`${base}/api/catalogs`)).body.catalogs.filter(
+        catalog => catalog.source === 'configured',
+      );
+
+    /** How many times the output holds the text. */
+    const timesIn = (output: string, text: string) => output.split(text).length - 1;
+
+    /** Saves the file, again until the check holds: a watch tells nothing for a moment after it is set up. */
+    async function savedUntil(
+      file: string,
+      content: string,
+      holds: () => boolean | Promise<boolean>,
+    ): Promise<void> {
+      const deadline = Date.now() + 15_000;
+      for (;;) {
+        writeFileSync(file, content);
+        const until = Date.now() + 1000;
+        while (Date.now() < until) {
+          if (await holds()) return;
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        assert.ok(Date.now() < deadline, `The save of ${file} was told.`);
+      }
+    }
+
+    /** The codes of every finding of the turn's checks. */
+    const findingCodes = (turn: Turn) =>
+      turn.events
+        .filter((event): event is CheckEvent => isEventOfKind(event, 'check'))
+        .flatMap(event => event.attributes['a2ui.check.findings'].map(finding => finding.code));
+
+    const READ_AGAIN =
+      'a2ui-spectra: ./catalogs/notes.json changed. Its catalog definition was read again.\n';
+
+    it(
+      'reads a saved definition again under attach: the line, the event and the listing, the next turn checked against it and the earlier one as written',
+      {timeout: TIMEOUT},
+      async () => {
+        const {spectra, base, live, file, close} = await attached();
+        try {
+          const [before] = await configuredOf(base);
+          assert.equal(before.path, './catalogs/notes.json');
+          assert.ok(before.readTime !== undefined && before.failedRead === undefined);
+          const first = await sendMessage(base, 'Hi');
+          const earlier = await live.closed(first.traceId);
+          assert.ok(findingCodes(earlier).includes('COMPONENT_UNKNOWN'));
+
+          await savedUntil(file, notes('notes', ['Note', 'Card']), () =>
+            spectra.output.includes(READ_AGAIN),
+          );
+          await live.until(event => event.event === 'catalogs_changed');
+          const [after] = await configuredOf(base);
+          assert.deepEqual(Object.keys(after.definition.components as object), ['Note', 'Card']);
+          assert.ok(after.readTime! > before.readTime);
+          assert.equal(after.failedRead, undefined);
+
+          const second = await sendMessage(base, 'Again');
+          const later = await live.closed(second.traceId);
+          assert.ok(!findingCodes(later).includes('COMPONENT_UNKNOWN'));
+          const {body: record} = await getJson<TurnRecord>(`${base}/api/turns/${first.traceId}`);
+          const written = record.turns.find(turn =>
+            turn.events.some(
+              event => isEventOfKind(event, 'turn') && event.traceId === first.traceId,
+            ),
+          );
+          assert.ok(written);
+          assert.ok(findingCodes(written).includes('COMPONENT_UNKNOWN'));
+        } finally {
+          await close();
+        }
+      },
+    );
+
+    it(
+      'keeps the definition read before when a save breaks the file, with the failed read listed, and clears it at the fix',
+      {timeout: TIMEOUT},
+      async () => {
+        const {spectra, base, live, file, close} = await attached();
+        try {
+          const [before] = await configuredOf(base);
+          await savedUntil(file, '{"catalogId": ', () =>
+            /a2ui-spectra: \.\/catalogs\/notes\.json changed and did not read: .+\. The definition read before stays in force\.\n/.test(
+              spectra.stderr,
+            ),
+          );
+          await live.until(event => event.event === 'catalogs_changed');
+          const [failed] = await configuredOf(base);
+          assert.ok(failed.failedRead !== undefined);
+          assert.ok(failed.failedRead.time > before.readTime!);
+          assert.ok(
+            spectra.stderr.includes(
+              `./catalogs/notes.json changed and did not read: ${failed.failedRead.error}. `,
+            ),
+          );
+          assert.doesNotMatch(failed.failedRead.error, /notes\.json/);
+          assert.deepEqual(failed.definition, before.definition);
+          assert.equal(failed.readTime, before.readTime);
+
+          await savedUntil(file, notes('notes', ['Note']), () =>
+            spectra.output.includes(READ_AGAIN),
+          );
+          const [fixed] = await configuredOf(base);
+          assert.equal(fixed.failedRead, undefined);
+          assert.deepEqual(fixed.definition, before.definition);
+        } finally {
+          await close();
+        }
+      },
+    );
+
+    it(
+      'takes a saved catalog id: the listing names it, and the next message offers it',
+      {timeout: TIMEOUT},
+      async () => {
+        const {spectra, base, live, file, close} = await attached();
+        try {
+          await savedUntil(file, notes('notes/v2', ['Note']), () =>
+            spectra.output.includes(
+              READ_AGAIN.slice(0, -1) + ' Its catalog id is now notes/v2, no longer notes.\n',
+            ),
+          );
+          assert.deepEqual(
+            (await configuredOf(base)).map(catalog => catalog.id),
+            ['notes/v2'],
+          );
+          const sent = await sendMessage(base, 'Hi');
+          const turn = await live.closed(sent.traceId);
+          const input = turn.events.find((event): event is WireInputEvent =>
+            isEventOfKind(event, 'wire_input'),
+          );
+          const capabilities = input?.attributes['a2ui.wire.capabilities'] as
+            Record<string, {supportedCatalogIds: string[]}> | undefined;
+          assert.deepEqual(capabilities?.['v0.9'].supportedCatalogIds.slice(1), ['notes/v2']);
+        } finally {
+          await close();
+        }
+      },
+    );
+
+    it(
+      'says nothing for a save with no edit: a later edit brings the only line and the only event',
+      {timeout: TIMEOUT},
+      async () => {
+        const {spectra, base, live, file, close} = await attached();
+        try {
+          const [before] = await configuredOf(base);
+          // The same definition, laid out anew as a formatter would.
+          writeFileSync(file, JSON.stringify(JSON.parse(notes('notes', ['Note'])), null, 2));
+          await new Promise(resolve => setTimeout(resolve, 500));
+          await savedUntil(file, notes('notes', ['Note', 'Card']), () =>
+            spectra.output.includes(READ_AGAIN),
+          );
+          await live.until(event => event.event === 'catalogs_changed');
+          assert.equal(timesIn(spectra.output, 'notes.json changed'), 1);
+          assert.equal(live.events.filter(event => event.event === 'catalogs_changed').length, 1);
+          const [after] = await configuredOf(base);
+          assert.ok(after.readTime! > before.readTime!);
+        } finally {
+          await close();
+        }
       },
     );
   });
@@ -2193,6 +2448,54 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           const divider = logs.entries.find(entry => entry.type === 'stopped');
           assert.ok(divider?.type === 'stopped');
           assert.deepEqual(divider.cause, {kind: 'save', file: 'prompt_builder.py'});
+          await stopped(spectra);
+        },
+      );
+
+      it(
+        'restarts the agent and reads the definition again on one save of a catalog file in the watched folder',
+        {timeout: TIMEOUT},
+        async () => {
+          const cwd = workingDir();
+          const definition = (components: string[]) =>
+            JSON.stringify({
+              $schema: 'https://json-schema.org/draft/2020-12/schema',
+              catalogId: 'notes',
+              components: Object.fromEntries(
+                components.map(name => [
+                  name,
+                  {type: 'object', properties: {component: {const: name}}},
+                ]),
+              ),
+              $defs: {
+                anyComponent: {oneOf: components.map(name => ({$ref: `#/components/${name}`}))},
+              },
+            });
+          writeFileSync(path.join(cwd, 'notes.json'), definition(['Note']));
+          writeFileSync(
+            path.join(cwd, 'a2ui-spectra.json'),
+            JSON.stringify({catalogs: ['./notes.json']}),
+          );
+          const {spectra, base} = await launch([], undefined, cwd);
+          const first = await stateIs(base, 'running');
+          const deadline = Date.now() + 15_000;
+          const told = () =>
+            spectra.output.includes('a2ui-spectra: Restarting the agent: notes.json changed.\n') &&
+            spectra.output.includes(
+              'a2ui-spectra: ./notes.json changed. Its catalog definition was read again.\n',
+            );
+          while (!told()) {
+            assert.ok(Date.now() < deadline, spectra.output);
+            writeFileSync(path.join(cwd, 'notes.json'), definition(['Note', 'Card']));
+            await eventually(told, 1000);
+          }
+          const again = await stateIs(base, 'running', first.state.seq);
+          assert.ok(savedFiles(again).every(file => file === 'notes.json'));
+          const {body: listing} = await getJson<CatalogListing>(`${base}/api/catalogs`);
+          assert.deepEqual(Object.keys(listing.catalogs[2].definition.components as object), [
+            'Note',
+            'Card',
+          ]);
           await stopped(spectra);
         },
       );

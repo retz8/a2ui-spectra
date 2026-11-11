@@ -15,7 +15,8 @@ import {AgentSupervisor} from './agent_supervisor.js';
 import type {SessionContext} from './api.js';
 import type {AgentCommand, HeadlessOptions} from './args.js';
 import {openBrowser} from './browser.js';
-import {CatalogRegistry} from './catalog/registry.js';
+import {CatalogRegistry, rereadLine} from './catalog/registry.js';
+import {startCatalogWatch} from './catalog/watch.js';
 import {ConfigError, type SpectraConfig, substituteVariables} from './config.js';
 import {FixturesFolder} from './fixtures/fixtures.js';
 import {MessageBox, unsetVariablesClause} from './message_box.js';
@@ -111,7 +112,12 @@ export async function runSession(
   }
   let catalogs: CatalogRegistry;
   try {
-    catalogs = await CatalogRegistry.load(options.config.catalogs);
+    catalogs = await CatalogRegistry.load(
+      options.config.catalogs.map((file, index) => ({
+        file,
+        path: options.config.catalogPaths[index] ?? file,
+      })),
+    );
   } catch (error) {
     if (error instanceof ConfigError) {
       out.error(error.message);
@@ -162,6 +168,27 @@ export async function runSession(
   const recorder = new TurnRecorder(store, out, {onRecorded: turns.onRecorded, catalogs});
   const fixtures = new FixturesFolder(options.config.fixtures, process.cwd());
   const fixturesChanged = () => turns.notify({type: 'fixtures_changed'});
+  /** The reads of changed catalog files, one at a time. */
+  let catalogReads: Promise<void> = Promise.resolve();
+  /** Reads a changed catalog file again, says what the read did, and tells the viewer. */
+  const catalogChanged = (file: string): void => {
+    catalogReads = catalogReads.then(async () => {
+      try {
+        const shown = catalogs.known.find(catalog => catalog.file === file)?.path ?? file;
+        const said = rereadLine(shown, await catalogs.reread(file));
+        if (said === undefined) return;
+        if (said.error === true) out.error(said.line);
+        else out.info(said.line);
+        turns.notify({type: 'catalogs_changed'});
+      } catch (error) {
+        out.error(
+          `${file} could not be read again: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+    });
+  };
+  /** Stops the catalog files' own watch, under `attach` and `run`. */
+  let stopCatalogWatch: (() => void) | undefined;
   // Under `run` with restart on save, the save watcher's own watch tells the fixtures folder's
   // changes when it holds the folder; else the folder has its own.
   let stopWatching =
@@ -289,7 +316,7 @@ export async function runSession(
         turns,
         headers,
         unsetVariables: unset,
-        offer: catalogs.offer(),
+        offer: () => catalogs.offer(),
         replay: {
           arm: pool => {
             armed.modelProxy.arm(pool);
@@ -389,6 +416,8 @@ export async function runSession(
       out.info(`Turns are saved in ${store.turnsDir}`);
       out.info(`Fixtures are saved in ${fixtures.dir}`);
       const watch = options.config.watch;
+      /** The catalog files the save watcher's watch tells, which need no watch of their own. */
+      let told: string[] = [];
       if (watch.paths.length === 0) {
         out.info(`Restart on save is off: watch is false in ${options.config.file}.`);
       } else {
@@ -403,19 +432,40 @@ export async function runSession(
           workingDir: process.cwd(),
           onSave: file => agentProcess.restart({kind: 'save', file}),
           log: line => out.info(line),
-          observed: [{folder: fixtures.dir, onChange: fixturesChanged}],
+          observed: [
+            {path: fixtures.dir, onChange: fixturesChanged},
+            ...options.config.catalogs.map(file => ({
+              path: file,
+              onChange: () => catalogChanged(file),
+            })),
+          ],
         });
         stopSaveWatcher = () => saveWatcher.stop();
         if (!saveWatcher.observing.includes(fixtures.dir)) {
           stopWatching = fixtures.watch(fixturesChanged).stop;
         }
+        told = saveWatcher.observing;
       }
+      // A catalog file no watched folder holds has its folder watched, from the start.
+      stopCatalogWatch = startCatalogWatch({
+        files: options.config.catalogs.filter(file => !told.includes(file)),
+        onChange: catalogChanged,
+        log: line => out.info(line),
+      }).stop;
       supervisor.start();
       if (viewer.open) {
         openBrowser(server.url);
       }
       await aborted(stop.signal);
     } else {
+      if (headless === undefined) {
+        // Under attach each catalog file's folder is watched, from the start.
+        stopCatalogWatch = startCatalogWatch({
+          files: options.config.catalogs,
+          onChange: catalogChanged,
+          log: line => out.info(line),
+        }).stop;
+      }
       if (agentCommand !== undefined) {
         const replaced = replacedLine(otel);
         if (replaced !== undefined) out.info(replaced);
@@ -536,6 +586,7 @@ export async function runSession(
   } finally {
     supervisor?.beginStop();
     stopSaveWatcher?.();
+    stopCatalogWatch?.();
     stopWatching();
     await server?.close();
     box?.close();

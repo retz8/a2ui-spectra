@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import {describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
@@ -276,5 +277,42 @@ describe('the check events', () => {
   it('are none for a turn with no protocol version', () => {
     assert.equal(checkTurn(testTurn({messages: []})), undefined);
     assert.ok(checkTurn(testTurn({messages: [], version: 'v0.9'})));
+  });
+});
+
+describe('the checks after a catalog file was read again', () => {
+  it('judge a turn against the definition in force', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'spectra-checks-'));
+    try {
+      const file = path.join(dir, 'notes.json');
+      const definition = (components: string[]) =>
+        JSON.stringify({
+          $schema: 'https://json-schema.org/draft/2020-12/schema',
+          catalogId: 'notes',
+          components: Object.fromEntries(
+            components.map(name => [
+              name,
+              {type: 'object', properties: {component: {const: name}}, required: ['component']},
+            ]),
+          ),
+          $defs: {anyComponent: {oneOf: components.map(name => ({$ref: `#/components/${name}`}))}},
+        });
+      fs.writeFileSync(file, definition(['Note']));
+      const registry = await CatalogRegistry.load([file]);
+      const turn = testTurn({
+        version: 'v0.9',
+        messages: [
+          createSurface('notes', 'notes'),
+          updateComponents('notes', [{id: 'root', component: 'Card'}]),
+        ],
+      });
+      const codes = () => checkTurn(turn, [], registry)?.catalog.findings.map(({code}) => code);
+      assert.deepEqual(codes(), ['COMPONENT_UNKNOWN']);
+      fs.writeFileSync(file, definition(['Note', 'Card']));
+      await registry.reread(file);
+      assert.deepEqual(codes(), []);
+    } finally {
+      fs.rmSync(dir, {recursive: true, force: true});
+    }
   });
 });

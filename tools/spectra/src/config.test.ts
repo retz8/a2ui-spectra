@@ -37,6 +37,7 @@ describe('loadConfig', () => {
     assert.deepEqual(await loadConfig({cwd}), {
       headers: {},
       catalogs: [],
+      catalogPaths: [],
       preview: [],
       tools: [],
       prices: {},
@@ -111,6 +112,11 @@ describe('loadConfig', () => {
     assert.deepEqual(config.headers, {Authorization: 'Bearer ${SPECTRA_AGENT_TOKEN}'});
     assert.deepEqual(config.catalogs, [
       path.join(cwd, 'catalog.json'),
+      path.join(cwd, 'other', 'catalog.json'),
+    ]);
+    // Each catalog file keeps its path as the file names it, beside where it sits.
+    assert.deepEqual(config.catalogPaths, [
+      './catalog.json',
       path.join(cwd, 'other', 'catalog.json'),
     ]);
     assert.deepEqual(config.preview, ['http://localhost:5174/spectra-preview']);

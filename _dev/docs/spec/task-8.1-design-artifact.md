@@ -22,7 +22,7 @@ The canvas has three pages, "Screens and foundations", "Flows" and "Turn view de
 | --- | --- |
 | The drawer, the Screens pair, the small window, the context bar's forms, the turn list's dividers, Re-run, the first screen's forms, Flow 8 | The Python restaurant finder's two-turn conversation, list then booking, under `run`: uvicorn's and ADK's startup lines on stderr, a restart divider after a save of its agent file, the turn markers of its two turns |
 | A crash after a save | The same, the exit line "exited with code 1" after a save that left a Python traceback in the logs |
-| The preview pane reloading and stopped answering | The custom-components example, its page served by its dev server: the contact card, in the basic catalog, held while the page reloads; the floor plan of the `view_location` press, in the example's `inline_catalog`, which only that page claims, when it stops answering |
+| The preview pane reloading and stopped answering | The custom-components example, its page served by its dev server: the contact card, in the basic catalog, kept with the page while it reloads, the frame empty until the reloaded document draws; the floor plan of the `view_location` press, in the example's `inline_catalog`, which only that page claims, when it stops answering |
 | The agent popover's failed catalog read | The custom-components example, its `inline_catalog_0.9.json` broken by an edit |
 
 Illustrative values, the log lines' text, the times and the file names, are settled on the canvas. The finder is launched in its folder as `uv run .`, its README's command, and the saved file is `prompt_builder.py`, whose booking line the edit extends to title the form "Reserve a table at <restaurant name>". The terminal's words are the binary's: a stop under `uv run` reads "exited with code 143", the card wait's reason "connection refused", a command that cannot start "could not start: Executable not found in $PATH: "uv"", and the catalog reader's error "JSON Parse error: Property name must be a string literal".
@@ -66,11 +66,11 @@ The third line reads "Re-run of find-italian-restaurants.json · turn 2 of 2 · 
 
 ### 11. The preview pane reloading, and stopped answering
 
-Reloading: the surface stays drawn as it was, and the Preview header's quiet note reads "http://localhost:5174/spectra-preview · reloading" with the open spinner before it in the note's muted grey, nothing over the frame; a page whose ready arrives within the five seconds returns the note to the URL alone, the surface redrawn in place. Stopped answering: the existing no-preview state unchanged, "No preview for catalog" with the id, the adapter hint and the line "http://localhost:5174/spectra-preview has not answered"; no new wording. The header's note reads the configured page's URL on these boards.
+Reloading: the frame stays on the page and shows what the reloaded document draws, and the Preview header's quiet note reads "http://localhost:5174/spectra-preview · reloading" with the open spinner before it in the note's muted grey, shown once the page has been reloading for 200 ms, nothing over the frame; a page whose ready arrives within the five seconds returns the note to the URL alone, the surface drawn again. Stopped answering: the existing no-preview state unchanged, "No preview for catalog" with the id, the adapter hint and the line "http://localhost:5174/spectra-preview has not answered"; no new wording. The header's note reads the configured page's URL on these boards.
 
 ### 12. The first screen while the agent is starting or down
 
-Two boards on the States row, "First screen: the agent starting" and "First screen: the agent down before its card answered". Until a card has answered, the heading and the context bar's name button read the agent's command in monospace, "uv run .", the popover holding Address and Mode alone; after a restart they keep the last card's name while waiting. Starting: the mark, the command, the live status in its waiting form, the muted line "The message box opens when the agent's card answers.", no example prompts, the proxy line staying, the composer disabled. Down: the red dot with "Agent down · exited with code 1", then the last twelve lines of output in a tinted monospace block in the form the `attach` variables block takes, with the times and stream tags the drawer uses, "Open Logs" as a teal link under it, and a Restart button beside the link as the screen's main action, the same action as the context bar's.
+Two boards on the States row, "First screen: the agent starting" and "First screen: the agent down before its card answered". Until a card has answered, the heading and the context bar's name button read the agent's command in monospace, "uv run .", the popover holding Address and Mode alone, and between them the Catalog row of a configured file whose read stands failed; after a restart they keep the last card's name while waiting. Starting: the mark, the command, the live status in its waiting form, the muted line "The message box opens when the agent's card answers.", no example prompts, the proxy line staying, the composer disabled. Down: the red dot with "Agent down · exited with code 1", then the last twelve lines of output in a tinted monospace block in the form the `attach` variables block takes, with the times and stream tags the drawer uses, "Open Logs" as a teal link under it, and a Restart button beside the link as the screen's main action, the same action as the context bar's.
 
 ### 13. The composer while the agent cannot be sent to
 
@@ -89,7 +89,7 @@ Eight boards on the row "The dev loop", light:
 3. "The turn list's restart dividers: a save, a press, and the agent's exit."
 4. "Re-run live in a store turn's header and in the fixture view's." One board, the two headers one above the other, each with Re-run's tooltip.
 5. "A re-run turn: its third line, every call live."
-6. "The preview page reloading: the surface held."
+6. "The preview page reloading: the frame kept on the page."
 7. "The preview page stopped answering."
 8. "The agent popover: a catalog file that did not read, the last good definition in force."
 

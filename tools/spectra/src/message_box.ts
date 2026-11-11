@@ -149,8 +149,11 @@ export interface MessageBoxOptions {
   headers?: Readonly<Record<string, string>>;
   /** The variables the configured headers name that are not set, which refuse every send. */
   unsetVariables?: readonly string[];
-  /** The catalog ids to advertise under each version; the basic catalogs alone when not given. */
-  offer?: CatalogOffer;
+  /**
+   * The catalog ids to advertise under each version, or what gives them as
+   * they stand at each send; the basic catalogs alone when not given.
+   */
+  offer?: CatalogOffer | (() => CatalogOffer);
   /** What a replay needs of the session; without it, replay is refused. */
   replay?: ReplayHooks;
   fetch?: typeof fetch;
@@ -179,7 +182,7 @@ export class MessageBox {
   readonly #turns: TurnHub;
   readonly #headers: Readonly<Record<string, string>>;
   readonly #unsetVariables: readonly string[];
-  readonly #capabilities: Readonly<Record<string, unknown>> | undefined;
+  readonly #offer: (() => CatalogOffer) | undefined;
   readonly #replayHooks: ReplayHooks | undefined;
   readonly #fetch: typeof fetch;
   readonly #newMessageId: () => string;
@@ -202,7 +205,8 @@ export class MessageBox {
     this.#turns = options.turns;
     this.#headers = options.headers ?? {};
     this.#unsetVariables = options.unsetVariables ?? [];
-    this.#capabilities = options.offer === undefined ? undefined : capabilitiesFor(options.offer);
+    const offer = options.offer;
+    this.#offer = typeof offer === 'object' ? () => offer : offer;
     this.#replayHooks = options.replay;
     this.#fetch = options.fetch ?? fetch;
     this.#newMessageId = options.newMessageId ?? randomUUID;
@@ -375,7 +379,7 @@ export class MessageBox {
       },
       ++this.#requestId,
       {
-        ...(this.#capabilities !== undefined && {capabilities: this.#capabilities}),
+        ...(this.#offer !== undefined && {capabilities: capabilitiesFor(this.#offer())}),
         headers: this.#headers,
       },
     );

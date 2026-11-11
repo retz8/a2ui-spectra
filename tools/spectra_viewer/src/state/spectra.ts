@@ -48,6 +48,7 @@ import {
   openRow,
   type RecordState,
   recordRead,
+  RELOAD_EVENTS,
   rowFromRecord,
   sortRows,
   turnAmended,
@@ -287,8 +288,9 @@ class Spectra {
       void this.#refreshBox();
     });
     on('fixtures_changed', () => void this.#readFixtures());
-    // The agent's process changed state under run: the context and the box follow its card and its state.
-    on('agent_state', () => void this.#reload());
+    // The agent's process changed state under run, or a catalog file was read again: the context and
+    // the box follow the card and the state, and the list's counts and Structure the definitions.
+    for (const name of RELOAD_EVENTS) on(name, () => void this.#reload());
     on('heartbeat', () => {});
   }
 

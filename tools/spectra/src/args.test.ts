@@ -152,6 +152,7 @@ describe('parseCommandLine', () => {
       agentUrl: new URL('http://localhost:10002/'),
       headers: {},
       catalogs: [],
+      catalogPaths: [],
       preview: [],
       tools: [],
       prices: {},
@@ -325,6 +326,7 @@ describe('the headless commands', () => {
     const config = {
       headers: {},
       catalogs: [],
+      catalogPaths: [],
       preview: [],
       tools: [],
       prices: {},

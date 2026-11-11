@@ -194,13 +194,14 @@ export interface SaveWatcherOptions {
   /** Takes each line for the terminal. */
   log(line: string): void;
   /**
-   * Folders whose changes are told apart from saves, each once after its own
-   * quiet spell, when a watched folder holds them: Spectra's fixtures folder.
-   * Its changes then need no watch of their own, and no watcher is opened or
-   * closed while Spectra runs: on macOS that drops the events of every other
-   * watcher while the system's stream is rebuilt.
+   * Paths whose changes are told beside the saves, each once after its own
+   * quiet spell, when a watched folder holds them: Spectra's fixtures folder
+   * and the configured catalog files, whatever the ignore list says of where
+   * they sit. Their changes then need no watch of their own, and no watcher
+   * is opened or closed while Spectra runs: on macOS that drops the events
+   * of every other watcher while the system's stream is rebuilt.
    */
-  observed?: ReadonlyArray<{folder: string; onChange(): void}>;
+  observed?: ReadonlyArray<{path: string; onChange(): void}>;
   quietSpellMs?: number;
   /** Asks the system for a watch of a folder; `fs.watch` by default. */
   open?: OpenWatch;
@@ -222,7 +223,7 @@ export type OpenWatch = (
 
 /** The watch as started. */
 export interface SaveWatcher {
-  /** The observed folders a watched folder holds, whose changes this watch tells. */
+  /** The observed paths a watched folder holds, whose changes this watch tells. */
   observing: string[];
   stop(): void;
 }
@@ -265,10 +266,10 @@ export async function startSaveWatcher(options: SaveWatcherOptions): Promise<Sav
   /** The watched folders told by their own names in the window that is open. */
   const echoes = new Set<string>();
   let stopped = false;
-  /** The quiet spell of each observed folder. */
+  /** The quiet spell of each observed path. */
   const observedSpells = new Map<string, QuietSpell>(
-    observed.map(({folder, onChange}) => [
-      folder,
+    observed.map(({path: held, onChange}) => [
+      held,
       quietSpell(() => {
         if (!stopped) onChange();
       }, quietSpellMs),
@@ -360,8 +361,8 @@ export async function startSaveWatcher(options: SaveWatcherOptions): Promise<Sav
 
   return {
     observing: observed
-      .map(entry => entry.folder)
-      .filter(folder => targets.folders.some(root => watchers.has(root) && covers(root, folder))),
+      .map(entry => entry.path)
+      .filter(held => targets.folders.some(root => watchers.has(root) && covers(root, held))),
     stop() {
       stopped = true;
       window.cancel();

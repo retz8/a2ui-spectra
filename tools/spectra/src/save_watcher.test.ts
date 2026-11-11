@@ -243,7 +243,7 @@ describe('the watch, its events handed in', () => {
       onSave: file => saves.push(file),
       log: line => lines.push(line),
       ...(extra.fixtures !== undefined && {
-        observed: [{folder: extra.fixtures, onChange: () => fixturesChanges++}],
+        observed: [{path: extra.fixtures, onChange: () => fixturesChanges++}],
       }),
       quietSpellMs: 10,
       open: system.open,
@@ -345,6 +345,47 @@ describe('the watch, its events handed in', () => {
     const elsewhere = await watching(dir, fakeSystem(), {fixtures: path.join(freshDir(), 'fx')});
     assert.deepEqual(elsewhere.watcher.observing, []);
     elsewhere.watcher.stop();
+  });
+
+  it("tells an observed file's changes when a watched folder holds it, under an ignored folder too, beside the save", async () => {
+    const dir = freshDir();
+    const inSource = path.join(dir, 'catalog.json');
+    const inDist = path.join(dir, 'dist', 'catalog.json');
+    const outside = path.join(freshDir(), 'catalog.json');
+    const system = fakeSystem();
+    const saves: string[] = [];
+    const told: string[] = [];
+    const watcher = await startSaveWatcher({
+      watch: {paths: [dir], excluded: []},
+      ignoredPaths: [],
+      workingDir: dir,
+      onSave: file => saves.push(file),
+      log: () => {},
+      observed: [inSource, inDist, outside].map(file => ({
+        path: file,
+        onChange: () => told.push(file),
+      })),
+      quietSpellMs: 10,
+      open: system.open,
+    });
+    assert.deepEqual(watcher.observing, [inSource, inDist]);
+    mkdirSync(path.join(dir, 'dist'));
+    writeFileSync(inDist, '{}');
+    writeFileSync(inSource, '{}');
+    const root = system.opened.get(dir);
+    assert.ok(root);
+    // Under an ignored folder the save restarts nothing, and the file's change is still told.
+    root.emit(path.join('dist', 'catalog.json'));
+    await eventually(() => told.length > 0, "The ignored folder's file was told.");
+    await settled();
+    assert.deepEqual(told, [inDist]);
+    assert.deepEqual(saves, []);
+    root.emit('catalog.json');
+    await eventually(() => saves.length > 0 && told.length > 1, 'The save and the file were told.');
+    await settled();
+    assert.deepEqual(told, [inDist, inSource]);
+    assert.deepEqual(saves, ['catalog.json']);
+    watcher.stop();
   });
 
   it('says so and carries on when a watch cannot be set up, or fails while it runs', async () => {

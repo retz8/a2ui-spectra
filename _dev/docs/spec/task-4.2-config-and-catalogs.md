@@ -35,9 +35,9 @@ A command-line option takes precedence over the file, and the file over the defa
 
 The schema the loader validates against is written once, as the same document an editor validates against. The running tool serves it at a fixed path, and the README shows the `$schema` line that points there. A stable public URL for it is Phase 10's.
 
-### 6. Read once at start
+### 6. Read at start
 
-Configured catalogs are read into the registry at start. A changed definition needs a restart, which the README says. Reload belongs to Phase 8, the dev loop.
+Configured catalogs are read into the registry at start. A changed file is read again while Spectra runs, as the sub-task 8.5 spec, `_dev/docs/spec/task-8.5-the-catalogs-loop.md`, has it.
 
 ### 7. The preview list
 
@@ -73,7 +73,7 @@ The v0.9.1 basic catalog URL is a second id of the v0.9 basic catalog. A schema-
 
 ### 15. One route for the definitions
 
-`GET /api/catalogs` answers every built-in and configured definition in one payload. Each entry carries the catalog id, its alias ids, its protocol version, where it came from and the definition itself. The viewer loads it once at connect, takes inline catalogs from the turn record, and names a configured catalog in the context bar by the title the payload carries.
+`GET /api/catalogs` answers every built-in and configured definition in one payload. Each entry carries the catalog id, its alias ids, its protocol version, where it came from and the definition itself. The viewer loads it at connect and again when a configured file was read again, takes inline catalogs from the turn record, and names a configured catalog in the context bar by the title the payload carries.
 
 ### 16. The copies and the pin
 

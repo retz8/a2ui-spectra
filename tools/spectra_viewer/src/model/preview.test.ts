@@ -5,11 +5,18 @@ import type {Report} from 'a2ui-spectra-preview';
 
 import {readRecording} from '../testing/recordings.ts';
 import {
+  ANSWER_MS,
+  loadOf,
+  pageNoteOf,
   type PreviewPageState,
   previewProblemsOf,
+  readyOf,
+  RELOADING_NOTE_MS,
   routeOf,
+  SAME_DOCUMENT_MS,
   surfaceFeedOf,
   targetOf,
+  timedOut,
 } from './preview.ts';
 import {turnProblemsOf} from './problems.ts';
 import {isTurnEvent, unixMillis} from './record.ts';
@@ -169,6 +176,133 @@ describe('routeOf', () => {
       protocolVersion: '1.0',
     });
     assert.equal(route.kind === 'page' && route.page.id, 'built-in');
+  });
+});
+
+describe("a page's load paired with its ready", () => {
+  it('owes a ready that comes first one load for the answer window, and changes nothing for that load', () => {
+    // The order of a built page: its ready, then its load.
+    const owed = readyOf({}, 1000);
+    assert.deepEqual(owed, {owedUntil: 1000 + ANSWER_MS, lastReady: 1000});
+    assert.deepEqual(loadOf({status: 'ready', ...owed}, 1005), {
+      status: 'ready',
+      arm: false,
+      pairing: {},
+    });
+  });
+
+  it('answers a load that came first with the ready after it, which is then owed nothing', () => {
+    // The order of a page on a dev server: its load, then its ready.
+    const waiting = loadOf({status: 'waiting'}, 100);
+    assert.deepEqual(waiting, {status: 'waiting', arm: false, pairing: {loadWaiting: true}});
+    assert.deepEqual(readyOf(waiting.pairing, 106), {lastReady: 106});
+  });
+
+  it('sends a ready page to reloading on a load that is not owed, at once in either order, the timer to be armed', () => {
+    const reloading = {status: 'reloading', arm: true, pairing: {loadWaiting: true}};
+    // After a ready then its load, and after a load then its ready, nothing is owed.
+    assert.deepEqual(loadOf({status: 'ready'}, 1400), reloading);
+    assert.deepEqual(loadOf({status: 'ready', lastReady: 106}, 150), reloading);
+    // The ready that follows answers the load.
+    assert.deepEqual(readyOf(reloading.pairing, 1410), {lastReady: 1410});
+  });
+
+  it("takes a second ready within a second of the page's last, no load between, as the same document's", () => {
+    // React's development mode mounts twice, so its page says it is ready twice.
+    assert.deepEqual(readyOf({lastReady: 106}, 106), {lastReady: 106});
+    assert.deepEqual(readyOf({lastReady: 106}, 106 + SAME_DOCUMENT_MS), {lastReady: 106});
+    const owed = readyOf({}, 1000);
+    assert.deepEqual(readyOf(owed, 1000), owed);
+    // Later than that it is another document's, owed its load.
+    assert.deepEqual(readyOf({lastReady: 106}, 107 + SAME_DOCUMENT_MS), {
+      owedUntil: 107 + SAME_DOCUMENT_MS + ANSWER_MS,
+      lastReady: 107 + SAME_DOCUMENT_MS,
+    });
+    // A load between them ends it: the ready after a load answers that load.
+    const loaded = loadOf({status: 'ready', lastReady: 106}, 110);
+    assert.deepEqual(readyOf(loaded.pairing, 111), {lastReady: 111});
+  });
+
+  it('lets the owed load lapse after the answer window', () => {
+    const owed = readyOf({}, 0);
+    assert.deepEqual(loadOf({status: 'ready', ...owed}, ANSWER_MS + 1), {
+      status: 'reloading',
+      arm: true,
+      pairing: {loadWaiting: true},
+    });
+  });
+
+  it('leaves alone a page that is waiting, reloading, unanswered or speaking another protocol', () => {
+    for (const status of ['waiting', 'reloading', 'unanswered', 'mismatch'] as const) {
+      assert.deepEqual(loadOf({status}, 9000), {status, arm: false, pairing: {loadWaiting: true}});
+      assert.deepEqual(loadOf({status, owedUntil: 9500, lastReady: 4500}, 9000), {
+        status,
+        arm: false,
+        pairing: {},
+      });
+    }
+  });
+});
+
+describe('a reloading page', () => {
+  const booking = {catalogId: CUSTOM, protocolVersion: '0.9'};
+  const basic = {catalogId: BASIC_V0_9, protocolVersion: '0.9'};
+
+  it('keeps its claims: a surface it was drawing stays with it, one it never claimed routes on', () => {
+    const reloading = page('http://localhost:5174/preview', {
+      status: 'reloading',
+      claims: [booking, basic],
+    });
+    const custom = routeOf([reloading, BUILT_IN], {catalogIds: [CUSTOM], protocolVersion: 'v0.9'});
+    assert.deepEqual(custom, {kind: 'page', page: reloading});
+    // The built-in page claims the basic catalog too, and the page ahead of it still holds the surface.
+    const held = routeOf([reloading, BUILT_IN], {
+      catalogIds: [BASIC_V0_9],
+      protocolVersion: 'v0.9',
+    });
+    assert.deepEqual(held, {kind: 'page', page: reloading});
+    const other = routeOf([reloading, BUILT_IN], {
+      catalogIds: [BASIC_V1_0],
+      protocolVersion: 'v1.0',
+    });
+    assert.deepEqual(other, {kind: 'page', page: BUILT_IN});
+  });
+
+  it('loses its claims when it has not answered in time: the surface falls to a later page, or to no preview', () => {
+    const reloading = page('http://localhost:5174/preview', {
+      status: 'reloading',
+      claims: [booking, basic],
+    });
+    const unanswered = timedOut(reloading);
+    assert.deepEqual(unanswered, {...reloading, status: 'unanswered', claims: []});
+    assert.deepEqual(
+      routeOf([unanswered, BUILT_IN], {catalogIds: [BASIC_V0_9], protocolVersion: 'v0.9'}),
+      {kind: 'page', page: BUILT_IN},
+    );
+    assert.deepEqual(
+      routeOf([unanswered, BUILT_IN], {catalogIds: [CUSTOM], protocolVersion: 'v0.9'}),
+      {kind: 'none', catalogId: CUSTOM, unanswered: [unanswered]},
+    );
+  });
+});
+
+describe("the Preview header's note of the page drawing the surface", () => {
+  it("is the page's URL, or built-in, and says the page is reloading once it has been for a moment", () => {
+    const url = 'http://localhost:5174/spectra-preview';
+    assert.deepEqual(pageNoteOf(page(url, {})), {text: url, reloading: false});
+    // A healthy page answers within milliseconds of its load: the note does not flicker for it.
+    assert.deepEqual(pageNoteOf(page(url, {status: 'reloading'})), {text: url, reloading: false});
+    assert.deepEqual(pageNoteOf(page(url, {status: 'reloading', reloadingNoted: true})), {
+      text: `${url} · reloading`,
+      reloading: true,
+    });
+    // The mark means nothing once the page has answered again.
+    assert.deepEqual(pageNoteOf(page(url, {status: 'ready', reloadingNoted: true})), {
+      text: url,
+      reloading: false,
+    });
+    assert.deepEqual(pageNoteOf(BUILT_IN), {text: 'built-in', reloading: false});
+    assert.equal(RELOADING_NOTE_MS, 200);
   });
 });
 

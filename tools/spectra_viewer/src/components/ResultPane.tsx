@@ -6,7 +6,7 @@ import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components
 import {cn} from '@/lib/utils';
 import type {NodeRef} from '@/model/address.ts';
 import {bindingOf} from '@/model/bindings.ts';
-import type {Route} from '@/model/preview.ts';
+import {pageNoteOf, type Route} from '@/model/preview.ts';
 import type {ComponentNode, Replay, SurfaceView, TreeNode} from '@/model/replay.ts';
 import {rememberedSize, rememberSize} from '@/state/layout.ts';
 import {setViewSetting, useViewSettings} from '@/state/view_settings.ts';
@@ -79,6 +79,7 @@ export function ResultPane({
     {label: 'Structure', on: showStructure, key: 'structure' as const, other: showPreview},
   ];
   const drawn = showPreview && preview?.route.kind === 'page' ? preview.route.page : undefined;
+  const note = drawn === undefined ? undefined : pageNoteOf(drawn);
   return (
     <section aria-label="Result" className="flex h-full min-h-0 flex-col">
       {reply !== '' && !folded && (
@@ -114,10 +115,12 @@ export function ResultPane({
         {drawn !== undefined && (
           <>
             <span
+              role="status"
               title={drawn.label === 'built-in' ? 'Spectra’s built-in preview page' : drawn.label}
-              className="max-w-55 min-w-0 truncate text-xs text-muted-foreground"
+              className="flex max-w-55 min-w-0 items-center gap-1.5 text-xs text-muted-foreground"
             >
-              {drawn.label}
+              {note?.reloading === true && <Icon kind="open" size={12} className="shrink-0" />}
+              <span className="min-w-0 truncate">{note?.text}</span>
             </span>
             <WidthSwitch width={settings.width} />
           </>

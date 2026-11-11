@@ -8,7 +8,11 @@
  *
  * Each page's address carries the viewer's origin. A page that sends no
  * ready message within a few seconds is unanswered, and is reloaded every
- * few seconds until it answers. A render goes to a page's window with the
+ * few seconds until it answers. A page's load is paired with its ready,
+ * whichever comes first, and a ready page whose iframe loads again, the load
+ * not being the one a ready was owed, is reloading: it keeps its
+ * claims and its place over the pane until it answers again, or is
+ * unanswered after the same few seconds. A render goes to a page's window with the
  * page's origin as its target, and only a message from one of the viewer's
  * own iframes, at that page's origin, is taken. Each render keeps the turn
  * and step it was asked for, so a press, which names its render, goes on as
@@ -29,7 +33,15 @@ import {
 import {useSyncExternalStore} from 'react';
 
 import {type Side, stopBeside} from '@/model/frame_focus.ts';
-import type {PreviewPageState} from '@/model/preview.ts';
+import {
+  ANSWER_MS,
+  loadOf,
+  type Pairing,
+  type PreviewPageState,
+  readyOf,
+  RELOADING_NOTE_MS,
+  timedOut,
+} from '@/model/preview.ts';
 
 import type {Press, RenderContext} from './press.ts';
 
@@ -38,9 +50,6 @@ export const BUILT_IN = 'built-in';
 
 /** Where Spectra serves the built-in page. */
 const BUILT_IN_PATH = '/preview/';
-
-/** How long a page has to say it is ready, and how often an unanswered page is reloaded. */
-const ANSWER_MS = 5000;
 
 /** How many of a page's latest renders keep their turn and step, for a press that comes late. */
 const KEPT_RENDERS = 50;
@@ -71,6 +80,10 @@ interface Page {
   /** The running number of the render last sent. */
   render: number;
   timer?: ReturnType<typeof setTimeout>;
+  /** Waits to say in the Preview header that the page is reloading. */
+  noteTimer?: ReturnType<typeof setTimeout>;
+  /** What is open between the page's readies and its iframe's loads. */
+  pairing: Pairing;
   /** The render asked for last, sent once the page is ready. */
   wanted?: {key: string; surfaceId: string; messages: unknown[]; context?: RenderContext};
   /** The turn and step of each of the latest renders, by its number. */
@@ -156,9 +169,11 @@ class PreviewHost {
         origin: url.origin,
         iframe,
         render: 0,
+        pairing: {},
         contexts: new Map(),
         seen: new Set(),
       };
+      iframe.addEventListener('load', () => this.#loaded(page));
       iframe.src = page.url;
       this.#container!.insertBefore(iframe, this.#after!);
       this.#arm(page);
@@ -235,6 +250,7 @@ class PreviewHost {
 
   #remove(page: Page): void {
     if (page.timer !== undefined) clearTimeout(page.timer);
+    if (page.noteTimer !== undefined) clearTimeout(page.noteTimer);
     page.iframe.remove();
   }
 
@@ -243,10 +259,30 @@ class PreviewHost {
     if (page.timer !== undefined) clearTimeout(page.timer);
     page.timer = setTimeout(() => {
       if (page.state.status === 'ready') return;
-      if (page.state.status === 'waiting') this.#update(page, {status: 'unanswered'});
+      if (page.state.status === 'waiting' || page.state.status === 'reloading') {
+        page.state = timedOut(page.state);
+        this.#publish();
+      }
+      // The viewer's own reload brings a new document: nothing of the last one is open.
+      page.pairing = {};
       page.iframe.src = page.url;
       this.#arm(page);
     }, ANSWER_MS);
+  }
+
+  /** The page's iframe loaded: nothing when its ready was owed the load, else a ready page is reloading. */
+  #loaded(page: Page): void {
+    const {status, arm, pairing} = loadOf({status: page.state.status, ...page.pairing}, Date.now());
+    page.pairing = pairing;
+    if (!arm) return;
+    this.#update(page, {status, reloadingNoted: false});
+    this.#arm(page);
+    // The header says so only when the page is still reloading a moment later.
+    if (page.noteTimer !== undefined) clearTimeout(page.noteTimer);
+    page.noteTimer = setTimeout(() => {
+      page.noteTimer = undefined;
+      if (page.state.status === 'reloading') this.#update(page, {reloadingNoted: true});
+    }, RELOADING_NOTE_MS);
   }
 
   #receive(event: MessageEvent): void {
@@ -254,6 +290,7 @@ class PreviewHost {
     if (page === undefined || event.origin !== page.origin || !isPageMessage(event.data)) return;
     const message: PageMessage = event.data;
     if (message.type === 'a2ui-spectra-preview/ready') {
+      page.pairing = readyOf(page.pairing, Date.now());
       if (message.protocol !== PREVIEW_PROTOCOL) {
         this.#update(page, {status: 'mismatch', protocol: message.protocol, claims: []});
         return;

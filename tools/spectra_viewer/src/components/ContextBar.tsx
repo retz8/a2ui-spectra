@@ -3,12 +3,13 @@ import {Fragment} from 'react';
 
 import type {SessionContext} from '@/api.ts';
 import type {Address} from '@/model/address.ts';
-import {catalogName, shownUrl, transportLine} from '@/model/agent_card.ts';
+import {agentRowsOf} from '@/model/agent_card.ts';
 import {sourceAddressOf, sourceName} from '@/model/provenance.ts';
 import {liveStatusOf} from '@/state/selectors.ts';
 import {useSpectra} from '@/state/spectra.ts';
 
 import {CopyButton} from './CopyButton.tsx';
+import {formatTime} from './format.ts';
 import {Icon} from './icons.tsx';
 
 /**
@@ -58,30 +59,14 @@ export function ContextBar({
   );
 }
 
-/** The agent's name, opening what its card states: its address, the transport, the A2UI it advertises and the mode. */
+/**
+ * The agent's name, opening what its card states: its address, the transport, the A2UI it
+ * advertises and the mode; and under a catalog whose file did not read, that it did not, and
+ * the reader's error.
+ */
 function AgentPopover({context, name}: {context: SessionContext; name: string}) {
   const {catalogs} = useSpectra();
-  const rows: Array<[label: string, value: string]> = [
-    ['Address', shownUrl(context.agentUrl)],
-    // Under run, until a card has answered, the popover holds the address and the mode alone.
-    ...(context.a2aVersions === undefined
-      ? []
-      : [['Transport', transportLine(context.a2aVersions)] as [string, string]]),
-    ...(context.a2uiExtensions === undefined
-      ? []
-      : context.a2uiExtensions.length === 0
-        ? [['A2UI', 'None advertised'] as [string, string]]
-        : context.a2uiExtensions.flatMap(extension => [
-            ['A2UI', extension.version] as [string, string],
-            ...extension.catalogIds.map(
-              id => ['Catalog', catalogName(id, catalogs)] as [string, string],
-            ),
-          ])),
-    [
-      'Mode',
-      context.mode === 'run' ? 'Launched by Spectra (run)' : 'Attached to a running agent (attach)',
-    ],
-  ];
+  const rows = agentRowsOf(context, catalogs ?? [], formatTime);
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
@@ -102,10 +87,21 @@ function AgentPopover({context, name}: {context: SessionContext; name: string}) 
         >
           <span className="text-base font-semibold">{name}</span>
           <div className="grid grid-cols-facts gap-y-1.5 text-xs">
-            {rows.map(([label, value], index) => (
+            {rows.map(({label, value, failedRead}, index) => (
               <Fragment key={index}>
                 <span className="text-muted-foreground">{label}</span>
-                <span className="wrap-anywhere">{value}</span>
+                <span className="flex min-w-0 flex-col gap-1 wrap-anywhere">
+                  <span>{value}</span>
+                  {failedRead !== undefined && (
+                    <span className="flex items-start gap-1.5 text-muted-foreground">
+                      <Icon kind="failed" size={12} className="mt-0.5 shrink-0" />
+                      <span className="flex min-w-0 flex-col gap-0.5">
+                        <span>{failedRead.line}</span>
+                        <span className="font-mono">{failedRead.error}</span>
+                      </span>
+                    </span>
+                  )}
+                </span>
               </Fragment>
             ))}
           </div>

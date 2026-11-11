@@ -41,6 +41,8 @@ export interface SpectraConfig {
   headers: Record<string, string>;
   /** The catalog definition files, as absolute paths. */
   catalogs: string[];
+  /** The catalog definition files' paths as the file names them, in the same order. */
+  catalogPaths: string[];
   /** The preview pages' URLs. */
   preview: string[];
   /** The tool servers, in config order. */
@@ -109,6 +111,7 @@ export async function loadConfig({cwd, path: given}: LoadOptions): Promise<Spect
         return {
           headers: {},
           catalogs: [],
+          catalogPaths: [],
           preview: [],
           tools: [],
           prices: {},
@@ -143,6 +146,7 @@ export async function loadConfig({cwd, path: given}: LoadOptions): Promise<Spect
     ...(agentUrl !== undefined && {agentUrl}),
     headers: {...(json.agent?.headers ?? {})},
     catalogs: (json.catalogs ?? []).map(entry => path.resolve(dir, entry)),
+    catalogPaths: [...(json.catalogs ?? [])],
     preview: [...(json.preview ?? [])],
     tools: readTools(json.tools ?? [], file),
     prices: {...(json.prices ?? {})},

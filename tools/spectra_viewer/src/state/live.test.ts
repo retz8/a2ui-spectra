@@ -10,6 +10,7 @@ import {
   callChanged,
   type LiveState,
   recordRead,
+  RELOAD_EVENTS,
   rowFromRecord,
   turnAmended,
   turnOpened,
@@ -239,5 +240,11 @@ describe("a tool call's live events", () => {
       rows.map(row => (row.row === 'step' ? [row.label, row.housekeeping] : [])),
       [['notifications/message', true]],
     );
+  });
+});
+
+describe('the events that read the connect set again', () => {
+  it("are the agent's state changing and a catalog file read again", () => {
+    assert.deepEqual([...RELOAD_EVENTS], ['agent_state', 'catalogs_changed']);
   });
 });

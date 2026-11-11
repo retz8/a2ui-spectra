@@ -7,7 +7,7 @@ import {fileURLToPath} from 'node:url';
 
 import {ConfigError} from '../config.js';
 import {isEventOfKind, type TurnRecord, type WireInputEvent} from '../record/turn_record.js';
-import {CatalogRegistry} from './registry.js';
+import {CatalogRegistry, rereadLine} from './registry.js';
 
 const BASIC_V0_9 = 'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json';
 const BASIC_V0_9_1 = 'https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json';
@@ -391,5 +391,177 @@ describe('the listing the API serves', () => {
     );
     assert.equal(listing.catalogs[2].definition.catalogId, 'conformance/custom');
     assert.ok(!('file' in listing.catalogs[2]), 'The file path stays on the server.');
+  });
+});
+
+describe('a configured file read again', () => {
+  /** A clock that moves a second at each look. */
+  function clock() {
+    let at = Date.parse('2026-11-11T14:50:12.000Z');
+    return () => {
+      const now = new Date(at);
+      at += 1000;
+      return now;
+    };
+  }
+
+  function rewrite(file: string, content: unknown) {
+    fs.writeFileSync(file, typeof content === 'string' ? content : JSON.stringify(content));
+  }
+
+  function configuredOf(registry: CatalogRegistry) {
+    return registry.listing().catalogs.filter(catalog => catalog.source === 'configured');
+  }
+
+  it('replaces the definition with a good read, for the processor too', async () => {
+    const file = write('notes.json', v09Definition('notes'));
+    const registry = await CatalogRegistry.load([file], {now: clock()});
+    rewrite(file, v09Definition('notes', ['Note', 'Row', 'Card']));
+    assert.deepEqual(await registry.reread(file), {kind: 'read', id: 'notes'});
+    assert.deepEqual(Object.keys(registry.get('notes')?.definition.components as object), [
+      'Note',
+      'Row',
+      'Card',
+    ]);
+    assert.deepEqual([...registry.catalogs()[3].components.keys()], ['Note', 'Row', 'Card']);
+    assert.equal(configuredOf(registry)[0].readTime, '2026-11-11T14:50:13.000Z');
+  });
+
+  it('keeps the last good definition on each failure the start has, and records the failed read', async () => {
+    const file = write('notes.json', v09Definition('notes'));
+    const other = write('other.json', v09Definition('other'));
+    const registry = await CatalogRegistry.load([file, other], {now: clock()});
+    const failures: Array<[content: unknown, error: RegExp]> = [
+      ['{"catalogId": ', /JSON/],
+      ['[]', /^must hold a JSON object$/],
+      [{title: 'No id'}, /^names no catalogId$/],
+      [{catalogId: 'notes', type: 12}, /^is not a JSON Schema: /],
+      [
+        {...v09Definition('notes'), $defs: {anyComponent: {oneOf: [{$ref: '#/components/Note'}]}}},
+        /^the component 'Row' is not listed under \$defs\.anyComponent, so it would not be known$/,
+      ],
+      [
+        v09Definition('other'),
+        /^carries the catalog id 'other', which .*other\.json already carries$/,
+      ],
+      [v09Definition(BASIC_V0_9), /^claims the basic catalog's id '.*'$/],
+    ];
+    for (const [content, error] of failures) {
+      rewrite(file, content);
+      const result = await registry.reread(file);
+      assert.equal(result.kind, 'failed');
+      assert.match(result.kind === 'failed' ? result.error : '', error);
+      assert.deepEqual(registry.get('notes')?.definition, v09Definition('notes'));
+      const listed = configuredOf(registry)[0];
+      assert.equal(listed.readTime, '2026-11-11T14:50:12.000Z');
+      assert.match(listed.failedRead?.error ?? '', error);
+      assert.ok((listed.failedRead?.time ?? '') > listed.readTime!);
+    }
+    fs.rmSync(file);
+    const gone = await registry.reread(file);
+    assert.deepEqual(gone, {kind: 'failed', error: 'does not exist'});
+    assert.equal(registry.get('other')?.source, 'configured');
+  });
+
+  it('takes a new catalog id, the old one no longer known, and the offer follows', async () => {
+    const file = write('notes.json', v09Definition('notes'));
+    const registry = await CatalogRegistry.load([file]);
+    rewrite(file, v09Definition('notes/v2'));
+    assert.deepEqual(await registry.reread(file), {
+      kind: 'read',
+      id: 'notes/v2',
+      previousId: 'notes',
+    });
+    assert.equal(registry.get('notes'), undefined);
+    assert.equal(registry.get('notes/v2')?.file, file);
+    assert.deepEqual(registry.offer()['v0.9'], [BASIC_V0_9, 'notes/v2']);
+    assert.deepEqual(
+      registry
+        .catalogs()
+        .map(catalog => catalog.id)
+        .slice(3),
+      ['notes/v2'],
+    );
+  });
+
+  it('takes a new protocol version, and the offer follows', async () => {
+    const file = write('custom.json', fs.readFileSync(custom, 'utf8'));
+    const registry = await CatalogRegistry.load([file]);
+    assert.deepEqual(registry.offer()['v1.0'], [BASIC_V1_0, 'conformance/custom']);
+    rewrite(file, v09Definition('conformance/custom'));
+    assert.deepEqual(await registry.reread(file), {kind: 'read', id: 'conformance/custom'});
+    assert.deepEqual(registry.offer(), {
+      'v0.9': [BASIC_V0_9, 'conformance/custom'],
+      'v0.9.1': [BASIC_V0_9, BASIC_V0_9_1, 'conformance/custom'],
+      'v1.0': [BASIC_V1_0],
+    });
+  });
+
+  it('changes nothing on a read that gives the same definition by value', async () => {
+    const file = write('notes.json', v09Definition('notes'));
+    const registry = await CatalogRegistry.load([file], {now: clock()});
+    const before = registry.get('notes');
+    rewrite(file, JSON.stringify(v09Definition('notes'), null, 2));
+    assert.deepEqual(await registry.reread(file), {kind: 'unchanged'});
+    assert.equal(registry.get('notes'), before);
+    assert.equal(configuredOf(registry)[0].readTime, '2026-11-11T14:50:12.000Z');
+  });
+
+  it('clears a failed read with a good one, the same definition included', async () => {
+    const file = write('notes.json', v09Definition('notes'));
+    const registry = await CatalogRegistry.load([file], {now: clock()});
+    rewrite(file, '{');
+    assert.equal((await registry.reread(file)).kind, 'failed');
+    assert.ok(configuredOf(registry)[0].failedRead !== undefined);
+    rewrite(file, v09Definition('notes'));
+    assert.deepEqual(await registry.reread(file), {kind: 'read', id: 'notes'});
+    // A good read that is said moves the time of the definition in force, the definition the same or not.
+    assert.equal(configuredOf(registry)[0].readTime, '2026-11-11T14:50:14.000Z');
+    assert.equal(configuredOf(registry)[0].failedRead, undefined);
+    assert.ok(!('failedRead' in configuredOf(registry)[0]));
+  });
+
+  it('lists each configured file with its path as the config names it and its read time, the built-in ones with neither', async () => {
+    const file = write('notes.json', v09Definition('notes'));
+    const registry = await CatalogRegistry.load([{file, path: './notes.json'}], {now: clock()});
+    const [basic, , notes] = registry.listing().catalogs;
+    assert.equal(notes.path, './notes.json');
+    assert.equal(notes.readTime, '2026-11-11T14:50:12.000Z');
+    assert.ok(!('path' in basic) && !('readTime' in basic) && !('failedRead' in basic));
+    assert.ok(!('file' in notes), 'The file path stays on the server.');
+  });
+
+  it('leaves alone a file that is not a configured one', async () => {
+    const file = write('notes.json', v09Definition('notes'));
+    const registry = await CatalogRegistry.load([file]);
+    assert.deepEqual(await registry.reread(path.join(path.dirname(file), 'stray.json')), {
+      kind: 'unchanged',
+    });
+  });
+});
+
+describe("the terminal's line for a file read again", () => {
+  it('says the definition was read again, and the new id when the file names one', () => {
+    assert.deepEqual(rereadLine('./notes.json', {kind: 'read', id: 'notes'}), {
+      line: './notes.json changed. Its catalog definition was read again.',
+    });
+    assert.deepEqual(
+      rereadLine('./notes.json', {kind: 'read', id: 'notes/v2', previousId: 'notes'}),
+      {
+        line:
+          './notes.json changed. Its catalog definition was read again. ' +
+          'Its catalog id is now notes/v2, no longer notes.',
+      },
+    );
+  });
+
+  it('says a failed read with its reason as an error, and nothing for a read that changed nothing', () => {
+    assert.deepEqual(rereadLine('./notes.json', {kind: 'failed', error: 'names no catalogId'}), {
+      line:
+        './notes.json changed and did not read: names no catalogId. ' +
+        'The definition read before stays in force.',
+      error: true,
+    });
+    assert.equal(rereadLine('./notes.json', {kind: 'unchanged'}), undefined);
   });
 });

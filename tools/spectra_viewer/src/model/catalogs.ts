@@ -18,6 +18,12 @@ export interface KnownCatalog {
   protocolVersion: string;
   source: 'built-in' | 'configured';
   title?: string;
+  /** A configured file's path as the config file names it. */
+  path?: string;
+  /** When the definition in force was read from its file, as an ISO 8601 UTC time. */
+  readTime?: string;
+  /** The file's latest read, while it stands failed: its time, and the reader's reason. */
+  failedRead?: {time: string; error: string};
   definition: Record<string, unknown>;
 }
 

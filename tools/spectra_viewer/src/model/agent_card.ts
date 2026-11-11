@@ -2,6 +2,7 @@
 import {basicCatalog as basicCatalogV10} from '@a2ui/web_core/catalogs/basic/v1';
 import {basicCatalog as basicCatalogV09} from '@a2ui/web_core/v0_9/basic_catalog';
 
+import type {SessionContext} from '../api.ts';
 import type {KnownCatalog} from './catalogs.ts';
 
 const BASIC_CATALOGS = new Map([
@@ -34,4 +35,84 @@ export function transportLine(versions: readonly string[]): string {
 /** A URL as the popover shows it: without the slash of a bare origin. */
 export function shownUrl(url: string): string {
   return /^[a-z][a-z0-9+.-]*:\/\/[^/?#]+\/$/i.test(url) ? url.slice(0, -1) : url;
+}
+
+/** A row of the agent's popover, a Catalog row carrying its file's failed read while it stands. */
+export interface AgentRow {
+  label: string;
+  value: string;
+  /** The two muted lines under a catalog whose file did not read: what happened, and the reader's error. */
+  failedRead?: {line: string; error: string};
+}
+
+/** The two lines of a configured file's failed read, its times as the clock gives them. */
+function failedReadOf(
+  catalog: KnownCatalog | undefined,
+  clock: (time: string) => string,
+): Pick<AgentRow, 'failedRead'> {
+  if (catalog?.failedRead === undefined) return {};
+  const read =
+    catalog.readTime === undefined
+      ? ''
+      : ` · checking against the definition read at ${clock(catalog.readTime)}`;
+  return {
+    failedRead: {
+      line: `${catalog.path ?? catalog.id} did not read at ${clock(catalog.failedRead.time)}${read}`,
+      error: catalog.failedRead.error,
+    },
+  };
+}
+
+/**
+ * The popover's rows: the agent's address; once a card has answered, its
+ * transport and each A2UI version it advertises with that version's
+ * catalogs; a Catalog row of its own for each configured file whose read
+ * stands failed and whose id the card does not advertise, a card answered or
+ * not; and the mode.
+ */
+export function agentRowsOf(
+  context: SessionContext,
+  catalogs: readonly KnownCatalog[],
+  clock: (time: string) => string,
+): AgentRow[] {
+  const known = (id: string) =>
+    catalogs.find(catalog => catalog.id === id || catalog.aliases.includes(id));
+  const extensions = context.a2uiExtensions;
+  const advertised = new Set((extensions ?? []).flatMap(extension => extension.catalogIds));
+  const unadvertised = catalogs.filter(
+    catalog =>
+      catalog.failedRead !== undefined &&
+      ![catalog.id, ...catalog.aliases].some(id => advertised.has(id)),
+  );
+  return [
+    {label: 'Address', value: shownUrl(context.agentUrl)},
+    // Under run, until a card has answered, the popover holds no transport and no A2UI.
+    ...(context.a2aVersions === undefined
+      ? []
+      : [{label: 'Transport', value: transportLine(context.a2aVersions)}]),
+    ...(extensions === undefined
+      ? []
+      : extensions.length === 0
+        ? [{label: 'A2UI', value: 'None advertised'}]
+        : extensions.flatMap(extension => [
+            {label: 'A2UI', value: extension.version},
+            ...extension.catalogIds.map(id => ({
+              label: 'Catalog',
+              value: catalogName(id, catalogs),
+              ...failedReadOf(known(id), clock),
+            })),
+          ])),
+    ...unadvertised.map(catalog => ({
+      label: 'Catalog',
+      value: catalogName(catalog.id, catalogs),
+      ...failedReadOf(catalog, clock),
+    })),
+    {
+      label: 'Mode',
+      value:
+        context.mode === 'run'
+          ? 'Launched by Spectra (run)'
+          : 'Attached to a running agent (attach)',
+    },
+  ];
 }

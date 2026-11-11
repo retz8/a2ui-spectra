@@ -2,13 +2,14 @@
  * The catalog registry: every catalog definition Spectra knows. The basic
  * catalogs of v0.9 and v1.0 are built in, copied from upstream at the pin,
  * with the v0.9.1 basic catalog URL a second id of v0.9's; the configured
- * catalogs are read once at start from the config file's paths, each
- * carrying its own `catalogId`; and a turn's host message may carry inline
- * catalogs, which the registry builds on request. The registry gives web
- * core's message processor its catalogs, the message box its offer, and the
- * API its listing.
+ * catalogs are read at start from the config file's paths, each carrying its
+ * own `catalogId`, and read again when a file changes; and a turn's host
+ * message may carry inline catalogs, which the registry builds on request.
+ * The registry gives web core's message processor its catalogs, the message
+ * box its offer, and the API its listing, each as the definitions stand.
  */
 import {readFile} from 'node:fs/promises';
+import {isDeepStrictEqual} from 'node:util';
 
 import {Catalog, type ComponentApi, type FunctionApi} from '@a2ui/web_core/catalog';
 import {basicCatalog as basicCatalogV10} from '@a2ui/web_core/catalogs/basic/v1';
@@ -28,6 +29,20 @@ export const BASIC_CATALOG_V0_9_1 =
 
 export type CatalogSource = 'built-in' | 'configured';
 
+/** A configured catalog file: where it sits, and its path as the config file names it. */
+export interface ConfiguredFile {
+  file: string;
+  path: string;
+}
+
+/** A read of a configured file that failed, the definition read before staying in force. */
+export interface FailedRead {
+  /** As an ISO 8601 UTC time to the millisecond. */
+  time: string;
+  /** The reason alone, without the file's path. */
+  error: string;
+}
+
 /** A definition the registry holds. */
 export interface KnownCatalog {
   id: string;
@@ -38,9 +53,25 @@ export interface KnownCatalog {
   source: CatalogSource;
   /** The configured file the definition was read from. */
   file?: string;
+  /** The configured file's path as the config file names it. */
+  path?: string;
+  /** When the definition in force was read from its file, as an ISO 8601 UTC time to the millisecond. */
+  readTime?: string;
+  /** The file's latest read, while it stands failed. */
+  failedRead?: FailedRead;
   title?: string;
   definition: Record<string, unknown>;
 }
+
+/**
+ * What reading a configured file again did: nothing, when it gave the
+ * definition in force; replaced the definition, under a new id when the file
+ * names one; or failed, the definition read before staying in force.
+ */
+export type Reread =
+  | {kind: 'unchanged'}
+  | {kind: 'read'; id: string; previousId?: string}
+  | {kind: 'failed'; error: string};
 
 /** The definitions as the API serves them: everything but where the file sits. */
 export interface CatalogListing {
@@ -65,6 +96,28 @@ export interface InlineDefinition {
   catalog: ProcessorCatalog;
 }
 
+/**
+ * What the terminal says of a configured file read again, the file named as
+ * the config file names it: nothing for a read that changed nothing, and an
+ * error line for one that failed.
+ */
+export function rereadLine(path: string, reread: Reread): {line: string; error?: true} | undefined {
+  if (reread.kind === 'unchanged') return undefined;
+  if (reread.kind === 'failed') {
+    return {
+      line: `${path} changed and did not read: ${reread.error}. The definition read before stays in force.`,
+      error: true,
+    };
+  }
+  return {
+    line:
+      `${path} changed. Its catalog definition was read again.` +
+      (reread.previousId === undefined
+        ? ''
+        : ` Its catalog id is now ${reread.id}, no longer ${reread.previousId}.`),
+  };
+}
+
 let builtInRegistry: CatalogRegistry | undefined;
 
 const validateDefinition = new Ajv2020({strict: false, allErrors: true})
@@ -73,17 +126,25 @@ const validateDefinition = new Ajv2020({strict: false, allErrors: true})
 const metaSchema = new Ajv2020({strict: false, allErrors: true});
 
 export class CatalogRegistry {
-  /** The built-in definitions first, then the configured ones in config order. */
-  readonly known: readonly KnownCatalog[];
-  readonly #byId: ReadonlyMap<string, KnownCatalog>;
-  readonly #catalogs: readonly ProcessorCatalog[];
+  readonly #basic: readonly KnownCatalog[];
+  readonly #builtInCatalogs: readonly ProcessorCatalog[];
+  /** The configured definitions in config order, each with the catalog built from it. */
+  readonly #configured: Array<{known: KnownCatalog; catalog: ProcessorCatalog}> = [];
+  readonly #now: () => Date;
 
-  private constructor(known: KnownCatalog[], catalogs: ProcessorCatalog[]) {
-    this.known = known;
-    this.#catalogs = catalogs;
-    this.#byId = new Map(
-      known.flatMap(catalog => [catalog.id, ...catalog.aliases].map(id => [id, catalog] as const)),
-    );
+  private constructor(
+    builtIn: readonly KnownCatalog[],
+    catalogs: readonly ProcessorCatalog[],
+    now: () => Date = () => new Date(),
+  ) {
+    this.#basic = builtIn;
+    this.#builtInCatalogs = catalogs;
+    this.#now = now;
+  }
+
+  /** The built-in definitions first, then the configured ones in config order. */
+  get known(): readonly KnownCatalog[] {
+    return [...this.#basic, ...this.#configured.map(entry => entry.known)];
   }
 
   /** The registry with the built-in basic catalogs alone, built once. */
@@ -128,38 +189,100 @@ export class CatalogRegistry {
    * that fails its version's rules, an id two files carry, and a file that
    * claims a basic catalog's id each stop Spectra at start.
    */
-  static async load(files: readonly string[]): Promise<CatalogRegistry> {
+  static async load(
+    files: ReadonlyArray<string | ConfiguredFile>,
+    options: {now?: () => Date} = {},
+  ): Promise<CatalogRegistry> {
     const builtIn = CatalogRegistry.builtIn();
-    const known = [...builtIn.known];
-    const catalogs = [...builtIn.#catalogs];
-    for (const file of files) {
-      const {definition, catalog} = await loadDefinition(file);
-      const held = known.find(entry => [entry.id, ...entry.aliases].includes(catalog.id));
-      if (held?.source === 'built-in') {
-        throw new ConfigError(`${file} claims the basic catalog's id '${catalog.id}'.`);
+    const registry = new CatalogRegistry(builtIn.#basic, builtIn.#builtInCatalogs, options.now);
+    for (const entry of files) {
+      const configured = typeof entry === 'string' ? {file: entry, path: entry} : entry;
+      try {
+        registry.#configured.push(await registry.#read(configured, undefined));
+      } catch (error) {
+        if (error instanceof ReadFailure) throw new ConfigError(error.atStart(configured.file));
+        throw error;
       }
-      if (held !== undefined) {
-        throw new ConfigError(
-          `${file} carries the catalog id '${catalog.id}', which ${held.file} already carries.`,
-        );
-      }
-      known.push({
+    }
+    return registry;
+  }
+
+  /**
+   * A configured file read under the rules of its version, its id held by no
+   * other definition: `own` is the definition the file itself holds now.
+   */
+  async #read(
+    {file, path}: ConfiguredFile,
+    own: KnownCatalog | undefined,
+  ): Promise<{known: KnownCatalog; catalog: ProcessorCatalog}> {
+    const {definition, catalog} = await loadDefinition(file);
+    const held = this.known.find(
+      entry => entry !== own && [entry.id, ...entry.aliases].includes(catalog.id),
+    );
+    if (held?.source === 'built-in') {
+      throw new ReadFailure(`claims the basic catalog's id '${catalog.id}'`);
+    }
+    if (held !== undefined) {
+      throw new ReadFailure(
+        `carries the catalog id '${catalog.id}', which ${held.path} already carries`,
+        at => `${at} carries the catalog id '${catalog.id}', which ${held.file} already carries.`,
+      );
+    }
+    return {
+      known: {
         id: catalog.id,
         aliases: [],
         protocolVersion: catalog.protocolVersion,
         source: 'configured',
         file,
+        path,
+        readTime: this.#now().toISOString(),
         ...(typeof definition.title === 'string' && {title: definition.title}),
         definition,
-      });
-      catalogs.push(catalog);
+      },
+      catalog,
+    };
+  }
+
+  /**
+   * Reads a configured file again, under the rules that judged it at start.
+   * A read that passes replaces the definition whatever changed in it, its
+   * id and protocol version included; one that gives the definition in force
+   * changes nothing, unless it clears a failed read; one that fails keeps
+   * the definition read before, and stands as the file's failed read.
+   */
+  async reread(file: string): Promise<Reread> {
+    const index = this.#configured.findIndex(entry => entry.known.file === file);
+    if (index < 0) return {kind: 'unchanged'};
+    const {known} = this.#configured[index];
+    let read: {known: KnownCatalog; catalog: ProcessorCatalog};
+    try {
+      read = await this.#read({file, path: known.path ?? file}, known);
+    } catch (error) {
+      if (!(error instanceof ReadFailure)) throw error;
+      this.#configured[index].known = {
+        ...known,
+        failedRead: {time: this.#now().toISOString(), error: error.reason},
+      };
+      return {kind: 'failed', error: error.reason};
     }
-    return new CatalogRegistry(known, catalogs);
+    if (
+      known.failedRead === undefined &&
+      isDeepStrictEqual(read.known.definition, known.definition)
+    ) {
+      return {kind: 'unchanged'};
+    }
+    this.#configured[index] = read;
+    return {
+      kind: 'read',
+      id: read.known.id,
+      ...(read.known.id !== known.id && {previousId: known.id}),
+    };
   }
 
   /** The definition under an id, its aliases included; nothing for an id Spectra does not know. */
   get(id: string): KnownCatalog | undefined {
-    return this.#byId.get(id);
+    return this.known.find(catalog => catalog.id === id || catalog.aliases.includes(id));
   }
 
   /**
@@ -168,7 +291,7 @@ export class CatalogRegistry {
    * definition, built schema-only.
    */
   catalogs(): ProcessorCatalog[] {
-    return [...this.#catalogs];
+    return [...this.#builtInCatalogs, ...this.#configured.map(entry => entry.catalog)];
   }
 
   /**
@@ -194,7 +317,7 @@ export class CatalogRegistry {
       for (const item of items) {
         if (!isObject(item) || typeof item.catalogId !== 'string') continue;
         const id = item.catalogId;
-        if (this.#byId.has(id) || seen.has(id)) continue;
+        if (this.get(id) !== undefined || seen.has(id)) continue;
         try {
           inline.push({
             id,
@@ -236,6 +359,22 @@ export class CatalogRegistry {
   }
 }
 
+/**
+ * Why a configured file did not read: the reason alone, as a read that fails
+ * while Spectra runs is told, and the whole sentence that stops Spectra at
+ * start.
+ */
+class ReadFailure extends Error {
+  readonly reason: string;
+  readonly atStart: (file: string) => string;
+
+  constructor(reason: string, atStart: (file: string) => string = file => `${file} ${reason}.`) {
+    super(reason);
+    this.reason = reason;
+    this.atStart = atStart;
+  }
+}
+
 /** A configured definition read from its file, validated for its version and built. */
 async function loadDefinition(
   file: string,
@@ -245,27 +384,28 @@ async function loadDefinition(
     text = await readFile(file, 'utf8');
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      throw new ConfigError(`The catalog ${file} does not exist.`);
+      throw new ReadFailure('does not exist', at => `The catalog ${at} does not exist.`);
     }
-    throw new ConfigError(`${file} cannot be read: ${describe(error)}.`);
+    throw new ReadFailure(`cannot be read: ${describe(error)}`);
   }
   let json: unknown;
   try {
     json = JSON.parse(text);
   } catch (error) {
-    throw new ConfigError(`${file} is not valid JSON: ${describe(error)}.`);
+    // The parser's own message is the reason.
+    throw new ReadFailure(describe(error), at => `${at} is not valid JSON: ${describe(error)}.`);
   }
   if (!isObject(json)) {
-    throw new ConfigError(`${file} must hold a JSON object.`);
+    throw new ReadFailure('must hold a JSON object');
   }
   if (typeof json.catalogId !== 'string' || json.catalogId === '') {
-    throw new ConfigError(`${file} names no catalogId.`);
+    throw new ReadFailure('names no catalogId');
   }
   const declared = typeof json.protocolVersion === 'string' ? json.protocolVersion : undefined;
   if (declared !== undefined && Number(majorMinor(declared)?.split('.')[0]) >= 1) {
     if (!validateDefinition(json)) {
-      throw new ConfigError(
-        `${file} is not a 1.0 catalog definition: ${metaSchema.errorsText(validateDefinition.errors, {dataVar: ''})}.`,
+      throw new ReadFailure(
+        `is not a 1.0 catalog definition: ${metaSchema.errorsText(validateDefinition.errors, {dataVar: ''})}`,
       );
     }
   } else {
@@ -273,11 +413,11 @@ async function loadDefinition(
     try {
       valid = metaSchema.validateSchema(json);
     } catch (error) {
-      throw new ConfigError(`${file} is not a JSON Schema: ${describe(error)}.`);
+      throw new ReadFailure(`is not a JSON Schema: ${describe(error)}`);
     }
     if (valid !== true) {
-      throw new ConfigError(
-        `${file} is not a JSON Schema: ${metaSchema.errorsText(metaSchema.errors, {dataVar: ''})}.`,
+      throw new ReadFailure(
+        `is not a JSON Schema: ${metaSchema.errorsText(metaSchema.errors, {dataVar: ''})}`,
       );
     }
   }
@@ -285,19 +425,23 @@ async function loadDefinition(
   try {
     catalog = Catalog.fromJson(json);
   } catch (error) {
-    throw new ConfigError(`${file} cannot be loaded as a catalog: ${describe(error)}.`);
+    throw new ReadFailure(`cannot be loaded as a catalog: ${describe(error)}`);
   }
   for (const name of Object.keys(isObject(json.components) ? json.components : {})) {
     if (!catalog.components.has(name)) {
-      throw new ConfigError(
-        `${file}: the component '${name}' is not listed under $defs.anyComponent, so it would not be known.`,
+      throw new ReadFailure(
+        `the component '${name}' is not listed under $defs.anyComponent, so it would not be known`,
+        at =>
+          `${at}: the component '${name}' is not listed under $defs.anyComponent, so it would not be known.`,
       );
     }
   }
   for (const name of functionNames(json.functions)) {
     if (!catalog.functions.has(name)) {
-      throw new ConfigError(
-        `${file}: the function '${name}' is not listed under $defs.anyFunction, so it would not be known.`,
+      throw new ReadFailure(
+        `the function '${name}' is not listed under $defs.anyFunction, so it would not be known`,
+        at =>
+          `${at}: the function '${name}' is not listed under $defs.anyFunction, so it would not be known.`,
       );
     }
   }

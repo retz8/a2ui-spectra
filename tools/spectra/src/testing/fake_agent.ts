@@ -22,6 +22,10 @@
  *   --hold-stream-while-file <path>
  *                                While the file exists, a stream sends its
  *                                first event and stays open.
+ *   --a2ui-file <path>           A JSON file, read at each stream, holding the
+ *                                list of A2UI messages the stream's first
+ *                                event carries in place of its own surface,
+ *                                one part each.
  *   --exit-after-card <code>     Exit with <code> soon after answering the card.
  *   --ignore-sigterm             Ignore the stop signal.
  *   --wait-for-open-requests     On the stop signal, stop listening and exit
@@ -98,6 +102,21 @@ export interface FakeAgentOptions {
   holdCard?: () => boolean;
   /** While it says so, a stream sends its first event and stays open. */
   holdStream?: () => boolean;
+  /** The A2UI messages a stream's first event carries, in place of the agent's own surface. */
+  a2ui?: () => unknown[] | undefined;
+}
+
+/** The reply to a stream carrying the A2UI messages given, one part each. */
+function streamReplyWith(messages: unknown[]): string {
+  const parts = messages.map(message => ({
+    kind: 'data',
+    data: message,
+    metadata: {mimeType: 'application/json+a2ui'},
+  }));
+  return (
+    `data: ${JSON.stringify({jsonrpc: '2.0', id: 1, result: {kind: 'status-update', taskId: 't-1', contextId: 'ctx-1', status: {state: 'working', message: {kind: 'message', messageId: 'r-1', role: 'agent', parts}}, final: false}})}\n\n` +
+    `data: ${JSON.stringify({jsonrpc: '2.0', id: 1, result: {kind: 'status-update', taskId: 't-1', contextId: 'ctx-1', status: {state: 'input-required'}, final: false}})}\n\n`
+  );
 }
 
 /** One MCP tools/call at FAKE_TOOL_URL, with the fake token, resolving when it has been answered. */
@@ -270,6 +289,7 @@ export function startFakeAgent(
     streaming = false,
     holdCard,
     holdStream,
+    a2ui,
   }: FakeAgentOptions = {},
 ): Promise<Server> {
   const url = `http://localhost:${port}/`;
@@ -342,7 +362,8 @@ export function startFakeAgent(
           if (holdStream?.() === true) {
             response.write(STREAM_REPLY.slice(0, STREAM_REPLY.indexOf('\r\n\r\n') + 4));
           } else {
-            response.end(STREAM_REPLY);
+            const messages = a2ui?.();
+            response.end(messages === undefined ? STREAM_REPLY : streamReplyWith(messages));
           }
         } else {
           response.writeHead(200, {'content-type': 'application/json'});
@@ -388,6 +409,7 @@ async function runAsScript(): Promise<void> {
       streaming: {type: 'boolean'},
       'hold-card-until-file': {type: 'string'},
       'hold-stream-while-file': {type: 'string'},
+      'a2ui-file': {type: 'string'},
       'exit-after-card': {type: 'string'},
       'ignore-sigterm': {type: 'boolean'},
       'wait-for-open-requests': {type: 'boolean'},
@@ -420,6 +442,7 @@ async function runAsScript(): Promise<void> {
       : {};
   const holdCardFile = values['hold-card-until-file'];
   const holdStreamFile = values['hold-stream-while-file'];
+  const a2uiFile = values['a2ui-file'];
   if (values['grandchild-pid-file'] !== undefined) {
     const grandchild = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
       stdio: 'ignore',
@@ -433,6 +456,9 @@ async function runAsScript(): Promise<void> {
     streaming: fromFile.streaming ?? values.streaming === true,
     ...(holdCardFile !== undefined && {holdCard: () => !existsSync(holdCardFile)}),
     ...(holdStreamFile !== undefined && {holdStream: () => existsSync(holdStreamFile)}),
+    ...(a2uiFile !== undefined && {
+      a2ui: () => JSON.parse(readFileSync(a2uiFile, 'utf8')) as unknown[],
+    }),
     modelCall: values['model-call'] === true,
     toolCall: values['tool-call'] === true,
     otelExport: values['otel-export'] === true,

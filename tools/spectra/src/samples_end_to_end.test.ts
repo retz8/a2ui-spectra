@@ -7,7 +7,10 @@
  * stub's surface in the sample catalog; the custom slider is moved and the
  * Button pressed; the pending action is sent; and the turn lands with the
  * stub's reply echoing the volume from the action's context and in the data
- * model. It runs under Node by default, and against the binary when
+ * model. On the way the page is reloaded in its frame, as its dev server
+ * reloads it after a save, and draws the surface again; and on the React
+ * sample the page is reloaded with its dev server stopped, which the Preview
+ * pane says, until the server is back. It runs under Node by default, and against the binary when
  * SPECTRA_BINARY names one. Chromium is installed with Playwright's own
  * command.
  */
@@ -18,7 +21,7 @@ import path from 'node:path';
 import {after, before, describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
 
-import {type Browser, chromium} from 'playwright';
+import {type Browser, chromium, type Page} from 'playwright';
 
 import type {ListedTurn} from './api.js';
 import {VARIABLES} from './model_proxy/redirection.js';
@@ -121,6 +124,30 @@ function inputPartsOf(turn: Turn): A2uiPart[] {
     .filter((part): part is A2uiPart => part.type === 'a2ui');
 }
 
+/** How long a preview page has to answer, in the viewer. */
+const ANSWER_MS = 5000;
+
+/**
+ * Reloads the preview page in its frame, as its dev server reloads it after
+ * a save, and resolves once the frame holds another document, or none.
+ */
+async function reloadFrame(page: Page, pageUrl: string): Promise<void> {
+  const frameOf = () => page.frames().find(frame => frame.url().startsWith(pageUrl));
+  await frameOf()!.evaluate('window.spectraBefore = true; location.reload();');
+  const deadline = Date.now() + 30_000;
+  for (;;) {
+    const before = await frameOf()
+      ?.evaluate<boolean>('window.spectraBefore === true')
+      .catch(() => true);
+    if (before !== true) return;
+    assert.ok(Date.now() < deadline, 'The preview page did not reload.');
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+}
+
+/** The Preview header's note of the page drawing the surface. */
+const noteOf = (page: Page, pageUrl: string) => page.locator(`span[title="${pageUrl}"]`);
+
 describe(`the sample catalog apps in Chromium, ${binary ? 'the binary' : 'under Node'}`, () => {
   let browser: Browser;
   before(async () => {
@@ -182,6 +209,15 @@ describe(`the sample catalog apps in Chromium, ${binary ? 'the binary' : 'under 
           const preview = page.frameLocator(`iframe[title="Preview page ${pageUrl}"]`);
           const slider = preview.locator('input[type="range"]');
           await slider.waitFor();
+
+          // The page reloads itself: the surface is drawn again, and the page stays answered past
+          // the answer window, its ready and its load paired whichever came first.
+          await reloadFrame(page, pageUrl);
+          await slider.waitFor();
+          await page.waitForTimeout(ANSWER_MS + 1000);
+          assert.ok(await slider.isVisible(), 'The surface is drawn after the reload.');
+          assert.equal(await noteOf(page, pageUrl).textContent(), pageUrl);
+
           await slider.press('End');
           await preview.getByRole('button', {name: 'Set the volume'}).click();
 
@@ -220,4 +256,73 @@ describe(`the sample catalog apps in Chromium, ${binary ? 'the binary' : 'under 
       },
     );
   }
+  it(
+    "says the React sample's page is reloading when it loads again without answering, then that it has not answered, and draws the surface again once its dev server is back",
+    {timeout: TIMEOUT},
+    async () => {
+      const sample = 'react';
+      const pageUrl = pageOf(sample);
+      const [agentPort, port] = await Promise.all([freePort(), freePort()]);
+      const stub = await startStub(agentPort, []);
+      let server = await startDevServer(sample, pageUrl);
+      const spectra = new SpectraProcess([
+        'attach',
+        `http://127.0.0.1:${agentPort}`,
+        '--config',
+        path.join(samplesDir, sample, 'a2ui-spectra.json'),
+        '--port',
+        String(port),
+        '--proxy-port',
+        String(await freePort()),
+        '--model-proxy-port',
+        String(await freePort()),
+        '--receiver-port',
+        String(await freePort()),
+        '--no-open',
+      ]);
+      const page = await browser.newPage({viewport: {width: 1440, height: 900}});
+      try {
+        await spectra.waitFor(/The viewer is at /);
+        await page.goto(`http://127.0.0.1:${port}`);
+        await page.getByRole('textbox', {name: 'Message the agent'}).fill('Hi');
+        await page.getByRole('button', {name: 'Send', exact: true}).click();
+        const slider = page
+          .frameLocator(`iframe[title="Preview page ${pageUrl}"]`)
+          .locator('input[type="range"]');
+        await slider.waitFor();
+
+        // The dev server stops, and the page loads again: a document that does not answer.
+        stopServer(server);
+        const deadline = Date.now() + 30_000;
+        while (
+          await fetch(pageUrl).then(
+            () => true,
+            () => false,
+          )
+        ) {
+          assert.ok(Date.now() < deadline, "The sample's dev server did not stop.");
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        await reloadFrame(page, pageUrl);
+        await page.getByText(`${pageUrl} · reloading`, {exact: true}).waitFor();
+        // The frame stays on the page meanwhile, nothing laid over it.
+        assert.equal(await page.getByText('No preview for catalog').count(), 0);
+
+        // After the answer window the page has not answered, and claims nothing.
+        await page.getByText(`${pageUrl} has not answered`, {exact: true}).waitFor();
+        await page.getByText('No preview for catalog').waitFor();
+
+        // The dev server is back: the viewer's own reload of the page finds it, and the surface is drawn again.
+        server = await startDevServer(sample, pageUrl);
+        await slider.waitFor({timeout: 60_000});
+        assert.equal(await noteOf(page, pageUrl).textContent(), pageUrl);
+      } finally {
+        await page.close();
+        spectra.signal('SIGTERM');
+        await spectra.exited;
+        stopServer(server);
+        stub.kill();
+      }
+    },
+  );
 });

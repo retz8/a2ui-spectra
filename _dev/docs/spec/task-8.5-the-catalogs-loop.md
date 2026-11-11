@@ -34,7 +34,7 @@ A changed file is read after the quiet spell of 100 ms that the save watcher and
 
 ### 5. A read that changes nothing
 
-A read that gives the same definition by value, such as a save with no edit or a formatter's rewrite, says nothing: no terminal line, no stream event, and the time of the definition in force stays. A read that clears a failed one is the exception, with the good read's line and the event.
+A read that gives the same definition by value, such as a save with no edit or a formatter's rewrite, says nothing: no terminal line, no stream event, and the time of the definition in force stays. A read that clears a failed one is the exception, with the good read's line and the event, and the time of the definition in force moves to that read, the definition being the same or not: every good read that is said moves the time.
 
 ### 6. The listing and the event
 
@@ -80,18 +80,21 @@ Where the fixtures folder keeps its own watch, under `attach` and under `run` wh
 
 ### 13. A load paired with its ready
 
-A page's `ready` and its iframe's load event arrive in either order, the ready usually first, and the viewer cannot see a page on another origin begin to reload. So:
+A page's `ready` and its iframe's load event arrive in either order, and the viewer cannot see a page on another origin begin to reload. Measured in Chromium on the development machine, over 36 documents: the React, Lit and Angular sample pages, each on its dev server, load first and say ready 0 to 15 ms later, every time; Spectra's built-in page, a production build, says ready first and loads 5 to 6 ms later on every reload; and the React sample, under React's `StrictMode`, says ready twice per document in the same millisecond. So the two are paired in both directions:
 
-- Every ready is owed one load, its own document's, for five seconds, the answer window the pane already uses.
-- A load that is owed changes nothing.
-- A load that is not owed is a new document that has not answered: a ready page goes to reloading, and the five-second timer is armed. A page that is waiting, unanswered or speaking another protocol version is left as it is.
-- A second `ready` from a ready page stays what it is today, a reload, the render sent again.
+- A load that arrives while a ready is owed one changes nothing, and nothing is owed after it.
+- A ready that arrives while a load is waiting unanswered answers it, and is owed nothing.
+- A ready within one second of the page's last ready, with no load between, is the same document's, and changes nothing owed. The one second is a margin over the measured 0 ms.
+- Any other ready is owed one load, its own document's, for five seconds, the answer window the pane already uses.
+- Any other load is a new document that has not answered, and waits for its ready: a ready page goes to reloading, and the five-second timer is armed. A page that is waiting, unanswered or speaking another protocol version is left as it is.
+- The viewer's own reload of an unanswered page clears what is open.
+- A second `ready` from a ready page stays what it is today, the render sent again.
 
-Known misread: a broken document that loads within five seconds of a ready whose own load had already come is taken as ready until the page's next load.
+Once a document has both loaded and answered nothing is owed, so a reload into a document that does not answer is caught at once in both orders. Known misreads, each wrong for up to five seconds or until the page's next load: two reloads within one second of a page whose ready comes first, and such a page's document replaced by a broken one before its own load arrived.
 
 ### 14. The pane while a page reloads
 
-Reloading is a state of its own, apart from waiting. The page's iframe stays laid over the pane, showing whatever the reloaded document draws, with the note and the spinner in the Preview header. The page keeps its last claims: a surface it was drawing stays routed to it, and a surface it never claimed routes on as before. A render asked for meanwhile is sent on the fresh ready. What the page reported stays in the pane's strip, and the fresh ready clears it as today.
+Reloading is a state of its own, apart from waiting. The page's iframe stays laid over the pane, showing whatever the reloaded document draws, with the note and the spinner in the Preview header. The note and the spinner show once the page has been reloading for 200 ms, the state itself changing at once, so a healthy page, which answers within the measured 15 ms of its load, shows nothing. The page keeps its last claims: a surface it was drawing stays routed to it, and a surface it never claimed routes on as before. A render asked for meanwhile is sent on the fresh ready. What the page reported stays in the pane's strip, and the fresh ready clears it as today.
 
 ### 15. A page that stops answering
 
@@ -122,16 +125,17 @@ The command-line cases, under Node and against the binary:
 
 In the viewer's unit tests:
 
-- The pairing: ready then load, load then ready, an unowed load on a ready page, the owed load lapsing after five seconds, an unowed load leaving any other state alone.
+- The pairing: ready then load, load then ready, an unowed load on a ready page in either order, a second ready of the same document, the owed load lapsing after five seconds, an unowed load leaving any other state alone.
 - Routing: a reloading page keeps its claims, and loses them when unanswered.
+- The header's note: the URL alone for a page just reloading, and "· reloading" once it has been for 200 ms.
 - The popover: the two failed-read lines, and the row for a file the card does not advertise.
 - The stream: `catalogs_changed` reloads the connect set.
 
-In the browser, through the sample catalog apps:
+In the browser:
 
-- On each of the React, Lit and Angular sample pages: the page reloaded in its frame, the surface drawn again and the header's note back to the URL alone. All three, each adapter sending its ready at a different moment.
-- On one sample: its dev server stopped and the frame reloaded, giving the reloading note, then the line that the page has not answered, then the surface again once the server is back.
-- One case for the popover: the catalog file broken, the two lines shown, then gone after the fix.
+- Through the sample catalog apps, on each of the React, Lit and Angular sample pages: the page reloaded in its frame, the surface drawn again and the header's note back to the URL alone. All three, each adapter sending its ready at a different moment.
+- Through one sample catalog app: its dev server stopped and the frame reloaded, giving the reloading note, then the line that the page has not answered, then the surface again once the server is back.
+- In the viewer's own browser test, one case for the popover: the catalog file broken, the two lines shown, then gone after the fix.
 
 ### 18. Done when
 
@@ -145,7 +149,7 @@ The tests pass under Node and against the binary. There is no hand check through
 - The sub-task 8.1 spec, amended in place: the reloading sentence becomes that the frame stays on the page and shows what the reloaded document draws, and the board's title follows; the first screen's popover rule gains the failed file's row.
 - The sub-task 4.2 spec, `_dev/docs/spec/task-4.2-config-and-catalogs.md`, amended in place: its decision that configured catalogs are read once at start, and its decision that the viewer loads the listing once at connect.
 - The canvas "Spectra viewer UI": the reloading board redrawn with the frame empty under the reloading note, and retitled to say the frame is kept.
-- `_dev/TODO.md`: the 8.5 line names this spec and gains the popover's lines and the header's note. No backlog entry.
+- `_dev/TODO.md`: the 8.5 line names this spec and gains the popover's lines and the header's note; the backlog gains the preview page saying which document it is, in a later version of the preview protocol, so that the viewer's pairing of loads and readies is no longer needed.
 - `SPEC.md`, the config schema, `_dev/a2ui-findings.md` and `_dev/otel-findings.md`: no change.
 
 ## Invariants

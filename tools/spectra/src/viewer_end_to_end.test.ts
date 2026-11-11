@@ -9,7 +9,8 @@
  * with Playwright's own command.
  */
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
+import {readFileSync, writeFileSync} from 'node:fs';
+import path from 'node:path';
 import {after, before, describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
 
@@ -215,6 +216,99 @@ describe(`the viewer on the retried-parse record in Chromium, ${binary ? 'the bi
         assert.ok(displays.length > 0, 'The preview declares no Material Icons font.');
         assert.deepEqual([...new Set(displays)], ['block']);
       });
+    },
+  );
+});
+
+describe(`the agent popover on a catalog file that did not read, in Chromium, ${binary ? 'the binary' : 'under Node'}`, () => {
+  let browser: Browser;
+  before(async () => {
+    browser = await chromium.launch();
+  });
+  after(async () => {
+    await browser?.close();
+  });
+
+  it(
+    "shows a broken catalog file's two lines on a Catalog row of its own, the page not reloaded, and drops them at the fix",
+    {timeout: TIMEOUT},
+    async () => {
+      const cwd = workingDir();
+      const file = path.join(cwd, 'notes.json');
+      const definition = JSON.stringify({
+        $schema: 'https://json-schema.org/draft/2020-12/schema',
+        catalogId: 'https://example.com/notes.json',
+        title: 'Notes',
+        components: {Note: {type: 'object', properties: {component: {const: 'Note'}}}},
+        $defs: {anyComponent: {oneOf: [{$ref: '#/components/Note'}]}},
+      });
+      writeFileSync(file, definition);
+      writeFileSync(
+        path.join(cwd, 'a2ui-spectra.json'),
+        JSON.stringify({catalogs: ['./notes.json']}),
+      );
+      const [agentPort, port] = await Promise.all([freePort(), freePort()]);
+      await startStub(agentPort, []);
+      const spectra = new SpectraProcess(
+        [
+          'attach',
+          `http://127.0.0.1:${agentPort}`,
+          '--port',
+          String(port),
+          '--proxy-port',
+          String(await freePort()),
+          '--model-proxy-port',
+          String(await freePort()),
+          '--receiver-port',
+          String(await freePort()),
+          '--no-open',
+        ],
+        cwd,
+      );
+      const page = await browser.newPage({viewport: {width: 1440, height: 900}});
+      /** Saves the file, again until Spectra's output holds the line: a watch tells nothing for a moment after it is set up. */
+      const savedUntil = async (content: string, line: () => boolean) => {
+        const deadline = Date.now() + 15_000;
+        while (!line()) {
+          assert.ok(Date.now() < deadline, spectra.output);
+          writeFileSync(file, content);
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      };
+      try {
+        await spectra.waitFor(/The viewer is at /);
+        await page.goto(`http://127.0.0.1:${port}`);
+        await page.getByRole('button', {name: 'Spectra stub agent'}).click();
+        const popover = page.getByRole('dialog', {name: 'The agent'});
+        await popover.waitFor();
+        // The stub's card does not advertise the configured catalog, and a file that reads has no row.
+        assert.equal(await popover.getByText('Notes', {exact: true}).count(), 0);
+
+        await savedUntil('{"catalogId": ', () =>
+          spectra.stderr.includes('changed and did not read'),
+        );
+        await popover.getByText('Notes', {exact: true}).waitFor();
+        await popover
+          .getByText(
+            /^\.\/notes\.json did not read at \d\d:\d\d:\d\d · checking against the definition read at \d\d:\d\d:\d\d$/,
+          )
+          .waitFor();
+        const error = /did not read: (.+)\. The definition read before stays in force\./.exec(
+          spectra.stderr,
+        )?.[1];
+        assert.ok(error);
+        await popover.getByText(error, {exact: true}).waitFor();
+
+        await savedUntil(definition, () =>
+          spectra.output.includes('Its catalog definition was read again.'),
+        );
+        await popover.getByText(/did not read at/).waitFor({state: 'detached'});
+        assert.equal(await popover.getByText('Notes', {exact: true}).count(), 0);
+      } finally {
+        await page.close();
+        spectra.signal('SIGTERM');
+        await spectra.exited;
+      }
     },
   );
 });

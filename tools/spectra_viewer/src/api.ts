@@ -166,6 +166,8 @@ export interface LiveEvents {
   };
   /** A file joined, changed in or left the fixtures folder; the listing is to be read again. */
   fixtures_changed: Record<string, never>;
+  /** A configured catalog file was read again, or its read failed; the listing is to be read again. */
+  catalogs_changed: Record<string, never>;
   /** Under `run`, the state of the agent's process, whole, at each change; the context and the box are current by then. */
   agent_state: {state: string; seq: number; reason?: string; exit?: string};
   heartbeat: Record<string, never>;
