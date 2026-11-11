@@ -28,8 +28,8 @@ import {
 } from './record/turn_record.js';
 import {ReplayRecordError, replayInputs} from './replay/inputs.js';
 import {hasNothingToServe, ReplayPool} from './replay/pool.js';
-import {verdictOf} from './replay/verdict.js';
-import type {ReplayedTurn, TurnHub} from './turn_hub.js';
+import {inWords, outcomeOf, verdictOf} from './replay/verdict.js';
+import type {LiveReplayedTurn, ReplayedTurn, TurnHub} from './turn_hub.js';
 
 /** Why everything-recorded mode refuses a record with no model call and no tool call. */
 export const NOTHING_TO_SERVE =
@@ -117,13 +117,13 @@ export interface ReplaySource {
 
 /** What the box asks of the session during a replay. */
 export interface ReplayHooks {
-  /** Arms both proxies with the pool, before the first send. */
+  /** Arms both proxies with the pool, before the first send; a live replay arms neither. */
   arm(pool: ReplayPool): void;
   /** Disarms both, once the last replayed turn has closed. */
   disarm(): void;
   /** Writes the replay's provenance on a turn's turn event, as the turn opens. */
   annotate(traceId: string, attributes: Record<string, unknown>): void;
-  /** Writes the verdict on a replayed turn's turn event, once the turn has closed and been written. */
+  /** Writes the verdict on a replayed turn's turn event, once the turn has closed and been written; a live replay takes none. */
   amend(traceId: string, attributes: Record<string, unknown>): Promise<void>;
   /** Takes one terminal line. */
   log(line: string): void;
@@ -163,7 +163,8 @@ export interface MessageBoxOptions {
  * continues one of them, and answers once the proxy opens its turn; the reply
  * is read in the background for the conversation and the task to carry into
  * the conversation's next send. A replay re-sends a record's wire inputs as
- * one new conversation, the proxies armed with the record's calls meanwhile.
+ * one new conversation, the proxies armed with the record's calls meanwhile,
+ * or, live, with no proxy armed and every call the agent makes going out.
  * Under `run` it follows the agent's process: the latest card, and the
  * process's state, by which it refuses.
  */
@@ -193,7 +194,7 @@ export class MessageBox {
   /** Oldest first; a new conversation joins once its first turn opens. */
   readonly #conversations: Conversation[] = [];
   #replaying: ReplayState | undefined;
-  /** Turns another host opened while a replay runs, named on the terminal once their input comes. */
+  /** Turns another host opened while the proxies replay, named on the terminal once their input comes. */
   readonly #foreign = new Set<string>();
 
   constructor(options: MessageBoxOptions) {
@@ -212,7 +213,8 @@ export class MessageBox {
         if (provenance !== undefined && event.messageId !== undefined) {
           this.#provenance.delete(event.messageId);
           this.#replayHooks?.annotate(event.traceId, provenance);
-        } else if (this.#replaying !== undefined) {
+        } else if (this.#replaying !== undefined && this.#replaying.mode !== 'live') {
+          // With no proxy armed, another host's turn is an ordinary turn.
           this.#foreign.add(event.traceId);
         }
         if (event.messageId !== undefined) this.#opening.get(event.messageId)?.(event.traceId);
@@ -396,7 +398,9 @@ export class MessageBox {
    * turn's provenance written as it opens and its verdict once it has closed,
    * and the proxies disarmed after the last. A turn that cannot be sent stops
    * the replay, the rest reported as not sent, and so does the end of the
-   * agent's process, the open turn having failed.
+   * agent's process, the open turn having failed. Live, no pool is built and
+   * no proxy armed, so every model and tool call goes out; no verdict is
+   * taken, and each turn's outcome is said on the terminal as it closes.
    */
   async replay(source: ReplaySource, mode: ReplayMode): Promise<ReplayStarted> {
     const target = this.#available();
@@ -423,14 +427,16 @@ export class MessageBox {
     if (mode === 'recorded' && hasNothingToServe(source.record)) {
       throw new MessageBoxError(422, `${NOTHING_TO_SERVE} Replay it with the model live.`);
     }
-    const pool = new ReplayPool(source.record, mode);
+    const pool = mode === 'live' ? undefined : new ReplayPool(source.record, mode);
 
     const replaying: ReplayState = {source: source.path, mode, turn: 0, turns: inputs.length};
     this.#replaying = replaying;
-    hooks.arm(pool);
+    if (pool !== undefined) hooks.arm(pool);
     this.#turns.notify({type: 'replay_started', source: source.path, mode, turns: inputs.length});
     const conversation: Conversation = {turns: []};
     const replayed: ReplayedTurn[] = [];
+    /** The turns of a live replay, which carry no verdict. */
+    const live: LiveReplayedTurn[] = [];
     const recordedTurns = source.record.turns.map(turn => ({
       traceId: traceIdOf(turn),
       turn,
@@ -442,13 +448,17 @@ export class MessageBox {
       agentEnded ??= reason;
     };
     const end = () => {
-      hooks.disarm();
+      if (pool !== undefined) hooks.disarm();
       this.#replaying = undefined;
       this.#stopReplay = undefined;
+      if (pool === undefined) {
+        this.#turns.notify({type: 'replay_ended', source: source.path, mode: 'live', turns: live});
+        return;
+      }
       this.#turns.notify({
         type: 'replay_ended',
         source: source.path,
-        mode,
+        mode: pool.mode,
         verdict: replayed.every(turn => 'verdict' in turn && turn.verdict === 'passed')
           ? 'passed'
           : 'failed',
@@ -457,7 +467,7 @@ export class MessageBox {
     };
     const notSent = (from: number, reason: string) => {
       for (const {traceId} of recordedTurns.slice(from)) {
-        replayed.push({recordedTurn: traceId, notSent: reason});
+        (pool === undefined ? live : replayed).push({recordedTurn: traceId, notSent: reason});
       }
     };
 
@@ -501,6 +511,13 @@ export class MessageBox {
         turns: inputs.length,
       });
       const finished = dispatched.closed.then(async turn => {
+        if (pool === undefined) {
+          live.push({traceId: dispatched.traceId, recordedTurn: recorded.traceId});
+          hooks.log(
+            `Re-run of ${source.path}, turn ${index + 1} of ${inputs.length}: ${inWords(outcomeOf(turn))}.`,
+          );
+          return;
+        }
         const verdict = verdictOf(recorded.turn, turn);
         await hooks.amend(dispatched.traceId, {
           'a2ui.replay.verdict': verdict.verdict,

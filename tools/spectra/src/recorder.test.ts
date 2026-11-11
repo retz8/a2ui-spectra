@@ -262,4 +262,32 @@ describe('the turn recorder', () => {
     assert.equal(turnEvent?.attributes['a2ui.turn.outcome'], 'completed');
     assert.deepEqual(turnRecordErrors(record), []);
   });
+
+  it("writes a live replay's provenance, a record that validates with no verdict on it", async () => {
+    const store = await storeIn();
+    const recorder = new TurnRecorder(store, collect());
+    recorder.onTurn({
+      type: 'turn_opened',
+      traceId: TRACE_ID,
+      spanId: '0'.repeat(16),
+      conversationId: 'ctx-1',
+      startTimeUnixNano: '1792576860000000000',
+    });
+    recorder.annotate(TRACE_ID, {
+      'a2ui.replay.source': 'a2ui-spectra-fixtures/hello.json',
+      'a2ui.replay.turn': '2af7651916cd43dd8448eb211c80319c',
+      'a2ui.replay.mode': 'live',
+    });
+    recorder.onTurn({type: 'turn_closed', traceId: TRACE_ID, turn: turnOf([SURFACE])});
+    await recorder.idle();
+    const [stored] = await store.list();
+    const record = await store.read(stored.file);
+    const turnEvent = record.turns[0].events.find((event): event is TurnEvent =>
+      isEventOfKind(event, 'turn'),
+    );
+    assert.equal(turnEvent?.attributes['a2ui.replay.mode'], 'live');
+    assert.equal(turnEvent?.attributes['a2ui.replay.verdict'], undefined);
+    assert.equal(turnEvent?.attributes['a2ui.replay.reasons'], undefined);
+    assert.deepEqual(turnRecordErrors(record), []);
+  });
 });

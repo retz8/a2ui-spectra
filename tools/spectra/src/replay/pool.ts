@@ -16,7 +16,8 @@ import {
   type TurnRecord,
 } from '../record/turn_record.js';
 
-export type {ReplayMode};
+/** The modes that arm the proxies with a pool; a `live` replay arms none. */
+export type PoolMode = Exclude<ReplayMode, 'live'>;
 
 /** What keys a model call and an HTTP tool: three of the exchange's attributes, compared by deep JSON equality. */
 export interface ExchangeKey {
@@ -102,7 +103,7 @@ function startOf(event: CallEvent): bigint {
 }
 
 export class ReplayPool {
-  readonly mode: ReplayMode;
+  readonly mode: PoolMode;
   readonly #model: Entry[] = [];
   readonly #httpTools: Entry[] = [];
   /** MCP requests: a client's request with its id, by its method and params. */
@@ -112,7 +113,7 @@ export class ReplayPool {
   /** MCP's session ends, `DELETE`s carrying `Mcp-Session-Id`. */
   readonly #sessionEnds: CallEvent[] = [];
 
-  constructor(record: TurnRecord, mode: ReplayMode) {
+  constructor(record: TurnRecord, mode: PoolMode) {
     this.mode = mode;
     for (const turn of record.turns) {
       const calls = turn.events

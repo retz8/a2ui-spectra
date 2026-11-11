@@ -203,7 +203,7 @@ async function runReplay(
   const reasons = new Map<string, ReplayReason[]>();
   const closed = new Map<string, Turn>();
   const sent: Array<{traceId: string; turn: number}> = [];
-  let ended: Extract<LiveEvent, {type: 'replay_ended'}> | undefined;
+  let ended: Extract<LiveEvent, {type: 'replay_ended'; verdict: ReplayVerdict}> | undefined;
   let onEnded: () => void = () => {};
   const endedPromise = new Promise<void>(resolve => {
     onEnded = resolve;
@@ -225,7 +225,7 @@ async function runReplay(
         closed.set(event.traceId, event.turn);
         break;
       case 'replay_ended':
-        if (event.source === source.path) {
+        if (event.source === source.path && event.mode !== 'live') {
           ended = event;
           onEnded();
         }
@@ -247,7 +247,7 @@ async function runReplay(
 
   const turns: ReportedTurn[] = [];
   if (ended !== undefined) {
-    const end = ended as Extract<LiveEvent, {type: 'replay_ended'}>;
+    const end = ended as Extract<LiveEvent, {type: 'replay_ended'; verdict: ReplayVerdict}>;
     for (const [index, turn] of end.turns.entries()) {
       turns.push(
         'notSent' in turn

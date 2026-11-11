@@ -9,7 +9,7 @@ import {after, describe, it} from 'node:test';
 
 import type {PlacedCall} from '../placement.js';
 import type {ModelCallEvent, TurnRecord} from '../record/turn_record.js';
-import {ReplayPool, type ReplayMode} from '../replay/pool.js';
+import {ReplayPool, type PoolMode} from '../replay/pool.js';
 import {type ModelProxy, startModelProxy} from './proxy.js';
 import {type Redirection, redirections} from './redirection.js';
 
@@ -216,7 +216,7 @@ async function eventually(check: () => boolean, what: string): Promise<void> {
   }
 }
 
-function arm(setup: Setup, mode: ReplayMode, ...calls: ModelCallEvent[]): void {
+function arm(setup: Setup, mode: PoolMode, ...calls: ModelCallEvent[]): void {
   setup.proxy.arm(new ReplayPool(recordOf(...calls), mode));
 }
 

@@ -10,7 +10,7 @@ import {after, describe, it} from 'node:test';
 import {type SseEvent, SseParser} from '../a2a/sse.js';
 import type {PlacedCall} from '../placement.js';
 import type {SpanEvent, ToolCallEvent, TurnRecord} from '../record/turn_record.js';
-import {type ReplayMode, ReplayPool} from '../replay/pool.js';
+import {type PoolMode, ReplayPool} from '../replay/pool.js';
 import {startToolProxy, type ToolProxy} from './proxy.js';
 
 const TRACE = 'f'.repeat(32);
@@ -67,7 +67,7 @@ async function setUp(path = '/mcp'): Promise<Setup> {
   return {proxy, origin, original, ended, logs};
 }
 
-function arm(setup: Setup, mode: ReplayMode, ...calls: ToolCallEvent[]): void {
+function arm(setup: Setup, mode: PoolMode, ...calls: ToolCallEvent[]): void {
   const record: TurnRecord = {
     version: 'v0.1',
     turns: [

@@ -135,7 +135,8 @@ const HEARTBEAT_MS = 2000;
  * - `GET /api/fixtures/<name>`: a fixture's record.
  * - `POST /api/fixtures`: saves a turn's record as a fixture, `{"traceId": …, "name": …}`.
  * - `POST /api/replays`: replays a fixture or a store turn, `{"source": {"fixture": …} or
- *   {"traceId": …}, "mode": "recorded" or "model_live"}`.
+ *   {"traceId": …}, "mode": "recorded", "model_live" or "live"}`; a fixture source's `turn`
+ *   names the turn of the fixture the replay ends at.
  * - `GET /api/catalogs`: the catalog definitions Spectra knows.
  * - `GET /api/prices`: LiteLLM's price table as copied, its release and date, and the config's prices.
  * - `GET /api/config.schema.json`: the schema the config file is validated against.
@@ -347,13 +348,17 @@ async function startReplay(
     isObject(source) && typeof source.fixture === 'string' ? source.fixture : undefined;
   const traceId =
     isObject(source) && typeof source.traceId === 'string' ? source.traceId : undefined;
+  const lastTurn = isObject(source) ? source.turn : undefined;
   if (
     (fixtureName === undefined) === (traceId === undefined) ||
-    (mode !== 'recorded' && mode !== 'model_live')
+    // A store turn's record ends at that turn, so only a fixture has a turn to name.
+    (lastTurn !== undefined && (typeof lastTurn !== 'string' || fixtureName === undefined)) ||
+    (mode !== 'recorded' && mode !== 'model_live' && mode !== 'live')
   ) {
     sendJson(response, 400, {
       error:
-        'Replay with {"source": {"fixture": "<name>"} or {"traceId": "<a turn\'s trace id>"}, "mode": "recorded" or "model_live"}.',
+        'Replay with {"source": {"fixture": "<name>"} or {"traceId": "<a turn\'s trace id>"}, "mode": "recorded", "model_live" or "live"}. ' +
+        'A fixture source may carry "turn", the trace id of the turn of the fixture to end at.',
     });
     return;
   }
@@ -370,6 +375,16 @@ async function startReplay(
         throw error;
       }
       return;
+    }
+    if (typeof lastTurn === 'string') {
+      const record = cutAfter(replaySource.record, lastTurn);
+      if (record === undefined) {
+        sendJson(response, 404, {
+          error: `The fixture ${fixtureName} holds no turn with this trace id.`,
+        });
+        return;
+      }
+      replaySource = {...replaySource, record};
     }
   } else {
     const found = await storedRecord(api, traceId as string, response);
@@ -392,6 +407,19 @@ async function startReplay(
       throw error;
     }
   }
+}
+
+/**
+ * A record's turns from its first up to and including the one with the trace
+ * id, itself a record, the one the store wrote for that turn; nothing when
+ * the record holds no such turn.
+ */
+function cutAfter(record: TurnRecord, traceId: string): TurnRecord | undefined {
+  const index = record.turns.findIndex(
+    turn => turn.events.find(event => isEventOfKind(event, 'turn'))?.traceId === traceId,
+  );
+  if (index === -1) return undefined;
+  return {...record, turns: record.turns.slice(0, index + 1) as TurnRecord['turns']};
 }
 
 /** The store's turns and the open turns, newest first. */

@@ -28,6 +28,15 @@ export type ReplayedTurn =
   /** A recorded turn the replay stopped before, with why. */
   | {recordedTurn: string; notSent: string};
 
+/** One turn of a live replay as its end reports it: sent, with no verdict taken, or not sent. */
+export type LiveReplayedTurn =
+  | {
+      traceId: string;
+      /** The trace id of the recorded turn it stands for. */
+      recordedTurn: string;
+    }
+  | {recordedTurn: string; notSent: string};
+
 /** An open turn, as the listing shows it. */
 export interface OpenTurn {
   traceId: string;
@@ -71,10 +80,12 @@ export type LiveEvent =
   | {
       type: 'replay_ended';
       source: string;
-      mode: ReplayMode;
+      mode: Exclude<ReplayMode, 'live'>;
       verdict: ReplayVerdict;
       turns: ReplayedTurn[];
     }
+  /** A live replay ended: no verdict, the record's or a turn's. */
+  | {type: 'replay_ended'; source: string; mode: 'live'; turns: LiveReplayedTurn[]}
   /** A file joined, changed in or left the fixtures folder; the listing is to be read again. */
   | {type: 'fixtures_changed'}
   /**

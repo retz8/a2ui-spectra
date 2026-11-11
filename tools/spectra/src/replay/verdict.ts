@@ -63,7 +63,8 @@ function requestOf(call: CallEvent): string {
   return [method, pathname].filter(part => typeof part === 'string').join(' ');
 }
 
-function outcomeOf(turn: Turn): TurnOutcome | undefined {
+/** A turn's outcome, from its turn event. */
+export function outcomeOf(turn: Turn): TurnOutcome | undefined {
   return turn.events.find(event => isEventOfKind(event, 'turn'))?.attributes['a2ui.turn.outcome'];
 }
 
@@ -79,7 +80,8 @@ function outcomeReason(recorded: Turn, replayed: Turn): ReplayReason[] {
   ];
 }
 
-function inWords(outcome: TurnOutcome | undefined): string {
+/** An outcome as a sentence says it, such as "waiting for input". */
+export function inWords(outcome: TurnOutcome | undefined): string {
   return outcome === undefined ? 'with no outcome' : outcome.replaceAll('_', ' ');
 }
 

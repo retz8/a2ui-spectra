@@ -758,6 +758,88 @@ describe('the API', () => {
     assert.equal(unavailable.status, 404, 'That session has no such fixture.');
   });
 
+  it("starts a live replay, and cuts a fixture's record after the turn its source names, in every mode", async () => {
+    const {store, turns, fixtures, base} = await serve(60_000, undefined, {replay: true});
+    const first = closedTurn(1, 'ctx-1');
+    first.events.push(wireInput(1, {type: 'text', content: 'Hi'}));
+    await store.write(first);
+    // The second turn alone holds a call, so the record cut after the first has nothing to serve.
+    const second = closedTurn(2, 'ctx-1');
+    second.events.push(wireInput(2, {type: 'text', content: 'More'}), {
+      traceId: trace(2),
+      spanId: '0000000000000002',
+      parentSpanId: '0000000000000000',
+      name: 'chat',
+      kind: 3,
+      startTimeUnixNano: '1792576802200000000',
+      endTimeUnixNano: '1792576802300000000',
+      attributes: {
+        'a2ui.event.kind': 'model_call',
+        'http.request.method': 'POST',
+        'url.full': 'https://api.anthropic.com/v1/messages',
+        'a2ui.http.request.body': {model: 'claude'},
+      },
+      status: {code: 1},
+    });
+    const {record} = await store.write(second);
+    assert.equal(record.turns.length, 2, "The second turn's record embeds the first.");
+    await fixtures.save(record, 'two');
+
+    const started: Array<{mode: string; turns: number}> = [];
+    turns.subscribe(event => {
+      if (event.type === 'replay_started') started.push({mode: event.mode, turns: event.turns});
+    });
+    // The box sends, and the proxy this test has none of is unreachable: 502 says the replay began.
+    const begun = async (body: unknown) => {
+      started.length = 0;
+      const response = await post(`${base}/api/replays`, body);
+      assert.equal(response.status, 502, JSON.stringify(body));
+      return started[0];
+    };
+
+    assert.deepEqual(await begun({source: {fixture: 'two'}, mode: 'live'}), {
+      mode: 'live',
+      turns: 2,
+    });
+    assert.deepEqual(await begun({source: {traceId: trace(2)}, mode: 'live'}), {
+      mode: 'live',
+      turns: 2,
+    });
+    assert.deepEqual(await begun({source: {fixture: 'two', turn: trace(1)}, mode: 'live'}), {
+      mode: 'live',
+      turns: 1,
+    });
+    assert.deepEqual(await begun({source: {fixture: 'two', turn: trace(1)}, mode: 'model_live'}), {
+      mode: 'model_live',
+      turns: 1,
+    });
+    assert.deepEqual(await begun({source: {fixture: 'two', turn: trace(2)}, mode: 'recorded'}), {
+      mode: 'recorded',
+      turns: 2,
+    });
+    const cutToNothing = await post(`${base}/api/replays`, {
+      source: {fixture: 'two', turn: trace(1)},
+      mode: 'recorded',
+    });
+    assert.equal(cutToNothing.status, 422, 'Nothing to serve is judged on the cut record.');
+    assert.match(((await cutToNothing.json()) as {error: string}).error, /nothing to serve/);
+
+    const unknown = await post(`${base}/api/replays`, {
+      source: {fixture: 'two', turn: trace(9)},
+      mode: 'live',
+    });
+    assert.equal(unknown.status, 404);
+    assert.deepEqual(await unknown.json(), {
+      error: 'The fixture two holds no turn with this trace id.',
+    });
+    for (const body of [
+      {source: {traceId: trace(2), turn: trace(1)}, mode: 'live'},
+      {source: {fixture: 'two', turn: 1}, mode: 'live'},
+    ]) {
+      assert.equal((await post(`${base}/api/replays`, body)).status, 400, JSON.stringify(body));
+    }
+  });
+
   it("passes a replay's events, the fixtures folder's change and the agent's process on the live stream", async () => {
     const {turns, base} = await serve();
     const response = await fetch(`${base}/api/stream`);

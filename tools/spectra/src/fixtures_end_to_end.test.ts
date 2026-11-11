@@ -3,19 +3,26 @@
  * agent's canned conversation, two turns sent through the message box, the
  * second saved as a fixture through the API, replayed with the model live and
  * passing, the fixture's recorded A2UI edited and replayed again, failing on
- * the message that differs, and the folder watched. It runs under Node by
- * default, and against the binary when SPECTRA_BINARY names one.
+ * the message that differs, and the folder watched; and Spectra running the
+ * stub agent in its model-calling form against the stand-in provider, a
+ * store turn's conversation replayed live, whole, then a fixture replayed
+ * live up to its first turn, every model call reaching the stand-in and no
+ * verdict taken. It runs under Node by default, and against the binary when
+ * SPECTRA_BINARY names one.
  */
 import assert from 'node:assert/strict';
 import {mkdirSync, readFileSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {describe, it} from 'node:test';
+import {fileURLToPath} from 'node:url';
 
 import type {FixturesListing, SessionContext} from './api.js';
 import type {ReplayStarted} from './message_box.js';
 import {
   type A2uiPart,
+  type CallEvent,
   isEventOfKind,
+  type ModelCallEvent,
   type Turn,
   type TurnEvent,
   type TurnRecord,
@@ -23,10 +30,32 @@ import {
 } from './record/turn_record.js';
 import {boxSettled, getJson, LiveStream, postJson, sendMessage} from './testing/live_api.js';
 import {binary, freePort, SpectraProcess, workingDir} from './testing/spectra_process.js';
-import {startStub} from './testing/stub_agent.js';
+import {startStandIn} from './testing/stand_in_provider.js';
+import {startStub, stubScript} from './testing/stub_agent.js';
+import {startToolServer} from './testing/tool_server.js';
 import {turnRecordErrors} from './testing/turn_record_schema.js';
 
 const TIMEOUT = 90_000;
+
+const restaurantFinderHar = fileURLToPath(
+  new URL(
+    '../../../conformance/test_data/model_capture/v0_1/gemini/restaurant_finder_google_genai.har',
+    import.meta.url,
+  ),
+);
+/** The variable the stub reads its tool server's URL from, in its model-calling mode. */
+const TOOL_SERVER_VARIABLE = 'SPECTRA_STUB_TOOL_SERVER_URL';
+
+function callsOf(turn: Turn): CallEvent[] {
+  return turn.events.filter(
+    (event): event is CallEvent =>
+      isEventOfKind(event, 'model_call') || isEventOfKind(event, 'tool_call'),
+  );
+}
+
+function modelCallsOf(turn: Turn): ModelCallEvent[] {
+  return turn.events.filter((event): event is ModelCallEvent => isEventOfKind(event, 'model_call'));
+}
 
 function turnEventOf(turn: Turn): TurnEvent {
   const turnEvent = turn.events.find((event): event is TurnEvent => isEventOfKind(event, 'turn'));
@@ -261,6 +290,209 @@ describe(`fixtures and replay against the stub agent, ${binary ? 'the binary' : 
         spectra.signal('SIGTERM');
         await spectra.exited;
         stub.kill();
+      }
+    },
+  );
+
+  it(
+    "replays live on the model-calling stub: a store turn's conversation whole, then a fixture up to its first turn, every model call reaching the stand-in and no verdict taken",
+    {timeout: TIMEOUT},
+    async () => {
+      const [
+        standInPort,
+        toolServerPort,
+        agentPort,
+        port,
+        proxyPort,
+        modelProxyPort,
+        receiverPort,
+        toolProxyPort,
+      ] = await Promise.all(Array.from({length: 8}, () => freePort()));
+      // The recording's three exchanges three times over: the conversation as sent, replayed
+      // whole, then replayed up to its first turn, which takes two and leaves the last unasked.
+      const standIn = await startStandIn(standInPort, [
+        restaurantFinderHar,
+        restaurantFinderHar,
+        restaurantFinderHar,
+      ]);
+      /** How many requests the stand-in has answered so far. */
+      const answered = () => (standIn.output().match(/ -> 200\n/g) ?? []).length;
+      const toolServer = await startToolServer(toolServerPort);
+      const cwd = workingDir();
+      writeFileSync(
+        path.join(cwd, 'a2ui-spectra.json'),
+        JSON.stringify({
+          agent: {url: `http://127.0.0.1:${agentPort}`},
+          fixtures: './fixtures',
+          tools: [{variable: TOOL_SERVER_VARIABLE, url: `${toolServer.origin}/mcp`}],
+        }),
+      );
+      const spectra = new SpectraProcess(
+        [
+          'run',
+          '--port',
+          String(port),
+          '--proxy-port',
+          String(proxyPort),
+          '--model-proxy-port',
+          String(modelProxyPort),
+          '--receiver-port',
+          String(receiverPort),
+          '--tool-proxy-port',
+          String(toolProxyPort),
+          '--no-open',
+          '--',
+          process.execPath,
+          stubScript,
+          '--model-calling',
+          '--port',
+          String(agentPort),
+        ],
+        cwd,
+        {GOOGLE_GEMINI_BASE_URL: standIn.origin, SPECTRA_PROVIDER_STAND_IN: standIn.origin},
+      );
+      const base = `http://127.0.0.1:${port}`;
+      let live: LiveStream | undefined;
+      try {
+        await spectra.waitFor(/The viewer is at /);
+        await spectra.waitFor(/The agent's card answered/);
+        live = new LiveStream(`${base}/api/stream`);
+        await live.ready;
+        const stream = live;
+
+        // Two turns, the first calling the model twice around its tool, the second once.
+        const first = await sendMessage(base, 'Top 2 Chinese restaurants in New York');
+        assert.equal(modelCallsOf(await stream.closed(first.traceId)).length, 2);
+        const {conversationId} = (await boxSettled(base)).conversations[0];
+        assert.ok(conversationId);
+        const second = await sendMessage(
+          base,
+          'Book a table for 2 at the first one tomorrow at 7pm',
+          conversationId,
+        );
+        assert.equal(modelCallsOf(await stream.closed(second.traceId)).length, 1);
+        await boxSettled(base);
+        const saved = await postJson<{name: string; path: string}>(`${base}/api/fixtures`, {
+          traceId: second.traceId,
+          name: 'restaurants',
+        });
+        assert.equal(saved.status, 201, JSON.stringify(saved.body));
+        assert.equal(answered(), 3);
+
+        /**
+         * Replays live, and checks the stream's events, each turn's record and
+         * the terminal's last line; resolves with the new turns' trace ids.
+         */
+        const replayLive = async (
+          source: Record<string, string>,
+          sourcePath: RegExp,
+          recordedTurns: string[],
+          modelCalls: number[],
+        ): Promise<string[]> => {
+          const seen = stream.events.length;
+          const started = await postJson<ReplayStarted>(`${base}/api/replays`, {
+            source,
+            mode: 'live',
+          });
+          assert.equal(started.status, 202, JSON.stringify(started.body));
+          assert.equal(started.body.turns, recordedTurns.length);
+          await stream.until(
+            event => event.event === 'replay_ended' && stream.events.indexOf(event) >= seen,
+          );
+          const events = stream.events
+            .slice(seen)
+            .filter(event => event.event.startsWith('replay_'));
+          assert.deepEqual(
+            events.map(event => event.event),
+            ['replay_started', ...recordedTurns.map(() => 'replay_turn'), 'replay_ended'],
+          );
+          const path = events[0].data.source as string;
+          assert.match(path, sourcePath);
+          assert.deepEqual(events[0].data, {
+            source: path,
+            mode: 'live',
+            turns: recordedTurns.length,
+          });
+          const traceIds = events.slice(1, -1).map(event => event.data.traceId as string);
+          assert.equal(traceIds[0], started.body.traceId);
+          assert.deepEqual(
+            events.slice(1, -1).map(event => event.data),
+            recordedTurns.map((recordedTurn, index) => ({
+              traceId: traceIds[index],
+              recordedTurn,
+              turn: index + 1,
+              turns: recordedTurns.length,
+            })),
+          );
+          assert.deepEqual(
+            events.at(-1)!.data,
+            {
+              source: path,
+              mode: 'live',
+              turns: recordedTurns.map((recordedTurn, index) => ({
+                traceId: traceIds[index],
+                recordedTurn,
+              })),
+            },
+            "No verdict, the record's or a turn's.",
+          );
+
+          for (const [index, traceId] of traceIds.entries()) {
+            const {body: record} = await getJson<TurnRecord>(`${base}/api/turns/${traceId}`);
+            assert.deepEqual(turnRecordErrors(record), []);
+            assert.equal(record.turns.length, index + 1, 'One new conversation.');
+            const turn = record.turns.at(-1)!;
+            const attributes = turnEventOf(turn).attributes;
+            assert.equal(attributes['a2ui.replay.source'], path);
+            assert.equal(attributes['a2ui.replay.turn'], recordedTurns[index]);
+            assert.equal(attributes['a2ui.replay.mode'], 'live');
+            assert.equal(attributes['a2ui.replay.verdict'], undefined);
+            assert.equal(attributes['a2ui.replay.reasons'], undefined);
+            assert.equal(attributes['a2ui.turn.outcome'], 'completed');
+            assert.notEqual(attributes['gen_ai.conversation.id'], conversationId);
+            assert.equal(modelCallsOf(turn).length, modelCalls[index]);
+            for (const call of callsOf(turn)) {
+              assert.equal(call.attributes['a2ui.replay.served_from'], undefined, call.name);
+            }
+            for (const call of modelCallsOf(turn)) {
+              assert.equal(call.attributes['http.response.status_code'], 200);
+            }
+          }
+          await spectra.waitFor(
+            new RegExp(
+              `Re-run of \\S+, turn ${recordedTurns.length} of ${recordedTurns.length}: completed\\.`,
+            ),
+          );
+          await boxSettled(base);
+          return traceIds;
+        };
+
+        // The second store turn: its record holds the conversation, and both turns are sent.
+        await replayLive(
+          {traceId: second.traceId},
+          /^\.a2ui-spectra\/turns\/.+\.json$/,
+          [first.traceId, second.traceId],
+          [2, 1],
+        );
+        assert.equal(answered(), 6, 'Every model call of the replayed turns reached the stand-in.');
+
+        // The fixture up to its first turn: one turn is sent.
+        await replayLive(
+          {fixture: 'restaurants', turn: first.traceId},
+          /^fixtures\/restaurants\.json$/,
+          [first.traceId],
+          [2],
+        );
+        assert.equal(answered(), 8);
+        await spectra.waitFor(/Re-run of fixtures\/restaurants\.json, turn 1 of 1: completed\./);
+        assert.doesNotMatch(spectra.output, /matched nothing in the record|Replay of /);
+        assert.equal((await boxSettled(base)).conversations.length, 3);
+      } finally {
+        live?.close();
+        spectra.signal('SIGTERM');
+        await spectra.exited;
+        standIn.process.kill('SIGKILL');
+        toolServer.process.kill('SIGKILL');
       }
     },
   );

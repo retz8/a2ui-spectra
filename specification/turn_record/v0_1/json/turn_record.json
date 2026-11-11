@@ -449,7 +449,7 @@
                     "description": "On a replayed turn: the trace id of the recorded turn this one stands for."
                   },
                   "a2ui.replay.mode": {
-                    "enum": ["recorded", "model_live"]
+                    "enum": ["recorded", "model_live", "live"]
                   },
                   "a2ui.replay.verdict": {
                     "enum": ["passed", "failed"],

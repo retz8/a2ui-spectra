@@ -102,8 +102,12 @@ export type TurnOutcome = 'completed' | 'failed' | 'cancelled' | 'waiting_for_in
 
 export type CapturePath = 'wire' | 'model_proxy' | 'tool_proxy' | 'otel_receiver' | 'wrapper';
 
-/** `recorded`, everything served from the record; `model_live`, a model call that matches nothing goes to the provider. */
-export type ReplayMode = 'recorded' | 'model_live';
+/**
+ * `recorded`, everything served from the record; `model_live`, a model call
+ * that matches nothing goes to the provider; `live`, nothing served from the
+ * record, every model and tool call live.
+ */
+export type ReplayMode = 'recorded' | 'model_live' | 'live';
 
 export type ReplayVerdict = 'passed' | 'failed';
 
