@@ -516,6 +516,8 @@ export function App() {
                 collapsible={turnListCollapsed || swing !== undefined}
                 collapsedSize={STRIP}
                 groupResizeBehavior="preserve-pixel-size"
+                // The list, held wider than its panel while collapsed or swinging, never scrolls the panel sideways.
+                style={{overflow: 'hidden'}}
               >
                 {/* A card is on screen throughout a swing: the list, opaque and held at its full
                     width so its text never reflows, is clipped to the card's rounded shape as the
