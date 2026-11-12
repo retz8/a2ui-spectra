@@ -1966,6 +1966,11 @@ under `attach` with nothing set in the agent's shell, trace `dada348a9de3c3e0519
 and under `run`; the custom-components example logs the same traceback after its own retries,
 with `Root node contact_agent was cancelled.`
 
+At the Phase 8 acceptance run the traceback was logged after retried turns of the Python
+restaurant finder launched as `uv run .`, eight times across two starts, and after neither of the
+two retried turns of the same finder launched under `opentelemetry-instrument`, traces
+`16d55d7962a168154874d95f5b10814a` and `6d91ed68bb0fe87bfd59ab25b06e1db4`.
+
 ### Fix
 
 Close the generator where it is abandoned, in the task that opened it: iterate `token_stream()`
