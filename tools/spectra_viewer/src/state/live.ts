@@ -271,6 +271,8 @@ export function closedRow(turn: Turn, row: ListedTurn | undefined): ListedTurn {
     startTime,
     ...rowFieldsOf(turn),
     ...(row?.rejections !== undefined && {rejections: row.rejections}),
+    // The listing's mark for a record that was not written holds for the row computed from the turn.
+    ...(row?.unwritten === true && {unwritten: true as const}),
   };
 }
 

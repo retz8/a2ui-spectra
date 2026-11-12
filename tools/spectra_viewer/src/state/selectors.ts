@@ -4,9 +4,11 @@
  */
 import {useEffect} from 'react';
 
+import {agentStatusOf, composerReasonOf, type RefusalInput} from '../model/dev_loop.ts';
 import {
   type Provenance,
   provenanceOf,
+  replayLeadOf,
   replayWhereOf,
   type ResolvedSource,
   resolveSource,
@@ -120,7 +122,10 @@ export type ComposerTarget =
 
 /** What the composer says and whether it can send. */
 export interface ComposerView {
-  /** Why the box cannot send to the agent; it takes the input's place. */
+  /**
+   * Why the box cannot send to the agent, the server's line: the line above
+   * the field carries it, and the field stays disabled with its text kept.
+   */
   unavailable?: string;
   /** The variables the configured headers name that are not set; the field stays, Send does not. */
   refused?: string[];
@@ -142,7 +147,11 @@ export function composerOf(
   inView: {traceId?: string; startsNew?: boolean},
 ): ComposerView {
   const {box} = state;
-  const view = composerTargetOf(state, inView);
+  const unavailable = composerReasonOf(box);
+  const view = {
+    ...(unavailable !== undefined && {unavailable}),
+    ...composerTargetOf(state, inView),
+  };
   return box.replay === undefined ? view : {...view, replaying: true};
 }
 
@@ -152,9 +161,6 @@ function composerTargetOf(
 ): ComposerView {
   const {box, connected} = state;
   const refused = box.unsetVariables?.length ? {refused: [...box.unsetVariables]} : undefined;
-  if (refused === undefined && box.unavailable !== undefined) {
-    return {unavailable: box.unavailable, target: {kind: 'new'}};
-  }
   const notConnected = connected === false ? {waiting: 'Not connected to Spectra'} : {};
   const {traceId} = inView;
   if (inView.startsNew === true || traceId === undefined) {
@@ -269,6 +275,8 @@ export function sourceInView(
 
 /** The third line under a replayed turn's header, or what the context bar names. */
 export interface ReplayLine {
+  /** "Replayed from", or "Re-run of" for a re-run. */
+  lead: 'Replayed from' | 'Re-run of';
   source: ResolvedSource;
   /** The turn's number and the mode. */
   where: string;
@@ -305,21 +313,34 @@ export function replayLineOf(
         ? {turn: state.box.replay.turn, turns: state.box.replay.turns}
         : {turn: position});
   return {
+    lead: replayLeadOf(provenance.mode),
     source: resolved,
     where: replayWhereOf(provenance.mode, number),
     ...(provenance.verdict !== undefined && {verdict: provenance.verdict}),
   };
 }
 
-/** The context bar's live status: not connected, capturing, or replaying a record, its turn of the total. */
+/**
+ * The context bar's live status, the first that applies: not connected; under
+ * `run`, the agent's state while it is down, restarting, starting or waiting
+ * for its card; replaying a record, its turn of the total; capturing.
+ */
 export type LiveStatusView =
   | {form: 'connecting'}
   | {form: 'down'}
+  | {form: 'agentSpinning'; text: string; title: string}
+  | {form: 'agentDown'; exit: string; title: string}
   | {form: 'capturing'}
   | {form: 'replaying'; source: ResolvedSource; recordedTurn?: string; turn?: string};
 
 export function liveStatusOf(state: SpectraState): LiveStatusView {
   if (state.connected === false) return {form: 'down'};
+  const agent = state.agent === undefined ? undefined : agentStatusOf(state.agent.state);
+  if (agent !== undefined) {
+    return agent.form === 'spinning'
+      ? {form: 'agentSpinning', text: agent.text, title: agent.title}
+      : {form: 'agentDown', exit: agent.exit, title: agent.title};
+  }
   const {replay} = state.box;
   if (replay === undefined)
     return state.connected === true ? {form: 'capturing'} : {form: 'connecting'};
@@ -337,6 +358,42 @@ export function liveStatusOf(state: SpectraState): LiveStatusView {
     ...(recordedTurn !== '' && {recordedTurn}),
     ...(replay.turn > 0 && {turn: `turn ${replay.turn} of ${replay.turns}`}),
   };
+}
+
+/**
+ * What Re-run and the Replay popover's rows are judged by, for a turn: whether
+ * the page is connected, whether the turn's record is held in memory only,
+ * the box's reason it cannot send, a replay running, a turn open anywhere.
+ */
+export function refusalInputOf(state: SpectraState, unwritten: boolean): RefusalInput {
+  return {
+    connected: state.connected !== false,
+    unwritten,
+    ...(state.box.unavailable !== undefined && {boxReason: state.box.unavailable}),
+    replaying: state.box.replay !== undefined,
+    turnOpen: state.live.size > 0 || state.turns.some(turn => turn.open === true),
+  };
+}
+
+/** The agent's name as the bar, the popover, the first screen and the composer say it. */
+export interface AgentName {
+  text: string;
+  /** Whether it is the agent's command, standing for the name until a card has answered: drawn in monospace. */
+  isCommand: boolean;
+}
+
+/**
+ * The agent's name: the latest card's once any card has answered, and under
+ * `run` the command as launched until then.
+ */
+export function agentNameOf(state: Pick<SpectraState, 'context' | 'agent'>): AgentName {
+  const {context, agent} = state;
+  if (context?.agentName !== undefined) return {text: context.agentName, isCommand: false};
+  // A card that has answered states its A2A versions, whether or not it names the agent.
+  if (agent !== undefined && context?.a2aVersions === undefined) {
+    return {text: agent.command, isCommand: true};
+  }
+  return {text: 'The agent', isCommand: false};
 }
 
 /** Asks the store for the records a pane needs. */

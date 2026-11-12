@@ -84,7 +84,13 @@ import {requestTimelineFocus} from '@/state/timeline_focus.ts';
 import {useSmallWindow} from '@/state/window.ts';
 
 import {Composer} from './Composer.tsx';
-import {FixtureLine, ReplayControl, ReplayedLine, SaveAsFixture} from './FixtureControls.tsx';
+import {
+  FixtureLine,
+  ReplayControl,
+  ReplayedLine,
+  RerunControl,
+  SaveAsFixture,
+} from './FixtureControls.tsx';
 import {FirstScreen} from './FirstScreen.tsx';
 import {formatDuration, formatOffset, formatStart} from './format.ts';
 import type {StepOnCall} from './ModelCallDetail.tsx';
@@ -127,6 +133,8 @@ export function TurnView({
   heldWidth,
   draft,
   onDraft,
+  logsOpen,
+  onLogs,
 }: {
   traceId: string | undefined;
   /** Whether the turn list, showing the agent picked, has no turn. */
@@ -154,6 +162,9 @@ export function TurnView({
   /** The composer's text, kept across a visit to Fixtures. */
   draft: string;
   onDraft: (text: string) => void;
+  /** Whether the logs drawer is open, and what opens it, for the first screen's down form. */
+  logsOpen: boolean;
+  onLogs: () => void;
 }) {
   const state = useSpectra();
   // Maximize holds from turn to turn until the page is reloaded.
@@ -199,6 +210,8 @@ export function TurnView({
         context={state.context}
         connected={state.connected}
         canSend={state.box.unavailable === undefined}
+        logsOpen={logsOpen}
+        onLogs={onLogs}
         onExample={example => {
           onDraft(example);
           input.current?.focus();
@@ -668,6 +681,8 @@ export function TurnBody({
     ...(earlier ?? []),
     ...(turn === undefined ? [{events: [...events]}] : [turn]),
   ];
+  // A store turn whose record was not written has no file to replay or re-run.
+  const unwritten = fixture === undefined && row?.unwritten === true;
   const title = briefText(input ?? row?.input) || 'A turn';
   const agent = summary?.agentName ?? row?.agentName ?? state.context?.agentName;
   // An open turn's duration runs to its newest step, or to the present while a call is in
@@ -722,9 +737,15 @@ export function TurnBody({
                 onOpenFixture={name => onAddress({section: 'fixtures', fixture: name})}
               />
             )}
+            <RerunControl
+              source={fixture === undefined ? {traceId} : {fixture: fixture.name, turn: traceId}}
+              unwritten={unwritten}
+              onStarted={onReplayStarted}
+            />
             <ReplayControl
               source={fixture === undefined ? {traceId} : {fixture: fixture.name}}
               turns={recordTurns}
+              unwritten={unwritten}
               onStarted={onReplayStarted}
             />
           </>

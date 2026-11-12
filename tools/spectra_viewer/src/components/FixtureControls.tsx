@@ -1,6 +1,7 @@
 /**
  * The fixture side of a turn's header: the fixture line above it, Save as
- * fixture and Replay in its action area, and the replayed turn's third line.
+ * fixture, Re-run live and Replay in its action area, and the replayed or
+ * re-run turn's third line.
  * The server is the authority on a refusal; what the controls disable mirrors
  * its rules, and its answer is shown as it is, in the popover, with nothing
  * moved.
@@ -11,6 +12,7 @@ import {type FormEvent, useEffect, useRef, useState} from 'react';
 import {ApiError, type ReplaySource} from '@/api.ts';
 import {cn} from '@/lib/utils';
 import type {Address} from '@/model/address.ts';
+import {refusalNoteOf, RERUN_TOOLTIP} from '@/model/dev_loop.ts';
 import {
   hasNothingToServe,
   nameProblemOf,
@@ -22,28 +24,14 @@ import {
 import type {InputBrief} from '@/model/input_brief.ts';
 import {sourceAddressOf, sourceName} from '@/model/provenance.ts';
 import type {Turn} from '@/model/record.ts';
-import type {ReplayLine} from '@/state/selectors.ts';
+import {refusalInputOf, type ReplayLine} from '@/state/selectors.ts';
 import {spectra, useSpectra} from '@/state/spectra.ts';
 
 import {CopyButton} from './CopyButton.tsx';
 import {Icon} from './icons.tsx';
+import {FailureLine, PressButton} from './Refusal.tsx';
 
 const POPOVER = 'fade-in-quick z-50 flex flex-col rounded-xl bg-panel text-foreground shadow-float';
-
-/** The problem-style line a popover says a failure in. */
-function FailureLine({text, className}: {text: string; className?: string}) {
-  return (
-    <div
-      className={cn(
-        'flex items-start gap-2 rounded-lg bg-problem-soft px-2.5 py-2 text-xs leading-4',
-        className,
-      )}
-    >
-      <Icon kind="failed" size={14} className="text-problem" />
-      <span className="min-w-0 wrap-anywhere">{text}</span>
-    </div>
-  );
-}
 
 /** "Fixture · find-italian-restaurants.json · 3 turns · recorded $0.031 · saved 2026-11-05 14:02". */
 export function FixtureLine({file, parts}: {file: string; parts: readonly string[]}) {
@@ -73,7 +61,11 @@ export function FixtureLine({file, parts}: {file: string; parts: readonly string
   );
 }
 
-/** The third quiet line of a replayed turn: what it was replayed from, its number, the mode and the verdict. */
+/**
+ * The third quiet line of a replayed turn: what it was replayed from, its
+ * number, the mode and the verdict; a re-run reads "Re-run of" its source,
+ * its number and "live", with no verdict.
+ */
 export function ReplayedLine({
   line,
   recordedTurn,
@@ -86,10 +78,10 @@ export function ReplayedLine({
   const to = sourceAddressOf(line.source, recordedTurn === '' ? undefined : recordedTurn);
   return (
     <div
-      aria-label="Replayed from"
+      aria-label={line.lead}
       className="min-w-0 truncate text-xs whitespace-nowrap text-muted-foreground"
     >
-      Replayed from{' '}
+      {line.lead}{' '}
       {to === undefined ? (
         sourceName(line.source)
       ) : (
@@ -119,13 +111,49 @@ export function ReplayedLine({
   );
 }
 
+/**
+ * Re-run live, between Save as fixture and Replay: one press sends the
+ * turn's conversation again up to and including it, every model and tool
+ * call live, and the viewer follows the new turns as it follows a replay.
+ * Off, its tooltip carries why under its first line; a press the server
+ * refuses shows its answer under the button.
+ */
+export function RerunControl({
+  source,
+  unwritten,
+  onStarted,
+}: {
+  /** A store turn by its trace id, or a fixture's turn by the fixture's name and its recorded trace id. */
+  source: ReplaySource;
+  /** Whether the turn's record was not written to the store. */
+  unwritten: boolean;
+  /** The first re-run turn has opened. */
+  onStarted: (traceId: string) => void;
+}) {
+  const note = refusalNoteOf(refusalInputOf(useSpectra(), unwritten));
+  return (
+    <PressButton
+      label="Re-run live"
+      icon={<Icon kind="rerun" size={14} />}
+      tooltip={RERUN_TOOLTIP}
+      {...(note !== undefined && {note})}
+      off={note !== undefined}
+      onPress={async () => onStarted(await spectra.rerun(source))}
+      refusalLabel="Re-run was refused"
+    />
+  );
+}
+
 /** One Replay button, in the fixture view's header and in a store turn's alike, opening the two modes with their cost. */
 export function ReplayControl({
   source,
   turns,
+  unwritten,
   onStarted,
 }: {
   source: ReplaySource;
+  /** Whether the turn's record was not written to the store. */
+  unwritten: boolean;
   /** The record's turns: the whole conversation a replay sends, for the cost and the nothing-to-serve rule. */
   turns: readonly Turn[];
   /** The first replayed turn has opened. */
@@ -154,6 +182,7 @@ export function ReplayControl({
           <ReplayRows
             source={source}
             turns={turns}
+            unwritten={unwritten}
             onStarted={traceId => {
               setOpen(false);
               onStarted(traceId);
@@ -168,10 +197,12 @@ export function ReplayControl({
 function ReplayRows({
   source,
   turns,
+  unwritten,
   onStarted,
 }: {
   source: ReplaySource;
   turns: readonly Turn[];
+  unwritten: boolean;
   onStarted: (traceId: string) => void;
 }) {
   const state = useSpectra();
@@ -180,8 +211,7 @@ function ReplayRows({
   const rows = replayRowsOf({
     nothingToServe: hasNothingToServe(turns),
     ceiling: recordedCostOf(turns, state.prices),
-    turnOpen: state.live.size > 0 || state.turns.some(turn => turn.open === true),
-    replaying: state.box.replay !== undefined,
+    note: refusalNoteOf(refusalInputOf(state, unwritten)),
   });
   const start = async (mode: (typeof rows)[number]['mode']) => {
     setStarting(true);

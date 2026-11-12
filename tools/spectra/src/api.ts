@@ -72,6 +72,8 @@ export interface ListedTurn extends Partial<ListingFields> {
   startTime: string;
   /** Set on a turn still open. */
   open?: true;
+  /** Set on a turn whose record was not written to the store and is kept in memory, with no file to replay. */
+  unwritten?: true;
 }
 
 /** One fixture of the folder, as the fixtures listing gives it. */
@@ -430,6 +432,7 @@ async function listTurns(api: Api): Promise<ListedTurn[]> {
         traceId,
         ...(conversationId !== undefined && {conversationId}),
         startTime,
+        ...(api.store.isUnwritten(file) && {unwritten: true as const}),
         ...(await storedFields(api, file)),
       }),
     ),

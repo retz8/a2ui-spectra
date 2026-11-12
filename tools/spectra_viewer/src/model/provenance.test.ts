@@ -17,10 +17,12 @@ import {
   numberIn,
   provenanceOf,
   recordedCallsOf,
+  replayLeadOf,
   replayWhereOf,
   resolveSource,
   rowTagsOf,
   sourceAddressOf,
+  sourceName,
   storeTraceOf,
   toolMissListOf,
 } from './provenance.ts';
@@ -166,7 +168,24 @@ describe('where a provenance link points', () => {
 
   it('then a store turn carrying the recorded trace id, named by its input in brief', () => {
     const source = resolveSource(SOURCE, RECORDED, {fixtures: [], turns: [storeTurn]});
-    assert.deepEqual(source, {kind: 'turn', traceId: RECORDED, label: 'Book a table for 2'});
+    assert.deepEqual(source, {
+      kind: 'turn',
+      traceId: RECORDED,
+      label: 'Book a table for 2',
+      quoted: true,
+    });
+    // In a sentence a text reads in quotation marks; an action and a turn with no input as they are.
+    assert.equal(sourceName(source), '“Book a table for 2”');
+    const action = resolveSource('gone.json', RECORDED, {
+      fixtures: [],
+      turns: [{...storeTurn, input: {action: 'submit_booking'}}],
+    });
+    assert.equal(sourceName(action), 'Action “submit_booking”');
+    const bare = resolveSource('gone.json', RECORDED, {
+      fixtures: [],
+      turns: [{traceId: RECORDED, startTime: storeTurn.startTime}],
+    });
+    assert.equal(sourceName(bare), 'A turn');
     assert.deepEqual(sourceAddressOf(source, RECORDED, 'x'), {traceId: RECORDED, stepId: 'x'});
   });
 
@@ -545,5 +564,45 @@ describe('a live call of a live-mode replay', () => {
       replayPrefixBreakOf(served, {mode: 'model_live', conversation: [], recorded}),
       {form: 'first', model: 'claude-sonnet-5-5'},
     );
+  });
+});
+
+describe('a re-run turn', () => {
+  const edited = PROMPT.replace('BOOKING_FORM', 'BOOKING_FORM_WITH_DIETARY');
+  const provenance = provenanceOf([turnEvent({...PROVENANCE, 'a2ui.replay.mode': 'live'})]);
+  const call = request('3'.repeat(16), 100, edited);
+  const row: CallRow = {kind: 'model', id: call.spanId, proxy: call, spans: []};
+  const source = resolveSource(SOURCE, RECORDED, {fixtures, turns: []});
+
+  it('carries its source, its turn and the live mode, and no verdict', () => {
+    assert.deepEqual(provenance, {
+      source: SOURCE,
+      recordedTurn: RECORDED,
+      mode: 'live',
+      reasons: [],
+    });
+  });
+
+  it('reads as a re-run of its source, its number and live', () => {
+    assert.equal(replayLeadOf('live'), 'Re-run of');
+    assert.equal(replayLeadOf('recorded'), 'Replayed from');
+    assert.equal(replayLeadOf('model_live'), 'Replayed from');
+    assert.equal(replayWhereOf('live', {turn: 2, turns: 2}), 'turn 2 of 2 · live');
+    assert.equal(replayWhereOf('live', {turn: 2}), 'turn 2 · live');
+  });
+
+  it('says nothing grey of its calls, every one being live', () => {
+    assert.equal(callReplayOf(row, provenance, source, [recordedTurn]), undefined);
+  });
+
+  it("takes the source's calls of the same model as candidates beside its own conversation's", () => {
+    const recorded = recordedCandidatesFor(call, recordedCallsOf([recordedTurn]), 'x.json');
+    const conversation = candidatesFor(call, [{traceId: TRACE, calls: [call]}]);
+    const found = replayPrefixBreakOf(call, {mode: 'live', conversation, recorded});
+    assert.equal(found?.form, 'breaks');
+    if (found?.form === 'breaks') {
+      assert.equal(found.part, 'system');
+      assert.equal(found.earlier.recorded?.name, 'x.json');
+    }
   });
 });

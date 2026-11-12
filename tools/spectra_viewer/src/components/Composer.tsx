@@ -12,7 +12,7 @@ import type {BoxInput} from '@/api.ts';
 import {cn} from '@/lib/utils';
 import {type DataModelMap, foldedAtFirst, shownMessageOf} from '@/model/host_message.ts';
 import type {PendingAction} from '@/state/press.ts';
-import {actionRefusalOf, type ComposerTarget, composerOf} from '@/state/selectors.ts';
+import {actionRefusalOf, agentNameOf, type ComposerTarget, composerOf} from '@/state/selectors.ts';
 import {spectra, useSpectra} from '@/state/spectra.ts';
 
 import {CopyButton} from './CopyButton.tsx';
@@ -30,7 +30,11 @@ import {JsonLines} from './JsonBlock.tsx';
  * A text carries the data model at the step in view. An action pressed in
  * the preview takes the text's place, as the wire message the agent would
  * receive, with Send, which Enter presses once it lands, and Discard, which
- * Escape presses; the text stays under it.
+ * Escape presses; the text stays under it. While the box cannot send to the
+ * agent, for whatever reason, the line above the field carries the box's
+ * reason, wrapped onto a second line when it is long, and the field stays
+ * disabled with its text kept; the reason comes first, then a replay
+ * running, then an open turn.
  */
 export function Composer({
   text,
@@ -62,7 +66,10 @@ export function Composer({
 }) {
   const state = useSpectra();
   const view = composerOf(state, {traceId, startsNew});
-  const agent = state.context?.agentName ?? 'the agent';
+  // The agent's name, or its command before any card has answered.
+  const named = agentNameOf(state);
+  const agent =
+    named.text === 'The agent' ? 'the agent' : named.isCommand ? cut(named.text) : named.text;
   const [error, setError] = useState<string | undefined>();
   const [sending, setSending] = useState(false);
   const ownInput = useRef<HTMLTextAreaElement>(null);
@@ -88,7 +95,9 @@ export function Composer({
       : 'plus';
   const label = turnOpen ? 'A turn is open' : labelOf(target);
   const replaying = view.replaying === true;
-  const disabled = view.waiting !== undefined || sending || replaying;
+  // The box's reason it cannot send: the server's line, shown as it is.
+  const {unavailable} = view;
+  const disabled = view.waiting !== undefined || sending || replaying || unavailable !== undefined;
   // A header's variable that is not set: the field stays, Send does not, and the reason takes the label's place.
   const refused = view.refused;
   // An action only continues a conversation the box started; elsewhere the reason takes the label's place.
@@ -165,8 +174,18 @@ export function Composer({
 
   return (
     <div className="flex shrink-0 flex-col gap-2 border-t px-4 pt-2.5 pb-3.5">
-      <div className="flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
-        {replaying ? (
+      <div
+        className={cn(
+          'flex min-w-0 gap-2 text-xs text-muted-foreground',
+          unavailable === undefined ? 'items-center' : 'items-start',
+        )}
+      >
+        {unavailable !== undefined ? (
+          <>
+            <Icon kind="failed" size={14} className="mt-px" />
+            <span className="min-w-0 wrap-anywhere">{unavailable}</span>
+          </>
+        ) : replaying ? (
           <>
             <Icon kind="failed" size={14} />
             <span className="min-w-0 truncate">Can't send · a replay is running</span>
@@ -185,7 +204,7 @@ export function Composer({
           </>
         )}
         <div className="flex-1" />
-        {target.kind !== 'new' && !replaying && (
+        {target.kind !== 'new' && !replaying && unavailable === undefined && (
           <button
             type="button"
             onClick={() => {
@@ -199,9 +218,7 @@ export function Composer({
           </button>
         )}
       </div>
-      {view.unavailable !== undefined ? (
-        <p className="text-muted-foreground">{view.unavailable}</p>
-      ) : pending !== undefined ? (
+      {pending !== undefined ? (
         <PendingBox
           boxRef={box}
           pending={pending}
@@ -231,7 +248,7 @@ export function Composer({
             onKeyDown={onKeyDown}
             disabled={disabled}
             placeholder={
-              replaying
+              replaying || unavailable !== undefined
                 ? waitsForInput
                   ? `Reply to ${agent}`
                   : `Message ${agent}`
@@ -366,6 +383,14 @@ function labelOf(target: ComposerTarget): string {
     case 'unnamed':
       return 'The agent named no conversation · sending starts a new conversation';
   }
+}
+
+/** How much of a command the placeholder names, which is one line. */
+const COMMAND_LENGTH = 48;
+
+/** A command cut for the placeholder, with an ellipsis when it is longer. */
+function cut(command: string): string {
+  return command.length > COMMAND_LENGTH ? `${command.slice(0, COMMAND_LENGTH)}…` : command;
 }
 
 /** The field's greatest height: six lines of 20px and its padding. */

@@ -6,7 +6,10 @@
 import {useSyncExternalStore} from 'react';
 
 import {
+  type AgentSnapshot,
   type BoxInput,
+  getAgent,
+  getAgentLogs,
   getCatalogs,
   getContext,
   getFixture,
@@ -21,6 +24,7 @@ import {
   type MessageBoxState,
   type ReplayMode,
   type ReplaySource,
+  restartAgent,
   saveFixture,
   sendMessage,
   type SessionContext,
@@ -29,6 +33,18 @@ import {
 } from '../api.ts';
 import type {Prices} from '../model/cost.ts';
 import {isTurnEvent, type Turn, type TurnRecordEvent} from '../model/record.ts';
+import {
+  type AgentHeard,
+  agentHeard,
+  type AgentLogs,
+  type AgentProcess,
+  agentRead,
+  lastSeqOf,
+  logsHeard,
+  logsRead,
+  seqOf,
+  sessionEventOf,
+} from './agent.ts';
 import {
   fixtureFailed,
   fixtureNotHeld,
@@ -79,6 +95,10 @@ export interface SpectraState {
   replayTurns: ReadonlyMap<string, ReplayTurn>;
   /** The session, once read. */
   context?: SessionContext;
+  /** Under `run`, the agent's process: its command, its state and the session's restarts and exits. */
+  agent?: AgentProcess;
+  /** Under `run`, the agent's output as the buffer holds it. */
+  logs?: AgentLogs;
   /** The catalog definitions Spectra knows, once read; the same array until they change. */
   catalogs?: KnownCatalog[];
   /** LiteLLM's price table and the config's prices, once read. */
@@ -119,6 +139,16 @@ class Spectra {
   #source: EventSource | undefined;
   #retry: ReturnType<typeof setTimeout> | undefined;
   #silence: ReturnType<typeof setTimeout> | undefined;
+  /** What the stream said of the agent's process since it opened, not yet in a route's answer. */
+  #agentSince: AgentHeard[] = [];
+  /** The log entries the stream sent since it opened, until the logs route has answered. */
+  #logSince: Array<LiveEvents['agent_log']> = [];
+  /** Whether the agent route has answered since the stream opened: a later answer merges into it. */
+  #agentRead = false;
+  /** Whether the logs route has been asked, and has answered, since the stream opened. */
+  #logsRead: 'no' | 'asked' | 'yes' = 'no';
+  /** Counts the stream's opens, so an answer asked for before the latest open is dropped. */
+  #opens = 0;
 
   getState = (): SpectraState => this.#state;
 
@@ -180,6 +210,19 @@ class Spectra {
     return traceId;
   }
 
+  /**
+   * Re-runs a turn: its conversation sent again up to and including it, every
+   * model and tool call live; answers as a replay does.
+   */
+  rerun(source: ReplaySource): Promise<string> {
+    return this.replay(source, 'live');
+  }
+
+  /** Restarts the agent's process under `run`; the progress comes on the stream. */
+  async restart(): Promise<void> {
+    await restartAgent();
+  }
+
   /** Saves a stored turn's record as a fixture; the listing is read again at once. */
   async saveFixture(traceId: string, name: string): Promise<{name: string; path: string}> {
     const saved = await saveFixture(traceId, name);
@@ -226,6 +269,12 @@ class Spectra {
     this.#source = source;
     source.onopen = () => {
       this.#heard(source);
+      // The agent's routes are read again: what the stream says from here on is newer than their answers.
+      this.#opens += 1;
+      this.#agentSince = [];
+      this.#logSince = [];
+      this.#agentRead = false;
+      this.#logsRead = 'no';
       // The stream catches a new subscriber up on the open turns, so they start again from it.
       this.#set({connected: true, live: new Map()});
       void this.#reload();
@@ -288,10 +337,64 @@ class Spectra {
       void this.#refreshBox();
     });
     on('fixtures_changed', () => void this.#readFixtures());
+    on('agent_state', data => this.#agentHeard({state: data}));
+    on('agent_restarted', data =>
+      this.#agentHeard({event: sessionEventOf('agent_restarted', data)}),
+    );
+    on('agent_exited', data => this.#agentHeard({event: sessionEventOf('agent_exited', data)}));
+    on('agent_log', data => {
+      const {logs} = this.#state;
+      if (this.#logsRead === 'yes' && logs !== undefined) this.#set({logs: logsHeard(logs, data)});
+      else this.#logSince.push(data);
+    });
     // The agent's process changed state under run, or a catalog file was read again: the context and
     // the box follow the card and the state, and the list's counts and Structure the definitions.
     for (const name of RELOAD_EVENTS) on(name, () => void this.#reload());
     on('heartbeat', () => {});
+  }
+
+  /** What the stream said of the agent's process: kept until a route's answer holds it, and applied at once. */
+  #agentHeard(heard: AgentHeard): void {
+    this.#agentSince.push(heard);
+    const {agent} = this.#state;
+    if (agent !== undefined) this.#replace({...this.#state, agent: agentHeard(agent, heard)});
+  }
+
+  /**
+   * Under `run`, reads the agent's process, and its output once per stream
+   * open; the buffer the page held stays until the route's answer replaces it.
+   */
+  async #readAgent(): Promise<void> {
+    const open = this.#opens;
+    const snapshot: AgentSnapshot = await getAgent();
+    if (open !== this.#opens) return;
+    // An answer that passed another on its way merges into the newer one: neither's state goes back.
+    const read = agentRead(snapshot, this.#agentSince);
+    const {agent} = this.#state;
+    this.#set({
+      agent:
+        this.#agentRead && agent !== undefined
+          ? agent.events.reduce((merged, event) => agentHeard(merged, {event}), {
+              ...read,
+              state: agent.state.seq > read.state.seq ? agent.state : read.state,
+            })
+          : read,
+    });
+    this.#agentRead = true;
+    const last = lastSeqOf(snapshot);
+    this.#agentSince = this.#agentSince.filter(heard => seqOf(heard) > last);
+    if (this.#logsRead !== 'no') return;
+    this.#logsRead = 'asked';
+    try {
+      const logs = await getAgentLogs();
+      if (open !== this.#opens) return;
+      this.#set({logs: logsRead(logs, this.#logSince)});
+      this.#logsRead = 'yes';
+      this.#logSince = [];
+    } catch (error) {
+      if (open === this.#opens) this.#logsRead = 'no';
+      throw error;
+    }
   }
 
   /** Opens the stream again when nothing, not even a heartbeat, comes on it for a while. */
@@ -355,6 +458,8 @@ class Spectra {
       this.#set({loaded: true, turns: sortRows([...rows.values()]), box, context, catalogs: known});
       if (this.#state.prices === undefined) void this.#readPrices();
       void this.#readFixtures();
+      // Spectra owns the agent's process under `run` alone: under `attach` there is none to read.
+      if (context.mode === 'run') await this.#readAgent();
     } catch {
       // The check marks the page as not connected; the stream's next open reads again.
     }

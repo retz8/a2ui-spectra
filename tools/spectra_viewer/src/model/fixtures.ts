@@ -203,7 +203,7 @@ export interface ReplayRow {
   title: string;
   label: string;
   off: boolean;
-  /** Why it is off, under its label, while a turn is open or a replay runs. */
+  /** Why it is off, under its label: Re-run's note, the first that applies. */
   note?: string;
 }
 
@@ -211,16 +211,14 @@ export interface ReplayRow {
 export function replayRowsOf({
   nothingToServe,
   ceiling,
-  turnOpen,
-  replaying,
+  note,
 }: {
   nothingToServe: boolean;
   /** The record's recorded cost, when it is known. */
   ceiling: number | undefined;
-  turnOpen: boolean;
-  replaying: boolean;
+  /** Why a replay would be refused, as Re-run's note says it; nothing when it would not. */
+  note: string | undefined;
 }): [ReplayRow, ReplayRow] {
-  const note = replaying ? 'A replay is running' : turnOpen ? 'A turn is open' : undefined;
   const refused = note === undefined ? {} : {note};
   const off = note !== undefined;
   return [

@@ -1622,11 +1622,18 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
             });
 
             const waiting = await live.until(event => event.event === 'agent_state');
-            assert.deepEqual(waiting.data, {
+            // The state carries the reason, and the terminal's wait line whole.
+            const {line, ...rest} = waiting.data as {line: string};
+            assert.deepEqual(rest, {
               state: 'waiting',
               reason: 'no answer within 2 seconds',
               seq: 2,
             });
+            assert.ok(spectra.output.includes(`a2ui-spectra: ${line}\n`), line);
+            assert.match(
+              line,
+              /^Waiting for the agent's card at http:\/\/localhost:\d+\/\.well-known\/agent-card\.json: no answer within 2 seconds\. Change the agent's URL with --agent-url, or agent\.url in the config file\.$/,
+            );
             assert.deepEqual((await agentOf(base)).state, waiting.data);
             assert.match(
               spectra.output,
@@ -2691,7 +2698,14 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           ),
         );
         const waiting = await stateIs(base, 'waiting');
-        assert.deepEqual(waiting.state, {state: 'waiting', reason: 'connection refused', seq: 2});
+        assert.deepEqual(waiting.state, {
+          state: 'waiting',
+          reason: 'connection refused',
+          line:
+            `Waiting for the agent's card at http://localhost:${agentPort}/.well-known/agent-card.json: ` +
+            "connection refused. Change the agent's URL with --agent-url, or agent.url in the config file.",
+          seq: 2,
+        });
         await stopped(spectra);
       });
     });

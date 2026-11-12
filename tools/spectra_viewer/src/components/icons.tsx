@@ -23,6 +23,30 @@ const PATHS = {
       <path d="M10.25 9.25l4.5 2.75-4.5 2.75z" />
     </>
   ),
+  // Replay's shape with a live dot.
+  rerun: (
+    <>
+      <path d="M4 12a8 8 0 1 0 2.6-5.9L4 8.5" />
+      <path d="M4 4v4.5h4.5" />
+      <path d="M10.25 9.25l4.5 2.75-4.5 2.75z" />
+      <circle cx="19.5" cy="4.5" r="2.5" fill="currentColor" stroke="none" />
+    </>
+  ),
+  // A circular arrow, distinct from Replay's.
+  restart: (
+    <>
+      <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3L19.5 9" />
+      <path d="M19.5 4.5V9H15" />
+    </>
+  ),
+  // A terminal prompt.
+  logs: (
+    <>
+      <rect x="3" y="4.5" width="18" height="15" rx="2.5" />
+      <path d="M7 10l3 2.5-3 2.5" />
+      <path d="M12.5 15.5H17" />
+    </>
+  ),
   completed: (
     <>
       <circle cx="12" cy="12" r="9" />

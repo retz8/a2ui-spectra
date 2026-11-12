@@ -22,8 +22,8 @@ import type {Output} from './output.js';
 export type AgentState =
   /** From the command's start until the first card attempt has failed or answered. */
   | {state: 'starting'}
-  /** Until the card answers, with why there is none yet, in the terminal's words. */
-  | {state: 'waiting'; reason: string}
+  /** Until the card answers, with why there is none yet, in the terminal's words, and the terminal's wait line whole. */
+  | {state: 'waiting'; reason: string; line: string}
   /** The process alive and its card answered once. */
   | {state: 'running'}
   /** During the cut and the stop of a restart. */
@@ -298,8 +298,9 @@ export class AgentSupervisor {
         if (launch.wait.signal.aborted) {
           return;
         }
-        out.info(waitLine(reason, !this.#cardAnsweredOnce));
-        this.#setState({state: 'waiting', reason});
+        const line = waitLine(reason, !this.#cardAnsweredOnce);
+        out.info(line);
+        this.#setState({state: 'waiting', reason, line});
       },
     });
     if (card === undefined || launch.wait.signal.aborted || launch !== this.#launch) {

@@ -20,7 +20,7 @@ Under `run` every listener binds before the agent's command starts: the model pr
 
 ### 2. The states
 
-Five, named as the sub-task 8.1 spec words them: `starting`, from the command's start until the first card attempt; `waiting`, carrying the wait's reason, until the card answers; `running`, the process alive and its card answered once; `restarting`, during the cut and the stop of a restart; `down`, carrying the exit line in the terminal's words. The card is read at each start of the process and not asked for again until the next restart. A card that fails the transport check leaves the state at `running`.
+Five, named as the sub-task 8.1 spec words them: `starting`, from the command's start until the first card attempt; `waiting`, carrying the wait's reason and the terminal's wait line whole, until the card answers; `running`, the process alive and its card answered once; `restarting`, during the cut and the stop of a restart; `down`, carrying the exit line in the terminal's words. The card is read at each start of the process and not asked for again until the next restart. A card that fails the transport check leaves the state at `running`.
 
 ### 3. Down
 

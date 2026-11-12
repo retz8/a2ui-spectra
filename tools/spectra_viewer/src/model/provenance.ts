@@ -19,7 +19,8 @@ import type {TimelineRow} from './steps.ts';
 import {argumentsOf, methodOf, pathOfEvent} from './tool_calls.ts';
 import {briefText} from './turn_groups.ts';
 
-export type ReplayMode = 'recorded' | 'model_live';
+/** A replay's mode: `live` is a re-run, nothing served from the record. */
+export type ReplayMode = 'recorded' | 'model_live' | 'live';
 
 /** One reason of a failed verdict, in the check findings' style. */
 export interface ReplayReason {
@@ -55,7 +56,7 @@ export function provenanceOf(events: readonly TurnRecordEvent[]): Provenance | u
   return {
     source,
     recordedTurn,
-    mode: mode === 'model_live' ? 'model_live' : 'recorded',
+    mode: mode === 'model_live' || mode === 'live' ? mode : 'recorded',
     ...((verdict === 'passed' || verdict === 'failed') && {verdict}),
     reasons: Array.isArray(reasons) ? (reasons as ReplayReason[]) : [],
   };
@@ -77,8 +78,12 @@ export function baseNameOf(path: string): string {
 export type ResolvedSource =
   /** A listed fixture at the recorded path. */
   | {kind: 'fixture'; name: string; path: string; file: string}
-  /** A store turn carrying the recorded trace id, named as the turn list names it. */
-  | {kind: 'turn'; traceId: string; label: string}
+  /**
+   * A store turn carrying the recorded trace id, named as the turn list names
+   * it; `quoted` when that name is a text the host sent, which a sentence
+   * sets in quotation marks.
+   */
+  | {kind: 'turn'; traceId: string; label: string; quoted?: true}
   /** Neither: the recorded path's base name, as plain text. */
   | {kind: 'gone'; file: string};
 
@@ -98,6 +103,7 @@ export function resolveSource(
       kind: 'turn',
       traceId: turn.traceId,
       label: briefText(turn.input) || 'A turn',
+      ...(turn.input !== undefined && 'text' in turn.input && {quoted: true as const}),
     };
   }
   return {kind: 'gone', file: baseNameOf(source)};
@@ -120,9 +126,13 @@ export function sourceAddressOf(
   };
 }
 
-/** How a source reads in a sentence: a fixture by its file, a store turn by its input in brief, gone by its base name. */
+/**
+ * How a source reads in a sentence: a fixture by its file, a store turn by
+ * its input in brief, a text in quotation marks, gone by its base name.
+ */
 export function sourceName(source: ResolvedSource): string {
-  return source.kind === 'turn' ? source.label : source.file;
+  if (source.kind !== 'turn') return source.file;
+  return source.quoted === true ? `“${source.label}”` : source.label;
 }
 
 /** The trace id in a store file's name, `<time>_<trace id>.json`, for the source record's own turn. */
@@ -147,7 +157,13 @@ export function numberIn(
 
 /** A mode as the third line and the popover's rows name it. */
 export function modeWords(mode: ReplayMode): string {
+  if (mode === 'live') return 'live';
   return mode === 'recorded' ? 'everything recorded' : 'tools recorded, model live';
+}
+
+/** How the third line leads: a re-run, the `live` mode, reads as a re-run of its source. */
+export function replayLeadOf(mode: ReplayMode): 'Replayed from' | 'Re-run of' {
+  return mode === 'live' ? 'Re-run of' : 'Replayed from';
 }
 
 /** What the third line says after the source: the turn's number, of the total when it is known, and the mode. */

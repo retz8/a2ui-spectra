@@ -1,5 +1,6 @@
 import {DropdownMenu} from 'radix-ui';
 import {
+  Fragment,
   type KeyboardEvent,
   type ReactNode,
   type RefObject,
@@ -15,6 +16,7 @@ import {cn} from '@/lib/utils';
 import {type AgentChoice, agentLabel, type AgentShown} from '@/model/agents.ts';
 import {groupItemId, type ListKey, listItemsOf, moveInList, turnItemId} from '@/model/list_keys.ts';
 import {listedProblemCount} from '@/model/problems.ts';
+import type {RestartDivider} from '@/model/restarts.ts';
 import {plural} from '@/model/steps.ts';
 import {briefText, searchGroups, type TurnGroup} from '@/model/turn_groups.ts';
 
@@ -69,6 +71,7 @@ export function GroupedList<T extends ListedTurn>({
   autoFocus,
   onChoose,
   onCollapse,
+  dividers,
   className,
 }: {
   heading: string;
@@ -95,6 +98,8 @@ export function GroupedList<T extends ListedTurn>({
   onChoose?: () => void;
   /** Collapses the list to its strip, on a wide window. */
   onCollapse?: () => void;
+  /** The turn list's restart dividers, each above the turn row it names, or at the list's bottom. */
+  dividers?: readonly RestartDivider[];
   className?: string;
 }) {
   const [query, setQuery] = useState('');
@@ -131,6 +136,10 @@ export function GroupedList<T extends ListedTurn>({
       group.turns.some(turn => turn.traceId === selected) ||
       lineOf(group).reason !== undefined);
   const items = listItemsOf(shown, isOpen);
+  // With text in the search, no divider is drawn.
+  const drawn = query.trim() === '' ? (dividers ?? []) : [];
+  const dividersAbove = (traceId: string | undefined) =>
+    traceId === undefined ? [] : drawn.filter(divider => divider.above === traceId);
   // The line the keys move from: the one they last moved to, else the selected turn, else the first.
   const current =
     items.find(item => item.id === active) ??
@@ -218,23 +227,32 @@ export function GroupedList<T extends ListedTurn>({
         className="group/tree min-h-0 flex-1 overflow-y-auto px-1.5 pb-2 outline-none"
       >
         {shown.map(group => (
-          <Group
-            key={group.key}
-            group={group}
-            line={lineOf(group)}
-            open={isOpen(group)}
-            selected={selected}
-            active={currentId}
-            onToggle={() => {
-              press(groupItemId(group.key));
-              setToggled(new Map(toggled).set(group.key, !isOpen(group)));
-            }}
-            onSelect={id => {
-              press(turnItemId(id));
-              onSelect(id, 'press');
-            }}
-          />
+          <Fragment key={group.key}>
+            {dividersAbove(group.turns[0]?.traceId).map(divider => (
+              <DividerRow key={divider.key} text={divider.text} />
+            ))}
+            <Group
+              group={group}
+              line={lineOf(group)}
+              open={isOpen(group)}
+              selected={selected}
+              active={currentId}
+              dividersAbove={dividersAbove}
+              onToggle={() => {
+                press(groupItemId(group.key));
+                setToggled(new Map(toggled).set(group.key, !isOpen(group)));
+              }}
+              onSelect={id => {
+                press(turnItemId(id));
+                onSelect(id, 'press');
+              }}
+            />
+          </Fragment>
         ))}
+        {shown.length > 0 &&
+          drawn
+            .filter(divider => divider.above === undefined)
+            .map(divider => <DividerRow key={divider.key} text={divider.text} />)}
       </div>
     </section>
   );
@@ -275,6 +293,8 @@ export function TurnList({
   autoFocus?: 'list' | 'search';
   onChoose?: () => void;
   onCollapse?: () => void;
+  /** Under `run`, where the agent restarted or exited, placed among the turn rows. */
+  dividers?: readonly RestartDivider[];
   className?: string;
 }) {
   return (
@@ -398,12 +418,32 @@ function statusOf(turn: ListedTurn): TurnStatus {
   return turn.open ? 'open' : (turn.outcome ?? 'open');
 }
 
+/**
+ * A restart divider: a slim rule row with centred muted text, where the agent
+ * restarted or exited. The keys pass over it.
+ */
+function DividerRow({text}: {text: string}) {
+  return (
+    <div
+      role="separator"
+      aria-label={text}
+      title={text}
+      className="fade-in-quick flex h-7 items-center gap-2 px-2 text-xs text-muted-foreground"
+    >
+      <span className="h-px flex-1 bg-border" />
+      <span className="min-w-0 truncate">{text}</span>
+      <span className="h-px flex-1 bg-border" />
+    </div>
+  );
+}
+
 function Group<T extends ListedTurn>({
   group,
   line,
   open,
   selected,
   active,
+  dividersAbove,
   onToggle,
   onSelect,
 }: {
@@ -412,6 +452,8 @@ function Group<T extends ListedTurn>({
   open: boolean;
   selected: string | undefined;
   active: string | undefined;
+  /** The dividers that sit directly above a turn row; those above the group's first sit above the group. */
+  dividersAbove: (traceId: string) => readonly RestartDivider[];
   onToggle: () => void;
   onSelect: (id: string) => void;
 }) {
@@ -456,14 +498,19 @@ function Group<T extends ListedTurn>({
       )}
       {open && (
         <div role="group" aria-label={line.title} className="flex flex-col gap-px pl-3.5">
-          {group.turns.map(turn => (
-            <Row
-              key={turn.traceId}
-              turn={turn}
-              selected={turn.traceId === selected}
-              active={active === turnItemId(turn.traceId)}
-              onSelect={onSelect}
-            />
+          {group.turns.map((turn, index) => (
+            <Fragment key={turn.traceId}>
+              {index > 0 &&
+                dividersAbove(turn.traceId).map(divider => (
+                  <DividerRow key={divider.key} text={divider.text} />
+                ))}
+              <Row
+                turn={turn}
+                selected={turn.traceId === selected}
+                active={active === turnItemId(turn.traceId)}
+                onSelect={onSelect}
+              />
+            </Fragment>
           ))}
         </div>
       )}

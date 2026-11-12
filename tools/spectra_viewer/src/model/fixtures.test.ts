@@ -224,7 +224,7 @@ describe('the fixtures list', () => {
 });
 
 describe("the Replay popover's rows", () => {
-  const ready = {nothingToServe: false, ceiling: 0.031, turnOpen: false, replaying: false};
+  const ready = {nothingToServe: false, ceiling: 0.031, note: undefined};
 
   it('labels each mode with its cost, the ceiling the recorded cost', () => {
     const [recorded, live] = replayRowsOf(ready);
@@ -249,14 +249,12 @@ describe("the Replay popover's rows", () => {
     assert.equal(live.label, 'Cost unknown · a request that changed goes to the model');
   });
 
-  it('disables both while a turn is open, and while a replay runs', () => {
-    for (const row of replayRowsOf({...ready, turnOpen: true})) {
-      assert.equal(row.off, true);
-      assert.equal(row.note, 'A turn is open');
-    }
-    for (const row of replayRowsOf({...ready, turnOpen: true, replaying: true})) {
-      assert.equal(row.off, true);
-      assert.equal(row.note, 'A replay is running');
+  it("disables both with Re-run's note, whichever applies", () => {
+    for (const note of ['A turn is open', 'Save it as a fixture first', 'The agent is down']) {
+      for (const row of replayRowsOf({...ready, note})) {
+        assert.equal(row.off, true);
+        assert.equal(row.note, note);
+      }
     }
   });
 });

@@ -4,12 +4,15 @@
  * store of a Spectra attached to the stub agent: Flow 6, finding out why a
  * turn retried and where the model's text went wrong, walked in Chromium
  * through Playwright; and the built-in preview page drawing the record's
- * basic catalog icons as their glyphs. They run under Node by default, and
- * against the binary when SPECTRA_BINARY names one. Chromium is installed
- * with Playwright's own command.
+ * basic catalog icons as their glyphs; the agent popover on a catalog file
+ * that did not read; and the dev loop on the fake agent under `run`: Flow 8,
+ * edit, save, restart, re-run, see, a refused press, a crash with the down
+ * forms and Restart, and the first screen's forms. They run under Node by
+ * default, and against the binary when SPECTRA_BINARY names one. Chromium is
+ * installed with Playwright's own command.
  */
 import assert from 'node:assert/strict';
-import {readFileSync, writeFileSync} from 'node:fs';
+import {mkdirSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import path from 'node:path';
 import {after, before, describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
@@ -309,6 +312,343 @@ describe(`the agent popover on a catalog file that did not read, in Chromium, ${
         spectra.signal('SIGTERM');
         await spectra.exited;
       }
+    },
+  );
+});
+
+const fakeAgentScript = fileURLToPath(new URL('./testing/fake_agent.js', import.meta.url));
+
+/** The A2UI the fake agent answers each turn with: one surface whose root is a text. */
+function surfaceSaying(text: string): string {
+  return JSON.stringify([
+    {
+      version: 'v0.9',
+      createSurface: {
+        surfaceId: 'default',
+        catalogId: 'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json',
+      },
+    },
+    {
+      version: 'v0.9',
+      updateComponents: {
+        surfaceId: 'default',
+        components: [{id: 'root', component: 'Text', text}],
+      },
+    },
+  ]);
+}
+
+/**
+ * Spectra under `run` on the fake agent, in a working directory of its own:
+ * the agent answers each turn with the A2UI in `surface.json`, a watched
+ * file; it holds its card until `.state/card` exists and crashes at start
+ * while `.state/crash` does, both in a folder the save watcher ignores, so
+ * a test sets them without restarting the agent.
+ */
+interface DevLoop {
+  spectra: SpectraProcess;
+  page: Page;
+  base: string;
+  /** Saves `surface.json`, again until Spectra has said it restarts the agent for it once more. */
+  save: (text: string) => Promise<void>;
+  /** Makes or removes a file under `.state`. */
+  set: (name: 'card' | 'crash', exists: boolean) => void;
+}
+
+async function withDevLoop(
+  browser: Browser,
+  start: {card: boolean; crash: boolean},
+  walk: (loop: DevLoop) => Promise<void>,
+): Promise<void> {
+  const cwd = workingDir();
+  writeFileSync(path.join(cwd, 'surface.json'), surfaceSaying('Version one'));
+  mkdirSync(path.join(cwd, '.state'));
+  const set = (name: 'card' | 'crash', exists: boolean) => {
+    const file = path.join(cwd, '.state', name);
+    if (exists) writeFileSync(file, '');
+    else rmSync(file, {force: true});
+  };
+  set('card', start.card);
+  set('crash', start.crash);
+  const [agentPort, port] = await Promise.all([freePort(), freePort()]);
+  const spectra = new SpectraProcess(
+    [
+      'run',
+      '--agent-url',
+      `http://localhost:${agentPort}`,
+      '--port',
+      String(port),
+      '--proxy-port',
+      String(await freePort()),
+      '--model-proxy-port',
+      String(await freePort()),
+      '--receiver-port',
+      String(await freePort()),
+      '--no-open',
+      '--',
+      process.execPath,
+      fakeAgentScript,
+      '--port',
+      String(agentPort),
+      '--streaming',
+      '--a2ui-file',
+      'surface.json',
+      '--log',
+      '--hold-card-until-file',
+      path.join('.state', 'card'),
+      '--crash-if-file',
+      path.join('.state', 'crash'),
+    ],
+    cwd,
+  );
+  const restarts = () =>
+    spectra.output.split('Restarting the agent: surface.json changed.').length - 1;
+  const save = async (text: string) => {
+    const before = restarts();
+    const deadline = Date.now() + 15_000;
+    // A watch tells nothing for a moment after it is set up: the save is made again until it is told.
+    while (restarts() === before) {
+      assert.ok(Date.now() < deadline, spectra.output);
+      writeFileSync(path.join(cwd, 'surface.json'), surfaceSaying(text));
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
+  };
+  const page = await browser.newPage({
+    viewport: {width: 1440, height: 900},
+    reducedMotion: 'reduce',
+  });
+  try {
+    await spectra.waitFor(/The viewer is at /);
+    await walk({spectra, page, base: `http://127.0.0.1:${port}`, save, set});
+  } finally {
+    await page.close();
+    await spectra.stop();
+  }
+}
+
+/** The context bar's live status. */
+function liveStatus(page: Page): Locator {
+  return page.getByRole('banner').getByRole('status');
+}
+
+/** Logs in the context bar, which opens and closes the drawer. */
+function logsButton(page: Page): Locator {
+  return page.getByRole('banner').locator('button[aria-pressed][aria-controls="logs-drawer"]');
+}
+
+/** The turn list's restart divider of this wording. */
+function divider(page: Page, name: string | RegExp): Locator {
+  return page.getByRole('tree', {name: 'Turns by conversation'}).getByRole('separator', {name});
+}
+
+/** What the built-in preview page draws. */
+function preview(page: Page): Locator {
+  return page.frameLocator('iframe[title="Spectra’s built-in preview"]').locator('body');
+}
+
+/** Waits until an element's attribute reads a value. */
+async function becomes(element: Locator, name: string, value: string): Promise<void> {
+  const deadline = Date.now() + 10_000;
+  while ((await element.getAttribute(name)) !== value) {
+    assert.ok(Date.now() < deadline, `${name} did not become ${value}.`);
+    await new Promise(resolve => setTimeout(resolve, 50));
+  }
+}
+
+/** The trace id of the turn in the page address. */
+function turnInAddress(page: Page): string {
+  const traceId = /#\/turns\/([0-9a-f]{32})/.exec(page.url())?.[1];
+  assert.ok(traceId, `No turn in the address ${page.url()}.`);
+  return traceId;
+}
+
+describe(`the dev loop in the viewer on the fake agent under run, in Chromium, ${binary ? 'the binary' : 'under Node'}`, () => {
+  let browser: Browser;
+  before(async () => {
+    browser = await chromium.launch();
+  });
+  after(async () => {
+    await browser?.close();
+  });
+
+  it(
+    'Flow 8: a save restarts the agent, shown in the live status, the drawer and the turn list; a re-run lands as a new turn with the changed surface; a refused press says why; a crash shows the down forms, and Restart brings the agent back',
+    {timeout: TIMEOUT},
+    async () => {
+      await withDevLoop(browser, {card: true, crash: false}, async loop => {
+        const {page, base, save, set} = loop;
+        const rerun = page.getByRole('button', {name: 'Re-run live'});
+        const restart = page.getByRole('banner').getByRole('button', {name: 'Restart'});
+        const drawer = page.getByRole('region', {name: 'Logs'});
+        const composerLine = page.getByRole('main').getByText(/^Can't send · /);
+
+        // A first turn, from the composer: the surface as the agent's file has it.
+        await page.goto(base);
+        await liveStatus(page).getByText('Capturing').waitFor();
+        await page.getByRole('textbox', {name: 'Message the agent'}).fill('Hello there');
+        await page.keyboard.press('Enter');
+        await page.waitForURL(/#\/turns\/[0-9a-f]{32}/);
+        const first = turnInAddress(page);
+        await preview(page).getByText('Version one').waitFor();
+        assert.equal(await rerun.getAttribute('aria-disabled'), 'false');
+
+        // 1. Save the agent's file: Spectra restarts the agent, and its card is waited for.
+        await logsButton(page).click();
+        await drawer.getByRole('separator', {name: /^Started · /}).waitFor();
+        await drawer.getByText('Fake agent listening on port').waitFor();
+        await drawer.getByText('turn: message/stream').waitFor();
+        await drawer.getByText(/^Turn closed · waiting for input · /).waitFor();
+        set('card', false);
+        await save('Version two');
+        await liveStatus(page)
+          .getByText(/^(Starting the agent|Waiting for the agent's card · .+)$/)
+          .waitFor();
+        await composerLine
+          .getByText(/the agent is starting|waiting for the agent's card/)
+          .waitFor();
+        // The waiting form's tooltip is the terminal's wait line whole.
+        await page
+          .getByRole('banner')
+          .locator('[role="status"][title^="Waiting for the agent\'s card at http://localhost:"]')
+          .waitFor();
+        // Restart is enabled during the card wait; Re-run is off, with the box's reason as its note.
+        assert.equal(await restart.getAttribute('aria-disabled'), 'false');
+        assert.equal(await rerun.getAttribute('aria-disabled'), 'true');
+        await rerun.hover();
+        await page
+          .getByRole('tooltip')
+          .getByText(/^(The agent is starting|Waiting for the agent's card)$/)
+          .waitFor();
+        await page.mouse.move(0, 0);
+        await drawer
+          .getByRole('separator', {name: /^Stopped · surface\.json changed · /})
+          .waitFor();
+        assert.equal(await drawer.getByRole('separator', {name: /^Started · /}).count(), 2);
+        await divider(page, 'Restarted · surface.json changed').waitFor();
+
+        // 2. The card answers: capturing again, Re-run enabled.
+        set('card', true);
+        await liveStatus(page).getByText('Capturing').waitFor();
+        await composerLine.waitFor({state: 'detached'});
+        await becomes(rerun, 'aria-disabled', 'false');
+
+        // The drawer's open state is remembered in the browser.
+        await page.reload();
+        await drawer.getByText('Fake agent listening on port').first().waitFor();
+        await divider(page, 'Restarted · surface.json changed').waitFor();
+
+        // A press the server refuses: its sentence under the button, closed by Escape.
+        const sentence = 'A turn is open. Wait for it to close before replaying.';
+        await page.route('**/api/replays', route =>
+          route.fulfill({status: 409, json: {error: sentence}}),
+        );
+        await rerun.click();
+        const refusal = page.getByRole('dialog', {name: 'Re-run was refused'});
+        await refusal.getByText(sentence, {exact: true}).waitFor();
+        await page.keyboard.press('Escape');
+        await refusal.waitFor({state: 'detached'});
+        // The next press closes it, and is a press: the server's answer shows again; a press outside closes it.
+        await rerun.click();
+        await refusal.waitFor();
+        await page.getByRole('heading', {name: 'Hello there', level: 1}).click();
+        await refusal.waitFor({state: 'detached'});
+        await page.unroute('**/api/replays');
+        assert.equal(turnInAddress(page), first);
+
+        // 3. and 4. Re-run the turn: a new turn, re-run of the first, with the surface the saved file draws.
+        await rerun.click();
+        await page.waitForURL(url => !url.hash.includes(first) && url.hash.startsWith('#/turns/'));
+        const second = turnInAddress(page);
+        const line = page.getByLabel('Re-run of');
+        await line.getByText(/turn 1 of 1 · live$/).waitFor();
+        await preview(page).getByText('Version two').waitFor();
+        assert.equal(await preview(page).getByText('Version one').count(), 0);
+        // The line's source links back to the turn re-run, and the drawer's marker to the re-run.
+        await line.getByRole('button', {name: 'Hello there'}).click();
+        await page.waitForURL(url => url.hash.includes(first));
+        await drawer.getByRole('button', {name: 'Hello there'}).last().click();
+        await page.waitForURL(url => url.hash.includes(second));
+        await drawer.waitFor();
+
+        // A crash after a save: the agent down with its exit line, the traceback in the logs.
+        set('crash', true);
+        await save('Version three');
+        await liveStatus(page).getByText('Agent down · exited with code 1').waitFor();
+        await liveStatus(page).getByRole('button', {name: 'Logs'}).waitFor();
+        await drawer.getByText('SyntaxError: the fake agent was asked to crash').waitFor();
+        await drawer.getByRole('separator', {name: 'Stopped · exited with code 1'}).waitFor();
+        await divider(page, 'Agent exited with code 1').waitFor();
+        await composerLine.getByText("Can't send · the agent is down").waitFor();
+        assert.equal(await rerun.getAttribute('aria-disabled'), 'true');
+        await rerun.hover();
+        await page.getByRole('tooltip').getByText('The agent is down', {exact: true}).waitFor();
+        await page.mouse.move(0, 0);
+        assert.equal(
+          await page.getByRole('textbox', {name: 'Message the agent'}).isDisabled(),
+          true,
+        );
+
+        // Restart, pressed while the agent is down, starts it.
+        set('crash', false);
+        assert.equal(await restart.getAttribute('aria-disabled'), 'false');
+        await restart.click();
+        await liveStatus(page).getByText('Capturing').waitFor();
+        await divider(page, 'Restarted · Restart pressed').waitFor();
+        await composerLine.waitFor({state: 'detached'});
+      });
+    },
+  );
+
+  it(
+    "shows the first screen's down form before any card has answered, the command for the name, the agent's last lines, Open Logs and Restart; then its not-ready form, and its ready form once the card answers",
+    {timeout: TIMEOUT},
+    async () => {
+      await withDevLoop(browser, {card: false, crash: true}, async loop => {
+        const {page, base, set} = loop;
+        const main = page.getByRole('main');
+        await page.goto(base);
+
+        // Down: the command in the heading and in the bar, the exit line, the lines since the start.
+        await main.getByRole('heading', {level: 1, name: /fake_agent\.js --port/}).waitFor();
+        await page
+          .getByRole('banner')
+          .getByRole('button', {name: /fake_agent\.js --port/})
+          .waitFor();
+        await main.getByRole('status').getByText('Agent down · exited with code 1').waitFor();
+        const lines = main.getByLabel('The agent’s last lines');
+        await lines.getByText('SyntaxError: the fake agent was asked to crash').waitFor();
+        await lines.getByText('Traceback (most recent call last):').waitFor();
+        await main.getByText("Can't send · the agent is down").waitFor();
+        assert.equal(await main.getByText('Send a message to start your first turn.').count(), 0);
+
+        // Open Logs opens the drawer, which draws the buffer as it stands.
+        await main.getByRole('button', {name: 'Open Logs'}).click();
+        const drawer = page.getByRole('region', {name: 'Logs'});
+        await drawer.getByRole('separator', {name: /^Started · /}).waitFor();
+        await drawer.getByRole('separator', {name: 'Stopped · exited with code 1'}).waitFor();
+        await drawer.getByRole('button', {name: 'Close the logs'}).click();
+        await drawer.waitFor({state: 'detached'});
+
+        // Restart, the screen's main action: the agent starts, and its card is waited for.
+        set('crash', false);
+        await main.getByRole('button', {name: 'Restart'}).click();
+        await main.getByText('The message box opens when the agent’s card answers.').waitFor();
+        await main
+          .getByRole('status')
+          .getByText(/^(Starting the agent|Waiting for the agent's card · .+)$/)
+          .waitFor();
+        await main.getByRole('heading', {level: 1, name: /fake_agent\.js --port/}).waitFor();
+
+        // The card answers: its name, capturing, and the message box open.
+        set('card', true);
+        await main.getByRole('heading', {level: 1, name: 'Fake agent'}).waitFor();
+        await main.getByText('Send a message to start your first turn.').waitFor();
+        await main.getByText(/^Can't send · /).waitFor({state: 'detached'});
+        assert.equal(
+          await page.getByRole('textbox', {name: 'Message the agent'}).isDisabled(),
+          false,
+        );
+      });
     },
   );
 });

@@ -26,7 +26,7 @@ Each section remembers the address it was last on for the session, so the Turns 
 
 ### 3. Where the provenance links point
 
-The replayed turn's third line, a served call's sentence, a model miss's prefix break and each row of a tool miss's list resolve their target from `a2ui.replay.source` and `a2ui.replay.turn` in this order: a listed fixture at the recorded path, then a store turn carrying the recorded trace id, then gone. A fixture source is named by its file and links into Fixtures. A store-turn source is named as the turn list names the turn, by its input in brief, and links into Turns, its record read through the turn route when needed. A gone source leaves the text as plain text, the recorded path's base name, with no link and no further wording; the served sentence stays unlinked, and the miss's block takes its "nothing to compare with" form. The context bar's status names and links the source by the same rule.
+The replayed turn's third line, a served call's sentence, a model miss's prefix break and each row of a tool miss's list resolve their target from `a2ui.replay.source` and `a2ui.replay.turn` in this order: a listed fixture at the recorded path, then a store turn carrying the recorded trace id, then gone. A fixture source is named by its file and links into Fixtures. A store-turn source is named as the turn list names the turn, by its input in brief, a text in quotation marks, and links into Turns, its record read through the turn route when needed. A gone source leaves the text as plain text, the recorded path's base name, with no link and no further wording; the served sentence stays unlinked, and the miss's block takes its "nothing to compare with" form. The context bar's status names and links the source by the same rule.
 
 ### 4. A press in the fixture view's preview
 
@@ -38,7 +38,7 @@ When the fixture in view is removed from the folder, the view keeps what it hold
 
 ### 6. A live call in a live-mode replay
 
-The row stays bare, as drawn. The detail gains one grey sentence where "Served from the record" sits on a served call, "Went to the model · matched nothing in the record", and its prefix break's candidates widen to the source record's calls of the same model, so the first call of the conversation reads "Prefix breaks in the system prompt · against the recorded call at +2.0 s in find-italian-restaurants.json", the miss's own form without the problem block.
+The row stays bare, as drawn. The detail gains one grey sentence where "Served from the record" sits on a served call, "Went to the model · matched nothing in the record", and its prefix break's candidates widen to the source record's calls of the same model, so the first call of the conversation reads "Prefix breaks in the system prompt · against the recorded call at +2.0 s in find-italian-restaurants.json", the miss's own form without the problem block. A re-run turn's model call, a turn replayed in the `live` mode, takes the source's calls of the same model as candidates by the same rule, beside its own conversation's, and carries no grey sentence.
 
 ### 7. The recorded calls never asked for
 
@@ -46,7 +46,7 @@ The count `replay_ended` carries is not shown in the viewer. The event ends the 
 
 ### 8. What the viewer reads and computes
 
-Every fixture's record is read when the listing arrives, and read again when its saved time changes, for the group titles' recorded cost. The name prefilled at save is the server's slug of the turn's input in brief, computed in the viewer by the same rule. The disabled everything-recorded row mirrors the server's nothing-to-serve rule, no model call and no tool call event across the record's turns; the server's refusal is the authority and is shown in the popover as it answers. The turn listing gains `replayDifferences`, a replayed turn's different outcome and different A2UI, so the list row counts what the header counts. The recorded cost prices every ended model call of the record, a served call's recorded tokens included.
+Every fixture's record is read when the listing arrives, and read again when its saved time changes, for the group titles' recorded cost. The name prefilled at save is the server's slug of the turn's input in brief, computed in the viewer by the same rule. The disabled everything-recorded row mirrors the server's nothing-to-serve rule, no model call and no tool call event across the record's turns; the server's refusal is the authority and is shown in the popover as it answers. The two rows are off with a note under their label, the first that applies: "Not connected to Spectra"; "Save it as a fixture first", on a turn whose record was not written to the store, which the turn listing marks; the message box's reason it cannot send, without "Can't send · " and capitalised, the one line of the box's that does not start so shown whole; "A replay is running"; "A turn is open". The turn listing gains `replayDifferences`, a replayed turn's different outcome and different A2UI, so the list row counts what the header counts. The recorded cost prices every ended model call of the record, a served call's recorded tokens included.
 
 ### 9. Every fixture lists
 

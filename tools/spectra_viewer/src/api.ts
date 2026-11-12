@@ -38,6 +38,8 @@ export interface ListedTurn {
   replayDifferences?: number;
   /** The render errors the preview counts, set by the viewer while the turn is in view. */
   renderErrors?: number;
+  /** Set on a turn whose record was not written to the store: it is held in memory, with no file to replay. */
+  unwritten?: true;
 }
 
 /** An A2UI extension the agent's card advertises. */
@@ -121,8 +123,60 @@ export interface FixturesListing {
   fixtures: ListedFixture[];
 }
 
-/** What to replay: a fixture by its name, or a store turn by its trace id. */
-export type ReplaySource = {fixture: string} | {traceId: string};
+/**
+ * What to replay: a fixture by its name, whole or, with `turn`, up to and
+ * including the turn of that recorded trace id; or a store turn by its trace id.
+ */
+export type ReplaySource = {fixture: string; turn?: string} | {traceId: string};
+
+/** Where the agent's process stands under `run`, with its number in the session's order. */
+export type AgentProcessState = {seq: number} & (
+  | {state: 'starting'}
+  /** With why no card has answered yet, in the terminal's words, and the terminal's wait line whole. */
+  | {state: 'waiting'; reason: string; line?: string}
+  | {state: 'running'}
+  | {state: 'restarting'}
+  /** With the exit line, in the terminal's words after "The agent's process". */
+  | {state: 'down'; exit: string}
+);
+
+/** What caused a restart: a press of Restart, or a save of a watched file. */
+export type RestartCause = {kind: 'press'} | {kind: 'save'; file: string};
+
+/** One event of the session under `run`: a restart, or an exit the agent took on its own. */
+export type AgentSessionEvent =
+  | {type: 'agent_restarted'; seq: number; time: string; cause: RestartCause}
+  | {type: 'agent_exited'; seq: number; time: string; exit: string};
+
+/** What `GET /api/agent` gives under `run`. */
+export interface AgentSnapshot {
+  /** The command as launched, its arguments as given. */
+  command: string;
+  state: AgentProcessState;
+  /** The session's restarts and exits, every one, oldest first. */
+  events: AgentSessionEvent[];
+}
+
+/** One entry of the agent's output buffer: a line, or the divider of a stop or a start. */
+export type LogEntry = {
+  /** Its number in the buffer's order, from 1 for the session. */
+  n: number;
+  /** When it entered the buffer, as an ISO 8601 UTC time to the millisecond. */
+  time: string;
+} & (
+  | {type: 'line'; stream: 'stdout' | 'stderr'; text: string}
+  | {type: 'stopped'; exit: string; cause?: RestartCause}
+  | {type: 'started'; command: string}
+);
+
+/** What `GET /api/agent/logs` gives under `run`. */
+export interface LogSnapshot {
+  /** The entries held, oldest first. */
+  entries: LogEntry[];
+  /** How many of them are output lines. */
+  lines: number;
+  cap: number;
+}
 
 /** One response chunk of a call, as the record holds it: a span event named `a2ui.http.response.chunk`. */
 export interface CallChunk {
@@ -155,12 +209,13 @@ export interface LiveEvents {
   replay_started: {source: string; mode: ReplayMode; turns: number};
   /** As each replayed turn opens: the recorded turn it stands for, and its number of the total. */
   replay_turn: {traceId: string; recordedTurn: string; turn: number; turns: number};
+  /** Under the `live` mode it carries no verdict, and a turn sent no verdict and no count. */
   replay_ended: {
     source: string;
     mode: ReplayMode;
-    verdict: 'passed' | 'failed';
+    verdict?: 'passed' | 'failed';
     turns: ReadonlyArray<
-      | {traceId: string; recordedTurn: string; verdict: 'passed' | 'failed'; unconsumed: number}
+      | {traceId: string; recordedTurn: string; verdict?: 'passed' | 'failed'; unconsumed?: number}
       | {recordedTurn: string; notSent: string}
     >;
   };
@@ -169,7 +224,13 @@ export interface LiveEvents {
   /** A configured catalog file was read again, or its read failed; the listing is to be read again. */
   catalogs_changed: Record<string, never>;
   /** Under `run`, the state of the agent's process, whole, at each change; the context and the box are current by then. */
-  agent_state: {state: string; seq: number; reason?: string; exit?: string};
+  agent_state: AgentProcessState;
+  /** Under `run`, a restart of the agent's process, with the time it began and its cause. */
+  agent_restarted: {seq: number; time: string; cause: RestartCause};
+  /** Under `run`, an exit the agent took on its own, with its time and its exit line. */
+  agent_exited: {seq: number; time: string; exit: string};
+  /** Under `run`, the entries one read of the agent's output put into the buffer, and the number of the oldest still held. */
+  agent_log: {entries: LogEntry[]; oldest: number};
   heartbeat: Record<string, never>;
 }
 
@@ -273,6 +334,21 @@ export function startReplay(
   mode: ReplayMode,
 ): Promise<{traceId: string; turns: number}> {
   return post('/api/replays', {source, mode});
+}
+
+/** Under `run`, the agent's process: its command, its state and the session's events. `404` under `attach`. */
+export function getAgent(): Promise<AgentSnapshot> {
+  return request<AgentSnapshot>('/api/agent');
+}
+
+/** Under `run`, the agent's output as the buffer holds it. `404` under `attach`. */
+export function getAgentLogs(): Promise<LogSnapshot> {
+  return request<LogSnapshot>('/api/agent/logs');
+}
+
+/** Restarts the agent's process; answers at once, the progress coming on the live stream. */
+export function restartAgent(): Promise<{accepted: boolean}> {
+  return post('/api/agent/restart', {});
 }
 
 export const STREAM_PATH = '/api/stream';

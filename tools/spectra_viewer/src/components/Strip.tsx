@@ -1,8 +1,9 @@
-import {type KeyboardEvent, type RefObject, useEffect, useMemo, useRef} from 'react';
+import {Fragment, type KeyboardEvent, type RefObject, useEffect, useMemo, useRef} from 'react';
 
 import type {ListedTurn} from '@/api.ts';
 import {scrollIntoColumn} from '@/lib/scroll.ts';
 import {cn} from '@/lib/utils';
+import type {RestartDivider} from '@/model/restarts.ts';
 import {stripOf, type TurnGroup} from '@/model/turn_groups.ts';
 
 import {STATUS_ICONS, toneOf} from './format.ts';
@@ -13,7 +14,9 @@ import {Icon} from './icons.tsx';
  * the list's order, each selecting its turn, a dot on a turn with problems;
  * its button opens the full list over the turn view, or, on a wide window
  * where the list was collapsed, expands it back in place. The icons are one
- * Tab stop, and the up and down arrows select their turns.
+ * Tab stop, and the up and down arrows select their turns. Each restart
+ * divider of the turn list is one thin rule between its icons, its wording
+ * as the tooltip.
  */
 export function Strip<T extends ListedTurn>({
   groups,
@@ -24,6 +27,7 @@ export function Strip<T extends ListedTurn>({
   onOpen,
   buttonRef,
   expands = false,
+  dividers = NO_DIVIDERS,
 }: {
   /** The list's groups, whose turns it shows in the list's order. */
   groups: ReadonlyArray<TurnGroup<T>>;
@@ -37,6 +41,8 @@ export function Strip<T extends ListedTurn>({
   buttonRef: RefObject<HTMLButtonElement | null>;
   /** Whether the button expands the list in place rather than opening it over the turn view. */
   expands?: boolean;
+  /** The turn list's restart dividers, each above the turn it names, or after the last. */
+  dividers?: readonly RestartDivider[];
 }) {
   const strip = useMemo(() => stripOf(groups), [groups]);
   const name = fixtures ? 'fixtures' : 'turn';
@@ -92,42 +98,66 @@ export function Strip<T extends ListedTurn>({
           const isSelected = turn.traceId === selected;
           const icon = STATUS_ICONS[turn.open ? 'open' : (turn.outcome ?? 'open')];
           return (
-            <button
-              key={turn.traceId}
-              id={domIdOf(turn.traceId)}
-              type="button"
-              role="option"
-              aria-selected={isSelected}
-              aria-label={title}
-              title={title}
-              tabIndex={-1}
-              onMouseDown={event => event.preventDefault()}
-              onClick={() => {
-                onSelect(turn.traceId);
-                list.current?.focus({preventScroll: true});
-              }}
-              className={cn(
-                'ease-quick fade-in-quick relative flex h-7 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg',
-                isSelected
-                  ? 'bg-brand-soft shadow-mark-start group-focus-visible/strip:outline-2 group-focus-visible/strip:-outline-offset-2 group-focus-visible/strip:outline-brand'
-                  : 'hover:bg-tint',
-              )}
-            >
-              <Icon kind={icon} size={14} className={toneOf(icon)} />
-              {problems > 0 && (
-                <span
-                  aria-hidden="true"
-                  className={cn(
-                    'absolute top-1 right-1.5 size-1.5 rounded-full bg-problem',
-                    isSelected ? 'ring-2 ring-brand-soft' : 'ring-2 ring-panel',
-                  )}
-                />
-              )}
-            </button>
+            <Fragment key={turn.traceId}>
+              {dividers
+                .filter(divider => divider.above === turn.traceId)
+                .map(divider => (
+                  <Rule key={divider.key} text={divider.text} />
+                ))}
+              <button
+                id={domIdOf(turn.traceId)}
+                type="button"
+                role="option"
+                aria-selected={isSelected}
+                aria-label={title}
+                title={title}
+                tabIndex={-1}
+                onMouseDown={event => event.preventDefault()}
+                onClick={() => {
+                  onSelect(turn.traceId);
+                  list.current?.focus({preventScroll: true});
+                }}
+                className={cn(
+                  'ease-quick fade-in-quick relative flex h-7 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg',
+                  isSelected
+                    ? 'bg-brand-soft shadow-mark-start group-focus-visible/strip:outline-2 group-focus-visible/strip:-outline-offset-2 group-focus-visible/strip:outline-brand'
+                    : 'hover:bg-tint',
+                )}
+              >
+                <Icon kind={icon} size={14} className={toneOf(icon)} />
+                {problems > 0 && (
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      'absolute top-1 right-1.5 size-1.5 rounded-full bg-problem',
+                      isSelected ? 'ring-2 ring-brand-soft' : 'ring-2 ring-panel',
+                    )}
+                  />
+                )}
+              </button>
+            </Fragment>
           );
         })}
+        {strip.length > 0 &&
+          dividers
+            .filter(divider => divider.above === undefined)
+            .map(divider => <Rule key={divider.key} text={divider.text} />)}
       </div>
     </section>
+  );
+}
+
+const NO_DIVIDERS: readonly RestartDivider[] = [];
+
+/** A restart divider in the strip: a thin rule between two icons. */
+function Rule({text}: {text: string}) {
+  return (
+    <span
+      role="separator"
+      aria-label={text}
+      title={text}
+      className="my-0.5 h-px w-5 shrink-0 bg-muted-foreground"
+    />
   );
 }
 

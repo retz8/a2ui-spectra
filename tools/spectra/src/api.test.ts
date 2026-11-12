@@ -169,6 +169,10 @@ function post(url: string, body: unknown, type = 'application/json') {
   return fetch(url, {method: 'POST', headers: {'content-type': type}, body: JSON.stringify(body)});
 }
 
+/** The terminal's wait line, as the waiting state carries it. */
+const WAIT_LINE =
+  "Waiting for the agent's card at http://localhost:10002/.well-known/agent-card.json: connection refused.";
+
 describe('the API', () => {
   it('lists the stored turns and the open turns, newest first', async () => {
     const {store, turns, base} = await serve();
@@ -299,14 +303,22 @@ describe('the API', () => {
     assert.equal(missing.status, 404);
   });
 
-  it('returns a turn kept in memory after its write failed', async () => {
+  it('returns a turn kept in memory after its write failed, and marks it in the listing', async () => {
     const {store, base} = await serve();
+    await store.write(closedTurn(2, 'ctx-2'));
     writeFileSync(path.join(store.turnsDir, 'ctx-1'), 'not a folder');
     await assert.rejects(store.write(closedTurn(1, 'ctx-1')));
     const listed = await getJson(`${base}/api/turns`);
+    // The mark is on the turn with no file alone; a written turn's entry carries no such key.
     assert.deepEqual(
-      (listed.body as {turns: ListedTurn[]}).turns.map(turn => turn.traceId),
-      [trace(1)],
+      (listed.body as {turns: ListedTurn[]}).turns.map(turn => [
+        turn.traceId,
+        'unwritten' in turn ? turn.unwritten : undefined,
+      ]),
+      [
+        [trace(2), undefined],
+        [trace(1), true],
+      ],
     );
     const record = await getJson(`${base}/api/turns/${trace(1)}`);
     assert.equal(record.status, 200);
@@ -854,7 +866,13 @@ describe('the API', () => {
       mode: 'recorded',
       turns: 1,
     });
-    turns.notify({type: 'agent_state', state: 'waiting', reason: 'connection refused', seq: 2});
+    turns.notify({
+      type: 'agent_state',
+      state: 'waiting',
+      reason: 'connection refused',
+      line: WAIT_LINE,
+      seq: 2,
+    });
     turns.notify({
       type: 'agent_restarted',
       seq: 3,
@@ -881,7 +899,10 @@ describe('the API', () => {
         event: 'replay_started',
         data: {source: 'a2ui-spectra-fixtures/hello.json', mode: 'recorded', turns: 1},
       },
-      {event: 'agent_state', data: {state: 'waiting', reason: 'connection refused', seq: 2}},
+      {
+        event: 'agent_state',
+        data: {state: 'waiting', reason: 'connection refused', line: WAIT_LINE, seq: 2},
+      },
       {
         event: 'agent_restarted',
         data: {seq: 3, time: '2026-11-10T09:00:00.000Z', cause: {kind: 'press'}},

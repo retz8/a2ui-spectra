@@ -8,6 +8,7 @@ import {timelineOf} from '../model/steps.ts';
 import {at, linked, modelCall, receivedSpan, T0, toolCall, TRACE} from '../testing/model_calls.ts';
 import {
   callChanged,
+  closedRow,
   type LiveState,
   recordRead,
   RELOAD_EVENTS,
@@ -246,5 +247,20 @@ describe("a tool call's live events", () => {
 describe('the events that read the connect set again', () => {
   it("are the agent's state changing and a catalog file read again", () => {
     assert.deepEqual([...RELOAD_EVENTS], ['agent_state', 'catalogs_changed']);
+  });
+});
+
+describe("a closed turn's row", () => {
+  const listed: ListedTurn = {
+    traceId: TRACE,
+    startTime: new Date(START).toISOString(),
+    outcome: 'completed',
+  };
+
+  it("keeps the listing's mark for a record that was not written, and carries none otherwise", () => {
+    const turn: Turn = {events: [turnEvent()]};
+    assert.equal(closedRow(turn, {...listed, unwritten: true}).unwritten, true);
+    assert.equal('unwritten' in closedRow(turn, listed), false);
+    assert.equal('unwritten' in closedRow(turn, undefined), false);
   });
 });

@@ -8,7 +8,7 @@ The viewer's side of the dev loop: Restart and Logs in the context bar, the live
 - Re-run in a store turn's header and in the fixture view's, its notes, the re-run turn's lines and its model call's comparison.
 - A refused press of Re-run or Restart.
 - The composer's refusal, under `run` and `attach`, and the Replay popover's rows taking Re-run's notes.
-- One change on the tool's side: the turn listing's mark for a turn whose record was not written.
+- Two changes on the tool's side: the turn listing's mark for a turn whose record was not written, and the waiting state carrying the terminal's wait line whole, the waiting form's tooltip.
 - The canvas's amendments, the tests, the hand pass and the documents.
 
 Out of scope: the three samples through the tunnel, sub-task 8.7.
@@ -17,7 +17,7 @@ Out of scope: the three samples through the tunnel, sub-task 8.7.
 
 ### 1. A refused press
 
-A press of Re-run or of Restart that the server refuses, or whose request fails, shows the server's sentence in a popover that opens only then, anchored under the button, in the failure line the Replay popover uses. It closes on a press outside, on Escape, or on the next press of the button.
+A press of Re-run or of Restart that the server refuses, or whose request fails, shows the server's sentence in a popover that opens only then, anchored under the button, in the failure line the Replay popover uses. It closes on a press outside, on Escape, or on the next press of the button, which does the press's work again.
 
 ### 2. A turn held in memory only
 
@@ -79,7 +79,7 @@ Every divider the buffer holds is drawn, the session's first started divider inc
 
 ### 12. A line that holds carriage returns
 
-The drawer shows the text after the line's last carriage return, what a terminal would leave. The first screen's lines follow the same rule.
+The drawer shows the text after the line's last carriage return, the carriage returns the line ends in not counted, what a terminal would leave. The first screen's lines follow the same rule.
 
 ### 13. Where the turn list's divider sits
 
@@ -134,7 +134,7 @@ The three samples wait for sub-task 8.7.
 ### 20. The documents
 
 - The viewer's README: everything this sub-task builds.
-- The tool's README: the turn listing's mark for a turn whose record was not written; the Replay section's sentence on the viewer's Re-run button, which the sub-task 8.4 spec left to this sub-task.
+- The tool's README: the turn listing's mark for a turn whose record was not written; the waiting state's `line`; the Replay section's sentence on the viewer's Re-run button, which the sub-task 8.4 spec left to this sub-task.
 - The Phase 8 spec, amended in place: its decision on the logs drawer takes decisions 9 to 12 and the first screen's lines of decision 16; its decision on the turn list marking where the agent restarted takes decisions 13 to 15; its decision on where re-run sits takes decisions 1 to 5 and 17.
 - The sub-task 8.1 spec, amended in place: its decision on the Restart and Logs controls takes decisions 1, 5 and 8; its decision on the live status's forms takes decision 6; its decisions on the logs drawer and on the drawer's dividers and markers take decisions 9 to 12; its decision on the turn list's restart divider takes decisions 13 to 15; its decision on Re-run in the header takes decisions 1 to 5; its decision on the first screen takes decision 16; its decision on the composer takes decision 7; its detail board of a re-run turn takes decision 17.
 - The Phase 7 spec, `_dev/docs/spec/phase-7-fixtures-and-replay.md`, the sub-task 7.1 spec, `_dev/docs/spec/task-7.1-design-artifact.md`, and the sub-task 7.5 spec, amended in place: the Replay popover's rows taking the notes of decisions 2 to 5, and the live call's comparison reaching a re-run.

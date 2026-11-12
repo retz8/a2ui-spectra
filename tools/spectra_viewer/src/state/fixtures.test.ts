@@ -424,7 +424,12 @@ describe('a replayed turn’s third line', () => {
     });
     const state = stateOf({turns: [row(TRACE, 'The last'), row(OWN, 'The first')]});
     const source = sourceInView(state, {source: file, recordedTurn: OWN});
-    assert.deepEqual(source.resolved, {kind: 'turn', traceId: OWN, label: 'The first'});
+    assert.deepEqual(source.resolved, {
+      kind: 'turn',
+      traceId: OWN,
+      label: 'The first',
+      quoted: true,
+    });
     assert.equal(source.needs, TRACE);
     const read = stateOf({
       turns: state.turns,

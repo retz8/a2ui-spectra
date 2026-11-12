@@ -290,10 +290,10 @@ export function recordedCandidatesFor(
 
 /**
  * The prefix break of a call in a replayed turn: a miss against the record
- * alone, in the miss's own form; a live call of a live-mode replay against the
- * conversation and the record together, the first call of a conversation so
- * reading against the call it would have been served; a served call against
- * the conversation, as on any turn.
+ * alone, in the miss's own form; a live call of a live-mode replay, and every
+ * call of a re-run, against the conversation and the record together, the
+ * first call of a conversation so reading against the call it would have been
+ * served; a served call against the conversation, as on any turn.
  */
 export function replayPrefixBreakOf(
   call: ModelCallEvent,
@@ -302,14 +302,14 @@ export function replayPrefixBreakOf(
     conversation,
     recorded,
   }: {
-    mode: 'recorded' | 'model_live';
+    mode: 'recorded' | 'model_live' | 'live';
     conversation: readonly Candidate[];
     recorded: readonly Candidate[];
   },
 ): PrefixBreak | undefined {
   if (call.attributes['error.type'] === 'replay_miss') return prefixBreakOf(call, recorded);
   const live =
-    mode === 'model_live' && typeof call.attributes['a2ui.replay.served_from'] !== 'string';
+    mode !== 'recorded' && typeof call.attributes['a2ui.replay.served_from'] !== 'string';
   return prefixBreakOf(call, live ? [...conversation, ...recorded] : conversation);
 }
 

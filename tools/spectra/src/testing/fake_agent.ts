@@ -26,6 +26,13 @@
  *                                list of A2UI messages the stream's first
  *                                event carries in place of its own surface,
  *                                one part each.
+ *   --log                        Write a line to stderr once listening, and a
+ *                                line to stdout for each turn request, as an
+ *                                agent's server logs.
+ *   --crash-if-file <path>       When the file exists at start, write a
+ *                                traceback's lines to stderr and exit with
+ *                                code 1, as an agent whose saved file no
+ *                                longer imports.
  *   --exit-after-card <code>     Exit with <code> soon after answering the card.
  *   --ignore-sigterm             Ignore the stop signal.
  *   --wait-for-open-requests     On the stop signal, stop listening and exit
@@ -50,6 +57,7 @@
  *                                second span half a second after answering.
  */
 import {spawn} from 'node:child_process';
+import {randomUUID} from 'node:crypto';
 import {appendFileSync, existsSync, readFileSync, writeFileSync} from 'node:fs';
 import {createServer, request as httpRequest, type Server} from 'node:http';
 import {pathToFileURL} from 'node:url';
@@ -104,18 +112,24 @@ export interface FakeAgentOptions {
   holdStream?: () => boolean;
   /** The A2UI messages a stream's first event carries, in place of the agent's own surface. */
   a2ui?: () => unknown[] | undefined;
+  /** Told each turn request's method as it arrives. */
+  onTurn?: (method: string) => void;
 }
 
-/** The reply to a stream carrying the A2UI messages given, one part each. */
-function streamReplyWith(messages: unknown[]): string {
+/**
+ * The reply to a stream carrying the A2UI messages given, one part each, in
+ * the conversation the request named, or else in a new one of its own, as an
+ * agent names each conversation it starts.
+ */
+function streamReplyWith(messages: unknown[], contextId: string): string {
   const parts = messages.map(message => ({
     kind: 'data',
     data: message,
     metadata: {mimeType: 'application/json+a2ui'},
   }));
   return (
-    `data: ${JSON.stringify({jsonrpc: '2.0', id: 1, result: {kind: 'status-update', taskId: 't-1', contextId: 'ctx-1', status: {state: 'working', message: {kind: 'message', messageId: 'r-1', role: 'agent', parts}}, final: false}})}\n\n` +
-    `data: ${JSON.stringify({jsonrpc: '2.0', id: 1, result: {kind: 'status-update', taskId: 't-1', contextId: 'ctx-1', status: {state: 'input-required'}, final: false}})}\n\n`
+    `data: ${JSON.stringify({jsonrpc: '2.0', id: 1, result: {kind: 'status-update', taskId: 't-1', contextId, status: {state: 'working', message: {kind: 'message', messageId: 'r-1', role: 'agent', parts}}, final: false}})}\n\n` +
+    `data: ${JSON.stringify({jsonrpc: '2.0', id: 1, result: {kind: 'status-update', taskId: 't-1', contextId, status: {state: 'input-required'}, final: false}})}\n\n`
   );
 }
 
@@ -290,6 +304,7 @@ export function startFakeAgent(
     holdCard,
     holdStream,
     a2ui,
+    onTurn,
   }: FakeAgentOptions = {},
 ): Promise<Server> {
   const url = `http://localhost:${port}/`;
@@ -346,10 +361,16 @@ export function startFakeAgent(
     request.on('data', (chunk: string) => (body += chunk));
     request.on('end', () => {
       let method: unknown;
+      let named: unknown;
       try {
-        const parsed = JSON.parse(body) as {method?: unknown};
+        const parsed = JSON.parse(body) as {
+          method?: unknown;
+          params?: {message?: {contextId?: unknown}};
+        };
         requests.push(parsed);
         method = parsed.method;
+        named = parsed.params?.message?.contextId;
+        if (method === 'message/send' || method === 'message/stream') onTurn?.(method);
       } catch {
         method = undefined;
       }
@@ -363,7 +384,14 @@ export function startFakeAgent(
             response.write(STREAM_REPLY.slice(0, STREAM_REPLY.indexOf('\r\n\r\n') + 4));
           } else {
             const messages = a2ui?.();
-            response.end(messages === undefined ? STREAM_REPLY : streamReplyWith(messages));
+            response.end(
+              messages === undefined
+                ? STREAM_REPLY
+                : streamReplyWith(
+                    messages,
+                    typeof named === 'string' ? named : `ctx-${randomUUID().slice(0, 8)}`,
+                  ),
+            );
           }
         } else {
           response.writeHead(200, {'content-type': 'application/json'});
@@ -410,6 +438,8 @@ async function runAsScript(): Promise<void> {
       'hold-card-until-file': {type: 'string'},
       'hold-stream-while-file': {type: 'string'},
       'a2ui-file': {type: 'string'},
+      log: {type: 'boolean'},
+      'crash-if-file': {type: 'string'},
       'exit-after-card': {type: 'string'},
       'ignore-sigterm': {type: 'boolean'},
       'wait-for-open-requests': {type: 'boolean'},
@@ -423,6 +453,16 @@ async function runAsScript(): Promise<void> {
   });
   if (values['pid-file'] !== undefined) {
     appendFileSync(values['pid-file'], `${process.pid}\n`);
+  }
+  const crashFile = values['crash-if-file'];
+  if (crashFile !== undefined && existsSync(crashFile)) {
+    process.stderr.write(
+      'Traceback (most recent call last):\n' +
+        '  File "fake_agent.py", line 1, in <module>\n' +
+        'SyntaxError: the fake agent was asked to crash\n',
+    );
+    process.exitCode = 1;
+    return;
   }
   if (values['ignore-sigterm']) {
     process.on('SIGTERM', () => {});
@@ -462,12 +502,18 @@ async function runAsScript(): Promise<void> {
     modelCall: values['model-call'] === true,
     toolCall: values['tool-call'] === true,
     otelExport: values['otel-export'] === true,
+    ...(values.log === true && {
+      onTurn: (method: string) => process.stdout.write(`turn: ${method}\n`),
+    }),
     onCardAnswered: () => {
       if (exitCode !== undefined) {
         setTimeout(() => process.exit(Number(exitCode)), 200);
       }
     },
   });
+  if (values.log === true) {
+    process.stderr.write(`Fake agent listening on port ${values.port}\n`);
+  }
   if (values['wait-for-open-requests']) {
     process.on('SIGTERM', () => server.close(() => process.exit(0)));
   }

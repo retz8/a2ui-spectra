@@ -5,6 +5,7 @@ import {ContextBar} from '@/components/ContextBar.tsx';
 import {FixturesList} from '@/components/FixturesList.tsx';
 import {FixtureView} from '@/components/FixtureView.tsx';
 import {KeysDialog} from '@/components/KeysDialog.tsx';
+import {LogsDrawer} from '@/components/LogsDrawer.tsx';
 import {Rail} from '@/components/Rail.tsx';
 import {Strip} from '@/components/Strip.tsx';
 import {TurnList} from '@/components/TurnList.tsx';
@@ -39,6 +40,7 @@ import {
 } from '@/model/fixtures.ts';
 import {followNewest} from '@/model/follow.ts';
 import {pageKeyOf} from '@/model/keys.ts';
+import {restartDividersOf, showsRestarts} from '@/model/restarts.ts';
 import {groupTurns} from '@/model/turn_groups.ts';
 import {fixtureAddressOf, replayedTurnToFollow} from '@/state/fixtures.ts';
 import {rememberedSize, rememberSize} from '@/state/layout.ts';
@@ -305,6 +307,22 @@ export function App() {
     moveTo({section: 'fixtures', fixture: row.fixture, traceId: row.recorded});
   };
   const turnGroups = useMemo(() => groupTurns(listed), [listed]);
+  // Under `run`, where the agent restarted or exited, among the turns of the connected agent or of every agent.
+  const sessionEvents = state.agent?.events;
+  const dividers = useMemo(
+    () =>
+      sessionEvents === undefined || !showsRestarts(shown, connected)
+        ? []
+        : restartDividersOf(
+            sessionEvents,
+            turnGroups.flatMap(group => group.turns),
+          ),
+    [sessionEvents, shown, connected, turnGroups],
+  );
+  // The logs drawer, under `run`: open or closed as the browser remembers.
+  const {logsOpen} = useViewSettings();
+  const setLogsOpen = useCallback((open: boolean) => setViewSetting('logsOpen', open), []);
+  const drawerOpen = logsOpen && state.agent !== undefined;
 
   // `/` focuses the turn list's search, opening the overlay on a small window and expanding a collapsed list; `?` lists the keys.
   useEffect(() => {
@@ -389,6 +407,8 @@ export function App() {
       onReplayStarted={onReplayStarted}
       draft={draft}
       onDraft={setDraft}
+      logsOpen={drawerOpen}
+      onLogs={() => setLogsOpen(true)}
     />
   );
   const stripOfSection = (props: {open: boolean; expands?: boolean; onOpen: () => void}) =>
@@ -407,6 +427,7 @@ export function App() {
         selected={selected}
         onSelect={pick}
         buttonRef={stripButton}
+        dividers={dividers}
         {...props}
       />
     );
@@ -420,7 +441,13 @@ export function App() {
         onKeys={() => setKeysOpen(true)}
       />
       <div className="flex min-w-0 flex-1 flex-col">
-        <ContextBar context={state.context} connected={state.connected} onAddress={goTo} />
+        <ContextBar
+          context={state.context}
+          connected={state.connected}
+          onAddress={goTo}
+          logsOpen={drawerOpen}
+          onLogs={setLogsOpen}
+        />
         <div className="relative flex min-h-0 flex-1 gap-2 pr-2 pb-2">
           {small &&
             stripOfSection({
@@ -459,6 +486,7 @@ export function App() {
                   onChoose={() => closeOverlay({refocus: true})}
                   searchRef={search}
                   autoFocus={overlay}
+                  dividers={dividers}
                   className="shadow-overlay"
                 />
               )}
@@ -523,6 +551,7 @@ export function App() {
                         onSelect={pick}
                         searchRef={search}
                         onCollapse={() => startSwing('collapse')}
+                        dividers={dividers}
                       />
                     )}
                   </div>
@@ -554,6 +583,16 @@ export function App() {
               {turnView}
             </ResizablePanel>
           </ResizablePanelGroup>
+          {drawerOpen && state.agent !== undefined && (
+            <LogsDrawer
+              command={state.agent.command}
+              logs={state.logs}
+              turns={turns}
+              // A marker's link selects its turn in Turns, from either section, and leaves the drawer open.
+              onTurn={traceId => goTo({traceId})}
+              onClose={() => setLogsOpen(false)}
+            />
+          )}
         </div>
       </div>
       <KeysDialog open={keysOpen} onOpenChange={setKeysOpen} />
