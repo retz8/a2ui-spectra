@@ -99,12 +99,14 @@ export interface FixturesListing {
 
 /**
  * The listing's fields of each record file read so far, by store and file,
- * with the store's revision of the file they were read at: a file the
- * receiver's spans amend is read again.
+ * with the store's revision of the file and the catalog registry's revision
+ * they were read at: a file the receiver's spans amend is read again, and
+ * so is every file once a catalog definition was read again, the rejections
+ * being counted against the definitions in force.
  */
 const listingCache = new WeakMap<
   TurnStore,
-  Map<string, {revision: number; fields: ListingFields | undefined}>
+  Map<string, {revision: number; catalogs: number; fields: ListingFields | undefined}>
 >();
 
 /** The largest request body the API reads. */
@@ -459,12 +461,15 @@ async function storedFields(
     listingCache.set(store, cache);
   }
   const revision = store.revisionOf(file);
+  const definitions = catalogs.revision;
   const cached = cache.get(file);
-  if (cached !== undefined && cached.revision === revision) return cached.fields;
+  if (cached !== undefined && cached.revision === revision && cached.catalogs === definitions) {
+    return cached.fields;
+  }
   try {
     const {turns} = await store.read(file);
     const fields = listingFieldsOf(turns[turns.length - 1], turns.slice(0, -1), catalogs);
-    cache.set(file, {revision, fields});
+    cache.set(file, {revision, catalogs: definitions, fields});
     return fields;
   } catch {
     return undefined;

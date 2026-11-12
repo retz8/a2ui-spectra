@@ -77,6 +77,8 @@ export interface AgentSessionHooks {
   cardAnswered(card: AgentCard): void;
   /** The process ended, by a restart or on its own, with the sentence a stopped replay reports. */
   processEnded(reason: string): void;
+  /** Nothing of the ended process is running any more; called once after each `processEnded`. */
+  processStopped(): void;
   /** Ends the open turns' connections at the wire proxy. */
   cutOpenTurns(): void;
 }
@@ -340,6 +342,7 @@ export class AgentSupervisor {
     const exit = describeExit(launch.exit);
     session.processEnded(`The agent's process ${exit}.`);
     await this.#stopProcess(launch);
+    session.processStopped();
     if (this.#stopping) {
       return;
     }
@@ -384,6 +387,7 @@ export class AgentSupervisor {
         this.#setState({state: 'restarting'});
         session.cutOpenTurns();
         await this.#stopProcess(launch);
+        session.processStopped();
         if (!this.#stopping) {
           await this.#writeStopped(launch, cause);
         }

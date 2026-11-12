@@ -131,6 +131,7 @@ export class CatalogRegistry {
   /** The configured definitions in config order, each with the catalog built from it. */
   readonly #configured: Array<{known: KnownCatalog; catalog: ProcessorCatalog}> = [];
   readonly #now: () => Date;
+  #revision = 0;
 
   private constructor(
     builtIn: readonly KnownCatalog[],
@@ -140,6 +141,15 @@ export class CatalogRegistry {
     this.#basic = builtIn;
     this.#builtInCatalogs = catalogs;
     this.#now = now;
+  }
+
+  /**
+   * How many times a read replaced a configured definition: what is worked
+   * out from the registry and kept, such as the turn listing's fields, is
+   * worked out again when it moves.
+   */
+  get revision(): number {
+    return this.#revision;
   }
 
   /** The built-in definitions first, then the configured ones in config order. */
@@ -273,6 +283,7 @@ export class CatalogRegistry {
       return {kind: 'unchanged'};
     }
     this.#configured[index] = read;
+    this.#revision++;
     return {
       kind: 'read',
       id: read.known.id,

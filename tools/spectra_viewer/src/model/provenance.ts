@@ -135,6 +135,24 @@ export function sourceName(source: ResolvedSource): string {
   return source.quoted === true ? `“${source.label}”` : source.label;
 }
 
+/**
+ * How a source reads for a recorded call in one of its turns: a fixture by
+ * its file, whichever of its turns holds the call; a store-turn source by
+ * the turn that holds the call, as the turn list names it, since a replay
+ * sends the conversation and a call may sit in another of its turns than
+ * the one the replayed turn stands for; the source's own name when that
+ * turn is not listed.
+ */
+export function sourceNameAt(
+  source: ResolvedSource,
+  callTurn: string,
+  turns: readonly ListedTurn[],
+): string {
+  if (source.kind !== 'turn' || callTurn === source.traceId) return sourceName(source);
+  const holder = resolveSource('', callTurn, {fixtures: [], turns});
+  return sourceName(holder.kind === 'turn' ? holder : source);
+}
+
 /** The trace id in a store file's name, `<time>_<trace id>.json`, for the source record's own turn. */
 export function storeTraceOf(path: string): string | undefined {
   return /_([0-9a-f]{32})\.json$/.exec(path)?.[1];
@@ -283,6 +301,7 @@ export function callReplayOf(
   provenance: Provenance | undefined,
   source: ResolvedSource | undefined,
   sourceTurns: readonly Turn[] | undefined,
+  listed: readonly ListedTurn[] = [],
 ): CallReplay | undefined {
   if (provenance === undefined || source === undefined) return undefined;
   const {proxy} = row;
@@ -293,7 +312,10 @@ export function callReplayOf(
     );
     return {
       kind: 'served',
-      name: sourceName(source),
+      name:
+        recorded === undefined
+          ? sourceName(source)
+          : sourceNameAt(source, recorded.traceId, listed),
       ...(recorded !== undefined && {recorded}),
     };
   }

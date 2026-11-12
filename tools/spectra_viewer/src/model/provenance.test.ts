@@ -23,6 +23,7 @@ import {
   rowTagsOf,
   sourceAddressOf,
   sourceName,
+  sourceNameAt,
   storeTraceOf,
   toolMissListOf,
 } from './provenance.ts';
@@ -187,6 +188,31 @@ describe('where a provenance link points', () => {
     });
     assert.equal(sourceName(bare), 'A turn');
     assert.deepEqual(sourceAddressOf(source, RECORDED, 'x'), {traceId: RECORDED, stepId: 'x'});
+  });
+
+  it('names a recorded call of a store-turn source by the turn that holds it', () => {
+    // A re-run of the booking turn sends the conversation: its first turn stands for the list
+    // turn, while the recorded call its model call is compared with sits in the booking turn.
+    const LIST = 'c'.repeat(32);
+    const turns: ListedTurn[] = [
+      {...storeTurn, input: {action: 'book_restaurant'}},
+      {traceId: LIST, startTime: storeTurn.startTime, input: {text: 'Top 3 Chinese restaurants'}},
+    ];
+    const standsFor = resolveSource('gone.json', LIST, {fixtures: [], turns});
+    assert.equal(sourceName(standsFor), '“Top 3 Chinese restaurants”');
+    assert.equal(sourceNameAt(standsFor, RECORDED, turns), 'Action “book_restaurant”');
+    assert.equal(sourceNameAt(standsFor, LIST, turns), '“Top 3 Chinese restaurants”');
+    // A turn that is not listed leaves the source's own name.
+    assert.equal(sourceNameAt(standsFor, 'd'.repeat(32), turns), '“Top 3 Chinese restaurants”');
+    // A fixture is named by its file, whichever of its turns holds the call.
+    const fixture = resolveSource(SOURCE, LIST, {fixtures, turns});
+    assert.equal(sourceNameAt(fixture, RECORDED, turns), 'find-italian-restaurants.json');
+    // The candidates carry the name of the turn each is in.
+    const call = miss('3'.repeat(16), 100, PROMPT);
+    const [candidate] = recordedCandidatesFor(call, recordedCallsOf([recordedTurn]), traceId =>
+      sourceNameAt(standsFor, traceId, turns),
+    );
+    assert.equal(candidate.recorded?.name, 'Action “book_restaurant”');
   });
 
   it('then gone: the base name as plain text, going nowhere', () => {

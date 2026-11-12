@@ -45,6 +45,10 @@
  *   --model-call                 Call the model at ANTHROPIC_BASE_URL during
  *                                each turn, before answering, as a redirected
  *                                agent does.
+ *   --model-call-on-stop         A third of a second after the stop signal,
+ *                                call the model once more and exit when it has
+ *                                answered, as an agent whose run goes on after
+ *                                its turn's connection was cut.
  *   --tool-call                  Call a tool over MCP at FAKE_TOOL_URL during
  *                                each turn, before answering, with a bearer
  *                                token, as an agent reading its tool server's
@@ -447,6 +451,7 @@ async function runAsScript(): Promise<void> {
       'pid-file': {type: 'string'},
       'grandchild-pid-file': {type: 'string'},
       'model-call': {type: 'boolean'},
+      'model-call-on-stop': {type: 'boolean'},
       'tool-call': {type: 'boolean'},
       'otel-export': {type: 'boolean'},
     },
@@ -466,6 +471,11 @@ async function runAsScript(): Promise<void> {
   }
   if (values['ignore-sigterm']) {
     process.on('SIGTERM', () => {});
+  }
+  if (values['model-call-on-stop']) {
+    process.on('SIGTERM', () =>
+      setTimeout(() => void callModel().then(() => process.exit(0)), 300),
+    );
   }
   const stopDelay = values['stop-delay'];
   if (stopDelay !== undefined) {

@@ -1222,8 +1222,13 @@ describe("the message box following the agent's process under run", () => {
     ]);
     assert.equal(end.verdict, 'failed');
     assert.equal(proxy.sent.length, 1, 'Nothing was sent after the process ended.');
-    assert.equal(hooks.disarmed, 1);
     assert.equal(box.state().replay, undefined);
+    // The proxies answer from the record until the process has stopped.
+    assert.equal(hooks.disarmed, 0);
+    box.agentStopped();
+    assert.equal(hooks.disarmed, 1);
+    box.agentStopped();
+    assert.equal(hooks.disarmed, 1);
 
     // The next replay is not stopped by the earlier end.
     box.setAgentState('running');

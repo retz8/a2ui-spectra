@@ -179,6 +179,10 @@ export class MessageBox {
   #agentLaunch = 0;
   /** Stops the replay running, with the sentence its remaining turns are reported not sent with. */
   #stopReplay: ((reason: string) => void) | undefined;
+  /** Whether the agent's process has ended and what is left of it is still being stopped. */
+  #agentStopping = false;
+  /** Disarms the proxies of a replay that ended while the agent's process was being stopped. */
+  #disarmOnceStopped: (() => void) | undefined;
   readonly #turns: TurnHub;
   readonly #headers: Readonly<Record<string, string>>;
   readonly #unsetVariables: readonly string[];
@@ -259,10 +263,23 @@ export class MessageBox {
    */
   agentEnded(reason: string): void {
     this.#agentLaunch++;
+    this.#agentStopping = true;
     for (const conversation of this.#conversations) {
       conversation.taskId = undefined;
     }
     this.#stopReplay?.(reason);
+  }
+
+  /**
+   * Nothing of the ended process is running any more: the proxies a replay
+   * it stopped had armed are disarmed now. Until then they answer from the
+   * record, so a call the agent makes on its way out, its run going on after
+   * its turn's connection was cut, does not reach the provider.
+   */
+  agentStopped(): void {
+    this.#agentStopping = false;
+    this.#disarmOnceStopped?.();
+    this.#disarmOnceStopped = undefined;
   }
 
   /**
@@ -402,7 +419,8 @@ export class MessageBox {
    * turn's provenance written as it opens and its verdict once it has closed,
    * and the proxies disarmed after the last. A turn that cannot be sent stops
    * the replay, the rest reported as not sent, and so does the end of the
-   * agent's process, the open turn having failed. Live, no pool is built and
+   * agent's process, the open turn having failed and the proxies staying
+   * armed until that process has stopped. Live, no pool is built and
    * no proxy armed, so every model and tool call goes out; no verdict is
    * taken, and each turn's outcome is said on the terminal as it closes.
    */
@@ -435,7 +453,10 @@ export class MessageBox {
 
     const replaying: ReplayState = {source: source.path, mode, turn: 0, turns: inputs.length};
     this.#replaying = replaying;
-    if (pool !== undefined) hooks.arm(pool);
+    if (pool !== undefined) {
+      this.#disarmOnceStopped = undefined;
+      hooks.arm(pool);
+    }
     this.#turns.notify({type: 'replay_started', source: source.path, mode, turns: inputs.length});
     const conversation: Conversation = {turns: []};
     const replayed: ReplayedTurn[] = [];
@@ -452,7 +473,11 @@ export class MessageBox {
       agentEnded ??= reason;
     };
     const end = () => {
-      if (pool !== undefined) hooks.disarm();
+      if (pool !== undefined) {
+        // A replay the agent's end stopped stays armed until the process has stopped.
+        if (this.#agentStopping) this.#disarmOnceStopped = () => hooks.disarm();
+        else hooks.disarm();
+      }
       this.#replaying = undefined;
       this.#stopReplay = undefined;
       if (pool === undefined) {

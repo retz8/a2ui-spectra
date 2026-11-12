@@ -35,7 +35,7 @@ A restart first cuts the open turns' connections at the wire proxy, then stops t
 
 ### 3. A restart while a turn is open or a replay runs
 
-A restart from either source, the control or the watcher, happens at once. Every open turn fails with the status the wire proxy already writes for a broken agent connection, a running replay stops with its remaining turns not sent, as a failed send already stops it, and the control says what the press will end. The hub-wide refusal while a turn is open stays Replay's alone.
+A restart from either source, the control or the watcher, happens at once. Every open turn fails with the status the wire proxy already writes for a broken agent connection, a running replay stops with its remaining turns not sent, as a failed send already stops it, its proxies answering from the record until the agent's process has stopped, and the control says what the press will end. The hub-wide refusal while a turn is open stays Replay's alone.
 
 ### 4. The logs
 

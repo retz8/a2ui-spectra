@@ -267,11 +267,15 @@ export function candidatesFor(
   );
 }
 
-/** A replay's candidates: the source record's model calls read in full with this call's model. */
+/**
+ * A replay's candidates: the source record's model calls read in full with
+ * this call's model, each with the source's name, or the name the source
+ * has for the recorded turn the call is in.
+ */
 export function recordedCandidatesFor(
   call: ModelCallEvent,
   recorded: ReadonlyArray<{call: {spanId: string}; traceId: string; offsetMs: number}>,
-  name: string,
+  name: string | ((traceId: string) => string),
 ): Candidate[] {
   const model = call.attributes['gen_ai.request.model'];
   if (typeof model !== 'string') return [];
@@ -284,7 +288,16 @@ export function recordedCandidatesFor(
     ) {
       return [];
     }
-    return [{call: other, traceId: found.traceId, recorded: {offsetMs: found.offsetMs, name}}];
+    return [
+      {
+        call: other,
+        traceId: found.traceId,
+        recorded: {
+          offsetMs: found.offsetMs,
+          name: typeof name === 'string' ? name : name(found.traceId),
+        },
+      },
+    ];
   });
 }
 

@@ -1008,6 +1008,48 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
     );
 
     it(
+      'counts a listed turn’s rejections against the definition read again, its check events as written',
+      {timeout: TIMEOUT},
+      async () => {
+        const {spectra, base, live, file, close} = await attached();
+        try {
+          await savedUntil(file, notes('notes', ['Note', 'Card']), () =>
+            spectra.output.includes(READ_AGAIN),
+          );
+          await live.until(event => event.event === 'catalogs_changed');
+          const sent = await sendMessage(base, 'Hi');
+          const written = await live.closed(sent.traceId);
+          assert.deepEqual(findingCodes(written), []);
+          const listed = async () =>
+            (await getJson<{turns: ListedTurn[]}>(`${base}/api/turns`)).body.turns.find(
+              turn => turn.traceId === sent.traceId,
+            );
+          assert.equal((await listed())?.rejections, 0);
+
+          // The Card now needs a title, which the written turn's Card lacks.
+          const definition = JSON.parse(notes('notes', ['Note', 'Card'])) as {
+            components: Record<string, {required: string[]; properties: Record<string, unknown>}>;
+          };
+          definition.components.Card.properties.title = {type: 'string'};
+          definition.components.Card.required = ['component', 'title'];
+          await savedUntil(
+            file,
+            JSON.stringify(definition),
+            () => timesIn(spectra.output, READ_AGAIN) >= 2,
+          );
+          await live.until(
+            () => live.events.filter(event => event.event === 'catalogs_changed').length >= 2,
+          );
+          const after = await listed();
+          assert.equal(after?.rejections, 1);
+          assert.equal(after?.findings, 0);
+        } finally {
+          await close();
+        }
+      },
+    );
+
+    it(
       'keeps the definition read before when a save breaks the file, with the failed read listed, and clears it at the fix',
       {timeout: TIMEOUT},
       async () => {
@@ -2137,6 +2179,65 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
             await stopped(spectra);
           } finally {
             live.close();
+            rmSync(dir, {recursive: true, force: true});
+          }
+        },
+      );
+
+      it(
+        'answers a restarted agent from the record until its process has stopped, so a call it makes on its way out stays on the machine',
+        {timeout: TIMEOUT},
+        async () => {
+          const providerPort = await freePort();
+          const provider = await startFakeProvider(providerPort);
+          const dir = tempDir();
+          const hold = path.join(dir, 'hold');
+          const {spectra, base} = await launch(
+            [
+              '--streaming',
+              '--hold-stream-while-file',
+              hold,
+              '--model-call',
+              '--model-call-on-stop',
+            ],
+            undefined,
+            undefined,
+            {ANTHROPIC_BASE_URL: `http://127.0.0.1:${providerPort}`},
+          );
+          const live = new LiveStream(`${base}/api/stream`);
+          try {
+            await spectra.waitFor(cardAnswered);
+            const first = await stateIs(base, 'running');
+            const sent = await sendMessage(base, 'Hi');
+            await live.closed(sent.traceId);
+            await boxSettled(base);
+            assert.equal(provider.received.length, 1, 'the live turn called the provider');
+
+            // The replay's turn is served its call from the record and stays open until the restart cuts it.
+            writeFileSync(hold, '');
+            const started = await postJson<ReplayStarted>(`${base}/api/replays`, {
+              source: {traceId: sent.traceId},
+              mode: 'recorded',
+            });
+            assert.equal(started.status, 202, JSON.stringify(started.body));
+            assert.equal((await press(base)).status, 202);
+            await live.until(event => event.event === 'replay_ended');
+            rmSync(hold);
+            await stateIs(base, 'running', first.state.seq);
+            assert.equal(
+              provider.received.length,
+              1,
+              'the call the agent made on its way out did not reach the provider',
+            );
+
+            // The proxies forward again once the replay's agent has gone.
+            const again = await sendMessage(base, 'Again');
+            await live.closed(again.traceId);
+            assert.equal(provider.received.length, 2);
+            await stopped(spectra);
+          } finally {
+            live.close();
+            await closeServer(provider.server);
             rmSync(dir, {recursive: true, force: true});
           }
         },

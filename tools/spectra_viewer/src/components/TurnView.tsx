@@ -37,7 +37,7 @@ import {
   recordedCallsOf,
   rowTagsOf,
   sourceAddressOf,
-  sourceName,
+  sourceNameAt,
   traceIdOfTurn,
 } from '@/model/provenance.ts';
 import {type Problem, onlyProblems, turnProblemsOf} from '@/model/problems.ts';
@@ -547,7 +547,16 @@ export function TurnBody({
     isReadInFull(selectedRow.proxy as ModelCallEvent)
       ? (selectedRow.proxy as ModelCallEvent)
       : undefined;
-  const sourceLabel = source === undefined ? undefined : sourceName(source.resolved);
+  // A recorded call is named by the source as it reads for the turn the call is in.
+  const resolvedSource = source?.resolved;
+  const listedTurns = state.turns;
+  const sourceLabel = useMemo(
+    () =>
+      resolvedSource === undefined
+        ? undefined
+        : (callTurn: string) => sourceNameAt(resolvedSource, callTurn, listedTurns),
+    [resolvedSource, listedTurns],
+  );
   const prefix = useMemo(() => {
     if (selectedCall === undefined || earlier === undefined) return undefined;
     const turns = [
@@ -602,7 +611,7 @@ export function TurnBody({
   const callReplay =
     selectedRow === undefined || provenance === undefined || source === undefined
       ? undefined
-      : callReplayOf(selectedRow, provenance, source.resolved, sourceTurns);
+      : callReplayOf(selectedRow, provenance, source.resolved, sourceTurns, state.turns);
 
   // The page address holds the step selected, picked or landed on; a pick not in a closed turn gives way.
   const shownId = inView.selected ? selected?.id : undefined;

@@ -373,6 +373,7 @@ export async function runSession(
         session: {
           stateChanged: state => session.setAgentState(state),
           processEnded: reason => session.agentEnded(reason),
+          processStopped: () => session.agentStopped(),
           cutOpenTurns: () => wire.cut(),
           cardAnswered: card => {
             const name = typeof card.name === 'string' ? card.name : undefined;
