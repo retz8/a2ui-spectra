@@ -1,9 +1,11 @@
 /**
  * The result lines `replay` and `test` print on stdout: one per recorded
- * turn and a closing line for the record under `replay`; one per fixture,
- * with its failing turns under it, and a summary under `test`.
+ * turn and a closing line for the record under `replay`, a turn's outcome
+ * where its verdict sits under `--live`; one per fixture, with its failing
+ * turns under it, and a summary under `test`.
  */
-import type {ReplayReason, ReplayVerdict} from './record/turn_record.js';
+import type {ReplayReason, ReplayVerdict, TurnOutcome} from './record/turn_record.js';
+import {inWords} from './replay/verdict.js';
 
 /** One replayed turn as the result lines report it: judged, or never sent. */
 export type ReportedTurn =
@@ -16,6 +18,11 @@ export type ReportedTurn =
       /** How many of the recorded turn's calls were never asked for. */
       unconsumed: number;
     }
+  | {turn: number; turns: number; notSent: string};
+
+/** One turn of a live replay as the result lines report it: closed, with its outcome, or never sent. */
+export type ReportedLiveTurn =
+  | {turn: number; turns: number; outcome: TurnOutcome | undefined}
   | {turn: number; turns: number; notSent: string};
 
 /** One fixture as `test` reports it: replayed, failed before anything was sent, or not run. */
@@ -50,6 +57,23 @@ export function turnLine(turn: ReportedTurn): string {
 /** The record's closing line: its verdict and, once a turn landed, the folder the turns are in. */
 export function recordLine(source: string, verdict: ReplayVerdict, folder?: string): string {
   return `${source}: ${verdict}${folder === undefined ? '' : `; the replayed turns are in ${folder}`}`;
+}
+
+/** A live turn's line: its number and its outcome where a verdict sits, or that it was not sent. */
+export function liveTurnLine(turn: ReportedLiveTurn): string {
+  const head = `turn ${turn.turn} of ${turn.turns}: `;
+  return 'notSent' in turn
+    ? `${head}not sent (${turn.notSent})`
+    : `${head}${inWords(turn.outcome)}`;
+}
+
+/** A live record's closing line: how many of its turns were sent and, once one landed, the folder they are in. */
+export function liveRecordLine(source: string, turns: ReportedLiveTurn[], folder?: string): string {
+  const sent = turns.filter(turn => !('notSent' in turn)).length;
+  return (
+    `${source}: ${sent} of ${turns.length} turn${turns.length === 1 ? '' : 's'} sent` +
+    (folder === undefined ? '' : `; the replayed turns are in ${folder}`)
+  );
 }
 
 /** A fixture's line, with a failed fixture's failing turns and its folder under it. */

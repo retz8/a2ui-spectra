@@ -769,7 +769,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
       const tool = await finished(['--help']);
       assert.match(
         tool.output,
-        /replay <file> \[--model-live\] \[--agent-url <url>\] \[options\] \[-- <command> \[args\.\.\.\]\]/,
+        /replay <file> \[--model-live \| --live\] \[--agent-url <url>\] \[options\] \[-- <command> \[args\.\.\.\]\]/,
       );
       assert.match(
         tool.output,
@@ -778,11 +778,12 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
       const replay = await finished(['replay', '--help']);
       assert.equal(replay.code, 0);
       assert.match(replay.output, /--model-live/);
+      assert.match(replay.output, /--live {2,}Every model and tool call live/);
       assert.doesNotMatch(replay.output, /--no-open|--allow-host|--port <n>/);
       const test = await finished(['test', '--help']);
       assert.equal(test.code, 0);
       assert.match(test.output, /fixtures/);
-      assert.doesNotMatch(test.output, /--model-live/);
+      assert.doesNotMatch(test.output, /--model-live|--live/);
     });
 
     it(

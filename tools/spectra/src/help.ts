@@ -49,7 +49,7 @@ const toolHelp = `${NAME} ${VERSION}: DevTools for A2UI agents.
 Usage:
   ${NAME} attach [<agent-url>] [options]
   ${NAME} run [--agent-url <url>] [options] -- <command> [args...]
-  ${NAME} replay <file> [--model-live] [--agent-url <url>] [options] [-- <command> [args...]]
+  ${NAME} replay <file> [--model-live | --live] [--agent-url <url>] [options] [-- <command> [args...]]
   ${NAME} test [<folder>] [--agent-url <url>] [options] [-- <command> [args...]]
   ${NAME} <command> --help
   ${NAME} --help
@@ -123,7 +123,7 @@ Options:
 ${sharedOptions}
 `;
 
-const replayHelp = `Usage: ${NAME} replay <file> [--model-live] [--agent-url <url>] [options] [-- <command> [args...]]
+const replayHelp = `Usage: ${NAME} replay <file> [--model-live | --live] [--agent-url <url>] [options] [-- <command> [args...]]
 
 Replay a turn record, a fixture or a store turn's file, against the agent:
 each recorded turn's wire input is re-sent through the wire proxy in order,
@@ -133,6 +133,8 @@ machine and a request the record does not match is a miss. With --model-live
 a model request the record does not match goes to the provider, so an
 unchanged agent replays for free and a changed prompt pays from the request
 that changed on; a tool request that matches nothing is a miss either way.
+With --live nothing is served from the record: every model and tool call the
+agent makes goes out, and no verdict is taken.
 
 ${headlessAgent}
 
@@ -140,10 +142,14 @@ One line per recorded turn, with its verdict, the reasons it failed and how
 many of its recorded calls were not asked for, then a line for the record
 with the conversation folder the replayed turns landed in. Exit 0 when the
 record passes, 1 when it fails or the box cannot send, 2 when the file is
-missing or is not a turn record.
+missing or is not a turn record. Under --live a turn's line carries its
+outcome where the verdict sits, the record's line how many of its turns were
+sent, and the exit is 0 when every turn was sent.
 
 Options:
   --model-live         Tools recorded, the model live.
+  --live               Every model and tool call live, and no verdict. Not
+                       with --model-live.
 ${headlessOptions}
 `;
 

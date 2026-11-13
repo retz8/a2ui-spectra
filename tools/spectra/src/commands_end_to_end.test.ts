@@ -187,6 +187,42 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
           assert.equal(attributes['a2ui.replay.verdict'], 'passed');
         }
 
+        // Live: each turn's outcome where a verdict sits, every turn sent, and no verdict written.
+        const outcomes = (
+          JSON.parse(readFileSync(path.join(cwd, fixture), 'utf8')) as TurnRecord
+        ).turns.map(turn =>
+          String(turnEventOf(turn).attributes['a2ui.turn.outcome']).replaceAll('_', ' '),
+        );
+        const allLive = await finished(
+          ['replay', fixture, '--live', ...(await portOptions())],
+          cwd,
+        );
+        assert.equal(allLive.code, 0, allLive.output);
+        const liveClosing = allLive.stdout.match(
+          new RegExp(
+            `^turn 1 of 2: ${outcomes[0]}\\nturn 2 of 2: ${outcomes[1]}\\n` +
+              'fixtures/greet-ada\\.json: 2 of 2 turns sent; the replayed turns are in (\\.a2ui-spectra/turns/\\S+)\\n$',
+          ),
+        );
+        assert.ok(liveClosing, `stdout was:\n${allLive.stdout}`);
+        const liveRecords = recordsIn(cwd, liveClosing[1]);
+        assert.equal(liveRecords.length, 2);
+        for (const record of liveRecords) {
+          const attributes = turnEventOf(record.turns.at(-1)!).attributes;
+          assert.equal(attributes['a2ui.replay.source'], 'fixtures/greet-ada.json');
+          assert.equal(attributes['a2ui.replay.mode'], 'live');
+          assert.equal(attributes['a2ui.replay.verdict'], undefined);
+        }
+
+        // --live beside --model-live: a usage error, before the agent is reached.
+        const both = await finished(
+          ['replay', fixture, '--live', '--model-live', ...(await portOptions())],
+          cwd,
+        );
+        assert.equal(both.code, 2, both.output);
+        assert.equal(both.stdout, '');
+        assert.match(both.stderr, /--live and --model-live cannot be given together/);
+
         // Everything recorded on a record with nothing to serve: refused before the agent is reached.
         const nothing = await finished(['replay', fixture, ...(await portOptions())], cwd);
         assert.equal(nothing.code, 1, nothing.output);

@@ -3,6 +3,8 @@ import {describe, it} from 'node:test';
 
 import {
   fixtureLines,
+  liveRecordLine,
+  liveTurnLine,
   nothingReachedLine,
   recordLine,
   summaryLine,
@@ -57,6 +59,36 @@ describe('the result lines', () => {
     assert.equal(
       recordLine('fixtures/greet-ada.json', 'failed'),
       'fixtures/greet-ada.json: failed',
+    );
+  });
+
+  it('names a live turn by its number and its outcome, where a verdict sits', () => {
+    assert.equal(liveTurnLine({turn: 1, turns: 2, outcome: 'completed'}), 'turn 1 of 2: completed');
+    assert.equal(
+      liveTurnLine({turn: 2, turns: 2, outcome: 'waiting_for_input'}),
+      'turn 2 of 2: waiting for input',
+    );
+    assert.equal(
+      liveTurnLine({turn: 2, turns: 3, notSent: 'The agent exited with code 1.'}),
+      'turn 2 of 3: not sent (The agent exited with code 1.)',
+    );
+  });
+
+  it('closes a live record with how many of its turns were sent, and the folder they landed in', () => {
+    assert.equal(
+      liveRecordLine(
+        'fixtures/greet-ada.json',
+        [
+          {turn: 1, turns: 2, outcome: 'completed'},
+          {turn: 2, turns: 2, outcome: 'failed'},
+        ],
+        '.a2ui-spectra/turns/ctx-1',
+      ),
+      'fixtures/greet-ada.json: 2 of 2 turns sent; the replayed turns are in .a2ui-spectra/turns/ctx-1',
+    );
+    assert.equal(
+      liveRecordLine('fixtures/greet-ada.json', [{turn: 1, turns: 1, notSent: 'Stopped.'}]),
+      'fixtures/greet-ada.json: 0 of 1 turn sent',
     );
   });
 

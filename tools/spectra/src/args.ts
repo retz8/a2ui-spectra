@@ -4,6 +4,7 @@ import {CONFIG_FILE, type SpectraConfig} from './config.js';
 
 import {DEFAULT_MODEL_PROXY_PORT} from './model_proxy/redirection.js';
 import {DEFAULT_RECEIVER_PORT} from './receiver/listener.js';
+import type {ReplayMode} from './record/turn_record.js';
 
 export const DEFAULT_VIEWER_PORT = 9820;
 export const DEFAULT_PROXY_PORT = 9821;
@@ -54,8 +55,8 @@ export type CommandLine =
       options: HeadlessOptions;
       /** The record's file. */
       file: string;
-      /** Whether the model is live, tools recorded; else everything is recorded. */
-      modelLive: boolean;
+      /** Everything recorded; under `--model-live`, tools recorded and the model live; under `--live`, every call live. */
+      mode: ReplayMode;
       /** The agent's command, when the command launches it. */
       command?: AgentCommand;
     }
@@ -91,6 +92,7 @@ const headlessOptions = {
 const replayOptions = {
   ...headlessOptions,
   'model-live': {type: 'boolean'},
+  live: {type: 'boolean'},
 } as const;
 
 const sessionOptions = {
@@ -199,12 +201,15 @@ function parseReplay(argv: string[]): CommandLine {
   if (more.length > 0) {
     throw new UsageError(`Unexpected argument '${more[0]}'.`, 'replay');
   }
+  if (values.live && values['model-live']) {
+    throw new UsageError('--live and --model-live cannot be given together.', 'replay');
+  }
   const command = agentCommandOf(argv, tokens, 'replay');
   return {
     name: 'replay',
     options: headlessOptionsFrom(values, values['agent-url'], 'replay'),
     file,
-    modelLive: values['model-live'] === true,
+    mode: values.live ? 'live' : values['model-live'] ? 'model_live' : 'recorded',
     ...(command !== undefined && {command}),
   };
 }

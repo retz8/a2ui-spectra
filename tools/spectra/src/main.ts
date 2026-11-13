@@ -81,12 +81,7 @@ export async function main(
       try {
         work =
           commandLine.name === 'replay'
-            ? await prepareReplay(
-                commandLine.file,
-                commandLine.modelLive,
-                process.cwd(),
-                headlessOut,
-              )
+            ? await prepareReplay(commandLine.file, commandLine.mode, process.cwd(), headlessOut)
             : await prepareTest(commandLine.folder, config, process.cwd(), headlessOut);
         agentUrl = agentUrlOf(commandLine.options, config, commandLine.name);
         toolPorts = toolProxyPorts(commandLine.options, config.tools.length, commandLine.name);

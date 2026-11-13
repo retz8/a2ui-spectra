@@ -227,7 +227,7 @@ describe('the headless commands', () => {
     const commandLine = parseCommandLine(['replay', 'fixtures/greet-ada.json']);
     assert.ok(commandLine.name === 'replay');
     assert.equal(commandLine.file, 'fixtures/greet-ada.json');
-    assert.equal(commandLine.modelLive, false);
+    assert.equal(commandLine.mode, 'recorded');
     assert.equal(commandLine.command, undefined);
     assert.equal(commandLine.options.agentUrl, undefined);
     assert.equal(commandLine.options.config, undefined);
@@ -266,7 +266,7 @@ describe('the headless commands', () => {
     ]);
     assert.ok(commandLine.name === 'replay');
     assert.equal(commandLine.file, 'greet-ada.json');
-    assert.equal(commandLine.modelLive, true);
+    assert.equal(commandLine.mode, 'model_live');
     assert.equal(commandLine.options.agentUrl?.href, 'http://localhost:10004/');
     assert.equal(commandLine.options.config, 'spectra/config.json');
     assert.equal(commandLine.options.proxyPort, 7001);
@@ -274,6 +274,17 @@ describe('the headless commands', () => {
     assert.equal(commandLine.options.toolProxyPort, 7003);
     assert.equal(commandLine.options.receiverPort, 7004);
     assert.deepEqual(commandLine.command, {command: 'uv', args: ['run', '.', '--port', '10004']});
+  });
+
+  it('reads replay with every call live under --live, and refuses it beside --model-live', () => {
+    const commandLine = parseCommandLine(['replay', 'greet-ada.json', '--live']);
+    assert.ok(commandLine.name === 'replay');
+    assert.equal(commandLine.mode, 'live');
+    usageError(
+      ['replay', 'greet-ada.json', '--live', '--model-live'],
+      /--live and --model-live cannot be given together/,
+    );
+    usageError(['test', '--live'], /Unknown option '--live'/);
   });
 
   it('reads test with and without the folder', () => {

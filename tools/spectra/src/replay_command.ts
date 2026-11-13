@@ -1,7 +1,8 @@
 /**
  * The headless commands: `replay <file>` runs one record through the message
  * box's replay entry and `test [<folder>]` every fixture under a folder, each
- * printing its result lines on stdout and exiting 0 when everything passed.
+ * printing its result lines on stdout and exiting 0 when everything passed;
+ * `replay --live`, which has no verdict, exits 0 when every turn was sent.
  * What is wrong before the agent is reached, a file or folder missing, a file
  * that is not a turn record, a folder with no fixture, exits 2 before the
  * agent is launched or its card waited for.
@@ -29,11 +30,15 @@ import {
   type TurnRecord,
 } from './record/turn_record.js';
 import {hasNothingToServe} from './replay/pool.js';
+import {outcomeOf} from './replay/verdict.js';
 import {
   fixtureLines,
+  liveRecordLine,
+  liveTurnLine,
   nothingReachedLine,
   recordLine,
   type ReportedFixture,
+  type ReportedLiveTurn,
   type ReportedTurn,
   summaryLine,
   turnLine,
@@ -57,7 +62,7 @@ function displayPath(file: string, cwd: string): string {
  */
 export async function prepareReplay(
   file: string,
-  modelLive: boolean,
+  mode: ReplayMode,
   cwd: string,
   out: Output,
 ): Promise<HeadlessWork | number> {
@@ -83,7 +88,6 @@ export async function prepareReplay(
     }
     throw error;
   }
-  const mode: ReplayMode = modelLive ? 'model_live' : 'recorded';
   if (mode === 'recorded' && hasNothingToServe(record)) {
     out.print(`${source}: failed (${NOTHING_TO_SERVE} Replay it with --model-live.)`);
     return 1;
@@ -92,6 +96,16 @@ export async function prepareReplay(
     if (session.box.unavailable !== undefined) {
       out.error(session.box.unavailable);
       return 1;
+    }
+    if (mode === 'live') {
+      const outcome = await runLiveReplay(session, {path: source, record});
+      if ('refused' in outcome) {
+        out.print(`${source}: failed (${outcome.refused})`);
+        return 1;
+      }
+      for (const turn of outcome.turns) out.print(liveTurnLine(turn));
+      out.print(liveRecordLine(source, outcome.turns, outcome.folder));
+      return outcome.turns.every(turn => !('notSent' in turn)) ? 0 : 1;
     }
     const outcome = await runReplay(session, {path: source, record}, mode);
     if ('refused' in outcome) {
@@ -197,7 +211,7 @@ function turnEventOf(turn: Turn): TurnEvent | undefined {
 async function runReplay(
   session: HeadlessSession,
   source: ReplaySource,
-  mode: ReplayMode,
+  mode: Exclude<ReplayMode, 'live'>,
 ): Promise<ReplayOutcome> {
   const total = source.record.turns.length;
   const reasons = new Map<string, ReplayReason[]>();
@@ -286,12 +300,7 @@ async function runReplay(
     ? 'passed'
     : 'failed';
 
-  let folder: string | undefined;
-  const first = sent[0];
-  if (first !== undefined) {
-    const stored = (await session.store.list()).find(turn => turn.traceId === first.traceId);
-    if (stored !== undefined) folder = path.dirname(session.store.displayPathOf(stored.file));
-  }
+  const folder = await folderOf(session, sent[0]?.traceId);
 
   const replayedCalls = sent
     .map(entry => closed.get(entry.traceId))
@@ -312,6 +321,95 @@ async function runReplay(
     ...(folder !== undefined && {folder}),
     nothingReached: replayedCalls.length === 0 && unasked > 0,
   };
+}
+
+/** The conversation folder a replay's first turn landed in, as shown, once it has. */
+async function folderOf(
+  session: HeadlessSession,
+  traceId: string | undefined,
+): Promise<string | undefined> {
+  if (traceId === undefined) return undefined;
+  const stored = (await session.store.list()).find(turn => turn.traceId === traceId);
+  return stored === undefined ? undefined : path.dirname(session.store.displayPathOf(stored.file));
+}
+
+/**
+ * Replays one record through the box with every call live and reads the
+ * result off the hub: each turn sent with the outcome it closed with, the
+ * rest not sent, from the replay's end or from what was known when Spectra
+ * stopped. A live replay has no verdict.
+ */
+async function runLiveReplay(
+  session: HeadlessSession,
+  source: ReplaySource,
+): Promise<{refused: string} | {turns: ReportedLiveTurn[]; folder?: string}> {
+  const total = source.record.turns.length;
+  const closed = new Map<string, Turn>();
+  const sent: Array<{traceId: string; turn: number}> = [];
+  let ended: Extract<LiveEvent, {type: 'replay_ended'; mode: 'live'}> | undefined;
+  let onEnded: () => void = () => {};
+  const endedPromise = new Promise<void>(resolve => {
+    onEnded = resolve;
+  });
+  const unsubscribe = session.turns.subscribe(event => {
+    switch (event.type) {
+      case 'replay_turn':
+        sent.push({traceId: event.traceId, turn: event.turn});
+        break;
+      case 'turn_closed':
+        closed.set(event.traceId, event.turn);
+        break;
+      case 'replay_ended':
+        if (event.source === source.path && event.mode === 'live') {
+          ended = event;
+          onEnded();
+        }
+        break;
+    }
+  });
+  try {
+    try {
+      await session.box.replay(source, 'live');
+    } catch (error) {
+      if (!(error instanceof MessageBoxError)) throw error;
+      // The first turn's send failed: the replay ended with every turn not sent.
+      if (ended === undefined) return {refused: error.message};
+    }
+    await Promise.race([endedPromise, aborted(session.stopping)]);
+  } finally {
+    unsubscribe();
+  }
+
+  const turns: ReportedLiveTurn[] = [];
+  if (ended !== undefined) {
+    const end = ended as Extract<LiveEvent, {type: 'replay_ended'; mode: 'live'}>;
+    for (const [index, turn] of end.turns.entries()) {
+      const record = 'notSent' in turn ? undefined : closed.get(turn.traceId);
+      turns.push(
+        'notSent' in turn
+          ? {turn: index + 1, turns: total, notSent: turn.notSent}
+          : {
+              turn: index + 1,
+              turns: total,
+              outcome: record === undefined ? undefined : outcomeOf(record),
+            },
+      );
+    }
+  } else {
+    // Spectra stopped before the replay ended: the turns closed so far, the rest not sent.
+    const reason = session.stopReason();
+    for (let index = 0; index < total; index++) {
+      const opened = sent.find(entry => entry.turn === index + 1);
+      const record = opened === undefined ? undefined : closed.get(opened.traceId);
+      turns.push(
+        record === undefined
+          ? {turn: index + 1, turns: total, notSent: reason}
+          : {turn: index + 1, turns: total, outcome: outcomeOf(record)},
+      );
+    }
+  }
+  const folder = await folderOf(session, sent[0]?.traceId);
+  return {turns, ...(folder !== undefined && {folder})};
 }
 
 function aborted(signal: AbortSignal): Promise<void> {
