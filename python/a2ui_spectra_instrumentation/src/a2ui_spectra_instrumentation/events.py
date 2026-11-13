@@ -128,10 +128,14 @@ class Event:
         self.catalogs: list[dict[str, str]] | None = None
         self.tool_name: str | None = None
         self.span_events: list[tuple[str, dict[str, AttributeValue], int]] = []
-        # The errors recorded as `exception` span events, in order, and their blocks.
+        # The errors recorded as `exception` span events in the outermost call
+        # that is running, in order; the blocks of every error recorded; and
+        # the first one's type and message.
         self.errors: list[BaseException] = []
         self.error_blocks: list[Block | None] = []
-        # Each error seen leaving a hooked call, with what the event kept of it then.
+        self.first_error: tuple[str, str] | None = None
+        # Each error seen leaving a hooked call nested in the outermost call
+        # that is running, with what the event kept of it then.
         self.noted: list[tuple[BaseException, object]] = []
         # How deep in hooked calls the event is: 0 in its outermost call.
         self.depth = 0
@@ -190,6 +194,8 @@ class Event:
         )
         self.errors.append(error)
         self.error_blocks.append(block)
+        if self.first_error is None:
+            self.first_error = (type(error).__name__, str(error))
         attributes: dict[str, AttributeValue] = {
             "exception.type": type(error).__name__,
             "exception.message": str(error),
@@ -212,6 +218,17 @@ class Event:
         self.record(error)
         self.end()
 
+    def release(self) -> None:
+        """The outermost call is over: the event lets go of the errors it saw.
+
+        An error holds its traceback, and the traceback the frames of the
+        agent's calls with everything in them. An event that outlives its
+        call, as a stream's does, must not keep them alive: an async generator
+        the agent abandoned in such a frame would never be closed.
+        """
+        self.errors = []
+        self.noted = []
+
     # The end.
 
     def attributes(self) -> dict[str, AttributeValue] | None:
@@ -232,8 +249,8 @@ class Event:
         attributes = self.attributes()
         if attributes is None:
             return
-        if self.errors:
-            attributes["error.type"] = type(self.errors[0]).__name__
+        if self.first_error is not None:
+            attributes["error.type"] = self.first_error[0]
         span = self.active.tracer.start_span(
             self.kind,
             context=self.context,
@@ -243,8 +260,8 @@ class Event:
         )
         for name, event_attributes, at in self.span_events:
             span.add_event(name, event_attributes, timestamp=at)
-        if self.errors:
-            span.set_status(Status(StatusCode.ERROR, str(self.errors[0])))
+        if self.first_error is not None:
+            span.set_status(Status(StatusCode.ERROR, self.first_error[1]))
         span.end(end_time=self.now())
 
     def _sdk(self) -> dict[str, AttributeValue]:
@@ -295,11 +312,11 @@ class PromptEvent(Event):
         if self.format is None or self.catalogs is None:
             self.abandon_reason("its inference format or catalogs are unknown")
             return None
-        if not self.errors and self.ui_section is None:
+        if self.first_error is None and self.ui_section is None:
             self.abandon_reason("it produced no section")
             return None
         attributes: dict[str, AttributeValue] = {"a2ui.event.kind": self.kind}
-        if not self.errors and self.ui_section is not None:
+        if self.first_error is None and self.ui_section is not None:
             attributes["a2ui.prompt.ui_section"] = self.ui_section
         attributes["a2ui.prompt.inference_format"] = self.format
         attributes["a2ui.prompt.catalogs"] = json_text(self.catalogs)

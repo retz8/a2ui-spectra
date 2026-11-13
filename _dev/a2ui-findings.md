@@ -1969,7 +1969,13 @@ with `Root node contact_agent was cancelled.`
 At the Phase 8 acceptance run the traceback was logged after retried turns of the Python
 restaurant finder launched as `uv run .`, eight times across two starts, and after neither of the
 two retried turns of the same finder launched under `opentelemetry-instrument`, traces
-`16d55d7962a168154874d95f5b10814a` and `6d91ed68bb0fe87bfd59ab25b06e1db4`.
+`16d55d7962a168154874d95f5b10814a` and `6d91ed68bb0fe87bfd59ab25b06e1db4`. Its absence there was
+Spectra's own: the A2UI wrapper's stream event kept the `ValueError` it recorded, the error's
+traceback kept the frame of `stream_response_to_parts`, and so `token_stream` and ADK's generator
+were never closed, neither `Root node restaurant_agent was cancelled.` nor the traceback being
+logged. With the wrapper keeping no error past its call, a replay of the recorded retried turn
+`52c785da538f422e2c56e4e2e18f472d` logs both lines once under `opentelemetry-instrument`, as it
+does under `uv run .`.
 
 ### Fix
 

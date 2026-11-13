@@ -7,6 +7,7 @@ a failure in it is one WARNING line.
 
 from __future__ import annotations
 
+import contextvars
 import inspect
 import logging
 import sys
@@ -112,6 +113,12 @@ def _safely(where: str, action: Callable[[], object]) -> None:
         report_fault(where, fault)
 
 
+def _leave(event: Event, token: contextvars.Token[Event | None]) -> None:
+    """The outermost call on an event is over: it is no longer the open one, and keeps no error."""
+    events.leave(token)
+    event.release()
+
+
 def _arguments(
     wrapped: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> dict[str, Any]:
@@ -187,7 +194,7 @@ def _outermost(
         _safely(where, lambda: returned(result))
         return result
     finally:
-        events.leave(token)
+        _leave(event, token)
 
 
 # The parsing entry points.
@@ -340,7 +347,7 @@ def _stream_call(
         _safely(where, returned)
         return parts
     finally:
-        events.leave(token)
+        _leave(event, token)
 
 
 def feed(
@@ -543,7 +550,7 @@ async def _run_tool(
         _safely(where, lambda: event.take_tool_result(result))
         return result
     finally:
-        events.leave(token)
+        _leave(event, token)
 
 
 def process_llm_request(
@@ -624,7 +631,7 @@ async def _append_prompt(
         _safely(where, appended)
         return result
     finally:
-        events.leave(token)
+        _leave(event, token)
 
 
 def wrapper_for(hook: Hook) -> Wrapper:

@@ -1,8 +1,10 @@
-"""A failure inside the wrapper leaves the SDK's return and exception as they are, with one line."""
+"""A failure inside the wrapper leaves the SDK's return and exception as they are, with one line; an error the wrapper records keeps nothing of the caller alive."""
 
 from __future__ import annotations
 
+import gc
 import logging
+import weakref
 from typing import Any
 
 import pytest
@@ -93,3 +95,65 @@ def test_a_fault_leaves_the_exception_as_it_is(
         expected.__cause__
     )
     assert spans.all() == []
+
+
+class Held:
+    """Stands for what the agent's frame holds, such as the generator it reads tokens from."""
+
+
+def test_a_raising_feed_keeps_nothing_of_the_caller_alive(
+    spans: Any, processor: Any
+) -> None:
+    def caller(stream: Any) -> weakref.ref[Held]:
+        held = Held()
+        try:
+            stream.feed(REJECTED)
+        except A2uiError:
+            pass
+        return weakref.ref(held)
+
+    stream = processor().open_stream()
+    held = caller(stream)
+    gc.collect()
+
+    assert held() is None
+    assert [event.name for event in spans.one().events][-1] == "exception"
+
+
+def test_a_block_read_past_keeps_nothing_of_the_caller_alive(
+    spans: Any, processor: Any
+) -> None:
+    def caller(stream: Any) -> weakref.ref[Held]:
+        held = Held()
+        stream.feed(REJECTED)
+        return weakref.ref(held)
+
+    stream = processor().open_stream(after_rejected_block="continue")
+    held = caller(stream)
+    gc.collect()
+
+    # The stream is still open, its event holding the block it read past.
+    assert held() is None
+    stream.close()
+    span = spans.one()
+    assert [event.name for event in span.events] == ["a2ui.parse.chunk", "exception"]
+    assert spans.attributes(span)["error.type"] == "A2uiCompilationValidationError"
+    assert not span.status.is_ok
+
+
+def test_a_raising_parse_keeps_nothing_of_the_caller_alive(
+    spans: Any, processor: Any
+) -> None:
+    def caller() -> weakref.ref[Held]:
+        held = Held()
+        try:
+            processor().parse_response(REJECTED)
+        except A2uiError:
+            pass
+        return weakref.ref(held)
+
+    held = caller()
+    gc.collect()
+
+    assert held() is None
+    assert not spans.one().status.is_ok
