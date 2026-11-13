@@ -5,6 +5,7 @@ import {
   agentStatusOf,
   boxNoteOf,
   composerReasonOf,
+  firstScreenBoxOf,
   firstScreenFormOf,
   refusalNoteOf,
   restartEnabled,
@@ -156,6 +157,39 @@ describe("the first screen's form", () => {
     assert.equal(firstScreenFormOf('waiting'), 'notReady');
     assert.equal(firstScreenFormOf('restarting'), 'notReady');
     assert.equal(firstScreenFormOf('down'), 'down');
+  });
+});
+
+describe("what the first screen's ready form says of the message box", () => {
+  it('is that it can send while the box gives no reason', () => {
+    assert.equal(firstScreenBoxOf({}), 'canSend');
+  });
+
+  it('is that a host app still can, for a reason that is the box’s own', () => {
+    assert.equal(
+      firstScreenBoxOf({
+        unavailable: "Can't send · SPECTRA_AGENT_TOKEN is not set in Spectra's environment",
+      }),
+      'hostOnly',
+    );
+    assert.equal(
+      firstScreenBoxOf({
+        unavailable:
+          'The message box cannot send to this agent: its card lists A2A JSON-RPC only at version 2.0, ' +
+          'and the box speaks A2A 0.3 and 1.0. Hosts pointed at the wire proxy are not affected.',
+      }),
+      'hostOnly',
+    );
+  });
+
+  it('is that no turn can start, once the card lists no JSON-RPC interface', () => {
+    assert.equal(
+      firstScreenBoxOf({
+        unavailable: "Can't send · the agent's card lists no A2A JSON-RPC interface, only GRPC",
+        noJsonRpc: true,
+      }),
+      'noTurn',
+    );
   });
 });
 

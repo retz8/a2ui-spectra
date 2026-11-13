@@ -1103,12 +1103,17 @@ describe("the message box following the agent's process under run", () => {
     box.setAgentState('waiting');
     await refusal("Can't send · waiting for the agent's card");
     assert.equal(box.state().a2aVersion, undefined);
+    assert.equal(box.state().noJsonRpc, undefined);
 
+    // A card with no JSON-RPC interface: no host's turn can start either, and the state says so.
     box.setCard({name: 'No interface', supportedInterfaces: []});
+    assert.equal(box.state().noJsonRpc, undefined, 'not while the agent is not running');
     box.setAgentState('running');
     await refusal("Can't send · the agent's card lists no interface to reach it at");
+    assert.equal(box.state().noJsonRpc, true);
     box.setCard({url: 'http://127.0.0.1:10999/', preferredTransport: 'GRPC'});
     await refusal("Can't send · the agent's card lists no A2A JSON-RPC interface, only GRPC");
+    assert.equal(box.state().noJsonRpc, true);
     box.setCard({
       url: 'http://127.0.0.1:10999/',
       preferredTransport: 'GRPC',
@@ -1124,8 +1129,10 @@ describe("the message box following the agent's process under run", () => {
       'The message box cannot send to this agent: its card lists A2A JSON-RPC only at version 2.0, ' +
         'and the box speaks A2A 0.3 and 1.0. Hosts pointed at the wire proxy are not affected.',
     );
+    assert.equal(box.state().noJsonRpc, undefined);
     box.setCard(CARD_1_0);
     await refusal("Can't send · TOKEN is not set in Spectra's environment");
+    assert.equal(box.state().noJsonRpc, undefined);
 
     box.setAgentState('restarting');
     await refusal("Can't send · the agent is restarting");

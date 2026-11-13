@@ -1,5 +1,5 @@
 import type {SessionContext} from '@/api.ts';
-import {type FirstScreenForm, firstScreenFormOf} from '@/model/dev_loop.ts';
+import {type FirstScreenBox, type FirstScreenForm, firstScreenFormOf} from '@/model/dev_loop.ts';
 import {logTimeOf, tailSinceStartOf} from '@/model/logs.ts';
 import {cn} from '@/lib/utils';
 import {agentNameOf} from '@/state/selectors.ts';
@@ -17,6 +17,11 @@ import {PressButton} from './Refusal.tsx';
  * wire proxy's address to point a host app at, and under `attach` the
  * variables to set in the agent's shell, with one copy button for all.
  *
+ * While the agent is running and the message box cannot send, the ready form
+ * says what can still start a turn instead: a host app pointed at the wire
+ * proxy, the sentence carrying the address; or nothing, until the agent's card
+ * lists an A2A JSON-RPC interface, the wire proxy's address left out.
+ *
  * Under `run` it has three forms, chosen by the agent's state alone: ready,
  * while the agent is running; not ready, while it is starting, waiting for
  * its card or restarting, the live status reading as the context bar's does;
@@ -27,15 +32,15 @@ import {PressButton} from './Refusal.tsx';
 export function FirstScreen({
   context,
   connected,
-  canSend,
+  box,
   onExample,
   logsOpen,
   onLogs,
 }: {
   context: SessionContext | undefined;
   connected: boolean | undefined;
-  /** Whether the message box can send to the agent; its examples are offered only then. */
-  canSend: boolean;
+  /** What the ready form says of the message box; the card's examples are offered only while it can send. */
+  box: FirstScreenBox;
   onExample: (text: string) => void;
   /** Whether the logs drawer is open. */
   logsOpen: boolean;
@@ -47,7 +52,8 @@ export function FirstScreen({
   const form: FirstScreenForm =
     agent === undefined ? 'ready' : firstScreenFormOf(agent.state.state);
   const name = agentNameOf(state);
-  const examples = canSend && form === 'ready' ? (context?.examples ?? []) : [];
+  const said: FirstScreenBox | undefined = form === 'ready' ? box : undefined;
+  const examples = said === 'canSend' ? (context?.examples ?? []) : [];
   const variables = context?.mode === 'attach' ? (context.variables ?? []) : [];
   const tail = form === 'down' ? tailSinceStartOf(state.logs?.entries ?? []) : [];
   return (
@@ -70,8 +76,28 @@ export function FirstScreen({
           </span>
         )}
       </div>
-      {form === 'ready' && (
+      {said === 'canSend' && (
         <p className="max-w-105 text-muted-foreground">Send a message to start your first turn.</p>
+      )}
+      {said === 'hostOnly' && context !== undefined && (
+        <div className="flex flex-wrap items-center justify-center gap-2 text-muted-foreground">
+          To start your first turn, point your host app at
+          <CopyButton
+            text={context.proxyAddress}
+            label="Copy the wire proxy's address"
+            className="h-7 gap-1.5 rounded-lg border bg-panel pr-2 pl-2.5 text-xs text-foreground hover:bg-panel"
+          >
+            {addressOf(context.proxyAddress)}
+          </CopyButton>
+        </div>
+      )}
+      {said === 'noTurn' && (
+        <p className="max-w-140 text-muted-foreground">
+          <span className="block">
+            No turn can start until the agent’s card lists an A2A JSON-RPC interface.
+          </span>
+          <span className="block">The card is read again when the agent restarts.</span>
+        </p>
       )}
       {form === 'notReady' && (
         <p className="max-w-105 text-muted-foreground">
@@ -141,7 +167,7 @@ export function FirstScreen({
           ))}
         </div>
       )}
-      {context !== undefined && form !== 'down' && (
+      {context !== undefined && (said === 'canSend' || form === 'notReady') && (
         <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
           or point your host app at
           <CopyButton

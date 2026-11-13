@@ -88,6 +88,12 @@ export interface MessageBoxState {
   unavailable?: string;
   /** The variables the configured headers name that are not set in Spectra's environment. */
   unsetVariables?: string[];
+  /**
+   * Set while the agent runs and its card lists no A2A JSON-RPC interface, or
+   * no interface at all: no turn can start, from the box or from a host app
+   * pointed at the wire proxy.
+   */
+  noJsonRpc?: true;
   /** The A2A version of the interface the box sends to, when the card lists one it speaks. */
   a2aVersion?: A2aVersion;
   /** The replay running, while one does. */
@@ -309,6 +315,13 @@ export class MessageBox {
     return undefined;
   }
 
+  /** Whether the agent runs and its latest card lists no A2A JSON-RPC interface, or none at all. */
+  get #listsNoJsonRpc(): boolean {
+    if (this.#agentState !== 'running' || this.#card === undefined) return false;
+    const {kind} = checkTransport(this.#card);
+    return kind === 'no_interface' || kind === 'no_jsonrpc';
+  }
+
   /**
    * Why the box cannot send to this agent, or nothing when it can, the first
    * that applies: the agent's process is not running, its card lists no
@@ -341,6 +354,7 @@ export class MessageBox {
       })),
       ...(unavailable !== undefined && {unavailable}),
       ...(this.#unsetVariables.length > 0 && {unsetVariables: [...this.#unsetVariables]}),
+      ...(this.#listsNoJsonRpc && {noJsonRpc: true as const}),
       ...(this.#target?.kind === 'found' && {a2aVersion: this.#target.version}),
       ...(this.#replaying !== undefined && {replay: {...this.#replaying}}),
     };

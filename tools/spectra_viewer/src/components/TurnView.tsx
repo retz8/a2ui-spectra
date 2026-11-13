@@ -18,6 +18,7 @@ import {keptPick, nextProblem, pickedRowId, pickForKey, stepInView} from '@/mode
 import {inputBriefOfTurn} from '@/model/input_brief.ts';
 import {pageKeyOf} from '@/model/keys.ts';
 import {catalogsOf} from '@/model/catalogs.ts';
+import {firstScreenBoxOf} from '@/model/dev_loop.ts';
 import {dataModelMapOf, dataModelVersionOf} from '@/model/host_message.ts';
 import {agentMessages} from '@/model/messages.ts';
 import {previewProblemsOf, routeOf, surfaceFeedOf, targetOf} from '@/model/preview.ts';
@@ -209,7 +210,7 @@ export function TurnView({
       <FirstScreen
         context={state.context}
         connected={state.connected}
-        canSend={state.box.unavailable === undefined}
+        box={firstScreenBoxOf(state.box)}
         logsOpen={logsOpen}
         onLogs={onLogs}
         onExample={example => {

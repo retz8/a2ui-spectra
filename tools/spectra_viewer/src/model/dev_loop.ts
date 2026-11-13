@@ -5,7 +5,7 @@
  * mirrors its rules here only says it first, and a reason the message box
  * cannot send for is the server's line wherever it is shown.
  */
-import type {AgentProcessState} from '../api.ts';
+import type {AgentProcessState, MessageBoxState} from '../api.ts';
 import {plural} from './steps.ts';
 
 /** How the message box's lines start, all but one of them. */
@@ -115,6 +115,21 @@ export type FirstScreenForm = 'ready' | 'notReady' | 'down';
 export function firstScreenFormOf(state: AgentProcessState['state']): FirstScreenForm {
   if (state === 'running') return 'ready';
   return state === 'down' ? 'down' : 'notReady';
+}
+
+/**
+ * What the first screen's ready form says of the message box: that it can
+ * send; that it cannot while a host app pointed at the wire proxy still can,
+ * the reason being the box's own; or that no turn can start, the agent's card
+ * listing no A2A JSON-RPC interface.
+ */
+export type FirstScreenBox = 'canSend' | 'hostOnly' | 'noTurn';
+
+export function firstScreenBoxOf(
+  box: Pick<MessageBoxState, 'unavailable' | 'noJsonRpc'>,
+): FirstScreenBox {
+  if (box.unavailable === undefined) return 'canSend';
+  return box.noJsonRpc === true ? 'noTurn' : 'hostOnly';
 }
 
 /**

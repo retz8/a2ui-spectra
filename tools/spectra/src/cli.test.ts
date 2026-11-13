@@ -2074,6 +2074,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
             );
             const line = "Can't send · the agent's card lists no A2A JSON-RPC interface, only GRPC";
             assert.equal((await boxOf(base)).unavailable, line);
+            assert.equal((await boxOf(base)).noJsonRpc, true);
             assert.deepEqual(
               await postJson<{error: string}>(`${base}/api/message-box/messages`, {text: 'Hi'}),
               {status: 422, body: {error: line}},
@@ -2092,6 +2093,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
             assert.equal((await press(base)).status, 202);
             await stateIs(base, 'running', third.state.seq);
             assert.equal((await boxOf(base)).unavailable, undefined);
+            assert.equal((await boxOf(base)).noJsonRpc, undefined);
             await sendMessage(base, 'Hi');
             await boxSettled(base);
             await stopped(spectra);

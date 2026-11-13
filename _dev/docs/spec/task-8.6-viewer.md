@@ -102,6 +102,7 @@ Restarts caused by a save, with no turn and no other event between them, draw as
 - The heading is the latest card's name once any card has answered, and the command in monospace until then, in every form.
 - The down form's lines are the output lines written since the latest start, the last twelve of them, dividers not counted.
 - With no such line, as when the command could not start, the block is left out, and the status, "Open Logs" and Restart stand alone.
+- While the agent is running and the message box cannot send, the ready form says what can still start a turn, in place of "Send a message to start your first turn." and of the line "or point your host app at". When a host app pointed at the wire proxy still can, the reason being a configured header's variable that is not set or a card that lists JSON-RPC only at versions the box does not speak: "To start your first turn, point your host app at" with the wire proxy's address and its copy button. When nothing can, the card listing no interface or no JSON-RPC interface: "No turn can start until the agent’s card lists an A2A JSON-RPC interface." over "The card is read again when the agent restarts.", with no address. The reason stays on the composer. Two boards on the States row draw them, "First screen: the message box cannot send, a host app still can" and "First screen: no turn can start until the card lists a JSON-RPC interface".
 
 ### 17. A re-run turn's model call
 

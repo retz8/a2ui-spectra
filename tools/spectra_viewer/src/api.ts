@@ -86,6 +86,8 @@ export interface MessageBoxState {
   unavailable?: string;
   /** The variables the configured headers name that are not set in Spectra's environment. */
   unsetVariables?: string[];
+  /** Set while the agent runs and its card lists no A2A JSON-RPC interface: no turn can start, from a host app either. */
+  noJsonRpc?: true;
   /** The A2A version of the interface the box sends to, when the card lists one it speaks. */
   a2aVersion?: A2aVersion;
   /** The replay running, while one does. */

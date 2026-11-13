@@ -651,4 +651,87 @@ describe(`the dev loop in the viewer on the fake agent under run, in Chromium, $
       });
     },
   );
+
+  it(
+    "says on the first screen, while the agent runs and the message box cannot send, what can still start a turn: a host app at the wire proxy while a header's variable is not set, and nothing once the card lists no JSON-RPC interface",
+    {timeout: TIMEOUT},
+    async () => {
+      const cwd = workingDir();
+      const cardFile = path.join(cwd, 'card.json');
+      writeFileSync(cardFile, JSON.stringify({}));
+      writeFileSync(
+        path.join(cwd, 'a2ui-spectra.json'),
+        JSON.stringify({
+          agent: {headers: {Authorization: 'Bearer ${SPECTRA_FIRST_SCREEN_TOKEN}'}},
+        }),
+      );
+      const [agentPort, port, proxyPort] = await Promise.all([freePort(), freePort(), freePort()]);
+      const spectra = new SpectraProcess(
+        [
+          'run',
+          '--agent-url',
+          `http://localhost:${agentPort}`,
+          '--port',
+          String(port),
+          '--proxy-port',
+          String(proxyPort),
+          '--model-proxy-port',
+          String(await freePort()),
+          '--receiver-port',
+          String(await freePort()),
+          '--no-open',
+          '--',
+          process.execPath,
+          fakeAgentScript,
+          '--port',
+          String(agentPort),
+          '--card-file',
+          cardFile,
+        ],
+        cwd,
+      );
+      const base = `http://127.0.0.1:${port}`;
+      const page = await browser.newPage({
+        viewport: {width: 1440, height: 900},
+        reducedMotion: 'reduce',
+      });
+      try {
+        await spectra.waitFor(/The viewer is at /);
+        const main = page.getByRole('main');
+        const proxyAddress = main.getByRole('button', {name: "Copy the wire proxy's address"});
+        await page.goto(base);
+
+        // A header's variable is not set: a host app at the wire proxy can still start a turn.
+        await main.getByRole('heading', {level: 1, name: 'Fake agent'}).waitFor();
+        await main.getByText('To start your first turn, point your host app at').waitFor();
+        await proxyAddress.getByText(String(proxyPort)).waitFor();
+        assert.equal(await proxyAddress.count(), 1);
+        assert.equal(await main.getByText('Send a message to start your first turn.').count(), 0);
+        assert.equal(await main.getByText('or point your host app at').count(), 0);
+        await main.getByText(/is not set in Spectra's environment/).waitFor();
+
+        // The card lists gRPC alone after a restart: no turn can start, and the address is left out.
+        writeFileSync(cardFile, JSON.stringify({transports: ['GRPC']}));
+        const pressed = await fetch(`${base}/api/agent/restart`, {
+          method: 'POST',
+          headers: {'content-type': 'application/json'},
+          body: '{}',
+        });
+        assert.equal(pressed.status, 202);
+        await main
+          .getByText('No turn can start until the agent’s card lists an A2A JSON-RPC interface.')
+          .waitFor();
+        await main.getByText('The card is read again when the agent restarts.').waitFor();
+        await main
+          .getByText("Can't send · the agent's card lists no A2A JSON-RPC interface, only GRPC")
+          .waitFor();
+        assert.equal(await proxyAddress.count(), 0);
+        assert.equal(await main.getByText('To start your first turn').count(), 0);
+        assert.equal(await main.getByText('Send a message to start your first turn.').count(), 0);
+      } finally {
+        await page.close();
+        await spectra.stop();
+      }
+    },
+  );
 });
