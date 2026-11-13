@@ -57,7 +57,10 @@
         "receiver_capture/**",
         "test_data/receiver_capture/**",
         "wrapper_capture/**",
-        "test_data/wrapper_capture/**"
+        "test_data/wrapper_capture/**",
+        "wrapper_driver/python/driver.py",
+        "wrapper_driver/python/pyproject.toml",
+        "../python/a2ui_spectra_instrumentation/src/**/*.py"
       ],
       "output": []
     },
