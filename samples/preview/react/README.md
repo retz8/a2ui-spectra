@@ -8,7 +8,8 @@ The React sample catalog app of Spectra for A2UI: the sample catalog's React imp
 
 ## Files
 
-- `src/CustomSlider.tsx`: the custom component's React implementation.
+- `src/CustomSlider.tsx`: the custom component's React implementation: its API and its binding to the catalog.
+- `src/SliderBody.tsx`: the custom component's markup, the module's only export, so that Vite swaps a saved edit into the page in place; a save of `src/CustomSlider.tsx`, which exports the API beside the component, reloads the page.
 - `src/catalog.ts`: the sample catalog: the v0.9 basic catalog's components and functions and the custom slider, under the definition's id.
 - `src/main.tsx`: the preview page: `SpectraPreview` with the sample catalog, inside the markdown provider a host using it wraps its surfaces in.
 - `index.html`: the page, kept light with upstream's `a2ui-light` class, as a host's page is.
