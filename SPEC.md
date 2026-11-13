@@ -170,6 +170,7 @@ catalog ──▶ prompt generator ──▶ prompt ──▶ model ──▶ ra
 ## Turn record
 
 - The turn record is the contract: a versioned schema that belongs to no language. A fixture is a turn record.
+- A version of the record is a draft until a release ships it, and closed from then on. Every release reads and replays the records of every closed version, and reads the spans of a producer following any closed version. A record of a version newer than the release knows is refused, with a line saying it is newer.
 - Model-call fields use the names of OpenTelemetry's GenAI semantic conventions wherever one exists, pinned to a dated snapshot. Since semantic-conventions v1.42.0 those conventions live in `open-telemetry/semantic-conventions-genai`, all at Development level, with no release yet.
 - The A2UI parts (messages, surfaces, actions, checks, the wrapper's spans) are Spectra's own. The hook proposal carries them upstream as the shared convention.
 - Every event carries a timestamp.

@@ -14,7 +14,7 @@ The normative definition is [`../json/turn_record.json`](../json/turn_record.jso
 | OpenTelemetry core conventions  | `v1.44.0`, the version the GenAI conventions pin in `model/manifest.yaml`                                                          |
 | GenAI conventions stability     | Development, for every GenAI name used here                                                                                        |
 
-Moving a pin is a spec change and bumps the record version.
+Moving a pin is an amendment, as [Versions](#versions) has it.
 
 ### Copied schemas
 
@@ -36,7 +36,11 @@ These eight files are copied unchanged from `model/gen-ai/` at the GenAI commit 
 - A version is written `v<major>.<minor>`, with an optional third part, as A2UI writes its own versions. This version is `v0.1`.
 - Each version has its own directory, written `v<major>_<minor>`, under `specification/turn_record/`.
 - Every record declares its version in the top-level `version` field.
-- Any amendment bumps the version.
+- A version is a draft until a release of Spectra ships it, and closed from then on. This version is a draft.
+- A draft is amended in place. An amendment to a closed version goes into the next version, which is a draft from its first amendment until the release that first ships it. One draft is open at a time.
+- An amendment is a change to what a valid record is or to what a field means, in the schema or in this document. Moving a pin is one. A corrected typo, a clearer sentence, a corrected example and new shared test data are not amendments, and land in a closed version in place.
+- A compatible version, one under which every record valid in the version before it is still valid and means the same, moves the third part: `v0.1.1` after `v0.1`. A breaking version moves the second part: `v0.2` after `v0.1`.
+- The spans of [Producers of the A2UI step](#producers-of-the-a2ui-step) are under the same version as the file.
 - The schema's `$id` is the raw GitHub address of `turn_record.json` under its version directory.
 
 ## The file

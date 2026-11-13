@@ -17,7 +17,7 @@ Each phase's full section, its sub-tasks and what landed, as it closed: `_dev/TO
 The upgrade to upstream's v1.0 as its current version; which protocol versions and which upstream SDKs Spectra supports; the basic root README.
 
 ## Phase 10 — Shipping
-The binary on npm, PyPI and GitHub releases, with the curl script; the install steps in the root README. A2UIVerse's CircleCI preview page committed in A2UIVerse, on the published React adapter.
+The binary on npm, PyPI and GitHub releases, with the curl script; the install steps in the root README. Turn record `v0.1` closed at the first release. A2UIVerse's CircleCI preview page committed in A2UIVerse, on the published React adapter.
 
 ## Phase 11 — The case
 The demo, with the restaurant finder in Python and in TypeScript producing the same view and a real misfit found and fixed in minutes; the demo in the root README; the contribution rule; the proposal as a GitHub Discussion.
@@ -44,6 +44,5 @@ The demo, with the restaurant finder in Python and in TypeScript producing the s
 - The tool proxy keeping the MCP session housekeeping it saw outside any turn, such as an `initialize` an agent sends at start, in the record it writes next, so that a replay of that agent serves its `initialize`; at the Phase 7 pin the targets connect inside the turn.
 - The save watcher passing its ignore list to `fs.watch`'s `ignore` option, so that the watch no longer walks into the ignored folders on Linux, once the Node used in development and the pinned Bun release both have it; Node has it from 24.14.0 and 25.5.0.
 - `a2ui-spectra replay <file> --live`, the replay driver's third mode on the command line, every call live, refused by `test` as `--model-live` is.
-- The turn record's versioning rule, settled before Phase 10, shipping: its README, `specification/turn_record/v0_1/README.md`, says any amendment bumps the version, while v0.1 has been amended in place, with the `a2ui.replay.` attributes in Phase 7 and `live` in Phase 8.
 - The preview page saying which document it is, its ready message naming its document in a later version of the preview protocol, with the core and the three adapters changed for it, so that the viewer no longer pairs each iframe's load with a ready by their order and timing: the five-second window, the one-second margin for a second ready of the same document, and the two cases the pairing misreads. Through the tunnel a sample page's first load outlasted the five-second window at the sub-task 8.7 run, 16.7 s on the Lit page and 7.7 s on the Angular page, the pane reading "No preview for catalog" until the load and its ready arrived.
 - The first screen while the message box cannot send and the agent is running, as when its card fails the transport check, under `run` and `attach` alike: it still reads "Send a message to start your first turn." over the wire proxy's line, which starts with "or"; new wording that leads with the host app pointed at the wire proxy, drawn on the canvas first.

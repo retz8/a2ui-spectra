@@ -2,7 +2,7 @@
 
 This directory contains version 0.1 of the A2UI turn record: a file format for one turn of an A2UI agent, with the earlier turns of its conversation. A fixture is a turn record.
 
-**This version is a draft.** Any amendment bumps the version.
+**This version is a draft.** It is amended in place until the first release of Spectra ships it, which closes it. The rule is in the turn record's [Versions](docs/turn_record.md#versions) section.
 
 ## v0.1 Documentation
 
