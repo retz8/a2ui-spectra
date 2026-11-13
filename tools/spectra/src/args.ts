@@ -25,6 +25,8 @@ export interface HeadlessOptions {
   agentUrl?: URL;
   /** The config file `--config` names; else the default file in the working directory. */
   config?: string;
+  /** The headers `--header` gives, by name as written, the later of a repeated name; their values as written. */
+  headers: Record<string, string>;
   /** The wire proxy's port. */
   proxyPort: number;
   /** The model proxy's port. */
@@ -81,6 +83,7 @@ export class UsageError extends Error {
 
 const headlessOptions = {
   config: {type: 'string'},
+  header: {type: 'string', multiple: true, short: 'H'},
   'proxy-port': {type: 'string'},
   'model-proxy-port': {type: 'string'},
   'tool-proxy-port': {type: 'string'},
@@ -97,6 +100,7 @@ const replayOptions = {
 
 const sessionOptions = {
   config: {type: 'string'},
+  header: {type: 'string', multiple: true, short: 'H'},
   port: {type: 'string'},
   'proxy-port': {type: 'string'},
   'model-proxy-port': {type: 'string'},
@@ -310,6 +314,7 @@ export function agentUrlOf(
 
 interface PortValues {
   config?: string;
+  header?: string[];
   'proxy-port'?: string;
   'model-proxy-port'?: string;
   'tool-proxy-port'?: string;
@@ -361,11 +366,44 @@ function headlessOptionsFrom(
   return {
     ...(agentUrl !== undefined && {agentUrl: parseAgentUrl(agentUrl, topic)}),
     ...(values.config !== undefined && {config: values.config}),
+    headers: headersFrom(values.header, topic),
     proxyPort: port['--proxy-port'],
     modelProxyPort: port['--model-proxy-port'],
     receiverPort: port['--receiver-port'],
     toolProxyPort: port['--tool-proxy-port'],
   };
+}
+
+/** A header's name: an HTTP token. */
+const HEADER_NAME = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
+
+/**
+ * The headers `--header` gives, each written `Name: value` as curl takes
+ * one, by name; a name given again, whatever its case, replaces the earlier.
+ * A header's value is never repeated in an error, since it may be a
+ * credential.
+ */
+function headersFrom(
+  written: readonly string[] | undefined,
+  topic: CommandName,
+): Record<string, string> {
+  const headers: Record<string, string> = {};
+  for (const header of written ?? []) {
+    const colon = header.indexOf(':');
+    const name = colon === -1 ? '' : header.slice(0, colon).trim();
+    const value = colon === -1 ? '' : header.slice(colon + 1).trim();
+    if (name === '' || value === '') {
+      throw new UsageError("--header takes 'Name: value'.", topic);
+    }
+    if (!HEADER_NAME.test(name)) {
+      throw new UsageError(`'${name}' is not a header name.`, topic);
+    }
+    for (const earlier of Object.keys(headers)) {
+      if (earlier.toLowerCase() === name.toLowerCase()) delete headers[earlier];
+    }
+    headers[name] = value;
+  }
+  return headers;
 }
 
 function sessionOptionsFrom(
@@ -381,6 +419,7 @@ function sessionOptionsFrom(
   return {
     ...(agentUrl !== undefined && {agentUrl: parseAgentUrl(agentUrl, topic)}),
     ...(values.config !== undefined && {config: values.config}),
+    headers: headersFrom(values.header, topic),
     port: port['--port'],
     proxyPort: port['--proxy-port'],
     modelProxyPort: port['--model-proxy-port'],

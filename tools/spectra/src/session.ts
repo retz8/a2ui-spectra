@@ -17,7 +17,7 @@ import type {AgentCommand, HeadlessOptions} from './args.js';
 import {openBrowser} from './browser.js';
 import {CatalogRegistry, rereadLine} from './catalog/registry.js';
 import {startCatalogWatch} from './catalog/watch.js';
-import {ConfigError, type SpectraConfig, substituteVariables} from './config.js';
+import {agentHeaders, ConfigError, type SpectraConfig} from './config.js';
 import {FixturesFolder} from './fixtures/fixtures.js';
 import {MessageBox, unsetVariablesClause} from './message_box.js';
 import {type ModelProxy, startModelProxy} from './model_proxy/proxy.js';
@@ -132,9 +132,8 @@ export async function runSession(
   if (configured.length > 0) {
     out.info(`Catalogs configured: ${configured.map(catalog => catalog.id).join(', ')}`);
   }
-  const {headers, unset} = substituteVariables(options.config.headers, process.env);
+  const {headers, unset, left} = agentHeaders(options.config.headers, options.headers, process.env);
   if (unset.length > 0) {
-    const left = Object.keys(options.config.headers).filter(name => !(name in headers));
     out.error(
       `${unsetVariablesClause(unset)}, so the ${left.join(', ')} header${left.length === 1 ? ' is' : 's are'} not sent ` +
         'and the message box cannot send.',

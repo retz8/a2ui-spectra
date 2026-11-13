@@ -222,6 +222,70 @@ describe('parseCommandLine', () => {
   });
 });
 
+describe('--header', () => {
+  it('reads curl-style headers on every command, by name, the later of a repeated name used', () => {
+    const attach = parseCommandLine([
+      'attach',
+      'http://localhost:10002',
+      '-H',
+      'Authorization: Bearer t0k3n',
+      '--header',
+      'X-Tenant:acme',
+      '--header',
+      'X-Callback:   http://localhost:1/back',
+      '--header',
+      'authorization: Bearer second',
+    ]);
+    assert.ok(attach.name === 'attach');
+    assert.deepEqual(attach.options.headers, {
+      'X-Tenant': 'acme',
+      'X-Callback': 'http://localhost:1/back',
+      authorization: 'Bearer second',
+    });
+    const run = parseCommandLine(['run', '-H', 'X-A: 1', '--', 'node', 'agent.js', '-H', 'X-B: 2']);
+    assert.ok(run.name === 'run');
+    assert.deepEqual(run.options.headers, {'X-A': '1'});
+    assert.deepEqual(run.args, ['agent.js', '-H', 'X-B: 2']);
+    const replay = parseCommandLine(['replay', 'a.json', '--header', 'X-A: 1']);
+    assert.ok(replay.name === 'replay');
+    assert.deepEqual(replay.options.headers, {'X-A': '1'});
+    const test = parseCommandLine(['test', '--header', 'X-A: ${NOT_REPLACED}']);
+    assert.ok(test.name === 'test');
+    assert.deepEqual(test.options.headers, {'X-A': '${NOT_REPLACED}'});
+  });
+
+  it('gives no headers when the option is absent', () => {
+    const attach = parseCommandLine(['attach', 'http://localhost:10002']);
+    assert.ok(attach.name === 'attach');
+    assert.deepEqual(attach.options.headers, {});
+    const test = parseCommandLine(['test']);
+    assert.ok(test.name === 'test');
+    assert.deepEqual(test.options.headers, {});
+  });
+
+  it('refuses a header with no colon, no name, no value or a name that is no header name, never repeating its value', () => {
+    for (const written of ['Bearer s3cret', ': s3cret', 'X-Empty:', 'X-Empty:   ']) {
+      assert.throws(
+        () => parseCommandLine(['attach', '--header', written]),
+        (error: unknown) =>
+          error instanceof UsageError &&
+          error.topic === 'attach' &&
+          /--header takes 'Name: value'/.test(error.message) &&
+          !error.message.includes('s3cret'),
+        written,
+      );
+    }
+    assert.throws(
+      () => parseCommandLine(['test', '--header', 'Bad Name: s3cret']),
+      (error: unknown) =>
+        error instanceof UsageError &&
+        error.topic === 'test' &&
+        /'Bad Name' is not a header name/.test(error.message) &&
+        !error.message.includes('s3cret'),
+    );
+  });
+});
+
 describe('the headless commands', () => {
   it("reads replay with the record's file and the defaults", () => {
     const commandLine = parseCommandLine(['replay', 'fixtures/greet-ada.json']);
@@ -345,6 +409,7 @@ describe('the headless commands', () => {
       watch: {paths: ['/tmp'], excluded: []},
     };
     const options = {
+      headers: {},
       proxyPort: DEFAULT_PROXY_PORT,
       modelProxyPort: DEFAULT_MODEL_PROXY_PORT,
       toolProxyPort: DEFAULT_TOOL_PROXY_PORT,

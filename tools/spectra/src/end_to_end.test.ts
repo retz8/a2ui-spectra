@@ -385,6 +385,59 @@ describe(`the config file against the stub agent, ${binary ? 'the binary' : 'und
   );
 
   it(
+    "sends the token header given with --header in place of the config file's, its variable not set",
+    {timeout: TIMEOUT},
+    async () => {
+      const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+        freePort(),
+        freePort(),
+        freePort(),
+        freePort(),
+      ]);
+      const stub = await startStub(agentPort, ['--bearer-token', 't0k3n']);
+      const cwd = configuredDir(agentPort);
+      const spectra = new SpectraProcess(
+        [
+          'attach',
+          '--port',
+          String(port),
+          '--proxy-port',
+          String(proxyPort),
+          '--model-proxy-port',
+          String(modelProxyPort),
+          '--receiver-port',
+          String(await freePort()),
+          '--no-open',
+          '--header',
+          'authorization: Bearer t0k3n',
+        ],
+        cwd,
+      );
+      const base = `http://127.0.0.1:${port}`;
+      let live: LiveStream | undefined;
+      try {
+        await spectra.waitFor(/The viewer is at /);
+        assert.doesNotMatch(spectra.output, /not set in Spectra's environment/);
+        assert.doesNotMatch(spectra.output, /t0k3n/);
+        const {body: box} = await getJson<MessageBoxState>(`${base}/api/message-box`);
+        assert.equal(box.unavailable, undefined);
+        assert.equal(box.unsetVariables, undefined);
+
+        live = new LiveStream(`${base}/api/stream`);
+        await live.ready;
+        const first = await sendMessage(base, 'Hi');
+        const {turn} = await checkTurn(base, cwd, live, first.traceId);
+        assert.equal(turnEventOf(turn).attributes['a2ui.turn.outcome'], 'waiting_for_input');
+      } finally {
+        live?.close();
+        spectra.signal('SIGTERM');
+        await spectra.exited;
+        stub.kill();
+      }
+    },
+  );
+
+  it(
     'refuses the message box while the token variable is not set, saying so at start',
     {timeout: TIMEOUT},
     async () => {

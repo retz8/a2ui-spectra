@@ -29,7 +29,6 @@ The demo, with the restaurant finder in Python and in TypeScript producing the s
 - The wire proxy keeping each delivery's raw exchange beside the turn record, for the viewer: the JSON-RPC envelope, the HTTP status, where the A2UI sat in the A2A message, and its MIME type tag.
 - The message box sending the configured catalogs inline when the agent's card accepts inline catalogs.
 - v1.0's `callAgentFunction` and `rendererFunctionResponse`, the agent-function round trip, shown and answered from the preview.
-- A `--header` option on the command line, curl-style, beside the config file's headers.
 - A hover link between a tree node, the message's lines and the drawn component in the preview, once the renderers mark the DOM with component ids; upstream's React and Lit renderers do not at 409ded29c.
 - A recording of real OpenAI traffic, Chat Completions and Responses, once there is an OpenAI key, beside the stand-in provider's responses built from OpenAI's API reference.
 - An HTTP+SSE tool server's absolute endpoint URL, on its own origin, rewritten to the tool proxy's origin, so that its calls pass through the tool proxy; until then it is passed on unchanged with a terminal line.

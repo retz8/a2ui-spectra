@@ -4,7 +4,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {after, describe, it} from 'node:test';
 
-import {CONFIG_FILE, ConfigError, loadConfig, substituteVariables} from './config.js';
+import {agentHeaders, CONFIG_FILE, ConfigError, loadConfig, substituteVariables} from './config.js';
 
 const dirs: string[] = [];
 after(() => {
@@ -300,6 +300,33 @@ describe('loadConfig', () => {
     await loadConfig({cwd});
     write(cwd, CONFIG_FILE, 'nope');
     await configError({cwd}, /a2ui-spectra\.json is not valid JSON/);
+  });
+});
+
+describe('agentHeaders', () => {
+  it("puts a command-line header in place of the file's header of the same name, whatever its case, and keeps the file's others", () => {
+    const {headers, unset, left} = agentHeaders(
+      {Authorization: 'Bearer ${SPECTRA_AGENT_TOKEN}', 'X-Tenant': '${TENANT}'},
+      {authorization: 'Bearer from-the-command-line'},
+      {TENANT: 'acme'},
+    );
+    assert.deepEqual(headers, {
+      'X-Tenant': 'acme',
+      authorization: 'Bearer from-the-command-line',
+    });
+    assert.deepEqual(unset, []);
+    assert.deepEqual(left, []);
+  });
+
+  it("sends a command-line header's value as written, and reports the file's unset variables with the headers left out", () => {
+    const {headers, unset, left} = agentHeaders(
+      {Authorization: 'Bearer ${SPECTRA_AGENT_TOKEN}', 'X-Plain': 'as it is'},
+      {'X-Literal': '${NOT_REPLACED}'},
+      {NOT_REPLACED: 'no'},
+    );
+    assert.deepEqual(headers, {'X-Plain': 'as it is', 'X-Literal': '${NOT_REPLACED}'});
+    assert.deepEqual(unset, ['SPECTRA_AGENT_TOKEN']);
+    assert.deepEqual(left, ['Authorization']);
   });
 });
 

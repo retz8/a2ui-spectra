@@ -245,6 +245,29 @@ export function substituteVariables(
   return {headers: resolved, unset};
 }
 
+/**
+ * The headers the message box sends: the config file's, their variables
+ * replaced, with each command-line header in place of the file's header of
+ * the same name, compared without regard to case, its value as written.
+ * `left` names the file's headers left out for an unset variable.
+ */
+export function agentHeaders(
+  written: Readonly<Record<string, string>>,
+  given: Readonly<Record<string, string>>,
+  env: Readonly<Record<string, string | undefined>>,
+): {headers: Record<string, string>; unset: string[]; left: string[]} {
+  const givenNames = new Set(Object.keys(given).map(name => name.toLowerCase()));
+  const kept = Object.fromEntries(
+    Object.entries(written).filter(([name]) => !givenNames.has(name.toLowerCase())),
+  );
+  const {headers, unset} = substituteVariables(kept, env);
+  return {
+    headers: {...headers, ...given},
+    unset,
+    left: Object.keys(kept).filter(name => !(name in headers)),
+  };
+}
+
 function parseUrl(value: string, setting: string, file: string): URL {
   let url: URL;
   try {

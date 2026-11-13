@@ -10,6 +10,11 @@ import {NAME, VERSION} from './version.js';
 
 const sharedOptions = `  --config <path>      The config file. Default: a2ui-spectra.json in the
                        working directory, when there is one.
+  -H, --header <header>
+                       A header for every request the message box makes to
+                       the agent, written 'Name: value', the card fetch
+                       included. Can be repeated. Takes precedence over the
+                       config file's header of the same name.
   --port <n>           The viewer's port. Default: ${DEFAULT_VIEWER_PORT}.
   --proxy-port <n>     The wire proxy's port. Default: ${DEFAULT_PROXY_PORT}.
   --model-proxy-port <n>
@@ -28,6 +33,11 @@ const headlessOptions = `  --agent-url <url>    The agent's base address, when i
                        Takes precedence over the config file's agent.url.
   --config <path>      The config file. Default: a2ui-spectra.json in the
                        working directory, when there is one.
+  -H, --header <header>
+                       A header for every request the message box makes to
+                       the agent, written 'Name: value', the card fetch
+                       included. Can be repeated. Takes precedence over the
+                       config file's header of the same name.
   --proxy-port <n>     The wire proxy's port. Default: ${DEFAULT_PROXY_PORT}.
   --model-proxy-port <n>
                        The model proxy's port. Default: ${DEFAULT_MODEL_PROXY_PORT}.
