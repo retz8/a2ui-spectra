@@ -6,17 +6,23 @@ import type {Report} from 'a2ui-spectra-preview';
 import {readRecording} from '../testing/recordings.ts';
 import {
   ANSWER_MS,
+  type Answering,
+  HOLD_MS,
   loadOf,
+  NOT_LOADED,
+  owesAnswer,
   pageNoteOf,
+  pongOf,
   type PreviewPageState,
   previewProblemsOf,
   readyOf,
   RELOADING_NOTE_MS,
   routeOf,
-  SAME_DOCUMENT_MS,
+  stillLoading,
   surfaceFeedOf,
   targetOf,
   timedOut,
+  unansweredLine,
 } from './preview.ts';
 import {turnProblemsOf} from './problems.ts';
 import {isTurnEvent, unixMillis} from './record.ts';
@@ -179,67 +185,158 @@ describe('routeOf', () => {
   });
 });
 
-describe("a page's load paired with its ready", () => {
-  it('owes a ready that comes first one load for the answer window, and changes nothing for that load', () => {
-    // The order of a built page: its ready, then its load.
-    const owed = readyOf({}, 1000);
-    assert.deepEqual(owed, {owedUntil: 1000 + ANSWER_MS, lastReady: 1000});
-    assert.deepEqual(loadOf({status: 'ready', ...owed}, 1005), {
-      status: 'ready',
-      arm: false,
-      pairing: {},
-    });
+describe("a page's load and its document's answer", () => {
+  const SPEAKS = 2;
+  const claims = [{catalogId: CUSTOM, protocolVersion: '0.9'}];
+  const ready = {protocol: SPEAKS, claims};
+
+  it('numbers the loads from 1, each one more, and the document at the latest is asked', () => {
+    const first = loadOf({status: 'waiting', answering: NOT_LOADED});
+    assert.deepEqual(first, {status: 'waiting', answering: {load: 1, answered: 0}});
+    assert.equal(owesAnswer(NOT_LOADED), false);
+    assert.equal(owesAnswer(first.answering), true);
+    const second = loadOf({status: 'waiting', answering: first.answering});
+    assert.deepEqual(second.answering, {load: 2, answered: 0});
   });
 
-  it('answers a load that came first with the ready after it, which is then owed nothing', () => {
+  it('asks again at a ready that comes while a load is unanswered, and the page is ready once the answer comes', () => {
     // The order of a page on a dev server: its load, then its ready.
-    const waiting = loadOf({status: 'waiting'}, 100);
-    assert.deepEqual(waiting, {status: 'waiting', arm: false, pairing: {loadWaiting: true}});
-    assert.deepEqual(readyOf(waiting.pairing, 106), {lastReady: 106});
+    const loaded = loadOf({status: 'waiting', answering: NOT_LOADED});
+    // The document's adapter has not started: the ping at the load is not heard, and no answer comes.
+    const step = readyOf(loaded.answering, ready, SPEAKS);
+    assert.deepEqual(step, {kind: 'ask', answering: {load: 1, answered: 0, claims}});
+    const answer = pongOf(step.answering, 1);
+    assert.deepEqual(answer, {answering: {load: 1, answered: 1, claims}, claims});
+    assert.equal(owesAnswer(answer!.answering), false);
   });
 
-  it('sends a ready page to reloading on a load that is not owed, at once in either order, the timer to be armed', () => {
-    const reloading = {status: 'reloading', arm: true, pairing: {loadWaiting: true}};
-    // After a ready then its load, and after a load then its ready, nothing is owed.
-    assert.deepEqual(loadOf({status: 'ready'}, 1400), reloading);
-    assert.deepEqual(loadOf({status: 'ready', lastReady: 106}, 150), reloading);
-    // The ready that follows answers the load.
-    assert.deepEqual(readyOf(reloading.pairing, 1410), {lastReady: 1410});
-  });
-
-  it("takes a second ready within a second of the page's last, no load between, as the same document's", () => {
-    // React's development mode mounts twice, so its page says it is ready twice.
-    assert.deepEqual(readyOf({lastReady: 106}, 106), {lastReady: 106});
-    assert.deepEqual(readyOf({lastReady: 106}, 106 + SAME_DOCUMENT_MS), {lastReady: 106});
-    const owed = readyOf({}, 1000);
-    assert.deepEqual(readyOf(owed, 1000), owed);
-    // Later than that it is another document's, owed its load.
-    assert.deepEqual(readyOf({lastReady: 106}, 107 + SAME_DOCUMENT_MS), {
-      owedUntil: 107 + SAME_DOCUMENT_MS + ANSWER_MS,
-      lastReady: 107 + SAME_DOCUMENT_MS,
-    });
-    // A load between them ends it: the ready after a load answers that load.
-    const loaded = loadOf({status: 'ready', lastReady: 106}, 110);
-    assert.deepEqual(readyOf(loaded.pairing, 111), {lastReady: 111});
-  });
-
-  it('lets the owed load lapse after the answer window', () => {
-    const owed = readyOf({}, 0);
-    assert.deepEqual(loadOf({status: 'ready', ...owed}, ANSWER_MS + 1), {
-      status: 'reloading',
-      arm: true,
-      pairing: {loadWaiting: true},
+  it('makes the page ready at a ready that comes with no load unanswered, and reloading at the load after it', () => {
+    // The order of a built page: its ready, then its load.
+    const step = readyOf(NOT_LOADED, ready, SPEAKS);
+    assert.deepEqual(step, {kind: 'ready', answering: {load: 0, answered: 0, claims}, claims});
+    const loaded = loadOf({status: 'ready', answering: step.answering});
+    assert.deepEqual(loaded, {status: 'reloading', answering: {load: 1, answered: 0, claims}});
+    // The same document answers the load's ping, with the claims it said.
+    assert.deepEqual(pongOf(loaded.answering, 1), {
+      answering: {load: 1, answered: 1, claims},
+      claims,
     });
   });
 
-  it('leaves alone a page that is waiting, reloading, unanswered or speaking another protocol', () => {
-    for (const status of ['waiting', 'reloading', 'unanswered', 'mismatch'] as const) {
-      assert.deepEqual(loadOf({status}, 9000), {status, arm: false, pairing: {loadWaiting: true}});
-      assert.deepEqual(loadOf({status, owedUntil: 9500, lastReady: 4500}, 9000), {
-        status,
-        arm: false,
-        pairing: {},
-      });
+  it("takes a second ready of an answered document as the page ready again, React's development mode mounting twice", () => {
+    const answered: Answering = {load: 1, answered: 1, claims};
+    assert.deepEqual(readyOf(answered, ready, SPEAKS), {
+      kind: 'ready',
+      answering: answered,
+      claims,
+    });
+    // Before the answer, each of the two readies asks again, and only the first answer counts.
+    const unanswered: Answering = {load: 1, answered: 0};
+    const first = readyOf(unanswered, ready, SPEAKS);
+    const second = readyOf(first.answering, ready, SPEAKS);
+    assert.equal(first.kind, 'ask');
+    assert.equal(second.kind, 'ask');
+    const answer = pongOf(second.answering, 1);
+    assert.ok(answer);
+    assert.equal(pongOf(answer.answering, 1), undefined);
+  });
+
+  it("counts an answer only for the latest load's number", () => {
+    // Two reloads in quick succession: the first document is gone before it answers.
+    const first = loadOf({status: 'ready', answering: {load: 1, answered: 1, claims}});
+    const second = loadOf(first);
+    assert.deepEqual(second, {status: 'reloading', answering: {load: 3, answered: 1, claims}});
+    assert.equal(pongOf(second.answering, 2), undefined);
+    assert.equal(pongOf(second.answering, 1), undefined);
+    assert.equal(pongOf(second.answering, 4), undefined);
+    const later = [{catalogId: BASIC_V0_9, protocolVersion: '0.9'}];
+    const step = readyOf(second.answering, {protocol: SPEAKS, claims: later}, SPEAKS);
+    assert.equal(step.kind, 'ask');
+    // The page is ready with the claims of the ready that came last.
+    assert.deepEqual(pongOf(step.answering, 3), {
+      answering: {load: 3, answered: 3, claims: later},
+      claims: later,
+    });
+  });
+
+  it('takes no answer from a page that speaks another version of the protocol', () => {
+    const loaded = loadOf({status: 'waiting', answering: NOT_LOADED});
+    const step = readyOf(loaded.answering, {protocol: 1, claims}, SPEAKS);
+    assert.deepEqual(step, {kind: 'mismatch', answering: {load: 1, answered: 0}});
+    assert.equal(pongOf(step.answering, 1), undefined);
+    // A mismatch forgets what an earlier document of the page claimed.
+    const dropped = readyOf({load: 2, answered: 2, claims}, {protocol: 3, claims}, SPEAKS);
+    assert.deepEqual(dropped, {kind: 'mismatch', answering: {load: 2, answered: 2}});
+    // An upgraded document at the next load is asked and answers.
+    const next = loadOf({status: 'mismatch', answering: step.answering});
+    assert.equal(next.status, 'mismatch');
+    const upgraded = readyOf(next.answering, ready, SPEAKS);
+    assert.equal(upgraded.kind, 'ask');
+    assert.deepEqual(pongOf(upgraded.answering, 2)?.claims, claims);
+  });
+
+  it('sends only a ready page to reloading at a load', () => {
+    for (const status of ['waiting', 'loading', 'reloading', 'unanswered', 'mismatch'] as const) {
+      assert.equal(loadOf({status, answering: NOT_LOADED}).status, status);
+    }
+    assert.equal(loadOf({status: 'ready', answering: NOT_LOADED}).status, 'reloading');
+  });
+});
+
+describe('a page whose iframe has not loaded', () => {
+  const url = 'http://localhost:5174/preview';
+
+  it('holds the surfaces behind it while it waits, and is passed by once it is still loading', () => {
+    const waiting = page(url, {status: 'waiting'});
+    const target = {catalogIds: [BASIC_V0_9], protocolVersion: 'v0.9'};
+    assert.deepEqual(routeOf([waiting, BUILT_IN], target), {kind: 'waiting'});
+    const loading = stillLoading(waiting);
+    assert.deepEqual(loading, {...waiting, status: 'loading'});
+    assert.deepEqual(routeOf([loading, BUILT_IN], target), {kind: 'page', page: BUILT_IN});
+    assert.equal(HOLD_MS, 5000);
+  });
+
+  it('is named as still loading under a surface nothing else can draw, where a page that loaded and stayed silent has not answered', () => {
+    const loading = page(url, {status: 'loading'});
+    const silent = page('http://localhost:5175/preview', {status: 'unanswered'});
+    const old = page('http://localhost:5176/preview', {status: 'mismatch', protocol: 1});
+    const route = routeOf([loading, silent, old, BUILT_IN], {
+      catalogIds: [CUSTOM],
+      protocolVersion: 'v0.9',
+    });
+    assert.deepEqual(route, {kind: 'none', catalogId: CUSTOM, unanswered: [loading, silent, old]});
+    assert.equal(unansweredLine(loading, 2), `${url} is still loading`);
+    assert.equal(unansweredLine(silent, 2), 'http://localhost:5175/preview has not answered');
+    assert.equal(
+      unansweredLine(old, 2),
+      'http://localhost:5176/preview: preview page speaks protocol 1, this Spectra speaks 2',
+    );
+  });
+
+  it('is passed by only while it waits: a page in any other state is left as it is', () => {
+    for (const status of ['loading', 'ready', 'reloading', 'unanswered', 'mismatch'] as const) {
+      const other = page(url, {status});
+      assert.equal(stillLoading(other), other);
+    }
+  });
+});
+
+describe('a document that does not answer in time', () => {
+  const url = 'http://localhost:5174/preview';
+
+  it('leaves its page unanswered, claiming nothing, whether it was waiting, still loading or reloading', () => {
+    const claims = [{catalogId: CUSTOM, protocolVersion: '0.9'}];
+    for (const status of ['waiting', 'loading', 'reloading'] as const) {
+      const before = page(url, {status, claims});
+      assert.deepEqual(timedOut(before), {...before, status: 'unanswered', claims: []});
+    }
+    assert.equal(ANSWER_MS, 5000);
+  });
+
+  it('leaves a page that speaks another version, or is unanswered already, as it is', () => {
+    for (const status of ['mismatch', 'unanswered'] as const) {
+      const before = page(url, {status});
+      assert.equal(timedOut(before), before);
     }
   });
 });

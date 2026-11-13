@@ -221,6 +221,49 @@ describe(`the viewer on the retried-parse record in Chromium, ${binary ? 'the bi
       });
     },
   );
+
+  it(
+    'draws the surface again after two reloads of the built-in preview page in quick succession, the page still answered past its time to answer',
+    {timeout: TIMEOUT},
+    async () => {
+      const {traceId} = retriedTurn();
+      await withViewer(browser, async (page, base) => {
+        await page.goto(`${base}/#/turns/${traceId}`);
+        await row(page, 'Completed').click();
+        const pane = page
+          .getByRole('group', {name: 'Result panes'})
+          .getByRole('button', {name: 'Preview'});
+        if ((await pane.getAttribute('aria-pressed')) !== 'true') await pane.click();
+        const icons = page
+          .frameLocator('iframe[title="Spectra’s built-in preview"]')
+          .locator('i.a2ui-icon');
+        await icons.first().waitFor();
+
+        // The second reload comes as soon as the first one's document is there, before it has drawn.
+        const frameOf = () =>
+          page.frames().find(frame => frame.url().startsWith(`${base}/preview/`));
+        for (let reload = 0; reload < 2; reload += 1) {
+          await frameOf()!.evaluate('window.spectraBefore = true; location.reload();');
+          const deadline = Date.now() + 30_000;
+          while (
+            (await frameOf()
+              ?.evaluate<boolean>('window.spectraBefore === true')
+              .catch(() => true)) === true
+          ) {
+            assert.ok(Date.now() < deadline, 'The built-in preview page did not reload.');
+            await new Promise(resolve => setTimeout(resolve, 5));
+          }
+        }
+
+        await icons.first().waitFor();
+        const note = page.locator('span[title="Spectra’s built-in preview page"]');
+        // Past the five seconds a document has to answer, the page is drawing, not reloading.
+        await page.waitForTimeout(6_000);
+        assert.ok(await icons.first().isVisible(), 'The surface is drawn after the two reloads.');
+        assert.equal(await note.textContent(), 'built-in');
+      });
+    },
+  );
 });
 
 describe(`the agent popover on a catalog file that did not read, in Chromium, ${binary ? 'the binary' : 'under Node'}`, () => {

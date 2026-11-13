@@ -1,15 +1,16 @@
 /**
  * The page's side of the preview protocol, for every adapter. The page says
- * it is ready with its claims; each render it receives is applied as the
- * render difference says, one message at a time, a refused message reported
- * with its index; every report, and the shown surface's data model, is
- * tagged with the render it belongs to. An
- * adapter gives the core four things: making a processor from the catalogs,
+ * it is ready with its claims, and answers each ping with the ping's number;
+ * each render it receives is applied as the render difference says, one
+ * message at a time, a refused message reported with its index; every
+ * report, and the shown surface's data model, is tagged with the render it
+ * belongs to. An adapter gives the core four things: making a processor from the catalogs,
  * feeding it one message, mounting a surface, and tearing down.
  */
 import {claimsOf, type ClaimedCatalog} from './claims.js';
 import {type Applied, differenceOf, keysOf} from './difference.js';
 import {
+  isPingMessage,
   isRenderMessage,
   PREVIEW_PROTOCOL,
   type PageMessage,
@@ -103,7 +104,11 @@ function refusalOf(error: unknown): string {
   return isError(error) ? error.message : errorText(error);
 }
 
-/** Starts the page's side of the protocol: sends the ready message and applies each render. */
+/**
+ * Starts the page's side of the protocol: listens for the viewer's pings and
+ * renders, then sends the ready message, so a document that said it is ready
+ * can always answer a ping.
+ */
 export function startPreviewPage<P>({
   catalogs,
   adapter,
@@ -207,6 +212,9 @@ export function startPreviewPage<P>({
 
   const stopListening = transport.listen(message => {
     if (isRenderMessage(message)) apply(message);
+    else if (isPingMessage(message)) {
+      transport.send({type: 'a2ui-spectra-preview/pong', load: message.load});
+    }
   });
   const stopErrors = errors?.listen(error => {
     if (current !== undefined) failed({error});

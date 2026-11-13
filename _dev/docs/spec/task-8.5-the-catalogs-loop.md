@@ -78,19 +78,18 @@ On `catalogs_changed` the viewer reloads everything it loads at connect, as it d
 
 Where the fixtures folder keeps its own watch, under `attach` and under `run` where restart on save does not watch the folder that holds it, that watch opens a new watch on the fixtures folder when the folder first appears. On macOS opening a watcher drops the other watchers' events for a moment, the sub-task 8.3 spec's finding, so a catalog save landing in that moment can go untold, and the old definition stays in force until the file's next save. This is accepted, and the tool's README states it. It can happen once per repo, at the first Save as fixture, the folder existing at every later start.
 
-### 13. A load paired with its ready
+### 13. A load and its document's answer
 
-A page's `ready` and its iframe's load event arrive in either order, and the viewer cannot see a page on another origin begin to reload. Measured in Chromium on the development machine, over 36 documents: the React, Lit and Angular sample pages, each on its dev server, load first and say ready 0 to 15 ms later, every time; Spectra's built-in page, a production build, says ready first and loads 5 to 6 ms later on every reload; and the React sample, under React's `StrictMode`, says ready twice per document in the same millisecond. So the two are paired in both directions:
+A page's `ready` and its iframe's load event arrive in either order, and the viewer cannot see a page on another origin begin to reload. Measured in Chromium on the development machine, over 36 documents: the React, Lit and Angular sample pages, each on its dev server, load first and say ready 0 to 15 ms later, every time; Spectra's built-in page, a production build, says ready first and loads 5 to 6 ms later on every reload; and the React sample, under React's `StrictMode`, says ready twice per document in the same millisecond. So at each load the viewer asks which document is there, in version 2 of the preview protocol:
 
-- A load that arrives while a ready is owed one changes nothing, and nothing is owed after it.
-- A ready that arrives while a load is waiting unanswered answers it, and is owed nothing.
-- A ready within one second of the page's last ready, with no load between, is the same document's, and changes nothing owed. The one second is a margin over the measured 0 ms.
-- Any other ready is owed one load, its own document's, for five seconds, the answer window the pane already uses.
-- Any other load is a new document that has not answered, and waits for its ready: a ready page goes to reloading, and the five-second timer is armed. A page that is waiting, unanswered or speaking another protocol version is left as it is.
-- The viewer's own reload of an unanswered page clears what is open.
-- A second `ready` from a ready page stays what it is today, the render sent again.
+- At each load of a page's iframe the viewer sends `ping` with the load's number, 1 for the page's first load and one more at each later load, and the document that is there answers `pong` with the same number. An answer counts only for the latest load's number.
+- A `ready` that arrives while a load is unanswered: the viewer asks again with that load's number, and sends the render once the answer comes.
+- A `ready` that arrives with no load unanswered: the page is ready and the render is sent, as for a page whose `ready` comes before its load and for a second `ready` of the same document.
+- A ready page whose iframe loads is reloading until the load is answered. A page that is waiting, unanswered or speaking another protocol version is left as it is by a load.
+- A document has five seconds from its iframe's load to answer. With no answer the page is unanswered and claims nothing, and the viewer sets its address again. Until the load the page is waiting, and the viewer does not restart it.
+- A page that has not loaded holds the surfaces behind it for five seconds; then routing passes it by while it goes on loading, the pane's line for it reading "`<page>` is still loading".
 
-Once a document has both loaded and answered nothing is owed, so a reload into a document that does not answer is caught at once in both orders. Known misreads, each wrong for up to five seconds or until the page's next load: two reloads within one second of a page whose ready comes first, and such a page's document replaced by a broken one before its own load arrived.
+No rule depends on the order in which a page's load and its messages arrive, or on the time between them, apart from the two five-second periods.
 
 ### 14. The pane while a page reloads
 

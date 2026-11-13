@@ -8,15 +8,19 @@
  * Button pressed; the pending action is sent; and the turn lands with the
  * stub's reply echoing the volume from the action's context and in the data
  * model. On the way the page is reloaded in its frame, as its dev server
- * reloads it after a save, and draws the surface again; and on the React
+ * reloads it after a save, and draws the surface again; on the React
  * sample the page is reloaded with its dev server stopped, which the Preview
- * pane says, until the server is back. It runs under Node by default, and against the binary when
- * SPECTRA_BINARY names one. Chromium is installed with Playwright's own
- * command.
+ * pane says, until the server is back; and the React sample's page behind a
+ * connection that answers late is said to be still loading, is not
+ * restarted, and draws the surface once it has loaded. It runs under Node by
+ * default, and against the binary when SPECTRA_BINARY names one. Chromium is
+ * installed with Playwright's own command.
  */
 import assert from 'node:assert/strict';
 import {type ChildProcess, spawn} from 'node:child_process';
-import {readFileSync} from 'node:fs';
+import {mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
+import {connect, createServer, type Server, type Socket} from 'node:net';
+import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {after, before, describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
@@ -124,8 +128,58 @@ function inputPartsOf(turn: Turn): A2uiPart[] {
     .filter((part): part is A2uiPart => part.type === 'a2ui');
 }
 
-/** How long a preview page has to answer, in the viewer. */
+/** How long a document has to answer from its iframe's load, in the viewer. */
 const ANSWER_MS = 5000;
+
+/**
+ * A relay in front of a server on this machine, which holds its first
+ * connection for a time before it passes anything on: a page whose first
+ * load is slow. It tells whether the browser gave that connection up
+ * meanwhile, as it does when the page's load is restarted.
+ */
+async function startSlowRelay(
+  port: number,
+  target: number,
+  delay: number,
+): Promise<{server: Server; firstGivenUp: () => boolean; firstPassedOn: () => boolean}> {
+  let first = true;
+  let givenUp = false;
+  let passedOn = false;
+  const sockets = new Set<Socket>();
+  const pass = (socket: Socket) => {
+    const upstream = connect(target, 'localhost');
+    sockets.add(upstream);
+    for (const end of [socket, upstream]) end.on('error', () => {});
+    socket.pipe(upstream);
+    upstream.pipe(socket);
+    socket.once('close', () => upstream.destroy());
+    upstream.once('close', () => socket.destroy());
+  };
+  const server = createServer(socket => {
+    sockets.add(socket);
+    if (!first) {
+      pass(socket);
+      return;
+    }
+    first = false;
+    socket.pause();
+    const onClose = () => (givenUp = true);
+    socket.once('close', onClose);
+    socket.on('error', () => {});
+    setTimeout(() => {
+      socket.off('close', onClose);
+      if (givenUp) return;
+      passedOn = true;
+      pass(socket);
+      socket.resume();
+    }, delay);
+  });
+  server.on('close', () => {
+    for (const socket of sockets) socket.destroy();
+  });
+  await new Promise<void>(resolve => server.listen(port, 'localhost', resolve));
+  return {server, firstGivenUp: () => givenUp, firstPassedOn: () => passedOn};
+}
 
 /**
  * Reloads the preview page in its frame, as its dev server reloads it after
@@ -211,7 +265,7 @@ describe(`the sample catalog apps in Chromium, ${binary ? 'the binary' : 'under 
           await slider.waitFor();
 
           // The page reloads itself: the surface is drawn again, and the page stays answered past
-          // the answer window, its ready and its load paired whichever came first.
+          // its time to answer, its new document having answered for its load.
           await reloadFrame(page, pageUrl);
           await slider.waitFor();
           await page.waitForTimeout(ANSWER_MS + 1000);
@@ -308,7 +362,7 @@ describe(`the sample catalog apps in Chromium, ${binary ? 'the binary' : 'under 
         // The frame stays on the page meanwhile, nothing laid over it.
         assert.equal(await page.getByText('No preview for catalog').count(), 0);
 
-        // After the answer window the page has not answered, and claims nothing.
+        // Five seconds after its load the page has not answered, and claims nothing.
         await page.getByText(`${pageUrl} has not answered`, {exact: true}).waitFor();
         await page.getByText('No preview for catalog').waitFor();
 
@@ -322,6 +376,78 @@ describe(`the sample catalog apps in Chromium, ${binary ? 'the binary' : 'under 
         await spectra.exited;
         stopServer(server);
         stub.kill();
+      }
+    },
+  );
+
+  it(
+    "says the React sample's page is still loading when its first load is slow, does not restart it, and draws the surface once it has loaded",
+    {timeout: TIMEOUT},
+    async () => {
+      const sample = 'react';
+      const devUrl = new URL(pageOf(sample));
+      const [agentPort, port, relayPort] = await Promise.all([freePort(), freePort(), freePort()]);
+      const stub = await startStub(agentPort, []);
+      const server = await startDevServer(sample, devUrl.href);
+      // The page's first connection is held for longer than a page holds the surfaces behind it.
+      const relay = await startSlowRelay(relayPort, Number(devUrl.port), 9_000);
+      const pageUrl = `http://localhost:${relayPort}/`;
+      const dir = mkdtempSync(path.join(tmpdir(), 'spectra-slow-page-'));
+      const config = path.join(dir, 'a2ui-spectra.json');
+      writeFileSync(
+        config,
+        JSON.stringify({
+          catalogs: [path.join(samplesDir, 'catalog.json')],
+          preview: [pageUrl],
+        }),
+      );
+      const spectra = new SpectraProcess([
+        'attach',
+        `http://127.0.0.1:${agentPort}`,
+        '--config',
+        config,
+        '--port',
+        String(port),
+        '--proxy-port',
+        String(await freePort()),
+        '--model-proxy-port',
+        String(await freePort()),
+        '--receiver-port',
+        String(await freePort()),
+        '--no-open',
+      ]);
+      const page = await browser.newPage({viewport: {width: 1440, height: 900}});
+      try {
+        await spectra.waitFor(/The viewer is at /);
+        await page.goto(`http://127.0.0.1:${port}`);
+        await page.getByRole('textbox', {name: 'Message the agent'}).fill('Hi');
+        await page.getByRole('button', {name: 'Send', exact: true}).click();
+
+        // Past the five seconds it holds the surface, the page is passed by, still loading:
+        // nothing else draws the sample catalog.
+        await page.getByText(`${pageUrl} is still loading`, {exact: true}).waitFor();
+        await page.getByText('No preview for catalog').waitFor();
+        assert.equal(await page.getByText(`${pageUrl} has not answered`).count(), 0);
+        assert.equal(relay.firstPassedOn(), false, 'The page loaded before it was passed by.');
+
+        // Its load arrives, its document answers, and the surface moves to it.
+        const slider = page
+          .frameLocator(`iframe[title="Preview page ${pageUrl}"]`)
+          .locator('input[type="range"]');
+        await slider.waitFor({timeout: 60_000});
+        assert.equal(await noteOf(page, pageUrl).textContent(), pageUrl);
+        // The viewer left the load alone: the connection held was the one that answered.
+        assert.equal(relay.firstGivenUp(), false, "The page's first load was restarted.");
+        assert.equal(relay.firstPassedOn(), true);
+        assert.equal(await page.getByText('No preview for catalog').count(), 0);
+      } finally {
+        await page.close();
+        spectra.signal('SIGTERM');
+        await spectra.exited;
+        relay.server.close();
+        stopServer(server);
+        stub.kill();
+        rmSync(dir, {recursive: true, force: true});
       }
     },
   );

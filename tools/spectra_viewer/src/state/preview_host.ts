@@ -6,17 +6,21 @@
  * surface is routed to is laid over the Preview pane's frame; the others are
  * hidden.
  *
- * Each page's address carries the viewer's origin. A page that sends no
- * ready message within a few seconds is unanswered, and is reloaded every
- * few seconds until it answers. A page's load is paired with its ready,
- * whichever comes first, and a ready page whose iframe loads again, the load
- * not being the one a ready was owed, is reloading: it keeps its
- * claims and its place over the pane until it answers again, or is
- * unanswered after the same few seconds. A render goes to a page's window with the
- * page's origin as its target, and only a message from one of the viewer's
- * own iframes, at that page's origin, is taken. Each render keeps the turn
- * and step it was asked for, so a press, which names its render, goes on as
- * pressed there even after a newer render went out.
+ * Each page's address carries the viewer's origin. At each load of a page's
+ * iframe the viewer asks which document is there, with the load's number,
+ * and the document answers with the same number; a document whose adapter
+ * had not started is asked again when it says it is ready. A document has a
+ * few seconds from its load to answer: with no answer the page is
+ * unanswered, and its address is set again, as often as its iframe loads
+ * without an answer. Until its iframe loads a page is left alone, however
+ * long the load takes, and after a few seconds without a load it is passed
+ * by, still loading. A ready page whose iframe loads again is reloading: it
+ * keeps its claims and its place over the pane until its document answers,
+ * or is unanswered after the same few seconds. A render goes to a page's
+ * window with the page's origin as its target, and only a message from one
+ * of the viewer's own iframes, at that page's origin, is taken. Each render
+ * keeps the turn and step it was asked for, so a press, which names its
+ * render, goes on as pressed there even after a newer render went out.
  *
  * The iframes come after the viewer's tree, so a sentinel on each side of
  * them hands focus that leaves a page back beside the Preview pane, whose
@@ -25,6 +29,7 @@
 import {
   isPageMessage,
   type PageMessage,
+  type PingMessage,
   PREVIEW_PROTOCOL,
   type RenderMessage,
   type Report,
@@ -35,11 +40,15 @@ import {useSyncExternalStore} from 'react';
 import {type Side, stopBeside} from '@/model/frame_focus.ts';
 import {
   ANSWER_MS,
+  type Answering,
+  HOLD_MS,
   loadOf,
-  type Pairing,
+  NOT_LOADED,
+  pongOf,
   type PreviewPageState,
   readyOf,
   RELOADING_NOTE_MS,
+  stillLoading,
   timedOut,
 } from '@/model/preview.ts';
 
@@ -79,11 +88,14 @@ interface Page {
   iframe: HTMLIFrameElement;
   /** The running number of the render last sent. */
   render: number;
+  /** Waits for the document at the page's latest load to answer. */
   timer?: ReturnType<typeof setTimeout>;
+  /** Waits to pass by a page whose iframe has not loaded. */
+  holdTimer?: ReturnType<typeof setTimeout>;
   /** Waits to say in the Preview header that the page is reloading. */
   noteTimer?: ReturnType<typeof setTimeout>;
-  /** What is open between the page's readies and its iframe's loads. */
-  pairing: Pairing;
+  /** What is open between the page's iframe loads and its documents' answers. */
+  answering: Answering;
   /** The render asked for last, sent once the page is ready. */
   wanted?: {key: string; surfaceId: string; messages: unknown[]; context?: RenderContext};
   /** The turn and step of each of the latest renders, by its number. */
@@ -169,14 +181,14 @@ class PreviewHost {
         origin: url.origin,
         iframe,
         render: 0,
-        pairing: {},
+        answering: NOT_LOADED,
         contexts: new Map(),
         seen: new Set(),
       };
       iframe.addEventListener('load', () => this.#loaded(page));
       iframe.src = page.url;
       this.#container!.insertBefore(iframe, this.#after!);
-      this.#arm(page);
+      this.#hold(page);
       return page;
     });
     this.#publish();
@@ -250,33 +262,62 @@ class PreviewHost {
 
   #remove(page: Page): void {
     if (page.timer !== undefined) clearTimeout(page.timer);
+    if (page.holdTimer !== undefined) clearTimeout(page.holdTimer);
     if (page.noteTimer !== undefined) clearTimeout(page.noteTimer);
     page.iframe.remove();
   }
 
-  /** Waits for the page's ready message; with none in time, the page is unanswered and is reloaded. */
+  /** A page whose iframe has not loaded when the wait ends is passed by, and goes on loading. */
+  #hold(page: Page): void {
+    page.holdTimer = setTimeout(() => {
+      page.holdTimer = undefined;
+      if (page.answering.load > 0) return;
+      const state = stillLoading(page.state);
+      if (state === page.state) return;
+      page.state = state;
+      this.#publish();
+    }, HOLD_MS);
+  }
+
+  /**
+   * Waits for the answer of the document at the page's latest load; with
+   * none in time, the page is unanswered and its address is set again. The
+   * next wait starts at the next load.
+   */
   #arm(page: Page): void {
     if (page.timer !== undefined) clearTimeout(page.timer);
     page.timer = setTimeout(() => {
-      if (page.state.status === 'ready') return;
-      if (page.state.status === 'waiting' || page.state.status === 'reloading') {
-        page.state = timedOut(page.state);
+      page.timer = undefined;
+      const state = timedOut(page.state);
+      if (state !== page.state) {
+        page.state = state;
         this.#publish();
       }
-      // The viewer's own reload brings a new document: nothing of the last one is open.
-      page.pairing = {};
       page.iframe.src = page.url;
-      this.#arm(page);
     }, ANSWER_MS);
   }
 
-  /** The page's iframe loaded: nothing when its ready was owed the load, else a ready page is reloading. */
+  #disarm(page: Page): void {
+    if (page.timer !== undefined) clearTimeout(page.timer);
+    page.timer = undefined;
+  }
+
+  /** Asks the document in the page's iframe which load it answers for. */
+  #ask(page: Page): void {
+    const ping: PingMessage = {type: 'a2ui-spectra-preview/ping', load: page.answering.load};
+    page.iframe.contentWindow?.postMessage(ping, page.origin);
+  }
+
+  /** The page's iframe loaded: its document is asked, and has its time to answer; a ready page is reloading. */
   #loaded(page: Page): void {
-    const {status, arm, pairing} = loadOf({status: page.state.status, ...page.pairing}, Date.now());
-    page.pairing = pairing;
-    if (!arm) return;
-    this.#update(page, {status, reloadingNoted: false});
+    const {status, answering} = loadOf({status: page.state.status, answering: page.answering});
+    page.answering = answering;
+    if (page.holdTimer !== undefined) clearTimeout(page.holdTimer);
+    page.holdTimer = undefined;
+    this.#ask(page);
     this.#arm(page);
+    if (status === page.state.status) return;
+    this.#update(page, {status, reloadingNoted: false});
     // The header says so only when the page is still reloading a moment later.
     if (page.noteTimer !== undefined) clearTimeout(page.noteTimer);
     page.noteTimer = setTimeout(() => {
@@ -285,24 +326,37 @@ class PreviewHost {
     }, RELOADING_NOTE_MS);
   }
 
+  /** The page is ready with these claims: it holds nothing, so the render asked for last goes again. */
+  #ready(page: Page, claims: PreviewPageState['claims']): void {
+    this.#disarm(page);
+    const {sentKey: _sent, protocol: _protocol, dataModel: _dataModel, ...rest} = page.state;
+    page.state = {...rest, status: 'ready', claims, reports: []};
+    page.seen = new Set();
+    if (page.wanted !== undefined) this.#send(page);
+    else this.#publish();
+  }
+
   #receive(event: MessageEvent): void {
     const page = this.#pages.find(candidate => candidate.iframe.contentWindow === event.source);
     if (page === undefined || event.origin !== page.origin || !isPageMessage(event.data)) return;
     const message: PageMessage = event.data;
     if (message.type === 'a2ui-spectra-preview/ready') {
-      page.pairing = readyOf(page.pairing, Date.now());
-      if (message.protocol !== PREVIEW_PROTOCOL) {
+      const step = readyOf(page.answering, message, PREVIEW_PROTOCOL);
+      page.answering = step.answering;
+      if (step.kind === 'mismatch') {
         this.#update(page, {status: 'mismatch', protocol: message.protocol, claims: []});
-        return;
+        // A page on another version is reloaded, so that an upgraded page is picked up.
+        if (page.timer === undefined) this.#arm(page);
+      } else if (step.kind === 'ask') {
+        this.#ask(page);
+      } else {
+        this.#ready(page, step.claims);
       }
-      if (page.timer !== undefined) clearTimeout(page.timer);
-      page.timer = undefined;
-      // A page that is ready again, reloaded, holds nothing: the render asked for last goes again.
-      const {sentKey: _sent, protocol: _protocol, dataModel: _dataModel, ...rest} = page.state;
-      page.state = {...rest, status: 'ready', claims: message.claims, reports: []};
-      page.seen = new Set();
-      if (page.wanted !== undefined) this.#send(page);
-      else this.#publish();
+    } else if (message.type === 'a2ui-spectra-preview/pong') {
+      const answer = pongOf(page.answering, message.load);
+      if (answer === undefined) return;
+      page.answering = answer.answering;
+      this.#ready(page, answer.claims);
     } else if (message.type === 'a2ui-spectra-preview/report') {
       if (message.render !== page.render) return;
       const key = JSON.stringify(message.report);

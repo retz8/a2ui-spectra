@@ -131,7 +131,7 @@ describe('startPreviewPage', () => {
     assert.deepEqual(sent, [
       {
         type: 'a2ui-spectra-preview/ready',
-        protocol: 1,
+        protocol: 2,
         claims: [
           {catalogId: CATALOGS[0].id, protocolVersion: '0.9'},
           {catalogId: CATALOGS[1].id, protocolVersion: '1.0'},
@@ -290,16 +290,56 @@ describe('startPreviewPage', () => {
     });
   });
 
-  it('ignores what is not a render, and stops on stop', () => {
-    const {deliver, processors, page} = start();
+  it("answers each ping with the ping's number, before any render and after one", () => {
+    const {deliver, sent, processors} = start();
+    deliver({type: 'a2ui-spectra-preview/ping', load: 1});
+    assert.deepEqual(sent.at(-1), {type: 'a2ui-spectra-preview/pong', load: 1});
+    assert.equal(processors.length, 0);
+    deliver(render(1, [create]));
+    deliver({type: 'a2ui-spectra-preview/ping', load: 7});
+    assert.deepEqual(sent.at(-1), {type: 'a2ui-spectra-preview/pong', load: 7});
+    // The same number asked twice is answered twice.
+    deliver({type: 'a2ui-spectra-preview/ping', load: 7});
+    assert.deepEqual(
+      sent.filter(message => message.type === 'a2ui-spectra-preview/pong').map(pong => pong.load),
+      [1, 7, 7],
+    );
+  });
+
+  it('listens before it says it is ready, so a ping that follows the ready is answered', () => {
+    const fake = fakeAdapter();
+    const order: string[] = [];
+    startPreviewPage({
+      catalogs: CATALOGS,
+      adapter: fake.adapter,
+      transport: {
+        send: message => order.push(message.type),
+        listen: () => {
+          order.push('listen');
+          return () => {};
+        },
+      },
+    });
+    assert.deepEqual(order, ['listen', 'a2ui-spectra-preview/ready']);
+  });
+
+  it('ignores what is not a render or a ping, and stops on stop', () => {
+    const {deliver, processors, page, sent} = start();
     deliver({type: 'a2ui-spectra-preview/render', render: 'one', surfaceId: 'main', messages: []});
+    deliver({type: 'a2ui-spectra-preview/ping', load: 'one'});
+    deliver({type: 'a2ui-spectra-preview/ping'});
     deliver({type: 'something else'});
     assert.equal(processors.length, 0);
+    assert.equal(sent.length, 1);
     deliver(render(1, [create]));
     page.stop();
     assert.equal(processors[0].disposed, true);
     deliver(render(2, [create, update]));
     assert.equal(processors.length, 1);
+    // A stopped page answers no ping.
+    const before = sent.length;
+    deliver({type: 'a2ui-spectra-preview/ping', load: 2});
+    assert.equal(sent.length, before);
   });
 
   it("sends the shown surface's data model as it changes, tagged with its render, and once more for a render that leaves it as it was", () => {

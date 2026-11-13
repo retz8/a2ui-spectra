@@ -82,11 +82,14 @@ export interface PreviewPageState {
   /** Its URL as configured, or `built-in`. */
   label: string;
   /**
-   * `waiting` until it first answers or times out; `ready` once it said it is
-   * ready in the protocol's version; `reloading` when a ready page loaded
-   * again and has not answered yet, its claims kept meanwhile; `unanswered`
-   * when it did not answer in time; `mismatch` when it speaks another version
-   * of the protocol.
+   * `waiting` until it first answers, or is passed by or times out; `loading`
+   * when its iframe has not loaded in the time it holds the surfaces behind
+   * it for, and it goes on loading; `ready` once it said it is ready in the
+   * protocol's version and the document at its latest load answered;
+   * `reloading` when a ready page loaded again and its document has not
+   * answered yet, its claims kept meanwhile; `unanswered` when its document
+   * did not answer in time; `mismatch` when it speaks another version of the
+   * protocol.
    */
   status: PageStatus;
   claims: Claim[];
@@ -96,62 +99,103 @@ export interface PreviewPageState {
   reloadingNoted?: boolean;
 }
 
-export type PageStatus = 'waiting' | 'ready' | 'reloading' | 'unanswered' | 'mismatch';
+export type PageStatus = 'waiting' | 'loading' | 'ready' | 'reloading' | 'unanswered' | 'mismatch';
 
-/** How long a page has to say it is ready, and how long a ready that came first is owed its document's load. */
+/** How long a document has to answer, from its iframe's load. */
 export const ANSWER_MS = 5000;
 
-/** How close a page's second ready is to its last, no load between, to be the same document's. */
-export const SAME_DOCUMENT_MS = 1000;
+/** How long a page whose iframe has not loaded holds the surfaces behind it. */
+export const HOLD_MS = 5000;
 
 /**
- * What is open between a page's readies and its iframe's loads. A page's
- * ready and its load come in either order, a built page's ready first and a
- * dev server's page's load first, and a page on another origin cannot be seen
- * to begin a reload, so the two are paired, each document's load with its
- * ready.
+ * What is open between a page's iframe loads and its documents' answers. The
+ * viewer cannot see a page on another origin begin to reload, and a page's
+ * ready and its load come in either order, so at each load the viewer asks
+ * which document is there, with the load's number, and the document answers
+ * with the same number.
  */
-export interface Pairing {
-  /** Until when the page's last ready is owed its document's load. */
-  owedUntil?: number;
-  /** Whether a load is waiting for its document's ready. */
-  loadWaiting?: boolean;
-  /** When the page's last ready came, no load since. */
-  lastReady?: number;
+export interface Answering {
+  /** The number of the page's latest load, 0 before its first. */
+  load: number;
+  /** The number of the last load a document answered. */
+  answered: number;
+  /** The claims of the page's last ready, when it spoke the viewer's protocol version. */
+  claims?: Claim[];
+}
+
+/** A page whose iframe has not loaded. */
+export const NOT_LOADED: Answering = {load: 0, answered: 0};
+
+/** Whether the document at the page's latest load has yet to answer. */
+export function owesAnswer(answering: Answering): boolean {
+  return answering.load > answering.answered;
 }
 
 /**
- * What a ready does to the pairing. One that comes while a load is waiting
- * answers it, and is owed nothing. One within a second of the page's last
- * ready, no load between, is the same document's, as React's development
- * mode mounts twice, and changes nothing. Any other is owed one load, its
- * own document's, for the answer window.
+ * What a load of a page's iframe does: it takes the next number, which the
+ * viewer asks the document with, and a ready page is reloading until the
+ * document answers. A page in any other state is left as it is.
  */
-export function readyOf(pairing: Pairing, now: number): Pairing {
-  if (pairing.loadWaiting === true) return {lastReady: now};
-  if (pairing.lastReady !== undefined && now - pairing.lastReady <= SAME_DOCUMENT_MS) {
-    return pairing;
+export function loadOf(page: {status: PageStatus; answering: Answering}): {
+  status: PageStatus;
+  answering: Answering;
+} {
+  return {
+    status: page.status === 'ready' ? 'reloading' : page.status,
+    answering: {...page.answering, load: page.answering.load + 1},
+  };
+}
+
+/** What a ready does: the page speaks another version; or the viewer asks again; or the page is ready. */
+export type ReadyStep =
+  | {kind: 'mismatch'; answering: Answering}
+  | {kind: 'ask'; answering: Answering}
+  | {kind: 'ready'; answering: Answering; claims: Claim[]};
+
+/**
+ * What a ready does. One in another version of the protocol is a mismatch,
+ * and its document's answers count for nothing. One that comes while a load
+ * is unanswered may be that load's document, whose adapter had not started
+ * when the viewer asked: the viewer asks again, with the same number, and the
+ * page is ready once the answer comes. One that comes with no load
+ * unanswered makes the page ready at once: a page whose ready comes before
+ * its load, and a document that says it is ready twice, as React's
+ * development mode mounts twice.
+ */
+export function readyOf(
+  answering: Answering,
+  ready: {protocol: number; claims: Claim[]},
+  speaks: number,
+): ReadyStep {
+  if (ready.protocol !== speaks) {
+    return {kind: 'mismatch', answering: {load: answering.load, answered: answering.answered}};
   }
-  return {owedUntil: now + ANSWER_MS, lastReady: now};
+  const next = {...answering, claims: ready.claims};
+  return owesAnswer(answering)
+    ? {kind: 'ask', answering: next}
+    : {kind: 'ready', answering: next, claims: ready.claims};
 }
 
 /**
- * What a load of a page's iframe does. A load that is owed changes nothing,
- * and nothing is owed after it. One that is not owed is a new document that
- * has not answered, and waits for its ready: a ready page is reloading, and
- * the answer timer is to be armed; a page in any other state is left as it
- * is.
+ * What a document's answer does. One that carries the latest load's number,
+ * that load unanswered, from a page whose last ready spoke the viewer's
+ * protocol version, makes the page ready with that ready's claims. Any other
+ * changes nothing: an earlier load's number, the same number a second time,
+ * or a page that speaks another version.
  */
-export function loadOf(
-  page: {status: PageStatus} & Pairing,
-  now: number,
-): {status: PageStatus; arm: boolean; pairing: Pairing} {
-  if (page.owedUntil !== undefined && now <= page.owedUntil) {
-    return {status: page.status, arm: false, pairing: {}};
+export function pongOf(
+  answering: Answering,
+  load: number,
+): {answering: Answering; claims: Claim[]} | undefined {
+  if (load !== answering.load || !owesAnswer(answering) || answering.claims === undefined) {
+    return undefined;
   }
-  return page.status === 'ready'
-    ? {status: 'reloading', arm: true, pairing: {loadWaiting: true}}
-    : {status: page.status, arm: false, pairing: {loadWaiting: true}};
+  return {answering: {...answering, answered: load}, claims: answering.claims};
+}
+
+/** A page whose iframe has not loaded in the time it holds surfaces for: passed by, still loading. */
+export function stillLoading<P extends PreviewPageState>(page: P): P {
+  return page.status === 'waiting' ? {...page, status: 'loading'} : page;
 }
 
 /**
@@ -170,11 +214,18 @@ export function pageNoteOf(page: PreviewPageState): {text: string; reloading: bo
   return {text: reloading ? `${page.label} · reloading` : page.label, reloading};
 }
 
-/** A page that did not answer in time: unanswered, claiming nothing. */
+/**
+ * A page whose document did not answer in time: unanswered, claiming
+ * nothing. A page that speaks another version, or is unanswered already,
+ * stays as it is.
+ */
 export function timedOut<P extends PreviewPageState>(page: P): P {
-  return {...page, status: 'unanswered', claims: []};
+  return page.status === 'waiting' || page.status === 'loading' || page.status === 'reloading'
+    ? {...page, status: 'unanswered', claims: []}
+    : page;
 }
 
+/** Where a surface goes: to a page; nowhere yet; or to none, with the pages that draw nothing. */
 export type Route<P extends PreviewPageState = PreviewPageState> =
   {kind: 'page'; page: P} | {kind: 'waiting'} | {kind: 'none'; catalogId?: string; unanswered: P[]};
 
@@ -209,8 +260,9 @@ function answers(page: PreviewPageState): boolean {
  * The page that draws a surface: the first, in the order given, that is
  * ready and claims every catalog the surface's messages name. A page still
  * waiting for its first answer ahead of it holds the surface until it
- * answers or times out, and a page that is reloading keeps the surfaces it
- * claimed until it answers again or times out.
+ * answers, is passed by as still loading, or times out, and a page that is
+ * reloading keeps the surfaces it claimed until it answers again or times
+ * out.
  */
 export function routeOf<P extends PreviewPageState>(
   pages: readonly P[],
@@ -229,14 +281,20 @@ export function routeOf<P extends PreviewPageState>(
   return {
     kind: 'none',
     ...(unclaimed !== undefined && {catalogId: unclaimed}),
-    unanswered: pages.filter(page => page.status === 'unanswered' || page.status === 'mismatch'),
+    unanswered: pages.filter(
+      page =>
+        page.status === 'loading' || page.status === 'unanswered' || page.status === 'mismatch',
+    ),
   };
 }
 
-/** Why a page that does not draw is not answering, as the "No preview" state names it. */
+/** Why a page draws nothing, as the "No preview" state names it. */
 export function unansweredLine(page: PreviewPageState, speaks: number): string {
-  return page.status === 'mismatch'
-    ? `${page.label}: preview page speaks protocol ${page.protocol}, this Spectra speaks ${speaks}`
+  if (page.status === 'mismatch') {
+    return `${page.label}: preview page speaks protocol ${page.protocol}, this Spectra speaks ${speaks}`;
+  }
+  return page.status === 'loading'
+    ? `${page.label} is still loading`
     : `${page.label} has not answered`;
 }
 

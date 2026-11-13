@@ -1,12 +1,13 @@
 /**
  * The preview protocol: the messages between Spectra's viewer and a preview
  * page. It names no carrier. A2UI messages go in; render errors, the shown
- * surface's data model and actions come out. The web adapters carry it over `postMessage` between the viewer
- * and the page in an iframe.
+ * surface's data model and actions come out; and the viewer asks which
+ * document a page holds, which the document answers. The web adapters carry
+ * it over `postMessage` between the viewer and the page in an iframe.
  */
 
 /** The protocol's version, carried by the ready message. */
-export const PREVIEW_PROTOCOL = 1;
+export const PREVIEW_PROTOCOL = 2;
 
 /** The query parameter that carries the viewer's origin in a page's address. */
 export const VIEWER_PARAMETER = 'a2ui-spectra-viewer';
@@ -23,6 +24,22 @@ export interface ReadyMessage {
   type: 'a2ui-spectra-preview/ready';
   protocol: number;
   claims: Claim[];
+}
+
+/**
+ * The viewer asks which document the page holds, at each load of the page:
+ * `load` is the load's number, 1 for the page's first and one more at each
+ * later load.
+ */
+export interface PingMessage {
+  type: 'a2ui-spectra-preview/ping';
+  load: number;
+}
+
+/** The document answers a ping, with the ping's number. */
+export interface PongMessage {
+  type: 'a2ui-spectra-preview/pong';
+  load: number;
 }
 
 /**
@@ -117,12 +134,14 @@ export interface ActionMessage {
  */
 export const SCREENSHOT_TYPE = 'a2ui-spectra-preview/screenshot';
 
-export type ViewerMessage = RenderMessage;
+export type ViewerMessage = RenderMessage | PingMessage;
 
-export type PageMessage = ReadyMessage | ReportMessage | DataModelMessage | ActionMessage;
+export type PageMessage =
+  ReadyMessage | PongMessage | ReportMessage | DataModelMessage | ActionMessage;
 
 const PAGE_TYPES: ReadonlySet<string> = new Set([
   'a2ui-spectra-preview/ready',
+  'a2ui-spectra-preview/pong',
   'a2ui-spectra-preview/report',
   'a2ui-spectra-preview/data-model',
   'a2ui-spectra-preview/action',
@@ -144,4 +163,11 @@ export function isRenderMessage(value: unknown): value is RenderMessage {
     typeof surfaceId === 'string' &&
     Array.isArray(messages)
   );
+}
+
+/** Whether a value is a ping, with its load's number. */
+export function isPingMessage(value: unknown): value is PingMessage {
+  if (typeof value !== 'object' || value === null) return false;
+  const {type, load} = value as Partial<PingMessage>;
+  return type === 'a2ui-spectra-preview/ping' && typeof load === 'number';
 }
