@@ -123,7 +123,7 @@ On session 3, one save of the `a2ui-spectra.json` Spectra read: nothing restarts
 
 ### 14. What `attach` does not draw
 
-On session 4, the drawer having been left open at the end of session 3: the context bar ends with the wire proxy's address, no Restart and no Logs; no drawer; no restart divider. The stub agent is stopped once by hand, for the composer's one refusal form under `attach`.
+On session 4, the drawer having been left open at the end of session 3: the context bar ends with the wire proxy's address, no Restart and no Logs; no drawer; no restart divider. The stub agent is stopped once by hand: the send goes out and the turn is captured as failed, the composer giving no refusal.
 
 ### 15. The wrapper start
 
