@@ -34,11 +34,11 @@ import {
 import type {Prices} from '../model/cost.ts';
 import {isTurnEvent, type Turn, type TurnRecordEvent} from '../model/record.ts';
 import {
+  agentAnswered,
   type AgentHeard,
   agentHeard,
   type AgentLogs,
   type AgentProcess,
-  agentRead,
   lastSeqOf,
   logsHeard,
   logsRead,
@@ -361,29 +361,29 @@ class Spectra {
   }
 
   /**
-   * Under `run`, reads the agent's process, and its output once per stream
-   * open; the buffer the page held stays until the route's answer replaces it.
+   * The agent route's answer, asked for at the stream's open counted `open`,
+   * as the state takes it, or nothing when it is dropped; what the stream
+   * said up to the answer is no longer kept.
    */
-  async #readAgent(): Promise<void> {
-    const open = this.#opens;
-    const snapshot: AgentSnapshot = await getAgent();
-    if (open !== this.#opens) return;
-    // An answer that passed another on its way merges into the newer one: neither's state goes back.
-    const read = agentRead(snapshot, this.#agentSince);
-    const {agent} = this.#state;
-    this.#set({
-      agent:
-        this.#agentRead && agent !== undefined
-          ? agent.events.reduce((merged, event) => agentHeard(merged, {event}), {
-              ...read,
-              state: agent.state.seq > read.state.seq ? agent.state : read.state,
-            })
-          : read,
+  #agentAnswered(snapshot: AgentSnapshot, open: number): AgentProcess | undefined {
+    const current = open === this.#opens;
+    const agent = agentAnswered(this.#state.agent, snapshot, this.#agentSince, {
+      current,
+      first: !this.#agentRead,
     });
+    if (!current) return agent;
     this.#agentRead = true;
     const last = lastSeqOf(snapshot);
     this.#agentSince = this.#agentSince.filter(heard => seqOf(heard) > last);
-    if (this.#logsRead !== 'no') return;
+    return agent;
+  }
+
+  /**
+   * Under `run`, reads the agent's output once per stream open; the buffer
+   * the page held stays until the route's answer replaces it.
+   */
+  async #readLogs(open: number): Promise<void> {
+    if (open !== this.#opens || this.#logsRead !== 'no') return;
     this.#logsRead = 'asked';
     try {
       const logs = await getAgentLogs();
@@ -430,11 +430,20 @@ class Spectra {
 
   async #reload(): Promise<void> {
     try {
-      const [turns, box, context, catalogs] = await Promise.all([
+      const open = this.#opens;
+      const contextRead = getContext();
+      // Spectra owns the agent's process under `run` alone: under `attach` there is none to read.
+      // It is asked for as soon as the context names the mode, so that the session and its agent
+      // enter the state together and the bar never shows `run` without Restart and Logs.
+      const agentAsked = contextRead.then(context =>
+        context.mode === 'run' ? getAgent() : undefined,
+      );
+      const [turns, box, context, catalogs, snapshot] = await Promise.all([
         listTurns(),
         getMessageBox(),
-        getContext(),
+        contextRead,
         getCatalogs(),
+        agentAsked,
       ]);
       // What the stream said while the listing was on its way is newer than the listing.
       const {live, closed} = this.#state;
@@ -455,11 +464,18 @@ class Spectra {
         JSON.stringify(catalogs) === JSON.stringify(this.#state.catalogs)
           ? this.#state.catalogs
           : catalogs;
-      this.#set({loaded: true, turns: sortRows([...rows.values()]), box, context, catalogs: known});
+      const agent = snapshot === undefined ? undefined : this.#agentAnswered(snapshot, open);
+      this.#set({
+        loaded: true,
+        turns: sortRows([...rows.values()]),
+        box,
+        context,
+        catalogs: known,
+        ...(agent !== undefined && {agent}),
+      });
       if (this.#state.prices === undefined) void this.#readPrices();
       void this.#readFixtures();
-      // Spectra owns the agent's process under `run` alone: under `attach` there is none to read.
-      if (context.mode === 'run') await this.#readAgent();
+      if (snapshot !== undefined) await this.#readLogs(open);
     } catch {
       // The check marks the page as not connected; the stream's next open reads again.
     }

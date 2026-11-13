@@ -323,7 +323,8 @@ export function replayLineOf(
 /**
  * The context bar's live status, the first that applies: not connected; under
  * `run`, the agent's state while it is down, restarting, starting or waiting
- * for its card; replaying a record, its turn of the total; capturing.
+ * for its card; replaying a record, its turn of the total; capturing, once
+ * the stream is open and the session has been read, and connecting until then.
  */
 export type LiveStatusView =
   | {form: 'connecting'}
@@ -342,8 +343,9 @@ export function liveStatusOf(state: SpectraState): LiveStatusView {
       : {form: 'agentDown', exit: agent.exit, title: agent.title};
   }
   const {replay} = state.box;
+  // Until the session has been read the page does not know whether an agent's process is its to show.
   if (replay === undefined)
-    return state.connected === true ? {form: 'capturing'} : {form: 'connecting'};
+    return state.connected === true && state.loaded ? {form: 'capturing'} : {form: 'connecting'};
   const running = [...state.replayTurns.values()].find(
     turn => turn.source === replay.source && turn.turn === replay.turn,
   );

@@ -54,6 +54,29 @@ export function agentRead(snapshot: AgentSnapshot, since: readonly AgentHeard[])
   });
 }
 
+/**
+ * What the route's answer makes of the agent the page holds, or nothing when
+ * the answer is dropped. An answer asked for since the stream last opened is
+ * taken: the first since that open whole, a later one merged into the agent
+ * held, neither's state going back. An answer asked for before that open is
+ * older than what the stream says now: it is shown only while the page holds
+ * no agent, until that open's own answer replaces it.
+ */
+export function agentAnswered(
+  held: AgentProcess | undefined,
+  snapshot: AgentSnapshot,
+  since: readonly AgentHeard[],
+  {current, first}: {current: boolean; first: boolean},
+): AgentProcess | undefined {
+  const read = agentRead(snapshot, since);
+  if (!current) return held === undefined ? read : undefined;
+  if (first || held === undefined) return read;
+  return held.events.reduce((merged, event) => agentHeard(merged, {event}), {
+    ...read,
+    state: held.state.seq > read.state.seq ? held.state : read.state,
+  });
+}
+
 /** The highest number the route's answer holds: what the stream said up to it is in the answer. */
 export function lastSeqOf(snapshot: AgentSnapshot): number {
   return Math.max(snapshot.state.seq, ...snapshot.events.map(event => event.seq));

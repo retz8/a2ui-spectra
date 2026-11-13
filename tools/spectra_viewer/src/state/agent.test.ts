@@ -3,6 +3,8 @@ import {describe, it} from 'node:test';
 
 import type {AgentSessionEvent, AgentSnapshot, LogEntry} from '../api.ts';
 import {
+  agentAnswered,
+  type AgentHeard,
   agentHeard,
   agentRead,
   lastSeqOf,
@@ -73,6 +75,46 @@ describe("the agent's process", () => {
     assert.equal(lastSeqOf({...snapshot, events: [restarted(1), exited(9)]}), 9);
     assert.equal(seqOf({state: {state: 'running', seq: 3}}), 3);
     assert.equal(seqOf({event: exited(6)}), 6);
+  });
+
+  it("takes the route's first answer since the stream opened whole", () => {
+    const held = agentRead({...snapshot, state: {state: 'down', seq: 9, exit: 'exited'}}, []);
+    const since: AgentHeard[] = [{event: restarted(4)}];
+    for (const before of [undefined, held]) {
+      assert.deepEqual(
+        agentAnswered(before, snapshot, since, {current: true, first: true}),
+        agentRead(snapshot, since),
+      );
+    }
+  });
+
+  it("merges a later answer into the agent held, neither's state going back", () => {
+    const held = agentHeard(
+      agentHeard(agentRead(snapshot, []), {state: {state: 'restarting', seq: 5}}),
+      {event: exited(6)},
+    );
+    const older = agentAnswered(held, snapshot, [], {current: true, first: false});
+    assert.deepEqual(older?.state, {state: 'restarting', seq: 5});
+    assert.deepEqual(
+      older?.events.map(event => event.seq),
+      [1, 6],
+    );
+    const newer = agentAnswered(held, {...snapshot, state: {state: 'running', seq: 8}}, [], {
+      current: true,
+      first: false,
+    });
+    assert.deepEqual(newer?.state, {state: 'running', seq: 8});
+  });
+
+  it('shows an answer asked for before the stream last opened only while it holds none', () => {
+    const since: AgentHeard[] = [{state: {state: 'restarting', seq: 5}}];
+    assert.deepEqual(
+      agentAnswered(undefined, snapshot, since, {current: false, first: true}),
+      agentRead(snapshot, since),
+    );
+    const held = agentRead(snapshot, []);
+    assert.equal(agentAnswered(held, snapshot, since, {current: false, first: true}), undefined);
+    assert.equal(agentAnswered(held, snapshot, since, {current: false, first: false}), undefined);
   });
 
   it("gives the stream's event its type", () => {

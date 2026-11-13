@@ -265,10 +265,11 @@ export function LiveStatus({
       </span>
     );
   }
+  const capturing = status.form === 'capturing';
   return (
     <span role="status" className="inline-flex items-center gap-1.5 text-xs font-medium">
-      <Icon kind="dot" size={10} className={connected ? 'text-brand' : 'text-muted-foreground'} />
-      {connected ? 'Capturing' : 'Connecting'}
+      <Icon kind="dot" size={10} className={capturing ? 'text-brand' : 'text-muted-foreground'} />
+      {capturing ? 'Capturing' : 'Connecting'}
     </span>
   );
 }

@@ -229,6 +229,16 @@ describe("the live status's order", () => {
     }
   });
 
+  it('is connecting until the session has been read, the stream open or not', () => {
+    const box = {conversations: []};
+    for (const connected of [undefined, true]) {
+      const state = {...stateOf(box, {...(connected !== undefined && {connected})}), loaded: false};
+      assert.deepEqual(liveStatusOf(state), {form: 'connecting'});
+    }
+    assert.deepEqual(liveStatusOf(stateOf(box, {connected: true})), {form: 'capturing'});
+    assert.deepEqual(liveStatusOf(stateOf(box)), {form: 'connecting'});
+  });
+
   it('puts a replay before capturing, the agent running', () => {
     const running = {...down, state: {state: 'running' as const, seq: 8}};
     assert.equal(
