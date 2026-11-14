@@ -93,7 +93,8 @@ function tagOf(type: string): string {
 const SHAPES: Record<InferenceFormat, {opens: (type: string) => RegExp; closes: RegExp}> = {
   direct_json: {opens: () => /^\{/, closes: /\}$/},
   express: {
-    opens: type => new RegExp(`^(?:[A-Za-z_][A-Za-z0-9_]*\\s*=\\s*)?${type}\\s*\\(`),
+    opens: type =>
+      new RegExp(`^(?:[\\p{XID_Start}_]\\p{XID_Continue}*\\s*=\\s*)?${type}\\s*\\(`, 'u'),
     closes: /\)$/,
   },
   elemental: {

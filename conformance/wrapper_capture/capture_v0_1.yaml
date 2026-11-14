@@ -401,3 +401,9 @@
   action: capture_wrapper
   job: "test_data/wrapper_capture/v0_1/atom_bare_string_dropped/input.json"
   expect: "test_data/wrapper_capture/v0_1/atom_bare_string_dropped/expected.json"
+
+- name: express_unicode_identifier
+  description: "Express on the basic catalog at v1.0: a variable named with letters outside ASCII, größe, an identifier of the grammar's UAX 31 form, holding a component referred to from root's children."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_unicode_identifier/input.json"
+  expect: "test_data/wrapper_capture/v0_1/express_unicode_identifier/expected.json"

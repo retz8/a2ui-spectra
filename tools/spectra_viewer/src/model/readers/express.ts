@@ -97,8 +97,22 @@ class OutOfRange extends Error {
   }
 }
 
-const IDENT_START = /[A-Za-z_]/;
-const IDENT_PART = /[A-Za-z0-9_]/;
+/** The grammar's identifiers are UAX 31's: a start character, then continuing ones. */
+const IDENT_START = /^[\p{XID_Start}_]/u;
+const IDENT_PART = /^\p{XID_Continue}/u;
+
+/** Where an identifier starting at a text offset ends, by code point; the offset itself when none starts there. */
+function identifierEnd(text: string, start: number, end: number): number {
+  const first = String.fromCodePoint(text.codePointAt(start) ?? 0);
+  if (start >= end || !IDENT_START.test(first)) return start;
+  let j = start + first.length;
+  while (j < end) {
+    const next = String.fromCodePoint(text.codePointAt(j)!);
+    if (!IDENT_PART.test(next)) break;
+    j += next.length;
+  }
+  return j;
+}
 const PATH_PART = /[A-Za-z0-9_/]/;
 /** The grammar's `NUMBER`: a sign, digits with an optional fraction or a fraction alone, an exponent. */
 const NUMBER = /^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?/;
@@ -162,17 +176,16 @@ function tokenize(text: string, start: number, end: number): {tokens: Token[]; s
       i = j;
       continue;
     }
-    if (ch === '?' && i + 1 < end && IDENT_START.test(text[i + 1])) {
-      let j = i + 1;
-      while (j < end && IDENT_PART.test(text[j])) j++;
+    if (ch === '?' && identifierEnd(text, i + 1, end) > i + 1) {
+      const j = identifierEnd(text, i + 1, end);
       tokens.push({kind: 'check', text: text.slice(i, j), start: i, end: j});
       i = j;
       continue;
     }
     // A system function's name, from v1.0: `@` and an identifier, as `@index`.
-    if (IDENT_START.test(ch) || (ch === '@' && i + 1 < end && IDENT_START.test(text[i + 1]))) {
-      let j = i + 1;
-      while (j < end && IDENT_PART.test(text[j])) j++;
+    const nameStart = ch === '@' ? i + 1 : i;
+    if (identifierEnd(text, nameStart, end) > nameStart) {
+      const j = identifierEnd(text, nameStart, end);
       tokens.push({kind: 'ident', text: text.slice(i, j), start: i, end: j});
       i = j;
       continue;

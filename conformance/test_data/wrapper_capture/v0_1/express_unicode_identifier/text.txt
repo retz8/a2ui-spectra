@@ -1,0 +1,2 @@
+root = Column([größe])
+größe = Text("x")
