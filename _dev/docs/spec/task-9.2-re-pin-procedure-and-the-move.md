@@ -135,3 +135,47 @@ All of these hold on `main`:
 - Every copied file is upstream's file at the pin plus the alterations the pin file lists for it.
 - The pin's hash is written once in this repo, in the pin file.
 - `main` builds and its CI passes when 9.2 closes.
+
+### 16. What the build settled
+
+- The procedure document is `_dev/re-pin-procedure.md` and the pin file `_dev/upstream-pin.json`, a JSON file holding `pin`, `copies`, `packages`, `watch` and `heldBy`, with an `upstream` block naming the repository, the fork, its remote and the worktree.
+- The scripts are `_dev/tools/upstream_check.mjs`, `_dev/tools/upstream_move.mjs` and `_dev/tools/build_upstream_tarballs.mjs`, on one shared module, `_dev/tools/upstream_pin.mjs`.
+- The tarballs are under `vendor/a2ui/`, named as `npm pack` names them, beside a README.
+- The mark's fixed form: the reason starts `Sub-task N.M, at the pin: `. Every mark is listed by `grep -rnE "Sub-task [0-9]+\.[0-9]+, at the pin: " --exclude-dir=node_modules --exclude-dir=dist --exclude-dir=_dev .`.
+- The copy list holds twelve files: the eight schemas and catalog definitions, the two conformance catalogs, and the TypeScript wrapper driver's two basic catalogs, `conformance/wrapper_driver/typescript/catalogs/basic_v0_9.json` from `specification/v0_9/catalogs/basic/catalog.json` and `basic_v1_0.json` from `catalogs/basic/v1/catalog.json`, which are upstream's files copied unchanged.
+- The move script also writes the pin's commit into the three uv git sources in the root `pyproject.toml`; `uv.lock` carries it from there.
+- The Python driver, `conformance/wrapper_driver/python/pyproject.toml`, depends on `a2ui-a2a`, `a2ui-agent-sdk` and `a2ui-core` with no version, so that the root's uv git sources apply to all three, and on `a2ui-adk==0.3.0`.
+- A wrapper capture case marks a language with `expected_to_fail`, a reason per language, in `conformance/conformance_schema.json`, the harness `tools/spectra/src/receiver/wrapper_capture.conformance.test.ts`, which passes it to Node's `todo`, and `conformance/README.md`.
+
+### 17. The first run
+
+To `0888f88b2` (2026-11-13), `upstream/main` at `3ed960186`.
+
+- The check at the new pin: one commit since, the documentation site's landing page (#4235), in none of Spectra's areas; every copied file unchanged; npm's latest unchanged since 2026-11-02 and PyPI's since 2026-11-10; `versions.json` giving v1.0 `current`, v0.9.1 and v0.9 `previous`, v0.8 `deprecated`; the five watch-list items open; no commit on a held-by finding's paths. None of the three events.
+- The copies: the move reports all twelve as upstream's file at the pin, `composition_catalog_v1_0.json` plus finding 24's alteration. Eight differ from the previous pin's: the six of the spec's count and the driver's two.
+- The packages: the six tarballs built at the pin, each stating the published version number, wired by six `resolutions` lines; `a2ui-core` 0.6.1.dev45, `a2ui-agent-sdk` 0.11.1.dev45 and `a2ui-a2a` 0.3.1.dev45 from the uv git sources, `a2ui-adk` 0.3.0 from PyPI. On a fresh copy of the tree, `yarn install --immutable` and `uv sync --all-packages --locked` install with both lockfiles unchanged.
+- The worktree: detached at `0888f88b2`; its uv workspace synced, which brings upstream's `wrapt` 1.17.3; the Python wrapper installed editable again with the OpenTelemetry set it had; its Yarn workspace installed, the TypeScript wrapper's install kept. The Python restaurant finder ("Restaurant Agent", 10002), the custom-components example ("Contact Lookup Agent", 10004) and the Node restaurant finder ("Restaurant Agent", 10002) each started on the Gemini key and served its agent card; no message was sent. Switched on in the worktree's venv, the Python wrapper logs that it leaves `a2ui-agent-sdk` 0.11.1.dev45 unpatched, `DirectJsonPromptGenerator.generate` missing. The workspace-level CLAUDE.md names `0888f88b2`.
+- CI, run locally from a clean build with wireit's cache off: the build, the binary, lint, format, `pyink`, `mypy`, `pytest` (3 passed, 46 xfailed), the test suites (the tool 849 with 42 `todo`, the viewer 571, the TypeScript wrapper 154, the preview core 38, the conformance package 34), and the tool's tests against the binary (849 with 42 `todo`).
+
+### 18. The handover
+
+Per owning sub-task, what the move leaves. No mechanical build change was needed: the build, the type checks and lint pass at the pin unchanged. No held-by finding is fixed at the pin, so no workaround or test expectation is left behind by a fix.
+
+**9.3, the checks.**
+
+- Marked, Node's `todo`: `tools/spectra/src/check/catalog_check.test.ts`, "uses a v1.0 component's own catalog, and skips one whose catalog has no definition": the v1.0 component schema at the pin takes `@catalogId`, and the bare `catalogId` is an unevaluated property.
+- Not a failing case: at the pin, upstream's v0.9 basic catalog has List's `listStyle`, restored by `2e8a58a69` (#3956), and its v0.9.1 basic catalog does not, its List closed by `unevaluatedProperties: false`. The registry serves the v0.9 copy under the v0.9.1 URL, so a v0.9.1 List with `listStyle` passes the catalog check where upstream's v0.9.1 catalog rejects it. The TypeScript wrapper driver's `basic_v0_9.json` serves v0.9 and v0.9.1 the same way.
+
+**9.4, the viewer and the preview.** Nothing marked: the viewer's, the preview core's and the tool's preview cases pass on the pin's web core and renderers, and the sample pages and the built-in preview build.
+
+**9.5, the wrappers.**
+
+- Marked, pytest's `xfail`: 46 cases in `python/a2ui_spectra_instrumentation/tests/`, every case of `test_events.py`, `test_isolation.py`, `test_provider.py` and `test_switching.py`, and all but two of `test_check.py` and all but one of `test_streams.py`: the agent SDK at the pin lacks names the hook table patches, so the wrapper leaves it unpatched.
+- Marked, `expected_to_fail` in `conformance/wrapper_capture/capture_v0_1.yaml`: Python on each of the 37 cases that run in Python, for the same reason; TypeScript on `direct_json_generate`, `express_generate`, `express_generate_two_catalogs` and `generate_outside_turn`: `@a2ui/agent` at the pin writes a different UI section in its prompt than the expected records hold.
+- Records to write again at the pin: the Python records of `express_generate` and `express_generate_two_catalogs` hold the Express header that finding 33's fix (`f7b795e45`, PR #3567) removed; the six Python prompt generation records hold Column's `justify` in Row's order, Python 3.12's, under finding 38.
+
+**9.6, the recordings.** Nothing marked: the A2A, model, tool and receiver capture suites and the replay suites pass at the pin. Finding 22 is fixed in AG2 from ag2 1.2.2; Spectra's AG2 recording stays on ag2 1.2.1.
+
+### 19. The findings read again
+
+All 46 carry a standing line at the pin: 27 hold, 12 are changed, 7 are fixed (3, 6, 8, 13, 20, 34, and 22 in AG2). The 19 held-by findings, marked in the file and listed in the pin file with their upstream paths: 2, 4, 5, 9, 12, 24, 25, 26, 27, 30, 31, 32, 33, 35, 36, 38, 40, 41 and 42. Two findings carry a sentence that does not hold, said in their standing lines: finding 25's `examples/0.9/floor_plan.json` writes `url`, and finding 32's host sending no capabilities fails the same way.
