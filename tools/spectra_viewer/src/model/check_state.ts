@@ -1,11 +1,13 @@
 /**
  * What the turn's header says of its checks: the problem count when there
  * are problems; otherwise that there are none, that there are none but a
- * check skipped a surface, or that the turn was not checked and why. Each
- * check is listed in the checks' order with its protocol version and its
- * result, and the surfaces it skipped with the reason, as the design canvas
- * draws the rows.
+ * check skipped a surface, or that the turn was not checked and why, and,
+ * with no problems, that components came in the legacy form. Each check is
+ * listed in the checks' order with its protocol version and its result, the
+ * Catalog check's remark on the legacy form directly after it, and the
+ * surfaces it skipped with the reason, as the design canvas draws the rows.
  */
+import {legacyComponentCount, legacyEntriesOf, legacyRemarkOf} from './legacy_form.ts';
 import {agentMessages} from './messages.ts';
 import {
   type CheckEvent,
@@ -19,15 +21,17 @@ import {schemaCheckOf} from './summary.ts';
 
 export type CheckState =
   | {state: 'problems'; count: number}
-  | {state: 'clean'}
+  /** `legacy` when a component came in the legacy form. */
+  | {state: 'clean'; legacy?: true}
   /** No problems, but a check skipped a surface it could not judge. */
-  | {state: 'partial'}
+  | {state: 'partial'; legacy?: true}
   | {state: 'unchecked'; reason: string};
 
-/** A run of a check line's result, in monospace when it is an id. */
+/** A run of a check line's result, in monospace when it is an id, in muted grey when it is a remark. */
 export interface TextRun {
   text: string;
   mono?: boolean;
+  muted?: boolean;
 }
 
 /** One check, as the header's tooltip lists it. */
@@ -49,7 +53,19 @@ export function checkStateOf(turn: Turn, problems: number): CheckState {
   const skipped = turn.events.some(
     event => isCheck(event) && (event.attributes['a2ui.check.skipped']?.length ?? 0) > 0,
   );
-  return skipped ? {state: 'partial'} : {state: 'clean'};
+  const legacy = legacyEntriesOf(turn.events).length > 0;
+  return {state: skipped ? 'partial' : 'clean', ...(legacy && {legacy: true})};
+}
+
+/** The check state's label: the count, or the remarks chained after "No problems". */
+export function checkLabelOf(check: CheckState): string {
+  if (check.state === 'problems') return plural(check.count, 'problem');
+  if (check.state === 'unchecked') return `Not checked · ${check.reason}`;
+  return [
+    'No problems',
+    ...(check.state === 'partial' ? ['not fully checked'] : []),
+    ...(check.legacy === true ? ['legacy form'] : []),
+  ].join(' · ');
 }
 
 export function checkLinesOf(turn: Turn): CheckLine[] {
@@ -76,6 +92,7 @@ export function checkLinesOf(turn: Turn): CheckLine[] {
 }
 
 function lineOf(check: CheckEvent, noA2ui: boolean, touched: ReadonlySet<string>): CheckLine {
+  const legacy = legacyComponentCount(check.attributes['a2ui.check.legacy_form'] ?? []);
   const {attributes} = check;
   const findings = attributes['a2ui.check.findings'].length;
   const skipped = attributes['a2ui.check.skipped'] ?? [];
@@ -91,6 +108,7 @@ function lineOf(check: CheckEvent, noA2ui: boolean, touched: ReadonlySet<string>
             ? 'Passed, with no A2UI from the agent'
             : 'Passed',
     });
+    if (legacy > 0) result.push({text: ` · ${legacyRemarkOf(legacy)}`, muted: true});
   }
   const notes: string[] = [];
   for (const [reason, entries] of groupedByReason(skipped)) {

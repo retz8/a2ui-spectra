@@ -120,6 +120,19 @@ export interface SkippedSurface {
   reason: 'no_definition' | 'not_created';
 }
 
+/**
+ * A component object a message carried in the legacy form: a v1.0 component
+ * with a bare envelope key read as the `@` key.
+ */
+export interface LegacyFormEntry {
+  surfaceId: string;
+  componentId: string;
+  /** The bare keys read as envelope keys, in the order the component writes them. */
+  keys: string[];
+  /** A JSON Pointer from the turn to the component object. */
+  path: string;
+}
+
 export interface CheckAttributes {
   'a2ui.event.kind': 'check';
   'a2ui.check.name': CheckName;
@@ -128,6 +141,8 @@ export interface CheckAttributes {
   'a2ui.check.findings': Finding[];
   /** On the catalog, structural and binding checks: empty when nothing was skipped. */
   'a2ui.check.skipped'?: SkippedSurface[];
+  /** On the catalog check: empty when no component was in the legacy form. */
+  'a2ui.check.legacy_form'?: LegacyFormEntry[];
 }
 
 export type TurnEvent = EventFields<TurnAttributes> & {endTimeUnixNano: string};

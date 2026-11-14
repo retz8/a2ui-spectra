@@ -182,6 +182,14 @@ const PATHS = {
   ),
   checked: <path d="M5 12.5l4.5 4.5L19 7.5" />,
   unchecked: <circle cx="12" cy="12" r="8" strokeDasharray="2.5 3.3" />,
+  // An hourglass: the legacy form, a v1.0 component's bare envelope key.
+  legacy: (
+    <>
+      <path d="M6 3h12M6 21h12" />
+      <path d="M7.5 3v3c0 2.2 1.8 4 4.5 6 2.7-2 4.5-3.8 4.5-6V3" />
+      <path d="M7.5 21v-3c0-2.2 1.8-4 4.5-6 2.7 2 4.5 3.8 4.5 6v3" />
+    </>
+  ),
   turns: (
     <>
       <path d="M9 6h11M9 12h11M9 18h11" />
@@ -306,6 +314,20 @@ export function Icon({
       )}
       {PATHS[kind]}
     </svg>
+  );
+}
+
+/** The hourglass standing alone, labelled "Legacy form" as its accessible name and its tooltip. */
+export function LegacyMark({size = 12, className}: {size?: number; className?: string}) {
+  return (
+    <span
+      role="img"
+      aria-label="Legacy form"
+      title="Legacy form"
+      className={cn('inline-flex shrink-0 text-muted-foreground', className)}
+    >
+      <Icon kind="legacy" size={size} />
+    </span>
   );
 }
 

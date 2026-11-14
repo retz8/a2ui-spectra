@@ -2,7 +2,8 @@
  * The conversation replay: what the agent's A2UI builds up to a turn, as a
  * host on that conversation holds it. The agent's messages of the earlier
  * turns, then the turn's own, go one by one into upstream web core's message
- * processor in its relaxed validation mode.
+ * processor in its relaxed validation mode. Beside what web core stores, each
+ * standing component is kept as the message that set it wrote it.
  */
 import {Catalog} from '@a2ui/web_core/catalog';
 import {MessageProcessor, RELAXED_VALIDATION} from '@a2ui/web_core/processing';
@@ -40,6 +41,14 @@ export interface MissingNode {
 
 export type TreeNode = ComponentNode | MissingNode;
 
+/** A standing component as the accepted message that set it wrote it. */
+export interface WrittenComponent {
+  /** The component object, as written. */
+  object: Record<string, unknown>;
+  /** A JSON Pointer from the turn to the object, when the turn's own message carried it. */
+  path?: string;
+}
+
 export interface SurfaceView {
   surfaceId: string;
   /** The surface's catalog; none for a v1.0 surface that names no default. */
@@ -54,6 +63,8 @@ export interface SurfaceView {
   version?: string;
   /** How many of the surface's `updateComponents` the processor rejected, when it has no components. */
   rejectedUpdates?: number;
+  /** Each standing component as written, by its id. */
+  written?: ReadonlyMap<string, WrittenComponent>;
 }
 
 /**
@@ -161,14 +172,42 @@ export function replay(
         versions.set(surfaceId, version);
       }
     };
+    // Each surface's components as the accepted messages wrote them, the latest of each id.
+    const written = new Map<string, Map<string, WrittenComponent>>();
+    const noteWritten = (message: unknown, surfaceId: string | undefined, at?: AgentMessage) => {
+      if (surfaceId === undefined) return;
+      if (isDeleteSurface(message)) {
+        written.delete(surfaceId);
+        return;
+      }
+      if (messageTypeOf(message) !== 'updateComponents') return;
+      const components = (message as {updateComponents: {components?: unknown}}).updateComponents
+        .components;
+      if (!Array.isArray(components)) return;
+      const surface = written.get(surfaceId) ?? new Map<string, WrittenComponent>();
+      written.set(surfaceId, surface);
+      components.forEach((component: unknown, index) => {
+        if (typeof component !== 'object' || component === null || Array.isArray(component)) return;
+        const id = (component as {id?: unknown}).id;
+        if (typeof id !== 'string') return;
+        surface.set(id, {
+          object: component as Record<string, unknown>,
+          ...(at !== undefined && {
+            path: `${contentPointer(at)}/updateComponents/components/${index}`,
+          }),
+        });
+      });
+    };
     for (const {message} of earlier) {
       noteVersion(message, surfaceIdOf(message));
       if (feed(processor, message) !== undefined) countRejected(message, surfaceIdOf(message));
+      else noteWritten(message, surfaceIdOf(message));
     }
     const touched: string[] = [];
     const deleted = new Set<string>();
     const rejections: Rejection[] = [];
-    for (const {key, message} of own) {
+    for (const at of own) {
+      const {key, message} = at;
       const surfaceId = surfaceIdOf(message);
       if (surfaceId !== undefined && !touched.includes(surfaceId)) touched.push(surfaceId);
       noteVersion(message, surfaceId);
@@ -176,9 +215,10 @@ export function replay(
       if (error !== undefined) {
         countRejected(message, surfaceId);
         rejections.push({key, ...(surfaceId !== undefined && {surfaceId}), ...error});
-      } else if (surfaceId !== undefined && isDeleteSurface(message)) {
-        deleted.add(surfaceId);
+        continue;
       }
+      noteWritten(message, surfaceId, at);
+      if (surfaceId !== undefined && isDeleteSurface(message)) deleted.add(surfaceId);
     }
     const live = [...processor.getSurfaces().values()];
     const ordered = [
@@ -193,6 +233,7 @@ export function replay(
           standInIds,
           rejectedUpdates.get(surface.id),
           versions.get(surface.id),
+          written.get(surface.id),
         ),
       ),
       deleted: [...deleted].filter(id => processor.getSurface(id) === undefined),
@@ -355,8 +396,13 @@ function viewOf(
   standInIds: ReadonlySet<string>,
   rejectedUpdates: number | undefined,
   version: string | undefined,
+  written: ReadonlyMap<string, WrittenComponent> | undefined,
 ): SurfaceView {
   const empty = [...surface.componentsModel.keys].length === 0;
+  // Only the components web core holds stand.
+  const standing = new Map(
+    [...(written ?? [])].filter(([id]) => surface.componentsModel.get(id) !== undefined),
+  );
   return {
     surfaceId: surface.id,
     ...(surface.defaultCatalog !== undefined && {catalogId: surface.defaultCatalog.id}),
@@ -366,7 +412,14 @@ function viewOf(
     ...(surface.sendDataModel && {sendDataModel: true}),
     ...(version !== undefined && {version}),
     ...(empty && rejectedUpdates !== undefined && {rejectedUpdates}),
+    ...(standing.size > 0 && {written: standing}),
   };
+}
+
+/** A JSON Pointer from the turn to an agent message: its event's part's content, and its index in an array. */
+function contentPointer(at: AgentMessage): string {
+  const content = `/events/${at.eventIndex}/attributes/a2ui.wire.message/parts/${at.partIndex}/content`;
+  return at.index === undefined ? content : `${content}/${at.index}`;
 }
 
 function structureOf(surface: SurfaceModel, standInIds: ReadonlySet<string>): SurfaceStructure {

@@ -7,7 +7,7 @@ import {deliveryLabel, type TimelineRow} from '@/model/steps.ts';
 import {takeTimelineFocusRequest} from '@/state/timeline_focus.ts';
 
 import {brandIconOf, formatDurationCompact, formatOffsetCompact, toneOf} from './format.ts';
-import {Icon} from './icons.tsx';
+import {Icon, LegacyMark} from './icons.tsx';
 import {ProblemMark} from './TurnList.tsx';
 import {useNow} from './use_now.ts';
 
@@ -16,7 +16,8 @@ import {useNow} from './use_now.ts';
  * grouped under its row, an MCP housekeeping request drawn as small as a
  * delivery. Every row ends in a narrow lane drawn against the length of the
  * whole turn, a call's bar or a step's dot, with a call's duration beside
- * it. While the turn is open, the newest row is marked as followed, an
+ * it. A step whose message carried components in the legacy form carries
+ * the hourglass after its problem mark. While the turn is open, the newest row is marked as followed, an
  * in-flight call's duration counts up and its bar grows, and a picked step
  * offers Jump to latest. Narrowed to the steps with problems, it counts them
  * out of all the turn's steps and offers Show all. It is one Tab stop: the
@@ -30,6 +31,7 @@ export function Timeline({
   selected,
   problems,
   tags,
+  legacy,
   live,
   following,
   filter,
@@ -50,6 +52,8 @@ export function Timeline({
   problems: ReadonlyMap<string, number>;
   /** A grey tag on a row, by its id: a retry's "Retry 1", a served call's "Record". */
   tags?: ReadonlyMap<string, string>;
+  /** The steps whose message carried components in the legacy form, by their ids. */
+  legacy?: ReadonlySet<string>;
   /** Whether the turn is open. */
   live: boolean;
   /** Whether the view follows the newest step. */
@@ -224,6 +228,7 @@ export function Timeline({
               </span>
               {tags?.get(row.id) !== undefined && <RowTag tag={tags.get(row.id)!} />}
               <ProblemMark count={count} size={12} />
+              {legacy?.has(row.id) === true && <LegacyMark size={12} />}
               {end}
             </button>
           );

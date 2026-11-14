@@ -2,8 +2,7 @@ import {Tooltip} from 'radix-ui';
 import type {ReactNode} from 'react';
 
 import {cn} from '@/lib/utils';
-import type {CheckLine, CheckState} from '@/model/check_state.ts';
-import {plural} from '@/model/steps.ts';
+import {type CheckLine, type CheckState, checkLabelOf} from '@/model/check_state.ts';
 
 import {CopyButton} from './CopyButton.tsx';
 import {STATUS_ICONS, STATUS_LABELS, type TurnStatus, shortId, toneOf} from './format.ts';
@@ -131,7 +130,9 @@ export function OutcomeBadge({status}: {status: TurnStatus}) {
 /**
  * The problem count, pressed to keep only the steps with problems, or that
  * there are none, none but a surface a check could not judge, or no checks
- * ran, with the checks that ran in its tooltip.
+ * ran, with "legacy form" chained after "No problems" when components came
+ * in it, and the checks that ran in its tooltip, wider while a row carries
+ * the legacy form's remark.
  */
 function CheckChip({
   check,
@@ -145,14 +146,8 @@ function CheckChip({
   onFilter: () => void;
 }) {
   const problems = check.state === 'problems';
-  const label =
-    check.state === 'problems'
-      ? plural(check.count, 'problem')
-      : check.state === 'clean'
-        ? 'No problems'
-        : check.state === 'partial'
-          ? 'No problems · not fully checked'
-          : `Not checked · ${check.reason}`;
+  const label = checkLabelOf(check);
+  const remarked = checks.some(line => line.result.some(run => run.muted === true));
   return (
     <Tooltip.Provider delayDuration={200}>
       <Tooltip.Root>
@@ -190,7 +185,10 @@ function CheckChip({
             side="bottom"
             align="start"
             sideOffset={6}
-            className="fade-in-quick z-50 flex w-80 flex-col gap-1.5 rounded-xl bg-panel px-3 py-2.5 text-xs text-foreground shadow-float"
+            className={cn(
+              'fade-in-quick z-50 flex flex-col gap-1.5 rounded-xl bg-panel px-3 py-2.5 text-xs text-foreground shadow-float',
+              remarked ? 'w-110' : 'w-80',
+            )}
           >
             <span className="section-label">Checks</span>
             {checks.map((line, index) => (
@@ -206,7 +204,12 @@ function CheckChip({
                           {run.text}
                         </code>
                       ) : (
-                        <span key={runIndex}>{run.text}</span>
+                        <span
+                          key={runIndex}
+                          className={run.muted === true ? 'text-muted-foreground' : undefined}
+                        >
+                          {run.text}
+                        </span>
                       ),
                     )}
                   </span>

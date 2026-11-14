@@ -19,6 +19,7 @@ The scripts, from the repository root:
 | `node _dev/tools/upstream_check.mjs`           | Fetches `upstream` in `../A2UI` and prints what happened since the pin. It decides nothing.                                                                                                 |
 | `node _dev/tools/upstream_move.mjs <commit>`   | Copies every listed file from a commit on upstream main, applies each copy's alterations and prints each one applied, verifies every copy, writes the uv git sources' commit and the new pin. |
 | `node _dev/tools/build_upstream_tarballs.mjs`  | Builds each npm package patched by tarball in the `a2ui-upstream` worktree at the pin, through the package's own publish preparation, and points the root `resolutions` and the pin file at each tarball. |
+| `node _dev/tools/smoke_published_renderers.mjs` | The smoke check on the published renderers, under [its heading](#the-smoke-check-on-the-published-renderers). |
 
 ## The check
 
@@ -39,6 +40,18 @@ At the start of each sub-task and each phase, and before an acceptance run.
 
    A supported version moved to `deprecated` in reading 4 is the signal to deprecate it in Spectra; what Spectra then does is decided in the phase that meets it.
 3. The spec written at the sub-task's or the phase's start opens with what the check read: `upstream/main`'s commit and date, and which event it found or that it found none. An event adds to the phase the sub-task that handles it.
+
+## The smoke check on the published renderers
+
+`node _dev/tools/smoke_published_renderers.mjs`, from the repository root after `yarn build:all`, by hand, with Playwright's Chromium installed and the sample pages' ports, 9831 to 9833, free. It exits non-zero on a failure; CI does not run it.
+
+It builds the React, Lit and Angular sample pages, `samples/preview/`, in a scratch project outside the workspace, as an adopter has them: Spectra's preview core and adapters packed from the repository, the pages' sources beside them, and the renderers and web core from npm at their latest, installed with Yarn. The repository's install and lockfile are left as they are. Spectra, built from the repository on the pin's web core, attaches to the stub agent's canned conversation and uses each page. For each page: it loads and answers Spectra with the catalogs it claims; the sample catalog's v0.9.1 surface is drawn; the page reports no error; one press comes back as the action. No v1.0 envelope key is involved. The run prints the versions it resolved.
+
+It runs:
+
+- at the check, when reading 3 shows a new npm release of `@a2ui/react`, `@a2ui/lit`, `@a2ui/angular` or `@a2ui/web_core`;
+- at the close of sub-task 9.4;
+- at an acceptance run.
 
 ## The move
 

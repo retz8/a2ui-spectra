@@ -20,6 +20,7 @@ import {pageKeyOf} from '@/model/keys.ts';
 import {catalogsOf} from '@/model/catalogs.ts';
 import {firstScreenBoxOf} from '@/model/dev_loop.ts';
 import {dataModelMapOf, dataModelVersionOf} from '@/model/host_message.ts';
+import {legacyByStep, legacyEntriesOf, legacyKeysByPath} from '@/model/legacy_form.ts';
 import {agentMessages} from '@/model/messages.ts';
 import {previewProblemsOf, routeOf, surfaceFeedOf, targetOf} from '@/model/preview.ts';
 import {modelReadingOf, timedEventOf} from '@/model/call_rows.ts';
@@ -375,6 +376,14 @@ export function TurnBody({
     () => countBy(recorded.problems, problem => problem.stepId),
     [recorded],
   );
+  // The legacy form, as the record's catalog check lists it: not a problem, so neither counted nor filtered.
+  const legacyEntries = useMemo(() => legacyEntriesOf(events), [events]);
+  const legacySteps = useMemo(
+    () => legacyByStep(events, timeline, legacyEntries),
+    [events, timeline, legacyEntries],
+  );
+  const legacyStepIds = useMemo(() => new Set(legacySteps.keys()), [legacySteps]);
+  const legacyKeys = useMemo(() => legacyKeysByPath(legacyEntries), [legacyEntries]);
 
   // The filter belongs to this turn: each turn opens with all its steps.
   // It keeps the record's problems and every step a render error has been on while the turn is in
@@ -793,6 +802,7 @@ export function TurnBody({
             selected={selected?.id ?? ''}
             problems={byStep}
             tags={tags}
+            legacy={legacyStepIds}
             live={open}
             following={inView.following}
             {...(filtered && {
@@ -852,6 +862,7 @@ export function TurnBody({
                 folded={folding}
                 selectedNode={node}
                 onSelectNode={selectNode}
+                legacyKeys={legacyKeys}
               />
             </ResizablePanel>
             <ResizableHandle />
@@ -878,6 +889,7 @@ export function TurnBody({
                       rejection =>
                         `${rejection.lead ?? 'A2UI web core also rejected this message'} · ${rejection.sentence}`,
                     )}
+                  {...(legacySteps.has(selected.id) && {legacy: legacySteps.get(selected.id)})}
                   collapsed={collapsed}
                   onToggle={() => {
                     if (collapsed) openDetail(detail.current);

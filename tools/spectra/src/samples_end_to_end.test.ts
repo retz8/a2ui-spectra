@@ -12,9 +12,11 @@
  * sample the page is reloaded with its dev server stopped, which the Preview
  * pane says, until the server is back; and the React sample's page behind a
  * connection that answers late is said to be still loading, is not
- * restarted, and draws the surface once it has loaded. It runs under Node by
- * default, and against the binary when SPECTRA_BINARY names one. Chromium is
- * installed with Playwright's own command.
+ * restarted, and draws the surface once it has loaded. Each sample's page
+ * also claims the v1.0 basic catalog: the stub agent's v1.0 booking form, in
+ * its `@` form and its bare form, is drawn from it with its check messages.
+ * It runs under Node by default, and against the binary when SPECTRA_BINARY
+ * names one. Chromium is installed with Playwright's own command.
  */
 import assert from 'node:assert/strict';
 import {type ChildProcess, spawn} from 'node:child_process';
@@ -310,6 +312,70 @@ describe(`the sample catalog apps in Chromium, ${binary ? 'the binary' : 'under 
       },
     );
   }
+  for (const sample of SAMPLES) {
+    it(
+      `draws the v1.0 booking form in its @ form and its bare form from the ${sample} sample's page, which claims the v1.0 basic catalog`,
+      {timeout: TIMEOUT},
+      async () => {
+        const pageUrl = pageOf(sample);
+        const [agentPort, port] = await Promise.all([freePort(), freePort()]);
+        const stub = await startStub(agentPort, [], '--v1-booking');
+        const server = await startDevServer(sample, pageUrl);
+        const spectra = new SpectraProcess([
+          'attach',
+          `http://127.0.0.1:${agentPort}`,
+          '--config',
+          path.join(samplesDir, sample, 'a2ui-spectra.json'),
+          '--port',
+          String(port),
+          '--proxy-port',
+          String(await freePort()),
+          '--model-proxy-port',
+          String(await freePort()),
+          '--receiver-port',
+          String(await freePort()),
+          '--no-open',
+        ]);
+        const page = await browser.newPage({viewport: {width: 1440, height: 900}});
+        const preview = page.frameLocator(`iframe[title="Preview page ${pageUrl}"]`);
+        try {
+          await spectra.waitFor(/The viewer is at /);
+          await page.goto(`http://127.0.0.1:${port}`);
+          for (const [index, text] of [
+            'Book a table at Han Il Kwan',
+            'Book a table at Han Il Kwan, bare',
+          ].entries()) {
+            if (index > 0) await page.getByRole('button', {name: 'New conversation'}).click();
+            await page.getByRole('textbox', {name: 'Message the agent'}).fill(text);
+            await page.getByRole('button', {name: 'Send', exact: true}).click();
+            await page.getByRole('heading', {level: 1, name: text, exact: true}).waitFor();
+            await page
+              .locator('header')
+              .filter({has: page.getByRole('heading', {level: 1})})
+              .getByText(index === 0 ? 'No problems' : 'No problems · legacy form', {exact: true})
+              .waitFor();
+            // The sample's page draws the surface, named in the Preview pane's header.
+            await noteOf(page, pageUrl).waitFor();
+            for (const message of [
+              'We need a name for the booking.',
+              'Pick a date.',
+              'Pick a time.',
+            ]) {
+              await preview.getByText(message).waitFor();
+            }
+          }
+          assert.equal(await page.getByText('No preview for catalog').count(), 0);
+        } finally {
+          await page.close();
+          spectra.signal('SIGTERM');
+          await spectra.exited;
+          stopServer(server);
+          stub.kill();
+        }
+      },
+    );
+  }
+
   it(
     "says the React sample's page is reloading when it loads again without answering, then that it has not answered, and draws the surface again once its dev server is back",
     {timeout: TIMEOUT},

@@ -116,6 +116,22 @@ describe('targetOf', () => {
     ];
     assert.deepEqual(targetOf(feed), {catalogIds: [BASIC_V1_0, CUSTOM], protocolVersion: '1.0'});
   });
+
+  it("adds the catalogs a v1.0 surface's components name of their own under @catalogId", () => {
+    const feed = [
+      {message: {version: '1.0', createSurface: {surfaceId: 's', catalogId: BASIC_V1_0}}},
+      {
+        message: {
+          version: '1.0',
+          updateComponents: {
+            surfaceId: 's',
+            components: [{id: 'root', component: 'Booking', '@catalogId': CUSTOM}],
+          },
+        },
+      },
+    ];
+    assert.deepEqual(targetOf(feed), {catalogIds: [BASIC_V1_0, CUSTOM], protocolVersion: '1.0'});
+  });
 });
 
 describe('routeOf', () => {

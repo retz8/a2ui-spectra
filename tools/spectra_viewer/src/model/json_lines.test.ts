@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import {readRecording} from '../testing/recordings.ts';
-import {jsonLines, markedLine, markedPath, unfoldedTo} from './json_lines.ts';
+import {jsonLines, lineMarksOf, markedLine, markedPath, unfoldedTo} from './json_lines.ts';
 import {isWireOutput} from './record.ts';
 
 const message = {
@@ -120,5 +120,45 @@ describe('markedLine', () => {
       dataModelLines[markedLine(dataModelLines, surface)].text,
       '  "updateDataModel": {',
     );
+  });
+});
+
+describe('lineMarksOf', () => {
+  const components = {
+    updateComponents: {
+      surfaceId: 'booking',
+      components: [
+        {id: 'name', component: 'TextField', checks: [{message: 'Needed.'}], label: 'Name'},
+        {id: 'time', component: 'ChoicePicker', checks: [], '@checks': [], label: 'Time'},
+        {id: 'submit', component: 'Button', accessibility: {label: 'Book'}, child: 'l'},
+      ],
+    },
+  };
+  const at = (index: number, key: string) => `/updateComponents/components/${index}/${key}`;
+  const legacy = [at(0, 'checks'), at(2, 'accessibility')];
+  const marked = (lines: ReturnType<typeof jsonLines>, marks: string[]) =>
+    lineMarksOf(lines, marks, legacy)
+      .map((mark, index) => ({...mark, text: lines[index].text.trim()}))
+      .filter(mark => mark.marked || mark.legacy);
+
+  it('bands the line holding a bare key, and keeps the hourglass on one a finding’s pointer ends at, in soft red', () => {
+    const lines = jsonLines(components);
+    assert.deepEqual(marked(lines, [at(0, 'checks'), at(1, 'checks')]), [
+      {marked: true, legacy: true, text: '"checks": ['},
+      // The rejected component carrying both forms: soft red, no hourglass.
+      {marked: true, legacy: false, text: '"checks": [],'},
+      {marked: false, legacy: true, text: '"accessibility": {'},
+    ]);
+  });
+
+  it('carries the band of a bare key on the folded line that hides it', () => {
+    const lines = jsonLines(
+      components,
+      new Set(['/updateComponents/components/0', '/updateComponents/components/2']),
+    );
+    assert.deepEqual(marked(lines, []), [
+      {marked: false, legacy: true, text: '{ … 4 keys },'},
+      {marked: false, legacy: true, text: '{ … 4 keys }'},
+    ]);
   });
 });

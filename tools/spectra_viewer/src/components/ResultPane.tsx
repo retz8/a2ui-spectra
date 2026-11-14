@@ -6,18 +6,22 @@ import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components
 import {cn} from '@/lib/utils';
 import type {NodeRef} from '@/model/address.ts';
 import {bindingOf} from '@/model/bindings.ts';
+import {legacyKeysOfNode} from '@/model/legacy_form.ts';
 import {pageNoteOf, type Route} from '@/model/preview.ts';
 import type {ComponentNode, Replay, SurfaceView, TreeNode} from '@/model/replay.ts';
 import {rememberedSize, rememberSize} from '@/state/layout.ts';
 import {setViewSetting, useViewSettings} from '@/state/view_settings.ts';
 
-import {Icon} from './icons.tsx';
+import {Icon, LegacyMark} from './icons.tsx';
 import {JsonBlock} from './JsonBlock.tsx';
 import {NARROW, PreviewPane, WidthSwitch} from './PreviewPane.tsx';
 import {ProblemMark} from './TurnList.tsx';
 
 /** The Preview pane's width beside Structure at Narrow: the frame and the canvas's padding around it. */
 const PREVIEW_AT_NARROW = NARROW + 32;
+
+/** No legacy-form keys, kept the same from render to render. */
+const NO_LEGACY: ReadonlyMap<string, string[]> = new Map();
 
 /** The preview of the surface in view: where it is routed, and what its page reported. */
 export interface PreviewView {
@@ -46,6 +50,7 @@ export function ResultPane({
   folded = false,
   selectedNode,
   onSelectNode,
+  legacyKeys = NO_LEGACY,
 }: {
   reply: string;
   asOf: string;
@@ -69,6 +74,8 @@ export function ResultPane({
   /** The tree node selected, whose parse and range the detail shows. */
   selectedNode?: NodeRef;
   onSelectNode?: (node: NodeRef) => void;
+  /** The bare keys of each component object the turn's messages carried in the legacy form, by its pointer from the turn. */
+  legacyKeys?: ReadonlyMap<string, string[]>;
 }) {
   const settings = useViewSettings();
   // At least one pane shows: Structure when both are toggled off.
@@ -160,6 +167,7 @@ export function ResultPane({
           width={settings.width}
           selectedNode={selectedNode}
           onSelectNode={onSelectNode}
+          legacyKeys={legacyKeys}
         />
       )}
     </section>
@@ -175,6 +183,7 @@ function Panes({
   width,
   selectedNode,
   onSelectNode,
+  legacyKeys,
 }: {
   surface: SurfaceView;
   open: boolean;
@@ -184,6 +193,7 @@ function Panes({
   width: 'narrow' | 'wide';
   selectedNode: NodeRef | undefined;
   onSelectNode: ((node: NodeRef) => void) | undefined;
+  legacyKeys: ReadonlyMap<string, string[]>;
 }) {
   const previewPanel = usePanelRef();
   const structure = (
@@ -191,6 +201,7 @@ function Panes({
       key={surface.surfaceId}
       surface={surface}
       open={open}
+      legacyKeys={legacyKeys}
       selected={
         selectedNode?.surfaceId === surface.surfaceId ? selectedNode.componentId : undefined
       }
@@ -334,15 +345,21 @@ function SurfaceSwitcher({
   );
 }
 
-/** A surface's tree above its data model. */
+/**
+ * A surface's tree above its data model. A node's properties are the
+ * component as the message wrote it; a node whose standing object a message
+ * of this turn carried in the legacy form carries the hourglass.
+ */
 function Structure({
   surface,
   open,
+  legacyKeys,
   selected,
   onSelect,
 }: {
   surface: SurfaceView;
   open: boolean;
+  legacyKeys: ReadonlyMap<string, string[]>;
   /** The selected node's component id, on this surface. */
   selected: string | undefined;
   onSelect: ((componentId: string) => void) | undefined;
@@ -385,6 +402,8 @@ function Structure({
               open={open}
               selected={selected}
               onSelect={onSelect}
+              surface={surface}
+              legacyKeys={legacyKeys}
             />
           )
         )}
@@ -401,6 +420,8 @@ function Structure({
                 open={open}
                 selected={selected}
                 onSelect={onSelect}
+                surface={surface}
+                legacyKeys={legacyKeys}
               />
             ))}
           </Fragment>
@@ -423,7 +444,9 @@ function Structure({
 /**
  * A node's row, its properties when opened, then its children. Clicking the
  * row selects the node, which selects the parse it came from; its chevron
- * still opens its properties.
+ * still opens its properties. A node in the legacy form carries the
+ * hourglass after its id, and its opened properties a quiet line naming its
+ * bare keys.
  */
 function TreeRows({
   node,
@@ -433,6 +456,8 @@ function TreeRows({
   open,
   selected,
   onSelect,
+  surface,
+  legacyKeys,
 }: {
   node: TreeNode;
   depth: number;
@@ -441,6 +466,8 @@ function TreeRows({
   open: boolean;
   selected: string | undefined;
   onSelect: ((componentId: string) => void) | undefined;
+  surface: SurfaceView;
+  legacyKeys: ReadonlyMap<string, string[]>;
 }) {
   const pad = {paddingLeft: depth * 16};
   if ('missing' in node) {
@@ -458,7 +485,8 @@ function TreeRows({
   }
   const key = `${depth}:${node.id}`;
   const isOpen = expanded.has(key);
-  const properties = propertiesOf(node);
+  const properties = propertiesOf(surface.written?.get(node.id)?.object ?? node.properties);
+  const legacy = legacyKeysOfNode(surface, node.id, legacyKeys);
   const isSelected = selected === node.id;
   return (
     <>
@@ -498,6 +526,7 @@ function TreeRows({
         </button>
         <span className="font-medium">{node.type}</span>
         <span className="text-muted-foreground">#{node.id}</span>
+        {legacy !== undefined && <LegacyMark size={12} />}
         <span className="flex-1" />
         <span className="truncate text-xs text-muted-foreground">{bindingOf(node.properties)}</span>
       </div>
@@ -515,6 +544,20 @@ function TreeRows({
               </span>
             </div>
           ))}
+          {legacy !== undefined && (
+            <div className="flex min-w-0 items-center gap-1.5 leading-5 text-muted-foreground">
+              <Icon kind="legacy" size={12} />
+              <span>
+                Legacy form:{' '}
+                {legacy.map((name, index) => (
+                  <span key={name}>
+                    {index > 0 && ', '}
+                    <code className="font-mono">{name}</code>
+                  </span>
+                ))}
+              </span>
+            </div>
+          )}
         </div>
       )}
       {node.children.map(child => (
@@ -527,13 +570,15 @@ function TreeRows({
           open={open}
           selected={selected}
           onSelect={onSelect}
+          surface={surface}
+          legacyKeys={legacyKeys}
         />
       ))}
     </>
   );
 }
 
-/** A component's properties, but for the id and the type the row already shows. */
-function propertiesOf(node: ComponentNode): Array<[string, unknown]> {
-  return Object.entries(node.properties).filter(([name]) => name !== 'id' && name !== 'component');
+/** A component's properties, in the order written, but for the id and the type the row already shows. */
+function propertiesOf(properties: ComponentNode['properties']): Array<[string, unknown]> {
+  return Object.entries(properties).filter(([name]) => name !== 'id' && name !== 'component');
 }

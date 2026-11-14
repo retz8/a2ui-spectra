@@ -85,6 +85,27 @@ export function markedLine(lines: readonly JsonLine[], path: string): number {
   );
 }
 
+/** How a line is marked: by a problem, soft red; holding a bare envelope key in the legacy form, banded with the hourglass. */
+export interface LineMarks {
+  marked: boolean;
+  legacy: boolean;
+}
+
+/**
+ * Each line's marks: a line a problem's path marks, and a line that holds,
+ * or folds, a bare envelope key in the legacy form. A line can be both: a
+ * finding whose pointer ends at an accepted bare key.
+ */
+export function lineMarksOf(
+  lines: readonly JsonLine[],
+  marks: readonly string[],
+  legacy: readonly string[],
+): LineMarks[] {
+  const marked = new Set(marks.map(path => markedLine(lines, path)));
+  const banded = new Set(legacy.map(path => markedLine(lines, path)));
+  return lines.map((_, index) => ({marked: marked.has(index), legacy: banded.has(index)}));
+}
+
 /** The folded objects and arrays left once those that hide a marked path are unfolded. */
 export function unfoldedTo(folded: ReadonlySet<string>, path: string): Set<string> {
   return new Set([...folded].filter(fold => !path.startsWith(`${fold}/`)));

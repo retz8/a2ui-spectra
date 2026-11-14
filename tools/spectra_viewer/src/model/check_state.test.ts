@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import {checkLinesOf, checkStateOf} from './check_state.ts';
-import type {CheckName, SkippedSurface, Turn, TurnRecordEvent} from './record.ts';
+import {checkLabelOf, checkLinesOf, checkStateOf} from './check_state.ts';
+import type {CheckName, LegacyFormEntry, SkippedSurface, Turn, TurnRecordEvent} from './record.ts';
 
 function check(
   passed: boolean,
@@ -47,6 +47,29 @@ const a2uiOutput: TurnRecordEvent = {
 
 const CATALOG = 'https://example.com/shop/catalog.json';
 
+/** A legacy-form entry for a component of the surface `s`. */
+function legacy(componentId: string, index: number, keys = ['checks']): LegacyFormEntry {
+  return {
+    surfaceId: 's',
+    componentId,
+    keys,
+    path: `/events/0/attributes/a2ui.wire.message/parts/0/content/updateComponents/components/${index}`,
+  };
+}
+
+/** The catalog check, with its findings, its skipped surfaces and its legacy-form entries. */
+function catalogCheck(
+  findings: number,
+  entries: LegacyFormEntry[],
+  skipped: SkippedSurface[] = [],
+): TurnRecordEvent {
+  const event = check(findings === 0, findings, 'catalog', skipped);
+  return {
+    ...event,
+    attributes: {...event.attributes, 'a2ui.check.legacy_form': entries},
+  } as TurnRecordEvent;
+}
+
 describe('checkStateOf', () => {
   it('is the problem count when there are problems', () => {
     assert.deepEqual(checkStateOf({events: [check(false, 2)]}, 3), {state: 'problems', count: 3});
@@ -61,6 +84,23 @@ describe('checkStateOf', () => {
     const skipped = [{surfaceId: 's', catalogId: CATALOG, reason: 'no_definition' as const}];
     const turn: Turn = {events: [a2uiOutput, check(true), check(true, 0, 'catalog', skipped)]};
     assert.deepEqual(checkStateOf(turn, 0), {state: 'partial'});
+  });
+
+  it('notes the legacy form beside no problems, chained after a skip, and not beside problems', () => {
+    const entries = [legacy('name', 1)];
+    const clean: Turn = {events: [a2uiOutput, check(true), catalogCheck(0, entries)]};
+    assert.deepEqual(checkStateOf(clean, 0), {state: 'clean', legacy: true});
+    assert.equal(checkLabelOf(checkStateOf(clean, 0)), 'No problems · legacy form');
+    const skipped = [{surfaceId: 't', catalogId: CATALOG, reason: 'no_definition' as const}];
+    const partial: Turn = {events: [a2uiOutput, check(true), catalogCheck(0, entries, skipped)]};
+    assert.equal(
+      checkLabelOf(checkStateOf(partial, 0)),
+      'No problems · not fully checked · legacy form',
+    );
+    assert.equal(checkLabelOf(checkStateOf(clean, 4)), '4 problems');
+    // An event that carries no attribute reads as one with none.
+    const bare: Turn = {events: [a2uiOutput, check(true), check(true, 0, 'catalog')]};
+    assert.equal(checkLabelOf(checkStateOf(bare, 0)), 'No problems');
   });
 
   it('is not checked when the agent sent no A2UI, or the turn names no version', () => {
@@ -139,6 +179,38 @@ describe('checkLinesOf', () => {
       ],
       notes: [CATALOG],
     });
+  });
+
+  it('remarks on the Catalog check’s row, directly after its result, how many distinct components came in the legacy form', () => {
+    const row = (event: TurnRecordEvent) => checkLinesOf({events: [a2uiOutput, event]})[0].result;
+    assert.deepEqual(row(catalogCheck(0, [legacy('name', 1, ['checks', 'accessibility'])])), [
+      {text: 'Passed'},
+      {text: ' · 1 component in the legacy form', muted: true},
+    ]);
+    // A component sent twice counts once.
+    const three = [legacy('name', 1), legacy('date', 2), legacy('submit', 4), legacy('name', 6)];
+    assert.deepEqual(row(catalogCheck(1, three)), [
+      {text: '1 finding'},
+      {text: ' · 3 components in the legacy form', muted: true},
+    ]);
+    const menu = [{surfaceId: 'menu', catalogId: CATALOG, reason: 'no_definition' as const}];
+    assert.deepEqual(row(catalogCheck(0, [legacy('name', 1), legacy('date', 2)], menu)), [
+      {text: 'Passed'},
+      {text: ' · 2 components in the legacy form', muted: true},
+      {text: ' · '},
+      {text: 'not checked for '},
+      {text: 'menu', mono: true},
+      {text: ' · no definition for catalog'},
+    ]);
+  });
+
+  it('carries no remark on a row whose every surface was skipped', () => {
+    const skipped = [
+      {surfaceId: 's', catalogId: CATALOG, reason: 'no_definition' as const},
+      {surfaceId: 't', catalogId: CATALOG, reason: 'no_definition' as const},
+    ];
+    const [line] = checkLinesOf({events: [a2uiOutput, catalogCheck(0, [legacy('a', 0)], skipped)]});
+    assert.deepEqual(line.result, [{text: 'Not checked'}, {text: ' · no definition for catalog'}]);
   });
 
   it('says the schema check did not run when there is none', () => {

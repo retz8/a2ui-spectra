@@ -4,6 +4,7 @@ import {cn} from '@/lib/utils';
 import {parseTitleOf, sourceLineOfStep} from '@/model/a2ui_step.ts';
 import type {NodeRef} from '@/model/address.ts';
 import type {Prices} from '@/model/cost.ts';
+import {legacyLinesOf, type StepLegacy} from '@/model/legacy_form.ts';
 import type {ReaderCatalog} from '@/model/readers/reading.ts';
 import {markedPath} from '@/model/json_lines.ts';
 import type {PrefixBreak} from '@/model/prefix.ts';
@@ -15,16 +16,20 @@ import {deliveryLabel, plural, type Step, type TimelineRow} from '@/model/steps.
 
 import {DetailLink} from './CallParts.tsx';
 import {brandIconOf, formatOffset, toneOf} from './format.ts';
-import {Icon} from './icons.tsx';
+import {Icon, LegacyMark} from './icons.tsx';
 import {BlockLabel, JsonBlock, type Reveal} from './JsonBlock.tsx';
 import {callTitleOf, ModelCallBlocks, type StepOnCall} from './ModelCallDetail.tsx';
 import {GenerationBlocks, ParseBlocks} from './ParseDetail.tsx';
 import type {RangeReveal} from './RawText.tsx';
 import {ToolCallBlocks} from './ToolCallDetail.tsx';
 
+/** No paths, kept the same from render to render. */
+const NO_PATHS: readonly string[] = [];
+
 /**
  * The selected step's detail: its problems, the rejections folded under
- * them as quiet lines, then what it holds, then the delivery it arrived in,
+ * them as quiet lines, the legacy form's two lines when its message carried
+ * components in it, then what it holds, then the delivery it arrived in,
  * folded. A problem that marks a line in the step's
  * message is pressed to bring the line into view. A model call's detail
  * holds its usage, its prefix break, its request, its response and its
@@ -38,6 +43,7 @@ export function StepDetail({
   startMs,
   problems,
   folded,
+  legacy,
   collapsed,
   onToggle,
   maximized,
@@ -59,6 +65,8 @@ export function StepDetail({
   problems: readonly Problem[];
   /** The quiet lines folded under this step's problems: web core's rejections and the preview page's reports. */
   folded: readonly string[];
+  /** The legacy form in the step's message, when it carried components in it. */
+  legacy?: StepLegacy;
   collapsed: boolean;
   onToggle: () => void;
   /** Whether the detail takes the result pane's height. */
@@ -230,6 +238,7 @@ export function StepDetail({
               {line}
             </p>
           ))}
+          {legacy !== undefined && <LegacyLines legacy={legacy} />}
           {row.row === 'delivery' ? (
             <DeliveryBlocks event={events[row.eventIndex] as WireEvent} />
           ) : row.parse !== undefined ? (
@@ -271,6 +280,7 @@ export function StepDetail({
               events={events}
               startMs={startMs}
               marks={marks}
+              legacy={legacy?.paths ?? NO_PATHS}
               reveal={reveal}
             />
           )}
@@ -278,6 +288,40 @@ export function StepDetail({
       )}
     </section>
   );
+}
+
+/**
+ * The legacy form's two lines, with no box, the hourglass before them: the
+ * number of components and their bare keys, then the v1.0 form, quieter.
+ */
+function LegacyLines({legacy}: {legacy: StepLegacy}) {
+  const {first, second} = legacyLinesOf(legacy.count, legacy.keys);
+  return (
+    <div className="flex shrink-0 items-start gap-2.5 px-3">
+      <LegacyMark size={14} className="mt-0.75" />
+      <div className="flex min-w-0 flex-col gap-0.5">
+        <span className="text-muted-strong">
+          {first.lead}
+          <Keys keys={first.keys} />
+        </span>
+        <span className="text-xs text-muted-foreground">
+          {second.lead}
+          <Keys keys={second.keys} />
+          {second.after}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+/** Keys in monospace, separated by commas. */
+function Keys({keys}: {keys: readonly string[]}) {
+  return keys.map((key, index) => (
+    <span key={key}>
+      {index > 0 && ', '}
+      <code className="font-mono text-xs">{key}</code>
+    </span>
+  ));
 }
 
 /** A problem's plain sentence, the words that select a step a link, then its code. */
@@ -323,6 +367,7 @@ function StepBlocks({
   events,
   startMs,
   marks,
+  legacy,
   reveal,
 }: {
   step: Step;
@@ -330,6 +375,8 @@ function StepBlocks({
   startMs: number;
   /** The paths its message's problems mark. */
   marks: readonly string[];
+  /** The paths of its message's bare envelope keys in the legacy form. */
+  legacy: readonly string[];
   reveal: Reveal | undefined;
 }) {
   const event =
@@ -365,7 +412,13 @@ function StepBlocks({
   return (
     <>
       {step.kind === 'message' && (
-        <JsonBlock label="Message" value={step.message} marks={marks} reveal={reveal} />
+        <JsonBlock
+          label="Message"
+          value={step.message}
+          marks={marks}
+          legacy={legacy}
+          reveal={reveal}
+        />
       )}
       {step.kind === 'data' && <JsonBlock label="Data" value={step.part?.content} />}
       {step.kind === 'text' && <TextPart text={String(step.part?.content ?? '')} />}

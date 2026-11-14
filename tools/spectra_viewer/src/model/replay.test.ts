@@ -342,6 +342,26 @@ describe('replay', () => {
     assert.deepEqual(unnested(result.surfaces[0]), ['Gauge#root']);
   });
 
+  it('lists a basic surface unnested once a v1.0 component names a catalog that is not basic under @catalogId', () => {
+    const result = replay(
+      [],
+      turnOf(
+        {version: '1.0', createSurface: {surfaceId: 's', catalogId: V10_BASIC}},
+        {
+          version: '1.0',
+          updateComponents: {
+            surfaceId: 's',
+            components: [
+              {id: 'root', component: 'Gauge', '@catalogId': 'https://example.com/gauges.json'},
+            ],
+          },
+        },
+      ).events,
+    );
+    assert.deepEqual(result.rejections, []);
+    assert.deepEqual(unnested(result.surfaces[0]), ['Gauge#root']);
+  });
+
   it('shows a child id with no component as missing, and components no parent reaches apart', () => {
     const result = replay(
       [],

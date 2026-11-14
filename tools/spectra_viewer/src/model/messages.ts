@@ -107,13 +107,14 @@ export function surfaceIdOf(message: unknown): string | undefined {
   return undefined;
 }
 
-/** Every string under a `catalogId` key, at any depth. */
+/** Every string under a `catalogId` or a v1.0 `@catalogId` key, at any depth, in any version. */
 export function catalogIdsIn(value: unknown, found: string[] = []): string[] {
   if (Array.isArray(value)) {
     for (const item of value) catalogIdsIn(item, found);
   } else if (typeof value === 'object' && value !== null) {
     for (const [key, item] of Object.entries(value)) {
-      if (key === 'catalogId' && typeof item === 'string') found.push(item);
+      if ((key === 'catalogId' || key === '@catalogId') && typeof item === 'string')
+        found.push(item);
       else catalogIdsIn(item, found);
     }
   }
