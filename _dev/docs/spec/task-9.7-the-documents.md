@@ -39,7 +39,7 @@ Out of scope:
 - The install steps in the root README. Phase 10's.
 - The demo, and how Spectra is pitched in the proposal. Phase 11's.
 - The documents of the viewer's raw-text readers. Sub-task 9.9's.
-- The READMEs read against Spectra's own code. The doc sweep before release.
+- The READMEs read against Spectra's own code, and the packages' READMEs as a DX product with design docs in `docs/design/`. Phase 10's.
 - Facts about repositories other than `a2ui-project/a2ui`.
 - The `@child`, `@action` and `@functionCall` backlog item, written at the phase's close under the Phase 9 spec's decision 6.
 

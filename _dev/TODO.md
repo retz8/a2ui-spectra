@@ -28,7 +28,7 @@ Spec: `_dev/docs/spec/phase-9-upstream-v1.0-and-supported-versions.md`.
 - [ ] **9.8** The acceptance run — after an upstream check, through the tunnel: the three samples as Phase 8's run left them, a v1.0 turn with the `@` envelope keys, a v1.0 turn with the bare keys marked as the legacy form, the smoke check on each package's published latest.
 
 ## Phase 10 — Shipping
-The binary on npm, PyPI and GitHub releases, with the curl script; the install steps in the root README. Turn record `v0.1` closed at the first release. A2UIVerse's CircleCI preview page committed in A2UIVerse, on the published React adapter.
+The binary on npm, PyPI and GitHub releases, with the curl script; the install steps in the root README. The packages' READMEs as a DX product, their details moved to design docs in `docs/design/`, as A2UIVerse has them. Turn record `v0.1` closed at the first release. A2UIVerse's CircleCI preview page committed in A2UIVerse, on the published React adapter.
 
 ## Phase 11 — The case
 The demo, with the restaurant finder in Python and in TypeScript producing the same view and a real misfit found and fixed in minutes; the demo in the root README; the contribution rule; the proposal as a GitHub Discussion.
