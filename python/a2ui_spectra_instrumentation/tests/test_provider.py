@@ -15,13 +15,6 @@ import a2ui_spectra_instrumentation
 CARD = 'surface("card")\nroot = Text("Hi")'
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
-        " the wrapper leaves it unpatched"
-    ),
-    strict=True,
-)
 @pytest.mark.usefixtures("no_global_provider", "no_otlp_variables")
 def test_no_provider_and_an_endpoint_starts_one(
     monkeypatch: pytest.MonkeyPatch,
@@ -36,13 +29,6 @@ def test_no_provider_and_an_endpoint_starts_one(
     assert set(started.resource.attributes) == set(TracerProvider().resource.attributes)
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
-        " the wrapper leaves it unpatched"
-    ),
-    strict=True,
-)
 @pytest.mark.usefixtures("no_global_provider", "no_otlp_variables")
 def test_a_provider_already_set_is_kept(
     monkeypatch: pytest.MonkeyPatch,
@@ -59,13 +45,6 @@ def test_a_provider_already_set_is_kept(
     assert [span.name for span in exporter.get_finished_spans()] == ["parse"]
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
-        " the wrapper leaves it unpatched"
-    ),
-    strict=True,
-)
 @pytest.mark.usefixtures("no_global_provider", "no_otlp_variables")
 def test_no_endpoint_starts_none_and_a_provider_set_later_gets_the_spans(
     caplog: pytest.LogCaptureFixture,
@@ -85,13 +64,6 @@ def test_no_endpoint_starts_none_and_a_provider_set_later_gets_the_spans(
     assert [span.name for span in exporter.get_finished_spans()] == ["parse"]
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
-        " the wrapper leaves it unpatched"
-    ),
-    strict=True,
-)
 @pytest.mark.usefixtures("no_global_provider", "no_otlp_variables")
 def test_another_protocol_starts_none(
     monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, support: Any
@@ -106,13 +78,6 @@ def test_another_protocol_starts_none(
     assert "protocol grpc" in line.getMessage()
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
-        " the wrapper leaves it unpatched"
-    ),
-    strict=True,
-)
 @pytest.mark.usefixtures("no_global_provider", "no_otlp_variables")
 def test_a_provider_passed_in_is_used_and_the_global_one_left_alone(
     monkeypatch: pytest.MonkeyPatch,

@@ -13,13 +13,6 @@ TEXT = f"Here is the card.\n<a2ui>\n{CARD}\n</a2ui>\n"
 REJECTED = 'Here is the card.\n<a2ui>\nsurface("card")\nroot = Heading("Hi")\n</a2ui>\n'
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
-        " the wrapper leaves it unpatched"
-    ),
-    strict=True,
-)
 def test_a_closed_stream_is_one_span_from_open_to_close(
     spans: Any, processor: Any
 ) -> None:
@@ -39,13 +32,6 @@ def test_a_closed_stream_is_one_span_from_open_to_close(
     assert span.status.is_ok
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
-        " the wrapper leaves it unpatched"
-    ),
-    strict=True,
-)
 def test_a_raising_feed_ends_the_span(spans: Any, processor: Any) -> None:
     stream = processor().open_stream()
     with pytest.raises(A2uiError):
@@ -60,13 +46,6 @@ def test_a_raising_feed_ends_the_span(spans: Any, processor: Any) -> None:
     assert spans.all() == [span]
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
-        " the wrapper leaves it unpatched"
-    ),
-    strict=True,
-)
 def test_a_stream_reading_past_a_rejected_block_records_it(
     spans: Any, processor: Any
 ) -> None:
@@ -94,13 +73,6 @@ def test_an_abandoned_stream_is_never_exported(spans: Any, processor: Any) -> No
     assert spans.all() == []
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
-        " the wrapper leaves it unpatched"
-    ),
-    strict=True,
-)
 def test_a_feed_after_the_end_passes_the_sdks_error_and_records_nothing(
     spans: Any, processor: Any
 ) -> None:

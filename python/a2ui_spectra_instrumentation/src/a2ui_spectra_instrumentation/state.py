@@ -20,7 +20,8 @@ class Active:
     to_message_dicts: Callable[[Any], list[dict[str, Any]]]
     # `a2ui.core.common.to_protocol_version`, when the SDK has it.
     to_protocol_version: Callable[[Any], Any] | None
-    # Each patched format's parser and prompt generator class, by format.
+    # Each patched format's parser class, and each format's prompt generator
+    # class, by format.
     parsers: tuple[tuple[type, str], ...]
     generators: tuple[tuple[type, str], ...]
 

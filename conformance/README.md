@@ -187,6 +187,8 @@ The expected records were written by the record-writer and checked by hand; `SPE
 
 The replies were recorded from `gemini-3.6-flash` with `a2ui-agent-sdk` 0.9.1.dev171, `a2ui-core` 0.4.1.dev171 and `a2ui-adk` 0.1.1.dev171, built from upstream main `825beac28` in the `a2ui-upstream` worktree, and google-genai 2.10.0 on Python 3.14.3; the TypeScript facts were read off `@a2ui/agent` 0.0.2 built from the same commit, on Node 22. The facts of `direct_json_open_stream_rejected_while_arriving` were read off the releases built from the same sources, npm's `@a2ui/agent` 0.1.0 and PyPI's `a2ui-agent-sdk` 0.10.0. The Python records' prompt sections are the agent SDK's on Python 3.12: on 3.14 it writes Column's `justify` values in another order.
 
+The prompt records, the six Python ones and the four TypeScript ones of `direct_json_generate`, `express_generate`, `elemental_generate`, `atom_generate`, `express_generate_two_catalogs` and `generate_outside_turn`, were read off the pin, upstream main `0888f88b2`: `a2ui-agent-sdk` 0.11.1.dev45 in the repository's environment on Python 3.12, and `@a2ui/agent` 0.1.0 built in the `a2ui-upstream` worktree, on Node 22. The case texts and every other record are as above.
+
 ## The stub agent
 
 [`stub_agent/stub_agent.ts`](stub_agent/stub_agent.ts) is a small A2A agent on `@a2a-js/sdk` 1.3.0, serving A2A 1.0 and, through the SDK's compatibility layer, A2A 0.3 on one JSON-RPC endpoint. Run it from `conformance/` after `yarn build`, as `node dist/stub_agent/stub_agent.js`.

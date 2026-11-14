@@ -53,6 +53,18 @@ It runs:
 - at the close of sub-task 9.4;
 - at an acceptance run.
 
+## The smoke check on the published agent SDKs
+
+`node _dev/tools/smoke_published_agent_sdks.mjs`, from the repository root after `yarn build:all`, by hand, with `uv` on the path. It exits non-zero on a failure; CI does not run it.
+
+It builds a scratch environment outside the workspace for each language, as an adopter has it: in Python, a virtual environment holding the wrapper's wheel built from the repository and PyPI's latest `a2ui-agent-sdk` and `a2ui-adk`; in TypeScript, a project holding the wrapper packed from the repository and npm's latest `@a2ui/agent`, installed with Yarn, the TypeScript driver's build beside them. The repository's root `pyproject.toml`, root `package.json` and both lockfiles are left as they are. The jobs are the wrapper capture suite's own, run through its drivers, and Spectra's receiver, built from the repository, takes what each exports. For each language: the wrapper switches on and patches, with no refusal line and no hook fault line; for each inference format the SDK implements, one prompt generation and one parse of a valid recorded reply reach the receiver as a `prompt_generation` and a `parse` event, naming the format and the SDK's version, the parse with its messages and no error; in Python, one toolset tool call reaches it the same way. Nothing is compared against an expected record. The run prints the versions it resolved.
+
+It runs:
+
+- at the check, when reading 3 shows a new release of `a2ui-agent-sdk`, `a2ui-core` or `a2ui-adk` on PyPI, or of `@a2ui/agent` on npm;
+- at the close of sub-task 9.5;
+- at an acceptance run.
+
 ## The move
 
 On an event that moves the pin, to a commit on `upstream/main`, normally its head.

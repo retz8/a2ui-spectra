@@ -41,13 +41,6 @@ def unhooked(processor: Any, text: str) -> Any:
         return error
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
-        " the wrapper leaves it unpatched"
-    ),
-    strict=True,
-)
 @pytest.mark.parametrize(
     "where",
     [
@@ -76,13 +69,6 @@ def test_a_fault_leaves_the_return_as_it_is(
     assert messages(parts) == messages(unhooked(processor, CARD_TEXT))
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
-        " the wrapper leaves it unpatched"
-    ),
-    strict=True,
-)
 @pytest.mark.parametrize(
     "where",
     [(events.ParseEvent, "__init__"), (events.ParseEvent, "fail")],
@@ -115,13 +101,6 @@ class Held:
     """Stands for what the agent's frame holds, such as the generator it reads tokens from."""
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
-        " the wrapper leaves it unpatched"
-    ),
-    strict=True,
-)
 def test_a_raising_feed_keeps_nothing_of_the_caller_alive(
     spans: Any, processor: Any
 ) -> None:
@@ -141,13 +120,6 @@ def test_a_raising_feed_keeps_nothing_of_the_caller_alive(
     assert [event.name for event in spans.one().events][-1] == "exception"
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
-        " the wrapper leaves it unpatched"
-    ),
-    strict=True,
-)
 def test_a_block_read_past_keeps_nothing_of_the_caller_alive(
     spans: Any, processor: Any
 ) -> None:
@@ -169,13 +141,6 @@ def test_a_block_read_past_keeps_nothing_of_the_caller_alive(
     assert not span.status.is_ok
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
-        " the wrapper leaves it unpatched"
-    ),
-    strict=True,
-)
 def test_a_raising_parse_keeps_nothing_of_the_caller_alive(
     spans: Any, processor: Any
 ) -> None:

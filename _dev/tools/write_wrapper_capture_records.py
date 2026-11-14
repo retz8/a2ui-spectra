@@ -8,10 +8,10 @@ the wrapper's span becomes, in the turn record's shapes, as the receiver writes 
 producers' wire forms. One record serves both languages when the two come out equal, apart from
 what the comparison skips; otherwise each language has its own. The ids and times are the A2A
 capture suite's kind of stand-ins. It shares no code with Spectra. From the repository root, with
-the TypeScript agent SDK built in the `a2ui-upstream` worktree, in a Python environment holding the
-pinned Python SDK and `a2ui-adk`, such as the worktree's own:
+the TypeScript agent SDK built in the `a2ui-upstream` worktree, in a Python 3.12 environment holding
+the pinned Python SDK and `a2ui-adk`, such as the repository's own:
 
-    ../a2ui-upstream/.venv/bin/python -I _dev/tools/write_wrapper_capture_records.py \\
+    .venv/bin/python -I _dev/tools/write_wrapper_capture_records.py \\
         --upstream ../a2ui-upstream [--case <case> ...]
 
 It prints, for each case, the expected record files it wrote.

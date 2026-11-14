@@ -9,7 +9,12 @@ from typing import Any
 import pytest
 from a2ui.adk import SendA2uiToClientToolset
 from a2ui.inference_formats import AtomParser, ElementalParser, ExpressParser
+from a2ui.inference_formats.experimental.atom import (
+    prompt_generator as atom_prompt_generator,
+)
+from a2ui.inference_formats.express import prompt_generator as express_prompt_generator
 from a2ui.parser import Parser
+from a2ui.prompt import PromptGenerator
 from a2ui.utils import RendererState
 from opentelemetry.sdk.trace import TracerProvider
 
@@ -35,18 +40,32 @@ def test_a_missing_core_name_leaves_everything_unpatched(
     [line] = support.lines(caplog)
     assert line.levelno == logging.WARNING
     message = line.getMessage()
-    assert "a2ui-agent-sdk 0.10.0" in message
     assert "a2ui.utils.RendererState.check_topology is missing" in message
-    assert "a2ui-agent-sdk 0.10.0, upstream's release of 2026-11-02" in message
+    assert "a2ui-agent-sdk 0.11.0, upstream's release of 2026-11-10" in message
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
-        " the wrapper leaves it unpatched"
-    ),
-    strict=True,
-)
+def test_a_missing_core_formats_generator_class_leaves_everything_unpatched(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    provider: TracerProvider,
+    support: Any,
+) -> None:
+    monkeypatch.delattr(express_prompt_generator, "ExpressPromptGenerator")
+    with caplog.at_level(logging.DEBUG, logger=WRAPPER_LOGGER):
+        a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
+
+    assert not support.hooked(PromptGenerator, "generate")
+    assert not support.hooked(Parser, "parse_response")
+    assert not support.hooked(SendA2uiToClientToolset, "get_tools")
+    [line] = support.lines(caplog)
+    assert line.levelno == logging.WARNING
+    assert (
+        "a2ui.inference_formats.express.prompt_generator.ExpressPromptGenerator is"
+        " missing"
+        in line.getMessage()
+    )
+
+
 def test_a_missing_experimental_format_is_skipped_and_the_rest_patched(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
@@ -67,13 +86,26 @@ def test_a_missing_experimental_format_is_skipped_and_the_rest_patched(
     assert "Atom is not hooked" in line.getMessage()
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
-        " the wrapper leaves it unpatched"
-    ),
-    strict=True,
-)
+def test_a_missing_experimental_generator_class_skips_its_format(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    provider: TracerProvider,
+    support: Any,
+) -> None:
+    monkeypatch.delattr(atom_prompt_generator, "AtomPromptGenerator")
+    with caplog.at_level(logging.DEBUG, logger=WRAPPER_LOGGER):
+        a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
+
+    assert not support.hooked(AtomParser, "compile")
+    assert support.hooked(ElementalParser, "compile")
+    assert support.hooked(PromptGenerator, "generate")
+    [line] = support.lines(caplog)
+    assert line.levelno == logging.DEBUG
+    message = line.getMessage()
+    assert "Atom is not hooked" in message
+    assert "AtomPromptGenerator is missing" in message
+
+
 def test_an_unimportable_adk_extension_is_skipped_silently(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
@@ -99,7 +131,7 @@ def test_an_sdk_at_the_floor_is_refused(
     monkeypatch.setattr(
         check,
         "installed_version",
-        lambda name: "0.9.0" if name == "a2ui-agent-sdk" else real(name),
+        lambda name: "0.10.0" if name == "a2ui-agent-sdk" else real(name),
     )
     with caplog.at_level(logging.DEBUG, logger=WRAPPER_LOGGER):
         a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
@@ -108,18 +140,11 @@ def test_an_sdk_at_the_floor_is_refused(
     [line] = support.lines(caplog)
     assert line.levelno == logging.WARNING
     message = line.getMessage()
-    assert "a2ui-agent-sdk 0.9.0" in message
+    assert "a2ui-agent-sdk 0.10.0 unpatched" in message
     assert "below the version floor" in message
-    assert "a2ui-agent-sdk >= 0.10.0" in message
+    assert "a2ui-agent-sdk >= 0.11.0" in message
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
-        " the wrapper leaves it unpatched"
-    ),
-    strict=True,
-)
 def test_the_pinned_sdk_passes_with_no_line(
     caplog: pytest.LogCaptureFixture, provider: TracerProvider, support: Any
 ) -> None:
@@ -127,18 +152,12 @@ def test_the_pinned_sdk_passes_with_no_line(
         a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
 
     assert support.hooked(Parser, "parse_response")
+    assert support.hooked(PromptGenerator, "generate")
     assert support.hooked(AtomParser, "compile")
     assert support.hooked(SendA2uiToClientToolset, "get_tools")
     assert support.lines(caplog) == []
 
 
-@pytest.mark.xfail(
-    reason=(
-        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
-        " the wrapper leaves it unpatched"
-    ),
-    strict=True,
-)
 def test_a_second_instrument_gets_the_base_instrumentors_warning(
     caplog: pytest.LogCaptureFixture, provider: TracerProvider
 ) -> None:

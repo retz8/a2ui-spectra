@@ -37,8 +37,20 @@ class Hook:
     # `parse_response`, `compile`, `open_stream`, `feed`, `close`, `generate`,
     # `whole_tree`, `apply` or `get_tools`.
     role: str
-    # The inference format a parser's or a generator's hook belongs to.
+    # The inference format a parser's hook belongs to.
     format: str | None = None
+
+
+@dataclass(frozen=True)
+class Generator:
+    """A format's prompt generator class: read, not hooked, to name a generator's format."""
+
+    # The group the class stands or falls with, as a hooked name's.
+    group: str
+    # The module that defines the class.
+    module: str
+    name: str
+    format: str
 
 
 _DIRECT_JSON = "a2ui.inference_formats.direct_json"
@@ -51,6 +63,8 @@ HOOKS: tuple[Hook, ...] = (
     Hook("core", "a2ui.utils", "RendererState.check_topology", "whole_tree"),
     Hook("core", "a2ui.utils", "RendererState.apply", "apply"),
     Hook("core", "a2ui.utils", "validate_payload", "whole_tree"),
+    # Every format's prompt generation is the base class's one `generate()`.
+    Hook("core", "a2ui.prompt", "PromptGenerator.generate", "generate"),
     Hook("core", _DIRECT_JSON, "DirectJsonParser.compile", "compile", "direct_json"),
     Hook(
         "core",
@@ -61,28 +75,12 @@ HOOKS: tuple[Hook, ...] = (
     ),
     Hook("core", _DIRECT_JSON, "DirectJsonResponseStream.feed", "feed"),
     Hook("core", _DIRECT_JSON, "DirectJsonResponseStream.close", "close"),
-    Hook(
-        "core",
-        _DIRECT_JSON,
-        "DirectJsonPromptGenerator.generate",
-        "generate",
-        "direct_json",
-    ),
     Hook("core", _EXPRESS, "ExpressParser.compile", "compile", "express"),
     Hook("core", _EXPRESS, "ExpressParser.open_stream", "open_stream", "express"),
     Hook("core", _EXPRESS, "ExpressResponseStream.feed", "feed"),
     Hook("core", _EXPRESS, "ExpressResponseStream.close", "close"),
-    Hook("core", _EXPRESS, "ExpressPromptGenerator.generate", "generate", "express"),
     Hook("atom", _ATOM, "AtomParser.compile", "compile", "atom"),
-    Hook("atom", _ATOM, "AtomPromptGenerator.generate", "generate", "atom"),
     Hook("elemental", _ELEMENTAL, "ElementalParser.compile", "compile", "elemental"),
-    Hook(
-        "elemental",
-        _ELEMENTAL,
-        "ElementalPromptGenerator.generate",
-        "generate",
-        "elemental",
-    ),
     Hook("toolset", "a2ui.adk", "SendA2uiToClientToolset.get_tools", "get_tools"),
     # The toolset's module holds `validate_payload` by name, from `a2ui.utils`.
     Hook(
@@ -90,6 +88,27 @@ HOOKS: tuple[Hook, ...] = (
         "a2ui.adk.send_a2ui_to_client_toolset",
         "validate_payload",
         "whole_tree",
+    ),
+)
+
+# The classes a generator's format is read from. The format packages do not
+# export them.
+GENERATORS: tuple[Generator, ...] = (
+    Generator(
+        "core",
+        f"{_DIRECT_JSON}.prompt_generator",
+        "DirectJsonPromptGenerator",
+        "direct_json",
+    ),
+    Generator(
+        "core", f"{_EXPRESS}.prompt_generator", "ExpressPromptGenerator", "express"
+    ),
+    Generator("atom", f"{_ATOM}.prompt_generator", "AtomPromptGenerator", "atom"),
+    Generator(
+        "elemental",
+        f"{_ELEMENTAL}.prompt_generator",
+        "ElementalPromptGenerator",
+        "elemental",
     ),
 )
 
@@ -394,33 +413,40 @@ def apply(
 # The prompt generators.
 
 
-def generate_hook(fmt: str | None) -> Wrapper:
-    def generate(
-        wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
-    ) -> Any:
-        active = state.current()
-        if active is None:
-            return wrapped(*args, **kwargs)
-        where = "the generate hook"
-        open_event = events.current()
-        if open_event is not None:
-            return _inner(
-                open_event,
-                wrapped,
-                args,
-                kwargs,
-                where,
-                before=lambda: open_event.adopt_generator(instance, fmt),
-            )
-        try:
+def generate(
+    wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
+) -> Any:
+    """`PromptGenerator.generate`: one `prompt_generation` for a generator of a format's class."""
+    active = state.current()
+    if active is None:
+        return wrapped(*args, **kwargs)
+    where = "the generate hook"
+    open_event = events.current()
+    if open_event is not None:
+        return _inner(
+            open_event,
+            wrapped,
+            args,
+            kwargs,
+            where,
+            before=lambda: open_event.adopt_generator(
+                instance, active.generator_format(instance)
+            ),
+        )
+    try:
+        fmt = active.generator_format(instance)
+        if fmt is None:
+            # A generator of none of the format classes gives no event.
+            event = None
+        else:
             event = PromptEvent(active)
             event.adopt_generator(instance, fmt)
-        except Exception as fault:
-            report_fault(where, fault)
-            return _unrecorded(wrapped, args, kwargs)
-        return _outermost(event, wrapped, args, kwargs, where, event.take_section)
-
-    return generate
+    except Exception as fault:
+        report_fault(where, fault)
+        return _unrecorded(wrapped, args, kwargs)
+    if event is None:
+        return wrapped(*args, **kwargs)
+    return _outermost(event, wrapped, args, kwargs, where, event.take_section)
 
 
 # The toolset.
@@ -647,7 +673,7 @@ def wrapper_for(hook: Hook) -> Wrapper:
     if hook.role == "close":
         return close
     if hook.role == "generate":
-        return generate_hook(hook.format)
+        return generate
     if hook.role == "whole_tree":
         return whole_tree
     if hook.role == "apply":

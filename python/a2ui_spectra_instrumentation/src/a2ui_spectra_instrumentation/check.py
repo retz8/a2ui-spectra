@@ -1,9 +1,10 @@
 """The pinned-API check: the version floor, and every hooked name, per distribution.
 
-The agent SDK's core names stand or fall together; Atom's and Elemental's are
-each hooked when present; the toolset's stand or fall together. A refusal is one
-WARNING line naming the distribution and the version found, the first missing
-name, and the pin the wrapper was written against.
+The agent SDK's core names stand or fall together, Direct JSON's and Express's
+prompt generator classes with them; Atom's and Elemental's names and generator
+classes are each hooked when present; the toolset's stand or fall together. A
+refusal is one WARNING line naming the distribution and the version found, the
+first missing name, and the pin the wrapper was written against.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from typing import Any
 from packaging.requirements import Requirement
 from packaging.version import InvalidVersion, Version
 
-from .hooks import HOOKS, READS, Hook
+from .hooks import GENERATORS, HOOKS, READS, Hook
 from .log import logger
 from .package import ADK, AGENT_SDK, FLOOR, PINS, RELEASE
 
@@ -34,10 +35,12 @@ class Target:
 
 @dataclass
 class Plan:
-    """What the check found: the SDK's version, and every name to hook."""
+    """What the check found: the SDK's version, every name to hook, and the format classes."""
 
     sdk_version: str
     targets: list[Target] = field(default_factory=list)
+    # Each format's prompt generator class, by format.
+    generators: list[tuple[type, str]] = field(default_factory=list)
     reads: dict[str, Any] = field(default_factory=dict)
     to_protocol_version: Any = None
 
@@ -67,14 +70,31 @@ def _resolve(module: str, name: str) -> tuple[Any, str, Any]:
     return holder, attribute, found
 
 
-def _resolve_group(group: str) -> list[Target]:
-    """Every name of a group, or a LookupError naming the first that is missing."""
+def _resolve_class(module: str, name: str) -> type:
+    """A class a module defines, or a LookupError naming it."""
+    try:
+        found = getattr(importlib.import_module(module), name)
+    except (ImportError, AttributeError) as error:
+        raise LookupError(f"{module}.{name}") from error
+    if not isinstance(found, type):
+        raise LookupError(f"{module}.{name}")
+    return found
+
+
+def _add_group(plan: Plan, group: str) -> None:
+    """Adds every name and class of a group, or none, raising a LookupError naming the first missing."""
     targets = []
     for hook in HOOKS:
         if hook.group == group:
             holder, attribute, _ = _resolve(hook.module, hook.name)
             targets.append(Target(hook, holder, attribute))
-    return targets
+    generators = [
+        (_resolve_class(generator.module, generator.name), generator.format)
+        for generator in GENERATORS
+        if generator.group == group
+    ]
+    plan.targets.extend(targets)
+    plan.generators.extend(generators)
 
 
 def _refuse(distribution: str, version: str | None, why: str) -> None:
@@ -108,7 +128,7 @@ def check() -> Plan | None:
         return None
     plan = Plan(sdk_version=version)
     try:
-        plan.targets.extend(_resolve_group("core"))
+        _add_group(plan, "core")
         for module, name in READS:
             plan.reads[name] = _resolve(module, name)[2]
     except LookupError as missing:
@@ -122,7 +142,7 @@ def check() -> Plan | None:
         plan.to_protocol_version = None
     for group in _EXPERIMENTAL:
         try:
-            plan.targets.extend(_resolve_group(group))
+            _add_group(plan, group)
         except LookupError as missing:
             logger.debug(
                 "a2ui-spectra-instrumentation: %s is not hooked: %s is missing",
@@ -143,6 +163,6 @@ def _check_toolset(plan: Plan) -> None:
     except ImportError:
         return
     try:
-        plan.targets.extend(_resolve_group("toolset"))
+        _add_group(plan, "toolset")
     except LookupError as missing:
         _refuse(ADK, adk_version, f"{missing} is missing")

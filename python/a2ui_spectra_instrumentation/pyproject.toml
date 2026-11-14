@@ -15,7 +15,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-instruments = ["a2ui-agent-sdk >= 0.10.0"]
+instruments = ["a2ui-agent-sdk >= 0.11.0"]
 
 [project.entry-points.opentelemetry_instrumentor]
 a2ui = "a2ui_spectra_instrumentation:A2uiInstrumentor"

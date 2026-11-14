@@ -1,14 +1,14 @@
 """The facts a wrapper capture case's expected record states, read off the agent SDK for Python.
 
-Runs one case's job, under conformance/wrapper_capture/, on the agent SDK at upstream main
-`825beac28`, calling its public entry points as a driver does, and prints the facts as JSON: the
+Runs one case's job, under conformance/wrapper_capture/, on the agent SDK at the pin, upstream main
+`0888f88b2`, calling its public entry points as a driver does, and prints the facts as JSON: the
 section the prompt generator wrote, or the messages the parse produced, before an error included;
 each error's class, message and details, and the block it belongs to; and, for the toolset, the
 object the tool returned. `write_wrapper_capture_records.py` runs it and assembles the records. It
-shares no code with Spectra. From the repository root, in a Python environment holding the SDK and
-`a2ui-adk`, such as the `a2ui-upstream` worktree's own:
+shares no code with Spectra. From the repository root, in a Python 3.12 environment holding the SDK
+and `a2ui-adk`, such as the repository's own:
 
-    ../a2ui-upstream/.venv/bin/python -I _dev/tools/wrapper_capture_facts.py \\
+    .venv/bin/python -I _dev/tools/wrapper_capture_facts.py \\
         conformance/test_data/wrapper_capture/v0_1/<case>/input.json
 
 An error belongs to the block that was being compiled, or whose messages were being applied, when it

@@ -48,20 +48,16 @@ class A2uiInstrumentor(BaseInstrumentor):  # type: ignore[misc]
 
 
 def _active(plan: Plan, tracer: trace.Tracer) -> state.Active:
-    parsers = []
-    generators = []
-    for target in plan.targets:
-        if target.hook.format is None:
-            continue
-        if target.hook.role == "compile":
-            parsers.append((target.owner, target.hook.format))
-        elif target.hook.role == "generate":
-            generators.append((target.owner, target.hook.format))
+    parsers = tuple(
+        (target.owner, target.hook.format)
+        for target in plan.targets
+        if target.hook.role == "compile" and target.hook.format is not None
+    )
     return state.Active(
         tracer=tracer,
         sdk_version=plan.sdk_version,
         to_message_dicts=plan.reads["to_message_dicts"],
         to_protocol_version=plan.to_protocol_version,
-        parsers=tuple(parsers),
-        generators=tuple(generators),
+        parsers=parsers,
+        generators=tuple(plan.generators),
     )

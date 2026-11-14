@@ -1,8 +1,8 @@
 // The facts a wrapper capture case's expected record states, read off `@a2ui/agent`.
 //
 // The TypeScript side of `wrapper_capture_facts.py`: runs one case's job, under
-// conformance/wrapper_capture/, on `@a2ui/agent` as built in the `a2ui-upstream` worktree at
-// upstream main `825beac28`, calling its public entry points as a driver does, and prints the
+// conformance/wrapper_capture/, on `@a2ui/agent` as built in the `a2ui-upstream` worktree at the
+// pin, upstream main `0888f88b2`, calling its public entry points as a driver does, and prints the
 // same facts as JSON. Its basic catalogs are the worktree's catalog files. It shares no code with
 // Spectra. From the repository root, after `yarn build` in the worktree's
 // `typescript/agents/a2ui_agent`:
