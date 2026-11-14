@@ -6,10 +6,15 @@ finding is self-contained and reproducible against upstream artifacts only.
 
 ---
 
-All findings below were checked against `a2ui-project/a2ui` at
-`020a9d6f694761ad16b35bc38945e4ccd0ac14e8` (2026-10-23). Paths are relative to
-that repo unless noted. "The extension specs" are the three A2A extension
-specifications:
+Each finding was found at `a2ui-project/a2ui`
+`020a9d6f694761ad16b35bc38945e4ccd0ac14e8` (2026-10-23) unless it names its own
+commit, and its text, paths and line numbers are as found there. Its
+**Standing** line is as read at the pin [`upstream-pin.json`](upstream-pin.json)
+names: it holds; it is fixed upstream, with the commit and the pull request; or
+it is changed, with what differs now, line numbers at the pin. A **Held by**
+line says what Spectra carries because of the finding, and where; the pin file
+lists those findings with their upstream paths. Paths are relative to that repo
+unless noted. "The extension specs" are the three A2A extension specifications:
 
 - `specification/v0_9/docs/a2ui_extension_specification.md` (v0.9);
 - `specification/v0_9_1/docs/a2ui_extension_specification.md` (v0.9.1);
@@ -26,6 +31,14 @@ sample clients.
 
 **Severity:** deviation from the extension specs: every agent and client in the
 repo.
+
+**Standing:** changed: the issue holds, and new helpers do the same. Run in the
+worktree, `a2ui-a2a`'s `extract_a2ui_json_to_parts` (PR #3790,
+`parts.py:285-296`) and `create_a2ui_parts` (PR #3795, `parts.py:147-186`) give
+one part per message; `parse_content_to_parts` (`parts.py:216-256`) goes through
+`to_a2a_parts`, one part per message at `parts.py:210-212`. The ADK extension's
+converter is at `part_converter.py:116`; the TypeScript sample and the three
+clients are unchanged.
 
 ### Issue
 
@@ -64,6 +77,16 @@ message or an array, which is what receivers have to accept today.
 
 **Severity:** deviation from the v0.9 extension spec.
 
+**Standing:** changed: the issue holds; with no version argument
+`create_a2ui_part` now takes the message's own `version`, and run in the
+worktree a v0.9 message still gets `application/json+a2ui`. The constants are at
+`parts.py:45-47` and the choice at `parts.py:77-81`.
+
+**Held by:** `tools/spectra/src/a2a/parts.ts:7-12` accepts
+`application/json+a2ui` as the spelling upstream's Python A2A extension writes;
+`parts.test.ts:64-69`, the ADK-shaped v0.9 parts in `turn.test.ts` and the fake
+agent in `testing/fake_agent.ts` rely on it.
+
 ### Issue
 
 The v0.9 extension spec identifies an A2UI data part by
@@ -90,6 +113,12 @@ for v0.8 only.
 (`A2uiPartConverter`).
 
 **Severity:** deviation from the extension specs, whatever version is in use.
+
+**Standing:** fixed by `fa8346d92` (PR #3299), merged 2026-10-27:
+`A2uiPartConverter` takes no version and labels each part with its message's
+version (`part_converter.py:60-61` and `:116`). Run in the worktree, v0.9.1 and
+v1.0 parts get `application/a2ui+json`; a v0.9 part gets the deprecated type of
+finding 2.
 
 ### Issue
 
@@ -119,6 +148,14 @@ to the part converter.
 
 **Upstream:** issue #3601, PR #3602.
 
+**Standing:** holds. Neither file has changed: the Lit client sets `mimeType` on
+the part at `client.ts:71`, `:85` and `:93`, the React middleware at
+`middleware/a2a.ts:104`. PR #3602 and issue #3601 are open.
+
+**Held by:** `tools/spectra/src/a2a/parts.ts:18-23`, `:47` and `:109` read the
+MIME type from the part itself under A2A 0.3, tested in `parts.test.ts:85-90`,
+"as the Lit sample client sends it".
+
 ### Issue
 
 Every example in the extension specs puts the MIME type in the part's metadata,
@@ -144,6 +181,13 @@ Put the MIME type in `metadata.mimeType`, as the Angular client does.
 **Severity:** deviation from the extension specs.
 
 **Upstream:** PR #3272.
+
+**Standing:** holds. `agent_executor.py` has not changed: lines 81-94 still read
+the capabilities from inside the data part. PR #3272 is open.
+
+**Held by:** `tools/spectra/src/check/checks.test.ts:143-144` expects the
+custom-components recording's `action-modal` surface to have no catalog
+definition, citing this finding.
 
 ### Issue
 
@@ -171,6 +215,10 @@ encoding" sections.
 
 **Upstream:** PR #3603, merged 2026-11-03.
 
+**Standing:** fixed by `0e3ee8402` (PR #3603), merged 2026-11-03: the three
+extension specs give `DataPart.metadata["mimeType"]` in prose and examples alike
+(v0.9 and v0.9.1 lines 51, 56 and 176; v1.0 lines 51, 56 and 181).
+
 ### Issue
 
 The prose places the MIME type inside the data:
@@ -195,6 +243,10 @@ Change the prose to `DataPart.metadata["mimeType"]`.
 **Component:** the extension specs' "A2A Client to Server Metadata" sections.
 
 **Severity:** specification contradiction.
+
+**Standing:** changed: fixed for v1.0 by `a641e84f2` (PR #3799), whose spec now
+says `message.metadata` (lines 110, 114 and 148); the v0.9 and v0.9.1 specs
+still say `sendMessageRequest.message[…]` at lines 115 and 143.
 
 ### Issue
 
@@ -222,6 +274,11 @@ messages" example.
 **Severity:** specification example that fails its own schema.
 
 **Upstream:** PR #3600, merged 2026-11-03.
+
+**Standing:** fixed by `2d5b0bb07` (PR #3600), merged 2026-11-03: validated
+against each version's `server_to_client_list.json` and basic catalog, the v0.9
+and v0.9.1 examples pass, the component now `{"id": "root", "component": "Text",
+"text": "Hello!"}` (lines 209-213).
 
 ### Issue
 
@@ -254,6 +311,14 @@ Write the component as `{"id": "root", "component": "Text", "text": "Hello!"}`.
 
 **Severity:** specification gap.
 
+**Standing:** holds. No spec names the chosen version in a reply, v1.0's new
+"Capability scoping" section (line 144) included; `extension.py:162-179` and the
+TypeScript sample's `pick-a2ui.ts` are unchanged.
+
+**Held by:** `tools/spectra/src/a2a/turn.ts:150-161` and `:207-208` take a
+turn's version from the reply's extensions header when it names exactly one A2UI
+version, else from the one version the host offered.
+
 ### Issue
 
 Activation is optional (v0.9 lines 7 and 49-58): a client may offer versions
@@ -284,6 +349,11 @@ echoing the activated extension URI, or with a key in the reply's metadata.
 **Component:** the extension specs' activation and data encoding sections.
 
 **Severity:** specification gap.
+
+**Standing:** holds. The three specs still name only `X-A2A-Extensions` (lines
+64, 71, 89 and 96) and A2A 0.3's part shape (v0.9 lines 218-221; v1.0 lines
+223-226 and 252-255). The A2A specification and the outside agents were not read
+again.
 
 ### Issue
 
@@ -316,6 +386,11 @@ where a part's A2UI MIME type goes.
 **Component:** the extension specs' data encoding section; A2A 0.3's `DataPart`.
 
 **Severity:** specification contradiction.
+
+**Standing:** changed: the issue holds, at v0.9 and v0.9.1 line 178 and v1.0
+line 183; run again, `a2a-sdk` 0.3.25's `DataPart` rejects the array. The
+concepts note quoted above is gone with `docs/public/`, removed by `58379ad4c`
+(PR #4213).
 
 ### Issue
 
@@ -354,6 +429,15 @@ message per part and only A2A 1.0 carries an array.
 
 **Severity:** deviation from the extension specs.
 
+**Standing:** changed: the issue holds; only the v0.9 spec's lines moved, to
+line 227 and the example at 229-252. The clients, the agents and web core's v0.8
+`userAction` are unchanged.
+
+**Held by:** Spectra reads v0.8's `userAction` in v0.9 traffic:
+`tools/spectra/src/listing.ts:123-134`,
+`tools/spectra_viewer/src/model/input_brief.ts:32-43` and `steps.ts:525-539`,
+tested in `listing.test.ts:117-125` and `input_brief.test.ts:47-55`.
+
 ### Issue
 
 The v0.9 extension spec's "Client-to-server events" section says an action's
@@ -386,6 +470,13 @@ the React client does, and read `action` in the custom-components sample.
 **Component:** `samples/agent/adk/custom-components-example/agent.py`.
 
 **Severity:** sample defect.
+
+**Standing:** fixed by `4e5c6b244` (PR #3763), before the previous pin:
+`samples/agent/adk/custom-components-example/agent.py:264-268` wraps the prompt
+in `A2uiInstruction`, so ADK leaves its `{name}` templates alone; run in the
+worktree on a session holding only `base_url`, ADK's instruction processing
+succeeds with `${expression}` kept. The restaurant finder's `"expression"`
+seeding is gone too.
 
 ### Issue
 
@@ -422,6 +513,14 @@ the catalog's braces before it goes into an ADK instruction.
 **Severity:** deviation from the v0.9 protocol.
 
 **Upstream:** PR #3272.
+
+**Standing:** changed: the cause holds, `token_stream` passing every event's
+text without checking `event.partial` (`agent.py:286-303`), but the second
+`createSurface` no longer reaches the wire: since `ff188f8d8` (PR #3701) the
+sample reads through the SDK's stream, which rejects the aggregated copy, and
+the sample retries, which is finding 31. Run at the SDK level, a reply fed as
+partial chunks and then whole gives "Surface default already exists." PR #3272
+is open.
 
 ### Issue
 
@@ -460,6 +559,12 @@ publishes reject v0.9.1 messages.
 **Upstream:** issue #3974, PR #3975.
 
 Checked at `43696ef43` (2026-11-03), not at the commit above.
+
+**Standing:** holds. Every v0.9.1 schema but `client_to_server.json` still
+declares a `v0_9` `$id` (e.g.
+`specification/v0_9_1/json/server_to_client.json:3`); run with Ajv 8.18, adding
+both versions' `server_to_client.json` throws, and v0.9.1's list rejects a
+`"version":"v0.9.1"` message. Issue #3974 and PR #3975 are open.
 
 ### Issue
 
@@ -531,6 +636,12 @@ then resolves to: under `v0_9_1/` from `server_to_client.json`, and under
 
 Checked at `43696ef43` (2026-11-03), not at the commit above.
 
+**Standing:** holds. `client_to_server.json` declares no `$id` in v0.9 or
+v0.9.1, and both lists reference it relatively at line 8; run at the pin,
+compiling either list fails with "can't resolve reference
+client_to_server.json". Upstream's own workaround is at
+`conformance/tests/test_conformance_yaml.py:53`.
+
 ### Issue
 
 Every other schema of v0.9 and v0.9.1 declares an `$id`, and v1.0's counterpart,
@@ -568,6 +679,12 @@ file, and the v0.9.1 address in v0.9.1's, with finding 15. PR #3975 does this.
 **Component:** `samples/agent/node/restaurant_finder/src/model.ts`.
 
 **Severity:** deviation from the v0.9 and v1.0 protocols.
+
+**Standing:** holds. `samples/agent/node/restaurant_finder/src/model.ts` is
+unchanged, reading the notice at line 117 and putting it before every example at
+line 123; run at v1.0 without starting the agent, both turns of the built
+`StubBackend` begin with `createSurface` of `stub-notice`, and web core rejects
+the second.
 
 ### Issue
 
@@ -610,6 +727,12 @@ deviation from the protocol.
 **Upstream:** issue #3929, PR #3930.
 
 Checked at `d378d2008` (2026-11-03), not at the commit above.
+
+**Standing:** holds. `emitReady` (`direct-json/response-stream.ts:357`) still
+emits at line 399 an open `updateDataModel` without its `value`; the doc comment
+is at lines 110-111 and the reader's heal points at `json-reader.ts:334` and
+`:379`. Run at the pin, at v1.0 and v0.9, the first chunk emits
+`updateDataModel` with only `path`. Issue #3929 and PR #3930 are open.
 
 ### Issue
 
@@ -692,6 +815,13 @@ message from any agent as a removal of the data at its `path`.
 
 Checked at `d378d2008` (2026-11-03), not at the commit above.
 
+**Standing:** holds.
+`typescript/core/web_core/src/v1_0/schema/agent-to-renderer.ts:105-109` keeps
+`'value': z.any()` with no refinement, and the agent SDK's `renderer-state.ts`
+call is at `src/utils/renderer-state.ts:1059`; run at the pin, the schema
+accepts an `updateDataModel` with only `path`, and the processor leaves the data
+model `{}`.
+
 ### Issue
 
 The v1.0 schema requires `value` in `updateDataModel`:
@@ -744,6 +874,12 @@ only `description`, `title`, `examples`, `$comment` or `deprecated` compiles to
 Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24), not at the
 commit above; at `020a9d6f` the samples run.
 
+**Standing:** fixed by `ff188f8d8` (PR #3701): no sample imports
+`parse_response_to_parts` or calls `create_parser`, the streaming samples
+passing `processor.open_stream()` to `stream_response_to_parts`; upstream's
+`samples/agent/adk/tests/test_agents_stream.py` passes in the worktree, and the
+three Gemini Enterprise samples import cleanly. PRs #3272 and #3273 are open.
+
 ### Issue
 
 #3269 (`803874bb3`, "make the Parser stateless; always validate; add
@@ -785,6 +921,12 @@ import, would catch the next such break.
 
 Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24).
 
+**Standing:** changed: #3269's entries still sit under `## 0.1.0 (2026-10-17)`
+(`python/a2ui_a2a/CHANGELOG.md:34`, the breaking items at lines 46-62), but the
+release that carries #3269 is now 0.2.0, tagged at `9e8a9bac5`, whose section
+(lines 25-33) does not list them; `## Unreleased` holds #4013's entry. The fix
+is now to move them under 0.2.0.
+
 ### Issue
 
 The CHANGELOG's `## Unreleased` section is empty (`CHANGELOG.md:1`), and #3269's
@@ -818,6 +960,12 @@ Move #3269's entries under `## Unreleased`.
 2026-10-21; no release carries it yet.
 
 Checked in the `ag2` 1.2.1 wheel from PyPI; AG2 paths are inside it.
+
+**Standing:** fixed in AG2 by `cdc37c184` (ag2ai/ag2 PR #3469), first released
+in ag2 1.2.2 (2026-10-27); the latest, 1.3.1 (2026-11-10), prompts for
+`callRendererFunction` with `@call` and reads the reply as
+`rendererFunctionResponse`. Spectra's recording `ag2/stream_v1_0_function_call`
+stays on ag2 1.2.1 through `_dev/tools/ag2_a2ui_server.py`.
 
 ### Issue
 
@@ -877,6 +1025,13 @@ input-required check and the reply parsing to `callRendererFunction` and
 on ADK's `A2aAgentExecutor` (`google-adk` 2.3.0, as `uv.lock:1674-1675` pins).
 
 **Severity:** deviation from the v0.9 protocol.
+
+**Standing:** changed: the issue holds; the locations moved: the executor at
+`samples/community/agent/adk/file_upload_summarizer/agent_executor.py:47-50`,
+now with a processor, `tools.py:27-93`, the part converter's tool-response path
+at `python/a2ui_adk/src/a2ui/adk/a2a/part_converter.py:92-115`, web core's
+rejection at `message-processor.ts:1173`; the workspace still locks `google-adk`
+2.3.0 and `a2a-sdk` 0.3.25. Judged by reading.
 
 ### Issue
 
@@ -944,6 +1099,20 @@ follows the meta-schema refuses upstream's own catalogs.
 
 Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24).
 
+**Standing:** changed: `specification/v1_0/json/catalog_definition.json:31`
+still requires both unions, now beside leaf definitions allowed in `$defs`
+(lines 32-34, `4767c140e`, PR #2724). Run at the pin,
+`composition_catalog_v1_0.json` still fails for want of `anyFunction`;
+`agent_functions_catalog_v1_0.json` fails only for want of `anyComponent`, its
+`allowedCallers` fixed by `a4c963a0a` (PR #3671); the four `peer_matching/`
+catalogs are gone (`c824c5b89`, PR #3575); `derive_source_catalog_v1_0.json` (PR
+#3688) is a new failing one; `catalogs/basic/v1/catalog.json` passes.
+
+**Held by:** the copied
+`conformance/test_data/catalogs/composition_catalog_v1_0.json` gains
+`$defs.anyFunction` as `{"not": {}}`, the pin file's merge patch for this
+finding.
+
 ### Issue
 
 `catalog_definition.json` requires both unions under `$defs`
@@ -984,6 +1153,20 @@ that validates against the catalog, web core included, refuses the floor plan.
 
 Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24).
 
+**Standing:** holds: `a2ui_examples.py:142-146` still builds the v0.9 `WebFrame`
+with `html` and no `url`, and `inline_catalog_0.9.json:838-875` still requires
+`url` (line 873); run at the pin, web core and a JSON Schema validator both
+reject it. The sentence above that `examples/0.9/floor_plan.json` holds the same
+shape does not hold, at `409ded29` or at the pin: that file writes `url` and
+passes both.
+
+**Held by:** the fixture
+`conformance/test_data/turn_record/v0_1/full_record_custom_components.json`
+expects the catalog finding "must have required property 'url'" on
+`location-surface` and `ROOT_MISSING`, written by
+`_dev/tools/make_fixtures.py:1093-1104` from a floor plan copied there by hand
+and asserted by `tools/spectra/src/check/checks.test.ts:53-80`.
+
 ### Issue
 
 The sample's inline catalog defines `WebFrame` with
@@ -1020,6 +1203,21 @@ envelope, so a catalog can pass one and fail the other.
 
 Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24) and
 `@a2ui/web_core` 0.14.0 on npm.
+
+**Standing:** changed: the issue holds, and the function named above is gone:
+`validateComponent` is at `payload-validator.ts:212`, and below v1.0
+`stripStructuralKeys` (line 745) drops `id` and `component` and
+`validateLegacyAccessibility` (line 343) strips `accessibility`; since
+`48f9c557e` (PR #4140) and `8c3bd4073` (PR #4037) `metadata` is checked as a
+property. Run at the pin, the v0.9 schema rejects the note's `id` as unevaluated
+and web core accepts it.
+
+**Held by:** `tools/spectra/src/check/checks.test.ts:132-136` expects 16
+`VALIDATION_FAILED` findings on
+`a2uiverse_circleci/runs_then_confirm_rerun.json`, each component's `id`
+unevaluated by the v0.9 schema;
+`tools/spectra/src/check/catalog_check.ts:235-258` validates a v0.9 component
+against its catalog branch alone.
 
 ### Issue
 
@@ -1073,6 +1271,19 @@ Checked at `15c5ca9aa` (2026-11-05), `@a2ui/react` 0.15.0 and `@a2ui/web_core`
 `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24).
 
 **Upstream:** issue #3993.
+
+**Standing:** holds. Nothing in `typescript/renderers/react/src/` catches a
+component's failure, and `A2uiLitElement.update` (now
+`a2ui-lit-element.ts:527-532`) has no catch; run under jsdom at the pin, a basic
+catalog component that throws reaches `surface.onError` with nothing. Issue
+#3993 and PR #4016 are open.
+
+**Held by:** the React preview adapter's `ComponentBoundary` and `guardCatalog`
+(`typescript/preview/react/src/boundaries.tsx:29-86`, applied in
+`SpectraPreview.tsx`); the preview core's `performUpdate` guard
+(`typescript/preview/core/src/guard.ts:27-50`, applied by
+`guardUniversalElements` in `web_core.ts:107-116`) and its window listeners
+(`window.ts:50-63`).
 
 ### Issue
 
@@ -1149,6 +1360,13 @@ differs from it by a docs page. First checked at
 `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24) and `@a2ui/web_core`
 0.14.0 on npm.
 
+**Standing:** holds; the lines moved: `dispatchOnce` is at
+`node-resolver.ts:150-166`, dispatching `{code, message}` at line 165, React's
+`UNRESOLVED_CHILD_REFERENCE` at `node-view.tsx:132`, `A2uiErrorPayload`
+unchanged at `surface-model.ts:77-91`. Run at the pin for v0.9 and v1.0, an
+unknown type and a cycle are reported with the component only in the message. PR
+#4019 and issue #4018 are open.
+
 ### Issue
 
 `NodeResolver.dispatchOnce(code, componentId, dataPath, message)` receives the
@@ -1201,6 +1419,12 @@ path either. PR #4016, open, adds the same two fields for its
 
 Checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24).
 
+**Standing:** holds. The three clients are unchanged and send capabilities only
+(`samples/client/react/shell/middleware/a2a.ts:127`,
+`samples/client/lit/shell/client.ts:102`,
+`samples/client/angular/projects/restaurant/src/server.ts:125`);
+`getRendererDataModel` is at `message-processor.ts:500`. Judged by reading.
+
 ### Issue
 
 `createSurface`'s `sendDataModel` says "If true, the client will send the full
@@ -1245,6 +1469,19 @@ Checked at `15c5ca9aa` (2026-11-05), `@a2ui/lit` 0.15.0, `@a2ui/angular`
 First checked at `409ded29ccac3eebc541979ae5320771703248e8` (2026-10-24).
 
 **Upstream:** issue #3993.
+
+**Standing:** holds. Lit's try/catch in `a2ui-surface.ts:147-152` wraps only
+`renderA2uiNode(root)`; run under jsdom at the pin, a basic catalog component
+that throws reaches `onError` with nothing and keeps its old content. Angular's
+`component-host.component.ts` still mounts through `*ngComponentOutlet` (line
+154) with no catch, judged by reading.
+
+**Held by:** the Lit preview adapter's `guardUniversalElements`
+(`typescript/preview/lit/src/spectra_preview.ts:97`); the Angular preview
+adapter's `wrapErrorHandler`
+(`typescript/preview/angular/src/spectra_preview.component.ts:59-78`, installed
+at `:110`) and its `guardUniversalElements` (`:129`); the preview core's guard
+and window listeners, as in finding 27.
 
 ### Issue
 
@@ -1305,6 +1542,18 @@ SDK's `ResponseStream`.
 **Severity:** an extra model call in every streamed turn, and a surface built
 three times. Seen at upstream `825beac28` with `google-adk` 2.3.0.
 
+**Standing:** holds. `samples/agent/adk/restaurant_finder/` is unchanged; the
+core's message is now at `message_processor.py:778-780`. Run at the SDK level,
+`stream_response_to_parts` fed a v0.9 reply in chunks and then whole raises
+`A2uiIntegrityError` "Surface default already exists.", a `ValueError`, which
+takes the sample's retry; the whole sample is judged by reading.
+
+**Held by:** the viewer test "ties a stream fed its call's reply twice to that
+call" (`tools/spectra_viewer/src/model/a2ui_step.test.ts:239-240`) and the
+wrapper capture case `surface_already_exists`
+(`conformance/wrapper_capture/capture_v0_1.yaml`), both recorded from this
+retry.
+
 ### Issue
 
 Finding 14's cause stands: `token_stream` passes on the text of every ADK event
@@ -1355,6 +1604,21 @@ Finding 14's: skip partial events, or the final aggregated one, in
 
 **Severity:** an extra model call in every turn with a host that names its
 catalogs, and the turn's second surface lost. Seen at upstream `825beac28`.
+
+**Standing:** holds. The sample is unchanged: `_build_generator` holds only
+`BasicCatalog` (`agent.py:174-180`) while its examples and
+`a2ui_examples.py:134` and `:194` name `inline_catalog`; the core's message is
+now at `message_processor.py:768-771`. Run at the SDK level,
+`multi_surface.json` fails with "Catalog not found: inline_catalog". The
+sentence above that a host sending no capabilities sees none of this does not
+hold at the pin: the sample maps no capabilities to the basic catalog alone
+(`agent.py:82-83`), and the reply fails the same way.
+
+**Held by:** the wrapper capture case `tool_call_catalog_not_found`
+(`conformance/wrapper_capture/capture_v0_1.yaml`),
+`python/a2ui_spectra_instrumentation/tests/test_events.py`'s toolset cases and
+`tools/spectra_viewer/src/model/problems.test.ts:274-280` expect the
+`inline_catalog` rejection, recorded from this sample.
 
 ### Issue
 
@@ -1415,6 +1679,21 @@ before prompting with it.
 cannot match it by class or by message, and an agent ported from one SDK to
 the other changes the text it sends back to the model on a retry. Seen at
 upstream `825beac28`.
+
+**Standing:** changed: the Express prompt difference is fixed by `f7b795e45` (PR
+#3567), both SDKs' Express prompts on the basic catalog at v1.0 byte-identical;
+the other differences hold, run at the pin: the malformed block's class, the
+dangling child's and the unknown component's wording, Express's unknown function
+as a different error class, and the mixed-version catalogs refused at different
+points.
+
+**Held by:** the wrapper capture suite keeps a record per language for
+`direct_json_malformed_block`, `dangling_child`,
+`direct_json_unknown_component`, `express_unknown_component`, `express_generate`
+and `express_generate_two_catalogs`, and runs `generate_failed` in TypeScript
+only; the Python records of `express_generate` and
+`express_generate_two_catalogs` hold the Express header the pin no longer
+writes.
 
 ### Issue
 
@@ -1490,6 +1769,11 @@ with the same parents, and one message text for each.
 inconsistent by its own metadata: `uv pip check` and `pip check` report it,
 though uv's resolver accepts it. Seen at upstream `825beac28`.
 
+**Standing:** fixed by `9e8a9bac5` (PR #3810), the previous pin: its agent SDK
+required `a2ui-core>=0.5.0,<0.6.0` with `python/a2ui-core/v0.5.0` tagged there,
+and at the pin `python/a2ui_agent/pyproject.toml:25` requires `>=0.6.0,<0.7.0`
+with v0.6.0 tagged; in the worktree, `uv pip check` reports no a2ui conflict.
+
 ### Issue
 
 The agent SDK requires `a2ui-core>=0.4.1,<0.5.0`
@@ -1518,6 +1802,15 @@ core's release is pending, or require the released `0.4.0` until it is out.
 **Severity:** an observer of the toolset cannot name the model's tool call a
 payload came from: what it parses is tied to the call only by the span that is
 current when the tool runs. Seen at upstream `825beac28`.
+
+**Standing:** holds. `run_async` (`send_a2ui_to_client_toolset.py:443-478`)
+returns and logs without the call id, and PR #3795's `_resolve_processor` (line
+454) does not read it; run at the pin with `function_call_id` set, no result or
+log record holds it.
+
+**Held by:** the Python wrapper reads `tool_context.function_call_id` itself in
+its `run_async` hook (`hooks.py:537-539`) and writes it as `gen_ai.tool.call.id`
+(`events.py:559-560`).
 
 ### Issue
 
@@ -1550,6 +1843,19 @@ formats under `python/a2ui_agent/src/a2ui/inference_formats/`.
 used has to map the format's classes to names of its own. Seen at upstream
 `825beac28`.
 
+**Standing:** holds. `InferenceFormat`
+(`python/a2ui_agent/src/a2ui/inference_format.py:32`) has `prompt_generator`,
+`create_parser()` and `supports_streaming` and no name; run in the worktree, a
+processor's `ExpressFormat`, its parser and its generator carry none.
+TypeScript's `InferenceFormat`
+(`typescript/agents/a2ui_agent/src/inference-format.ts:24-31`) has none either.
+
+**Held by:** both wrappers name the formats themselves: the Python wrapper's
+hook table tags each hook (`hooks.py:44-85`) and maps instances by class
+(`state.py:23-33`, used by `_adopt_processor` at `hooks.py:576-582`); the
+TypeScript wrapper's `FORMAT_CLASSES` (`table.ts:40-46`) and `formatOf`
+(`instrumentation.ts:50-55`).
+
 ### Issue
 
 `InferenceFormat` (`inference_format.py:32`), its factories, parsers and prompt
@@ -1578,6 +1884,11 @@ the prompt generator the format makes.
 each model call, the streamed one and the whole one, and the same error twice
 when a reply fails. Seen at upstream `825beac28`.
 
+**Standing:** holds. `agent.py` is unchanged: it streams through
+`stream_response_to_parts(processor.open_stream(), …)` at lines 307-309 and
+parses the joined reply again with `processor.parse_response` at line 345.
+Judged by reading.
+
 ### Issue
 
 `RestaurantAgent.stream` reads each reply as a stream while it arrives,
@@ -1604,6 +1915,19 @@ second parse, or say in the sample why it parses twice.
 **Severity:** the prompt an agent sends, and any record or cache keyed by its
 text, differs between Python 3.12 or 3.13 and Python 3.14 for the same SDK and
 catalogs. Seen at upstream `825beac28`.
+
+**Standing:** holds. `RowComponent.justify`
+(`python/a2ui_core/src/a2ui/core/basic_catalog/v1_0/components.py:227`) is in
+sorted order and `ColumnComponent.justify` (`:271`) in the specification's; run
+at the pin's `a2ui-core`, Column's prompt gives Row's order on Python 3.12 and
+its own on Python 3.14.
+
+**Held by:** the Python expected records of the six prompt generation cases
+under `conformance/test_data/wrapper_capture/v0_1/`, `atom_generate`,
+`elemental_generate`, `direct_json_generate`, `express_generate`,
+`express_generate_two_catalogs` and `generate_outside_turn`, hold Column's
+`justify` in Row's order, as Python 3.12 writes it; `conformance/README.md`
+names 3.12.
 
 ### Issue
 
@@ -1642,6 +1966,12 @@ to decide what the SDK offers, such as an instrumentation's version floor, canno
 apart. Seen between npm's `@a2ui/agent` 0.0.2 (2026-10-24) and upstream main `825beac28`
 (2026-10-30); settled by the 0.1.0 release of 2026-11-02, `4fdc4c632`.
 
+**Standing:** holds, with a new pair of versions:
+`typescript/agents/a2ui_agent/package.json` states 0.1.0, npm's latest of
+2026-11-02, after eleven commits to its `src/` since the release commit
+`4fdc4c632`, among them the `@` envelope keys (PR #4044); npm's 0.1.0 has no
+`@catalogId` and no `isAgentFunction`, a build at the pin has both.
+
 ### Issue
 
 The package's `version` is bumped only in the release commit, so main between two releases
@@ -1674,6 +2004,16 @@ main never states a released number.
 instrumentation or a bug report template, cannot read it the usual way. Seen at upstream's
 release of 2026-11-02, `9e8a9bac5`.
 
+**Standing:** holds. `exports`
+(`typescript/agents/a2ui_agent/package.json:24-29`) names only `"."` and
+`src/index.ts` exports no version; run in the worktree,
+`require.resolve('@a2ui/agent/package.json')` and the JSON import both fail with
+`ERR_PACKAGE_PATH_NOT_EXPORTED`.
+
+**Held by:** `typescript/instrumentation/src/check.ts:33-46`, `sdkVersion`,
+walks up from the resolved entry file to the `package.json` named `@a2ui/agent`,
+called at `check.ts:82`.
+
 ### Issue
 
 `exports` names only `.`, so `require.resolve('@a2ui/agent/package.json')` and
@@ -1704,6 +2044,21 @@ do, or export the version as a constant.
 **Severity:** a tool that shows where a streamed response went wrong, such as a dev tool
 marking the rejected block in the model's text, has to work out the block from what it can
 count. Seen at upstream's release of 2026-11-02, `9e8a9bac5`.
+
+**Standing:** holds. `ErrorPart` is `{type: 'error'; error: A2uiError}`
+(`typescript/agents/a2ui_agent/src/parser/response-part.ts:60-64`), Python's the
+same (`python/a2ui_agent/src/a2ui/parser/response_part.py:57-63`); run in the
+worktree, a Direct JSON error part carries only `type` and `error`, and
+Express's `rawContent` is the statements read so far. Since `b1bf1ac3c` (PR
+#3880) a block is rejected while it arrives whenever components are buffered, at
+v1.0 or with `bufferIncompleteComponents`.
+
+**Held by:** both wrappers find the block by counting:
+`typescript/instrumentation/src/events.ts:307-427` and
+`python/a2ui_spectra_instrumentation/src/a2ui_spectra_instrumentation/events.py:354-469`;
+the record-writer's facts tools feed the text one character at a time,
+`_dev/tools/wrapper_capture_facts.py:200` and
+`_dev/tools/wrapper_capture_facts.mjs:209`.
 
 ### Issue
 
@@ -1747,6 +2102,21 @@ block.
 different shape for this one error than for every other validation error, and than Python's
 SDK gives for the same error. Seen at upstream's release of 2026-11-02, `9e8a9bac5`.
 
+**Standing:** changed: the issue holds; the lines moved, web core's throw to
+`typescript/core/web_core/src/processing/message-processor.ts:1690-1695`, the
+SDK stream's to
+`typescript/agents/a2ui_agent/src/inference-formats/direct-json/response-stream.ts:536`,
+Python's detail to
+`python/a2ui_core/src/a2ui/core/state/surface_components_model.py:226-235`. Run
+in the worktree, TypeScript gives `details: ['title']`, Python a `duplicate_id`
+detail.
+
+**Held by:** `typescript/instrumentation/src/events.ts:80-91`, `errorDetails`,
+drops a `details` array whose items are not all objects, naming this error;
+`direct_json_open_stream_rejected_while_arriving`'s TypeScript record holds the
+error with no details and its Python record the structured detail;
+`_dev/tools/wrapper_capture_facts.mjs:105-109` filters the same way.
+
 ### Issue
 
 `A2uiValidationError` and its subclasses carry `details`, which elsewhere are objects with
@@ -1786,6 +2156,12 @@ first, and the message schema in the Direct JSON prompt lists `path` before `val
 Checked at `862af8214` (2026-11-10), not at the commit above: run in the Python SDK and in the
 TypeScript SDK, on main and on PR #3930's head `776d7d24c`, at v0.9 and v1.0. Dart's `_mayGrow`
 reads the same, not run. v0.8 and v0.9.1 not run.
+
+**Standing:** holds, run in the worktree in Python and TypeScript at v1.0; Dart
+was not run. The v1.0 protocol sentence is now at
+`specification/v1_0/docs/a2ui_protocol.md:1044`. PR #4191, opened 2026-11-12 and
+not merged, fixes it in Python, TypeScript and Dart; issue #4132 and PR #3930
+are open.
 
 ### Issue
 
@@ -1850,6 +2226,13 @@ releases of 2026-11-02.
 **Severity:** every install of the React, Lit or Angular renderer of that release meets a peer
 range it cannot satisfy. Seen at upstream's release of 2026-11-02, `9e8a9bac5`.
 
+**Standing:** holds on npm: `@a2ui/markdown-it` 0.2.2 is still the latest, with
+the peer `@a2ui/web_core` `^0.14.0`, beside web core 0.15.0; run in a Yarn
+4.13.0 project, `yarn install` gives the `YN0060` warning. At the pin the peer
+is still `"workspace:*"`
+(`typescript/renderers/markdown-it/package.json:65-67`), which a build at the
+pin writes as `^0.15.0`.
+
 ### Issue
 
 `@a2ui/markdown-it` 0.2.2, published on 2026-10-17, declares the peer `@a2ui/web_core`
@@ -1886,6 +2269,11 @@ harness mounts in the other order.
 
 Checked at `7791823d0` (2026-11-06), with `@a2ui/web_core` and `@a2ui/lit` 0.15.0 built from
 it. Not reported upstream: no issue or open PR found for this, and none touching the file.
+
+**Standing:** holds. `typescript/renderers/lit/src/surface/a2ui-surface.ts` is
+unchanged (`willUpdate` 79-83, `connectedCallback` 88-93, `new NodeResolver`
+123); run under the renderer's jsdom setup, a surface set before it attaches
+reports each error twice, one attached first reports it once.
 
 ### Issue
 
@@ -1941,6 +2329,12 @@ set, gave 3 reports and 2 calls in all three orders, and `@a2ui/lit`'s `node --t
 
 **Severity:** an error traceback logged on every retried turn, and ADK's `invocation` span left
 attached past its turn. No turn failed for it. Seen at upstream `9e8a9bac5`.
+
+**Standing:** holds. `agent.py` is unchanged, `token_stream` iterating
+`runner.run_async(…)` at lines 286-302 with no `aclosing`, and
+`stream_response_to_parts` (`python/a2ui_a2a/src/a2ui/a2a/parts.py:312-337`)
+never closes it; the workspace still locks `google-adk` 2.3.0. Judged by
+reading.
 
 ### Issue
 
