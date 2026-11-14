@@ -2584,6 +2584,14 @@ drawn on the built-in preview page at its `updateComponents` step, before its
 `updateDataModel`, shows the error as a counted problem, in the `@` form and the
 bare form alike.
 
+Seen from a model in the sub-task 9.8 acceptance run, at the pin: the Node
+restaurant finder on `gemini-3.6-flash`, its prompt asking for a check that the
+party size is not empty, wrote `"@checks": [{"condition": {"@call": "required",
+"args": {"value": {"@path": "/partySize"}}}, "message": "Enter a party size"}]`
+on its v1.0 booking form's `party_size_field`, its `updateComponents` before the
+`updateDataModel` that fills `/partySize`; the built-in preview page reported
+the `EXPRESSION_ERROR`, trace `28ae463c95759f7fca52697d608d66f1`.
+
 ### Fix
 
 Drop the `refine` from `RequiredApi`'s `value` in v0.9 and v1.0, so that an
