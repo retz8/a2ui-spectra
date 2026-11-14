@@ -16,7 +16,7 @@ In scope:
 
 - The pin's move to upstream's current code, and the procedure that moves it.
 - The v1.0 component envelope keys in the checks, the viewer and the preview, in both forms.
-- The viewer's raw-text readers at the pin, against upstream's compilers.
+- The viewer's four raw-text readers, Direct JSON, Express, Elemental and Atom, at the pin, against upstream's compilers.
 - The Python wrapper on the agent SDK's API as of 0.11.0; both wrappers' captures at the pin.
 - The coverage roster's v1.0 recordings at the pin.
 - Which protocol versions and which upstream packages Spectra supports, stated in SPEC.md and the root README.
@@ -99,6 +99,7 @@ The last sub-task, through the tunnel, after an upstream check, at the pin as th
 - The three samples, the Python restaurant finder, the Node restaurant finder and the custom-components example, give what Phase 8's acceptance run gave, the A2UI step on the two Python samples included.
 - A v1.0 turn carrying the `@` envelope keys passes the checks and is drawn in the preview.
 - A v1.0 turn carrying the bare envelope keys passes, marked as the legacy form.
+- One Express record and one Atom record of sub-task 9.9's cases, opened from the local store: an inline component's text in the raw text and its tree node select each other.
 - The smoke check passes on the published latest of each package under decision 8.
 
 ## Invariants
