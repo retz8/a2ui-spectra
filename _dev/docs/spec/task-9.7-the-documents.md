@@ -91,7 +91,7 @@ The root README is the one home of the support statement with its version number
 
 ### 12. The basic root README
 
-It holds what the Phase 9 spec's decision 11 lists: what Spectra is and does, in the present tense; the support statement; the packages in the repo, each linked to its own README. What Spectra does follows SPEC.md's five v1 feature groups, one line each: seeing the turn, checking it, using the drawn surface, not paying for every run, the dev loop. A short status line says Spectra is not released yet and runs from source, linked to `tools/spectra/README.md`; Phase 10's install steps replace it.
+It holds what the Phase 9 spec's decision 11 lists: what Spectra is and does, in the present tense; the support statement; the packages in the repo, each linked to its own README. It is written for a reader new to Spectra and interested in generative UI, and shows Spectra on a live turn of upstream's Python restaurant finder: a GIF of the turn arriving and a screenshot of the closed turn, in light and dark, under `docs/images/`. What Spectra does follows SPEC.md's five v1 feature groups, one line each: seeing the turn, checking it, using the drawn surface, not paying for every run, the dev loop. A short status line says Spectra is not released yet and runs from source, linked to `tools/spectra/README.md`; Phase 10's install steps replace it.
 
 ### 13. The packages' READMEs and `CLAUDE.md`
 
