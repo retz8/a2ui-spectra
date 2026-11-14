@@ -20,7 +20,7 @@
   expect: "test_data/a2a_capture/v0_1/stub_agent/flawed_booking_a2a_1_0.json"
 
 - name: node_restaurant_finder_stream_v1_0_booking
-  description: "Upstream's Node restaurant finder over A2A 0.3, streamed: a v1.0 list ending waiting for input with final true, then the submitted booking ending completed."
+  description: "Upstream's Node restaurant finder at 0888f88b2 over A2A 0.3, streamed: a v1.0 list ending waiting for input with final true, then the submitted booking ending completed, its stub-notice surface created again."
   action: capture_a2a
   traffic: "test_data/a2a_capture/v0_1/node_restaurant_finder/stream_v1_0_booking.har"
   expect: "test_data/a2a_capture/v0_1/node_restaurant_finder/stream_v1_0_booking.json"
@@ -68,13 +68,13 @@
   expect: "test_data/a2a_capture/v0_1/ag2/send_v0_9_1_card.json"
 
 - name: ag2_stream_v1_0_function_call
-  description: "AG2 1.2.1's A2UIAgentExecutor over A2A 1.0, streamed: v1.0 with a function call that wants a response, ending input-required, which is waiting for input."
+  description: "AG2 1.3.1's A2UIAgentExecutor on a2a-sdk 1.3.0 over A2A 1.0, streamed: v1.0 in a task's status message, a text part and one data part holding an array, the MIME type on the part and in its metadata, a card and a callRendererFunction of an agentOnly function on a catalog of its own, ending input-required, which is waiting for input."
   action: capture_a2a
   traffic: "test_data/a2a_capture/v0_1/ag2/stream_v1_0_function_call.har"
   expect: "test_data/a2a_capture/v0_1/ag2/stream_v1_0_function_call.json"
 
 - name: ag2_stream_v1_0_failed
-  description: "AG2 1.2.1's A2UIAgentExecutor over A2A 1.0, streamed: the model fails, so the stream sends a failed status and then a JSON-RPC error event, ending failed with the error's message."
+  description: "AG2 1.3.1's A2UIAgentExecutor on a2a-sdk 1.3.0 over A2A 1.0, streamed, offered v1.0: the model fails, so the stream sends a failed status and then a JSON-RPC error event, ending failed with the error's message."
   action: capture_a2a
   traffic: "test_data/a2a_capture/v0_1/ag2/stream_v1_0_failed.har"
   expect: "test_data/a2a_capture/v0_1/ag2/stream_v1_0_failed.json"

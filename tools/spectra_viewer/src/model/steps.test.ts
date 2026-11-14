@@ -80,7 +80,7 @@ describe('timelineOf', () => {
     const rows = timeline(lastTurn('ag2/stream_v1_0_failed'));
     assert.equal(outline(rows)[rows.length - 1], 'Turn failed | The scripted model failed. +6');
     const call = timeline(lastTurn('ag2/stream_v1_0_function_call')).find(
-      row => row.row === 'step' && row.label === 'callFunction',
+      row => row.row === 'step' && row.label === 'callRendererFunction',
     );
     assert.equal(call?.row === 'step' && call.messageKey, '4.1.2');
     assert.deepEqual(call?.row === 'step' && call.position, {

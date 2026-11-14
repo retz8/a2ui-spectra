@@ -149,7 +149,7 @@ class Turn:
             attributes["gen_ai.conversation.id"] = self.conversation_id
         attributes["a2ui.turn.outcome"] = outcome
         if version is not None:
-            attributes["a2ui.turn.protocol_version"] = version
+            attributes["a2ui.turn.protocol_version"] = record_form(version)
         attributes["a2ui.turn.capture_paths"] = ["wire"]
         attributes["a2ui.turn.writer.name"] = WRITER_NAME
         attributes["a2ui.turn.writer.version"] = WRITER_VERSION
@@ -374,6 +374,11 @@ def metadata_of(value):
 
 def is_a2ui_mime_type(value):
     return isinstance(value, str) and value.split(";")[0].strip().lower() in A2UI_MIME_TYPES
+
+
+def record_form(version):
+    """A protocol version in the turn record's form: v1.0's bare "1.0" as "v1.0", the others as they are."""
+    return version if version.startswith("v") else f"v{version}"
 
 
 def extension_versions(value):

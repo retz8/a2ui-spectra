@@ -14,7 +14,7 @@
             "parts": [{"kind": "text", "text": "Top 3 Chinese restaurants in New York"}],
             "metadata": {
               "a2uiRendererCapabilities": {
-                "v1.0": {"supportedCatalogIds": ["https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"]}
+                "1.0": {"supportedCatalogIds": ["https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"]}
               }
             }
           }
@@ -38,7 +38,7 @@
               {
                 "kind": "data",
                 "data": {
-                  "version": "v1.0",
+                  "version": "1.0",
                   "action": {
                     "name": "submit_booking",
                     "surfaceId": "booking-form",
@@ -52,7 +52,7 @@
             ],
             "metadata": {
               "a2uiRendererCapabilities": {
-                "v1.0": {"supportedCatalogIds": ["https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"]}
+                "1.0": {"supportedCatalogIds": ["https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"]}
               }
             }
           }

@@ -13,7 +13,13 @@ import {
   type TurnRecord,
 } from '../record/turn_record.js';
 import {turnRecordErrors} from '../testing/turn_record_schema.js';
-import {createSurface, testTurn, updateComponents, updateDataModel} from '../testing/turns.js';
+import {
+  BASIC_V1_0,
+  createSurface,
+  testTurn,
+  updateComponents,
+  updateDataModel,
+} from '../testing/turns.js';
 import type {CheckResult} from './check_event.js';
 import {checkEvents, checkTurn, type TurnChecks} from './checks.js';
 
@@ -84,7 +90,7 @@ describe('the four checks on recorded turns', () => {
     }
   });
 
-  it("judge the coverage roster's recordings: the restaurant finders clean but for the Node one's v1.0 stream, the flawed booking on its known mistakes", async () => {
+  it("judge the coverage roster's recordings: the restaurant finders clean, the flawed booking on its known mistakes", async () => {
     const registry = await CatalogRegistry.load([CIRCLECI]);
     const files = fs
       .readdirSync(RECORDINGS, {recursive: true, encoding: 'utf8'})
@@ -107,15 +113,6 @@ describe('the four checks on recorded turns', () => {
         ];
       }),
     );
-    /** A turn whose messages all declare v1.0, as before the pin's bare 1.0: no surface is created. */
-    const earlierV1 = (count: number, ...surfaceIds: string[]) => {
-      const skipped = surfaceIds.map(surfaceId => `${surfaceId}:not_created`);
-      return {
-        schema: {codes: Array<string>(count).fill('SCHEMA_VERSION_UNSUPPORTED'), skipped: []},
-        structural: {codes: [], skipped},
-        binding: {codes: [], skipped},
-      };
-    };
     const noDefinition = (surfaceId: string) => ({
       catalog: {codes: [], skipped: [`${surfaceId}:no_definition`]},
       structural: {codes: [], skipped: [`${surfaceId}:no_definition`]},
@@ -139,8 +136,7 @@ describe('the four checks on recorded turns', () => {
       ],
       'ag2/send_v0_9_1_card.json': [{}],
       'ag2/stream_v1_0_failed.json': [{}],
-      // AG2's and the Node restaurant finder's v1.0 messages declare v1.0, as before the pin's bare 1.0.
-      'ag2/stream_v1_0_function_call.json': [earlierV1(3, 'card')],
+      'ag2/stream_v1_0_function_call.json': [{}],
       'angular_client/python_restaurant_finder_booking.json': [{}, {}, {}],
       // The sample's host put the inline catalog where Spectra does not read capabilities (finding 5).
       'custom_components/action_then_model_turn.json': [noDefinition('action-modal'), null],
@@ -149,10 +145,7 @@ describe('the four checks on recorded turns', () => {
         noDefinition('file_upload_surface_b88930f6'),
       ],
       'node_restaurant_finder/send_task_history_and_failed.json': [{}, {}],
-      'node_restaurant_finder/stream_v1_0_booking.json': [
-        earlierV1(8, 'stub-notice', 'default'),
-        earlierV1(7, 'stub-notice', 'confirmation'),
-      ],
+      'node_restaurant_finder/stream_v1_0_booking.json': [{}, {}],
       'react_client/node_restaurant_finder_text_and_action.json': [{}, {}],
       // The wizard's second step sends `step` and `nav` again with new children and leaves the first
       // step's components behind: an earlier turn's, so the structural check does not report them.
@@ -283,6 +276,26 @@ describe('the check events', () => {
       turns: [earlier, {events: [...turn.events, ...events]}],
     };
     assert.deepEqual(turnRecordErrors(record), []);
+  });
+
+  it("judge a turn whose messages declare v1.0, as before the pin's bare 1.0: each message unsupported, no surface created", () => {
+    const turn = testTurn({
+      messages: [
+        {version: 'v1.0', createSurface: {surfaceId: 'card', catalogId: BASIC_V1_0}},
+        {
+          version: 'v1.0',
+          updateComponents: {
+            surfaceId: 'card',
+            components: [{id: 'root', component: 'Text', text: 'Hello'}],
+          },
+        },
+      ],
+    });
+    assert.deepEqual(summary(checkTurn(turn, [])), {
+      schema: {codes: ['SCHEMA_VERSION_UNSUPPORTED', 'SCHEMA_VERSION_UNSUPPORTED'], skipped: []},
+      structural: {codes: [], skipped: ['card:not_created']},
+      binding: {codes: [], skipped: ['card:not_created']},
+    });
   });
 
   it('are none for a turn with no protocol version', () => {

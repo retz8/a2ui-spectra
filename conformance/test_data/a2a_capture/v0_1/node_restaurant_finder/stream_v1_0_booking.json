@@ -14,7 +14,7 @@
             "a2ui.event.kind": "turn",
             "gen_ai.operation.name": "invoke_agent",
             "gen_ai.agent.name": "Restaurant Agent (stub)",
-            "gen_ai.conversation.id": "27726ef9-63af-4ea5-bebe-a571e4546a83",
+            "gen_ai.conversation.id": "0414817e-d94c-43c4-a4b7-83fba02483e5",
             "a2ui.turn.outcome": "waiting_for_input",
             "a2ui.turn.protocol_version": "v1.0",
             "a2ui.turn.capture_paths": [
@@ -46,7 +46,7 @@
               ]
             },
             "a2ui.wire.capabilities": {
-              "v1.0": {
+              "1.0": {
                 "supportedCatalogIds": [
                   "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
                 ]
@@ -99,7 +99,7 @@
                 {
                   "type": "a2ui",
                   "content": {
-                    "version": "v1.0",
+                    "version": "1.0",
                     "createSurface": {
                       "surfaceId": "stub-notice",
                       "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
@@ -109,7 +109,7 @@
                 {
                   "type": "a2ui",
                   "content": {
-                    "version": "v1.0",
+                    "version": "1.0",
                     "updateComponents": {
                       "surfaceId": "stub-notice",
                       "components": [
@@ -125,7 +125,7 @@
                 {
                   "type": "a2ui",
                   "content": {
-                    "version": "v1.0",
+                    "version": "1.0",
                     "createSurface": {
                       "surfaceId": "default",
                       "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
@@ -135,7 +135,7 @@
                 {
                   "type": "a2ui",
                   "content": {
-                    "version": "v1.0",
+                    "version": "1.0",
                     "updateComponents": {
                       "surfaceId": "default",
                       "components": [
@@ -170,7 +170,7 @@
                 {
                   "type": "a2ui",
                   "content": {
-                    "version": "v1.0",
+                    "version": "1.0",
                     "updateComponents": {
                       "surfaceId": "default",
                       "components": [
@@ -253,7 +253,7 @@
                 {
                   "type": "a2ui",
                   "content": {
-                    "version": "v1.0",
+                    "version": "1.0",
                     "updateComponents": {
                       "surfaceId": "default",
                       "components": [
@@ -364,7 +364,7 @@
                 {
                   "type": "a2ui",
                   "content": {
-                    "version": "v1.0",
+                    "version": "1.0",
                     "updateComponents": {
                       "surfaceId": "default",
                       "components": [
@@ -486,7 +486,7 @@
                 {
                   "type": "a2ui",
                   "content": {
-                    "version": "v1.0",
+                    "version": "1.0",
                     "updateDataModel": {
                       "surfaceId": "default",
                       "path": "/",
@@ -548,7 +548,7 @@
             "a2ui.event.kind": "turn",
             "gen_ai.operation.name": "invoke_agent",
             "gen_ai.agent.name": "Restaurant Agent (stub)",
-            "gen_ai.conversation.id": "27726ef9-63af-4ea5-bebe-a571e4546a83",
+            "gen_ai.conversation.id": "0414817e-d94c-43c4-a4b7-83fba02483e5",
             "a2ui.turn.outcome": "completed",
             "a2ui.turn.protocol_version": "v1.0",
             "a2ui.turn.capture_paths": [
@@ -576,7 +576,7 @@
                 {
                   "type": "a2ui",
                   "content": {
-                    "version": "v1.0",
+                    "version": "1.0",
                     "action": {
                       "name": "submit_booking",
                       "surfaceId": "booking-form",
@@ -594,7 +594,7 @@
               ]
             },
             "a2ui.wire.capabilities": {
-              "v1.0": {
+              "1.0": {
                 "supportedCatalogIds": [
                   "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
                 ]
@@ -632,7 +632,7 @@
                 {
                   "type": "a2ui",
                   "content": {
-                    "version": "v1.0",
+                    "version": "1.0",
                     "createSurface": {
                       "surfaceId": "stub-notice",
                       "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
@@ -642,7 +642,7 @@
                 {
                   "type": "a2ui",
                   "content": {
-                    "version": "v1.0",
+                    "version": "1.0",
                     "updateComponents": {
                       "surfaceId": "stub-notice",
                       "components": [
@@ -658,7 +658,7 @@
                 {
                   "type": "a2ui",
                   "content": {
-                    "version": "v1.0",
+                    "version": "1.0",
                     "createSurface": {
                       "surfaceId": "confirmation",
                       "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
@@ -684,7 +684,7 @@
                 {
                   "type": "a2ui",
                   "content": {
-                    "version": "v1.0",
+                    "version": "1.0",
                     "updateComponents": {
                       "surfaceId": "confirmation",
                       "components": [
@@ -730,7 +730,7 @@
                 {
                   "type": "a2ui",
                   "content": {
-                    "version": "v1.0",
+                    "version": "1.0",
                     "updateComponents": {
                       "surfaceId": "confirmation",
                       "components": [
@@ -804,7 +804,7 @@
                 {
                   "type": "a2ui",
                   "content": {
-                    "version": "v1.0",
+                    "version": "1.0",
                     "updateComponents": {
                       "surfaceId": "confirmation",
                       "components": [
@@ -879,7 +879,7 @@
                 {
                   "type": "a2ui",
                   "content": {
-                    "version": "v1.0",
+                    "version": "1.0",
                     "updateDataModel": {
                       "surfaceId": "confirmation",
                       "path": "/",

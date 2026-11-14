@@ -137,45 +137,29 @@ describe('the schema check on recorded turns', () => {
     }
   });
 
-  it("passes every agent's messages in the recordings but the v1.0 streams of AG2 and the Node restaurant finder and the flawed booking", () => {
+  it("passes every agent's messages in the recordings but the flawed booking", () => {
     const failed: string[] = [];
+    const v1_0: string[] = [];
     let checked = 0;
     for (const file of jsonFiles('test_data/a2a_capture/v0_1')) {
       for (const [index, turn] of readRecord(file).turns.entries()) {
         const result = checkSchema(turn);
         if (result === undefined) continue;
         checked += 1;
-        if (!result.passed)
-          failed.push(`${path.relative('test_data/a2a_capture/v0_1', file)}#${index}`);
+        const name = `${path.relative('test_data/a2a_capture/v0_1', file)}#${index}`;
+        if (!result.passed) failed.push(name);
+        if (result.protocolVersion === 'v1.0') v1_0.push(name);
       }
     }
     assert.ok(checked >= 20, `only ${checked} turns checked`);
-    assert.deepEqual(failed, [
+    assert.deepEqual(failed, ['stub_agent/flawed_booking_a2a_1_0.json#0']);
+    // The v1.0 recordings: messages declaring the bare 1.0, and AG2's failed stream holding none.
+    assert.deepEqual(v1_0, [
+      'ag2/stream_v1_0_failed.json#0',
       'ag2/stream_v1_0_function_call.json#0',
       'node_restaurant_finder/stream_v1_0_booking.json#0',
       'node_restaurant_finder/stream_v1_0_booking.json#1',
-      'stub_agent/flawed_booking_a2a_1_0.json#0',
     ]);
-
-    // Both v1.0 streams declare v1.0, as before the pin's bare 1.0.
-    const [turn] = readRecord(
-      'test_data/a2a_capture/v0_1/ag2/stream_v1_0_function_call.json',
-    ).turns;
-    const result = checkSchema(turn);
-    assert.equal(result?.protocolVersion, 'v1.0');
-    assert.deepEqual(
-      result?.findings.map(({code, message}) => [code, message]),
-      Array(3).fill([
-        'SCHEMA_VERSION_UNSUPPORTED',
-        'The message declares v1.0; Spectra checks v0.9, v0.9.1, 1.0.',
-      ]),
-    );
-    const finding = result.findings[2];
-    assert.equal(finding.surfaceId, undefined);
-    const pointer = (finding.path ?? '').split('/').slice(1, -1);
-    let value: unknown = turn;
-    for (const key of pointer) value = (value as Record<string, unknown>)[key];
-    assert.equal((value as {functionCallId?: string}).functionCallId, 'open-docs');
 
     const [booking] = readRecord(
       'test_data/a2a_capture/v0_1/stub_agent/flawed_booking_a2a_1_0.json',
@@ -350,7 +334,14 @@ describe('the schema check', () => {
   });
 
   it("fails a v1.0 message declaring v1.0, as before the pin's bare 1.0, in v1.0's name", () => {
-    const result = checkSchema(turnOf([[a2ui(createSurface('v1.0'))]]));
+    const call = {
+      version: 'v1.0',
+      callRendererFunction: {
+        functionCallId: 'read-token',
+        callFunction: {'@call': 'readSessionToken', args: {}, catalogId: 'spectra/functions'},
+      },
+    };
+    const result = checkSchema(turnOf([[a2ui(createSurface('v1.0')), a2ui(call)]]));
     assert.deepEqual(result, {
       protocolVersion: 'v1.0',
       passed: false,
@@ -359,6 +350,12 @@ describe('the schema check', () => {
           code: 'SCHEMA_VERSION_UNSUPPORTED',
           surfaceId: 's1',
           path: `${contentPath(0)}/version`,
+          message: 'The message declares v1.0; Spectra checks v0.9, v0.9.1, 1.0.',
+        },
+        // A message of no surface carries no surface id.
+        {
+          code: 'SCHEMA_VERSION_UNSUPPORTED',
+          path: `${contentPath(0, 1)}/version`,
           message: 'The message declares v1.0; Spectra checks v0.9, v0.9.1, 1.0.',
         },
       ],

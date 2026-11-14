@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/retz8/a2ui-spectra/_dev/tools/ag2_agent_function_catalog_v1_0.json",
+  "protocolVersion": "1.0",
+  "title": "AG2 Agent Function Catalog (v1.0)",
+  "description": "One function an agent may call on the renderer, for the AG2 server's renderer function call.",
+  "catalogId": "https://github.com/retz8/a2ui-spectra/_dev/tools/ag2_agent_function_catalog_v1_0.json",
+  "components": {},
+  "functions": {
+    "readSessionToken": {
+      "type": "object",
+      "description": "Returns the renderer's session token to the agent.",
+      "returnType": "string",
+      "allowedCallers": "agentOnly",
+      "properties": {
+        "@call": {
+          "const": "readSessionToken"
+        },
+        "args": {
+          "type": "object",
+          "properties": {},
+          "unevaluatedProperties": false
+        }
+      },
+      "required": ["@call"]
+    }
+  },
+  "$defs": {
+    "anyComponent": {
+      "not": {}
+    },
+    "anyFunction": {
+      "oneOf": [
+        {
+          "$ref": "#/functions/readSessionToken"
+        }
+      ]
+    }
+  }
+}

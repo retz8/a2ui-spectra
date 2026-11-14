@@ -1,16 +1,19 @@
-"""Serves AG2's A2UI agent over A2A 1.0: ag2 1.2.1's A2UIAgentExecutor, in one A2UI version per run.
+"""Serves AG2's A2UI agent over A2A 1.0: ag2 1.3.1's A2UIAgentExecutor, in one A2UI version per run.
 
-With --model scripted, AG2's scripted test model answers every turn with the same reply, so no key
-is needed; --reply picks it. With --model gemini, Gemini answers, with GEMINI_API_KEY or
+With --model scripted, AG2's scripted test model answers one model call with the reply --reply
+picks, so no key is needed. Under --reply function_call, AG2 also serves the catalog of
+ag2_agent_function_catalog_v1_0.json, whose one function an agent may call, and its card offers it
+beside the basic catalog. With --model gemini, Gemini answers, with GEMINI_API_KEY or
 GOOGLE_API_KEY set. From the repository root:
 
-    uv run --no-project --with "ag2[a2a,a2ui,gemini]==1.2.1" --with "a2a-sdk[http-server]==1.2.3" \\
+    uv run --no-project --with "ag2[a2a,a2ui,gemini]==1.3.1" --with "a2a-sdk[http-server]==1.3.0" \\
         --with uvicorn --with sse-starlette \\
         python _dev/tools/ag2_a2ui_server.py --version v1.0 --model gemini --port 10016
 """
 
 import argparse
 import json
+from pathlib import Path
 
 import uvicorn
 from ag2 import Agent
@@ -23,17 +26,27 @@ CATALOGS = {
     "v1.0": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
 }
 
+# The version string each A2UI version's messages carry: v1.0's is the bare "1.0".
+WIRE_VERSIONS = {"v0.9": "v0.9", "v0.9.1": "v0.9.1", "v1.0": "1.0"}
+
+# A v1.0 catalog whose one function, readSessionToken, is agentOnly: an agent may call a renderer
+# function only when its catalog declares it agentOnly or rendererOrAgent, which no function of the
+# v1.0 basic catalog does.
+AGENT_FUNCTION_CATALOG = Path(__file__).with_name("ag2_agent_function_catalog_v1_0.json")
+AGENT_FUNCTION_CATALOG_ID = json.loads(AGENT_FUNCTION_CATALOG.read_text(encoding="utf-8"))["$id"]
+
 GEMINI_MODEL = "gemini-3.6-flash"
 
 
 def scripted_reply(version, reply):
-    """The scripted model's reply: a card, the card and a function call that wants a response, or a failure."""
+    """The scripted model's reply: a card, the card and a renderer function call, or a failure."""
     if reply == "fail":
         return RuntimeError("The scripted model failed.")
+    wire = WIRE_VERSIONS[version]
     messages = [
-        {"version": version, "createSurface": {"surfaceId": "card", "catalogId": CATALOGS[version]}},
+        {"version": wire, "createSurface": {"surfaceId": "card", "catalogId": CATALOGS[version]}},
         {
-            "version": version,
+            "version": wire,
             "updateComponents": {
                 "surfaceId": "card",
                 "components": [
@@ -46,10 +59,11 @@ def scripted_reply(version, reply):
     if reply == "function_call":
         messages.append(
             {
-                "version": version,
-                "functionCallId": "open-docs",
-                "wantResponse": True,
-                "callFunction": {"call": "openUrl", "args": {"url": "https://a2ui.org"}},
+                "version": wire,
+                "callRendererFunction": {
+                    "functionCallId": "read-token",
+                    "callFunction": {"@call": "readSessionToken", "args": {}, "catalogId": AGENT_FUNCTION_CATALOG_ID},
+                },
             }
         )
     return "Here is your card.\n<a2ui-json>" + json.dumps(messages) + "</a2ui-json>"
@@ -82,13 +96,19 @@ def main():
         prompt="Always answer with an A2UI surface: a Card holding the answer as Text components.",
         config=config,
     )
-    executor = A2UIAgentExecutor(agent, protocol_version=args.version)
+    function_call = args.reply == "function_call"
+    executor = A2UIAgentExecutor(
+        agent,
+        protocol_version=args.version,
+        custom_catalog=AGENT_FUNCTION_CATALOG if function_call else None,
+    )
+    catalog_ids = [CATALOGS[args.version], AGENT_FUNCTION_CATALOG_ID] if function_call else None
     url = f"http://127.0.0.1:{args.port}"
     card = build_card(
         agent,
         url=url,
         description="AG2's A2UI agent, answering with a card.",
-        extensions=[get_a2ui_agent_extension(version=executor.protocol_version)],
+        extensions=[get_a2ui_agent_extension(version=executor.protocol_version, supported_catalog_ids=catalog_ids)],
     )
     app = A2AServer(agent, executor=executor).build_jsonrpc(url=url, card=card)
     uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")

@@ -210,7 +210,15 @@ describe('cardDetailsOf', () => {
       },
       'ag2/stream_v1_0_function_call.har': {
         a2aVersions: ['1.0'],
-        a2uiExtensions: [{version: 'v1.0', catalogIds: [BASIC_V1_0]}],
+        a2uiExtensions: [
+          {
+            version: 'v1.0',
+            catalogIds: [
+              BASIC_V1_0,
+              'https://github.com/retz8/a2ui-spectra/_dev/tools/ag2_agent_function_catalog_v1_0.json',
+            ],
+          },
+        ],
         examples: [],
       },
       'angular_client/python_restaurant_finder_booking.har': {

@@ -22,14 +22,15 @@
             "role": "ROLE_USER",
             "parts": [
               {
-                "text": "Show me a card and open the docs"
+                "text": "Show me a card and read the session token"
               }
             ],
             "metadata": {
-              "a2uiClientCapabilities": {
-                "v1.0": {
+              "a2uiRendererCapabilities": {
+                "1.0": {
                   "supportedCatalogIds": [
-                    "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
+                    "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                    "https://github.com/retz8/a2ui-spectra/_dev/tools/ag2_agent_function_catalog_v1_0.json"
                   ]
                 }
               }

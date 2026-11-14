@@ -101,7 +101,7 @@ describe('problemsOf', () => {
         {
           code: 'VALIDATION_FAILED',
           message: 'Bad call.',
-          path: '/events/4/attributes/a2ui.wire.message/parts/1/content/2/callFunction',
+          path: '/events/4/attributes/a2ui.wire.message/parts/1/content/2/callRendererFunction/callFunction',
         },
         {code: 'SCHEMA_VERSIONS_MIXED', message: 'Mixed.'},
       ]),
@@ -112,37 +112,43 @@ describe('problemsOf', () => {
         {
           step: '4.1.2',
           code: 'VALIDATION_FAILED · schema check, A2UI v1.0',
-          inner: '/callFunction',
+          inner: '/callRendererFunction/callFunction',
         },
         {
           step: 'outcome',
           code: 'SCHEMA_VERSIONS_MIXED · schema check, A2UI v1.0',
           inner: undefined,
         },
-        // AG2's messages declare v1.0, as before the pin's bare 1.0, which web core rejects.
-        {step: '4.1.0', code: 'VALIDATION_ERROR · A2UI web core', inner: '/version'},
-        {step: '4.1.1', code: 'VALIDATION_ERROR · A2UI web core', inner: '/version'},
       ],
     );
-    // Web core's rejection of the same message folds under the finding.
-    assert.deepEqual(
-      folded.map(({step}) => step),
-      ['4.1.2'],
-    );
+    assert.deepEqual(folded, []);
   });
 
   it('counts a rejection on a message no finding points into, and folds one on a message a finding does', () => {
-    // Without the check event, the rejection is a problem of its own.
-    const alone = turnProblemsOfRecording('ag2/stream_v1_0_function_call');
+    // The TypeScript restaurant finder's stub creates its stub-notice surface again in the second
+    // turn, which web core refuses. Without the check event, the rejection is a problem of its own.
+    const name = 'node_restaurant_finder/stream_v1_0_booking';
+    const alone = turnProblemsOfRecording(name);
     assert.deepEqual(
       alone.problems.map(({step, code}) => ({step, code})),
-      [
-        {step: '4.1.0', code: 'VALIDATION_ERROR · A2UI web core'},
-        {step: '4.1.1', code: 'VALIDATION_ERROR · A2UI web core'},
-        {step: '4.1.2', code: 'VALIDATION_ERROR · A2UI web core'},
-      ],
+      [{step: '3.0', code: 'INTEGRITY_ERROR · A2UI web core'}],
     );
     assert.deepEqual(alone.folded, []);
+    // A finding on the same message takes its place, and the rejection folds under it.
+    const {problems, folded} = turnProblemsOfRecording(name, [
+      check([
+        {
+          code: 'VALIDATION_FAILED',
+          message: 'Bad surface.',
+          path: '/events/3/attributes/a2ui.wire.message/parts/0/content/createSurface',
+        },
+      ]),
+    ]);
+    assert.deepEqual(
+      problems.map(({step, code}) => ({step, code})),
+      [{step: '3.0', code: 'VALIDATION_FAILED · schema check, A2UI v1.0'}],
+    );
+    assert.deepEqual(folded, [{step: '3.0', sentence: 'Surface stub-notice already exists.'}]);
   });
 });
 

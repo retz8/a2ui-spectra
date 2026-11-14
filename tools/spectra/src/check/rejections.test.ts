@@ -15,6 +15,7 @@ const CIRCLECI = path.join(
 const CIRCLECI_ID =
   'https://github.com/retz8/a2uiverse-apps/blob/main/circleci/circleci-catalog/catalogs/v0.9.1/catalog.json';
 const BASIC_V0_9_1 = 'https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json';
+const BASIC_V1_0 = 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json';
 
 /** A turn whose host message carries these capabilities and whose one wire output holds these A2UI messages. */
 function turnOf(capabilities: Record<string, unknown> | undefined, ...messages: unknown[]): Turn {
@@ -91,25 +92,41 @@ describe('rejectionCount', () => {
         return [file, turns.map((turn, index) => rejectionCount(turn, turns.slice(0, index)))];
       }),
     );
-    // AG2's and the TypeScript restaurant finder's v1.0 messages declare v1.0, as
-    // before the pin's bare 1.0, so web core rejects every one.
+    // The TypeScript restaurant finder's stub creates its `stub-notice` surface again in each
+    // turn, which web core refuses after the first. AG2's renderer function call names a catalog
+    // web core does not know, which is the function's answer and not a rejection.
     assert.deepEqual(counts, {
       'a2term_examplesvc/send_multipart_and_tagged_text.json': [1, 0],
       'a2uiverse_circleci/runs_then_confirm_rerun.json': [0, 0],
       'ag2/send_v0_9_1_card.json': [0],
       'ag2/stream_v1_0_failed.json': [0],
-      'ag2/stream_v1_0_function_call.json': [3],
+      'ag2/stream_v1_0_function_call.json': [0],
       'angular_client/python_restaurant_finder_booking.json': [1, 1, 1],
       'custom_components/action_then_model_turn.json': [0, 0],
       'file_upload_summarizer/artifact_stream_and_send.json': [1, 1],
       'node_restaurant_finder/send_task_history_and_failed.json': [0, 0],
-      'node_restaurant_finder/stream_v1_0_booking.json': [8, 7],
+      'node_restaurant_finder/stream_v1_0_booking.json': [0, 1],
       'react_client/node_restaurant_finder_text_and_action.json': [0, 1],
       'strathweb_booking_wizard/send_then_stream.json': [0, 0],
       'stub_agent/cancel_a2a_0_3.json': [0],
       'stub_agent/cancel_a2a_1_0.json': [0],
       'stub_agent/flawed_booking_a2a_1_0.json': [3],
     });
+  });
+
+  it("rejects every message declaring v1.0, as before the pin's bare 1.0", () => {
+    const surface = (version: string): unknown[] => [
+      {version, createSurface: {surfaceId: 's', catalogId: BASIC_V1_0}},
+      {
+        version,
+        updateComponents: {
+          surfaceId: 's',
+          components: [{id: 'root', component: 'Text', text: 'Hi'}],
+        },
+      },
+    ];
+    assert.equal(rejectionCount(turnOf(undefined, ...surface('1.0'))), 0);
+    assert.equal(rejectionCount(turnOf(undefined, ...surface('v1.0'))), 2);
   });
 
   it('counts the same with the built-in registry as with none', () => {

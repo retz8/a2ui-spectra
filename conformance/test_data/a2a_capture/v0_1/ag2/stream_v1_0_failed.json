@@ -14,7 +14,7 @@
             "a2ui.event.kind": "turn",
             "gen_ai.operation.name": "invoke_agent",
             "gen_ai.agent.name": "ag2_a2ui_agent",
-            "gen_ai.conversation.id": "ac63f75a-9b42-4b80-9de0-ebbbf4ae3580",
+            "gen_ai.conversation.id": "108a30f8-2697-4e51-85f0-60cb456d6ac6",
             "a2ui.turn.outcome": "failed",
             "a2ui.turn.protocol_version": "v1.0",
             "a2ui.turn.capture_paths": [
@@ -47,7 +47,7 @@
               ]
             },
             "a2ui.wire.capabilities": {
-              "v1.0": {
+              "1.0": {
                 "supportedCatalogIds": [
                   "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
                 ]

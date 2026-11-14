@@ -112,10 +112,42 @@ describe('replay', () => {
     ]);
   });
 
-  it("rejects each message of the TypeScript restaurant finder's v1.0 recording at its version, v1.0 as before the pin's bare 1.0", () => {
+  it("replays the TypeScript restaurant finder's v1.0 recording at the bare 1.0, its second createSurface of stub-notice rejected", () => {
     const result = replayRecord(readRecording('node_restaurant_finder/stream_v1_0_booking'));
+    assert.deepEqual(
+      result.surfaces.map(({surfaceId, catalogId, touched}) => ({surfaceId, catalogId, touched})),
+      [
+        {surfaceId: 'stub-notice', catalogId: V10_BASIC, touched: true},
+        {surfaceId: 'confirmation', catalogId: V10_BASIC, touched: true},
+        {surfaceId: 'default', catalogId: V10_BASIC, touched: false},
+      ],
+    );
+    assert.deepEqual(result.rejections, [
+      {
+        key: messageKey(3, 0),
+        surfaceId: 'stub-notice',
+        code: 'INTEGRITY_ERROR',
+        message: 'Surface stub-notice already exists.',
+      },
+    ]);
+  });
+
+  it("rejects each message declaring v1.0, as before the pin's bare 1.0, at its version", () => {
+    const result = replay(
+      [],
+      turnOf(
+        {version: 'v1.0', createSurface: {surfaceId: 's', catalogId: V10_BASIC}},
+        {
+          version: 'v1.0',
+          updateComponents: {
+            surfaceId: 's',
+            components: [{id: 'root', component: 'Text', text: 'Hi'}],
+          },
+        },
+      ).events,
+    );
     assert.equal(result.surfaces.length, 0);
-    assert.equal(result.rejections.length, 7);
+    assert.equal(result.rejections.length, 2);
     for (const rejection of result.rejections) {
       assert.equal(rejection.code, 'VALIDATION_ERROR');
       assert.equal(rejection.inner, '/version');

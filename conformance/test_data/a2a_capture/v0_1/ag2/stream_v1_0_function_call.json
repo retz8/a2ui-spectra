@@ -14,7 +14,7 @@
             "a2ui.event.kind": "turn",
             "gen_ai.operation.name": "invoke_agent",
             "gen_ai.agent.name": "ag2_a2ui_agent",
-            "gen_ai.conversation.id": "98e177eb-12e9-4ed7-9098-b9ae59422855",
+            "gen_ai.conversation.id": "9053b4c8-1c92-4376-af82-3371aabd3377",
             "a2ui.turn.outcome": "waiting_for_input",
             "a2ui.turn.protocol_version": "v1.0",
             "a2ui.turn.capture_paths": [
@@ -41,14 +41,15 @@
               "parts": [
                 {
                   "type": "text",
-                  "content": "Show me a card and open the docs"
+                  "content": "Show me a card and read the session token"
                 }
               ]
             },
             "a2ui.wire.capabilities": {
-              "v1.0": {
+              "1.0": {
                 "supportedCatalogIds": [
-                  "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
+                  "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                  "https://github.com/retz8/a2ui-spectra/_dev/tools/ag2_agent_function_catalog_v1_0.json"
                 ]
               }
             }
@@ -104,40 +105,40 @@
                   "type": "a2ui",
                   "content": [
                     {
-                      "version": "v1.0",
                       "createSurface": {
                         "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
                         "surfaceId": "card"
-                      }
+                      },
+                      "version": "1.0"
                     },
                     {
                       "updateComponents": {
-                        "surfaceId": "card",
                         "components": [
                           {
-                            "id": "root",
                             "component": "Card",
-                            "child": "greeting"
+                            "child": "greeting",
+                            "id": "root"
                           },
                           {
-                            "id": "greeting",
+                            "text": "Hello from AG2",
                             "component": "Text",
-                            "text": "Hello from AG2"
+                            "id": "greeting"
                           }
-                        ]
+                        ],
+                        "surfaceId": "card"
                       },
-                      "version": "v1.0"
+                      "version": "1.0"
                     },
                     {
-                      "callFunction": {
-                        "args": {
-                          "url": "https://a2ui.org"
-                        },
-                        "call": "openUrl"
+                      "callRendererFunction": {
+                        "functionCallId": "read-token",
+                        "callFunction": {
+                          "args": {},
+                          "catalogId": "https://github.com/retz8/a2ui-spectra/_dev/tools/ag2_agent_function_catalog_v1_0.json",
+                          "@call": "readSessionToken"
+                        }
                       },
-                      "version": "v1.0",
-                      "wantResponse": true,
-                      "functionCallId": "open-docs"
+                      "version": "1.0"
                     }
                   ]
                 }
