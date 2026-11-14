@@ -86,7 +86,7 @@ What Spectra is and does, in the present tense; the protocol versions and the up
 
 ### 12. The backlog
 
-Two items enter the phase: the re-pin procedure, and the coverage roster's v1.0 axis recorded again at the pin, the Node restaurant finder's booking stream. Two items keep their place with their text brought to the pin: the A2UI step for A2UIVerse's agents, its release now 0.11.0, and the hover link between a tree node, the message's lines and the drawn component, the renderers still not marking the DOM with component ids.
+Three items enter the phase: the re-pin procedure; the coverage roster's v1.0 axis recorded again at the pin, the Node restaurant finder's booking stream; and AG2's recording on the coverage roster's v1.0 axis, its two v1.0 streams on `ag2` 1.3.1. Two items keep their place with their text brought to the pin: the A2UI step for A2UIVerse's agents, its release now 0.11.0, and the hover link between a tree node, the message's lines and the drawn component, the renderers still not marking the DOM with component ids.
 
 ### 13. The design artifact comes first
 

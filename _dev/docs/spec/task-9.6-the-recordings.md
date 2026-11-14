@@ -57,7 +57,7 @@ The three v1.0 recordings are recorded again. Every other recording stands as ma
 
 ### 6. AG2's two streams
 
-On `ag2` 1.3.1 with the `a2a-sdk` it resolves, both named in the roster row. The scripted model answers, as before, its script rewritten for 1.3.1: the bare `1.0`, and the function call as `callRendererFunction` named with `@call`. The script's function call is written to the pin's v1.0 agent-to-renderer schema and passes AG2's own validator.
+On `ag2` 1.3.1 with the `a2a-sdk` it resolves, both named in the roster row. The scripted model answers, as before, its script rewritten for 1.3.1: the bare `1.0`, and the function call as `callRendererFunction` named with `@call`. The script's function call is written to the pin's v1.0 agent-to-renderer schema and passes AG2's own validator. It calls `readSessionToken`, an `agentOnly` function of a one-function catalog the AG2 server serves beside the basic catalog, `_dev/tools/ag2_agent_function_catalog_v1_0.json`, modelled on the function of that name in upstream's `conformance/test_data/catalogs/allowed_callers_catalog_v1_0.json` at the pin; the card and the request offer both catalogs.
 
 ### 7. The Node restaurant finder's booking stream
 
@@ -98,7 +98,3 @@ Nothing is looked at through the viewer.
 
 - Every recording but the three, its HAR file and its expected record, is unchanged.
 - A roster recording holds what its agent sent, not what an earlier case description said.
-
-## Open items
-
-- What becomes of AG2's v1.0 recordings and the backlog's line if `ag2` 1.3.1 gives no usable v1.0 stream: settled when it is known why.

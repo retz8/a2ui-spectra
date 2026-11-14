@@ -353,7 +353,8 @@ echoing the activated extension URI, or with a key in the reply's metadata.
 **Standing:** holds. The three specs still name only `X-A2A-Extensions` (lines
 64, 71, 89 and 96) and A2A 0.3's part shape (v0.9 lines 218-221; v1.0 lines
 223-226 and 252-255). The A2A specification and the outside agents were not read
-again.
+again, but for AG2: `ag2` 1.3.1 sets both `mediaType` and `metadata.mimeType`, as
+the recording `ag2/stream_v1_0_function_call` of sub-task 9.6 holds.
 
 ### Issue
 
@@ -963,9 +964,13 @@ Checked in the `ag2` 1.2.1 wheel from PyPI; AG2 paths are inside it.
 
 **Standing:** fixed in AG2 by `cdc37c184` (ag2ai/ag2 PR #3469), first released
 in ag2 1.2.2 (2026-10-27); the latest, 1.3.1 (2026-11-10), prompts for
-`callRendererFunction` with `@call` and reads the reply as
-`rendererFunctionResponse`. Spectra's recording `ag2/stream_v1_0_function_call`
-stays on ag2 1.2.1 through `_dev/tools/ag2_a2ui_server.py`.
+`callRendererFunction` with `@call`, reads the reply as
+`rendererFunctionResponse`, and validates an agent's call only on a function
+its catalog declares `agentOnly` or `rendererOrAgent`
+(`ag2/a2ui/schema_manager.py`, `_callable_by`). Spectra's recording
+`ag2/stream_v1_0_function_call` is on ag2 1.3.1 through
+`_dev/tools/ag2_a2ui_server.py`, its call on the `agentOnly` function of
+`_dev/tools/ag2_agent_function_catalog_v1_0.json`.
 
 ### Issue
 

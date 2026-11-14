@@ -53,9 +53,9 @@ A reverse proxy under `_dev/tools/` that shares no code with Spectra. It relays 
 
 HAR 1.2: one log per conversation, one entry per exchange. An entry keeps the request's method, URL, body and the headers the replay needs (`content-type`, `accept`, `A2A-Version`, and the extensions header, `X-A2A-Extensions` or `A2A-Extensions`), and the response's status, the same headers and the decoded body. No credential is ever written: no `Authorization`, cookie or other header outside that list. HAR's required fields that the replay does not read take HAR's empty values. A response whose connection broke before it ended keeps the bytes that arrived and carries the custom field `_brokenOff`; the recording proxy passes the break on to the host, and the replay server reproduces it.
 
-### 7. Recordings are frozen
+### 7. When a recording is made again
 
-A recording is made once, at the entry's pinned commit or version, and is not made again. At each pin move the roster is reviewed: an entry whose recordings hold only what Spectra no longer supports is retired with its recordings, and an axis left without an entry goes to an agent built for it.
+A recording is made at the entry's pinned commit or version, and stays as made while it holds something Spectra supports. At each pin move the roster is reviewed: a recording that holds only what Spectra no longer supports is recorded again when its entry still runs and now sends a supported form, and is retired otherwise; an axis left without an entry goes to an agent built for it.
 
 ### 8. The stub agent
 
