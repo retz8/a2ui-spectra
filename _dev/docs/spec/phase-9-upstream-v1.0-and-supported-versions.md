@@ -96,7 +96,7 @@ The legacy form's marking is drawn first on the design canvas "Spectra viewer UI
 
 The last sub-task, through the tunnel, after an upstream check, at the pin as that check leaves it:
 
-- The three samples, the Python restaurant finder, the Node restaurant finder and the custom-components example, give what Phase 8's acceptance run gave, the A2UI step on the two Python samples included.
+- The three samples, the Python restaurant finder, the Node restaurant finder and the custom-components example, give what Phase 8's acceptance run gave, the A2UI step on the three samples included.
 - A v1.0 turn carrying the `@` envelope keys passes the checks and is drawn in the preview.
 - A v1.0 turn carrying the bare envelope keys passes, marked as the legacy form.
 - One Express record and one Atom record of sub-task 9.9's cases, opened from the local store: an inline component's text in the raw text and its tree node select each other.
