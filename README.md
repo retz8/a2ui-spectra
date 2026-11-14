@@ -41,7 +41,21 @@ Every turn Spectra sees is recorded with the exact model and tool calls made in 
 - **Everything recorded: free.** Every model and tool call is answered from the record, and no call leaves your machine. Your agent gets exactly the replies it got the first time, so a turn that went wrong comes back on demand, for nothing, while you fix the code that handled it.
 - **Tools recorded, model live: model tokens only.** After you edit a prompt, every request that is still the same is served from the record, and the model is called only from the point where the request changed.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/replay-menu-dark.png">
+  <img alt="The restaurant turn saved as the fixture chinese-restaurants.json and opened, its Replay menu offering Everything recorded, free, and Tools recorded, model live, up to $0.036" src="docs/images/replay-menu-light.png">
+</picture>
+
+<sub>The restaurant turn, saved as `chinese-restaurants.json` and opened. It cost $0.036 to record; Replay offers it again for free, or for up to that much with the model live.</sub>
+
 A replay passes when every call was served from the record and the turn ends as it did, with the same A2UI messages. `a2ui-spectra test` replays every fixture with everything recorded and exits non-zero when one no longer passes, so your saved turns become a test suite that runs in CI without calling the model.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/replay-passed-dark.png">
+  <img alt="The replayed turn: 146 ms, three calls from the record, free, replayed from chinese-restaurants.json with everything recorded, passed, the same parse failure and retry in its steps" src="docs/images/replay-passed-light.png">
+</picture>
+
+<sub>The replay, with everything recorded: 146 ms where the live turn took 25 s, three calls answered from the record, free, and passed. The parse failure and the retry it caused come back exactly as they happened.</sub>
 
 ```
 a2ui-spectra replay a2ui-spectra-fixtures/chinese-restaurants.json -- uv run .
