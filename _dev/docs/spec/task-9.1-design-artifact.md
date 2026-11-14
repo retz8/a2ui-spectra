@@ -35,7 +35,7 @@ Components. The number shows in the tooltip's check row and in the step's detail
 
 ### 6. The header's tooltip
 
-The remark sits on the Catalog check's row, "Passed · 3 components in the legacy form", the remark in muted grey after "Passed", and the tooltip 440 px wide while a row carries it. A surface whose catalog has no definition gets no legacy mark.
+The remark sits on the Catalog check's row, "Passed · 3 components in the legacy form", the remark in muted grey directly after the row's result and before anything about skipped surfaces: "1 finding · 3 components in the legacy form"; "Passed · 2 components in the legacy form · not checked for `menu` · no definition for catalog". The tooltip is 440 px wide while a row carries it. The number is the count of distinct surface-and-component-id pairs among the turn's `a2ui.check.legacy_form` entries: a component sent twice in the legacy form counts once, and one sent bare and later sent again with the `@` key in the same turn still counts. A surface whose catalog has no definition gets no legacy mark, and a row whose every surface was skipped carries no remark.
 
 ### 7. The timeline row
 
@@ -43,15 +43,26 @@ The hourglass on the row of the step that carried the components. A step that al
 
 ### 8. The step's detail
 
-Two lines above the message, with no box, the hourglass before them where a problem block has its icon. The first, in the strong muted grey, gives the number of components and names the bare keys they carry, "3 components carry bare envelope keys, the legacy form: `checks`, `accessibility`". The quiet second line, 12 px in muted grey, gives the v1.0 form and says the bare keys are accepted during upstream's transition: "The v1.0 form is `@checks`, `@accessibility`. The bare keys are accepted during upstream’s transition." The keys in monospace. No link. On a step that also has a problem, the problem's block comes first, then the legacy form's two lines, then the message.
+Two lines above the message, with no box, the hourglass before them where a problem block has its icon. The first, in the strong muted grey, gives the number of components and names the bare keys they carry, "3 components carry bare envelope keys, the legacy form: `checks`, `accessibility`". The quiet second line, 12 px in muted grey, gives the v1.0 form and says the bare keys are accepted during upstream's transition: "The v1.0 form is `@checks`, `@accessibility`. The bare keys are accepted during upstream’s transition." The keys in monospace. No link. On a step that also has a problem, the problem's block comes first, the lines folded under it next, then the legacy form's two lines, then the message.
+
+The verb follows the number of components and the noun the number of distinct keys:
+
+| One component, one key | One component, two keys | Several components, one key |
+| --- | --- | --- |
+| "1 component carries a bare envelope key, the legacy form: `checks`" | "1 component carries bare envelope keys, the legacy form: `checks`, `accessibility`" | "3 components carry a bare envelope key, the legacy form: `checks`" |
+| "The v1.0 form is `@checks`. The bare key is accepted during upstream’s transition." | "The v1.0 form is `@checks`, `@accessibility`. The bare keys are accepted during upstream’s transition." | as the first column |
+
+The keys are named in the order they first appear in the step's message, its components read top to bottom. A step's detail counts the components of its own message, so the steps' numbers can add up to more than the turn's.
 
 ### 9. The bare key's line in the message
 
-A band one step darker than the block, in the grey the canvas uses for borders, with the hourglass at the line's right end. The bare key's line is the line holding the key. A problem's line keeps its soft red, and one message can carry both; the component rejected for carrying both keys has its bare key's line in soft red. A folded line carries the band of a bare key inside it, as it carries a problem's mark.
+A band one step darker than the block, in the grey the canvas uses for borders, with the hourglass at the line's right end. The bare key's line is the line holding the key. A problem's line keeps its soft red, and one message can carry both; the component rejected for carrying both keys has its bare key's line in soft red, with no hourglass. Where a finding's pointer ends at an accepted bare key, the line is soft red and keeps the hourglass at its right end; the component still counts, and its node keeps the hourglass. A folded line carries the band of a bare key inside it, as it carries a problem's mark.
 
 ### 10. Structure
 
-The hourglass on the node's row. The opened node's properties list the bare key as written, and the node carries one quiet line under them, inside the properties' box, naming the bare keys the component was written with, such as "Legacy form: `checks`". Nothing leads from the line to the message.
+The hourglass on the node's row, when the component object standing after the selected step was carried by a message of this turn in the legacy form. A component sent bare and sent again with the `@` key later in the turn has the hourglass after the earlier step and none after the later one. A component standing from an earlier turn of the conversation, which this turn's messages did not carry, has none.
+
+The properties' box lists the standing component as the message wrote it, for every component: its own keys, all but `id` and `component`, in the order the agent wrote them. A bare `checks` reads `checks`; `@metadata` and `@catalogId` are listed. The tree's shape, the children and the bound-path summary on the node's row stay web core's. The node in the legacy form carries one quiet line under its properties, inside the box, naming its bare keys, such as "Legacy form: `checks`", further keys after a comma. Nothing leads from the line to the message.
 
 ### 11. From the header to the marked steps
 
@@ -59,7 +70,7 @@ Nothing. The marked steps are found by their icon in the timeline, there is no f
 
 ### 12. What carries no mark
 
-The turn list row and its strip, the surface switcher, the preview, the fixture view and the replay verdict, and the A2UI step's parse rows and raw text. A v0.9 or v0.9.1 turn, a bare key the component's own schema declares as a property, and a surface whose catalog has no definition get no mark at all.
+The turn list row and its strip, the surface switcher, the preview, the fixture view and the replay verdict, and the A2UI step's parse rows and raw text. The fixture view here is the fixture's own parts: the fixtures list's rows, the fixture's controls and the replay verdict with its line. A fixture's turn is marked as any turn is: its header, tooltip, timeline row, step detail, message and Structure. A v0.9 or v0.9.1 turn, a bare key the component's own schema declares as a property, and a surface whose catalog has no definition get no mark at all.
 
 ### 13. Where the boards go
 
@@ -67,15 +78,15 @@ The turn list row and its strip, the surface switcher, the preview, the fixture 
 
 1. The step selected: the header reading "No problems · legacy form", the hourglass on the step's timeline row, the detail's two lines, and the bare keys' lines marked in the message. The step's detail maximized.
 2. The header's tooltip open on the Catalog check's row with its count, and in Structure a marked node opened to its line, the TextField. The step's detail closed.
-3. The legacy form beside a problem in the same step: one component carrying both keys rejected, drawn as a problem is drawn, and the other components carrying the quiet mark, folded, each folded line with its band. The step's detail maximized.
+3. The legacy form beside a problem in the same step: one component carrying both keys rejected, drawn as a problem is drawn, and the other components carrying the quiet mark, folded, each folded line with its band. Web core refuses the whole `updateComponents`, so the surface `booking` stands without a root at the turn's close: the header reads "2 problems"; the `updateComponents` step's timeline row carries the problem mark and 1, then the hourglass; the last step, "Waiting for input", carries the problem mark and 1, holding `ROOT_MISSING` in the sentence "The surface 'booking' has no component with the id 'root': web core refused the updateComponents that carried one."; the step's detail holds the rejection's block, web core's line and the built-in page's line folded under it, the legacy form's two lines, then the message; Structure holds no components, so no hourglass; the preview is empty, the preview pane's strip carrying the problem and the page's refusal line above the empty frame. The step's detail open beside the result.
 
-The first and the third get dark twins. The "Components and states" board gains the mark's forms, the chained label "No problems · not fully checked · legacy form" among them. The "Icons" board gains the hourglass. No flow, no small-window board, nothing on the Screens row, no new keys. The `@` keys on a clean turn get no board.
+The first and the third get dark twins. The "Components and states" board gains the mark's forms, the chained label "No problems · not fully checked · legacy form" among them; the Catalog check's row in its forms, "1 finding · 3 components in the legacy form" among them; the detail's two lines for one component and one key, one component and two keys, and several components and one key; a bare key's line in its three forms, banded, soft red with the hourglass kept where a finding's pointer ends at it, and soft red with no hourglass on the component rejected for carrying both keys; and web core's line folded under the problem on the detail beside a problem. The "Icons" board gains the hourglass. No flow, no small-window board, nothing on the Screens row, no new keys. The `@` keys on a clean turn get no board.
 
 ### 14. What the boards draw
 
 Spectra's stub agent, a canned v1.0 booking form. Three components are in the legacy form: a TextField and a DateTimeInput each with a bare `checks`, and a Button with a bare `accessibility`. On the third board a ChoicePicker carries both `checks` and `@checks`. The check values follow the `required` checks of the strathweb-a2ui BookingWizard recording, written as v1.0 writes them. Illustrative values and the exact wording are settled on the canvas.
 
-On the canvas: the input "Book a table at Han Il Kwan", the reply "Here is the booking form.", one delivery of four parts, a Text, `createSurface`, `updateComponents` and `updateDataModel`, and the turn waiting for input. The messages declare `"version": "1.0"`. The surface `booking` holds six components: a Column `root` with the children `name`, a TextField; `date`, a DateTimeInput; `time`, a ChoicePicker of 18:00, 19:00, 20:00 and 21:00; and `submit`, a Button whose child is the Text `submit_label`, "Book", its action the event `book`. Each envelope key is written after `component`. The checks read `{"condition": {"@call": "required", "args": {"value": {"path": "/name"}}}, "message": "We need a name for the booking."}`, with `/date` and "Pick a date.", and `/time` and "Pick a time.". The ChoicePicker carries `@checks` on the first two boards and both keys on the third; the Button's bare `accessibility` is `{"label": "Book the table"}`.
+On the canvas: the input "Book a table at Han Il Kwan", the reply "Here is the booking form.", one delivery of four parts, a Text, `createSurface`, `updateComponents` and `updateDataModel`, and the turn waiting for input. The messages declare `"version": "1.0"`. The surface `booking` holds six components: a Column `root` with the children `name`, a TextField; `date`, a DateTimeInput; `time`, a ChoicePicker of 18:00, 19:00, 20:00 and 21:00; and `submit`, a Button whose child is the Text `submit_label`, "Book", its action the event `book`. Each envelope key is written after `component`. Bindings are written as v1.0 writes them, `{"@path": "/name"}`, in the components' values and in the check rules' arguments; the DateTimeInput carries `"enableDate": true` after its value. The checks read `{"condition": {"@call": "required", "args": {"value": {"@path": "/name"}}}, "message": "We need a name for the booking."}`, with `/date` and "Pick a date.", and `/time` and "Pick a time.". The ChoicePicker carries `@checks` on the first two boards and both keys on the third; the Button's bare `accessibility` is `{"label": "Book the table"}`.
 
 ### 15. The rejection's words
 

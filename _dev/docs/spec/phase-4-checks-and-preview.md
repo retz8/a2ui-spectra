@@ -110,7 +110,7 @@ Typing in the preview changes the page's own data model, and pressing fires the 
 
 ### 20. The sample catalog apps and the proof
 
-One sample catalog, shared by one sample catalog app per framework under `samples/preview/`: a v0.9 definition holding the basic catalog's components and functions and one custom component, upstream's `CustomSlider`, implemented once per framework, each app with the preview page SPEC.md's adopter path describes and its own committed `a2ui-spectra.json`. Each is started by the end-to-end test and doubles as the adopter's worked example. The React adapter is also proven on one A2UIVerse catalog in the acceptance run, with a preview page added on A2UIVerse's side.
+One sample catalog, shared by one sample catalog app per framework under `samples/preview/`: a v0.9 definition holding the basic catalog's components and functions and one custom component, upstream's `CustomSlider`, implemented once per framework, each app with the preview page SPEC.md's adopter path describes and its own committed `a2ui-spectra.json`. Each sample page claims the v1.0 basic catalog beside the one sample catalog, which stays a v0.9 catalog. Each is started by the end-to-end test and doubles as the adopter's worked example. The React adapter is also proven on one A2UIVerse catalog in the acceptance run, with a preview page added on A2UIVerse's side.
 
 ### 21. The design artifact comes first
 

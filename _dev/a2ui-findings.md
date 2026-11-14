@@ -2518,3 +2518,66 @@ Drop `path` from the v1.0 `DataBindingSchema` and `call` from the v1.0
 resolution and the specification take; or, if the unprefixed keys are kept on
 purpose for a transition, read them in resolution too and say so in the
 evolution guide.
+
+## 50. Web core's `required` refuses an unresolved value instead of failing the check
+
+**Component:** `typescript/core/web_core/src/catalogs/basic/v1/functions/basic_functions_api.ts`;
+`typescript/core/web_core/src/v0_9/basic_catalog/functions/basic_functions_api.ts`;
+`typescript/core/web_core/src/resolution/data-context.ts`.
+
+**Severity:** a `required` check on a field whose bound path the data model does
+not hold, as on a form drawn before its `updateDataModel` or sent with no initial
+value, dispatches an `EXPRESSION_ERROR` on the surface and resolves to no check
+result, where it should fail the check. A web renderer reports a render error and
+the field shows no check message from it. The Python core fails the check. Found
+at the pin `0888f88b2` (2026-11-13).
+
+**Standing:** holds. Run against web core built at the pin, Spectra's
+`vendor/a2ui/a2ui-web_core-0.15.0.tgz`, and against the Python core at the pin,
+`a2ui-core` as the uv git source.
+
+### Issue
+
+The v1.0 basic catalog's `required` "Checks that the value is not null,
+undefined, or empty." (`catalogs/basic/v1/catalog.json:684-704`), and web core's
+implementation does so: `validateRequired`
+(`typescript/core/web_core/src/common/basic_functions.ts:107-116`) returns
+`{valid: false, message: "This field is required."}` for `undefined`. But web
+core's argument schema refuses `undefined` before the implementation runs:
+`RequiredApi`'s `value` is `z.any().refine(v => v !== undefined, 'Required')`
+(`catalogs/basic/v1/functions/basic_functions_api.ts:34-47`, the refine at line
+42; the v0.9 `RequiredApi` the same, `v0_9/basic_catalog/functions/basic_functions_api.ts:32-45`).
+A binding to a path the data model does not hold resolves to `undefined`, so the
+call fails its schema and `dispatchExpressionError`
+(`resolution/data-context.ts:1682-1700`) sends "Validation failed for function
+'required'" to the surface as an `EXPRESSION_ERROR`, the call resolving to
+`undefined`. The Python core resolves the same binding to `None`, with a
+`MissingDataBindingWarning`
+(`python/a2ui_core/src/a2ui/core/resolution/data_context.py:570-581`), and its
+`_required_execute`
+(`python/a2ui_core/src/a2ui/core/basic_catalog/v1_0/function_impls.py:82-92`)
+returns `{"valid": false}`.
+
+### Reproduction
+
+Feed each core's message processor, on its v1.0 basic catalog: `createSurface`
+for `s` on `https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json`,
+then an `updateComponents` of `{"id": "root", "component": "TextField",
+"label": "Name", "value": {"@path": "/name"}}`, both `"version": "1.0"`, and no
+`updateDataModel`. Resolve `{"@call": "required", "args": {"value": {"@path":
+"/name"}}}` in a data context on the surface at `/`. Web core resolves it to
+`undefined`, and the surface's `onError` gets `EXPRESSION_ERROR` "Validation
+failed for function 'required': [ { "code": "custom", "message": "Required",
+"path": [ "value" ] } ]"; with `/name` set to `""` it resolves to `{"valid":
+false, "message": "This field is required."}`. The Python core resolves it to
+`{"valid": false}` in both cases. In Spectra, the stub agent's v1.0 booking form
+drawn on the built-in preview page at its `updateComponents` step, before its
+`updateDataModel`, shows the error as a counted problem, in the `@` form and the
+bare form alike.
+
+### Fix
+
+Drop the `refine` from `RequiredApi`'s `value` in v0.9 and v1.0, so that an
+unresolved value reaches `validateRequired`, which already fails it. The
+catalog's `"required": ["value"]` on the call's written arguments stays the
+schema's concern.

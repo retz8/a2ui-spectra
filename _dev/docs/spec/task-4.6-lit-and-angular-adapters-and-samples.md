@@ -25,7 +25,7 @@ The sample catalog is a v0.9 catalog: its definition names no version, so it ser
 
 ### 3. Its custom component
 
-The custom component is a `CustomSlider` as upstream's Lit and Angular explorers have it at the pin, with a label, a value, a minimum and a maximum: it binds a number and writes it back to the data model. The sample catalog is the v0.9 basic catalog's components and the `CustomSlider` under the sample's own id, its definition copying the basic catalog's components as upstream's `samples/agent/adk/custom-components-example/inline_catalog_0.9.json` does. Each sample page passes only the sample catalog.
+The custom component is a `CustomSlider` as upstream's Lit and Angular explorers have it at the pin, with a label, a value, a minimum and a maximum: it binds a number and writes it back to the data model. The sample catalog is the v0.9 basic catalog's components and the `CustomSlider` under the sample's own id, its definition copying the basic catalog's components as upstream's `samples/agent/adk/custom-components-example/inline_catalog_0.9.json` does. Each sample page passes the sample catalog and the v1.0 basic catalog: the React and Lit pages web core's `@a2ui/web_core/catalogs/basic/v1`, which their renderers draw through web core's own elements; the Angular page the renderer's own v1.0 `BasicCatalogBase`, with universal components on in its `provideA2Ui` config. The sample catalog itself stays a v0.9 catalog.
 
 ### 4. Where the samples live
 

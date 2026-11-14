@@ -2,7 +2,7 @@
 
 The v1.0 component envelope keys in the viewer and the preview, in both forms; the legacy form's marking built as the canvas draws it; the smoke check on the published renderers. Sub-task 9.4 of the Phase 9 spec, `_dev/docs/spec/phase-9-upstream-v1.0-and-supported-versions.md`, carrying out its decision 5, the v1.0 component envelope keys in both forms, its decision 8, the upstream packages Spectra supports, and its decision 13, the design artifact comes first, and taking what sub-task 9.1's decision 16, sub-task 9.2's handover and sub-task 9.3's decision 11 leave to it.
 
-Upstream as sub-tasks 9.1 to 9.3 read it, `upstream/main` at `3ed960186` (2026-11-13), one commit after the pin `0888f88b2`: none of the three events of the Phase 9 spec's decision 2. No upstream check was run at this sub-task's start, the pin having moved the same day. npm's latest, read on 2026-11-14: `@a2ui/web_core` 0.15.0, `@a2ui/react` 0.15.0, `@a2ui/lit` 0.15.0 and `@a2ui/angular` 0.14.0, each of 2026-11-02.
+Upstream as sub-tasks 9.1 to 9.3 read it, `upstream/main` at `3ed960186` (2026-11-13), one commit after the pin `0888f88b2`: none of the three events of the Phase 9 spec's decision 2. The upstream check at this sub-task's start, on 2026-11-14, read the same `upstream/main`, `3ed960186`, touching none of the areas Spectra uses, every copied file unchanged, no new release on npm or PyPI, `specification/versions.json` unchanged and the five watch-list items open: none of the three events. npm's latest, read on 2026-11-14: `@a2ui/web_core` 0.15.0, `@a2ui/react` 0.15.0, `@a2ui/lit` 0.15.0 and `@a2ui/angular` 0.14.0, each of 2026-11-02.
 
 The viewer and the preview at the pin, before the sub-task:
 
@@ -45,7 +45,7 @@ Drawn before the build, on the canvas "Spectra viewer UI":
 
 | Where | What |
 | --- | --- |
-| "Turn view details", the row "The legacy form", the third board and its dark twin | The header reading "2 problems"; the `updateComponents` step's timeline row with the problem mark and 1, then the hourglass; the step's detail with the rejection's block, web core's line folded under it, the legacy form's two lines, then the message; the last step, "Waiting for input", with the problem mark and 1, holding `ROOT_MISSING` in the sentence "The surface 'booking' has no component with the id 'root': web core refused the updateComponents that carried one."; Structure with no components, so with no hourglass; the preview empty |
+| "Turn view details", the row "The legacy form", the third board and its dark twin | The header reading "2 problems"; the `updateComponents` step's timeline row with the problem mark and 1, then the hourglass; the step's detail, open beside the result, with the rejection's block, web core's line and the built-in page's line folded under it, the legacy form's two lines, then the message; the last step, "Waiting for input", with the problem mark and 1, holding `ROOT_MISSING` in the sentence "The surface 'booking' has no component with the id 'root': web core refused the updateComponents that carried one."; Structure with no components, so with no hourglass; the preview empty |
 | "Components and states", the section "The legacy form" | The one-component, one-key sentences of decision 4 |
 | "Components and states", the section "The legacy form" | The Catalog check's row "1 finding · 3 components in the legacy form" |
 | "Components and states", the section "The legacy form" | The line that is an accepted bare key and a finding at once, of decision 8 |
@@ -129,6 +129,14 @@ As reported, unconfirmed: a component's envelope key declared in its own propert
 ### 19. Left to the build
 
 The tooltip's 440 px width while a row carries the remark, as the 9.1 spec fixed it; the hourglass as an icon of the viewer's own icon module, as the canvas's "Icons" board draws it; how each sample page builds its v1.0 basic catalog; how the viewer finds the standing component's written object; the smoke script's name, and what it shares with the browser tests' helpers.
+
+Settled in the build:
+
+- The hourglass is the icon module's `legacy`, the canvas's paths, and stands alone as an image labelled "Legacy form".
+- The React and Lit sample pages take web core's `@a2ui/web_core/catalogs/basic/v1`, cast to their renderer's catalog type, as the built-in page does; the Angular page takes the renderer's own v1.0 `BasicCatalogBase` from `@a2ui/angular`, with `useUniversalComponents` on in its `provideA2Ui` config. Each is in npm's latest as well as at the pin.
+- The viewer's replay keeps, beside what web core stores, each standing component as the accepted message that set it wrote it, with its JSON Pointer from the turn when the turn's own message carried it; a refused message sets nothing, and a `deleteSurface` clears the surface's. A node's hourglass is that pointer found among the turn's legacy-form entries.
+- The smoke script is `_dev/tools/smoke_published_renderers.mjs`. It imports none of the browser tests' helpers: it starts the stub agent, the dev servers and Spectra itself, and drives Chromium through the repository's Playwright.
+- Finding 50 in `_dev/a2ui-findings.md`, web core's `required` refusing an unresolved value, met in the hand pass: with the `updateComponents` step selected, before the booking form's `updateDataModel`, the built-in page reports it as a counted problem in the `@` form and the bare form alike, and the page keeps the report into the later steps of that render. The boards of the row "The legacy form" are left as drawn.
 
 ### 20. The tests, the browser cases and the hand pass
 
