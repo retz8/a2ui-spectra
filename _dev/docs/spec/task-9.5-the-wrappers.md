@@ -90,6 +90,18 @@ In the `a2ui-upstream` worktree's virtual environment, the wrapper switched on l
 
 Which basic catalog file the smoke check's TypeScript jobs load; the smoke script's name.
 
+Settled in the build:
+
+- The smoke script is `_dev/tools/smoke_published_agent_sdks.mjs`. The TypeScript jobs load the driver's own copy of the pin's basic catalog, `conformance/wrapper_driver/typescript/catalogs/basic_v1_0.json`: neither npm's `@a2ui/agent` 0.1.0 nor `@a2ui/web_core` 0.15.0 carries a catalog definition file. The driver's build is copied into the scratch project, so that its imports resolve there. Spectra's receiver is taken from the tool's build, `tools/spectra/dist/`, in the script's own process, one turn opened around each driver's run as the wrapper capture harness opens it, the drivers carrying no trace context.
+- The record-writer ran in the repository's environment, `.venv/bin/python`, Python 3.12.4, on `a2ui-agent-sdk` 0.11.1.dev45 at the pin, and on `@a2ui/agent` 0.1.0 built in the `a2ui-upstream` worktree at the pin. Each of the ten records differs from the one it replaces in its UI section alone, and in `generate_outside_turn` the model call's system instruction holding it, apart from the SDK's version the comparison skips. Their upstream causes:
+  - `direct_json_generate`, Python and TypeScript: PR #3567 (`f7b795e45`), one prompt snippet layout, the opening `## Workflow Description:` heading gone and the catalog's schema in a block of its own; PR #3721 (`07fee11d3`), the Direct JSON part described as an array of A2UI messages; and in the schemas the section holds, PR #1605 (`0523d604a`), the A2UI acronym's expansion; PR #4025 (`ee0fe3559`), `@index`'s return type; PR #4044 (`24d1bf9c8`), the `@` envelope keys; PR #3868 (`80aaef07f`), the v1 basic catalog's TextField `value` required; PR #3820 (`419b9ec31`), the regex dialect in `regex.pattern`.
+  - `express_generate`, `express_generate_two_catalogs` and `generate_outside_turn`, Python and TypeScript: PR #3867 (`087681ab1`), `Event`'s `userMessage=` in rule 8; PR #4025, the System Functions section with `@index`; PR #3868; PR #3820; and in Python, PR #3567, the opening `## Workflow Description:` heading gone.
+  - `elemental_generate`, Python: PR #3567, the opening `## Workflow Description:` heading gone; PR #3868.
+  - `atom_generate`, Python: PR #3567, the opening `## Instructions:` heading gone; PR #3868; PR #3820.
+- The smoke check at this sub-task's close passed on PyPI's `a2ui-agent-sdk` 0.11.0, with `a2ui-core` 0.6.0 and `a2ui-adk` 0.3.0, on Python 3.14.3, and on npm's `@a2ui/agent` 0.1.0, with `@a2ui/web_core` 0.15.0, on Node 22.15.0.
+- The live check: the Python restaurant finder under `a2ui-spectra run` and `opentelemetry-instrument`, from the worktree's virtual environment, the Click instrumentation off. "Top 3 Chinese restaurants in New York", trace `01b7d50e1789785b7e3cfac0bc3c9064`, waiting for input: its record holds three `prompt_generation` and three `parse` events, two streams and one `parse_response`, each Direct JSON on `a2ui-agent-sdk` 0.11.1.dev45, the first stream rejected with `Surface default already exists.`, finding 31's retry. No line of the wrapper's in the agent's output.
+- The two facts scripts' headers and the record-writer's name the repository's environment on Python 3.12, in which the Python prompt sections are read, in place of the `a2ui-upstream` worktree's on Python 3.14.
+
 ### 14. The documents
 
 - `python/a2ui_spectra_instrumentation/README.md`: the floor, the pinned API and the hook on the base class.

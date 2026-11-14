@@ -1851,10 +1851,14 @@ TypeScript's `InferenceFormat`
 (`typescript/agents/a2ui_agent/src/inference-format.ts:24-31`) has none either.
 
 **Held by:** both wrappers name the formats themselves: the Python wrapper's
-hook table tags each hook (`hooks.py:44-85`) and maps instances by class
-(`state.py:23-33`, used by `_adopt_processor` at `hooks.py:576-582`); the
-TypeScript wrapper's `FORMAT_CLASSES` (`table.ts:40-46`) and `formatOf`
-(`instrumentation.ts:50-55`).
+hook table tags each parser hook (`hooks.py:61-92`), its table of the four
+formats' prompt generator classes names each (`hooks.py:94-113`), and it maps
+instances by class (`state.py:23-34`, used by the `generate` hook at
+`hooks.py:416-449` and by `_adopt_processor` at `hooks.py:602-608`). The format
+packages no longer export the generator classes (PR #3568), so the wrapper reads
+each from the module that defines it, such as
+`a2ui.inference_formats.direct_json.prompt_generator`. The TypeScript wrapper's
+`FORMAT_CLASSES` (`table.ts:40-46`) and `formatOf` (`instrumentation.ts:50-55`).
 
 ### Issue
 
