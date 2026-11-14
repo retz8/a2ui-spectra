@@ -86,6 +86,11 @@
   action: validate_turn_record
   fixture: "test_data/turn_record/v0_1/check_with_skipped_surfaces.json"
 
+- name: check_with_legacy_form
+  description: "A v1.0 catalog check listing two component objects in the legacy form, one with a bare checks, one with a bare accessibility and metadata."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/check_with_legacy_form.json"
+
 - name: version_not_v0_1
   description: "The record declares a version other than v0.1."
   action: validate_turn_record
@@ -465,6 +470,36 @@
     details:
       - path: "/turns/0/events/1/attributes/a2ui.check.skipped/0"
         code: required
+
+- name: check_without_legacy_form
+  description: "A catalog check event has no legacy form."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/check_without_legacy_form.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes"
+        code: required
+
+- name: check_legacy_form_on_structural
+  description: "A structural check event carries a legacy form."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/check_legacy_form_on_structural.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes"
+        code: not
+
+- name: legacy_form_entry_unknown_key
+  description: "A legacy-form entry names a key that is not a component envelope key."
+  action: validate_turn_record
+  fixture: "test_data/turn_record/v0_1/legacy_form_entry_unknown_key.json"
+  expectError:
+    category: ValidationError
+    details:
+      - path: "/turns/0/events/1/attributes/a2ui.check.legacy_form/0/keys/0"
+        code: enum
 
 - name: skipped_surface_unknown_reason
   description: "A skipped surface gives a reason the record does not define."

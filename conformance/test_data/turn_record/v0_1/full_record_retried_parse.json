@@ -864,7 +864,8 @@
             "a2ui.check.passed": true,
             "a2ui.check.protocol_version": "v1.0",
             "a2ui.check.findings": [],
-            "a2ui.check.skipped": []
+            "a2ui.check.skipped": [],
+            "a2ui.check.legacy_form": []
           }
         },
         {

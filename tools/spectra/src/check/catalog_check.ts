@@ -4,19 +4,35 @@
  * with Ajv, the real catalog bound where the schema check binds a stand-in,
  * and cut to the branch of the component's own type, as the schema check
  * cuts a message to its own message type. A function call inside a component
- * is cut to its own function's branch the same way, and a v0.9 surface's
- * theme is validated against the catalog's theme.
+ * is cut to its own function's branch the same way, a v1.0 call in the
+ * catalog its own `catalogId` names, else in the surface's, whatever catalog
+ * the component is in, and a v0.9 surface's theme is validated against the
+ * catalog's theme.
  *
- * A component's catalog is its own `catalogId` in v1.0 when it names one,
- * else the one its surface's `createSurface` named. A surface whose catalog
- * has no definition, and one no `createSurface` named, are skipped and say why.
+ * A component's catalog is the one its surface's `createSurface` named,
+ * unless a v1.0 component names its own: by `@catalogId`, followed whatever
+ * the surface's catalog, or by a bare `catalogId` the component's schema in
+ * the surface's catalog does not declare as its own property. A v1.0
+ * component's envelope keys are read as web core reads them at the pin: a
+ * bare key read as the `@` key is the legacy form, listed and judged as the
+ * `@` key's value, and a component carrying both forms of a key is a finding
+ * in web core's sentence. A surface whose catalog has no definition, and one
+ * no `createSurface` named, are skipped and say why.
  */
 import {Ajv2020, type AnySchemaObject, type ValidateFunction} from 'ajv/dist/2020.js';
 
-import type {Finding} from '../record/turn_record.js';
+import type {Finding, LegacyFormEntry} from '../record/turn_record.js';
 import type {CheckResult} from './check_event.js';
 import {type Conversation, isObject, type ResolvedCatalog} from './conversation.js';
 import {dynamicKeys, dynamicValues} from './dynamic.js';
+import {
+  carries,
+  type EnvelopeLayout,
+  envelopeLayout,
+  NO_LAYOUT,
+  readEnvelope,
+  routedByBareCatalogId,
+} from './envelope.js';
 import {token} from './pointers.js';
 import {errorPath, errorText} from './schema_check.js';
 import {SkippedList, skippedSurface} from './skipped.js';
@@ -48,6 +64,7 @@ const FUNCTION_STAND_IN: Record<Family, AnySchemaObject> = {
 export function checkCatalog(conversation: Conversation): CheckResult {
   const findings: Finding[] = [];
   const skipped = new SkippedList();
+  const legacyForm: LegacyFormEntry[] = [];
   const judged = new Map<string, ResolvedCatalog | undefined>();
   const surfaceCatalog = (surfaceId: string): ResolvedCatalog | undefined => {
     if (!judged.has(surfaceId)) judged.set(surfaceId, judge(conversation, surfaceId, skipped));
@@ -64,16 +81,54 @@ export function checkCatalog(conversation: Conversation): CheckResult {
       body.components.forEach((component: unknown, index) => {
         if (!isObject(component)) return;
         const pointer = `${path}/${type}/components/${index}`;
-        let catalog = resolved;
-        if (family === '1.0' && typeof component.catalogId === 'string') {
-          catalog = conversation.resolve(component.catalogId);
-          if (catalog === undefined) {
-            skipped.add(skippedSurface(surfaceId, component.catalogId, 'no_definition'));
+        if (family !== '1.0') {
+          if (resolved !== undefined) {
+            findings.push(...componentFindings(component, pointer, resolved, version, surfaceId));
           }
+          return;
         }
-        if (catalog !== undefined) {
-          findings.push(...componentFindings(component, pointer, catalog, version, surfaceId));
+        const judgedV1 = v1Component(conversation, component, resolved, surfaceId, skipped);
+        if (judgedV1 === undefined) return;
+        const {catalog, layout} = judgedV1;
+        const callCatalog = (call: Record<string, unknown>): ResolvedCatalog | undefined => {
+          if (!carries(call, 'catalogId')) return resolved;
+          // A non-string one is judged as written, by the common types' function envelope.
+          if (typeof call.catalogId !== 'string') return resolved ?? catalog;
+          const named = conversation.resolve(call.catalogId);
+          if (named === undefined) {
+            skipped.add(skippedSurface(surfaceId, call.catalogId, 'no_definition'));
+          }
+          return named;
+        };
+        if (layout === undefined) {
+          findings.push(
+            ...componentFindings(component, pointer, catalog, version, surfaceId, {callCatalog}),
+          );
+          return;
         }
+        const reading = readEnvelope(component, layout);
+        for (const key of reading.both) {
+          findings.push({
+            code: 'VALIDATION_FAILED',
+            surfaceId,
+            path: `${pointer}/${token(key)}`,
+            message: `Component '${String(component.id)}' cannot specify both '@${key}' and legacy '${key}'.`,
+          });
+        }
+        if (reading.legacy.length > 0 && typeof component.id === 'string') {
+          legacyForm.push({
+            surfaceId,
+            componentId: component.id,
+            keys: reading.legacy,
+            path: pointer,
+          });
+        }
+        findings.push(
+          ...componentFindings(reading.component, pointer, catalog, version, surfaceId, {
+            written: reading.written,
+            callCatalog,
+          }),
+        );
       });
     }
     if (type === 'createSurface' && resolved !== undefined && family === '0.9' && 'theme' in body) {
@@ -90,7 +145,54 @@ export function checkCatalog(conversation: Conversation): CheckResult {
       }
     }
   }
-  return {findings, skipped: skipped.list};
+  return {findings, skipped: skipped.list, legacyForm};
+}
+
+/**
+ * A v1.0 component's catalog, and the layout of its type's schema there, as
+ * web core resolves them: the catalog its `@catalogId` names, followed
+ * whatever the surface's catalog, a non-string one leaving it in the
+ * surface's catalog to be judged as written; else the one its bare
+ * `catalogId` names, when the component's schema in the surface's catalog
+ * declares no `catalogId` of its own; else the surface's. Nothing when the
+ * component is not judged: its catalog has no definition, the skipped entry
+ * added for its surface, or a bare `catalogId` on a surface whose catalog
+ * has no definition, which is not followed. No layout for a type the
+ * catalog does not define.
+ */
+function v1Component(
+  conversation: Conversation,
+  component: Record<string, unknown>,
+  resolved: ResolvedCatalog | undefined,
+  surfaceId: string,
+  skipped: SkippedList,
+): {catalog: ResolvedCatalog; layout?: EnvelopeLayout} | undefined {
+  const type = typeof component.component === 'string' ? component.component : undefined;
+  const follow = (catalogId: unknown): ResolvedCatalog | undefined => {
+    if (typeof catalogId !== 'string') return resolved;
+    const named = conversation.resolve(catalogId);
+    if (named === undefined) skipped.add(skippedSurface(surfaceId, catalogId, 'no_definition'));
+    return named;
+  };
+  let catalog: ResolvedCatalog | undefined;
+  let routedByBare = false;
+  if (carries(component, '@catalogId')) {
+    catalog = follow(component['@catalogId']);
+  } else if (carries(component, 'catalogId')) {
+    if (resolved === undefined) return undefined;
+    const atDefault = type === undefined ? NO_LAYOUT : envelopeLayout(resolved.definition, type);
+    routedByBare = !atDefault.custom.has('catalogId');
+    catalog = routedByBare ? follow(component.catalogId) : resolved;
+  } else {
+    catalog = resolved;
+  }
+  if (catalog === undefined) return undefined;
+  const components = catalog.definition.components;
+  if (type === undefined || !isObject(components) || !Object.hasOwn(components, type)) {
+    return {catalog};
+  }
+  const layout = envelopeLayout(catalog.definition, type);
+  return {catalog, layout: routedByBare ? routedByBareCatalogId(layout) : layout};
 }
 
 /**
@@ -116,13 +218,28 @@ function judge(
   return resolved;
 }
 
-/** One component's findings: against its type's branch, then each function call against its function's. */
+/**
+ * One component's findings: against its type's branch, then each function
+ * call against its function's. A call is judged in the component's catalog,
+ * unless `callCatalog` says where it runs, as a v1.0 call runs in the catalog
+ * it names, else in the surface's; a call it gives no catalog is not judged.
+ * A system function, its name starting with `@`, belongs to no catalog. Each
+ * pointer inside the component is passed through `written`, from the
+ * component as judged to the component as the message carries it.
+ */
 function componentFindings(
   component: Record<string, unknown>,
   pointer: string,
   resolved: ResolvedCatalog,
   version: string | undefined,
   surfaceId: string,
+  {
+    written = inner => inner,
+    callCatalog,
+  }: {
+    written?: (inner: string) => string;
+    callCatalog?: (call: Record<string, unknown>) => ResolvedCatalog | undefined;
+  } = {},
 ): Finding[] {
   const type = component.component;
   if (typeof type !== 'string') return [];
@@ -144,7 +261,7 @@ function componentFindings(
       findings.push({
         code: 'VALIDATION_FAILED',
         surfaceId,
-        path: pointer + errorPath(error),
+        path: pointer + written(errorPath(error)),
         message: errorText(error),
       });
     }
@@ -154,20 +271,23 @@ function componentFindings(
   const keys = dynamicKeys(version);
   for (const value of dynamicValues(component, api, version)) {
     if (value.kind !== 'call') continue;
-    const fn = validators.fn(value.name);
+    const runsIn =
+      callCatalog === undefined || value.name.startsWith('@') ? resolved : callCatalog(value.call);
+    if (runsIn === undefined) continue;
+    const fn = validatorsFor(runsIn).fn(value.name);
     if (fn === undefined) {
       findings.push({
         code: 'FUNCTION_UNKNOWN',
         surfaceId,
-        path: `${pointer}${value.pointer}/${token(keys.call)}`,
-        message: `The catalog ${resolved.id} defines no function '${value.name}'.`,
+        path: `${pointer}${written(value.pointer)}/${token(keys.call)}`,
+        message: `The catalog ${runsIn.id} defines no function '${value.name}'.`,
       });
     } else if (!fn(value.call)) {
       for (const error of fn.errors ?? []) {
         findings.push({
           code: 'VALIDATION_FAILED',
           surfaceId,
-          path: `${pointer}${value.pointer}${errorPath(error)}`,
+          path: `${pointer}${written(value.pointer + errorPath(error))}`,
           message: errorText(error),
         });
       }

@@ -5,7 +5,8 @@
  * goes on with an action, the data model sent with each, once with the
  * stub's card listing A2A 1.0 first and once A2A 0.3 first; and the stub's
  * flawed booking conversation continued, its later turn binding a path its
- * data model never fills. It runs under Node by default, and against the binary when
+ * data model never fills; and the stub's v1.0 booking form in its three forms
+ * of the envelope keys, through the four checks. It runs under Node by default, and against the binary when
  * SPECTRA_BINARY names one. The stub is built by the conformance workspace.
  */
 import assert from 'node:assert/strict';
@@ -554,6 +555,114 @@ describe(`the flawed booking conversation against the stub agent, ${binary ? 'th
           catalog: [],
           structural: [],
           binding: [{code: 'BINDING_PATH_UNFILLED', surfaceId: 'summary'}],
+        });
+      } finally {
+        live?.close();
+        spectra.signal('SIGTERM');
+        await spectra.exited;
+        stub.kill();
+      }
+    },
+  );
+});
+
+describe(`the v1.0 booking form against the stub agent, ${binary ? 'the binary' : 'under Node'}`, () => {
+  it(
+    'checks the envelope keys in the @ form clean, the bare form passing in the legacy form, and the both form rejected',
+    {timeout: TIMEOUT},
+    async () => {
+      const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+        freePort(),
+        freePort(),
+        freePort(),
+        freePort(),
+      ]);
+      const stub = await startStub(agentPort, [], '--v1-booking');
+      const spectra = new SpectraProcess(
+        [
+          'attach',
+          `http://127.0.0.1:${agentPort}`,
+          '--port',
+          String(port),
+          '--proxy-port',
+          String(proxyPort),
+          '--model-proxy-port',
+          String(modelProxyPort),
+          '--receiver-port',
+          String(await freePort()),
+          '--no-open',
+        ],
+        workingDir(),
+      );
+      const base = `http://127.0.0.1:${port}`;
+      let live: LiveStream | undefined;
+      try {
+        await spectra.waitFor(/The viewer is at /);
+        live = new LiveStream(`${base}/api/stream`);
+        await live.ready;
+        const checked = async (text: string) => {
+          const sent = await sendMessage(base, text);
+          const turn = await live!.closed(sent.traceId);
+          assert.deepEqual(turnRecordErrors({version: 'v0.1', turns: [turn]}), []);
+          assert.equal(turnEventOf(turn).attributes['a2ui.turn.outcome'], 'waiting_for_input');
+          const checks = turn.events.filter((event): event is CheckEvent =>
+            isEventOfKind(event, 'check'),
+          );
+          const components = '/content/updateComponents/components';
+          return {
+            findings: Object.fromEntries(
+              checks.map(check => [
+                check.attributes['a2ui.check.name'],
+                check.attributes['a2ui.check.findings'].map(
+                  ({code, surfaceId, path: at, message}) => ({
+                    code,
+                    surfaceId,
+                    ...(at !== undefined && {
+                      at: at.slice(at.indexOf(components) + components.length),
+                    }),
+                    ...(code === 'VALIDATION_FAILED' && {message}),
+                  }),
+                ),
+              ]),
+            ),
+            legacyForm: checks
+              .find(check => check.attributes['a2ui.check.name'] === 'catalog')
+              ?.attributes['a2ui.check.legacy_form']?.map(({componentId, keys, path: at}) => ({
+                componentId,
+                keys,
+                at: at.slice(at.indexOf(components) + components.length),
+              })),
+          };
+        };
+        const clean = {schema: [], catalog: [], structural: [], binding: []};
+        const legacy = [
+          {componentId: 'name', keys: ['checks'], at: '/1'},
+          {componentId: 'date', keys: ['checks'], at: '/2'},
+          {componentId: 'submit', keys: ['accessibility'], at: '/4'},
+        ];
+
+        assert.deepEqual(await checked('Book a table at Han Il Kwan'), {
+          findings: clean,
+          legacyForm: [],
+        });
+        assert.deepEqual(await checked('Book a table at Han Il Kwan, bare'), {
+          findings: clean,
+          legacyForm: legacy,
+        });
+        assert.deepEqual(await checked('Book a table at Han Il Kwan, both'), {
+          findings: {
+            ...clean,
+            catalog: [
+              {
+                code: 'VALIDATION_FAILED',
+                surfaceId: 'booking',
+                at: '/3/checks',
+                message: "Component 'time' cannot specify both '@checks' and legacy 'checks'.",
+              },
+            ],
+            structural: [{code: 'ROOT_MISSING', surfaceId: 'booking'}],
+          },
+          legacyForm: legacy,
         });
       } finally {
         live?.close();

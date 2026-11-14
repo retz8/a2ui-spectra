@@ -329,6 +329,31 @@
       "additionalProperties": false,
       "description": "A surface a check could not judge: the surface, the catalog id it named when it named one, and why."
     },
+    "LegacyFormEntry": {
+      "type": "object",
+      "properties": {
+        "surfaceId": {
+          "type": "string"
+        },
+        "componentId": {
+          "type": "string"
+        },
+        "keys": {
+          "type": "array",
+          "items": {
+            "enum": ["metadata", "catalogId", "accessibility", "checks"]
+          },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": ["surfaceId", "componentId", "keys", "path"],
+      "additionalProperties": false,
+      "description": "A v1.0 component object a message carried in the legacy form: its surface, its id, the bare envelope keys read as the @ keys in the order it writes them, and a JSON Pointer from the turn object to it."
+    },
     "Event": {
       "type": "object",
       "description": "One event, shaped as an OTLP span with attributes as an object.",
@@ -1075,6 +1100,12 @@
                     "items": {
                       "$ref": "#/$defs/SkippedSurface"
                     }
+                  },
+                  "a2ui.check.legacy_form": {
+                    "type": "array",
+                    "items": {
+                      "$ref": "#/$defs/LegacyFormEntry"
+                    }
                   }
                 },
                 "required": [
@@ -1085,21 +1116,42 @@
                   "a2ui.check.findings"
                 ],
                 "additionalProperties": false,
-                "if": {
-                  "properties": {
-                    "a2ui.check.name": {
-                      "const": "schema"
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "a2ui.check.name": {
+                          "const": "schema"
+                        }
+                      }
+                    },
+                    "then": {
+                      "not": {
+                        "required": ["a2ui.check.skipped"]
+                      }
+                    },
+                    "else": {
+                      "required": ["a2ui.check.skipped"]
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "a2ui.check.name": {
+                          "const": "catalog"
+                        }
+                      }
+                    },
+                    "then": {
+                      "required": ["a2ui.check.legacy_form"]
+                    },
+                    "else": {
+                      "not": {
+                        "required": ["a2ui.check.legacy_form"]
+                      }
                     }
                   }
-                },
-                "then": {
-                  "not": {
-                    "required": ["a2ui.check.skipped"]
-                  }
-                },
-                "else": {
-                  "required": ["a2ui.check.skipped"]
-                }
+                ]
               }
             },
             "not": {

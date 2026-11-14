@@ -47,7 +47,8 @@
                 "surfaceId": "confirmation",
                 "reason": "not_created"
               }
-            ]
+            ],
+            "a2ui.check.legacy_form": []
           }
         }
       ]

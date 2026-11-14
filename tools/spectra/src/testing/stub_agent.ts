@@ -27,7 +27,8 @@ export {stubScript};
 export function startStub(
   port: number,
   flags: string[],
-  behaviour: '--canned-a2ui' | '--flawed-booking' | '--model-calling' = '--canned-a2ui',
+  behaviour:
+    '--canned-a2ui' | '--flawed-booking' | '--v1-booking' | '--model-calling' = '--canned-a2ui',
   env: Record<string, string> = {},
 ): Promise<ChildProcess> {
   const stub = spawn(process.execPath, [stubScript, '--port', String(port), behaviour, ...flags], {

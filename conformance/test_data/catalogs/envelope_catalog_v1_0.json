@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/retz8/a2ui-spectra/conformance/test_data/catalogs/envelope_catalog_v1_0.json",
+  "protocolVersion": "1.0",
+  "title": "Envelope Keys Catalog (v1.0)",
+  "description": "Components whose schemas declare bare names of the component envelope keys: as their own properties, and in the protocol's own shape.",
+  "catalogId": "spectra/envelope",
+  "components": {
+    "Tag": {
+      "type": "object",
+      "description": "A label with a free-text metadata property of its own.",
+      "properties": {
+        "component": {
+          "const": "Tag"
+        },
+        "label": {
+          "type": "string"
+        },
+        "metadata": {
+          "type": "string",
+          "description": "Free text about the tag."
+        }
+      },
+      "required": [
+        "component",
+        "label"
+      ]
+    },
+    "Pin": {
+      "type": "object",
+      "description": "A pin naming, as a property of its own, the catalog it advertises.",
+      "properties": {
+        "component": {
+          "const": "Pin"
+        },
+        "catalogId": {
+          "type": "string",
+          "description": "The id of the catalog the pin advertises."
+        }
+      },
+      "required": [
+        "component"
+      ]
+    },
+    "Poll": {
+      "type": "object",
+      "description": "A checkable poll with a count of its own under the bare name checks.",
+      "allOf": [
+        {
+          "$ref": "common_types.json#/$defs/Checkable"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "component": {
+              "const": "Poll"
+            },
+            "question": {
+              "type": "string"
+            },
+            "checks": {
+              "type": "integer",
+              "description": "How many times the poll has been checked."
+            }
+          },
+          "required": [
+            "component",
+            "question"
+          ]
+        }
+      ]
+    },
+    "Rule": {
+      "type": "object",
+      "description": "A component declaring its checks under the bare name, as an array of check rules.",
+      "properties": {
+        "component": {
+          "const": "Rule"
+        },
+        "text": {
+          "type": "string"
+        },
+        "checks": {
+          "type": "array",
+          "items": {
+            "$ref": "common_types.json#/$defs/CheckRule"
+          }
+        }
+      },
+      "required": [
+        "component",
+        "text"
+      ]
+    }
+  },
+  "functions": {},
+  "$defs": {
+    "anyComponent": {
+      "oneOf": [
+        {
+          "$ref": "#/components/Tag"
+        },
+        {
+          "$ref": "#/components/Pin"
+        },
+        {
+          "$ref": "#/components/Poll"
+        },
+        {
+          "$ref": "#/components/Rule"
+        }
+      ]
+    },
+    "anyFunction": {
+      "not": {}
+    }
+  }
+}

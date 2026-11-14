@@ -3,6 +3,7 @@ import type {
   CheckEvent,
   CheckName,
   Finding,
+  LegacyFormEntry,
   ProtocolVersion,
   SkippedSurface,
   TurnEvent,
@@ -14,6 +15,8 @@ export interface CheckResult {
   findings: Finding[];
   /** The surfaces the check could not judge; the schema check has none. */
   skipped?: SkippedSurface[];
+  /** The component objects in the legacy form; the catalog check's alone. */
+  legacyForm?: LegacyFormEntry[];
 }
 
 /** The findings ordered by the message and the component they point at, those with no path last. */
@@ -24,7 +27,8 @@ export function orderFindings(findings: Finding[]): Finding[] {
 /**
  * The check event for a result, with the span id and time given. The check
  * passed when it found nothing; the skipped list is written for every check
- * but the schema check, empty when nothing was skipped.
+ * but the schema check, empty when nothing was skipped; the legacy form is
+ * written for the catalog check alone, empty when there is none.
  */
 export function checkEvent(
   turnEvent: TurnEvent,
@@ -48,6 +52,7 @@ export function checkEvent(
       'a2ui.check.protocol_version': protocolVersion,
       'a2ui.check.findings': findings,
       ...(name !== 'schema' && {'a2ui.check.skipped': result.skipped ?? []}),
+      ...(name === 'catalog' && {'a2ui.check.legacy_form': result.legacyForm ?? []}),
     },
   };
 }

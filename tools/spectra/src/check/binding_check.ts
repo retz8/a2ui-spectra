@@ -8,14 +8,17 @@
  * so a component the root does not reach is the structural check's alone. A
  * template's list path must hold an array, and the template component's
  * bindings are resolved against each item's scope; a binding unfilled in
- * some items is one finding naming how many.
+ * some items is one finding naming how many. A v1.0 component's bare
+ * envelope key read as the `@` key, the legacy form, is walked as the `@`
+ * key's value, each pointer through the bare key as written.
  */
 import {DataModel, type SurfaceModel} from '@a2ui/web_core/state';
 
 import type {Finding, SkippedSurface} from '../record/turn_record.js';
 import type {CheckResult} from './check_event.js';
-import type {Conversation} from './conversation.js';
+import {type Conversation, isObject} from './conversation.js';
 import {dynamicValues} from './dynamic.js';
+import {envelopeLayout, readEnvelope} from './envelope.js';
 import {SkippedList, skippedSurface} from './skipped.js';
 
 export function checkBinding(conversation: Conversation): CheckResult {
@@ -119,10 +122,16 @@ class SurfaceBindings {
       return;
     }
     const below = new Set([...chain, componentId]);
-    for (const value of dynamicValues(raw, api, version)) {
-      const pointer = carrier?.own ? carrier.path + value.pointer : undefined;
+    const definition = this.#conversation.resolve(component.catalog.id)?.definition;
+    const reading =
+      version !== undefined && /^v?1\./.test(version) && definition !== undefined && isObject(raw)
+        ? readEnvelope(raw, envelopeLayout(definition, component.type))
+        : undefined;
+    for (const value of dynamicValues(reading?.component ?? raw, api, version)) {
+      const inner = reading === undefined ? value.pointer : reading.written(value.pointer);
+      const pointer = carrier?.own ? carrier.path + inner : undefined;
       if (value.kind === 'binding') {
-        this.#resolve(componentId, pointer, value.pointer, value.path, scope);
+        this.#resolve(componentId, pointer, inner, value.path, scope);
       } else if (value.kind === 'template') {
         const listPath = DataModel.resolvePath(value.path, scope);
         const list: unknown = this.#surface.dataModel.get(listPath);
@@ -130,7 +139,7 @@ class SurfaceBindings {
           this.#resolve(
             componentId,
             pointer && `${pointer}/path`,
-            `${value.pointer}/path`,
+            `${inner}/path`,
             value.path,
             scope,
           );

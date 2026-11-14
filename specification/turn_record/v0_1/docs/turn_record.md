@@ -360,19 +360,20 @@ The schema types the `exception` attributes and requires none of them, as an `ex
 
 One check run on the turn. Each turn has at most one check event per check.
 
-| Attribute                     | Type                      | Required  | Meaning                                                                                                                                          |
-| ----------------------------- | ------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `a2ui.event.kind`             | string                    | yes       | `"check"`.                                                                                                                                       |
-| `a2ui.check.name`             | string                    | yes       | `schema`, `catalog`, `structural` or `binding`.                                                                                                  |
-| `a2ui.check.passed`           | boolean                   | yes       | Whether the check passed: it has no findings.                                                                                                    |
-| `a2ui.check.protocol_version` | string                    | yes       | The A2UI protocol version checked against, in the record's form.                                                                                 |
-| `a2ui.check.findings`         | array of findings         | yes       | What the check found. Empty when it passed.                                                                                                      |
-| `a2ui.check.skipped`          | array of skipped surfaces | per check | The surfaces the check could not judge. Required on `catalog`, `structural` and `binding`, empty when none was skipped; not allowed on `schema`. |
+| Attribute                     | Type                         | Required  | Meaning                                                                                                                                                                         |
+| ----------------------------- | ---------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `a2ui.event.kind`             | string                       | yes       | `"check"`.                                                                                                                                                                      |
+| `a2ui.check.name`             | string                       | yes       | `schema`, `catalog`, `structural` or `binding`.                                                                                                                                 |
+| `a2ui.check.passed`           | boolean                      | yes       | Whether the check passed: it has no findings.                                                                                                                                   |
+| `a2ui.check.protocol_version` | string                       | yes       | The A2UI protocol version checked against, in the record's form.                                                                                                                |
+| `a2ui.check.findings`         | array of findings            | yes       | What the check found. Empty when it passed.                                                                                                                                     |
+| `a2ui.check.skipped`          | array of skipped surfaces    | per check | The surfaces the check could not judge. Required on `catalog`, `structural` and `binding`, empty when none was skipped; not allowed on `schema`.                                |
+| `a2ui.check.legacy_form`      | array of legacy-form entries | per check | The v1.0 component objects the messages carried in the legacy form. Required on `catalog`, empty when there is none; not allowed on the other three. An entry is not a finding. |
 
 The checks:
 
 - **`schema`:** each A2UI message the agent sent matches the schema of its protocol version.
-- **`catalog`:** each component the agent sent matches its catalog's definition, and so do the function calls and the theme the catalog defines.
+- **`catalog`:** each component the agent sent matches its catalog's definition, and so do the function calls and the theme the catalog defines. A v1.0 component is judged against the catalog its `@catalogId` names, and its envelope keys are read as upstream's web core reads them: a bare `catalogId`, `accessibility`, `metadata` or `checks` where the component's schema declares no property of that name, a bare `checks` on a component that takes checks, is accepted as the legacy form and judged as the `@` key's value; a component carrying both forms of a key is a finding.
 - **`structural`:** on each surface the turn touched, as it stands at the turn's close: every child id points to an existing component, a component has the id `root`, every component this turn's messages carried is reachable from it, nothing loops back on itself, no id is given to two components in one message, and the catalog's composition rules hold; and every surface a message names was created. A component an earlier turn left unreachable is not reported again.
 - **`binding`:** on the same surfaces, every path the UI binds to has a value in the data model.
 
@@ -383,6 +384,15 @@ A skipped surface is an object:
 | `surfaceId` | string | yes      | The surface.                                                                                                                                                              |
 | `catalogId` | string | no       | The catalog id the surface named, when it named one.                                                                                                                      |
 | `reason`    | string | yes      | `no_definition`: the catalog id resolves to no definition. `not_created`: the surface does not exist, for lack of a `createSurface` or because the processor rejected it. |
+
+A legacy-form entry is an object, one per component object a message carried in the legacy form:
+
+| Field         | Type             | Required | Meaning                                                                                                                                |
+| ------------- | ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `surfaceId`   | string           | yes      | The component's surface.                                                                                                               |
+| `componentId` | string           | yes      | The component's id.                                                                                                                    |
+| `keys`        | array of strings | yes      | The bare keys read as the envelope keys, `metadata`, `catalogId`, `accessibility` or `checks`, in the order the component writes them. |
+| `path`        | string           | yes      | A JSON Pointer from the turn object to the component object, in the findings' convention.                                              |
 
 A finding uses A2UI's error shape:
 
@@ -505,57 +515,58 @@ A record states what happened. These are worked out from it each time the turn i
 
 Every attribute the record defines itself is in the `a2ui.` namespace, named `a2ui.<area>.<name>` under OpenTelemetry's naming rules.
 
-| Attribute                           | Type                      | On                                     |
-| ----------------------------------- | ------------------------- | -------------------------------------- |
-| `a2ui.event.kind`                   | string                    | every event                            |
-| `a2ui.turn.outcome`                 | string                    | `turn`                                 |
-| `a2ui.turn.protocol_version`        | string                    | `turn`                                 |
-| `a2ui.turn.capture_paths`           | array of string           | `turn`                                 |
-| `a2ui.turn.writer.name`             | string                    | `turn`                                 |
-| `a2ui.turn.writer.version`          | string                    | `turn`                                 |
-| `a2ui.wire.message`                 | object                    | `wire_input`, `wire_output`            |
-| `a2ui.wire.data_model`              | object                    | `wire_input`                           |
-| `a2ui.wire.capabilities`            | object                    | `wire_input`                           |
-| `a2ui.wire.metadata`                | object                    | `wire_input`, `wire_output`            |
-| `a2ui.http.request.body`            | any                       | `model_call`, `tool_call`              |
-| `a2ui.http.response.body`           | any                       | `model_call`, `tool_call`              |
-| `a2ui.http.response.chunk.body`     | any                       | `a2ui.http.response.chunk` span events |
-| `a2ui.http.response.chunk.event`    | string                    | `a2ui.http.response.chunk` span events |
-| `a2ui.http.response.chunk.id`       | string                    | `a2ui.http.response.chunk` span events |
-| `a2ui.prompt.ui_section`            | string                    | `prompt_generation`                    |
-| `a2ui.prompt.inference_format`      | string                    | `prompt_generation`                    |
-| `a2ui.prompt.catalogs`              | array of catalogs         | `prompt_generation`                    |
-| `a2ui.parse.input`                  | string                    | `parse`                                |
-| `a2ui.parse.entry_point`            | string                    | `parse`                                |
-| `a2ui.parse.wrapped`                | boolean                   | `parse`                                |
-| `a2ui.parse.streamed`               | boolean                   | `parse`                                |
-| `a2ui.parse.inference_format`       | string                    | `parse`                                |
-| `a2ui.parse.catalogs`               | array of catalogs         | `parse`                                |
-| `a2ui.parse.messages`               | array                     | `parse`                                |
-| `a2ui.parse.components`             | array of component ranges | `parse`                                |
-| `a2ui.parse.block.start`            | integer                   | `exception` span events                |
-| `a2ui.parse.block.end`              | integer                   | `exception` span events                |
-| `a2ui.parse.error.details`          | array of error details    | `exception` span events                |
-| `a2ui.parse.chunk.end`              | integer                   | `a2ui.parse.chunk` span events         |
-| `a2ui.sdk.name`                     | string                    | `prompt_generation`, `parse`           |
-| `a2ui.sdk.version`                  | string                    | `prompt_generation`, `parse`           |
-| `a2ui.retry.attempt`                | integer                   | `model_call`                           |
-| `a2ui.replay.served_from`           | string                    | `model_call`, `tool_call`              |
-| `a2ui.replay.source`                | string                    | `turn`                                 |
-| `a2ui.replay.turn`                  | string                    | `turn`                                 |
-| `a2ui.replay.mode`                  | string                    | `turn`                                 |
-| `a2ui.replay.verdict`               | string                    | `turn`                                 |
-| `a2ui.replay.reasons`               | array of reasons          | `turn`                                 |
-| `a2ui.check.name`                   | string                    | `check`                                |
-| `a2ui.check.passed`                 | boolean                   | `check`                                |
-| `a2ui.check.protocol_version`       | string                    | `check`                                |
-| `a2ui.check.findings`               | array of findings         | `check`                                |
-| `a2ui.check.skipped`                | array of skipped surfaces | `check`                                |
-| `a2ui.received.dialect`             | string                    | events from the OpenTelemetry receiver |
-| `a2ui.received.attributes`          | object                    | events from the OpenTelemetry receiver |
-| `a2ui.received.log.body`            | any                       | received log records' span events      |
-| `a2ui.received.log.severity_number` | integer                   | received log records' span events      |
-| `a2ui.received.log.severity_text`   | string                    | received log records' span events      |
+| Attribute                           | Type                         | On                                     |
+| ----------------------------------- | ---------------------------- | -------------------------------------- |
+| `a2ui.event.kind`                   | string                       | every event                            |
+| `a2ui.turn.outcome`                 | string                       | `turn`                                 |
+| `a2ui.turn.protocol_version`        | string                       | `turn`                                 |
+| `a2ui.turn.capture_paths`           | array of string              | `turn`                                 |
+| `a2ui.turn.writer.name`             | string                       | `turn`                                 |
+| `a2ui.turn.writer.version`          | string                       | `turn`                                 |
+| `a2ui.wire.message`                 | object                       | `wire_input`, `wire_output`            |
+| `a2ui.wire.data_model`              | object                       | `wire_input`                           |
+| `a2ui.wire.capabilities`            | object                       | `wire_input`                           |
+| `a2ui.wire.metadata`                | object                       | `wire_input`, `wire_output`            |
+| `a2ui.http.request.body`            | any                          | `model_call`, `tool_call`              |
+| `a2ui.http.response.body`           | any                          | `model_call`, `tool_call`              |
+| `a2ui.http.response.chunk.body`     | any                          | `a2ui.http.response.chunk` span events |
+| `a2ui.http.response.chunk.event`    | string                       | `a2ui.http.response.chunk` span events |
+| `a2ui.http.response.chunk.id`       | string                       | `a2ui.http.response.chunk` span events |
+| `a2ui.prompt.ui_section`            | string                       | `prompt_generation`                    |
+| `a2ui.prompt.inference_format`      | string                       | `prompt_generation`                    |
+| `a2ui.prompt.catalogs`              | array of catalogs            | `prompt_generation`                    |
+| `a2ui.parse.input`                  | string                       | `parse`                                |
+| `a2ui.parse.entry_point`            | string                       | `parse`                                |
+| `a2ui.parse.wrapped`                | boolean                      | `parse`                                |
+| `a2ui.parse.streamed`               | boolean                      | `parse`                                |
+| `a2ui.parse.inference_format`       | string                       | `parse`                                |
+| `a2ui.parse.catalogs`               | array of catalogs            | `parse`                                |
+| `a2ui.parse.messages`               | array                        | `parse`                                |
+| `a2ui.parse.components`             | array of component ranges    | `parse`                                |
+| `a2ui.parse.block.start`            | integer                      | `exception` span events                |
+| `a2ui.parse.block.end`              | integer                      | `exception` span events                |
+| `a2ui.parse.error.details`          | array of error details       | `exception` span events                |
+| `a2ui.parse.chunk.end`              | integer                      | `a2ui.parse.chunk` span events         |
+| `a2ui.sdk.name`                     | string                       | `prompt_generation`, `parse`           |
+| `a2ui.sdk.version`                  | string                       | `prompt_generation`, `parse`           |
+| `a2ui.retry.attempt`                | integer                      | `model_call`                           |
+| `a2ui.replay.served_from`           | string                       | `model_call`, `tool_call`              |
+| `a2ui.replay.source`                | string                       | `turn`                                 |
+| `a2ui.replay.turn`                  | string                       | `turn`                                 |
+| `a2ui.replay.mode`                  | string                       | `turn`                                 |
+| `a2ui.replay.verdict`               | string                       | `turn`                                 |
+| `a2ui.replay.reasons`               | array of reasons             | `turn`                                 |
+| `a2ui.check.name`                   | string                       | `check`                                |
+| `a2ui.check.passed`                 | boolean                      | `check`                                |
+| `a2ui.check.protocol_version`       | string                       | `check`                                |
+| `a2ui.check.findings`               | array of findings            | `check`                                |
+| `a2ui.check.skipped`                | array of skipped surfaces    | `check`                                |
+| `a2ui.check.legacy_form`            | array of legacy-form entries | `check`                                |
+| `a2ui.received.dialect`             | string                       | events from the OpenTelemetry receiver |
+| `a2ui.received.attributes`          | object                       | events from the OpenTelemetry receiver |
+| `a2ui.received.log.body`            | any                          | received log records' span events      |
+| `a2ui.received.log.severity_number` | integer                      | received log records' span events      |
+| `a2ui.received.log.severity_text`   | string                       | received log records' span events      |
 
 ## Rules
 

@@ -99,6 +99,51 @@ describe('the binding check', () => {
     );
   });
 
+  it("follows the paths inside an accepted bare key as the @ key's, each pointer through the bare key", () => {
+    const form = (envelope: Record<string, unknown>) =>
+      run(
+        testTurn({
+          messages: [
+            v1.createSurface('s'),
+            v1.updateComponents('s', [
+              {id: 'root', component: 'Column', children: ['f', 'b']},
+              {
+                id: 'f',
+                component: 'TextField',
+                label: 'Name',
+                value: {'@path': '/name'},
+                ...envelope,
+              },
+              {id: 'b', component: 'Button', child: 'l', action: {event: {name: 'go'}}},
+              {id: 'l', component: 'Text', text: 'Go'},
+            ]),
+            v1.updateDataModel('s', {name: ''}),
+          ],
+        }),
+      );
+    const checks = [
+      {
+        condition: {'@call': 'required', args: {value: {'@path': '/nickname'}}},
+        message: 'Required.',
+      },
+    ];
+    const accessibility = {label: {'@path': '/label'}};
+    const unfilled = (at: string, path: string) => ({
+      code: 'BINDING_PATH_UNFILLED',
+      surfaceId: 's',
+      path: `${COMPONENTS}/1${at}`,
+      message: `The data model has no value at ${path}.`,
+    });
+    assert.deepEqual(form({checks, accessibility}).findings, [
+      unfilled('/checks/0/condition/args/value', '/nickname'),
+      unfilled('/accessibility/label', '/label'),
+    ]);
+    assert.deepEqual(form({'@checks': checks, '@accessibility': accessibility}).findings, [
+      unfilled('/@checks/0/condition/args/value', '/nickname'),
+      unfilled('/@accessibility/label', '/label'),
+    ]);
+  });
+
   it("resolves a template's bindings against each item, and names how many items lack one", () => {
     const list = (items: unknown) =>
       testTurn({

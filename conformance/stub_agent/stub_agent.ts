@@ -1,7 +1,7 @@
 /**
  * The stub agent: a small A2A agent on the A2A JavaScript SDK, serving A2A
  * 1.0 and, through the SDK's compatibility layer, A2A 0.3 on one JSON-RPC
- * endpoint. It runs one of three behaviours:
+ * endpoint. It runs one of five behaviours:
  *
  * - By default, it waits for a cancel: a message opens a task that sends a
  *   working status and stays open until the host cancels it, then delivers a
@@ -23,6 +23,16 @@
  *   `updateDataModel` that names no surface. A later message in the same
  *   conversation gets a completed task holding a booking summary, a new
  *   surface whose Text binds a path its data model never fills.
+ * - With `--v1-booking`, it sends a booking form in A2UI v1.0, the form
+ *   sub-task 9.1's boards draw: a message gets a task waiting for input whose
+ *   status message holds a Text and three A2UI parts, `createSurface`,
+ *   `updateComponents` and `updateDataModel`, on the basic catalog. The
+ *   message's text picks the form of the components' envelope keys: by
+ *   default every key is written with `@`; a text with the word "bare" gives
+ *   the legacy form, the TextField and the DateTimeInput each with a bare
+ *   `checks` and the Button with a bare `accessibility`; a text with the word
+ *   "both" gives the legacy form with the ChoicePicker carrying both `checks`
+ *   and `@checks`, which web core refuses.
  * - With `--model-calling`, it calls the model: a message sends a Gemini
  *   request to the API at `GOOGLE_GEMINI_BASE_URL`, with its prompt as the
  *   system instruction and `get_restaurants` as a tool; a function call in
@@ -40,6 +50,7 @@
  *   --port <n>          The port to listen on, on 127.0.0.1. Default: $PORT, or 10013.
  *   --canned-a2ui       Hold the canned A2UI conversation instead of waiting for a cancel.
  *   --flawed-booking    Be the Flawed Booking Agent instead of waiting for a cancel.
+ *   --v1-booking        Send the v1.0 booking form instead of waiting for a cancel.
  *   --model-calling     Call the model and the tool server instead of waiting for a cancel.
  *   --prompt <text>     The system instruction --model-calling sends; a change to it
  *                       changes every model request.
@@ -116,6 +127,9 @@ type A2uiVersion = (typeof A2UI_VERSIONS)[number];
 /** The version the Flawed Booking Agent answers in, whatever the host offers. */
 const FLAWED_VERSION = A2UI_VERSIONS[2];
 
+/** The version the v1.0 booking form is in, whatever the host offers. */
+const V1_BOOKING_VERSION = A2UI_VERSIONS[0];
+
 /** The version the model-calling mode answers in: the one the recording's model wrote. */
 const MODEL_CALLING_VERSION = A2UI_VERSIONS[2];
 
@@ -160,7 +174,8 @@ const SAMPLE_CATALOG_ID =
 
 const SAMPLE_SURFACE_ID = 'volume';
 
-type Behaviour = 'wait-for-cancel' | 'canned-a2ui' | 'flawed-booking' | 'model-calling';
+type Behaviour =
+  'wait-for-cancel' | 'canned-a2ui' | 'flawed-booking' | 'v1-booking' | 'model-calling';
 
 interface Options {
   port: number;
@@ -179,6 +194,7 @@ function optionsFromArgs(args: string[]): Options {
       port: {type: 'string'},
       'canned-a2ui': {type: 'boolean', default: false},
       'flawed-booking': {type: 'boolean', default: false},
+      'v1-booking': {type: 'boolean', default: false},
       'model-calling': {type: 'boolean', default: false},
       prompt: {type: 'string'},
       'a2a-0.3-first': {type: 'boolean', default: false},
@@ -193,11 +209,10 @@ function optionsFromArgs(args: string[]): Options {
     [
       ['--canned-a2ui', 'canned-a2ui'],
       ['--flawed-booking', 'flawed-booking'],
+      ['--v1-booking', 'v1-booking'],
       ['--model-calling', 'model-calling'],
     ] as const
-  ).filter(
-    ([option]) => values[option.slice(2) as 'canned-a2ui' | 'flawed-booking' | 'model-calling'],
-  );
+  ).filter(([option]) => values[option.slice(2) as Exclude<Behaviour, 'wait-for-cancel'>]);
   if (chosen.length > 1) {
     throw new Error(`${chosen.map(([option]) => option).join(' and ')} are behaviours; pick one.`);
   }
@@ -254,6 +269,21 @@ const SKILLS: Record<Behaviour, AgentCard['skills'][number]> = {
     outputModes: ['text', A2UI_MIME_TYPE],
     securityRequirements: [],
   },
+  'v1-booking': {
+    id: 'v1_booking',
+    name: 'A booking form in A2UI v1.0',
+    description:
+      'Answers with a booking form in A2UI v1.0, its envelope keys in the @ form, the legacy bare form, or both.',
+    tags: ['a2ui'],
+    examples: [
+      'Book a table at Han Il Kwan',
+      'Book a table at Han Il Kwan, bare',
+      'Book a table at Han Il Kwan, both',
+    ],
+    inputModes: ['text'],
+    outputModes: ['text', A2UI_MIME_TYPE],
+    securityRequirements: [],
+  },
   'model-calling': {
     id: 'model_calling',
     name: 'Restaurant finder through the model',
@@ -272,6 +302,7 @@ const DESCRIPTIONS: Record<Behaviour, string> = {
     'Opens a task for each message and keeps its stream open until the host cancels it.',
   'canned-a2ui': 'Asks for a name in A2UI, then greets it.',
   'flawed-booking': 'Answers a booking request with a booking form whose A2UI has mistakes.',
+  'v1-booking': 'Answers a booking request with a booking form in A2UI v1.0.',
   'model-calling': 'Asks the model and its tool server, and sends the A2UI the model wrote.',
 };
 
@@ -743,7 +774,8 @@ class FlawedBookingExecutor implements AgentExecutor {
 /**
  * Echoes the A2UI extension the stub answers with in the reply's extensions
  * header, named as the request's A2A version names it: the version the
- * message's capabilities offer, or the Flawed Booking Agent's own. Done ahead
+ * message's capabilities offer, or the one a behaviour answers in whatever
+ * the host offers, the Flawed Booking Agent's and the v1.0 booking form's. Done ahead
  * of the SDK, which sets the header before a stream's events are produced.
  */
 function echoA2uiExtension(
@@ -764,6 +796,96 @@ function echoA2uiExtension(
     }
     next();
   };
+}
+
+/** The form of the v1.0 booking form's envelope keys. */
+type EnvelopeForm = 'at' | 'bare' | 'both';
+
+/** The form a message's text asks for: "both", else "bare", else every key with `@`. */
+function envelopeFormOf(parts: readonly Part[]): EnvelopeForm {
+  const text = parts
+    .flatMap(part => (part.content?.$case === 'text' ? [part.content.value] : []))
+    .join(' ')
+    .toLowerCase();
+  return /\bboth\b/.test(text) ? 'both' : /\bbare\b/.test(text) ? 'bare' : 'at';
+}
+
+/** A `required` check on a bound path, as v1.0 writes it. */
+function requiredCheck(path: string, message: string): Record<string, unknown> {
+  return {condition: {'@call': 'required', args: {value: {'@path': path}}}, message};
+}
+
+/**
+ * The v1.0 booking form: a name, a date, a time of four and a button,
+ * each envelope key written after `component`. In the `@` form every key has
+ * the `@`; in the bare form the TextField's and the DateTimeInput's checks
+ * and the Button's accessibility are bare; in the both form the ChoicePicker
+ * carries its checks under both keys as well.
+ */
+function v1Booking(form: EnvelopeForm): Array<Record<string, unknown>> {
+  const {version, catalogId} = V1_BOOKING_VERSION;
+  const key = (name: 'checks' | 'accessibility') => (form === 'at' ? `@${name}` : name);
+  const timeChecks = [requiredCheck('/time', 'Pick a time.')];
+  return [
+    {version, createSurface: {surfaceId: BOOKING_SURFACE_ID, catalogId}},
+    {
+      version,
+      updateComponents: {
+        surfaceId: BOOKING_SURFACE_ID,
+        components: [
+          {id: 'root', component: 'Column', children: ['name', 'date', 'time', 'submit']},
+          {
+            id: 'name',
+            component: 'TextField',
+            [key('checks')]: [requiredCheck('/name', 'We need a name for the booking.')],
+            label: 'Name',
+            value: bound(version, '/name'),
+          },
+          {
+            id: 'date',
+            component: 'DateTimeInput',
+            [key('checks')]: [requiredCheck('/date', 'Pick a date.')],
+            label: 'Date',
+            value: bound(version, '/date'),
+            enableDate: true,
+          },
+          {
+            id: 'time',
+            component: 'ChoicePicker',
+            ...(form === 'both' && {checks: timeChecks}),
+            '@checks': timeChecks,
+            label: 'Time',
+            options: ['18:00', '19:00', '20:00', '21:00'].map(time => ({label: time, value: time})),
+            value: bound(version, '/time'),
+          },
+          {
+            id: 'submit',
+            component: 'Button',
+            [key('accessibility')]: {label: 'Book the table'},
+            child: 'submit_label',
+            action: {event: {name: 'book'}},
+          },
+          {id: 'submit_label', component: 'Text', text: 'Book'},
+        ],
+      },
+    },
+    {
+      version,
+      updateDataModel: {surfaceId: BOOKING_SURFACE_ID, value: {name: '', date: '', time: []}},
+    },
+  ];
+}
+
+class V1BookingExecutor implements AgentExecutor {
+  cancelTask = async (_taskId: string, _eventBus: ExecutionEventBus): Promise<void> => {};
+
+  async execute(context: RequestContext, eventBus: ExecutionEventBus): Promise<void> {
+    eventBus.publish(AgentEvent.task(context.task ?? newTask(context)));
+    publishStatus(eventBus, context, TaskState.TASK_STATE_INPUT_REQUIRED, [
+      textPart('Here is the booking form.'),
+      ...v1Booking(envelopeFormOf(context.userMessage.parts)).map(a2uiPart),
+    ]);
+  }
 }
 
 interface GeminiPart {
@@ -928,6 +1050,7 @@ const EXECUTORS: Record<Behaviour, (options: Options) => AgentExecutor> = {
   'wait-for-cancel': () => new WaitForCancelExecutor(),
   'canned-a2ui': () => new CannedA2uiExecutor(),
   'flawed-booking': () => new FlawedBookingExecutor(),
+  'v1-booking': () => new V1BookingExecutor(),
   'model-calling': ({prompt}) => new ModelCallingExecutor(prompt),
 };
 
@@ -952,6 +1075,12 @@ if (options.behaviour === 'canned-a2ui') {
     JSON_RPC_PATH,
     express.json(),
     echoA2uiExtension(() => FLAWED_VERSION),
+  );
+} else if (options.behaviour === 'v1-booking') {
+  app.use(
+    JSON_RPC_PATH,
+    express.json(),
+    echoA2uiExtension(() => V1_BOOKING_VERSION),
   );
 } else if (options.behaviour === 'model-calling') {
   app.use(

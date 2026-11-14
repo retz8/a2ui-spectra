@@ -69,11 +69,13 @@ describe('the four checks on recorded turns', () => {
               passed: result.findings.length === 0,
               findings: result.findings,
               ...(name !== 'schema' && {skipped: result.skipped}),
+              ...(name === 'catalog' && {legacyForm: result.legacyForm}),
             },
             {
               passed: event.attributes['a2ui.check.passed'],
               findings: event.attributes['a2ui.check.findings'],
               ...(name !== 'schema' && {skipped: event.attributes['a2ui.check.skipped']}),
+              ...(name === 'catalog' && {legacyForm: event.attributes['a2ui.check.legacy_form']}),
             },
             `${file} turn ${index}, the ${name} check`,
           );
@@ -190,6 +192,7 @@ describe('the four checks on recorded turns', () => {
         },
       ],
       skipped: [{surfaceId: 'confirmation', reason: 'not_created'}],
+      legacyForm: [],
     });
     assert.deepEqual(checks.structural, {
       findings: [
@@ -253,6 +256,14 @@ describe('the check events', () => {
     );
     assert.equal('a2ui.check.skipped' in events[0].attributes, false);
     assert.deepEqual(events[1].attributes['a2ui.check.skipped'], []);
+    assert.deepEqual(
+      events.map(event => event.attributes['a2ui.check.legacy_form']),
+      [undefined, [], undefined, undefined],
+    );
+    assert.deepEqual(
+      events.map(event => 'a2ui.check.legacy_form' in event.attributes),
+      [false, true, false, false],
+    );
     assert.deepEqual(
       events[2].attributes['a2ui.check.findings'].map(({code, path: at}) => [
         code,
