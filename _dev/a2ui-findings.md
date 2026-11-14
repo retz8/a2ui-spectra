@@ -2590,3 +2590,671 @@ Drop the `refine` from `RequiredApi`'s `value` in v0.9 and v1.0, so that an
 unresolved value reaches `validateRequired`, which already fails it. The
 catalog's `"required": ["value"]` on the call's written arguments stays the
 schema's concern.
+
+## 51. Python's and TypeScript's Express compilers number `_inline_N` differently
+
+**Component:** `python/a2ui_agent/src/a2ui/inference_formats/express/compiler.py`;
+`typescript/agents/a2ui_agent/src/inference-formats/express/compiler.ts`.
+
+**Severity:** the same Express text compiles to different component ids in the
+two agent SDKs, so a renderer, a test or a tool that names a component by id
+sees another component under each SDK. Found at the pin `0888f88b2`
+(2026-11-13).
+
+**Standing:** holds. Run against both SDKs at the pin.
+
+**Held by:** the viewer's Express reader counts `_inline_N` as the parse's SDK
+counts, `tools/spectra_viewer/src/model/readers/express.ts:474` and `:482`, held
+by the wrapper capture case `express_inline_numbering`'s two expected records.
+
+### Issue
+
+An inline component written where no property names it, such as a template's
+component, takes the id `_inline_N`. Python increments the counter only for
+such a component (`compiler.py:2552-2555`, inside the branch with no parent
+property); TypeScript increments it for every inline component, those named for
+their parent's property included (`compiler.ts:3111-3116`, before the branch).
+The compile case suite does not pin the numbering: none of the expected messages
+in `conformance/agent/express/compiler.yaml` holds an `_inline_` id after an
+inline component named for its slot.
+
+### Reproduction
+
+Compile `root = Card(List(_template($/items, Text($/name))))` on the v1.0 basic
+catalog. Python gives `root`, `root_child` and `_inline_1`; TypeScript gives
+`root`, `root_child` and `_inline_2`.
+
+### Fix
+
+Count as one SDK counts in both, and pin it with a compile case holding an
+`_inline_` id after a slot-named inline component.
+
+## 52. Python's and TypeScript's schema helpers walk a component's sub-schemas in different orders
+
+**Component:** `python/a2ui_agent/src/a2ui/inference_formats/_shared/schema_helper.py`;
+`typescript/agents/a2ui_agent/src/inference-formats/express/schema-helper.ts`.
+
+**Severity:** a component's positional property order, which names an Express
+inline component `<parent>_<property>`, differs between the SDKs for two schema
+shapes, so the same text compiles to different ids. No catalog upstream ships has
+either shape. Found at the pin `0888f88b2` (2026-11-13).
+
+**Standing:** holds. Run against both SDKs at the pin.
+
+**Held by:** the viewer's positional order walks the sub-schemas as the parse's
+SDK walks them, `tools/spectra_viewer/src/model/readers/schema.ts:146-165`
+(Python's) and `:167-206` (TypeScript's), held by the wrapper capture cases
+`express_positional_root_beside_all_of` and
+`express_positional_nested_all_of`, each with two expected records, on
+`conformance/test_data/catalogs/reader_catalog_v1_0.json`.
+
+### Issue
+
+Python's `_ordered_component_sub_schemas` (`schema_helper.py:166-201`) visits
+the schema and every nested `allOf` entry in pre-order and puts every node whose
+`properties` declare `component` before the others, the root included among the
+others when it has properties. TypeScript's `orderedComponentSubSchemas`
+(`schema-helper.ts:423-477`) puts the schema itself first, then the top-level
+`allOf` entries that declare `component`, then the other top-level entries, each
+expanded depth first with its own nested `allOf`. The two orders differ:
+
+- for a schema with properties of its own beside an `allOf` entry declaring
+  `component`: Python reads the entry's properties first, TypeScript the
+  schema's;
+- for an `allOf` mixin whose own nested `allOf` declares `component`: Python
+  reads the nested entry's properties first, TypeScript the mixin's.
+
+### Reproduction
+
+On a catalog with `Shelf: {properties: {head: ComponentId}, allOf: [{properties:
+{component: {const: "Shelf"}, body: ComponentId}}]}` and a `Leaf`, compile
+`root = Shelf(Leaf("a"))`: Python gives `root_body`, TypeScript `root_head`. With
+`Tier: {allOf: [{properties: {lead: ComponentId}, allOf: [{properties:
+{component: {const: "Tier"}, main: ComponentId}}]}]}`, `root = Tier(Leaf("a"))`
+gives `root_main` in Python and `root_lead` in TypeScript.
+
+### Fix
+
+One order in both helpers, and a compile case on each shape.
+
+## 53. Python's and TypeScript's schema helpers judge a bare envelope key's standard schema differently
+
+**Component:** `python/a2ui_agent/src/a2ui/inference_formats/_shared/schema_helper.py`;
+`typescript/agents/a2ui_agent/src/inference-formats/express/schema-helper.ts`.
+
+**Severity:** a component property named `metadata`, `accessibility` or `checks`
+is taken for the envelope key, and given no positional slot, by one SDK and for a
+property of the component's own, with a slot, by the other, so the same Express
+text compiles to different ids. Found at the pin `0888f88b2` (2026-11-13); the
+`accessibility` and `checks` forms in the read of upstream's commits since
+`9e8a9bac5`.
+
+**Standing:** holds. Run against both SDKs at the pin.
+
+**Held by:** the viewer's positional order judges each key as the parse's SDK
+judges it, `tools/spectra_viewer/src/model/readers/schema.ts:223-277` (Python's)
+and `:232-237` and `:313-332` (TypeScript's), held by the wrapper capture cases
+`express_positional_metadata_inline`, `express_positional_accessibility_inline`
+and `express_positional_checks_without_type`, each with two expected records, on
+`conformance/test_data/catalogs/reader_catalog_v1_0.json`.
+
+### Issue
+
+Each helper drops a bare envelope key from the positional properties when its
+schema is the standard one, and the two read "standard" differently:
+
+- `metadata`: Python's is an object schema whose `properties` are exactly
+  `extensions` and whose `additionalProperties` is `false`
+  (`schema_helper.py:315-322`); TypeScript's has the standard description or an
+  `extensions` referring to the common `Extensions` (`schema-helper.ts:72-92`).
+- `accessibility`: Python's refers to `AccessibilityAttributes`, or has `label`
+  and `description` with `additionalProperties: false` (`schema_helper.py:323-332`);
+  TypeScript's refers to the common `AccessibilityAttributes`
+  (`schema-helper.ts:94-100`).
+- `checks`: Python's refers to `Checkable` or has items referring to a
+  `CheckRule` (`_is_standard_checks_schema`, `schema_helper.py:44-56`);
+  TypeScript's is an array whose items refer to the common `CheckRule`
+  (`isCheckRuleArraySchema`, `schema-helper.ts:497-511`).
+
+### Reproduction
+
+On `reader_catalog_v1_0.json`, each component declaring the key before a
+`ComponentId` slot: `root = Frame(Leaf("a"), Leaf("b"))`, Frame's `metadata`
+written `{properties: {extensions: {type: object}}, additionalProperties:
+false}`, gives `root_child` and `root_footer` in Python, `root_child` and
+`root_metadata` in TypeScript; `root = Plate(Leaf("a"))`, Plate's
+`accessibility` written `{properties: {label, description},
+additionalProperties: false}`, gives `root_child` in Python and
+`root_accessibility` in TypeScript; `root = Tally(Leaf("a"))`, Tally's `checks`
+written `{items: {$ref: "common_types.json#/$defs/CheckRule"}}`, gives
+`root_child` in Python and `root_checks` in TypeScript.
+
+### Fix
+
+One test of each key's standard schema, shared by both helpers.
+
+## 54. TypeScript's Express compiler takes a check-rule property of another name out of the positional arguments, and Python's does not
+
+**Component:** `typescript/agents/a2ui_agent/src/inference-formats/express/schema-helper.ts`;
+`typescript/agents/a2ui_agent/src/inference-formats/express/compiler.ts`;
+`python/a2ui_agent/src/a2ui/inference_formats/express/compiler.py`.
+
+**Severity:** on a component declaring an array of check rules under a name of
+its own, the positional arguments after that property fill other slots in each
+SDK, so the same text compiles to different ids. Found at the pin `0888f88b2`
+(2026-11-13).
+
+**Standing:** holds. Run against both SDKs at the pin.
+
+**Held by:** the viewer's positional order leaves the property out as the parse's
+SDK does, `tools/spectra_viewer/src/model/readers/schema.ts:297-305` and
+`:348-351`, held by the wrapper capture case
+`express_positional_check_rule_property`'s two expected records, on
+`conformance/test_data/catalogs/reader_catalog_v1_0.json`.
+
+### Issue
+
+TypeScript's schema helper takes the first property of a component's own schema
+whose schema is an array of the common `CheckRule`, whatever its name, as the
+component's check-rule property (`schema-helper.ts:558-583`, set at `:624`), and
+the compiler leaves that property out of the positional arguments
+(`compiler.ts:2146-2151`). Python's leaves out `checks` alone
+(`compiler.py:1993-1996`), so a check-rule property of another name keeps its
+slot.
+
+### Reproduction
+
+On a catalog with `Gate: {child: ComponentId, rules: {type: array, items: {$ref:
+"common_types.json#/$defs/CheckRule"}}, extra: {}, footer: ComponentId}`, compile
+`root = Gate(Leaf("a"), [], Leaf("b"))`. Python fills `child`, `rules` and
+`extra`, giving `root_child` and `root_extra`; TypeScript fills `child`, `extra`
+and `footer`, giving `root_child` and `root_footer`.
+
+### Fix
+
+One rule in both compilers for which property a component's checks are, and
+whether it takes a slot.
+
+## 55. Python refuses an Express block holding an out-of-range number, and TypeScript drops only its statement
+
+**Component:** `python/a2ui_agent/src/a2ui/inference_formats/express/visitor.py`;
+`typescript/agents/a2ui_agent/src/inference-formats/express/visitor.ts`.
+
+**Severity:** a block with one statement holding a number literal out of range as
+a double fails to compile in Python and compiles, without that statement, in
+TypeScript. Found in the read of upstream's commits since `9e8a9bac5`: #3880
+(`b1bf1ac3c`) made Python re-raise. Reproduced at the pin `0888f88b2`
+(2026-11-13).
+
+**Standing:** holds. Run against both SDKs at the pin.
+
+**Held by:** the viewer's Express reader stops at the number for a Python parse
+and drops the statement for a TypeScript one,
+`tools/spectra_viewer/src/model/readers/express.ts:221-240` and `:287`, held by
+the wrapper capture case `express_number_out_of_range`'s two expected records.
+
+### Issue
+
+Both visitors refuse a number literal that is not finite as a double, `1e999`,
+with an `ExpressParseError` (Python `visitor.py:46-48`, TypeScript
+`parseNumberLiteral`, `visitor.ts:218-222`). Python's `visitProgram` re-raises
+that error, "the statement is wrong, not unfinished, so it is reported rather
+than dropped" (`visitor.py:104-108`). TypeScript's catches every error from a
+statement and drops the statement (`visitor.ts:297-300`), its comment citing
+Python's earlier behaviour. The compile case suite's one out-of-range case,
+`test_compile_express_number_out_of_range_is_a_parse_error`
+(`conformance/agent/express/compiler.yaml:1701-1709`), holds the number in the
+block's only statement, so it does not show the difference.
+
+### Reproduction
+
+Compile `root = Text("hi")` followed by `x = Text(1e999)` on the v1.0 basic
+catalog. Python raises `A2uiCompilationParseError` "Number literal 1e999 is out
+of range."; TypeScript gives `root` alone.
+
+### Fix
+
+Re-raise the visitor's own `ExpressParseError` in TypeScript as Python does.
+
+## 56. `@a2ui/agent`'s `KNOWN_GAPS.md` describes Python behaviour Python no longer has
+
+**Component:** `typescript/agents/a2ui_agent/KNOWN_GAPS.md`.
+
+**Severity:** ten of the file's entries state behaviour of the Python SDK, or of
+both SDKs, that the code at the pin no longer has, eight wholly and two in part;
+a reader porting or comparing the SDKs is sent after gaps that are closed. Found
+at the pin `0888f88b2` (2026-11-13).
+
+**Standing:** holds. Each entry run against the Python SDK at the pin, the first
+against both.
+
+### Issue
+
+Wholly stale, paths under `python/a2ui_agent/src/a2ui/` unless noted:
+
+- Lines 37-42, the Express decompiler leaving out a component its catalog does
+  not declare, "Python does the same": Python's decompiler raises
+  (`inference_formats/express/decompiler.py:451-453`, `:685`), and so does
+  TypeScript's.
+- Lines 85-90, `A2uiGenerator` and `A2uiRequestProcessor` not landed in Python:
+  both exist (`processor/generator.py:35`, `processor/processor.py:35`, exported
+  at `processor/__init__.py:25-26`).
+- Lines 108-114, Python's Express emitting checks on a component that takes none:
+  it raises (`inference_formats/express/compiler.py:2134-2142`), writes the
+  envelope key (`:2153`), and reads an inline `@checks` or a bare array of check
+  rules as checkable (`inference_formats/_shared/schema_helper.py:297-300`).
+- Lines 124-133, the Express conformance cases Python fails: Python's harness's
+  `KNOWN_GAPS` is empty (`python/a2ui_agent/tests/conformance/test_conformance.py:318`),
+  and the cases named pass, 47 passed and 7 skipped, each skip a v0.9 lowering
+  with its reason.
+- Lines 150-155, a v0.9 catalog's common properties ignored: local references are
+  inlined (`schema_helper.py:242-243`) and walked (`:166-196`); `Text("hi",
+  weight=1)` compiles on the v0.9 basic catalog.
+- Lines 165-171, v0.9 JSON examples left untranslated:
+  `inference_formats/express/prompt_generator.py:42-49` lists `updateComponents`
+  and `callRendererFunction`.
+- Lines 181-187, event names not escaped by the decompiler: `decompiler.py:984`
+  escapes them, and a name with quotes and a backslash goes round.
+- Lines 189-195, falsy data model values dropped: `decompiler.py:633-636` writes
+  `""`, `0`, `false` and `[]`.
+
+In part:
+
+- Lines 135-140, Python's Express defaulting to v1.0: the default is the
+  catalogs' version (`compiler.py:1298`, `inference_formats/express/format.py:61-63`);
+  an explicit version of another release line is still not checked.
+- Lines 157-163, the restaurant finder's v0.9 examples not decompiled: they go
+  round, equal by value (`decompiler.py:518`, `:633`), but `createSurface.theme`
+  is still dropped.
+
+### Reproduction
+
+On the v1.0 basic catalog: decompiling a component named `Nope` raises
+`ExpressValidationError: Unknown component 'Nope' not defined in catalog
+'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json'.` in Python and
+`ExpressUnknownComponentError: Component 'Nope' is not defined in the catalog.` in
+TypeScript; `Text("hi", _, _, [?required])` raises `ExpressValidationError:
+Component 'Text' does not declare a 'checks' property, so it cannot take checks.`
+On the v0.9 basic catalog, `ExpressCompiler` built on it has the version `v0.9`.
+
+### Fix
+
+Delete the eight stale entries and cut lines 137 and 159 to the clauses that
+hold.
+
+## 57. The Express prompt advertises `checks?` as `TextField`'s sixth positional argument, and the compilers count five
+
+**Component:** `python/a2ui_agent/src/a2ui/inference_formats/express/compiler.py`;
+`python/a2ui_agent/src/a2ui/inference_formats/_shared/schema_helper.py`;
+`typescript/agents/a2ui_agent/src/inference-formats/express/compiler.ts`;
+`typescript/agents/a2ui_agent/src/inference-formats/express/schema-helper.ts`.
+
+**Severity:** the prompt tells the model a checkable component's checks are its
+last positional argument; the compilers take a check out wherever it is written
+and count the positions without it, so anything else in that slot, a variable
+holding checks or an empty list, is refused with a message naming one argument
+fewer than the prompt, and a variable holding checks compiles into a property.
+Found at the pin `0888f88b2` (2026-11-13).
+
+**Standing:** holds. Run against both SDKs at the pin.
+
+### Issue
+
+Both helpers put `checks` last in a checkable component's properties
+(`schema_helper.py:342-357`; `schema-helper.ts:691-704`), and both prompt
+generators write it so: `• TextField(label, value, placeholder?, variant?
+(static), weight? (static), checks? (static))`. Both compilers drop `checks` from
+the positional properties (`compiler.py:1993-1997`; `compiler.ts:2146-2151`), take
+out each argument that is a check or a non-empty list of checks
+(`compiler.py:2003-2010`; `compiler.ts:2157-2168`), and refuse more positional
+arguments than are left (`compiler.py:2014-2020`; `compiler.ts:2171-2177`). A
+variable is not a check expression, so a variable holding checks fills an
+ordinary slot, positionally or as `checks=`.
+
+### Reproduction
+
+On the v1.0 basic catalog, `root = TextField("Name", $/name, "hint",
+"shortText", 1, [])` raises, in both SDKs, "TextField takes at most 5 positional
+arguments (label, value, placeholder, variant, weight), but component 'root'
+passes 6."; so does `c = [?required]` with `root = TextField("Name", $/name,
+"hint", "shortText", 1, c)`. With `[?required]` in the sixth place it compiles,
+and with it first or third the other arguments keep their properties. `root =
+TextField("Name", $/name, c)` compiles to `"placeholder": [{"@call": "required",
+"args": {}}]`, which validation refuses.
+
+### Fix
+
+Either read the advertised slot as checks, a variable holding checks resolved
+there, or stop listing `checks?` among the positional parameters and say that a
+check may be written among the arguments anywhere.
+
+## 58. Python and TypeScript bind a component's value into a check by different rules
+
+**Component:** `python/a2ui_agent/src/a2ui/inference_formats/express/compiler.py`;
+`typescript/agents/a2ui_agent/src/inference-formats/express/compiler.ts`.
+
+**Severity:** on a catalog whose check function's first parameter is not named
+`value`, the same Express check compiles to a valid condition in TypeScript and to
+one missing an argument in Python, which validation refuses; the default message
+is capitalised differently too. The basic catalogs show neither: their check
+functions' first parameter is `value` and their names are lower-case. Found at
+the pin `0888f88b2` (2026-11-13).
+
+**Standing:** holds. Run against both SDKs at the pin.
+
+### Issue
+
+Python records the bound path of the property named `value` alone
+(`compiler.py:2129-2132`) and binds it into a check only when the function's
+first parameter is `value` (`:2227-2234`). TypeScript records every property bound
+to a path (`compiler.ts:2310-2315`) and binds the one named as the function's
+first parameter (`:2420-2433`). Python's default message is
+`check_name.capitalize()` (`compiler.py:2224`), TypeScript's the name with its
+first character upper-cased (`compiler.ts:2415`).
+
+### Reproduction
+
+On a v1.0 catalog with a checkable `Meter` whose property is `amount`, a
+`DynamicNumber`, and a check function `atLeast(amount, min)`, both required,
+compile `root = Meter($/amount, ?atLeast(5))`. Python gives `"@checks":
+[{"condition": {"@call": "atLeast", "args": {"amount": 5}}, "message": "Atleast
+check failed"}]`, which `parse_response` refuses: `components.root.@checks.0.condition:
+'min' is a required property`. TypeScript gives `"@checks": [{"condition":
+{"@call": "atLeast", "args": {"amount": {"@path": "/amount"}, "min": 5}},
+"message": "AtLeast check failed"}]`, which it accepts.
+
+### Fix
+
+One rule in both compilers, held by a compile case whose check function's first
+parameter is not `value`, and one capitalisation of the default message.
+
+## 59. TypeScript refuses a v1.0 catalog whose component declares an `@` envelope key, which Python accepts
+
+**Component:** `typescript/core/web_core/src/catalog/schema_loader.ts`;
+`python/a2ui_core/src/a2ui/core/catalog/catalog.py`.
+
+**Severity:** a catalog declaring `@catalogId`, `@metadata`, `@accessibility` or
+`@checks` as a component's property loads in Python and fails to load in
+TypeScript, so an agent cannot use it on `@a2ui/agent`. The v1.0 catalog
+definition meta-schema accepts such a property. Found at the pin `0888f88b2`
+(2026-11-13).
+
+**Standing:** holds. Run against both SDKs at the pin.
+
+### Issue
+
+Web core's catalog loader checks every v1.0 component property's name as a UAX
+#31 identifier, with no exemption (`schema_loader.ts:1457-1466`, through
+`assertUax31Identifier`, `common/uax31.ts:65-69`), though it reads `@catalogId` as
+an envelope field further on (`:589-594`). Python's skips the four envelope keys
+(`catalog.py:3277-3286`, the set at `:951-953`), added by #4037 (`8c3bd4073`),
+which edited the TypeScript loader without the same exemption; any other `@` name
+it refuses. The meta-schema's `ComponentDefinition`
+(`specification/v1_0/json/catalog_definition.json:229-271`) puts no rule on a
+component's property names; the protocol document requires property names to be
+UAX #31 identifiers (`specification/v1_0/docs/a2ui_protocol.md:550`) and says the
+envelope keys take the `@` "so they never collide with UAX #31 catalog property
+names" (`:509`), without saying whether a catalog may declare them.
+
+### Reproduction
+
+Load a v1.0 catalog whose component `Badge` declares `@catalogId`, `@metadata`,
+`@accessibility` and `@checks` before `child`, as Spectra's
+`conformance/test_data/catalogs/reader_at_keys_catalog_v1_0.json` does.
+TypeScript's `Catalog.fromJson` raises `A2uiCatalogError: Invalid UAX #31 property
+identifier: '@catalogId' in component 'Badge'`. Python's `CatalogConfig.from_path`
+loads it; with `@foo` added it raises `A2uiCatalogError: Invalid UAX #31 property
+identifier: '@foo' in component 'Badge'`.
+
+### Fix
+
+Skip the four envelope keys in TypeScript's check as Python does, and state the
+rule in the meta-schema or the protocol document.
+
+## 60. An Express `checks=` argument that is not purely check expressions is written under the bare `checks` at v1.0
+
+**Component:** `python/a2ui_agent/src/a2ui/inference_formats/express/compiler.py`;
+`typescript/agents/a2ui_agent/src/inference-formats/express/compiler.ts`.
+
+**Severity:** a v1.0 component compiled from `checks=[...]` whose list is not made
+only of checks carries the bare `checks`, the legacy form, where the agent SDKs
+otherwise emit `@checks` alone; the value is passed on uncompiled as data, a check
+in it uncompiled too. Found at the pin `0888f88b2` (2026-11-13).
+
+**Standing:** holds. Run against both SDKs at the pin.
+
+### Issue
+
+A keyword argument's value is taken out as checks only when it is a check or a
+non-empty list made only of checks (`_is_check_expression`, `compiler.py:569-575`;
+`isCheckExpression`, `compiler.ts:228-236`). Any other `checks=` value joins the
+ordinary properties (`compiler.py:2068-2075`; `compiler.ts:2229-2239`) and is
+written under the property's own name, `checks` (`compiler.py:2127`;
+`compiler.ts:2308`), while compiled checks take the version's envelope key
+(`compiler.py:2153`, `envelope_key("checks", ctx.at_least_v10)`; `compiler.ts:2355-2357`).
+The validators read the bare key as `@checks` during the transition, so its
+contents are judged and the key itself is not refused.
+
+### Reproduction
+
+On the v1.0 basic catalog, compile `root = TextField("Name", $/name,
+checks=[{condition: $/ok, message: "m"}])`: both SDKs give `"checks":
+[{"condition": {"@path": "/ok"}, "message": "m"}]`, and the validated parse
+(`parse_response`) accepts it with the bare key. `checks=[?required, "x"]` gives
+`"checks": [{"@call": "required", "args": {}}, "x"]`, the check uncompiled and its
+value not bound, which both validators refuse at `@checks`. `checks=[?required]`
+gives `"@checks": [{"condition": {"@call": "required", "args": {"value": {"@path":
+"/name"}}}, "message": "Required check failed"}]`.
+
+### Fix
+
+Refuse a `checks=` value that is not a check expression, or write it under
+`envelope_key("checks", at_least_v10)`.
+
+## 61. Atom takes a bare string equal to an id the compiler generated for a reference
+
+**Component:** `python/a2ui_agent/src/a2ui/inference_formats/experimental/atom/compiler.py`.
+
+**Severity:** a bare string child that happens to equal a generated id, `root`
+or `node_N`, which the author never wrote, becomes a reference to that component
+instead of a text: the text is lost and the component is listed as a child twice.
+Found at the pin `0888f88b2` (2026-11-13).
+
+**Standing:** holds. Run against the Python SDK at the pin.
+
+### Issue
+
+`_auto_wrap_text_child` returns a bare string as a reference when a component
+already compiled into the block has that id (`compiler.py:1254-1255`). The
+block's components include the ids the compiler generated, `node_N` from
+`_next_id` (`:1176-1181`) and `root` from `_assign_id` (`:1183-1200`). The ids the
+author wrote are already collected, as `_reserved_ids` by `_collect_reserved_ids`
+(`:522-534`).
+
+### Reproduction
+
+Compile `(Column (Text :text "a") "node_0")` on the v1.0 basic catalog, through
+`parser.compile` or `parse_response`: `[{"id": "root", "component": "Column",
+"children": ["node_0", "node_0"]}, {"id": "node_0", "component": "Text", "text":
+"a"}]`, which validation accepts. `(Column (Text :text "a") "node_9")` gives
+`"children": ["node_0", "node_1"]` and `{"id": "node_1", "component": "Text",
+"text": "node_9"}`.
+
+### Fix
+
+Take the string for a reference only when it is an id the text states:
+`text_str in self._reserved_ids and any(...)`.
+
+## 62. Atom writes an unknown keyword property into the component unchecked
+
+**Component:** `python/a2ui_agent/src/a2ui/inference_formats/experimental/atom/compiler.py`.
+
+**Severity:** `compile` passes a property the component's catalog does not
+declare into the compiled component; the validated parse refuses the message
+afterwards, where Express refuses the text with the property's name and the ones
+the component takes. Found at the pin `0888f88b2` (2026-11-13).
+
+**Standing:** holds. Run against the Python SDK at the pin.
+
+### Issue
+
+The keyword branch of `_compile_component` writes any key it does not handle
+otherwise (`compiler.py:1446-1450`, `comp[wire_key(key)] = self._coerce_object_list(...)`),
+and `_finalize_component` (`:1548-1576`) coerces values and checks required
+properties alone; nothing checks the key against the component's properties.
+Express raises `ExpressUnknownPropertyError` for it
+(`express/compiler.py:2079-2080`). `parser.compile` does not validate
+(`parser/parser.py:98-101`).
+
+### Reproduction
+
+On the v1.0 basic catalog, `parser.compile` of `(Text :text "a" :foo "x")` gives
+`[{"id": "root", "component": "Text", "text": "a", "foo": "x"}]`; `parse_response`
+raises `A2uiValidationError: Validation failed for component 'Text':
+components.root.foo: Additional properties are not allowed: unrecognized key(s)
+in object: 'foo' (extra inputs are not permitted)`. Express's `root = Text("a",
+foo="x")` raises `A2uiCompilationValidationError: Property 'foo' is not a valid
+property of component 'Text'.` on both paths.
+
+### Fix
+
+Raise for a key that is not among the component's properties, nor an envelope or
+template key, as Express does.
+
+## 63. Atom drops a positional argument past a component's last property
+
+**Component:** `python/a2ui_agent/src/a2ui/inference_formats/experimental/atom/compiler.py`.
+
+**Severity:** a value written in a component's positional arguments beyond the
+last property it takes is lost with no error, on both the compile and the
+validated path, where Express refuses the text. Found at the pin `0888f88b2`
+(2026-11-13).
+
+**Standing:** holds. Run against the Python SDK at the pin.
+
+### Issue
+
+On a component with no child property, a positional value fills the next
+property while one is left (`compiler.py:1510-1515`), and the branch has no `else`:
+a value past the last is skipped. Express raises "takes at most N positional
+arguments" (`express/compiler.py:2015-2020`; `compiler.ts:2173-2176`).
+
+### Reproduction
+
+On the v1.0 basic catalog, `(Text "a" "caption" 2 "more")` compiles, and
+validates, to `{"id": "root", "component": "Text", "text": "a", "variant":
+"caption", "weight": 2}`, "more" gone. Express's `root = Text("a", "caption", 2,
+"more")` raises `A2uiCompilationValidationError: Text takes at most 3 positional
+arguments (text, variant, weight), but component 'root' passes 4.`
+
+### Fix
+
+Raise in the missing `else`, with Express's message.
+
+## 64. `extract_a2ui_json_to_parts` finds Direct JSON blocks otherwise than the Direct JSON parser
+
+**Component:** `python/a2ui_a2a/src/a2ui/a2a/parts.py`;
+`python/a2ui_agent/src/a2ui/parser/lexer.py`;
+`python/a2ui_agent/src/a2ui/inference_formats/direct_json/blocks.py`.
+
+**Severity:** the same reply gives different A2UI parts through the A2A
+extension's helper and through the agent SDK's Direct JSON parser: a fence's
+language, a stray `"""` and backticks beside the tags are read differently, and
+in the `"""` case the helper loses a valid message. Found in the read of upstream's
+commits since `9e8a9bac5`: #3790 (`1e9ed04b5`) added the helper. Reproduced at
+the pin `0888f88b2` (2026-11-13).
+
+**Standing:** holds. Run against the Python SDK at the pin.
+
+### Issue
+
+`extract_a2ui_json_to_parts` (`parts.py:259-309`) finds blocks with the shared
+`BlockLexer` (`parts.py:49-59`, `parser/lexer.py`), while `DirectJsonParser.unwrap`
+(`direct_json/parser.py:109-160`) uses `direct_json/blocks.py`'s `scan_block` and
+`clean`. They differ in three places:
+
+- a fence's language: the shared lexer strips `` ```[a-zA-Z0-9_-]* ``
+  (`lexer.py:34-35`), Direct JSON `` ```[a-zA-Z-]* `` (`blocks.py:31-32`), though
+  its own recovery pattern is the wider one (`direct_json/parser.py:33`);
+- `"""`: the shared lexer opens a triple-quoted string and waits for the next
+  `"""` (`lexer.py:164-173`, `:204-208`); Direct JSON toggles on every `"`
+  (`blocks.py:89-104`);
+- backticks beside the tags: Direct JSON trims them from the text around a block
+  (`direct_json/parser.py:128-129`, `:153-154`); the shared lexer strips only a
+  three-backtick fence or text of nothing but backticks (`lexer.py:122-134`,
+  `:144-147`).
+
+### Reproduction
+
+With `MSG` = `{"version":"1.0","deleteSurface":{"surfaceId":"s"}}`:
+
+- `<a2ui-json>` + "\n```json5\n" + `MSG` + "\n```\n" + `</a2ui-json>`: `unwrap`
+  gives the block `5\n{…}`, which fails to compile with "The direct JSON block
+  is not JSON"; the helper gives the message as a data part.
+- `<a2ui-json>""""</a2ui-json> hi <a2ui-json>` + `MSG` + `</a2ui-json>`: `unwrap`
+  gives a block that is not JSON, the text "hi" and a block that compiles; the
+  helper gives `[]` and logs "Skipping unclosed A2UI JSON block.".
+- "Here: \`" + `<a2ui-json>` + `MSG` + `</a2ui-json>` + "\` done.": `unwrap` gives
+  the texts "Here:" and "done."; the helper gives "Here: \`" and "\` done.".
+
+### Fix
+
+Find the blocks in the helper with Direct JSON's own block finding, and widen
+`blocks.py:31-32` to `[a-zA-Z0-9_-]`.
+
+## 65. Web core checks a v1.0 catalog's check rules against the v0.9 and v1.0 superset, accepting a boolean condition and extra keys
+
+**Component:** `typescript/core/web_core/src/catalog/schema_loader.ts`;
+`typescript/core/web_core/src/types/common-types.ts`;
+`typescript/core/web_core/scripts/generate-superset-common-types.mjs`.
+
+**Severity:** a v1.0 component whose check rule has a literal boolean
+`condition`, or a key the rule does not define, passes web core's validation, and
+so `@a2ui/agent`'s `validatePayload`, while the v1.0 common types and the Python
+core refuse it. Found while reproducing finding 60, at the pin `0888f88b2`
+(2026-11-13).
+
+**Standing:** holds. Run against both SDKs at the pin.
+
+### Issue
+
+The v1.0 common types' `CheckRule.condition` is one of `DataBinding` or
+`FunctionCall`, and the rule allows no other key
+(`specification/v1_0/json/common_types.json:273-288`); v0.9's and v0.9.1's is a
+`DynamicBoolean`, which a literal boolean is
+(`specification/v0_9/json/common_types.json:237-239`). Web core's catalog loader
+resolves a catalog's `common_types.json#/$defs/…` reference, as the v1.0 basic
+catalog's `Checkable` (`catalogs/basic/v1/catalog.json:390`, and at `:423`,
+`:461`, `:490`, `:554`, `:596`), through `resolveProtocolRef`
+(`schema_loader.ts:92-97`, used at `:214` and `:862-872`), which looks the name up
+in `types/common-types.ts`'s `CommonSchemas` whatever the catalog's version
+(`schema_loader.ts:23`). That file is "the runtime superset of the modern protocol
+lineage (v0.9 and above)" (`types/common-types.ts:28-30`), generated by
+`generate-superset-common-types.mjs`, whose `mergeObjectSchemas` (`:118-131`)
+unions each property's schemas across versions and writes no
+`additionalProperties`. Its `CheckRuleSchema`'s `condition` is
+`z.union([DynamicBooleanSchema, DataBindingSchema, FunctionCallSchema])`, with no
+`.strict()` (`types/common-types.ts:222-233`). The version's own, strict schema,
+`v1_0/schema/common-types.ts:211-220`, is not used by the loader. The Python core's
+v1.0 `CheckRule` takes `DataBinding | FunctionCall`
+(`python/a2ui_core/src/a2ui/core/schema/v1_0/common_types.py:304-317`).
+
+### Reproduction
+
+On the v1.0 basic catalog, validate `[{"version": "1.0", "createSurface":
+{"surfaceId": "main", "catalogId":
+"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json", "components":
+[{"id": "root", "component": "TextField", "label": "Name", "value": "v",
+"@checks": [{"condition": true}]}]}}]`. `@a2ui/agent`'s `validatePayload` accepts
+it; the Python core's `validate_payload` raises `A2uiValidationError: Validation
+failed for component 'TextField': components.root.@checks.0.condition…: Expected
+dictionary or instance of DataBinding, received boolean`. With the rule
+`{"condition": {"@path": "/ok"}, "foo": 1}`, TypeScript accepts and Python raises
+`components.root.@checks.0.foo: Additional properties are not allowed`. With
+`{"condition": {"@path": "/ok"}}` both accept.
+
+### Fix
+
+Resolve a catalog's common type references in the common types of the catalog's
+own protocol version, `v1_0/schema/common-types.ts`'s `CommonSchemas` for a v1.0
+catalog.

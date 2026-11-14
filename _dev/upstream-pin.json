@@ -335,6 +335,42 @@
       "paths": [
         "specification/v0_9_1/catalogs/basic/catalog.json"
       ]
+    },
+    {
+      "finding": 51,
+      "paths": [
+        "python/a2ui_agent/src/a2ui/inference_formats/express/compiler.py",
+        "typescript/agents/a2ui_agent/src/inference-formats/express/compiler.ts"
+      ]
+    },
+    {
+      "finding": 52,
+      "paths": [
+        "python/a2ui_agent/src/a2ui/inference_formats/_shared/schema_helper.py",
+        "typescript/agents/a2ui_agent/src/inference-formats/express/schema-helper.ts"
+      ]
+    },
+    {
+      "finding": 53,
+      "paths": [
+        "python/a2ui_agent/src/a2ui/inference_formats/_shared/schema_helper.py",
+        "typescript/agents/a2ui_agent/src/inference-formats/express/schema-helper.ts"
+      ]
+    },
+    {
+      "finding": 54,
+      "paths": [
+        "typescript/agents/a2ui_agent/src/inference-formats/express/schema-helper.ts",
+        "typescript/agents/a2ui_agent/src/inference-formats/express/compiler.ts",
+        "python/a2ui_agent/src/a2ui/inference_formats/express/compiler.py"
+      ]
+    },
+    {
+      "finding": 55,
+      "paths": [
+        "python/a2ui_agent/src/a2ui/inference_formats/express/visitor.py",
+        "typescript/agents/a2ui_agent/src/inference-formats/express/visitor.ts"
+      ]
     }
   ]
 }

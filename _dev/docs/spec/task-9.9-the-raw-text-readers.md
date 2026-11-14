@@ -146,3 +146,47 @@ Each of the seven reports has its case in the wrapper capture suite, run failing
 - The readers stay hand-written scanners in the viewer's model, with no new runtime dependency, as sub-task 6.5's decision 2 has them.
 - A reader never applies a definition from a catalog the parse did not name.
 - `main` is never red: a case and its fix land together.
+
+## Outcome
+
+### The seven reports
+
+Each case was run against the reader as it stood before the sub-task, the oracle giving it the catalogs its parse names; each report is confirmed.
+
+| Report | Case | The assertion it failed on |
+| --- | --- | --- |
+| A component's envelope key declared in its own properties keeping a positional slot | `express_positional_envelope_keys`, and with `@` keys `express_positional_at_keys` | `main / root_child not found among main / root, default_surface / root_catalogId`; with `@` keys, `… root_@catalogId` |
+| The positional order read from a definition's top-level `properties` alone, without `allOf` | `express_positional_all_of`, and on v0.9's basic catalog `express_positional_all_of_v0_9` | `main / root_child not found among main / root, default_surface / _inline_1` |
+| The first of two catalogs' definitions of a component name winning | `express_catalog_id_argument` | `main / root_footer not found among main / root, default_surface / root_child` |
+| A check expression taking a positional slot in Express | `express_check_positional` | Before the reader changed, the parentheses of its checks stopped it, `main / root not found among`; with the reader changed but for the checks' removal, `main / root_child not found among main / root, default_surface / root_variant` |
+| A check written with parentheses stopping the Express reader | `express_check_parentheses` | `main / root not found among`, the reader stopping at `(` |
+| v1.0's system call `@index()` stopping the Express reader's lexer | `express_system_call` | `main / itemRow not found among main / root` |
+| The Atom reader mislinking a bare string child of a basic container | `atom_bare_string_compiled_ids` | `main / node_1 not found among main / root, main / t, main / node_0, main / u`: the Column's own id, `"root"`, taken for a reference |
+
+### The nine commits
+
+- #4044 (`24d1bf9c8`), the `@` envelope keys: changes an Express inline component's id on a catalog declaring `catalogId`, `metadata`, `accessibility` or `checks`, or their `@` forms, in a component's own properties, the excluded properties becoming the four `@` keys and each bare key in its standard schema; no catalog upstream ships declares one. Atom and Elemental rename keys on the wire alone, and Direct JSON reads plain JSON. Held by `express_positional_envelope_keys`, `express_positional_at_keys` and `express_positional_custom_envelope_key`.
+- #4025 (`ee0fe3559`), `@index` in Express: a new token, `SYSTEM_IDENTIFIER`, and a call's name as an identifier or one; a name starting with `@` is never a component. Held by `express_system_call`.
+- #3880 (`b1bf1ac3c`), the v0.9 conformance lowering: components with no root and no `surface(...)` line accepted as an `updateComponents` on `default_surface`, which the reader read already; Python refusing a block holding an out-of-range number, where TypeScript drops the statement, finding 55, held by `express_number_out_of_range`.
+- #3568 (`e4e8ee409`), #3567 (`f7b795e45`), #3867 (`087681ab1`) and #3721 (`07fee11d3`): prompt generation and its rule text alone.
+- #3803 (`e7940dabf`): TypeScript's Express decompiler, core tests, and Swift and Dart alone.
+- #3790 (`1e9ed04b5`), `extract_a2ui_json_to_parts`: a separate entry point in `a2ui_a2a`, which finds `<a2ui-json>` blocks with its own lexer and compiles nothing; the agent SDK's parsers are untouched.
+
+The read turned up two more disagreements of decision 9 beside the four the spec names, an inline `accessibility` and a bare `checks` with no array type, both in finding 53 with `metadata`, held by `express_positional_accessibility_inline` and `express_positional_checks_without_type`.
+
+### The one run over upstream's compile cases
+
+The readers were run by hand over the Express and Atom compile cases of the three files at the pin, in Python's form and, for Express, in TypeScript's, the viewer holding each case's own catalogs: the 88 that hold expected messages, 78 in `conformance/agent/express/compiler.yaml`, 7 in `conformance/agent/multi_catalog_formats.yaml` and 3 in `conformance/agent/atom/compiler.yaml`; the 66 that expect an error were not compared. The readers named exactly the expected components of 85, and after the two that joined, of 87. The three mismatches, the same in both forms:
+
+| Case | Input | What the reader did | Jioh's decision |
+| --- | --- | --- | --- |
+| `test_compile_express_unicode_identifier` | `root = Column([größe])` and `größe = Text("x")` | Stops at `ö`: its identifiers are ASCII, the grammar's are UAX 31 | | Joined the sub-task: `express_unicode_identifier`, failing first with `main / root not found among`; the lexer takes UAX 31 identifiers |
+| `test_compile_express_split_identifier_and_split_path_repaired` | `greeting_` and `label` on two lines as one name, `$/user/` and `name` as one path | Stops at the split: the compiler joins a token split across a line break before it parses, which the reader does not | | A backlog line |
+| `test_compile_express_sentinel_tags_inside_strings_and_comments_preserved` | A compile text in `<a2ui>` tags, the tags written again inside a comment and a string | Stops at `<`: the compiler strips a compile text's outer sentinel tags, and the reader reads it as one block without tags | | Joined the sub-task: `express_compile_sentinel_tags`, failing first with `main / root not found among`; a block compiled on its own is read as the compiler strips its tags |
+
+### The findings
+
+In `_dev/a2ui-findings.md`, each reproduced against the worktree at the pin:
+
+- With a held-by line and a `heldBy` entry in the pin file, the disagreements of decision 9: 51, `_inline_N`'s numbering; 52, the order the sub-schemas are walked in, both shapes; 53, a bare envelope key's standard schema, `metadata`, `accessibility` and `checks`; 54, a check-rule property under another name; 55, an out-of-range number.
+- Beside the readers' matter, with no held-by line: 56, `KNOWN_GAPS.md`, ten of whose entries are stale, eight wholly and two in part; 57, `checks?` as `TextField`'s sixth positional argument, a check written there accepted and anything else refused, with a message counting five; 58, a check's implicit value binding; 59, TypeScript refusing a component's `@` envelope key; 60, `checks=` under the bare key; 61, Atom's bare string equal to a generated id; 62, Atom's unknown keyword property; 63, Atom's dropped positional argument; and two found in the work, 64, `extract_a2ui_json_to_parts`'s block finding, from the commit read, and 65, web core's check rules against the v0.9 and v1.0 superset, from reproducing finding 60.
