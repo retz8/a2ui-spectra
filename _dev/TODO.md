@@ -14,10 +14,25 @@ Each phase's full section, its sub-tasks and what landed, as it closed: `_dev/TO
 - **Phase 8 — The dev loop** · done 2026-11-13 · spec `_dev/docs/spec/phase-8-the-dev-loop.md`
 - **Phase 9 — Upstream v1.0 and supported versions** · done 2026-11-14 · spec `_dev/docs/spec/phase-9-upstream-v1.0-and-supported-versions.md`
 
-## Phase 10 — Shipping
-The binary on npm, PyPI and GitHub releases, with the curl script; the install steps in the root README. The packages' READMEs as a DX product, their details moved to design docs in `docs/design/`, as A2UIVerse has them. Turn record `v0.1` closed at the first release. A2UIVerse's CircleCI preview page committed in A2UIVerse, on the published React adapter.
+## Phase 10 — Shipping [WIP]
+Spectra made release-ready, nothing published: the binary for five platforms, packaged for npm, PyPI and GitHub releases, with the install scripts; the release workflow and its rehearsal; the install steps in the root README. The packages' READMEs as a DX product, their details moved to design docs in `docs/design/`, as A2UIVerse has them. Turn record `v0.1`'s closing review.
+Spec: `_dev/docs/spec/phase-10-shipping.md`.
 
-## Phase 11 — The case
+- [ ] **10.1** The five binaries, and CI on the four POSIX platforms — the binary built for macOS arm64, macOS x64, Linux x64, Linux arm64 and Windows x64; the binary test run on the four POSIX platforms on every push and pull request. (parallel with 10.4, 10.8 and the design docs of 10.9)
+- [ ] **10.2** Windows x64 — Spectra working on Windows, the agent's process tree started, restarted and ended; the binary test run on a Windows runner. (after 10.1)
+- [ ] **10.3** The binary's packages — the npm launcher with one package per platform, the PyPI wheel per platform, the release archives with their checksums; the third-party notices file in each. (after 10.1)
+- [ ] **10.4** The libraries' published form — the preview core, the React, Lit and Angular preview adapters and the TypeScript and Python wrappers publishable: one version set in one place for all seven packages, each with its licence, none referring to the workspace. (parallel with 10.1, 10.8 and the design docs of 10.9)
+- [ ] **10.5** The install scripts — the shell script and the PowerShell script, behaving as upstream's `a2ui` CLI's do. (after 10.3)
+- [ ] **10.6** The release workflow — the workflow started by hand and its dry run: built once, tested, those files published, trusted publishing, checksums and a build provenance attestation; the release notes; the procedure for the steps done by hand. (after 10.3 and 10.4)
+- [ ] **10.7** The install check — an adopter's install on all five platforms from stand-in registries, through `npx`, `uvx` and the install script. (after 10.5 and 10.6)
+- [ ] **10.8** The contracts at release — turn record `v0.1`'s closing review and its amendments; the newer-record rule; the preview mismatch line naming the side to upgrade. (parallel with 10.1, 10.4 and the design docs of 10.9)
+- [ ] **10.9** The documents — the root README with the install steps behind its status line; the packages' READMEs as a DX product; the design docs in `docs/design/`; the viewer's hint for switching on a wrapper; a stable public URL for the config file's schema. (the design docs parallel with 10.1, 10.4 and 10.8; the install text after 10.5)
+- [ ] **10.10** The acceptance run — the rehearsal: the dry run and the install check on all five platforms, the READMEs' install commands run as written. (last)
+
+## Phase 11 — The release
+`0.1.0` published, started when the upstream check reports the npm release of `@a2ui/web_core`, `@a2ui/react` and `@a2ui/markdown-it` carrying the pin's state: those three local patches removed and the suites run on published upstream; the npm and PyPI accounts and their trusted publishers; turn record `v0.1` closed; the install check against the real registries; the root README's status line deleted. A2UIVerse's CircleCI preview page committed in A2UIVerse, on the published React adapter, once A2UIVerse's CircleCI catalog is on `@a2ui/react` `^0.15.0`.
+
+## Phase 12 — The case
 The demo, with the restaurant finder in Python and in TypeScript producing the same view and a real misfit found and fixed in minutes; the demo in the root README; the contribution rule; the proposal as a GitHub Discussion.
 
 ## Backlog

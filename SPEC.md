@@ -208,11 +208,12 @@ catalog ──▶ prompt generator ──▶ prompt ──▶ model ──▶ ra
 - The preview adapter is a framework-free core holding the preview protocol, with thin adapters for React, Lit and Angular in v1. The Flutter and SwiftUI adapters follow in Dart and Swift, running in a simulator or on a device and connecting back over a socket.
 - The basic catalog is built into Spectra, with its own renderer, so it previews with no setup.
 - Without the adapter, a custom catalog has no preview and its controls cannot be pressed from the preview. Everything else works.
+- The viewer and a preview page speak one preview protocol version. A page announcing another has no preview, everything else works, and the viewer names which side to upgrade.
 - The same adapter becomes the renderer-side tap inside a real host app.
 
 ## Adopter path
 
-**0. Install:** one binary, through `npx a2ui-spectra`, `uvx a2ui-spectra`, or the curl script.
+**0. Install:** one binary, through `npx a2ui-spectra`, `uvx a2ui-spectra`, or the install script.
 
 **1. Point Spectra at the agent.**
 
@@ -297,13 +298,18 @@ The viewer's own stack is not visible to the adopter.
 
 ### Distribution and names
 
-- One binary per platform, shipped through:
+- One binary per platform, for macOS arm64, macOS x64, Linux x64, Linux arm64 and Windows x64, the five upstream's `a2ui` CLI ships for, shipped through:
   - **npm:** one optional package per platform, with no install script, as Biome ships;
   - **PyPI:** one wheel per platform, as Ruff ships;
-  - **GitHub releases,** with a curl install script.
+  - **GitHub releases,** with a shell install script for macOS and Linux and a PowerShell one for Windows, behaving as upstream's `a2ui` CLI's do.
 - Homebrew and `dart pub global` come after v1.
-- Every package and the command are named `a2ui-spectra`. The wrappers and the preview adapters use it as their prefix.
+- Every package and the command are named `a2ui-spectra`. The wrappers, the preview adapters and the npm packages that hold the binary use it as their prefix.
 - At the move, it becomes `@a2ui/spectra`.
+- **Versions:** the first release is `0.1.0`. The packages of a release carry one version and are released together from one tag. A package's version makes no compatibility claim: the binary judges a wrapper by the turn record version its spans follow, and a preview page by the preview protocol version it announces.
+- **Upstream code in a release:** no Spectra artifact ships upstream code that upstream has not published. A release waits for upstream's npm release of the packages compiled into the binary.
+- **A release is made** by one GitHub Actions workflow started by hand: the binaries built once, tested on every platform and published as tested, through trusted publishing on npm and PyPI, with checksums and a build provenance attestation on the GitHub release. The binaries are not signed with a paid developer identity.
+- **Licences:** every artifact carries a third-party notices file generated at build from what is bundled.
+- **The binary makes no request of its own:** no update check and no usage counts.
 
 ## v1 coverage
 
@@ -336,7 +342,7 @@ A2UIVerse is Spectra's first adopter, and Spectra is tested against its agents t
 | Tools                         | MCP over streamable HTTP and over HTTP+SSE; HTTP tools. Tools that are plain functions in the agent's process run live during replay.                                                                                        | MCP over stdio                                                                    |
 | Framework traces              | OTLP over HTTP; each producer's dialect translated into the turn record                                                                                                                                                      | OTLP over gRPC                                                                    |
 | Preview                       | Web, through preview adapters for React, Lit and Angular; the basic catalog built in                                                                                                                                         | Flutter (possibly through Flutter's web build first), SwiftUI, Compose            |
-| Install                       | npm, PyPI, GitHub releases with a curl script                                                                                                                                                                                | Homebrew, `dart pub global`                                                       |
+| Install                       | npm, PyPI, GitHub releases with the install scripts; macOS arm64 and x64, Linux x64 and arm64, Windows x64                                                                                                                   | Homebrew, `dart pub global`                                                       |
 
 What each kind of agent gets in v1:
 
@@ -387,8 +393,9 @@ What each kind of agent gets in v1:
 7. **Fixtures and replay:** save as fixture; replay with everything recorded and with tools recorded and the model live, each labelled with its cost; `a2ui-spectra replay`; `a2ui-spectra test` for CI.
 8. **The dev loop:** agent restart and logs, restart on save, re-run the last turn, the preview reloading from the catalog's dev server.
 9. **Upstream v1.0 and supported versions:** the upgrade to upstream's v1.0 as its current version; which protocol versions and which upstream SDKs Spectra supports; the basic root README.
-10. **Shipping:** the binary on npm, PyPI and GitHub releases, with the curl script; the install steps in the root README.
-11. **The case:** the demo, with the restaurant finder in Python and in TypeScript producing the same view and a real misfit found and fixed in minutes; the demo in the root README; the contribution rule; the proposal as a GitHub Discussion.
+10. **Shipping:** Spectra made release-ready, nothing published: the binary for five platforms, packaged for npm, PyPI and GitHub releases, with the install scripts; the release workflow and its rehearsal; the install steps in the root README.
+11. **The release:** `0.1.0` published, once upstream's npm releases carry what the binary embeds; turn record `v0.1` closed.
+12. **The case:** the demo, with the restaurant finder in Python and in TypeScript producing the same view and a real misfit found and fixed in minutes; the demo in the root README; the contribution rule; the proposal as a GitHub Discussion.
 
 ### After v1: widen coverage and propose the hook
 
@@ -424,3 +431,4 @@ What each kind of agent gets in v1:
 - **AG-UI's timing:** whether AG-UI ships alongside v1 if v1 lands early.
 - **Light and dark preview variants:** they depend on whether upstream's web renderers support dark mode, which is not yet checked.
 - **At the move:** where each piece lands inside upstream, and how Spectra ships after.
+- **LGPL code in the binary:** the binary links LGPL code through Bun's runtime, JavaScriptCore and WebKit under LGPL-2 and `tinycc` under LGPL v2.1 (Bun's licensing page, 2026-11-15), for upstream's maintainers to weigh when deciding how Spectra ships after the move.
