@@ -3,6 +3,7 @@ import {createServer, type Server} from 'node:http';
 import {after, before, describe, it} from 'node:test';
 
 import {agentCardUrl, fetchAgentCard, waitForAgentCard} from './agent_card.js';
+import {freePort} from './testing/free_port.js';
 
 describe('agentCardUrl', () => {
   it("puts the card at the well-known path under the agent's base address", () => {
@@ -99,13 +100,9 @@ describe('fetching the card', () => {
   });
 
   it('words a refused connection and an attempt that ran out of time itself', async () => {
-    const closed = createServer();
-    await new Promise<void>(resolve => closed.listen(0, '127.0.0.1', () => resolve()));
-    const address = closed.address();
-    assert.ok(typeof address === 'object' && address !== null);
-    await new Promise(resolve => closed.close(resolve));
+    const port = await freePort();
     assert.deepEqual(
-      await fetchAgentCard(new URL(`http://127.0.0.1:${address.port}/.well-known/agent-card.json`)),
+      await fetchAgentCard(new URL(`http://127.0.0.1:${port}/.well-known/agent-card.json`)),
       {missing: 'connection refused'},
     );
     assert.deepEqual(await fetchAgentCard(cardOf('/silent'), {timeoutMs: 1000}), {

@@ -5,7 +5,6 @@
  */
 import {type ChildProcess, spawn} from 'node:child_process';
 import {mkdtempSync, rmSync} from 'node:fs';
-import {createServer} from 'node:http';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {after} from 'node:test';
@@ -142,19 +141,4 @@ export async function finished(
   const spectra = new SpectraProcess(args, cwd, env);
   const exit = await spectra.exited;
   return {...exit, output: spectra.output, stdout: spectra.stdout, stderr: spectra.stderr};
-}
-
-export function freePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      server.close(() =>
-        typeof address === 'object' && address !== null
-          ? resolve(address.port)
-          : reject(new Error('No port.')),
-      );
-    });
-  });
 }

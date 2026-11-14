@@ -20,7 +20,6 @@ import {ReplayPool} from '../replay/pool.js';
 import {
   CONFORMANCE_DIR,
   comparable,
-  freePort,
   type HarEntry,
   modelCalls,
   PREFIXES,
@@ -31,6 +30,7 @@ import {
 import {turnRecordErrors} from '../testing/turn_record_schema.js';
 import {type ModelProxy, startModelProxy} from './proxy.js';
 import {type Redirection, redirections} from './redirection.js';
+import {freePort} from '../testing/free_port.js';
 
 interface ReplayModelCase {
   name: string;

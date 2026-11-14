@@ -17,7 +17,6 @@ import type {Turn, TurnRecord} from '../record/turn_record.js';
 import {
   CONFORMANCE_DIR,
   comparable,
-  freePort,
   type HarEntry,
   modelCalls,
   PREFIXES,
@@ -28,6 +27,7 @@ import {startStandIn} from '../testing/stand_in_provider.js';
 import {turnRecordErrors} from '../testing/turn_record_schema.js';
 import {type ModelProxy, startModelProxy} from './proxy.js';
 import {type Redirection, redirections} from './redirection.js';
+import {freePort} from '../testing/free_port.js';
 
 interface CaptureModelCase {
   name: string;

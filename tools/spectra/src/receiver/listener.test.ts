@@ -1,5 +1,4 @@
 import assert from 'node:assert/strict';
-import {createServer} from 'node:net';
 import {describe, it} from 'node:test';
 import {gzipSync} from 'node:zlib';
 
@@ -10,20 +9,10 @@ import {jsonBytes, logExport, traceExport} from '../testing/otlp.js';
 import {ExportTraceServiceRequestSchema} from './gen/opentelemetry/proto/collector/trace/v1/trace_service_pb.js';
 import {startReceiverListener} from './listener.js';
 import type {ReceivedLog, ReceivedSpan} from './otlp.js';
+import {freePort} from '../testing/free_port.js';
 
 const TRACE = 'a'.repeat(32);
 const SPAN = '1'.repeat(16);
-
-function freePort(): Promise<number> {
-  return new Promise(resolve => {
-    const server = createServer().listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      server.close(() =>
-        resolve(typeof address === 'object' && address !== null ? address.port : 0),
-      );
-    });
-  });
-}
 
 async function withListener(
   use: (origin: string, spans: ReceivedSpan[][], logs: ReceivedLog[][]) => Promise<void>,

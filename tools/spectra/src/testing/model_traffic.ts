@@ -5,7 +5,7 @@
  * comparison of a model call event with the expected record's.
  */
 import * as fs from 'node:fs';
-import {createServer, request as httpRequest, type Server} from 'node:http';
+import {request as httpRequest} from 'node:http';
 import * as path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -73,18 +73,6 @@ export const PREFIXES: Record<string, {variable: Variable; basePath: string}> = 
   'api.openai.com': {variable: 'OPENAI_BASE_URL', basePath: '/v1'},
   'api.anthropic.com': {variable: 'ANTHROPIC_BASE_URL', basePath: ''},
 };
-
-export function freePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server: Server = createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      const port = typeof address === 'object' && address !== null ? address.port : 0;
-      server.close(() => resolve(port));
-    });
-  });
-}
 
 /** What the agent's side received for one request. */
 export interface Received {

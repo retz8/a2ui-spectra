@@ -22,7 +22,6 @@ import {ReplayPool} from '../replay/pool.js';
 import {recordedEvents} from '../replay/served.js';
 import {
   comparable,
-  freePort,
   type HttpReply,
   PATHS,
   SCENARIOS,
@@ -33,6 +32,7 @@ import {
 import {turnRecordErrors} from '../testing/turn_record_schema.js';
 import {startToolProxy, type ToolProxy} from './proxy.js';
 import type {ToolServer} from './servers.js';
+import {freePort} from '../testing/free_port.js';
 
 interface ReplayToolCase {
   name: string;

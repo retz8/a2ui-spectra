@@ -1,6 +1,5 @@
 import assert from 'node:assert/strict';
 import {mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
-import {createServer} from 'node:http';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {after, describe, it} from 'node:test';
@@ -17,6 +16,7 @@ import type {Turn, TurnRecord, WireInputEvent, WirePart} from './record/turn_rec
 import {startViewerServer, type ViewerServer} from './server.js';
 import {TurnStore} from './store/store.js';
 import {TurnHub} from './turn_hub.js';
+import {freePort} from './testing/free_port.js';
 
 const dirs: string[] = [];
 const servers: ViewerServer[] = [];
@@ -24,21 +24,6 @@ after(async () => {
   for (const server of servers) await server.close();
   for (const dir of dirs) rmSync(dir, {recursive: true, force: true});
 });
-
-function freePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server = createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      server.close(() =>
-        typeof address === 'object' && address !== null
-          ? resolve(address.port)
-          : reject(new Error('No port.')),
-      );
-    });
-  });
-}
 
 const trace = (n: number) => String(n).padStart(32, '0');
 

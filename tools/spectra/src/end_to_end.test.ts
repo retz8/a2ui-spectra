@@ -32,10 +32,11 @@ import {
   type WireOutputEvent,
 } from './record/turn_record.js';
 import {folderOf} from './store/store.js';
-import {binary, freePort, SpectraProcess, workingDir} from './testing/spectra_process.js';
+import {binary, SpectraProcess, workingDir} from './testing/spectra_process.js';
 import {boxSettled, getJson, LiveStream, sendMessage} from './testing/live_api.js';
 import {startStub} from './testing/stub_agent.js';
 import {turnRecordErrors} from './testing/turn_record_schema.js';
+import {freePort} from './testing/free_port.js';
 
 const customCatalog = fileURLToPath(
   new URL('../../../conformance/test_data/catalogs/custom_catalog_v1_0.json', import.meta.url),

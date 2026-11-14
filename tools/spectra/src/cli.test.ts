@@ -38,9 +38,10 @@ import {
 import {FAKE_TOOL_TOKEN, SEND_REPLY, startFakeAgent, STREAM_REPLY} from './testing/fake_agent.js';
 import {FAKE_PROVIDER_KEY, startFakeProvider} from './testing/fake_provider.js';
 import {boxSettled, getJson, LiveStream, postJson, sendMessage} from './testing/live_api.js';
-import {binary, finished, freePort, SpectraProcess, workingDir} from './testing/spectra_process.js';
+import {binary, finished, SpectraProcess, workingDir} from './testing/spectra_process.js';
 import {turnRecordErrors} from './testing/turn_record_schema.js';
 import {VERSION} from './version.js';
+import {freePort} from './testing/free_port.js';
 
 const fakeAgentScript = fileURLToPath(new URL('./testing/fake_agent.js', import.meta.url));
 const posix = process.platform !== 'win32';

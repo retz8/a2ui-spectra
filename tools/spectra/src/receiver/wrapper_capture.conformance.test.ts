@@ -20,7 +20,6 @@ import {spawn} from 'node:child_process';
 import {randomBytes} from 'node:crypto';
 import * as fs from 'node:fs';
 import {mkdtemp, rm} from 'node:fs/promises';
-import {createServer} from 'node:net';
 import {tmpdir} from 'node:os';
 import * as path from 'node:path';
 import {describe, it} from 'node:test';
@@ -43,6 +42,7 @@ import {turnRecordErrors} from '../testing/turn_record_schema.js';
 import {isReceived} from './assemble.js';
 import {startReceiverListener} from './listener.js';
 import {SpanReceiver} from './receiver.js';
+import {freePort} from '../testing/free_port.js';
 
 type Language = 'python' | 'typescript';
 
@@ -114,17 +114,6 @@ const SDK_NAMES: Readonly<Record<Language, string>> = {
 function hasDriver(language: Language): boolean {
   const driver = DRIVERS[language];
   return fs.existsSync(path.join(driver.project, driver.marker));
-}
-
-function freePort(): Promise<number> {
-  return new Promise(resolve => {
-    const server = createServer().listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      server.close(() =>
-        resolve(typeof address === 'object' && address !== null ? address.port : 0),
-      );
-    });
-  });
 }
 
 function readJson<T>(file: string): T {

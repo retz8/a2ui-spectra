@@ -14,6 +14,7 @@ import type {CallToPlace, PlacedCall} from '../placement.js';
 import type {ModelCallEvent} from '../record/turn_record.js';
 import {type CallNotification, type ModelProxy, startModelProxy} from './proxy.js';
 import {type Redirection, redirections} from './redirection.js';
+import {freePort} from '../testing/free_port.js';
 
 type Handler = (request: IncomingMessage, body: string, response: ServerResponse) => void;
 
@@ -51,13 +52,6 @@ function listen(server: Server): Promise<number> {
       resolve(typeof address === 'object' && address !== null ? address.port : 0);
     });
   });
-}
-
-async function freePort(): Promise<number> {
-  const server = createServer();
-  const port = await listen(server);
-  await new Promise(resolve => server.close(resolve));
-  return port;
 }
 
 /**

@@ -40,8 +40,9 @@ import {
   type WireInputEvent,
   type WireOutputEvent,
 } from './record/turn_record.js';
-import {binary, freePort, SpectraProcess} from './testing/spectra_process.js';
+import {binary, SpectraProcess} from './testing/spectra_process.js';
 import {startStub} from './testing/stub_agent.js';
+import {freePort} from './testing/free_port.js';
 
 const samplesDir = fileURLToPath(new URL('../../../samples/preview/', import.meta.url));
 const SAMPLES = ['react', 'lit', 'angular'] as const;

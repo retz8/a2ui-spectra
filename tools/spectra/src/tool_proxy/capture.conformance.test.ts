@@ -23,7 +23,6 @@ import {CallPlacer} from '../placement.js';
 import type {ToolCallEvent, Turn, TurnEvent, TurnRecord} from '../record/turn_record.js';
 import {
   comparable,
-  freePort,
   PATHS,
   SCENARIOS,
   toolCalls,
@@ -33,6 +32,7 @@ import {startToolServer} from '../testing/tool_server.js';
 import {turnRecordErrors} from '../testing/turn_record_schema.js';
 import {startToolProxy} from './proxy.js';
 import type {ToolServer} from './servers.js';
+import {freePort} from '../testing/free_port.js';
 
 interface CaptureToolCase {
   name: string;

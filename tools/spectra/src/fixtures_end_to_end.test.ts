@@ -29,11 +29,12 @@ import {
   type WireOutputEvent,
 } from './record/turn_record.js';
 import {boxSettled, getJson, LiveStream, postJson, sendMessage} from './testing/live_api.js';
-import {binary, freePort, SpectraProcess, workingDir} from './testing/spectra_process.js';
+import {binary, SpectraProcess, workingDir} from './testing/spectra_process.js';
 import {startStandIn} from './testing/stand_in_provider.js';
 import {startStub, stubScript} from './testing/stub_agent.js';
 import {startToolServer} from './testing/tool_server.js';
 import {turnRecordErrors} from './testing/turn_record_schema.js';
+import {freePort} from './testing/free_port.js';
 
 const TIMEOUT = 90_000;
 

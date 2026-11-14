@@ -16,8 +16,9 @@ import {after, before, describe, it} from 'node:test';
 
 import {type Browser, chromium, type Locator, type Page} from 'playwright';
 
-import {binary, freePort, SpectraProcess, workingDir} from './testing/spectra_process.js';
+import {binary, SpectraProcess, workingDir} from './testing/spectra_process.js';
 import {startStub} from './testing/stub_agent.js';
+import {freePort} from './testing/free_port.js';
 
 const TIMEOUT = 180_000;
 

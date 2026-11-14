@@ -5,7 +5,6 @@
  * what varies from run to run is normalised.
  */
 import assert from 'node:assert/strict';
-import {createServer, type Server} from 'node:http';
 
 import {Client} from '@modelcontextprotocol/sdk/client/index.js';
 import {SSEClientTransport} from '@modelcontextprotocol/sdk/client/sse.js';
@@ -159,18 +158,6 @@ export const SCENARIOS: Record<
     ];
   },
 };
-
-export function freePort(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const server: Server = createServer();
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      const port = typeof address === 'object' && address !== null ? address.port : 0;
-      server.close(() => resolve(port));
-    });
-  });
-}
 
 /** A label for each distinct value, by order of first appearance. */
 export class Labels {

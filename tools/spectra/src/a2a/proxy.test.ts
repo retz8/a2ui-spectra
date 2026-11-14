@@ -13,6 +13,7 @@ import {gzipSync} from 'node:zlib';
 import type {TurnEvent, TurnRecordEvent, WireOutputEvent} from '../record/turn_record.js';
 import {startWireProxy, type WireProxy, type WireProxyOptions} from './proxy.js';
 import type {TurnNotification} from './turn.js';
+import {freePort} from '../testing/free_port.js';
 
 type Handler = (request: IncomingMessage, body: string, response: ServerResponse) => void;
 
@@ -42,14 +43,6 @@ function listen(server: Server): Promise<number> {
       resolve(typeof address === 'object' && address !== null ? address.port : 0);
     });
   });
-}
-
-/** A port nothing listens on. */
-async function freePort(): Promise<number> {
-  const server = createServer();
-  const port = await listen(server);
-  await new Promise(resolve => server.close(resolve));
-  return port;
 }
 
 async function setUp(

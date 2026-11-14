@@ -15,7 +15,6 @@
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import {mkdtemp, rm} from 'node:fs/promises';
-import {createServer} from 'node:net';
 import {tmpdir} from 'node:os';
 import * as path from 'node:path';
 import {describe, it} from 'node:test';
@@ -37,6 +36,7 @@ import {turnRecordErrors} from '../testing/turn_record_schema.js';
 import {isReceived} from './assemble.js';
 import {startReceiverListener} from './listener.js';
 import {SpanReceiver} from './receiver.js';
+import {freePort} from '../testing/free_port.js';
 
 interface CaptureReceiverCase {
   name: string;
@@ -70,17 +70,6 @@ function findConformanceDir(): string {
 const CONFORMANCE_DIR = findConformanceDir();
 const SUITE = path.join(CONFORMANCE_DIR, 'receiver_capture/capture_v0_1.yaml');
 const WRITE = process.env.SPECTRA_WRITE_RECEIVER_CAPTURE === '1';
-
-function freePort(): Promise<number> {
-  return new Promise(resolve => {
-    const server = createServer().listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      server.close(() =>
-        resolve(typeof address === 'object' && address !== null ? address.port : 0),
-      );
-    });
-  });
-}
 
 function readJson<T>(file: string): T {
   return JSON.parse(fs.readFileSync(path.join(CONFORMANCE_DIR, file), 'utf8')) as T;

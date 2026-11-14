@@ -1,10 +1,5 @@
 import assert from 'node:assert/strict';
-import {
-  createServer,
-  type IncomingHttpHeaders,
-  request as httpRequest,
-  type Server,
-} from 'node:http';
+import {type IncomingHttpHeaders, request as httpRequest} from 'node:http';
 import {after, describe, it} from 'node:test';
 
 import {type SseEvent, SseParser} from '../a2a/sse.js';
@@ -12,6 +7,7 @@ import type {PlacedCall} from '../placement.js';
 import type {SpanEvent, ToolCallEvent, TurnRecord} from '../record/turn_record.js';
 import {type PoolMode, ReplayPool} from '../replay/pool.js';
 import {startToolProxy, type ToolProxy} from './proxy.js';
+import {freePort} from '../testing/free_port.js';
 
 const TRACE = 'f'.repeat(32);
 const TURN_SPAN = '1'.repeat(16);
@@ -21,14 +17,6 @@ const proxies: ToolProxy[] = [];
 after(async () => {
   await Promise.all(proxies.map(proxy => proxy.close()));
 });
-
-async function freePort(): Promise<number> {
-  const server: Server = createServer();
-  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
-  const address = server.address();
-  await new Promise(resolve => server.close(resolve));
-  return typeof address === 'object' && address !== null ? address.port : 0;
-}
 
 interface Setup {
   proxy: ToolProxy;

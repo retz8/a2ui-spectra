@@ -15,6 +15,7 @@ import type {CallToPlace, PlacedCall, Unplaced} from '../placement.js';
 import type {CallEvent, ToolCallEvent} from '../record/turn_record.js';
 import {startToolProxy, type ToolProxy} from './proxy.js';
 import type {ToolServer} from './servers.js';
+import {freePort} from '../testing/free_port.js';
 
 const TRACE = 'f'.repeat(32);
 const TURN_SPAN = '1'.repeat(16);
@@ -39,13 +40,6 @@ function listen(server: Server): Promise<number> {
       resolve(typeof address === 'object' && address !== null ? address.port : 0);
     });
   });
-}
-
-async function freePort(): Promise<number> {
-  const server = createServer();
-  const port = await listen(server);
-  await new Promise(resolve => server.close(resolve));
-  return port;
 }
 
 interface Setup {

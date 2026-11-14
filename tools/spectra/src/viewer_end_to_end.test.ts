@@ -21,8 +21,9 @@ import {type Browser, chromium, type Locator, type Page} from 'playwright';
 
 import {isEventOfKind, type TurnEvent, type TurnRecord} from './record/turn_record.js';
 import {TurnStore} from './store/store.js';
-import {binary, freePort, SpectraProcess, workingDir} from './testing/spectra_process.js';
+import {binary, SpectraProcess, workingDir} from './testing/spectra_process.js';
 import {startStub} from './testing/stub_agent.js';
+import {freePort} from './testing/free_port.js';
 
 const RECORD = fileURLToPath(
   new URL(
