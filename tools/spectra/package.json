@@ -2,7 +2,7 @@
   "name": "a2ui-spectra",
   "private": true,
   "version": "0.0.1",
-  "description": "DevTools for A2UI agents: attach to a running agent and see every turn.",
+  "description": "A debugging and observation tool for the developer of an A2UI agent: attach to the running agent, see every turn, check and preview it, record and replay it.",
   "license": "Apache-2.0",
   "type": "module",
   "bin": "./dist/cli.js",

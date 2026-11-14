@@ -4,7 +4,7 @@ The Angular sample catalog app of Spectra for A2UI: the sample catalog's Angular
 
 ## The sample catalog
 
-[`../catalog.json`](../catalog.json), shared by the React, Lit and Angular samples, is a v0.9 catalog definition: the A2UI v0.9 basic catalog's components and functions, copied, and one custom component, `CustomSlider`, under the id `https://github.com/retz8/a2ui-spectra/blob/main/samples/preview/catalog.json`. It names no protocol version, so it serves v0.9 and v0.9.1 surfaces. A `CustomSlider` has a label, a value, a minimum and a maximum; it binds a number and writes it back to the data model as it is dragged, as upstream's Lit and Angular explorers have it.
+[`../catalog.json`](../catalog.json), shared by the React, Lit and Angular samples, is a v0.9 catalog definition: the A2UI v0.9 basic catalog's components and functions, copied, and one custom component, `CustomSlider`, under the id `https://github.com/retz8/a2ui-spectra/blob/main/samples/preview/catalog.json`. It names no protocol version, so it serves v0.9 and v0.9.1 surfaces. A `CustomSlider` has a label, a value, a minimum and a maximum; it binds a number and writes it back to the data model as it is dragged, as upstream's React, Lit and Angular explorers have it.
 
 The page also claims the A2UI v1.0 basic catalog, `https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json`, which Spectra knows built in, so a v1.0 surface on it is drawn here rather than on Spectra's built-in page, with its renderer's own reading of the v1.0 component envelope keys. The sample catalog itself stays a v0.9 catalog.
 

@@ -40,12 +40,12 @@ The demo, with the restaurant finder in Python and in TypeScript producing the s
 - The wire proxy keeping each delivery's raw exchange beside the turn record, for the viewer: the JSON-RPC envelope, the HTTP status, where the A2UI sat in the A2A message, and its MIME type tag.
 - The message box sending the configured catalogs inline when the agent's card accepts inline catalogs.
 - v1.0's `callAgentFunction` and `rendererFunctionResponse`, the agent-function round trip, shown and answered from the preview.
-- A hover link between a tree node, the message's lines and the drawn component in the preview, once the renderers mark the DOM with component ids; upstream's React and Lit renderers do not at 409ded29c.
+- A hover link between a tree node, the message's lines and the drawn component in the preview, once the renderers mark the DOM with component ids; upstream's React, Lit and Angular renderers do not at `0888f88b2`.
 - A recording of real OpenAI traffic, Chat Completions and Responses, once there is an OpenAI key, beside the stand-in provider's responses built from OpenAI's API reference.
 - An HTTP+SSE tool server's absolute endpoint URL, on its own origin, rewritten to the tool proxy's origin, so that its calls pass through the tool proxy; until then it is passed on unchanged with a terminal line.
 - The OTLP/HTTP receiver passing each export on to the adopter's own collector, the endpoint Spectra's environment set before `run` replaced it.
 - A view of a turn's whole received span tree, framework spans included, beside the spans a call's detail shows.
-- The A2UI step for A2UIVerse's agents, once they move to `a2ui-agent-sdk` 0.10.0 or later, the release carrying the wrappers' pinned API; they are on PyPI's `a2ui-agent-sdk` 0.9.0, which the wrappers do not support.
+- The A2UI step for A2UIVerse's agents, once they move to `a2ui-agent-sdk` 0.11.0 or later, the Python wrapper's floor; they are on PyPI's `a2ui-agent-sdk` 0.9.0, which the wrapper does not support.
 - A second SDK API shape in the wrappers: a hook table per shape, chosen by the pinned-API check, each with its own floor and capture records.
 - A rejected block's failing message marked within it in the raw text, the messages a stream accepted and sent before it left plain.
 - A JUnit or other report format for `a2ui-spectra test`, for the CI systems that read one; v1 prints plain terminal lines.

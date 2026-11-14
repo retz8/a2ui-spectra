@@ -71,7 +71,7 @@ The spans are the turn record's [producers of the A2UI step](../../specification
 
 ## The pinned API
 
-The wrapper was written against upstream's release of 2026-11-02, `@a2ui/agent` 0.1.0, which is its version floor. Before hooking, `instrument()` and the instrumentation's `enable()` check that `@a2ui/agent` resolves, that the version its `package.json` gives is at least 0.1.0, and that every hooked name is a function on its class's prototype. They stand or fall together:
+The wrapper was written against upstream's release of 2026-11-02, `@a2ui/agent` 0.1.0, which is its version floor; see [What Spectra supports](../../README.md#what-spectra-supports). Before hooking, `instrument()` and the instrumentation's `enable()` check that `@a2ui/agent` resolves, that the version its `package.json` gives is at least 0.1.0, and that every hooked name is a function on its class's prototype. They stand or fall together:
 
 | Class                                                 | Hooked                         |
 | ----------------------------------------------------- | ------------------------------ |

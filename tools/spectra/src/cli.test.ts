@@ -150,6 +150,10 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
   it('prints its help', {timeout: TIMEOUT}, async () => {
     const tool = await finished(['--help']);
     assert.equal(tool.code, 0);
+    assert.match(
+      tool.output.split('\n')[0] ?? '',
+      /^a2ui-spectra \S+: a debugging and observation tool for the developer of an A2UI agent\.$/,
+    );
     assert.match(tool.output, /attach \[<agent-url>\]/);
     assert.match(tool.output, /run \[--agent-url <url>\] \[options\] -- <command>/);
     assert.match(tool.output, /--config <path>/);

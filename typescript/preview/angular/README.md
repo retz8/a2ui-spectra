@@ -4,7 +4,7 @@ The Angular preview adapter of Spectra for A2UI: one standalone component that l
 
 ## Adding a preview page
 
-1. Add the adapter as a dev dependency. It takes `@a2ui/angular` 0.14, `@a2ui/web_core` 0.15 and Angular 21 as peer dependencies, so the preview runs on yours.
+1. Add the adapter as a dev dependency. It takes `@a2ui/angular` 0.14, `@a2ui/web_core` 0.15 and Angular 21 as peer dependencies, `^0.14.0` and `^0.15.0` for the upstream packages, so the preview runs on yours. The published latest, `@a2ui/angular` 0.14.0 on `@a2ui/web_core` 0.15.0, reads a v1.0 component's envelope keys in the bare form only, and refuses a surface whose components carry the `@` keys; the page reports that refusal in the renderer's words. See [What Spectra supports](../../../README.md#what-spectra-supports).
 2. Add a small page to the catalog's dev server: an application bootstrapped with the same `provideA2Ui` config your real host's app config has, and `provideMarkdownRenderer` when your host uses one, whose root component holds `<a2ui-spectra-preview />`:
 
    ```ts

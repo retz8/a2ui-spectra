@@ -1,29 +1,39 @@
 # Spectra
 
-Spectra, introduced as "Spectra for A2UI": a dev tool for the developer of an A2UI agent. Settled 2026-10-17.
+Spectra, introduced as "Spectra for A2UI": a debugging and observation tool for the developer of an A2UI agent. Settled 2026-10-17.
 
 ---
 
 ## What Spectra is
 
-- A dev tool for the developer of an A2UI agent: attach to the running agent, see every turn, check and preview it, record and replay it.
+- A debugging and observation tool for the developer of an A2UI agent: attach to the running agent, see every turn, check and preview it, record and replay it.
 - It runs as one local process. Nothing is deployed and there is no cloud for it; at most, a hosted static viewer that opens files locally.
 - It is proposed to the A2UI community on its own, apart from A2UIVerse, and is aimed at moving into upstream's `tools/` as `@a2ui/spectra`. Until then it lives in `a2ui-spectra`.
 - **Name in prose:** "Spectra", or "Spectra for A2UI" when introducing it.
 
-## The gap
+## Existing tools
 
-Upstream's roadmap (`docs/public/roadmap.md`) lists "Developer tooling for A2UI at build time" under its long-term vision, with no further detail.
+Spectra is a debugging and observation tool for the developer of an A2UI agent. It works with any A2UI agent, in any language and on any framework. It sees inside the turn, the exact model request, the raw response, tool calls, tokens, retries and the A2UI step, and replays a turn without paying for the model, behind one turn record format and one viewer across transports.
 
-Upstream's developer tools start from a surface: a pasted payload, or one the tool's own model generated.
+### Upstream
 
-- **A2UI Inspector** (`tools/inspector/`, Lit) renders a pasted A2UI v0.8 response.
-- **A2UI Editor** (`tools/editor/`, Lit) generates and visualizes a surface with Gemini.
-- **A2UI Composer** (`tools/composer/`, React on Next.js, on CopilotKit's runtime) builds a surface through a chat, with a live preview, a JSON editor, and tabs for the data model, events, errors and raw messages. It renders the basic catalog only, through the React renderer.
+As read at the pin, under [Upstream landscape](#upstream-landscape).
+
+Upstream's roadmap (`docs/site/src/content/docs/roadmap.mdx`) is five stages in a loop: build components, configure agents, evaluate, distribute, and monitor and evolve. "The A2UI CLI is at the center because we plan for it to cover every stage."
+
+The tools and planned items nearest to Spectra:
+
+- **The `a2ui` CLI** (`dart/a2ui_cli`, the Dart package `a2ui_cli`) has two commands, both on catalog files: `codegen`, which generates typesafe component builders from a catalog, and `lint`. It ships as pre-built binaries on GitHub releases, with a curl install script, and on pub.dev. Upstream's root `README.md` plans it in its roadmap list as "Schema validation, codegen, local preview, and integration with coding agents". The roadmap page's table plans it at every stage: "Scaffold, generate, preview, and publish components and catalogs"; "Generate skills and connect catalogs to agents"; "Validate output and run evaluation suites"; "Package agents for native apps, assistants, and MCP Apps hosts"; "Pull usage and feedback data back into your project".
+- **The evaluate stage:** `eval/`, an evaluation framework on Inspect AI that scores model output against the project's own datasets. Planned: tooling to evaluate your own agents, combining "Deterministic rules that check payloads against your catalog", an LLM judge, and "Tool usage as a judge, which looks at the agent's tool calls and context".
+- **The monitor stage,** planned: "Guidance on which logs to collect from gen-UI experiences, such as rendered surfaces, user actions, errors, and abandoned flows".
+- **The Gallery App** is described in the framework adapter blueprint (`blueprints/modules/a2ui_framework_adapter.blueprint.md`) as "a comprehensive development, demonstration, and debugging tool that serves as the reference environment for an A2UI renderer", for inspecting the live data model and stepping through progressive rendering.
+- **The "Protocol Debug Inspector" drawer** on the page of the MCP Apps in A2UI guide's sample (`docs/site/src/content/docs/guides/mcp-apps-in-a2ui.mdx`, the sample `samples/community/mcp/a2ui-kanban/`) shows "the live A2UI messages, `postMessage` frames, and MCP tool calls behind each action".
+- **A2UI Composer** (`tools/composer/`, React on Next.js, on CopilotKit) builds a widget through a chat, with a live preview, for its JSON to be pasted into an agent's components. It renders the v0.9 basic catalog through the React renderer. Its theater steps through pre-built A2UI streaming scenarios.
 - **Flutter's Catalog Gallery and Composer** live in the `flutter/genui` repo and are listed in the "Dev tools" table of upstream's `samples/README.md`.
-- **The Gallery App** is described in upstream's framework adapter blueprint as a reference environment for inspecting the live data model and stepping through progressive rendering. The same blueprint stores envelope `metadata` on each component model; views ignore it "unless forwarding it to developer tooling".
 
-Tools outside upstream that attach to a live agent, as of 2026-10-17:
+### Outside upstream
+
+Tools that attach to a live agent, as of 2026-10-17:
 
 | Tool                                                                    | Attaches over                               | What it covers                                                                                                                                                         |
 | ----------------------------------------------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -32,8 +42,6 @@ Tools outside upstream that attach to a live agent, as of 2026-10-17:
 | [`a2ui-inspector`](https://github.com/zhijiewong/a2ui-inspector)        | WebSocket, SSE, an HTTP proxy, JSONL replay | An A2UI v0.9 sidecar; sends actions back to the agent; a validation CLI                                                                                                |
 | [`agent-surface`](https://github.com/kimjusnu/agent-surface)            | Adapters for AG-UI, A2UI and MCP Apps       | A host with trace replay and diff, and an evaluation gate that writes JUnit output for CI                                                                              |
 | [`a2ui-debugger`](https://github.com/mgechev/a2ui-debugger)             | A bare SSE stream, or pasted JSON           | An A2UI v0.8 message log, state tree, preview and time travel                                                                                                          |
-
-None of them sees inside the turn (the exact model request, the raw response, tool calls, tokens, retries, the A2UI step), and none replays a turn without calling the model. Spectra's claim is seeing inside the turn and replaying it without paying for the model, behind one turn record format and one viewer across transports.
 
 ## Features
 
@@ -113,7 +121,7 @@ A file format, taps at the edges every stack shares, and one viewer. HAR, the HT
 
 - **Default host:** Spectra's own message box sends the first message.
 - **Transport-neutral core.** The turn record, the checks, the viewer, the preview, the model and tool proxies and the OpenTelemetry receiver carry nothing transport-specific. Each transport is an adapter that does both the proxying and the hosting. A2A is the adapter in v1.
-- This follows A2UI's own split. The protocol "defines the JSON message structure and the semantic contract … but it does not mandate a specific transport layer" (`specification/v0_9_1/docs/a2ui_protocol.md`, "Transport decoupling"). A transport must deliver messages in order, delimit each message, carry metadata (the data model sent with actions, and the exchange of capabilities), and may give a return channel for actions. Each binding maps that contract onto one transport, and so does each adapter.
+- This follows A2UI's own split. The protocol "defines the JSON message structure and the semantic contract between the Agent and the Renderer, but it does not mandate a specific transport layer" (`specification/v1_0/docs/a2ui_protocol.md`, "Transport decoupling"). A transport must deliver messages in order, delimit each message, carry metadata (the data model sent with actions, and the exchange of capabilities), and may give a return channel for actions. Each binding maps that contract onto one transport, and so does each adapter.
 
 ## Capture
 
@@ -153,7 +161,8 @@ catalog ──▶ prompt generator ──▶ prompt ──▶ model ──▶ ra
 ```
 
 - The wrapper is OpenTelemetry instrumentation for upstream's Python and TypeScript agent SDKs, named `a2ui-spectra-instrumentation` in both languages: a dev-dependency package that patches the prompt generators and the parsers at runtime and emits the A2UI step's spans to the same receiver. OpenInference and OpenLLMetry instrument model libraries the same way.
-- It supports the agent SDKs of upstream's releases of 2026-11-02, `a2ui-agent-sdk` 0.10.0 with `a2ui-core` 0.5.0 and `a2ui-adk` 0.2.0 on PyPI and `@a2ui/agent` 0.1.0 on npm, in every inference format they implement: Direct JSON, Express, Elemental and Atom in Python; Direct JSON and Express in TypeScript. An SDK without the pinned API is left unpatched, with one log line.
+- It supports each agent SDK at the pin's main and at its published latest, under [Supported versions](#supported-versions), from a floor: `a2ui-agent-sdk` 0.11.0 in Python and `@a2ui/agent` 0.1.0 in TypeScript. It covers every inference format they implement: Direct JSON, Express, Elemental and Atom in Python; Direct JSON and Express in TypeScript. An SDK below the floor or without the pinned API is left unpatched, with one log line.
+- A prompt generation is a prompt generator's `generate()`. A skill written by upstream's `SkillGenerator` is not reported.
 - It covers upstream's public parsing entry points as well as the inference-format classes, and A2UI sent as a tool call through `a2ui-adk`'s `SendA2uiToClientToolset`.
 - In Python it is switched on by launching the agent under `opentelemetry-instrument` with the package installed, or with one line, `a2ui_spectra_instrumentation.instrument()`. In TypeScript it is switched on by launching the agent through Node's `--import a2ui-spectra-instrumentation/register`, with one line, `instrument()`, or as `A2uiInstrumentation` among the agent's own OpenTelemetry instrumentations. Switched on in a process with no tracer provider, it starts one with the OTLP/HTTP exporter, reading the `OTEL_EXPORTER_OTLP_*` variables `a2ui-spectra run` sets; a process with its own tracer provider keeps it.
 - It reports the raw text each parse was given, the messages it produced, the inference format, the catalogs and each parse or validation error, and the UI section each prompt generation wrote. Spectra shows from them what the model proxy cannot see:
@@ -284,7 +293,7 @@ The viewer's own stack is not visible to the adopter.
 
 - One repo holds every package: the CLI and local server, the viewer, the preview core and adapters, the Python and TypeScript wrappers, and the turn record spec with its shared test data.
 - Shaped like an upstream tool from the first commit: Yarn workspaces built with `wireit`, with upstream's standard script targets (`build`, `lint`, `lint:fix`, `test`, `format`, `format:check`). The Python wrapper is a uv project, as upstream's Python packages are. The layout follows upstream's monorepo conventions.
-- **Upstream reference** (`upstream/main` at 9e8a9bac5, the commit of upstream's releases of 2026-11-02): Yarn 4.13.0 with the `node-modules` linker; CI on Node 22; `tools/inspector` and `tools/editor` are `@a2ui/<tool>` workspaces marked `private` and built with `wireit`.
+- **Upstream reference,** at the pin, under [Upstream landscape](#upstream-landscape): Yarn 4.13.0 with the `node-modules` linker; CI on Node 22, the default of its `.github/actions/setup-node`; the one workspace under `tools/*`, the Composer, is named `widget-builder`, marked `private` and built with `wireit`.
 
 ### Distribution and names
 
@@ -319,7 +328,7 @@ A2UIVerse is Spectra's first adopter, and Spectra is tested against its agents t
 
 | Area                          | v1                                                                                                                                                                                                                           | After v1                                                                          |
 | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| A2UI protocol versions        | v0.9, v0.9.1, v1.0                                                                                                                                                                                                           | v0.8 is not covered                                                               |
+| A2UI protocol versions        | v0.9, v0.9.1, v1.0, under [Supported versions](#supported-versions)                                                                                                                                                          | v0.8, `deprecated` upstream, is not covered                                       |
 | Transport                     | A2A 0.3 and 1.0, over JSON-RPC                                                                                                                                                                                               | AG-UI first, then MCP as transport, REST, WebSockets; A2A over gRPC and HTTP+JSON |
 | The A2UI step (wrapper)       | Python and TypeScript, covering upstream's public parsing entry points as well as the inference-format classes                                                                                                               | Dart, then retired when the upstream hook lands                                   |
 | Model providers               | Four APIs read in full on the providers' own hosts: Gemini, OpenAI's Chat Completions and Responses, and Anthropic's Messages. Every other call, on another host or another path, is recorded and replayed as a raw request. | Other hosts of those APIs, such as Vertex AI, Azure OpenAI and Amazon Bedrock     |
@@ -337,24 +346,33 @@ What each kind of agent gets in v1:
 | A2A agents not on those SDKs: Dart agents on upstream's SDK, agents that build A2UI JSON by hand, any other language or framework | Everything except the A2UI step, which they can report themselves following the turn record spec. Model and tool data wherever redirection and OpenTelemetry reach. |
 | AG-UI agents, A2UI over MCP, REST, WebSockets                                                                                     | Nothing until those transports' adapters are added                                                                                                                  |
 
+### Supported versions
+
+- **Protocol versions:** the versions upstream's `specification/versions.json` gives as `current` or `previous`, v1.0, v0.9.1 and v0.9 at the pin. A version that file moves to `deprecated` is the signal to deprecate it in Spectra; what Spectra then does is decided when it happens, under the turn record's rule that every release reads and replays the records of every closed version.
+- **The v1.0 component envelope keys:** on a v1.0 component Spectra reads `@catalogId`, `@accessibility`, `@metadata` and `@checks`, `@catalogId` choosing the catalog the component is checked against. A bare `catalogId`, `accessibility`, `metadata` or `checks` is judged as upstream's core SDKs and renderers judge it during the transition: accepted where the component's schema declares no property of that name, and marked as the legacy form; a component carrying both the bare key and the `@` key is rejected. When upstream removes its fallback, Spectra removes its own. v0.9 and v0.9.1 keep the bare keys.
+- **Upstream packages:** for each upstream package an adopter brings, the agent SDKs the wrappers patch and the renderers the preview adapters take as peers, Spectra supports the pin's main and the package's published latest. Where a published latest is behind the pin, Spectra builds against the package patched locally to the pin's state, until npm or PyPI carries it. The floors: `a2ui-agent-sdk` 0.11.0 for the Python wrapper and `@a2ui/agent` 0.1.0 for the TypeScript wrapper; `@a2ui/web_core` 0.15.0, `@a2ui/react` 0.15.0, `@a2ui/lit` 0.15.0 and `@a2ui/angular` 0.14.0 for the preview adapters, each a caret range. The published latest of each is in [Upstream landscape](#upstream-landscape), and the root README states which form of the envelope keys each release reads or emits.
+
 ## Upstream landscape
 
-As read from `upstream/main` at 45633b9 (2026-10-16), unless noted.
+**The pin:** `upstream/main` at `0888f88b2` (2026-11-13). Everything Spectra takes from upstream is taken at the pin, and everything below is as read there, unless noted. The published releases are as read on npm and PyPI on 2026-11-14.
 
-- **Protocol versions** (`specification/`): v0.9.1 is the current production release. v1.0, previously known as 0.10, is a release candidate, with its own A2A extension spec. v0.9 is closed. v0.8 is legacy.
+- **Protocol versions** (`specification/versions.json`): v1.0 is `current`, v0.9.1 and v0.9 are `previous`, v0.8 is `deprecated`. v1.0 is stable (`specification/v1_0/README.md`), with its own A2A extension spec (`specification/v1_0/extensions/a2a/`).
+- **The v1.0 component envelope keys** are `@catalogId`, `@accessibility`, `@metadata` and `@checks`. The core SDKs and renderers read the bare keys as well during the transition (#4037); the specification, the catalogs and the agent SDKs emit the `@` form alone (#4044); the bare form's removal is open (issue #4082). v0.9 and v0.9.1 keep the bare keys.
 - **Agent SDKs:**
-  - **Python:** four packages on PyPI (2026-11-02): `a2ui-core` 0.5.0, the core library; `a2ui-agent-sdk` 0.10.0, the agent SDK; `a2ui-a2a` 0.2.0, the A2A extension; `a2ui-adk` 0.2.0, the ADK extension. The A2A and ADK extensions moved out of the agent SDK, with their import paths (`a2ui.a2a`, `a2ui.adk`) unchanged. The agent SDK's code covers v0.8 to v1.0. Elemental and Atom are experimental (`python/a2ui_agent/src/a2ui/inference_formats/experimental/`).
-  - **TypeScript:** `@a2ui/agent` 0.1.0 on npm (2026-11-02), on `@a2ui/web_core` 0.15.0. It covers v0.9, v0.9.1 and v1.0, and implements Direct JSON and Express, both streaming; Elemental and Atom are not implemented (`typescript/agents/a2ui_agent/KNOWN_GAPS.md`).
+  - **Python:** four packages: `a2ui-core`, the core library; `a2ui-agent-sdk`, the agent SDK; `a2ui-a2a`, the A2A extension; `a2ui-adk`, the ADK extension, imported as `a2ui.a2a` and `a2ui.adk`. On PyPI, the releases of 2026-11-10: `a2ui-core` 0.6.0, `a2ui-agent-sdk` 0.11.0, `a2ui-a2a` 0.3.0 and `a2ui-adk` 0.3.0, cut before the envelope keys' rename, so `a2ui-agent-sdk` 0.11.0 emits the bare keys. The agent SDK's code covers v0.8 to v1.0. Elemental and Atom are experimental (`python/a2ui_agent/src/a2ui/inference_formats/experimental/`).
+  - **TypeScript:** `@a2ui/agent`, on `@a2ui/web_core`. On npm, the release of 2026-11-02: `@a2ui/agent` 0.1.0, cut before the envelope keys' rename. It covers v0.9, v0.9.1 and v1.0, and implements Direct JSON and Express, both streaming; Elemental and Atom are not implemented (`typescript/agents/a2ui_agent/KNOWN_GAPS.md`).
+  - Both agent SDKs carry a skill generator, `SkillGenerator`, beside the prompt generator, `PromptGenerator`: it builds an A2UI skill from the catalog.
   - **Dart** (`dart/a2ui_agent`), and a legacy JVM SDK (`kotlin/agent_sdk_legacy`).
   - **Inference formats** (Direct JSON, Express, Elemental, Atom) are syntaxes the model writes a UI in before the SDK compiles it into A2UI messages.
-- **Renderers:** Lit, Angular and React on the shared web core (`@a2ui/web_core`, 0.15.0 on npm); Flutter on a Dart core (`dart/a2ui_flutter`); SwiftUI on a Swift core (`swift/`). The Lynx renderer lives in `lynx-family/lynx-stack`. Jetpack Compose is planned upstream, and community Compose renderers exist (`docs/public/ecosystem/renderers.md`).
+- **Renderers:** the official renderers (`docs/site/src/content/docs/roadmap.mdx`) are Lit, Angular and React on the shared web core (`@a2ui/web_core`); Flutter on a Dart core (`dart/a2ui_flutter`); SwiftUI on a Swift core (`swift/`); and Jetpack Compose, in AndroidX (`androidx.a2ui.compose`). On npm, the releases of 2026-11-02: `@a2ui/web_core` 0.15.0, `@a2ui/react` 0.15.0, `@a2ui/lit` 0.15.0 and `@a2ui/angular` 0.14.0, none of which reads the `@` envelope keys: web core 0.15.0 draws a v1.0 component whose envelope keys are bare and refuses the whole `updateComponents` when a component carries an `@` key. The React, Lit and Angular renderers put no component id on the DOM. The Lynx renderer lives in `lynx-family/lynx-stack`, among the community renderers (`docs/site/src/content/docs/ecosystem/renderers.mdx`).
 - **Transports:**
-  - **A2A** has a full binding: each A2UI message is one A2A message Part, the data model and capabilities go in the A2A message's `metadata`, and an A2UI session maps to A2A's `contextId`.
-  - **AG-UI** is listed as stable, with no binding in upstream. Its A2UI mapping is defined on AG-UI's side, in `@ag-ui/a2ui-middleware`: A2UI messages as `ACTIVITY_SNAPSHOT` events with `activityType: "a2ui-surface"`, the UI as the streamed arguments of a `render_a2ui` tool call, and user actions in `forwardedProps`.
-  - **MCP, REST and WebSockets.**
-- **Agent frameworks:** ADK and AG2. Outside upstream, AG-UI's ecosystem ships A2UI support for LangGraph, CrewAI, Mastra, AWS Strands and Microsoft Agent Framework, mostly through CopilotKit and AG-UI's own A2UI toolkit rather than upstream's agent SDK. CopilotKit's A2UI renderer is built on upstream's web core. (AG-UI and CopilotKit repos, 2026-10-17.)
-- **Sample agents:** `samples/agent/` holds the three core samples. `samples/community/` "contains code that is not maintained" (its README), with ten agent entries under `samples/community/agent/adk/` and four samples under `samples/community/mcp/`. Sample clients: Lit, Angular, React, Flutter.
-- **Tools:** `tools/inspector`, `tools/editor`, `tools/composer`, `tools/build_catalog`.
+  - **A2A** has a binding, the A2A extension (`specification/v1_0/extensions/a2a/docs/a2ui_extension_specification.md`): A2UI messages travel in an A2A `DataPart` whose metadata gives the MIME type `application/a2ui+json` and whose `data` is an array of A2UI messages, and the renderer's capabilities and data model go in the A2A message's `metadata`. An A2UI session typically maps to A2A's `contextId` (`specification/v0_9_1/docs/a2ui_protocol.md`).
+  - **AG-UI** and **MCP** are named as bindings in v1.0's protocol document, under headings of their own; `specification/v1_0/extensions/` holds A2A's alone. AG-UI's A2UI mapping is defined on AG-UI's side, in `@ag-ui/a2ui-middleware`: A2UI messages as `ACTIVITY_SNAPSHOT` events with `activityType: "a2ui-surface"`, the UI as the streamed arguments of a `render_a2ui` tool call, and user actions in `forwardedProps` (AG-UI repo, 2026-10-17).
+  - **SSE with JSON-RPC, WebSockets and REST**, named under "Other transports".
+- **Agent frameworks:** ADK, through `a2ui-adk`. Outside upstream, AG-UI's ecosystem ships A2UI support for LangGraph, CrewAI, Mastra, AWS Strands and Microsoft Agent Framework, mostly through CopilotKit and AG-UI's own A2UI toolkit rather than upstream's agent SDK. CopilotKit's A2UI renderer is built on upstream's web core. (AG-UI and CopilotKit repos, 2026-10-17.)
+- **Sample agents:** `samples/agent/` holds the three core samples. `samples/community/` "contains code that is not maintained" (its README), with seven directories under `samples/community/agent/adk/` and five samples under `samples/community/mcp/`. Sample clients: Lit, Angular, React, Flutter.
+- **Tools:** `tools/` holds `build_catalog`, `composer` and `internal`; `tools/inspector` and `tools/editor` were deleted (#4125). The `a2ui` CLI is `dart/a2ui_cli`, the Dart package `a2ui_cli`, 0.3.0 on pub.dev (2026-11-11). See [Existing tools](#existing-tools).
+- **Documentation:** under `docs/site/src/content/docs/`.
 
 ## Roadmap
 
@@ -396,12 +414,13 @@ As read from `upstream/main` at 45633b9 (2026-10-16), unless noted.
 - **Licence:** Apache 2.0, the same as upstream.
 - **Home until the move:** `a2ui-spectra` on the personal GitHub account, outside the proposed `a2uiverse` GitHub organization.
 - **Contributions:** upstream contributions require Google's Contributor License Agreement, and code from an outside contributor can move upstream only if that contributor has signed it. Until the move, no outside code is merged. Issues and discussion are welcome.
-- **The proposal:** a GitHub Discussion, the route upstream's roadmap gives for proposing features. It also asks for a listing in the "Dev tools" table of upstream's `samples/README.md`.
+- **The proposal:** a GitHub Discussion, a route upstream's roadmap gives for proposing features ("propose features … on GitHub and in GitHub Discussions"). It also asks for a listing in the "Dev tools" table of upstream's `samples/README.md`.
 - **What "the community accepts" means:** a maintainer's positive reply in the Discussion, agreeing the hook is worth a blueprint. It gates proposing the hook only.
-- **Distribution after the move:** upstream's tools are private, unpublished workspace packages, so how Spectra ships after the move is upstream's decision.
+- **Distribution after the move:** the one workspace under upstream's `tools/`, the Composer, is private and unpublished, and the `a2ui` CLI ships as pre-built binaries on GitHub releases and on pub.dev. How Spectra ships after the move is upstream's decision.
 
 ## Open
 
+- **Where a debugging and observation tool sits in upstream's roadmap:** the roadmap's loop of five stages, build, configure, evaluate, distribute and monitor, has no stage for one, and upstream plans the `a2ui` CLI to cover every stage.
 - **AG-UI's timing:** whether AG-UI ships alongside v1 if v1 lands early.
 - **Light and dark preview variants:** they depend on whether upstream's web renderers support dark mode, which is not yet checked.
 - **At the move:** where each piece lands inside upstream, and how Spectra ships after.

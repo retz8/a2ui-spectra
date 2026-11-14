@@ -4,7 +4,7 @@ The React preview adapter of Spectra for A2UI: one component that lets Spectra's
 
 ## Adding a preview page
 
-1. Add the adapter as a dev dependency. It takes `@a2ui/react` 0.15, `@a2ui/web_core` 0.15 and React 18 or 19 as peer dependencies, so the preview runs on yours.
+1. Add the adapter as a dev dependency. It takes `@a2ui/react` 0.15, `@a2ui/web_core` 0.15 and React 18 or 19 as peer dependencies, `^0.15.0` for both upstream packages, so the preview runs on yours. The published latest, `@a2ui/react` 0.15.0 on `@a2ui/web_core` 0.15.0, reads a v1.0 component's envelope keys in the bare form only, and refuses a surface whose components carry the `@` keys; the page reports that refusal in the renderer's words. See [What Spectra supports](../../../README.md#what-spectra-supports).
 2. Add a small page to the catalog's dev server, with `SpectraPreview` inside the providers your real host wraps its surfaces in, and the catalogs your host passes to its message processor:
 
    ```tsx

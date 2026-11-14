@@ -54,7 +54,7 @@ or agent.url in the config file, names an agent already running, whose shell
 the variables attach prints were set in. No viewer and no browser: the
 status lines go to stderr, and stdout carries the result lines alone.`;
 
-const toolHelp = `${NAME} ${VERSION}: DevTools for A2UI agents.
+const toolHelp = `${NAME} ${VERSION}: a debugging and observation tool for the developer of an A2UI agent.
 
 Usage:
   ${NAME} attach [<agent-url>] [options]

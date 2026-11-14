@@ -31,7 +31,7 @@ Out of scope:
 - A scheduled run of the upstream check.
 - What Spectra does when a protocol version becomes deprecated, under decision 4.
 - Whether Spectra ships with a local patch of an upstream package inside its binary, when upstream has not published by then. Phase 10's.
-- Spectra's relation to upstream's `a2ui` CLI. Phase 11's.
+- Where a debugging and observation tool sits in upstream's roadmap, beyond its entry under SPEC.md's "Open". Phase 11's.
 - The install steps and the demo in the root README. Phase 10's and Phase 11's.
 
 ## Locked decisions
@@ -78,7 +78,7 @@ One procedure covers the upstream check, what is read and which of decision 2's 
 
 ### 10. SPEC.md's upstream facts
 
-SPEC.md's upstream facts are written again as read at the pin: "The gap", with upstream's roadmap as it now stands, `tools/inspector` and `tools/editor` deleted and the `a2ui` CLI; "Upstream landscape"; the "Upstream reference" line under "Repo"; "The wrapper"'s supported SDKs; "v1 coverage" where decisions 4 and 8 change it. Spectra's relation to the `a2ui` CLI goes under "Open".
+SPEC.md's upstream facts are written again as read at the pin: "The gap", retitled "Existing tools", with upstream's roadmap as it now stands, `tools/inspector` and `tools/editor` deleted and the `a2ui` CLI; "Upstream landscape"; the "Upstream reference" line under "Repo"; "The wrapper"'s supported SDKs; "v1 coverage" where decisions 4 and 8 change it. Where a debugging and observation tool sits in upstream's roadmap, whose five-stage loop has no stage for one, goes under "Open", the `a2ui` CLI in it as a fact: upstream plans the CLI to cover every stage.
 
 ### 11. The basic root README
 
