@@ -16,6 +16,7 @@ In scope:
 
 - The pin's move to upstream's current code, and the procedure that moves it.
 - The v1.0 component envelope keys in the checks, the viewer and the preview, in both forms.
+- The viewer's raw-text readers at the pin, against upstream's compilers.
 - The Python wrapper on the agent SDK's API as of 0.11.0; both wrappers' captures at the pin.
 - The coverage roster's v1.0 recordings at the pin.
 - Which protocol versions and which upstream packages Spectra supports, stated in SPEC.md and the root README.
