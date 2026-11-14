@@ -1,0 +1,104 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "59ffab96a66c9e074963d2eae0935bfd",
+          "spanId": "0b5b9a5324e2d217",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000022000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "otel_receiver",
+              "wrapper"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "eb56dd24014458e1601667d0c91b5c23",
+          "spanId": "857906a2b95a0e3b",
+          "name": "parse",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000010000000",
+          "endTimeUnixNano": "1792800000012000000",
+          "attributes": {
+            "a2ui.event.kind": "parse",
+            "otel.scope.name": "a2ui-spectra-instrumentation",
+            "otel.scope.version": "0.0.0",
+            "a2ui.parse.input": "(Column \"a\" [\"b\"] (:children \"c\"))\n",
+            "a2ui.parse.entry_point": "compile",
+            "a2ui.parse.inference_format": "atom",
+            "a2ui.parse.catalogs": [
+              {
+                "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                "protocolVersion": "v1.0"
+              }
+            ],
+            "a2ui.parse.messages": [
+              {
+                "version": "1.0",
+                "createSurface": {
+                  "surfaceId": "main",
+                  "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                  "components": [
+                    {
+                      "id": "root",
+                      "component": "Column",
+                      "children": [
+                        "node_0",
+                        "node_1",
+                        "node_2"
+                      ]
+                    },
+                    {
+                      "id": "node_2",
+                      "component": "Text",
+                      "text": "c"
+                    },
+                    {
+                      "id": "node_1",
+                      "component": "Text",
+                      "text": "b"
+                    },
+                    {
+                      "id": "node_0",
+                      "component": "Text",
+                      "text": "a"
+                    }
+                  ],
+                  "dataModel": {}
+                }
+              }
+            ],
+            "a2ui.sdk.name": "a2ui-agent-sdk",
+            "a2ui.sdk.version": "0.11.1.dev45",
+            "a2ui.received.attributes": {
+              "a2ui.event.kind": "parse",
+              "a2ui.parse.input": "(Column \"a\" [\"b\"] (:children \"c\"))\n",
+              "a2ui.parse.entry_point": "compile",
+              "a2ui.parse.inference_format": "atom",
+              "a2ui.parse.catalogs": "[{\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"protocolVersion\":\"v1.0\"}]",
+              "a2ui.parse.messages": "[{\"version\":\"1.0\",\"createSurface\":{\"surfaceId\":\"main\",\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"components\":[{\"id\":\"root\",\"component\":\"Column\",\"children\":[\"node_0\",\"node_1\",\"node_2\"]},{\"id\":\"node_2\",\"component\":\"Text\",\"text\":\"c\"},{\"id\":\"node_1\",\"component\":\"Text\",\"text\":\"b\"},{\"id\":\"node_0\",\"component\":\"Text\",\"text\":\"a\"}],\"dataModel\":{}}}]",
+              "a2ui.sdk.name": "a2ui-agent-sdk",
+              "a2ui.sdk.version": "0.11.1.dev45"
+            }
+          },
+          "status": {
+            "code": 0
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -5,9 +5,14 @@
  * component's name is a component, nested in its parent; its id is its
  * `:id`, else `root` for the first root of a block when nothing claims it,
  * else `node_N`, counted from 0 across the text in document order, skipping
- * every id the text states. A bare string in a container's child position
- * is a text component of its own, named the same way. A `(surface "id")`
- * or `(updateComponents "id")` header opens the surface its forms fall in.
+ * every id the text states. A bare string or symbol in a container's child
+ * position, directly, in a positional `[...]` or in a `(:children ...)`
+ * form, is a text component of its own, named the same way, unless it is
+ * empty, its parent's catalog has no text component, or it is the id of a
+ * component already compiled into the same message, which the parent, an
+ * ancestor and a later sibling are not yet; under an explicit `:children
+ * [...]` or `:child` keyword it is a reference. A `(surface "id")` or
+ * `(updateComponents "id")` header opens the surface its forms fall in.
  */
 import {closeTagOf, EXPRESS_PAYLOAD_START, openTagOf, type BlockConfig} from './blocks.ts';
 import {
@@ -135,6 +140,42 @@ const SKIPPED_HEADS = new Set([
   'template',
 ]);
 const CHILD_KEYS = new Set(['root', 'child', 'children', 'component']);
+/** The keywords that open a component's `(:children ...)` form of children. */
+const COMPONENT_CHILD_KEYS = new Set(['children', 'child']);
+/** The heads that are never a component's: the message and data forms. */
+const RESERVED_HEADS = new Set([
+  'data',
+  'dataModel',
+  'set!',
+  'surface',
+  'createSurface',
+  'updateComponents',
+  'updateDataModel',
+  'deleteSurface',
+  'callFunction',
+]);
+/** A token Python's reader takes as a literal, not a symbol. */
+const LITERAL = /^(?:true|false|null|-?\d+|-?(?:\d+\.\d*|\.\d+|\d+)(?:[eE][+-]?\d+)?)$/;
+
+/** A string's value or a symbol's text: what Python's reader gives as a `str`. */
+function textOf(node: Node): string | undefined {
+  return node.kind === 'string' ? node.value : node.kind === 'symbol' ? node.text : undefined;
+}
+
+/** A form's first `:name` keyword's value, when it is a string or a symbol. */
+function keywordTextOf(form: Node & {kind: 'form'}, name: string): string | undefined {
+  for (let i = 1; i < form.items.length - 1; i++) {
+    const item = form.items[i];
+    if (item.kind === 'keyword' && item.name === name) return textOf(form.items[i + 1]);
+  }
+  return undefined;
+}
+
+/** A bare string or symbol: what a container's child position wraps in a text component. */
+function isBareString(node: Node): boolean {
+  if (node.kind === 'string') return true;
+  return node.kind === 'symbol' && node.text !== '...' && !LITERAL.test(node.text);
+}
 
 function headOf(node: Node): string | undefined {
   if (node.kind !== 'form' || node.bracket !== '(') return undefined;
@@ -176,21 +217,29 @@ export function readAtomBlock(
     stoppedAt = error.at;
     roots = readForms(text, start, error.at);
   }
-  const isComponentForm = (node: Node) => {
+  /** The catalog a form names with `:catalogId`. */
+  const catalogIdOf = (form: Node & {kind: 'form'}) => keywordTextOf(form, 'catalogId');
+  const isComponentForm = (node: Node): boolean => {
     const head = headOf(node);
-    return head !== undefined && catalog.isComponent(head);
+    return (
+      head !== undefined &&
+      !RESERVED_HEADS.has(head) &&
+      catalog.isComponent(head, catalogIdOf(node as Node & {kind: 'form'}))
+    );
   };
   // Every id the text states is kept from the counter.
   const reserved = new Set<string>();
   const collect = (node: Node) => {
     if (node.kind !== 'form') return;
     node.items.forEach((item, index) => {
+      const value = node.items[index + 1];
       if (
         item.kind === 'keyword' &&
-        item.name === 'id' &&
-        node.items[index + 1]?.kind === 'string'
+        (item.name === 'id' || item.name === 'functionCallId') &&
+        value !== undefined &&
+        textOf(value) !== undefined
       ) {
-        reserved.add((node.items[index + 1] as {value: string}).value);
+        reserved.add(textOf(value)!);
       }
       collect(item);
     });
@@ -198,6 +247,8 @@ export function readAtomBlock(
   roots.forEach(collect);
   let counter = 0;
   let used = new Set<string>();
+  // The components whose forms are compiled whole: a bare string naming one is a reference.
+  let compiled = new Set<string>();
   let surfaceId: string | undefined;
   const nextId = () => {
     for (;;) {
@@ -221,65 +272,103 @@ export function readAtomBlock(
   };
   const component = (form: Node & {kind: 'form'}, isRoot: boolean) => {
     const head = headOf(form)!;
-    let explicit: string | undefined;
-    for (let i = 1; i < form.items.length; i++) {
-      const item = form.items[i];
-      if (item.kind === 'keyword' && item.name === 'id' && form.items[i + 1]?.kind === 'string') {
-        explicit = (form.items[i + 1] as {value: string}).value;
-      }
-    }
-    const id = assignId(explicit, isRoot);
+    const catalogId = catalogIdOf(form);
+    const id = assignId(keywordTextOf(form, 'id'), isRoot);
     found(id, form);
-    const container = catalog.isContainer(head);
+    const container = catalog.isContainer(head, catalogId);
+    const wraps = catalog.wrapsBareStrings(head, catalogId) === true;
+    // Python's `_auto_wrap_text_child`, the string trimmed.
+    const wrap = (item: Node) => {
+      const text = textOf(item)!.trim();
+      if (text === '' || compiled.has(text) || !wraps) return;
+      const child = assignId(undefined, false);
+      found(child, item);
+      compiled.add(child);
+    };
+    const addChildItems = (items: readonly Node[], wrapStrings: boolean) => {
+      for (const item of items) {
+        if (item.kind === 'form') {
+          if (item.items.length > 0 && isCompiledForm(item)) component(item, false);
+        } else if (isBareString(item) && wrapStrings) wrap(item);
+      }
+    };
     for (let i = 1; i < form.items.length; i++) {
       const item = form.items[i];
       if (item.kind === 'keyword') {
         const value = form.items[i + 1];
         i++;
         if (value === undefined || item.name === 'id' || item.name === 'catalogId') continue;
-        children(value, container);
+        if (value.kind !== 'form' || headOf(value) === 'template') continue;
+        if (item.name === 'children') {
+          // An explicit child list: its strings are references.
+          addChildItems(isComponentForm(value) ? [value] : value.items, false);
+        } else if (isComponentForm(value)) {
+          component(value as Node & {kind: 'form'}, false);
+        } else {
+          nestedForms(value);
+        }
         continue;
       }
-      if (
-        item.kind === 'form' &&
-        item.items[0]?.kind === 'keyword' &&
-        CHILD_KEYS.has(item.items[0].name)
-      ) {
-        for (const child of item.items.slice(1)) children(child, true);
+      if (item.kind === 'form') {
+        if (item.items.length === 0) continue;
+        const first = item.items[0];
+        const head = headOf(item);
+        if (
+          first.kind === 'keyword' &&
+          item.items.length > 1 &&
+          COMPONENT_CHILD_KEYS.has(first.name)
+        ) {
+          let contents = item.items.slice(1);
+          const only = contents[0];
+          if (
+            contents.length === 1 &&
+            only.kind === 'form' &&
+            only.items.length > 0 &&
+            !isComponentForm(only)
+          ) {
+            contents = only.items;
+          }
+          addChildItems(contents, true);
+        } else if (
+          head !== undefined &&
+          (SKIPPED_HEADS.has(head) || head.toLowerCase() === 'event')
+        ) {
+          continue;
+        } else if (isComponentForm(item)) {
+          component(item as Node & {kind: 'form'}, false);
+        } else if (container !== true && head !== undefined) {
+          continue;
+        } else if (item.bracket === '(' && head !== undefined) {
+          continue;
+        } else {
+          addChildItems(item.items, true);
+        }
         continue;
       }
-      if (item.kind === 'string') {
-        // A bare string in a container's child position is a text component of its own.
-        if (container === true && !used.has(item.value) && item.value.trim() !== '')
-          found(assignId(undefined, false), item);
-        continue;
-      }
-      children(item, container);
+      if (container === true && isBareString(item)) wrap(item);
     }
+    compiled.add(id);
   };
-  const children = (node: Node, container: boolean | undefined) => {
+  /** A form a child list compiles: a component's, or any form whose head is a symbol. */
+  const isCompiledForm = (node: Node & {kind: 'form'}): boolean => {
+    const head = headOf(node);
+    return head !== undefined && !SKIPPED_HEADS.has(head) && isComponentForm(node);
+  };
+  /** The component forms nested in a value, each compiled where it sits. */
+  const nestedForms = (node: Node) => {
     if (node.kind !== 'form') return;
     const head = headOf(node);
     if (head !== undefined && (SKIPPED_HEADS.has(head) || head.toLowerCase() === 'event')) return;
     if (isComponentForm(node)) {
-      component(node, false);
+      component(node as Node & {kind: 'form'}, false);
       return;
     }
-    if (node.bracket === '[' || head === undefined) {
-      for (const item of node.items) {
-        if (item.kind === 'form') children(item, container);
-        else if (
-          item.kind === 'string' &&
-          container === true &&
-          !used.has(item.value) &&
-          item.value.trim() !== ''
-        )
-          found(assignId(undefined, false), item);
-      }
-    }
+    if (node.bracket === '[' || head === undefined)
+      for (const item of node.items) nestedForms(item);
   };
   const block = (header: (Node & {kind: 'form'}) | undefined) => {
     used = new Set();
+    compiled = new Set();
     surfaceId = header === undefined ? undefined : surfaceOfHeader(header, 'main');
   };
 

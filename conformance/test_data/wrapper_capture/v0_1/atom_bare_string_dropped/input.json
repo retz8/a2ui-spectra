@@ -1,0 +1,15 @@
+{
+  "languages": [
+    "python"
+  ],
+  "inferenceFormat": "atom",
+  "entryPoint": "compile",
+  "catalogs": [
+    {
+      "catalogId": "spectra/readers",
+      "protocolVersion": "v1.0",
+      "path": "test_data/catalogs/reader_catalog_v1_0.json"
+    }
+  ],
+  "text": "text.txt"
+}

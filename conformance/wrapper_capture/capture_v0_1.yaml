@@ -371,3 +371,33 @@
   expect:
     python: "test_data/wrapper_capture/v0_1/express_number_out_of_range/expected_python.json"
     typescript: "test_data/wrapper_capture/v0_1/express_number_out_of_range/expected_typescript.json"
+
+- name: atom_bare_string_compiled_ids
+  description: "Atom on the basic catalog at v1.0: bare string children of a Column equal to the id of an earlier sibling, a reference, and to the Column's own id and a later sibling's, not yet compiled, each wrapped in a Text."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/atom_bare_string_compiled_ids/input.json"
+  expect: "test_data/wrapper_capture/v0_1/atom_bare_string_compiled_ids/expected.json"
+
+- name: atom_bare_string_placements
+  description: "Atom on the basic catalog at v1.0: a bare string child of a Column directly, inside a positional [...] and inside a (:children ...) form, each wrapped in a Text."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/atom_bare_string_placements/input.json"
+  expect: "test_data/wrapper_capture/v0_1/atom_bare_string_placements/expected.json"
+
+- name: atom_bare_symbol_child
+  description: "Atom on the basic catalog at v1.0: a bare symbol child of a Column, wrapped in a Text as a bare string is."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/atom_bare_symbol_child/input.json"
+  expect: "test_data/wrapper_capture/v0_1/atom_bare_symbol_child/expected.json"
+
+- name: atom_children_keyword_reference
+  description: "Atom on the basic catalog at v1.0: a string under a Column's explicit :children [...] keyword, a reference to the Text of that id."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/atom_children_keyword_reference/input.json"
+  expect: "test_data/wrapper_capture/v0_1/atom_children_keyword_reference/expected.json"
+
+- name: atom_bare_string_dropped
+  description: "Atom on the readers catalog, which has no text component: a bare string child of Box dropped, and an empty one."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/atom_bare_string_dropped/input.json"
+  expect: "test_data/wrapper_capture/v0_1/atom_bare_string_dropped/expected.json"
