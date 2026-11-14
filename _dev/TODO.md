@@ -1,6 +1,6 @@
 # Spectra — Dev TODO
 
-## Done — Phases 0–8
+## Done — Phases 0–9
 Each phase's full section, its sub-tasks and what landed, as it closed: `_dev/TODO-done.md`.
 
 - **Phase 0 — Spec** · done 2026-10-17
@@ -12,20 +12,7 @@ Each phase's full section, its sub-tasks and what landed, as it closed: `_dev/TO
 - **Phase 6 — The A2UI step** · done 2026-11-04 · spec `_dev/docs/spec/phase-6-the-a2ui-step.md`
 - **Phase 7 — Fixtures and replay** · done 2026-11-09 · spec `_dev/docs/spec/phase-7-fixtures-and-replay.md`
 - **Phase 8 — The dev loop** · done 2026-11-13 · spec `_dev/docs/spec/phase-8-the-dev-loop.md`
-
-## Phase 9 — Upstream v1.0 and supported versions
-The upgrade to upstream's v1.0 as its current version; which protocol versions and which upstream SDKs Spectra supports; the basic root README.
-Spec: `_dev/docs/spec/phase-9-upstream-v1.0-and-supported-versions.md`.
-
-- [x] **9.1** The design artifact — the legacy form's marking for a v1.0 component's bare envelope keys, on the existing canvas, in light and dark. Spec: `_dev/docs/spec/task-9.1-design-artifact.md`.
-- [x] **9.2** The re-pin procedure and the move — the upstream check and the pin's move as one procedure; its first run, to `0888f88b2`: the copied schemas and catalog definitions, the copied conformance catalogs, the `a2ui-upstream` worktree, the upstream packages patched locally to the pin's state; the findings in `_dev/a2ui-findings.md` read again at the pin. Spec: `_dev/docs/spec/task-9.2-re-pin-procedure-and-the-move.md`.
-- [x] **9.3** The checks at v1.0 — the `@` envelope keys read, `@catalogId` choosing the catalog; the bare keys judged as upstream judges them during the transition, marked as the legacy form; the v1.0 rules that come with the pin's schemas. Spec: `_dev/docs/spec/task-9.3-the-checks-at-v1.0.md`. (parallel with 9.4, 9.5 and 9.6, after 9.2)
-- [x] **9.4** The viewer and the preview — the viewer, the preview core, the React, Lit and Angular adapters, the built-in basic catalog preview and the sample pages on the pin's web core and renderers; the legacy form's marking in the viewer; the smoke check on the published renderers. Spec: `_dev/docs/spec/task-9.4-the-viewer-and-the-preview.md`. (parallel with 9.3, 9.5 and 9.6, after 9.1 and 9.2)
-- [x] **9.5** The wrappers — the Python wrapper's hook table and floor at `a2ui-agent-sdk` 0.11.0; both wrappers' capture suites at the pin; the smoke check on the published agent SDKs. Spec: `_dev/docs/spec/task-9.5-the-wrappers.md`. (parallel with 9.3, 9.4 and 9.6, after 9.2)
-- [x] **9.6** The recordings — the coverage roster's v1.0 axis recorded again at the pin, the Node restaurant finder's booking stream and AG2's two v1.0 streams on `ag2` 1.3.1. Spec: `_dev/docs/spec/task-9.6-the-recordings.md`. (parallel with 9.3, 9.4 and 9.5, after 9.2)
-- [x] **9.9** The raw-text readers at the pin — the viewer's four readers, Direct JSON, Express, Elemental and Atom, against upstream's compilers at the pin: a parse read with its own catalogs, by the compiler it names; the positional order read from a catalog's definition, the envelope keys in it, checks and v1.0's system calls in Express, Atom's bare children; each reported defect confirmed by a failing case first. Spec: `_dev/docs/spec/task-9.9-the-raw-text-readers.md`. (parallel with 9.4, 9.5 and 9.6, after 9.2)
-- [x] **9.7** The documents — SPEC.md's upstream facts at the pin; the basic root README; the packages' READMEs; the backlog's text. Spec: `_dev/docs/spec/task-9.7-the-documents.md`.
-- [x] **9.8** The acceptance run — after an upstream check, through the tunnel: the three samples as Phase 8's run left them, a v1.0 turn with the `@` envelope keys, a v1.0 turn with the bare keys marked as the legacy form, an Express record and an Atom record of sub-task 9.9's cases with an inline component's text and its tree node selecting each other, the smoke check on each package's published latest. Spec: `_dev/docs/spec/task-9.8-acceptance-run.md`. (last) Done when its four sessions have been through their parts, the three samples with the wrapper on from each start, both replays passed and free, each loop's prefix break on its edited line, every session in light and dark, and the gates passed on the final commit; the run fixed nothing in Spectra's code, every problem its turns show being a finding already written for its sample, findings 31, 18, 50, 32 and 25; the real attempt on the Node restaurant finder wrote `@checks`, a real `@` turn; the three capture records' store copies each gained a delivery of their parse's messages, the records holding none, and their Express and Atom ranges selected `_inline_1`, `_inline_2` and `node_N` in both directions.
+- **Phase 9 — Upstream v1.0 and supported versions** · done 2026-11-14 · spec `_dev/docs/spec/phase-9-upstream-v1.0-and-supported-versions.md`
 
 ## Phase 10 — Shipping
 The binary on npm, PyPI and GitHub releases, with the curl script; the install steps in the root README. The packages' READMEs as a DX product, their details moved to design docs in `docs/design/`, as A2UIVerse has them. Turn record `v0.1` closed at the first release. A2UIVerse's CircleCI preview page committed in A2UIVerse, on the published React adapter.
