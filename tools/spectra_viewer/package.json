@@ -47,6 +47,8 @@
         "../../conformance/test_data/tool_capture/**",
         "../../conformance/test_data/receiver_capture/**",
         "../../conformance/test_data/wrapper_capture/**",
+        "../../conformance/test_data/catalogs/*.json",
+        "../spectra/src/check/schemas/*/catalogs/basic/catalog.json",
         "../spectra/src/prices/*.json"
       ],
       "output": [],

@@ -1,0 +1,1 @@
+root = Card(List(_template($/items, Text($/name))))

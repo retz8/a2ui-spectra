@@ -1,0 +1,20 @@
+{
+  "languages": [
+    "python",
+    "typescript"
+  ],
+  "inferenceFormat": "express",
+  "entryPoint": "compile",
+  "catalogs": [
+    {
+      "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+      "protocolVersion": "v1.0"
+    },
+    {
+      "catalogId": "spectra/readers",
+      "protocolVersion": "v1.0",
+      "path": "test_data/catalogs/reader_catalog_v1_0.json"
+    }
+  ],
+  "text": "text.txt"
+}

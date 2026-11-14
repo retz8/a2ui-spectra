@@ -1,0 +1,1 @@
+root = Button([?required($/a), ?email($/b)], Text("Go"), ?required($/c), action=Event("go"))

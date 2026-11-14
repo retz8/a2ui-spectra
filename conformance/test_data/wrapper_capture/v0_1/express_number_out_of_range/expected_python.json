@@ -1,0 +1,85 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "9613678efcabd6560c86f58cd9ce3703",
+          "spanId": "d1b707321ba38161",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000022000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "otel_receiver",
+              "wrapper"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "8d30982cdba0cad2a50751acc7b7faeb",
+          "spanId": "9bb10f7434d971a9",
+          "name": "parse",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000010000000",
+          "endTimeUnixNano": "1792800000012000000",
+          "attributes": {
+            "a2ui.event.kind": "parse",
+            "otel.scope.name": "a2ui-spectra-instrumentation",
+            "otel.scope.version": "0.0.0",
+            "a2ui.parse.input": "root = Text(\"hi\")\nx = Text(1e999)\n",
+            "a2ui.parse.entry_point": "compile",
+            "a2ui.parse.inference_format": "express",
+            "a2ui.parse.catalogs": [
+              {
+                "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                "protocolVersion": "v1.0"
+              }
+            ],
+            "a2ui.parse.messages": [],
+            "a2ui.sdk.name": "a2ui-agent-sdk",
+            "a2ui.sdk.version": "0.11.1.dev45",
+            "error.type": "A2uiCompilationParseError",
+            "a2ui.received.attributes": {
+              "a2ui.event.kind": "parse",
+              "a2ui.parse.input": "root = Text(\"hi\")\nx = Text(1e999)\n",
+              "a2ui.parse.entry_point": "compile",
+              "a2ui.parse.inference_format": "express",
+              "a2ui.parse.catalogs": "[{\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"protocolVersion\":\"v1.0\"}]",
+              "a2ui.parse.messages": "[]",
+              "a2ui.sdk.name": "a2ui-agent-sdk",
+              "a2ui.sdk.version": "0.11.1.dev45",
+              "error.type": "A2uiCompilationParseError"
+            }
+          },
+          "events": [
+            {
+              "timeUnixNano": "1792800000011000000",
+              "name": "exception",
+              "attributes": {
+                "exception.type": "A2uiCompilationParseError",
+                "exception.message": "Failed to parse expression: Number literal 1e999 is out of range. - Help: Please correct the syntax error in your Express DSL.",
+                "exception.stacktrace": "(the stack trace, which the comparison checks is present)",
+                "a2ui.parse.block.start": 0,
+                "a2ui.parse.block.end": 34
+              }
+            }
+          ],
+          "status": {
+            "code": 2,
+            "message": "Failed to parse expression: Number literal 1e999 is out of range. - Help: Please correct the syntax error in your Express DSL."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,2 @@
+root = List(_template($/items, itemRow))
+itemRow = Text(@index())

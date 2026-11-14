@@ -1,0 +1,15 @@
+{
+  "languages": [
+    "python",
+    "typescript"
+  ],
+  "inferenceFormat": "express",
+  "entryPoint": "compile",
+  "catalogs": [
+    {
+      "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json",
+      "protocolVersion": "v0.9"
+    }
+  ],
+  "text": "text.txt"
+}

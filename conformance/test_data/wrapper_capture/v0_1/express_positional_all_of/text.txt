@@ -1,0 +1,1 @@
+root = Button(Text("Go"), action=Event("go"))

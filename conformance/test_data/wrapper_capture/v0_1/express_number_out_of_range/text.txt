@@ -1,0 +1,2 @@
+root = Text("hi")
+x = Text(1e999)

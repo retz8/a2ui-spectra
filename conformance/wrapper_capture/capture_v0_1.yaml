@@ -253,3 +253,121 @@
   action: capture_wrapper
   job: "test_data/wrapper_capture/v0_1/tool_call_no_messages/input.json"
   expect: "test_data/wrapper_capture/v0_1/tool_call_no_messages/expected.json"
+
+- name: express_positional_all_of
+  description: "Express on the basic catalog at v1.0: an inline component in the positional slot of Button, whose properties are declared inside allOf, named for the slot it fills, root_child."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_positional_all_of/input.json"
+  expect: "test_data/wrapper_capture/v0_1/express_positional_all_of/expected.json"
+
+- name: express_positional_all_of_v0_9
+  description: "Express on the basic catalog at v0.9: inline components in the positional slots of Card and Column, whose properties are declared inside allOf beside the local CatalogComponentCommon reference, named for the slots they fill."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_positional_all_of_v0_9/input.json"
+  expect: "test_data/wrapper_capture/v0_1/express_positional_all_of_v0_9/expected.json"
+
+- name: express_positional_envelope_keys
+  description: "Express on the readers catalog of test_data/catalogs/: Panel declares catalogId, metadata and accessibility in their standard schemas before its child, and none of them takes a positional slot, so the inline component is root_child."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_positional_envelope_keys/input.json"
+  expect: "test_data/wrapper_capture/v0_1/express_positional_envelope_keys/expected.json"
+
+- name: express_positional_at_keys
+  description: "Express on the readers @ keys catalog of test_data/catalogs/: Badge declares the four @ envelope keys before its child, and none of them takes a positional slot, so the inline component is root_child. TypeScript's Catalog.fromJson refuses a catalog with an @-named property, so the case runs in Python only."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_positional_at_keys/input.json"
+  expect: "test_data/wrapper_capture/v0_1/express_positional_at_keys/expected.json"
+
+- name: express_positional_custom_envelope_key
+  description: "Express on the readers catalog: Note declares metadata as a free-text property of its own, which takes a positional slot before its child."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_positional_custom_envelope_key/input.json"
+  expect: "test_data/wrapper_capture/v0_1/express_positional_custom_envelope_key/expected.json"
+
+- name: express_positional_metadata_inline
+  description: "Express on the readers catalog: Frame's metadata is written inline in the standard shape with no description and no reference to the common Extensions; Python takes it for the standard one and gives it no slot, TypeScript takes it for a property of the component's own."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_positional_metadata_inline/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/express_positional_metadata_inline/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/express_positional_metadata_inline/expected_typescript.json"
+
+- name: express_positional_accessibility_inline
+  description: "Express on the readers catalog: Plate's accessibility is written inline with label and description and no reference to the common AccessibilityAttributes; Python takes it for the standard one and gives it no slot, TypeScript takes it for a property of the component's own."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_positional_accessibility_inline/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/express_positional_accessibility_inline/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/express_positional_accessibility_inline/expected_typescript.json"
+
+- name: express_positional_checks_without_type
+  description: "Express on the readers catalog: Tally declares checks as items of check rules with no array type; Python takes it for the checks and gives it no slot, TypeScript takes it for a property of the component's own."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_positional_checks_without_type/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/express_positional_checks_without_type/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/express_positional_checks_without_type/expected_typescript.json"
+
+- name: express_positional_check_rule_property
+  description: "Express on the readers catalog: Gate declares an array of check rules under its own name, rules; TypeScript takes it out of the positional arguments, Python keeps its slot."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_positional_check_rule_property/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/express_positional_check_rule_property/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/express_positional_check_rule_property/expected_typescript.json"
+
+- name: express_positional_root_beside_all_of
+  description: "Express on the readers catalog: Shelf has a property of its own schema beside the allOf entry declaring component; Python reads the allOf entry's properties first, TypeScript the schema's own."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_positional_root_beside_all_of/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/express_positional_root_beside_all_of/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/express_positional_root_beside_all_of/expected_typescript.json"
+
+- name: express_positional_nested_all_of
+  description: "Express on the readers catalog: Tier's allOf mixin declares a property and, in its own nested allOf, the entry declaring component; Python reads the nested entry's properties first, TypeScript the mixin's."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_positional_nested_all_of/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/express_positional_nested_all_of/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/express_positional_nested_all_of/expected_typescript.json"
+
+- name: express_check_positional
+  description: "Express on the basic catalog at v1.0: a list of checks and a check among Button's positional arguments, taken out before the positions are counted, so the inline component fills child."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_check_positional/input.json"
+  expect: "test_data/wrapper_capture/v0_1/express_check_positional/expected.json"
+
+- name: express_check_parentheses
+  description: "Express on the basic catalog at v1.0: a check written with its arguments in parentheses, ?length(2), among a TextField's positional arguments inside a Column."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_check_parentheses/input.json"
+  expect: "test_data/wrapper_capture/v0_1/express_check_parentheses/expected.json"
+
+- name: express_system_call
+  description: "Express on the basic catalog at v1.0: v1.0's system call @index() inside a template's component."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_system_call/input.json"
+  expect: "test_data/wrapper_capture/v0_1/express_system_call/expected.json"
+
+- name: express_catalog_id_argument
+  description: "Express on two catalogs at v1.0, the basic catalog and the readers catalog, both defining Card: the call's catalogId= picks the readers catalog's definition, whose footer comes before its child."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_catalog_id_argument/input.json"
+  expect: "test_data/wrapper_capture/v0_1/express_catalog_id_argument/expected.json"
+
+- name: express_inline_numbering
+  description: "Express on the basic catalog at v1.0: a template's component, named _inline_N, after an inline component named for its slot; Python counts the components it names _inline_N, TypeScript every inline component."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_inline_numbering/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/express_inline_numbering/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/express_inline_numbering/expected_typescript.json"
+
+- name: express_number_out_of_range
+  description: "Express on the basic catalog at v1.0: a statement holding the number 1e999, out of range as a double; Python refuses the whole block, TypeScript drops the statement."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_number_out_of_range/input.json"
+  expect:
+    python: "test_data/wrapper_capture/v0_1/express_number_out_of_range/expected_python.json"
+    typescript: "test_data/wrapper_capture/v0_1/express_number_out_of_range/expected_typescript.json"

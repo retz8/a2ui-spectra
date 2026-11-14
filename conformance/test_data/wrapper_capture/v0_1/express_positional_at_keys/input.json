@@ -1,0 +1,15 @@
+{
+  "languages": [
+    "python"
+  ],
+  "inferenceFormat": "express",
+  "entryPoint": "compile",
+  "catalogs": [
+    {
+      "catalogId": "spectra/reader-at-keys",
+      "protocolVersion": "v1.0",
+      "path": "test_data/catalogs/reader_at_keys_catalog_v1_0.json"
+    }
+  ],
+  "text": "text.txt"
+}

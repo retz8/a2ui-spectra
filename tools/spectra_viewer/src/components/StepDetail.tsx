@@ -5,7 +5,7 @@ import {parseTitleOf, sourceLineOfStep} from '@/model/a2ui_step.ts';
 import type {NodeRef} from '@/model/address.ts';
 import type {Prices} from '@/model/cost.ts';
 import {legacyLinesOf, type StepLegacy} from '@/model/legacy_form.ts';
-import type {ReaderCatalog} from '@/model/readers/reading.ts';
+import type {KnownCatalog} from '@/model/catalogs.ts';
 import {markedPath} from '@/model/json_lines.ts';
 import type {PrefixBreak} from '@/model/prefix.ts';
 import type {Problem} from '@/model/problems.ts';
@@ -51,7 +51,7 @@ export function StepDetail({
   prices,
   prefix,
   onEarlier,
-  catalog,
+  catalogs,
   selectedNode,
   onSelectNode,
   onStep,
@@ -76,8 +76,8 @@ export function StepDetail({
   /** A model call's prefix break, when the step is a call read in full. */
   prefix: PrefixBreak | undefined;
   onEarlier: (found: Exclude<PrefixBreak, {form: 'first'}>) => void;
-  /** What the readers know of the catalogs, for a parse's component ranges. */
-  catalog: ReaderCatalog;
+  /** The catalog definitions the viewer holds, for a parse's component ranges. */
+  catalogs: readonly KnownCatalog[] | undefined;
   /** The tree node selected, whose range a parse's raw text tints. */
   selectedNode: NodeRef | undefined;
   /** Selects a component by its range in a parse's raw text. */
@@ -246,7 +246,7 @@ export function StepDetail({
               step={row}
               events={events}
               startMs={startMs}
-              catalog={catalog}
+              catalogs={catalogs}
               selectedNode={selectedNode}
               onSelectNode={onSelectNode}
               onStep={onStep}

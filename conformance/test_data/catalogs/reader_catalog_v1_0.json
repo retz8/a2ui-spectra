@@ -1,0 +1,305 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/retz8/a2ui-spectra/conformance/test_data/catalogs/reader_catalog_v1_0.json",
+  "protocolVersion": "1.0",
+  "title": "Raw-Text Readers Catalog (v1.0)",
+  "description": "Components in the schema shapes that decide an inline component's id in Express and a bare string's fate in Atom, where upstream's fixture catalogs have none. No component is a text component.",
+  "catalogId": "spectra/readers",
+  "components": {
+    "Leaf": {
+      "type": "object",
+      "description": "A leaf with a name, no child.",
+      "properties": {
+        "component": {
+          "const": "Leaf"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "component",
+        "name"
+      ]
+    },
+    "Panel": {
+      "type": "object",
+      "description": "A panel declaring the bare envelope keys catalogId, metadata and accessibility in their standard schemas before its child.",
+      "properties": {
+        "component": {
+          "const": "Panel"
+        },
+        "catalogId": {
+          "type": "string",
+          "description": "The catalog ID for this component, overriding any surface-level default catalogId."
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional component-level metadata for vendor extensions.",
+          "properties": {
+            "extensions": {
+              "$ref": "common_types.json#/$defs/Extensions"
+            }
+          },
+          "additionalProperties": false
+        },
+        "accessibility": {
+          "$ref": "common_types.json#/$defs/AccessibilityAttributes"
+        },
+        "child": {
+          "$ref": "common_types.json#/$defs/ComponentId"
+        }
+      },
+      "required": [
+        "component"
+      ]
+    },
+    "Note": {
+      "type": "object",
+      "description": "A note with a free-text metadata property of its own before its child.",
+      "properties": {
+        "component": {
+          "const": "Note"
+        },
+        "metadata": {
+          "type": "string",
+          "description": "Free text about the note."
+        },
+        "child": {
+          "$ref": "common_types.json#/$defs/ComponentId"
+        }
+      },
+      "required": [
+        "component"
+      ]
+    },
+    "Frame": {
+      "type": "object",
+      "description": "A frame whose metadata property is written inline in the standard shape, with no description and no reference to the common Extensions.",
+      "properties": {
+        "component": {
+          "const": "Frame"
+        },
+        "child": {
+          "$ref": "common_types.json#/$defs/ComponentId"
+        },
+        "metadata": {
+          "properties": {
+            "extensions": {
+              "type": "object"
+            }
+          },
+          "additionalProperties": false
+        },
+        "footer": {
+          "$ref": "common_types.json#/$defs/ComponentId"
+        }
+      },
+      "required": [
+        "component"
+      ]
+    },
+    "Plate": {
+      "type": "object",
+      "description": "A plate whose accessibility property is written inline in the standard shape, with no reference to the common AccessibilityAttributes, before its child.",
+      "properties": {
+        "component": {
+          "const": "Plate"
+        },
+        "accessibility": {
+          "properties": {
+            "label": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "child": {
+          "$ref": "common_types.json#/$defs/ComponentId"
+        }
+      },
+      "required": [
+        "component"
+      ]
+    },
+    "Tally": {
+      "type": "object",
+      "description": "A tally declaring checks as items of check rules with no array type, before its child.",
+      "properties": {
+        "component": {
+          "const": "Tally"
+        },
+        "checks": {
+          "items": {
+            "$ref": "common_types.json#/$defs/CheckRule"
+          }
+        },
+        "child": {
+          "$ref": "common_types.json#/$defs/ComponentId"
+        }
+      },
+      "required": [
+        "component"
+      ]
+    },
+    "Gate": {
+      "type": "object",
+      "description": "A gate declaring an array of check rules under its own name, rules, between its child and an untyped extra.",
+      "properties": {
+        "component": {
+          "const": "Gate"
+        },
+        "child": {
+          "$ref": "common_types.json#/$defs/ComponentId"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "common_types.json#/$defs/CheckRule"
+          }
+        },
+        "extra": {},
+        "footer": {
+          "$ref": "common_types.json#/$defs/ComponentId"
+        }
+      },
+      "required": [
+        "component"
+      ]
+    },
+    "Shelf": {
+      "type": "object",
+      "description": "A shelf with a property of its own schema beside the allOf entry that declares component.",
+      "properties": {
+        "head": {
+          "$ref": "common_types.json#/$defs/ComponentId"
+        }
+      },
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "component": {
+              "const": "Shelf"
+            },
+            "body": {
+              "$ref": "common_types.json#/$defs/ComponentId"
+            }
+          },
+          "required": [
+            "component"
+          ]
+        }
+      ]
+    },
+    "Tier": {
+      "type": "object",
+      "description": "A tier whose allOf mixin declares a property and, in its own nested allOf, the entry that declares component.",
+      "allOf": [
+        {
+          "type": "object",
+          "properties": {
+            "lead": {
+              "$ref": "common_types.json#/$defs/ComponentId"
+            }
+          },
+          "allOf": [
+            {
+              "type": "object",
+              "properties": {
+                "component": {
+                  "const": "Tier"
+                },
+                "main": {
+                  "$ref": "common_types.json#/$defs/ComponentId"
+                }
+              },
+              "required": [
+                "component"
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "Card": {
+      "type": "object",
+      "description": "A card whose footer comes before its child, under a name the basic catalog defines too.",
+      "properties": {
+        "component": {
+          "const": "Card"
+        },
+        "footer": {
+          "$ref": "common_types.json#/$defs/ComponentId"
+        },
+        "child": {
+          "$ref": "common_types.json#/$defs/ComponentId"
+        }
+      },
+      "required": [
+        "component"
+      ]
+    },
+    "Box": {
+      "type": "object",
+      "description": "A container of children.",
+      "properties": {
+        "component": {
+          "const": "Box"
+        },
+        "children": {
+          "$ref": "common_types.json#/$defs/ChildList"
+        }
+      },
+      "required": [
+        "component"
+      ]
+    }
+  },
+  "functions": {},
+  "$defs": {
+    "anyComponent": {
+      "oneOf": [
+        {
+          "$ref": "#/components/Leaf"
+        },
+        {
+          "$ref": "#/components/Panel"
+        },
+        {
+          "$ref": "#/components/Note"
+        },
+        {
+          "$ref": "#/components/Frame"
+        },
+        {
+          "$ref": "#/components/Plate"
+        },
+        {
+          "$ref": "#/components/Tally"
+        },
+        {
+          "$ref": "#/components/Gate"
+        },
+        {
+          "$ref": "#/components/Shelf"
+        },
+        {
+          "$ref": "#/components/Tier"
+        },
+        {
+          "$ref": "#/components/Card"
+        },
+        {
+          "$ref": "#/components/Box"
+        }
+      ]
+    },
+    "anyFunction": {
+      "not": {}
+    }
+  }
+}

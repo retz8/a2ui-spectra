@@ -11,7 +11,7 @@ import {
   receivedSpan,
   TRACE,
 } from '../testing/model_calls.ts';
-import {readTestData} from '../testing/recordings.ts';
+import {heldCatalogs, readTestData} from '../testing/recordings.ts';
 import {
   a2uiStepErrorsOf,
   formatNameOf,
@@ -591,39 +591,78 @@ describe('what the A2UI step says in the detail', () => {
     );
   });
 
-  it('builds the readers’ catalog from the known catalogs', () => {
-    const catalog = readerCatalogOf([
-      {
-        id: 'https://example.com/c.json',
-        aliases: [],
-        protocolVersion: '1.0',
-        source: 'configured',
-        definition: {
-          components: {
-            Stack: {
-              properties: {
-                component: {const: 'Stack'},
-                children: {
-                  $ref: 'https://a2ui.org/specification/v1_0/common_types.json#/$defs/ChildList',
-                },
-                gap: {type: 'string'},
-                checks: {type: 'array'},
-              },
-            },
-            Label: {properties: {component: {const: 'Label'}, text: {type: 'string'}}},
-          },
-        },
-      },
-    ]);
-    assert.equal(catalog.isComponent('Stack'), true);
-    assert.equal(catalog.isComponent('Event'), false);
-    assert.deepEqual(catalog.propertyOrder('Stack'), ['children', 'gap']);
-    assert.equal(catalog.propertyOrder('Nope'), undefined);
-    assert.equal(catalog.isContainer('Stack'), true);
-    assert.equal(catalog.isContainer('Label'), false);
-    assert.equal(catalog.isContainer('Nope'), undefined);
-    // With no catalogs known, a capitalised name is a component and nothing else is known.
-    assert.equal(readerCatalogOf(undefined).isComponent('Card'), true);
-    assert.equal(readerCatalogOf(undefined).propertyOrder('Card'), undefined);
+  describe('what the readers know of a parse’s catalogs', () => {
+    const held = heldCatalogs();
+    const V09 = 'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json';
+    const V091 = 'https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json';
+    const V10 = 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json';
+    const parseOn = (...ids: string[]) => ({
+      'a2ui.parse.catalogs': ids.map(catalogId => ({catalogId, protocolVersion: 'v1.0'})),
+    });
+
+    it('reads a catalog matched by its id with that definition alone', () => {
+      // The viewer holds v0.9's basic catalog before v1.0's; a v1.0 parse gets v1.0's TextField.
+      assert.equal(held[0].id, V09);
+      const v10 = readerCatalogOf(held, parseOn(V10));
+      assert.deepEqual(v10.propertyOrder('TextField'), [
+        'label',
+        'value',
+        'placeholder',
+        'variant',
+        'weight',
+      ]);
+      assert.equal(v10.isContainer('Card'), true);
+      assert.equal(v10.wrapsBareStrings('Column'), true);
+      // Every named catalog is held: a name none of them defines is no component.
+      assert.equal(v10.isComponent('Chart'), false);
+    });
+
+    it('reads a catalog matched by an alias with the definition it names', () => {
+      const v091 = readerCatalogOf(held, parseOn(V091));
+      assert.deepEqual(v091.propertyOrder('TextField'), [
+        'label',
+        'value',
+        'variant',
+        'validationRegexp',
+        'weight',
+      ]);
+    });
+
+    it('reads a name no held catalog defines by the no-catalog rule when a named catalog is not held', () => {
+      const partial = readerCatalogOf(held, parseOn(V10, 'https://example.com/not-held.json'));
+      assert.equal(partial.isComponent('Chart'), true);
+      assert.equal(partial.propertyOrder('Chart'), undefined);
+      assert.equal(partial.isContainer('Chart'), undefined);
+      assert.equal(partial.isComponent('Event'), false);
+      assert.deepEqual(partial.propertyOrder('Card'), ['child', 'weight']);
+    });
+
+    it('reads a parse that names no catalog by the no-catalog rule throughout', () => {
+      for (const attributes of [{}, {'a2ui.parse.catalogs': []}]) {
+        const none = readerCatalogOf(held, attributes);
+        assert.equal(none.isComponent('Card'), true);
+        assert.equal(none.isComponent('_template'), false);
+        assert.equal(none.propertyOrder('Card'), undefined);
+        assert.equal(none.wrapsBareStrings('Column'), undefined);
+      }
+      assert.equal(readerCatalogOf(undefined, parseOn(V10)).propertyOrder('Card'), undefined);
+    });
+
+    it('lets a call’s catalog id pick the definition, else the first named catalog that defines the name', () => {
+      const two = readerCatalogOf(held, parseOn(V10, 'spectra/readers'));
+      assert.deepEqual(two.propertyOrder('Card'), ['child', 'weight']);
+      assert.deepEqual(two.propertyOrder('Card', 'spectra/readers'), ['footer', 'child']);
+      assert.equal(two.isComponent('Leaf', V10), false);
+      assert.equal(two.isComponent('Leaf'), true);
+    });
+
+    it('follows the SDK the parse names where the two compilers disagree, Python’s when it names none', () => {
+      const readers = parseOn('spectra/readers');
+      assert.equal(readerCatalogOf(held, readers).sdk, 'python');
+      assert.deepEqual(readerCatalogOf(held, readers).propertyOrder('Shelf'), ['body', 'head']);
+      const typescript = readerCatalogOf(held, {...readers, 'a2ui.sdk.name': '@a2ui/agent'});
+      assert.equal(typescript.sdk, 'typescript');
+      assert.deepEqual(typescript.propertyOrder('Shelf'), ['head', 'body']);
+    });
   });
 });

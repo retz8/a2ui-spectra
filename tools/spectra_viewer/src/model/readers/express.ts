@@ -6,10 +6,15 @@
  * of a component's name: assigned to a variable, its id is the variable's
  * name; written inline as a property's value, its id is its parent's id,
  * the property and, in a list, its index, as `card_children_0`; written
- * inline where no property names it, `_inline_N`. An `id=` argument wins.
- * A `surface(…)` statement opens the scope its later statements fall in. A
- * component's range runs from the variable's name, when it has one, to the
- * closing parenthesis of its call.
+ * inline where no property names it, `_inline_N`, counted as the parse's
+ * SDK counts: Python the components named so, TypeScript every inline
+ * component. An `id=` argument wins. Positional arguments fill the
+ * properties in the order the catalog gives, a call's `catalogId=` choosing
+ * the catalog, a check or a list made only of checks taken out first. A
+ * name starting with `@` is a system function. A `surface(…)` statement
+ * opens the scope its later statements fall in. A component's range runs
+ * from the variable's name, when it has one, to the closing parenthesis of
+ * its call.
  */
 import {closeTagOf, EXPRESS_PAYLOAD_START, openTagOf, type BlockConfig} from './blocks.ts';
 import {
@@ -54,12 +59,16 @@ interface MapNode {
   kind: 'map';
   entries: Array<{key: string; value: ExprNode}>;
 }
+interface CheckNode {
+  kind: 'check';
+  args: ExprNode[];
+}
 interface OtherNode {
   kind: 'other';
   /** A string's value. */
   value?: string;
 }
-type ExprNode = CallNode | ListNode | MapNode | OtherNode;
+type ExprNode = CallNode | ListNode | MapNode | CheckNode | OtherNode;
 
 interface Statement {
   /** The assigned variable, for an assignment. */
@@ -78,9 +87,21 @@ class Stop extends Error {
   }
 }
 
+/** A number literal the SDKs refuse: one that is not finite as a double, such as `1e999`. */
+class OutOfRange extends Error {
+  readonly at: number;
+
+  constructor(at: number) {
+    super(`number out of range at ${at}`);
+    this.at = at;
+  }
+}
+
 const IDENT_START = /[A-Za-z_]/;
 const IDENT_PART = /[A-Za-z0-9_]/;
 const PATH_PART = /[A-Za-z0-9_/]/;
+/** The grammar's `NUMBER`: a sign, digits with an optional fraction or a fraction alone, an exponent. */
+const NUMBER = /^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)(?:[eE][+-]?[0-9]+)?/;
 
 /** The block's tokens up to its end, or up to the first text the lexer cannot read. */
 function tokenize(text: string, start: number, end: number): {tokens: Token[]; stoppedAt?: number} {
@@ -148,17 +169,18 @@ function tokenize(text: string, start: number, end: number): {tokens: Token[]; s
       i = j;
       continue;
     }
-    if (IDENT_START.test(ch)) {
+    // A system function's name, from v1.0: `@` and an identifier, as `@index`.
+    if (IDENT_START.test(ch) || (ch === '@' && i + 1 < end && IDENT_START.test(text[i + 1]))) {
       let j = i + 1;
       while (j < end && IDENT_PART.test(text[j])) j++;
       tokens.push({kind: 'ident', text: text.slice(i, j), start: i, end: j});
       i = j;
       continue;
     }
-    if (/[0-9]/.test(ch) || (ch === '-' && i + 1 < end && /[0-9.]/.test(text[i + 1]))) {
-      let j = i + 1;
-      while (j < end && /[0-9.eE+-]/.test(text[j])) j++;
-      tokens.push({kind: 'number', text: text.slice(i, j), start: i, end: j});
+    const number = NUMBER.exec(text.slice(i, end));
+    if (number !== null) {
+      const j = i + number[0].length;
+      tokens.push({kind: 'number', text: number[0], start: i, end: j});
       i = j;
       continue;
     }
@@ -182,6 +204,8 @@ class Parser {
   /** Where the text the tokens cover ends: the next statement would start there. */
   private readonly textEnd: number;
   private at = 0;
+  /** Whether a number out of range is read as any other. */
+  private lenient = false;
   readonly statements: Statement[] = [];
 
   constructor(tokens: Token[], textEnd: number) {
@@ -189,8 +213,29 @@ class Parser {
     this.textEnd = textEnd;
   }
 
-  parse(): void {
-    while (this.at < this.tokens.length) this.statements.push(this.statement());
+  /**
+   * Reads every statement. A statement holding a number out of range is
+   * dropped, as TypeScript's visitor drops it, or stops the reader, as
+   * Python's visitor refuses the whole block.
+   */
+  parse(dropOutOfRange: boolean): void {
+    while (this.at < this.tokens.length) {
+      const first = this.at;
+      try {
+        this.statements.push(this.statement());
+      } catch (error) {
+        if (!(error instanceof OutOfRange)) throw error;
+        if (!dropOutOfRange) throw new Stop(error.at);
+        // Read the statement again, taking the number as any other, to know where it ends.
+        this.at = first;
+        this.lenient = true;
+        try {
+          this.statement();
+        } finally {
+          this.lenient = false;
+        }
+      }
+    }
   }
 
   private peek(offset = 0): Token | undefined {
@@ -237,9 +282,22 @@ class Parser {
       this.at++;
       return {kind: 'other', value: token.value};
     }
-    if (token.kind === 'number' || token.kind === 'path' || token.kind === 'check') {
+    if (token.kind === 'number') {
+      this.at++;
+      if (!this.lenient && !Number.isFinite(Number(token.text))) throw new OutOfRange(token.start);
+      return {kind: 'other'};
+    }
+    if (token.kind === 'path') {
       this.at++;
       return {kind: 'other'};
+    }
+    if (token.kind === 'check') {
+      this.at++;
+      const next = this.peek();
+      return {
+        kind: 'check',
+        args: next?.kind === 'punct' && next.text === '(' ? this.checkArgs() : [],
+      };
     }
     if (token.kind === 'ident') {
       this.at++;
@@ -276,6 +334,27 @@ class Parser {
     }
     const close = this.expect(')');
     return {kind: 'call', name: name.text, args, start: name.start, end: close.end};
+  }
+
+  /** A check's parenthesised arguments, each an expression. */
+  private checkArgs(): ExprNode[] {
+    this.expect('(');
+    const args: ExprNode[] = [];
+    for (;;) {
+      const token = this.peek();
+      if (token === undefined) throw new Stop(this.here());
+      if (token.kind === 'punct' && token.text === ')') break;
+      args.push(this.expression());
+      const after = this.peek();
+      if (after?.kind === 'punct' && after.text === ',') {
+        this.at++;
+        continue;
+      }
+      if (after?.kind === 'punct' && after.text === ')') break;
+      throw new Stop(this.here());
+    }
+    this.expect(')');
+    return args;
   }
 
   private list(): ListNode {
@@ -332,10 +411,35 @@ function surfaceOf(call: CallNode): string | undefined {
   return undefined;
 }
 
+/** A call's string argument of a name, as `id=` or `catalogId=`. */
+function stringArgOf(call: CallNode, key: string): string | undefined {
+  const value = call.args.find(arg => arg.key === key)?.value;
+  return value?.kind === 'other' && typeof value.value === 'string' ? value.value : undefined;
+}
+
+/** The catalog a call names with `catalogId=`. */
+function catalogIdOf(call: CallNode): string | undefined {
+  return stringArgOf(call, 'catalogId');
+}
+
 /** The `id=` argument of a call, when it is a string. */
 function explicitIdOf(call: CallNode): string | undefined {
-  const value = call.args.find(arg => arg.key === 'id')?.value;
-  return value?.kind === 'other' && typeof value.value === 'string' ? value.value : undefined;
+  return stringArgOf(call, 'id');
+}
+
+/** A check, or a list made only of checks: the SDKs take it out of a call's arguments. */
+function isCheckExpression(value: ExprNode): boolean {
+  if (value.kind === 'check') return true;
+  return value.kind === 'list' && value.items.length > 0 && value.items.every(isCheckExpression);
+}
+
+/** The checks a check expression holds. */
+function checksIn(value: ExprNode): CheckNode[] {
+  return value.kind === 'check'
+    ? [value]
+    : value.kind === 'list'
+      ? value.items.flatMap(checksIn)
+      : [];
 }
 
 /** The components of one Express block. */
@@ -349,7 +453,7 @@ export function readExpressBlock(
   const parser = new Parser(tokens, lexStop ?? end);
   let stoppedAt: number | undefined = lexStop;
   try {
-    parser.parse();
+    parser.parse(catalog.sdk === 'typescript');
   } catch (error) {
     if (!(error instanceof Stop)) throw error;
     stoppedAt = error.at;
@@ -365,7 +469,9 @@ export function readExpressBlock(
     listIndex?: number,
   ) => {
     if (value.kind === 'call') {
-      if (catalog.isComponent(value.name)) {
+      if (!value.name.startsWith('@') && catalog.isComponent(value.name, catalogIdOf(value))) {
+        // TypeScript counts every inline component, Python those it names `_inline_N`.
+        if (catalog.sdk === 'typescript') inlineCounter++;
         let id: string;
         if (parentId !== undefined && parentProp !== undefined) {
           id =
@@ -373,7 +479,8 @@ export function readExpressBlock(
               ? `${parentId}_${parentProp}`
               : `${parentId}_${parentProp}_${listIndex}`;
         } else {
-          id = `_inline_${++inlineCounter}`;
+          if (catalog.sdk === 'python') inlineCounter++;
+          id = `_inline_${inlineCounter}`;
         }
         id = explicitIdOf(value) ?? id;
         components.push({
@@ -384,9 +491,13 @@ export function readExpressBlock(
         });
         argsOf(id, value);
       } else {
-        // A helper's arguments: an inline component in them has no property naming it.
+        // A helper's or a function's arguments: an inline component in them has no property naming it.
         for (const arg of value.args) nested(undefined, undefined, arg.value);
       }
+      return;
+    }
+    if (value.kind === 'check') {
+      for (const arg of value.args) nested(undefined, undefined, arg);
       return;
     }
     if (value.kind === 'list') {
@@ -397,15 +508,29 @@ export function readExpressBlock(
       for (const entry of value.entries) nested(undefined, undefined, entry.value);
     }
   };
+  // The compilers read a call's positional arguments, then its keyword ones, then its checks.
   const argsOf = (id: string, call: CallNode) => {
-    const order = catalog.propertyOrder(call.name);
+    const order = catalog.propertyOrder(call.name, catalogIdOf(call));
+    const checks: CheckNode[] = [];
     let positional = 0;
     for (const arg of call.args) {
-      const prop = arg.key ?? order?.[positional];
-      if (arg.key === undefined) positional++;
-      if (arg.key === 'id') continue;
-      nested(id, prop, arg.value);
+      if (arg.key !== undefined) continue;
+      if (isCheckExpression(arg.value)) {
+        checks.push(...checksIn(arg.value));
+        continue;
+      }
+      nested(id, order?.[positional], arg.value);
+      positional++;
     }
+    for (const arg of call.args) {
+      if (arg.key === undefined || arg.key === 'id' || arg.key === 'catalogId') continue;
+      if (isCheckExpression(arg.value)) {
+        checks.push(...checksIn(arg.value));
+        continue;
+      }
+      nested(id, arg.key, arg.value);
+    }
+    for (const check of checks) nested(undefined, undefined, check);
   };
 
   for (const statement of parser.statements) {
@@ -419,7 +544,11 @@ export function readExpressBlock(
       }
       continue;
     }
-    if (name.startsWith('$') || !catalog.isComponent(value.name)) {
+    if (
+      name.startsWith('$') ||
+      value.name.startsWith('@') ||
+      !catalog.isComponent(value.name, catalogIdOf(value))
+    ) {
       nested(undefined, undefined, value);
       continue;
     }

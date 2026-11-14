@@ -11,13 +11,14 @@ import type {NodeRef} from '@/model/address.ts';
 import {
   parseProblemsOf,
   rangesSentenceOf,
+  readerCatalogOf,
   readFromOf,
   retriedByOf,
   sourceLineOfStep,
 } from '@/model/a2ui_step.ts';
 import type {CallRow} from '@/model/call_rows.ts';
 import {rangesOfParse} from '@/model/ranges.ts';
-import type {ReaderCatalog} from '@/model/readers/reading.ts';
+import type {KnownCatalog} from '@/model/catalogs.ts';
 import type {
   OtherEvent,
   ParseEvent,
@@ -35,7 +36,7 @@ export function ParseBlocks({
   step,
   events,
   startMs,
-  catalog,
+  catalogs,
   selectedNode,
   onSelectNode,
   onStep,
@@ -44,7 +45,8 @@ export function ParseBlocks({
   step: Step;
   events: readonly TurnRecordEvent[];
   startMs: number;
-  catalog: ReaderCatalog;
+  /** The catalog definitions the viewer holds, which the parse's own catalogs are read from. */
+  catalogs: readonly KnownCatalog[] | undefined;
   selectedNode: NodeRef | undefined;
   /** Selects a component by its range in the raw text, keeping this parse selected. */
   onSelectNode: (node: NodeRef) => void;
@@ -54,7 +56,10 @@ export function ParseBlocks({
 }) {
   const parse = step.parse!;
   const {attributes} = parse;
-  const reading = useMemo(() => rangesOfParse(attributes, catalog), [attributes, catalog]);
+  const reading = useMemo(
+    () => rangesOfParse(attributes, readerCatalogOf(catalogs, attributes)),
+    [attributes, catalogs],
+  );
   const blocks = parseProblemsOf(parse).flatMap(problem =>
     problem.range === undefined ? [] : [problem.range],
   );

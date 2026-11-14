@@ -1,0 +1,99 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "c5ecfc6f2f6570f458d915d55b5ab01d",
+          "spanId": "9ea88dc5f0ec1d21",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000022000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "otel_receiver",
+              "wrapper"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "6aa49e380a01cd4177dd94b8384b6a9b",
+          "spanId": "7ca42d424cfa1c7b",
+          "name": "parse",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000010000000",
+          "endTimeUnixNano": "1792800000012000000",
+          "attributes": {
+            "a2ui.event.kind": "parse",
+            "otel.scope.name": "a2ui-spectra-instrumentation",
+            "otel.scope.version": "0.0.0",
+            "a2ui.parse.input": "root = Card(List(_template($/items, Text($/name))))\n",
+            "a2ui.parse.entry_point": "compile",
+            "a2ui.parse.inference_format": "express",
+            "a2ui.parse.catalogs": [
+              {
+                "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                "protocolVersion": "v1.0"
+              }
+            ],
+            "a2ui.parse.messages": [
+              {
+                "version": "1.0",
+                "createSurface": {
+                  "surfaceId": "main",
+                  "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+                  "components": [
+                    {
+                      "id": "root",
+                      "component": "Card",
+                      "child": "root_child"
+                    },
+                    {
+                      "id": "root_child",
+                      "component": "List",
+                      "children": {
+                        "path": "/items",
+                        "componentId": "_inline_1"
+                      }
+                    },
+                    {
+                      "id": "_inline_1",
+                      "component": "Text",
+                      "text": {
+                        "@path": "/name"
+                      }
+                    }
+                  ]
+                }
+              }
+            ],
+            "a2ui.sdk.name": "a2ui-agent-sdk",
+            "a2ui.sdk.version": "0.11.1.dev45",
+            "a2ui.received.attributes": {
+              "a2ui.event.kind": "parse",
+              "a2ui.parse.input": "root = Card(List(_template($/items, Text($/name))))\n",
+              "a2ui.parse.entry_point": "compile",
+              "a2ui.parse.inference_format": "express",
+              "a2ui.parse.catalogs": "[{\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"protocolVersion\":\"v1.0\"}]",
+              "a2ui.parse.messages": "[{\"version\":\"1.0\",\"createSurface\":{\"surfaceId\":\"main\",\"catalogId\":\"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json\",\"components\":[{\"id\":\"root\",\"component\":\"Card\",\"child\":\"root_child\"},{\"id\":\"root_child\",\"component\":\"List\",\"children\":{\"path\":\"/items\",\"componentId\":\"_inline_1\"}},{\"id\":\"_inline_1\",\"component\":\"Text\",\"text\":{\"@path\":\"/name\"}}]}}]",
+              "a2ui.sdk.name": "a2ui-agent-sdk",
+              "a2ui.sdk.version": "0.11.1.dev45"
+            }
+          },
+          "status": {
+            "code": 0
+          }
+        }
+      ]
+    }
+  ]
+}

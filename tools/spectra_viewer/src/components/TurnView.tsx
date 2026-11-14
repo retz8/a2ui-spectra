@@ -6,7 +6,6 @@ import {
   parseOfComponent,
   parseOfMessage,
   readByLinesOf,
-  readerCatalogOf,
   retriesOf,
   retrySentenceOf,
   stepHeaderPartsOf,
@@ -355,7 +354,6 @@ export function TurnBody({
     () => sourceTurns?.find(each => traceIdOfTurn(each) === provenance?.recordedTurn),
     [sourceTurns, provenance?.recordedTurn],
   );
-  const readerCatalog = useMemo(() => readerCatalogOf(state.catalogs), [state.catalogs]);
   const hasStep = useMemo(
     () => events.some(event => isParse(event) || isPromptGeneration(event)),
     [events],
@@ -519,7 +517,7 @@ export function TurnBody({
       next.surfaceId,
       next.componentId,
       position,
-      readerCatalog,
+      state.catalogs,
     );
     setPicked(traced === undefined ? selected?.id : traced.parse.spanId, next);
   };
@@ -903,7 +901,7 @@ export function TurnBody({
                   prices={state.prices}
                   prefix={prefix}
                   onEarlier={onEarlier}
-                  catalog={readerCatalog}
+                  catalogs={state.catalogs}
                   selectedNode={node}
                   onSelectNode={selectRange}
                   onStep={id => {

@@ -1,0 +1,1 @@
+root = Gate(Leaf("a"), [], Leaf("b"))

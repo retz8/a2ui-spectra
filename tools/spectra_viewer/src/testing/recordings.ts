@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
+import type {KnownCatalog} from '../model/catalogs.ts';
 import type {TurnRecord} from '../model/record.ts';
 
 /** Walks up from this file until it finds the shared conformance directory. */
@@ -37,6 +38,47 @@ export function readCatalog(name: string): Record<string, unknown> {
     string,
     unknown
   >;
+}
+
+const SCHEMAS_DIR = path.join(findConformanceDir(), '../tools/spectra/src/check/schemas');
+
+/**
+ * The catalog definitions Spectra holds, as `GET /api/catalogs` would serve
+ * them: the built-in basic catalogs, the v0.9 one under its v0.9.1 alias,
+ * then every definition of the test data as a configured catalog.
+ */
+export function heldCatalogs(): KnownCatalog[] {
+  const read = (file: string) =>
+    JSON.parse(fs.readFileSync(file, 'utf8')) as Record<string, unknown>;
+  const basic = (version: string, protocolVersion: string, aliases: string[]): KnownCatalog => {
+    const definition = read(path.join(SCHEMAS_DIR, version, 'catalogs/basic/catalog.json'));
+    return {
+      id: definition.catalogId as string,
+      aliases,
+      protocolVersion,
+      source: 'built-in',
+      definition,
+    };
+  };
+  return [
+    basic('v0_9', '0.9', ['https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json']),
+    basic('v1_0', '1.0', []),
+    ...fs
+      .readdirSync(CATALOGS_DIR)
+      .filter(file => file.endsWith('.json'))
+      .sort()
+      .map((file): KnownCatalog => {
+        const definition = read(path.join(CATALOGS_DIR, file));
+        return {
+          id: definition.catalogId as string,
+          aliases: [],
+          protocolVersion: definition.protocolVersion === '1.0' ? '1.0' : '0.9',
+          source: 'configured',
+          path: `catalogs/${file}`,
+          definition,
+        };
+      }),
+  ];
 }
 
 const TEST_DATA_DIR = path.join(findConformanceDir(), 'test_data');

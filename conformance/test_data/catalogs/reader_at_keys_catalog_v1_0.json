@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/retz8/a2ui-spectra/conformance/test_data/catalogs/reader_at_keys_catalog_v1_0.json",
+  "protocolVersion": "1.0",
+  "title": "Raw-Text Readers @ Keys Catalog (v1.0)",
+  "description": "A component declaring the four @ envelope keys as properties of its own before its child.",
+  "catalogId": "spectra/reader-at-keys",
+  "components": {
+    "Leaf": {
+      "type": "object",
+      "description": "A leaf with a name, no child.",
+      "properties": {
+        "component": {
+          "const": "Leaf"
+        },
+        "name": {
+          "type": "string"
+        }
+      },
+      "required": ["component", "name"]
+    },
+    "Badge": {
+      "type": "object",
+      "description": "A badge declaring @catalogId, @metadata, @accessibility and @checks before its child.",
+      "properties": {
+        "component": {
+          "const": "Badge"
+        },
+        "@catalogId": {
+          "type": "string"
+        },
+        "@metadata": {
+          "type": "object",
+          "properties": {
+            "extensions": {
+              "$ref": "common_types.json#/$defs/Extensions"
+            }
+          },
+          "additionalProperties": false
+        },
+        "@accessibility": {
+          "$ref": "common_types.json#/$defs/AccessibilityAttributes"
+        },
+        "@checks": {
+          "type": "array",
+          "items": {
+            "$ref": "common_types.json#/$defs/CheckRule"
+          }
+        },
+        "child": {
+          "$ref": "common_types.json#/$defs/ComponentId"
+        }
+      },
+      "required": ["component"]
+    }
+  },
+  "functions": {},
+  "$defs": {
+    "anyComponent": {
+      "oneOf": [{"$ref": "#/components/Leaf"}, {"$ref": "#/components/Badge"}]
+    },
+    "anyFunction": {
+      "not": {}
+    }
+  }
+}

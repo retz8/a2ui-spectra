@@ -1,0 +1,89 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "e5783db3471e0b26f024326b24750cb0",
+          "spanId": "c9515539d7d93e1f",
+          "name": "invoke_agent",
+          "kind": 3,
+          "startTimeUnixNano": "1792800000000000000",
+          "endTimeUnixNano": "1792800000022000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.capture_paths": [
+              "otel_receiver",
+              "wrapper"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.0"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "64b076a7960d4701af3d509f17245b4a",
+          "spanId": "5e6f8d0c33676c8b",
+          "name": "parse",
+          "kind": 1,
+          "startTimeUnixNano": "1792800000010000000",
+          "endTimeUnixNano": "1792800000012000000",
+          "attributes": {
+            "a2ui.event.kind": "parse",
+            "otel.scope.name": "a2ui-spectra-instrumentation",
+            "otel.scope.version": "0.0.0",
+            "a2ui.parse.input": "root = Plate(Leaf(\"a\"))\n",
+            "a2ui.parse.entry_point": "compile",
+            "a2ui.parse.inference_format": "express",
+            "a2ui.parse.catalogs": [
+              {
+                "catalogId": "spectra/readers",
+                "protocolVersion": "v1.0"
+              }
+            ],
+            "a2ui.parse.messages": [
+              {
+                "version": "1.0",
+                "createSurface": {
+                  "surfaceId": "main",
+                  "catalogId": "spectra/readers",
+                  "components": [
+                    {
+                      "id": "root",
+                      "component": "Plate",
+                      "accessibility": "root_accessibility"
+                    },
+                    {
+                      "id": "root_accessibility",
+                      "component": "Leaf",
+                      "name": "a"
+                    }
+                  ]
+                }
+              }
+            ],
+            "a2ui.sdk.name": "@a2ui/agent",
+            "a2ui.sdk.version": "0.1.0",
+            "a2ui.received.attributes": {
+              "a2ui.event.kind": "parse",
+              "a2ui.parse.input": "root = Plate(Leaf(\"a\"))\n",
+              "a2ui.parse.entry_point": "compile",
+              "a2ui.parse.inference_format": "express",
+              "a2ui.parse.catalogs": "[{\"catalogId\":\"spectra/readers\",\"protocolVersion\":\"v1.0\"}]",
+              "a2ui.parse.messages": "[{\"version\":\"1.0\",\"createSurface\":{\"surfaceId\":\"main\",\"catalogId\":\"spectra/readers\",\"components\":[{\"id\":\"root\",\"component\":\"Plate\",\"accessibility\":\"root_accessibility\"},{\"id\":\"root_accessibility\",\"component\":\"Leaf\",\"name\":\"a\"}]}}]",
+              "a2ui.sdk.name": "@a2ui/agent",
+              "a2ui.sdk.version": "0.1.0"
+            }
+          },
+          "status": {
+            "code": 0
+          }
+        }
+      ]
+    }
+  ]
+}

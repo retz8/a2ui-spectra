@@ -1,0 +1,1 @@
+root = Frame(Leaf("a"), Leaf("b"))

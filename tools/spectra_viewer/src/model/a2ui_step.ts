@@ -15,7 +15,13 @@ import {segmentsOf} from './prefix.ts';
 import {type ComponentRange, formatNameOf, rangesOfParse, type Reading} from './ranges.ts';
 
 export {formatNameOf};
-import {ANY_CATALOG, type ReaderCatalog} from './readers/reading.ts';
+import {
+  ANY_CATALOG,
+  isComponentWithoutCatalog,
+  type ReaderCatalog,
+  type ReaderSdk,
+} from './readers/reading.ts';
+import {catalogShapeOf, type CatalogShape, type ComponentShape} from './readers/schema.ts';
 import {
   isParse,
   isPromptGeneration,
@@ -287,7 +293,7 @@ export function parseOfComponent(
   surfaceId: string,
   componentId: string,
   through?: Position,
-  catalog?: ReaderCatalog,
+  catalogs?: readonly KnownCatalog[],
 ): {parse: ParseEvent; range?: ComponentRange} | undefined {
   const messages = agentMessages(events).filter(
     message => through === undefined || isThrough(message, through),
@@ -303,7 +309,8 @@ export function parseOfComponent(
     );
   }
   if (parse === undefined) return undefined;
-  const ranges = rangesOfParse(parse.attributes, catalog)?.ranges ?? [];
+  const ranges =
+    rangesOfParse(parse.attributes, readerCatalogOf(catalogs, parse.attributes))?.ranges ?? [];
   const range = [...ranges]
     .reverse()
     .find(range => range.surfaceId === surfaceId && range.componentId === componentId);
@@ -603,57 +610,83 @@ export function rangesSentenceOf(
   return `Component ranges up to character ${reading.stoppedAt.toLocaleString('en-US')} · the ${name} reader stopped there`;
 }
 
-/** A catalog definition's components, by name, as `GET /api/catalogs` serves them. */
-function componentsOf(definition: Record<string, unknown>): Record<string, unknown> {
-  const components = definition.components;
-  return typeof components === 'object' && components !== null && !Array.isArray(components)
-    ? (components as Record<string, unknown>)
-    : {};
+/** The catalog shapes already worked out, by definition and SDK. */
+const SHAPES = new WeakMap<Record<string, unknown>, Map<ReaderSdk, CatalogShape>>();
+
+function shapeOf(definition: Record<string, unknown>, sdk: ReaderSdk): CatalogShape {
+  let bySdk = SHAPES.get(definition);
+  if (bySdk === undefined) SHAPES.set(definition, (bySdk = new Map()));
+  let shape = bySdk.get(sdk);
+  if (shape === undefined) bySdk.set(sdk, (shape = catalogShapeOf(definition, sdk)));
+  return shape;
 }
 
-/** The property schemas of a component's definition, in the order the schema lists them. */
-function propertiesOf(component: unknown): Array<[string, unknown]> {
-  const properties = (component as {properties?: unknown} | null)?.properties;
-  return typeof properties === 'object' && properties !== null
-    ? Object.entries(properties as Record<string, unknown>)
-    : [];
-}
-
-function holdsChildren(property: unknown): boolean {
-  const ref = (property as {$ref?: unknown} | null)?.$ref;
-  return typeof ref === 'string' && /\/\$defs\/(ChildList|Child)$/.test(ref);
+/** The SDK a parse names, Python's when it names none. */
+function readerSdkOf(attributes: Record<string, unknown>): ReaderSdk {
+  return attributes['a2ui.sdk.name'] === '@a2ui/agent' ? 'typescript' : 'python';
 }
 
 /**
- * What the readers know of the catalogs, from the definitions the viewer
- * knows: a name is a component when a definition has it; its positional
- * arguments fill its properties in the schema's order, the `component`
- * constant and the checks left out; it holds children when a property is a
- * child or a child list. With no definitions, the readers' own default.
+ * What the readers know of one parse's catalogs: the definitions the viewer
+ * holds for the catalog ids the parse names in `a2ui.parse.catalogs`, in its
+ * order, each read as the SDK it names in `a2ui.sdk.name` reads it. A name
+ * is a component of the catalog a call names, else of the first held catalog
+ * that defines it. A name no held catalog defines is read by the no-catalog
+ * rule when one of the named catalogs is not held, and is no component when
+ * every one is; a parse that names no catalog is read by the no-catalog rule
+ * throughout. A catalog the parse does not name is never applied.
  */
-export function readerCatalogOf(known: readonly KnownCatalog[] | undefined): ReaderCatalog {
-  if (known === undefined || known.length === 0) return ANY_CATALOG;
-  const components = new Map<string, unknown>();
-  for (const catalog of known) {
-    for (const [name, component] of Object.entries(componentsOf(catalog.definition))) {
-      if (!components.has(name)) components.set(name, component);
-    }
+export function readerCatalogOf(
+  known: readonly KnownCatalog[] | undefined,
+  attributes: Record<string, unknown>,
+): ReaderCatalog {
+  const sdk = readerSdkOf(attributes);
+  const refs = attributes['a2ui.parse.catalogs'];
+  const named = (Array.isArray(refs) ? refs : []).flatMap(ref => {
+    const id = (ref as {catalogId?: unknown} | null)?.catalogId;
+    return typeof id === 'string' ? [id] : [];
+  });
+  if (named.length === 0) return {...ANY_CATALOG, sdk};
+  const held: Array<{ids: string[]; shape: CatalogShape}> = [];
+  let missing = false;
+  for (const id of named) {
+    const entry = known?.find(catalog => catalog.id === id || catalog.aliases.includes(id));
+    if (entry === undefined) missing = true;
+    else held.push({ids: [id, entry.id, ...entry.aliases], shape: shapeOf(entry.definition, sdk)});
   }
+  type Found = {shape: ComponentShape; catalog: CatalogShape} | 'unknown' | undefined;
+  const lookup = (name: string, catalogId?: string): Found => {
+    if (catalogId !== undefined) {
+      const catalog = held.find(each => each.ids.includes(catalogId))?.shape;
+      if (catalog === undefined) return 'unknown';
+      const shape = catalog.components.get(name);
+      return shape === undefined ? undefined : {shape, catalog};
+    }
+    for (const {shape: catalog} of held) {
+      const shape = catalog.components.get(name);
+      if (shape !== undefined) return {shape, catalog};
+    }
+    return missing ? 'unknown' : undefined;
+  };
   return {
-    isComponent: name => components.has(name),
-    propertyOrder: name => {
-      const component = components.get(name);
-      if (component === undefined) return undefined;
-      return propertiesOf(component)
-        .filter(([key]) => key !== 'component' && key !== 'id' && key !== 'checks')
-        .map(([key]) => key);
+    sdk,
+    isComponent: (name, catalogId) => {
+      const found = lookup(name, catalogId);
+      return found === 'unknown' ? isComponentWithoutCatalog(name) : found !== undefined;
     },
-    isContainer: name => {
-      const component = components.get(name);
-      if (component === undefined) return undefined;
-      return propertiesOf(component).some(
-        ([key, property]) => key === 'children' || key === 'child' || holdsChildren(property),
-      );
+    propertyOrder: (name, catalogId) => {
+      const found = lookup(name, catalogId);
+      return typeof found === 'object' ? found.shape.positional : undefined;
+    },
+    isContainer: (name, catalogId) => {
+      const found = lookup(name, catalogId);
+      return typeof found === 'object' ? found.shape.container : undefined;
+    },
+    wrapsBareStrings: (name, catalogId) => {
+      const found = lookup(name, catalogId);
+      return typeof found === 'object'
+        ? found.shape.container && found.catalog.hasTextComponent
+        : undefined;
     },
   };
 }

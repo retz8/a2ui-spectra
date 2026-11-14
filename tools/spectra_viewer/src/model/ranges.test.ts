@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import {wrapperCaptureRecords} from '../testing/recordings.ts';
+import {heldCatalogs, wrapperCaptureRecords} from '../testing/recordings.ts';
+import {readerCatalogOf} from './a2ui_step.ts';
 import type {ReaderCatalog} from './readers/reading.ts';
 import {
   type ComponentRange,
@@ -21,6 +22,8 @@ interface ParseCase {
   wrapped: boolean;
   messages: unknown[];
   failed: boolean;
+  /** The parse's attributes, as the record holds them. */
+  attributes: Record<string, unknown>;
 }
 
 /** Every parse of the suite's expected records that names its inference format. */
@@ -40,6 +43,7 @@ function parseCases(): ParseCase[] {
             wrapped: isWrappedParse(attributes),
             messages: (attributes['a2ui.parse.messages'] as unknown[] | undefined) ?? [],
             failed: event.status?.code === 2,
+            attributes,
           },
         ];
       }),
@@ -51,20 +55,33 @@ function keyOf(surfaceId: string, componentId: string): string {
   return `${surfaceId} / ${componentId}`;
 }
 
-/** The components the SDK's messages hold, by surface and id, each with its type. */
-function componentsOf(messages: readonly unknown[]): Map<string, string> {
-  const components = new Map<string, string>();
+/** The components the SDK's messages hold, by surface and id. */
+function componentsOf(messages: readonly unknown[]): Map<string, Record<string, unknown>> {
+  const components = new Map<string, Record<string, unknown>>();
   for (const message of messages) {
     for (const body of Object.values(message as Record<string, unknown>)) {
       if (typeof body !== 'object' || body === null || !('components' in body)) continue;
       const {surfaceId, components: list} = body as {surfaceId: string; components: unknown[]};
       for (const component of list) {
-        const {id, component: type} = component as {id: string; component: string};
-        components.set(keyOf(surfaceId, id), type);
+        const object = component as Record<string, unknown>;
+        components.set(keyOf(surfaceId, object.id as string), object);
       }
     }
   }
   return components;
+}
+
+/**
+ * Whether an Atom range is a bare string or symbol that became an implicit
+ * text component: its value, trimmed, is the component's only string property.
+ */
+function isWrappedText(text: string, component: Record<string, unknown>): boolean {
+  const value = text.startsWith('"') ? (JSON.parse(text) as string) : text;
+  if (text.startsWith('(') || text.startsWith('[')) return false;
+  const strings = Object.entries(component).filter(
+    ([key, item]) => key !== 'id' && key !== 'component' && typeof item === 'string',
+  );
+  return strings.length === 1 && strings[0][1] === value.trim();
 }
 
 /** Elemental's tag of a component type: `TextInput` is `ui-text-input`. */
@@ -86,6 +103,8 @@ const SHAPES: Record<InferenceFormat, {opens: (type: string) => RegExp; closes: 
   atom: {opens: type => new RegExp(`^\\(${type}[\\s)]`), closes: /\)$/},
 };
 
+const HELD = heldCatalogs();
+
 describe("the wrapper capture suite's texts", () => {
   const cases = parseCases();
   for (const format of FORMATS) {
@@ -96,16 +115,22 @@ describe("the wrapper capture suite's texts", () => {
       });
       for (const c of ofFormat) {
         it(`${c.name}: names the components the SDK produced, each range its own text`, () => {
-          const reading = readRanges(c.input, c.format, {wrapped: c.wrapped, messages: c.messages});
+          const reading = readRanges(c.input, c.format, {
+            wrapped: c.wrapped,
+            messages: c.messages,
+            catalog: readerCatalogOf(HELD, c.attributes),
+          });
           const expected = componentsOf(c.messages);
           const found = new Map(reading.ranges.map(r => [keyOf(r.surfaceId, r.componentId), r]));
-          for (const [key, type] of expected) {
+          for (const [key, component] of expected) {
             const range = found.get(key);
             assert.ok(
               range !== undefined,
               `${key} not found among ${[...found.keys()].join(', ')}`,
             );
             const text = c.input.slice(range.start, range.end);
+            if (format === 'atom' && isWrappedText(text, component)) continue;
+            const type = component.component as string;
             assert.match(text, SHAPES[format].opens(type), `${key}: ${JSON.stringify(text)}`);
             assert.match(text, SHAPES[format].closes, `${key}: ${JSON.stringify(text)}`);
             if (format === 'direct_json') {
@@ -124,10 +149,12 @@ describe("the wrapper capture suite's texts", () => {
 
 /** A reader's catalog for the hand-written texts: the basic catalog's containers and argument order. */
 const CATALOG: ReaderCatalog = {
+  sdk: 'python',
   isComponent: name => /^[A-Z]/.test(name) && name !== 'Event' && name !== '_template',
   propertyOrder: name =>
     ({Card: ['child'], Column: ['children', 'justify'], Row: ['children'], Text: ['text']})[name],
   isContainer: name => ['Card', 'Column', 'Row', 'Button'].includes(name),
+  wrapsBareStrings: name => ['Card', 'Column', 'Row', 'Button'].includes(name),
 };
 
 /** Each range as `surface / id: text`. */
