@@ -2,7 +2,7 @@
 
 The v1.0 component envelope keys in the checks, in both forms, and the v1.0 rules that come with the pin's schemas. Sub-task 9.3 of the Phase 9 spec, `_dev/docs/spec/phase-9-upstream-v1.0-and-supported-versions.md`, carrying out its decision 5, the v1.0 component envelope keys in both forms, and taking what sub-task 9.1's decision 16 and sub-task 9.2's handover leave to it.
 
-Upstream as sub-tasks 9.1 and 9.2 read it, `upstream/main` at `3ed960186` (2026-11-13), one commit after the pin `0888f88b2`: none of the three events of the Phase 9 spec's decision 2. No upstream check was run at this sub-task's start, sub-task 9.2 having landed the same day.
+Upstream as sub-tasks 9.1 and 9.2 read it, `upstream/main` at `3ed960186` (2026-11-13), one commit after the pin `0888f88b2`: none of the three events of the Phase 9 spec's decision 2. The upstream check at this sub-task's start, on 2026-11-14, read the same `upstream/main`, `3ed960186`, touching none of the areas Spectra uses: none of the three events.
 
 The checks at the pin, before the sub-task, on a v1.0 component:
 
@@ -17,6 +17,7 @@ The checks at the pin, before the sub-task, on a v1.0 component:
 In scope:
 
 - The catalog check and the binding check on a v1.0 component's envelope keys: the `@` keys read, `@catalogId` choosing the catalog, the bare keys judged as the legacy form, the component carrying both forms rejected.
+- The catalog a v1.0 function call inside a component is judged in.
 - Turn record v0.1 amended in place: the legacy form on the catalog check event; the prose, the schema, the committed records and the record's conformance data following.
 - The stub agent's canned v1.0 booking form, in three forms.
 - Test cases holding the rules the pin's schemas express.
@@ -48,7 +49,7 @@ Web core does not export its envelope code. The checks decide for themselves, fr
 
 ### 3. The legacy form in the record
 
-The catalog check event gains `a2ui.check.legacy_form`: an array with one entry per component object a message carried in the legacy form. An entry holds `surfaceId`; `componentId`; `keys`, the bare keys read as envelope keys, in the order the component writes them; and `path`, a JSON Pointer from the turn object to the component object, in the findings' path convention. The attribute is required on `catalog`, empty when there is none, and not allowed on the other three checks, as `a2ui.check.skipped` is on its three. `a2ui.check.passed` keeps meaning no findings. A legacy-form entry is not a finding.
+The catalog check event gains `a2ui.check.legacy_form`: an array with one entry per component object a message carried in the legacy form. An entry holds `surfaceId`; `componentId`; `keys`, the bare keys read as envelope keys, in the order the component writes them; and `path`, a JSON Pointer from the turn object to the component object, in the findings' path convention. The attribute is required on `catalog`, empty when there is none, and not allowed on the other three checks, as `a2ui.check.skipped` is on its three. `a2ui.check.passed` keeps meaning no findings. A legacy-form entry is not a finding. A component whose `id` is not a string is not listed; its bare keys are judged all the same.
 
 ### 4. The component carrying both forms
 
@@ -60,7 +61,7 @@ The value under an accepted bare key is judged exactly as the `@` key's value: t
 
 ### 6. No definition, no judgement
 
-A bare key is judged only where the schema that decides it is known. A component whose own catalog has no definition stays under the catalog check's `no_definition` skip and is not listed in the legacy form. On a surface whose default catalog has no definition, a bare `catalogId` is not followed: the component is not checked against the catalog it names and is not listed. An `@catalogId` naming a catalog with a definition is always followed, whatever the surface's default catalog; one that resolves nowhere adds the skipped entry for its surface with that id and `no_definition`.
+A bare key is judged only where the schema that decides it is known. A component whose own catalog has no definition stays under the catalog check's `no_definition` skip and is not listed in the legacy form. A component whose type its catalog does not define is not judged on its envelope keys: it carries `COMPONENT_UNKNOWN` alone, with no finding for both forms, and is not listed. On a surface whose default catalog has no definition, a bare `catalogId` is not followed: the component is not checked against the catalog it names and is not listed. An `@catalogId` naming a catalog with a definition is always followed, whatever the surface's default catalog; one that resolves nowhere adds the skipped entry for its surface with that id and `no_definition`.
 
 ### 7. The v0.9.1 URL keeps the v0.9 basic catalog
 
@@ -94,14 +95,15 @@ The rules the copied schemas and catalogs express: the four `@` envelope keys in
 - The folded web core line on that step repeats the finding's sentence.
 - Sub-task 9.1's decision 16 says "on a catalog check that still passes": the legacy form by itself never fails the catalog check, and a finding inside the bare key can.
 - The record's shape, as decision 3 fixes it.
+- The stub agent's booking form writes its bindings as v1.0 does, `{"@path": "/name"}`, in the components' values and in the check rules' arguments; the boards of sub-task 9.1's row "The legacy form" follow, in place of their `{path: '/name'}`.
 
 The 9.1 spec is left as written.
 
 ### 12. Other documents
 
 - The turn record prose and schema carry `a2ui.check.legacy_form` with its entry's four fields, and the `catalog` check's sentence gains the bare envelope key accepted as the legacy form.
-- The tool's README: the four checks' section gains the `@` keys, the legacy form and the rejection of both forms.
-- The Phase 4 spec is amended in place: decision 6, the catalog check, gains `@catalogId` and the bare keys' judgement; decision 8, the binding check, the paths inside an accepted bare key; decision 9, the checks in the record, the new attribute.
+- The tool's README: the four checks' section gains the `@` keys, the legacy form, the rejection of both forms and the catalog a v1.0 function call runs in.
+- The Phase 4 spec is amended in place: decision 6, the catalog check, gains `@catalogId`, the bare keys' judgement and the catalog a v1.0 function call runs in; decision 8, the binding check, the paths inside an accepted bare key; decision 9, the checks in the record, the new attribute.
 - `_dev/a2ui-findings.md` gains decision 7's finding, and `_dev/upstream-pin.json` lists it among the held-by findings with its upstream path. A difference between the two cores under decision 1, met in the build, is recorded as a finding.
 - `_dev/TODO.md`: the 9.3 line names this spec; the backlog gains decision 8's item.
 
@@ -109,12 +111,16 @@ The 9.1 spec is left as written.
 
 How the catalog check reads a custom property out of a catalog's definition; how the stub agent chooses among its three forms; the test catalog that declares its own `metadata` or `checks` property; the new finding's number.
 
-### 14. Done when
+### 14. The catalog a function call runs in
+
+A v1.0 function call inside a component is judged in the catalog it runs in, as web core's code at the pin decides it, `nestedCallRunsInCatalog` in `typescript/core/web_core/src/validation/payload-validator.ts`: the catalog its own `catalogId` names, else the surface's catalog, whatever catalog the component or an enclosing call names. A system function, its name starting with `@`, belongs to no catalog. A call naming a catalog with no definition is not judged and adds the skipped entry for its surface with that id and `no_definition`; a call naming no catalog, on a surface whose catalog has no definition, is not judged. The differential test of decision 2 carries a call in a component of another catalog and a call naming its own catalog.
+
+### 15. Done when
 
 All of these hold on `main`:
 
 1. The mark is gone: the `todo` case of `tools/spectra/src/check/catalog_check.test.ts` runs unmarked, written on `@catalogId`, with a twin on the bare `catalogId`; the search for `Sub-task 9.3, at the pin: ` that sub-task 9.2 fixed finds nothing.
-2. Hand-written cases cover each envelope key in each form: the `@` key, the bare key and both; a bare key the component's schema declares as its own property; a bare `checks` on a component that takes no checks; a `null` value; a bare `catalogId` judged in the surface's default catalog; the two no-definition cases of decision 6; a finding inside an accepted bare key, in the catalog check and in the binding check.
+2. Hand-written cases cover each envelope key in each form: the `@` key, the bare key and both; a bare key the component's schema declares as its own property; a bare `checks` on a component that takes no checks; a `null` value; a bare `catalogId` judged in the surface's default catalog; the two no-definition cases of decision 6; a finding inside an accepted bare key, in the catalog check and in the binding check; a function call in a component of another catalog, one naming its own catalog, and one naming a catalog with no definition.
 3. The differential test of decision 2 passes.
 4. The stub agent's three forms yield: the `@` form clean, with an empty `a2ui.check.legacy_form`; the bare form passing, with three entries; the both-forms form one `VALIDATION_FAILED` on the ChoicePicker's bare `checks`, `ROOT_MISSING` for `booking`, and three entries.
 5. v0.9 and v0.9.1 are as decision 10 has them.

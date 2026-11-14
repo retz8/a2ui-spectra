@@ -1,6 +1,9 @@
 """Writes the turn record v0.1 fixtures under conformance/test_data/turn_record/v0_1/ and their case list,
 conformance/turn_record/validator_v0_1.yaml.
 
+The fixtures have been edited by hand since Phase 5's documents, and this script no longer reproduces them:
+running it deletes and rewrites committed fixtures.
+
 Reads upstream's samples from the sibling ../A2UI checkout at 059b8d34. From the repository root:
 
     python3 -I _dev/tools/make_fixtures.py .

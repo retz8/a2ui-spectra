@@ -50,4 +50,6 @@ The demo, with the restaurant finder in Python and in TypeScript producing the s
 - A rejected block's failing message marked within it in the raw text, the messages a stream accepted and sent before it left plain.
 - A JUnit or other report format for `a2ui-spectra test`, for the CI systems that read one; v1 prints plain terminal lines.
 - The tool proxy keeping the MCP session housekeeping it saw outside any turn, such as an `initialize` an agent sends at start, in the record it writes next, so that a replay of that agent serves its `initialize`; at the Phase 7 pin the targets connect inside the turn.
+- The turn record fixture generator, `_dev/tools/make_fixtures.py`, brought up to date so that it writes every committed v0.1 fixture and case again, the hand edits since Phase 5's documents included.
+- A static check of a literal `pattern` in a v1.0 `regex` call against the A2UI regex dialect, which the v1.0 basic catalog's `regex` function states in its `pattern` argument's description and web core enforces only when the function runs.
 - The save watcher passing its ignore list to `fs.watch`'s `ignore` option, so that the watch no longer walks into the ignored folders on Linux, once the Node used in development and the pinned Bun release both have it; Node has it from 24.14.0 and 25.5.0.

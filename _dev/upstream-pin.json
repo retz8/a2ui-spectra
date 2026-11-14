@@ -329,6 +329,12 @@
         "typescript/core/web_core/src/processing/message-processor.ts",
         "typescript/agents/a2ui_agent/src/inference-formats/direct-json/response-stream.ts"
       ]
+    },
+    {
+      "finding": 47,
+      "paths": [
+        "specification/v0_9_1/catalogs/basic/catalog.json"
+      ]
     }
   ]
 }

@@ -2376,3 +2376,145 @@ does under `uv run .`.
 Close the generator where it is abandoned, in the task that opened it: iterate `token_stream()`
 under `contextlib.aclosing` in `agent.py`, so the `ValueError` path closes ADK's generator in
 place. Not tried.
+
+## 47. The v0.9.1 basic catalog's List lacks the `listStyle` the v0.9 one regained
+
+**Component:** `specification/v0_9_1/catalogs/basic/catalog.json`;
+`specification/v0_9/catalogs/basic/catalog.json`;
+`typescript/core/web_core/src/v0_9/basic_catalog/components/basic_components.ts`.
+
+**Severity:** two catalog files of one basic catalog disagree; a v0.9.1 List
+with `listStyle` passes web core's v0.9 basic catalog and fails the v0.9.1
+catalog file. Found at the pin `0888f88b2` (2026-11-13).
+
+**Standing:** holds. Judged by reading the two files at the pin.
+
+**Held by:** Spectra's catalog registry serves its copy of the v0.9 basic
+catalog under the v0.9.1 URL, `tools/spectra/src/catalog/registry.ts`, and so
+does the TypeScript wrapper driver's `basic_v0_9.json`; a v0.9.1 List with
+`listStyle` passes the catalog check, the case in
+`tools/spectra/src/check/catalog_check.test.ts`, "knows the v0.9 basic catalog
+under its v0.9.1 URL".
+
+### Issue
+
+`2e8a58a69` (PR #3956) restored List's `listStyle` (`"ordered"`,
+`"unordered"`, `"none"`) to `specification/v0_9/catalogs/basic/catalog.json`
+(List at line 329, `listStyle` at lines 360-364) and to web core's v0.9 basic
+catalog, `basic_components.ts`. `specification/v0_9_1/catalogs/basic/catalog.json`
+was left as it was: its List, also at line 329, declares `children`,
+`direction` and `align` only, closed by `unevaluatedProperties: false`. The
+v0.9.1 protocol doc names the v0.9.1 file's URL for the basic catalog, and
+web core has no v0.9.1 basic catalog of its own, so a v0.9.1 renderer on web
+core judges List by the v0.9 schema while a validator reading the v0.9.1 file
+rejects the same component.
+
+### Reproduction
+
+Validate `{"id": "list", "component": "List", "children": [], "listStyle":
+"ordered"}` against `#/components/List` of each file at the pin, under JSON
+Schema 2020-12 with Ajv, `strict` off, the v0.9 common types loaded and the
+file also bound under `https://a2ui.org/specification/v0_9/catalog.json`, the
+URL the common types reference for `anyFunction`: the v0.9 file passes it, the
+v0.9.1 file fails it with the unevaluated property `listStyle`.
+
+### Fix
+
+Add `listStyle` to List in `specification/v0_9_1/catalogs/basic/catalog.json`
+as PR #3956 added it to the v0.9 file.
+
+## 48. The Python core's `allow_unknown_elements` lets unknown properties through, web core's does not
+
+**Component:** `python/a2ui_core/src/a2ui/core/validation/payload_validator.py`;
+`typescript/core/web_core/src/validation/integrity-checker.ts`;
+`typescript/core/web_core/src/validation/payload-validator.ts`.
+
+**Severity:** the two cores' relaxed validation disagree on a component with a
+property its schema does not declare: an agent checking its output with the
+Python core in relaxed mode passes components a web renderer in relaxed mode
+refuses. Found at the pin `0888f88b2` (2026-11-13).
+
+**Standing:** holds. Run in Spectra's workspace, `a2ui-core` as the uv git
+source at the pin.
+
+### Issue
+
+Both cores define `RELAXED_VALIDATION` with the same four flags
+(`payload_validator.py:72-77`; `integrity-checker.ts:223-228`), among them
+`allow_unknown_elements` / `allowUnknownElements`. Web core documents that flag
+as allowing "components and functions that the resolved catalog does not
+define" (`integrity-checker.ts:200-209`): with it set, a component's own
+properties are still parsed against its schema (`payload-validator.ts:314`),
+and a property the schema does not declare is rejected. The Python core also
+tolerates unknown properties under it: `_is_unknown_property_error`
+(`payload_validator.py:105-117`) says "Those are the errors that
+`allow_unknown_elements` tolerates", an `additionalProperties` or
+`unevaluatedProperties` error, and the component and function checks drop
+those errors when the flag is set (lines 951 and 1517).
+
+### Reproduction
+
+Feed `{"version": "1.0", "createSurface": {"surfaceId": "s", "catalogId":
+"https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"}}`, then an
+`updateComponents` of `{"id": "root", "component": "Text", "text": "Hi",
+"colour": 1}`, to each core's message processor on its v1.0 basic catalog, in
+relaxed mode. Web core rejects it with "Validation failed for component 'Text'
+(root): root: Unrecognized key(s) in object: 'colour'"; the Python core
+accepts it and stores `colour` as a property. A bare `checks` or an `@checks`
+on the Text goes the same way: web core rejects both, the second with
+"Component 'Text' (root) is not checkable and does not accept '@checks'.". In
+strict mode the Python core rejects all three as additional properties.
+
+### Fix
+
+Give the flag one meaning in both cores: either web core's, unknown components
+and functions only, with the Python core's property errors kept under it; or
+the Python core's, stated in both cores' documentation of the flag and done in
+web core too.
+
+## 49. Web core's v1.0 validation accepts v0.9's `path` and `call`, which its v1.0 resolution reads as literal values
+
+**Component:** `typescript/core/web_core/src/v1_0/schema/common-types.ts`;
+`typescript/core/web_core/src/resolution/data-context.ts`.
+
+**Severity:** a v1.0 payload written with v0.9's binding or call keys passes
+web core's validation, in strict mode too, and then draws the wrong value: the
+literal object in place of the bound one. Found at the pin `0888f88b2`
+(2026-11-13).
+
+**Standing:** holds. Run against web core built at the pin, Spectra's
+`vendor/a2ui/a2ui-web_core-0.15.0.tgz`.
+
+### Issue
+
+Web core's v1.0 `DataBindingSchema` (`common-types.ts:38-46`) takes either
+`@path` or `path`, "Either '@path' or 'path' must be provided.", and its
+`FunctionCommonSchema` (from line 49) either `@call` or `call`. Its v1.0
+resolution takes only the `@` keys: `isDataBindingObject`
+(`data-context.ts:541-551`, "In v1.0, data bindings must use `@path`") and
+`isFunctionCallObject` (`data-context.ts:556-565`, "In v1.0, function calls
+must use `@call`"). The specification agrees with the resolution: the v1.0
+common types' `DataBinding` (`specification/v1_0/json/common_types.json`, from
+line 104) requires `@path` and allows nothing else, and the v1.0 evolution
+guide says plain objects with `"path"` or `"call"` keys "are treated as
+literal dictionary values and are no longer intercepted as dynamic directives"
+(`specification/v1_0/docs/evolution_guide.md:21`).
+
+### Reproduction
+
+Feed web core's message processor, on its v1.0 basic catalog, in relaxed or
+strict mode: `createSurface` for `s`, an `updateComponents` of `{"id": "root",
+"component": "TextField", "label": "Name", "value": {"path": "/name"}}` and an
+`updateDataModel` of `{"name": "Ada"}`, all `"version": "1.0"`. The processor
+accepts them. A `DataContext` on the surface at `/` resolves the TextField's
+`value` to `{"path": "/name"}`; with `{"@path": "/name"}` it resolves to
+`"Ada"`. Validated against the v1.0 common types and basic catalog, the
+`{"path": "/name"}` value fails `DynamicString`.
+
+### Fix
+
+Drop `path` from the v1.0 `DataBindingSchema` and `call` from the v1.0
+`FunctionCommonSchema`, so that web core's validation takes the keys its
+resolution and the specification take; or, if the unprefixed keys are kept on
+purpose for a transition, read them in resolution too and say so in the
+evolution guide.
