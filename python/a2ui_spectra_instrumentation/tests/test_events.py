@@ -51,6 +51,13 @@ def run_tool(tool: Any, payload: str) -> Any:
 # One event per outermost call.
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_the_processors_parse_response_is_one_parse(spans: Any, processor: Any) -> None:
     processor().parse_response(CARD_TEXT)
 
@@ -76,6 +83,13 @@ def test_the_processors_parse_response_is_one_parse(spans: Any, processor: Any) 
     assert span.instrumentation_scope.version == "0.0.1"
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_the_a2a_path_calling_the_parser_directly_is_one_parse(
     spans: Any, processor: Any
 ) -> None:
@@ -84,6 +98,13 @@ def test_the_a2a_path_calling_the_parser_directly_is_one_parse(
     assert spans.attributes(spans.one())["a2ui.parse.entry_point"] == "parse_response"
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_an_unwrapped_parse_says_so(spans: Any, processor: Any) -> None:
     processor().parse_response(CARD, False)
 
@@ -92,6 +113,13 @@ def test_an_unwrapped_parse_says_so(spans: Any, processor: Any) -> None:
     assert attributes["a2ui.parse.input"] == CARD
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_compile_on_its_own_is_one_parse(spans: Any, processor: Any) -> None:
     processor().parser.compile(CARD)
 
@@ -100,6 +128,13 @@ def test_compile_on_its_own_is_one_parse(spans: Any, processor: Any) -> None:
     assert len(spans.parsed(span, "a2ui.parse.messages")) == 1
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_the_processors_prompt_is_one_prompt_generation(
     spans: Any, processor: Any
 ) -> None:
@@ -113,6 +148,13 @@ def test_the_processors_prompt_is_one_prompt_generation(
     assert "gen_ai.tool.name" not in attributes
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_a_stream_is_one_parse(spans: Any, processor: Any) -> None:
     stream = processor().open_stream()
     for chunk in (CARD_TEXT[:20], CARD_TEXT[20:]):
@@ -130,6 +172,13 @@ def test_a_stream_is_one_parse(spans: Any, processor: Any) -> None:
     ]
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_the_tool_call_with_a_bound_state_is_one_parse(
     spans: Any, processor: Any
 ) -> None:
@@ -145,6 +194,13 @@ def test_the_tool_call_with_a_bound_state_is_one_parse(
     assert spans.parsed(span, "a2ui.parse.messages") == result["validated_a2ui_json"]
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_the_tool_call_names_the_call_id_its_context_gives(
     spans: Any, processor: Any
 ) -> None:
@@ -157,6 +213,13 @@ def test_the_tool_call_names_the_call_id_its_context_gives(
     assert spans.attributes(spans.one())["gen_ai.tool.call.id"] == "call-1"
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_the_toolsets_appended_prompt_is_one_prompt_generation(
     spans: Any, processor: Any
 ) -> None:
@@ -182,6 +245,13 @@ def test_the_toolsets_appended_prompt_is_one_prompt_generation(
     assert attributes["a2ui.prompt.inference_format"] == "express"
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_the_toolsets_prompt_without_instructions_reads_the_processors_format(
     spans: Any, processor: Any
 ) -> None:
@@ -199,6 +269,13 @@ def test_the_toolsets_prompt_without_instructions_reads_the_processors_format(
 # The block an error belongs to.
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_a_rejected_block_is_the_block_being_compiled(
     spans: Any, processor: Any, support: Any
 ) -> None:
@@ -223,6 +300,13 @@ def test_a_rejected_block_is_the_block_being_compiled(
     ] == ["card"]
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_ranges_count_utf16_code_units(
     spans: Any, processor: Any, support: Any
 ) -> None:
@@ -239,6 +323,13 @@ def test_ranges_count_utf16_code_units(
     )
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_an_error_applying_a_blocks_messages_is_that_blocks(
     spans: Any, processor: Any, support: Any
 ) -> None:
@@ -252,6 +343,13 @@ def test_an_error_applying_a_blocks_messages_is_that_blocks(
     assert (error["a2ui.parse.block.start"], error["a2ui.parse.block.end"]) == second
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_an_error_of_the_tree_check_belongs_to_no_block(
     spans: Any, processor: Any
 ) -> None:
@@ -266,6 +364,13 @@ def test_an_error_of_the_tree_check_belongs_to_no_block(
     assert "a2ui.parse.block.start" not in error
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_the_toolsets_whole_payload_check_belongs_to_no_block(
     spans: Any, processor: Any
 ) -> None:
@@ -284,6 +389,13 @@ def test_the_toolsets_whole_payload_check_belongs_to_no_block(
     assert spans.parsed(span, "a2ui.parse.messages") == []
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_the_toolsets_compile_error_is_its_block(
     spans: Any, processor: Any, support: Any
 ) -> None:
@@ -297,6 +409,13 @@ def test_the_toolsets_compile_error_is_its_block(
     ) == support.block_range(payload, UNKNOWN)
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_a_streams_error_after_a_finished_block_is_its_own(
     spans: Any, processor: Any, support: Any
 ) -> None:
@@ -312,6 +431,13 @@ def test_a_streams_error_after_a_finished_block_is_its_own(
     ) == support.block_range(text, UNKNOWN)
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 @pytest.mark.parametrize("mode", ["end", "continue"])
 def test_a_streams_error_is_the_block_it_rejected_though_the_chunk_runs_on(
     mode: str, spans: Any, processor: Any, support: Any
@@ -333,6 +459,13 @@ def test_a_streams_error_is_the_block_it_rejected_though_the_chunk_runs_on(
     ) == support.block_range(text, UNKNOWN)
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_a_direct_json_streams_error_is_counted_past_the_blocks_it_finished(
     spans: Any, processor: Any, support: Any
 ) -> None:
@@ -357,6 +490,13 @@ def test_a_direct_json_streams_error_is_counted_past_the_blocks_it_finished(
     ] == ["a", "c"]
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 @pytest.mark.parametrize(
     ("fmt", "payload", "error_type"),
     [
@@ -384,6 +524,13 @@ def test_an_error_the_tool_raises_itself_is_recorded_with_no_block(
 # Arguments passed by keyword.
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_arguments_by_keyword(spans: Any, processor: Any) -> None:
     parser = processor().parser
     parser.parse_response(content=CARD, wrapped=False)

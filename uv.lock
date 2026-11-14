@@ -16,8 +16,35 @@ members = [
 ]
 
 [[package]]
+name = "a2a-sdk"
+version = "0.3.26"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "google-api-core", version = "2.34.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
+    { name = "google-api-core", version = "2.44.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "httpx" },
+    { name = "httpx-sse" },
+    { name = "protobuf" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/be/97/a6840e01795b182ce751ca165430d46459927cde9bfab838087cbb24aef7/a2a_sdk-0.3.26.tar.gz", hash = "sha256:44068e2d037afbb07ab899267439e9bc7eaa7ac2af94f1e8b239933c993ad52d", size = 274598, upload-time = "2026-04-09T15:21:13.902Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/dd/d5/51f4ee1bf3b736add42a542d3c8a3fd3fa85f3d36c17972127defc46c26f/a2a_sdk-0.3.26-py3-none-any.whl", hash = "sha256:754e0573f6d33b225c1d8d51f640efa69cbbed7bdfb06ce9c3540ea9f58d4a91", size = 151016, upload-time = "2026-04-09T15:21:12.35Z" },
+]
+
+[[package]]
+name = "a2ui-a2a"
+version = "0.3.1.dev45"
+source = { git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_a2a&rev=0888f88b2835c44abdc871505f3f395e5ee0177d#0888f88b2835c44abdc871505f3f395e5ee0177d" }
+dependencies = [
+    { name = "a2a-sdk" },
+    { name = "a2ui-agent-sdk" },
+    { name = "packaging" },
+]
+
+[[package]]
 name = "a2ui-adk"
-version = "0.2.0"
+version = "0.3.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "a2ui-agent-sdk" },
@@ -26,15 +53,15 @@ dependencies = [
     { name = "google-genai", version = "2.33.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "google-genai", version = "2.34.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/83/32/e9a013884bf95c6eb1478a3f755f5e749f8a85bb8205f21339c8a8d03b9e/a2ui_adk-0.2.0.tar.gz", hash = "sha256:6b81f24ef062327559b9bcf5d783aa014249abc56a6addc888597a8ff86ef1f6", size = 36985, upload-time = "2026-11-02T02:42:53.279Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/34/58/5564ac6f3e023a0c4d2a7ebe711958f7f435eecc4435b94c69eb9842e296/a2ui_adk-0.3.0.tar.gz", hash = "sha256:14e0d7a825aac9ec66df080765d137e6ac80f8d38e555db3e01992048411d962", size = 65342, upload-time = "2026-11-10T22:20:50.402Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/38/bc/180c4bc8a5a26440251e27c622dd4b60a3c68419e28a3e8220d46d1e421a/a2ui_adk-0.2.0-py3-none-any.whl", hash = "sha256:0bfbb4dd352b160f068160902015451b285c995ba2e0bd12bc22ce3c7524a7c2", size = 25170, upload-time = "2026-11-02T02:42:48.555Z" },
+    { url = "https://files.pythonhosted.org/packages/ca/98/0f145199c181959513bf0d138720f935407c47a5e2183385294a7e745de9/a2ui_adk-0.3.0-py3-none-any.whl", hash = "sha256:cdd487568211456fb4bdb636b8dfd606d6380e2e46f4f2b8a578726c7fc29d60", size = 38264, upload-time = "2026-11-10T22:20:46.029Z" },
 ]
 
 [[package]]
 name = "a2ui-agent-sdk"
-version = "0.10.0"
-source = { registry = "https://pypi.org/simple" }
+version = "0.11.1.dev45"
+source = { git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_agent&rev=0888f88b2835c44abdc871505f3f395e5ee0177d#0888f88b2835c44abdc871505f3f395e5ee0177d" }
 dependencies = [
     { name = "a2ui-core" },
     { name = "antlr4-python3-runtime" },
@@ -42,25 +69,17 @@ dependencies = [
     { name = "pydantic" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/21/db/7d11ffeeff358b604e406dc2fa1428ff38ad8a6327b51308fa447a391518/a2ui_agent_sdk-0.10.0.tar.gz", hash = "sha256:6ec0ca6e8237584fbd156711064eceb703d431f8dd9af29c201dd9b14d47e1e3", size = 405243, upload-time = "2026-11-02T02:42:51.104Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/f3/c8/2dd79dc705aadf5ecf0f2c7b6e68df531d354170c26adb5c9961c65b0184/a2ui_agent_sdk-0.10.0-py3-none-any.whl", hash = "sha256:1d5bdec10456c19d604464f0f5b53cd54aa33d51b128809fef0b5a938a34fa2d", size = 318578, upload-time = "2026-11-02T02:42:45.347Z" },
-]
 
 [[package]]
 name = "a2ui-core"
-version = "0.5.0"
-source = { registry = "https://pypi.org/simple" }
+version = "0.6.1.dev45"
+source = { git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_core&rev=0888f88b2835c44abdc871505f3f395e5ee0177d#0888f88b2835c44abdc871505f3f395e5ee0177d" }
 dependencies = [
     { name = "babel" },
     { name = "jsonschema" },
     { name = "pydantic" },
     { name = "referencing" },
     { name = "regex" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/db/71/0edb713697a23d12618ab47816c9e2abb12c002498ba47e1b7f87a13c2d6/a2ui_core-0.5.0.tar.gz", hash = "sha256:ea1d9a59808bd92c13d55b6af9ae5a21ba6f4f8eb3e874ffc8727b92c9e8cc24", size = 334963, upload-time = "2026-11-02T02:42:49.815Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/57/7f/734cad38a5b595b0bb11171b653dd928e4fdaa10ad569851cdb8d18050df/a2ui_core-0.5.0-py3-none-any.whl", hash = "sha256:609404f78c663126960bcafa4002934a49e76cf29ac928777be9d88d5118ef8c", size = 282941, upload-time = "2026-11-02T02:42:43.482Z" },
 ]
 
 [[package]]
@@ -86,7 +105,7 @@ instruments = [
 
 [package.metadata]
 requires-dist = [
-    { name = "a2ui-agent-sdk", marker = "extra == 'instruments'", specifier = ">=0.10.0" },
+    { name = "a2ui-agent-sdk", marker = "extra == 'instruments'", git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_agent&rev=0888f88b2835c44abdc871505f3f395e5ee0177d" },
     { name = "opentelemetry-api", specifier = ">=1.39.0" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.39.0" },
     { name = "opentelemetry-instrumentation", specifier = ">=0.60b0" },
@@ -121,6 +140,7 @@ name = "a2ui-spectra-wrapper-driver-python"
 version = "0.0.0"
 source = { virtual = "conformance/wrapper_driver/python" }
 dependencies = [
+    { name = "a2ui-a2a" },
     { name = "a2ui-adk" },
     { name = "a2ui-agent-sdk" },
     { name = "a2ui-core" },
@@ -129,9 +149,10 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "a2ui-adk", specifier = "==0.2.0" },
-    { name = "a2ui-agent-sdk", specifier = "==0.10.0" },
-    { name = "a2ui-core", specifier = "==0.5.0" },
+    { name = "a2ui-a2a", git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_a2a&rev=0888f88b2835c44abdc871505f3f395e5ee0177d" },
+    { name = "a2ui-adk", specifier = "==0.3.0" },
+    { name = "a2ui-agent-sdk", git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_agent&rev=0888f88b2835c44abdc871505f3f395e5ee0177d" },
+    { name = "a2ui-core", git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_core&rev=0888f88b2835c44abdc871505f3f395e5ee0177d" },
     { name = "a2ui-spectra-instrumentation", editable = "python/a2ui_spectra_instrumentation" },
 ]
 
@@ -1169,6 +1190,47 @@ wheels = [
 ]
 
 [[package]]
+name = "google-api-core"
+version = "2.34.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version < '3.11'",
+]
+dependencies = [
+    { name = "google-auth", marker = "python_full_version < '3.11'" },
+    { name = "googleapis-common-protos", marker = "python_full_version < '3.11'" },
+    { name = "proto-plus", marker = "python_full_version < '3.11'" },
+    { name = "protobuf", marker = "python_full_version < '3.11'" },
+    { name = "requests", marker = "python_full_version < '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/7b/7c/9be3903e3d45415e8ca493c75f8990a0f6f579d168015d44c379350d0ab0/google_api_core-2.34.0.tar.gz", hash = "sha256:98a779fe72de956eb1c9c2f47ff4c4432a668ece1a002ec38bed07ec2698ae59", size = 187953, upload-time = "2026-08-06T06:23:58.128Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/bc/c1/a8a92ae1bc4b1a8f804c776d7d3f0c771b78a62c3ad4df1be41b3fd8c767/google_api_core-2.34.0-py3-none-any.whl", hash = "sha256:cdf9c67e7ca2402d86ccbfde5f2503fc83e3cc3f58cc78456ae96cad24a6d2de", size = 180545, upload-time = "2026-08-06T06:22:47.502Z" },
+]
+
+[[package]]
+name = "google-api-core"
+version = "2.44.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "python_full_version >= '3.15'",
+    "python_full_version == '3.14.*'",
+    "python_full_version >= '3.11' and python_full_version < '3.14'",
+]
+dependencies = [
+    { name = "google-auth", marker = "python_full_version >= '3.11'" },
+    { name = "googleapis-common-protos", marker = "python_full_version >= '3.11'" },
+    { name = "opentelemetry-api", version = "1.44.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
+    { name = "proto-plus", marker = "python_full_version >= '3.11'" },
+    { name = "protobuf", marker = "python_full_version >= '3.11'" },
+    { name = "requests", marker = "python_full_version >= '3.11'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/72/ef/63d89cb580f3a42c51db53b3d151352aa61b9c87ea8cfdd8d24ee6caa09d/google_api_core-2.44.0.tar.gz", hash = "sha256:5ab9a396965c1227d7dea4581e562b7018aa2bca96d2de0be5eb70dc9c8ab3a1", size = 288859, upload-time = "2026-11-05T18:39:43.265Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/c9/73/4068d4b123d206f42e44d476b6ed4de773d81efc4e88101ff82e318b9a7a/google_api_core-2.44.0-py3-none-any.whl", hash = "sha256:8cb9ad8af28de9bc75121686d69b697ce0937e21fad2ad80c9a7e89f22b26e1f", size = 225627, upload-time = "2026-11-05T18:39:01.342Z" },
+]
+
+[[package]]
 name = "google-auth"
 version = "2.62.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1295,6 +1357,15 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b1/df/48c586a5fe32a0f01324ee087459e112ebb7224f646c0b5023f5e79e9956/httpx-0.28.1.tar.gz", hash = "sha256:75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc", size = 141406, upload-time = "2024-12-06T15:37:23.222Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl", hash = "sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad", size = 73517, upload-time = "2024-12-06T15:37:21.509Z" },
+]
+
+[[package]]
+name = "httpx-sse"
+version = "0.4.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0f/4c/751061ffa58615a32c31b2d82e8482be8dd4a89154f003147acee90f2be9/httpx_sse-0.4.3.tar.gz", hash = "sha256:9b1ed0127459a66014aec3c56bebd93da3c1bc8bb6618c8082039a44889a755d", size = 15943, upload-time = "2025-10-10T21:48:22.271Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d2/fd/6668e5aec43ab844de6fc74927e155a3b37bf40d7c3790e49fc0406b6578/httpx_sse-0.4.3-py3-none-any.whl", hash = "sha256:0ac1c9fe3c0afad2e0ebb25a934a59f4c7823b60792691f779fad2c5568830fc", size = 8960, upload-time = "2025-10-10T21:48:21.158Z" },
 ]
 
 [[package]]
@@ -2186,6 +2257,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/d4/ef/8bae0a316d406644450522f2f3d44a4e19632f5f3bb60d1d0e6c53842616/propcache-0.5.4-cp315-cp315t-win_amd64.whl", hash = "sha256:02c0a34f16889cf800f10f0247a564d8ce6eeab6ffcd7c87198f769067eb8432", size = 48574, upload-time = "2026-09-16T00:17:10.077Z" },
     { url = "https://files.pythonhosted.org/packages/57/be/bcc053f66a97355683884b448198e79580fae8e8fa4d96b9bb01614e9913/propcache-0.5.4-cp315-cp315t-win_arm64.whl", hash = "sha256:dc4242ca653c9b30ab51c5f8193323e7bc0928f897ee9103201e59a43abcb72e", size = 45625, upload-time = "2026-09-16T00:17:11.377Z" },
     { url = "https://files.pythonhosted.org/packages/f5/cd/785c64ed382f3f04201870267b02783f63b4678c2acfddc177a3ebcc2727/propcache-0.5.4-py3-none-any.whl", hash = "sha256:62c60aec739ed00124573cce1178138fd690c7676352d67a37328c1cf51d7468", size = 16338, upload-time = "2026-09-16T00:17:13.106Z" },
+]
+
+[[package]]
+name = "proto-plus"
+version = "1.29.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "protobuf" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/46/70/783e33ffbb4466cc154a94f79b869b92a451e2bd45605054e68ff68b7af6/proto_plus-1.29.0.tar.gz", hash = "sha256:cfb4e62ad7e13dd18f346cabbda00cab39930d36a05791fd81ddb074d6ee884f", size = 58592, upload-time = "2026-09-29T19:26:15.963Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b1/05/a3ef5b1161498e7b5a2a60288a9cf41b9149e94555423a43ec536737ac1a/proto_plus-1.29.0-py3-none-any.whl", hash = "sha256:8acd070469a7aaf43f440b022ef9757c8cac1a9f866e933f59ae98669ddc6c8b", size = 50786, upload-time = "2026-09-29T19:25:50.409Z" },
 ]
 
 [[package]]

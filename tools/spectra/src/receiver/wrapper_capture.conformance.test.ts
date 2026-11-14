@@ -52,6 +52,7 @@ interface CaptureWrapperCase {
   action: 'capture_wrapper';
   job: string;
   expect: string | Partial<Record<Language, string>>;
+  expected_to_fail?: Partial<Record<Language, string>>;
 }
 
 /** What the harness reads of a driver's job. */
@@ -405,7 +406,8 @@ describe('wrapper capture v0.1', () => {
       const skip = hasDriver(language)
         ? false
         : `no ${language} driver under conformance/wrapper_driver/${language}/`;
-      it(`${c.name} (${language})`, {skip}, () => runCase(c, language));
+      const todo = c.expected_to_fail?.[language] ?? false;
+      it(`${c.name} (${language})`, {skip, todo}, () => runCase(c, language));
     }
   }
 });

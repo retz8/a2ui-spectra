@@ -40,6 +40,13 @@ def test_a_missing_core_name_leaves_everything_unpatched(
     assert "a2ui-agent-sdk 0.10.0, upstream's release of 2026-11-02" in message
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_a_missing_experimental_format_is_skipped_and_the_rest_patched(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
@@ -60,6 +67,13 @@ def test_a_missing_experimental_format_is_skipped_and_the_rest_patched(
     assert "Atom is not hooked" in line.getMessage()
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_an_unimportable_adk_extension_is_skipped_silently(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
@@ -99,6 +113,13 @@ def test_an_sdk_at_the_floor_is_refused(
     assert "a2ui-agent-sdk >= 0.10.0" in message
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_the_pinned_sdk_passes_with_no_line(
     caplog: pytest.LogCaptureFixture, provider: TracerProvider, support: Any
 ) -> None:
@@ -111,6 +132,13 @@ def test_the_pinned_sdk_passes_with_no_line(
     assert support.lines(caplog) == []
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_a_second_instrument_gets_the_base_instrumentors_warning(
     caplog: pytest.LogCaptureFixture, provider: TracerProvider
 ) -> None:

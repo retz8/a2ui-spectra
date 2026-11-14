@@ -30,5 +30,13 @@
     "bun": {
       "built": true
     }
+  },
+  "resolutions": {
+    "@a2ui/web_core": "file:./vendor/a2ui/a2ui-web_core-0.15.0.tgz",
+    "@a2ui/markdown-it": "file:./vendor/a2ui/a2ui-markdown-it-0.2.2.tgz",
+    "@a2ui/react": "file:./vendor/a2ui/a2ui-react-0.15.0.tgz",
+    "@a2ui/lit": "file:./vendor/a2ui/a2ui-lit-0.15.0.tgz",
+    "@a2ui/angular": "file:./vendor/a2ui/a2ui-angular-0.14.0.tgz",
+    "@a2ui/agent": "file:./vendor/a2ui/a2ui-agent-0.1.0.tgz"
   }
 }

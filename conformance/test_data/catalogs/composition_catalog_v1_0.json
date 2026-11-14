@@ -9,33 +9,63 @@
     "Text": {
       "type": "object",
       "description": "Displays a run of text.",
-      "allowedParents": ["Column"],
+      "allowedParents": [
+        "Column"
+      ],
       "properties": {
-        "component": { "const": "Text" },
-        "text": { "$ref": "common_types.json#/$defs/DynamicString" }
+        "component": {
+          "const": "Text"
+        },
+        "text": {
+          "$ref": "common_types.json#/$defs/DynamicString"
+        }
       },
-      "required": ["component", "text"]
+      "required": [
+        "component",
+        "text"
+      ]
     },
     "Column": {
       "type": "object",
       "description": "A layout that stacks its children vertically.",
-      "allowedParents": ["Surface", "Column"],
-      "allowedChildren": ["Text", "Column"],
+      "allowedParents": [
+        "Surface",
+        "Column"
+      ],
+      "allowedChildren": [
+        "Text",
+        "Column"
+      ],
       "properties": {
-        "component": { "const": "Column" },
-        "children": { "$ref": "common_types.json#/$defs/ChildList" }
+        "component": {
+          "const": "Column"
+        },
+        "children": {
+          "$ref": "common_types.json#/$defs/ChildList"
+        }
       },
-      "required": ["component", "children"]
+      "required": [
+        "component",
+        "children"
+      ]
     }
   },
   "$defs": {
     "anyComponent": {
       "oneOf": [
-        { "$ref": "#/components/Text" },
-        { "$ref": "#/components/Column" }
+        {
+          "$ref": "#/components/Text"
+        },
+        {
+          "$ref": "#/components/Column"
+        }
       ],
-      "discriminator": { "propertyName": "component" }
+      "discriminator": {
+        "propertyName": "component"
+      }
     },
-    "anyFunction": {"not": {}}
+    "anyFunction": {
+      "not": {}
+    }
   }
 }

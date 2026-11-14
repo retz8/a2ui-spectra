@@ -3,11 +3,13 @@ name = "a2ui-spectra-wrapper-driver-python"
 version = "0.0.0"
 description = "The wrapper capture suite's Python driver"
 requires-python = ">=3.10"
-# Upstream's releases of 2026-11-02.
+# Upstream's packages at the pin: a2ui-core, a2ui-agent-sdk and a2ui-a2a from the uv git sources
+# in the root pyproject.toml, a2ui-adk from PyPI.
 dependencies = [
-  "a2ui-adk==0.2.0",
-  "a2ui-agent-sdk==0.10.0",
-  "a2ui-core==0.5.0",
+  "a2ui-a2a",
+  "a2ui-adk==0.3.0",
+  "a2ui-agent-sdk",
+  "a2ui-core",
   "a2ui-spectra-instrumentation",
 ]
 

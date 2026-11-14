@@ -12,6 +12,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
 from a2ui.adk import SendA2uiToClientToolset
 from a2ui.adk import send_a2ui_to_client_toolset
 from a2ui.inference_formats import ExpressParser
@@ -28,6 +29,13 @@ STAND_IN: Any = SimpleNamespace()
 CARD = 'surface("card")\nroot = Text("Hi")'
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_uninstrument_removes_every_hook(
     spans: Any, processor: Any, support: Any
 ) -> None:
@@ -75,6 +83,13 @@ print(json.dumps({
 """
 
 
+@pytest.mark.xfail(
+    reason=(
+        "Sub-task 9.5, at the pin: the agent SDK lacks names the hook table patches, so"
+        " the wrapper leaves it unpatched"
+    ),
+    strict=True,
+)
 def test_the_launcher_switches_it_on_and_starts_the_provider() -> None:
     launcher = Path(sys.executable).with_name("opentelemetry-instrument")
     env = {

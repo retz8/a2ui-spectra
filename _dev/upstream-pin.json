@@ -1,0 +1,334 @@
+{
+  "upstream": {
+    "repository": "a2ui-project/a2ui",
+    "fork": "../A2UI",
+    "remote": "upstream",
+    "branch": "main",
+    "worktree": "../a2ui-upstream"
+  },
+  "pin": {
+    "commit": "0888f88b2835c44abdc871505f3f395e5ee0177d",
+    "date": "2026-11-13"
+  },
+  "copies": [
+    {
+      "upstream": "specification/v0_9/json/server_to_client.json",
+      "spectra": "tools/spectra/src/check/schemas/v0_9/server_to_client.json"
+    },
+    {
+      "upstream": "specification/v0_9/json/common_types.json",
+      "spectra": "tools/spectra/src/check/schemas/v0_9/common_types.json"
+    },
+    {
+      "upstream": "specification/v0_9/catalogs/basic/catalog.json",
+      "spectra": "tools/spectra/src/check/schemas/v0_9/catalogs/basic/catalog.json"
+    },
+    {
+      "upstream": "specification/v0_9_1/json/server_to_client.json",
+      "spectra": "tools/spectra/src/check/schemas/v0_9_1/server_to_client.json"
+    },
+    {
+      "upstream": "specification/v1_0/json/agent_to_renderer.json",
+      "spectra": "tools/spectra/src/check/schemas/v1_0/agent_to_renderer.json"
+    },
+    {
+      "upstream": "specification/v1_0/json/common_types.json",
+      "spectra": "tools/spectra/src/check/schemas/v1_0/common_types.json"
+    },
+    {
+      "upstream": "specification/v1_0/json/catalog_definition.json",
+      "spectra": "tools/spectra/src/check/schemas/v1_0/catalog_definition.json"
+    },
+    {
+      "upstream": "catalogs/basic/v1/catalog.json",
+      "spectra": "tools/spectra/src/check/schemas/v1_0/catalogs/basic/catalog.json"
+    },
+    {
+      "upstream": "specification/v0_9/catalogs/basic/catalog.json",
+      "spectra": "conformance/wrapper_driver/typescript/catalogs/basic_v0_9.json"
+    },
+    {
+      "upstream": "catalogs/basic/v1/catalog.json",
+      "spectra": "conformance/wrapper_driver/typescript/catalogs/basic_v1_0.json"
+    },
+    {
+      "upstream": "conformance/test_data/catalogs/custom_catalog_v1_0.json",
+      "spectra": "conformance/test_data/catalogs/custom_catalog_v1_0.json"
+    },
+    {
+      "upstream": "conformance/test_data/catalogs/composition_catalog_v1_0.json",
+      "spectra": "conformance/test_data/catalogs/composition_catalog_v1_0.json",
+      "alterations": [
+        {
+          "finding": 24,
+          "mergePatch": {
+            "$defs": {
+              "anyFunction": {
+                "not": {}
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "registry": "npm",
+      "name": "@a2ui/web_core",
+      "upstreamPath": "typescript/core/web_core",
+      "patch": {
+        "source": "tarball",
+        "tarball": "vendor/a2ui/a2ui-web_core-0.15.0.tgz"
+      }
+    },
+    {
+      "registry": "npm",
+      "name": "@a2ui/markdown-it",
+      "upstreamPath": "typescript/renderers/markdown-it",
+      "patch": {
+        "source": "tarball",
+        "tarball": "vendor/a2ui/a2ui-markdown-it-0.2.2.tgz"
+      }
+    },
+    {
+      "registry": "npm",
+      "name": "@a2ui/react",
+      "upstreamPath": "typescript/renderers/react",
+      "patch": {
+        "source": "tarball",
+        "tarball": "vendor/a2ui/a2ui-react-0.15.0.tgz"
+      }
+    },
+    {
+      "registry": "npm",
+      "name": "@a2ui/lit",
+      "upstreamPath": "typescript/renderers/lit",
+      "patch": {
+        "source": "tarball",
+        "tarball": "vendor/a2ui/a2ui-lit-0.15.0.tgz"
+      }
+    },
+    {
+      "registry": "npm",
+      "name": "@a2ui/angular",
+      "upstreamPath": "typescript/renderers/angular",
+      "patch": {
+        "source": "tarball",
+        "tarball": "vendor/a2ui/a2ui-angular-0.14.0.tgz"
+      }
+    },
+    {
+      "registry": "npm",
+      "name": "@a2ui/agent",
+      "upstreamPath": "typescript/agents/a2ui_agent",
+      "patch": {
+        "source": "tarball",
+        "tarball": "vendor/a2ui/a2ui-agent-0.1.0.tgz"
+      }
+    },
+    {
+      "registry": "pypi",
+      "name": "a2ui-core",
+      "upstreamPath": "python/a2ui_core",
+      "patch": {
+        "source": "uv git"
+      }
+    },
+    {
+      "registry": "pypi",
+      "name": "a2ui-agent-sdk",
+      "upstreamPath": "python/a2ui_agent",
+      "patch": {
+        "source": "uv git"
+      }
+    },
+    {
+      "registry": "pypi",
+      "name": "a2ui-a2a",
+      "upstreamPath": "python/a2ui_a2a",
+      "patch": {
+        "source": "uv git"
+      }
+    },
+    {
+      "registry": "pypi",
+      "name": "a2ui-adk",
+      "upstreamPath": "python/a2ui_adk",
+      "patch": null
+    }
+  ],
+  "watch": [
+    {
+      "kind": "issue",
+      "number": 4082,
+      "about": "removing the bare v1.0 component envelope keys"
+    },
+    {
+      "kind": "issue",
+      "number": 2791,
+      "about": "child references and actions as @child, @action and @functionCall"
+    },
+    {
+      "kind": "pull",
+      "number": 4170,
+      "about": "reading both forms of @child, @action and @functionCall"
+    },
+    {
+      "kind": "pull",
+      "number": 4171,
+      "about": "emitting @child, @action and @functionCall"
+    },
+    {
+      "kind": "issue",
+      "number": 4168,
+      "about": "removing the old form of child references and actions"
+    }
+  ],
+  "heldBy": [
+    {
+      "finding": 2,
+      "paths": [
+        "python/a2ui_a2a/src/a2ui/a2a/parts.py"
+      ]
+    },
+    {
+      "finding": 4,
+      "paths": [
+        "samples/client/lit/shell/client.ts",
+        "samples/client/react/shell/middleware/a2a.ts"
+      ]
+    },
+    {
+      "finding": 5,
+      "paths": [
+        "samples/agent/adk/custom-components-example/agent_executor.py"
+      ]
+    },
+    {
+      "finding": 9,
+      "paths": [
+        "specification/v0_9/docs/a2ui_extension_specification.md",
+        "specification/v0_9_1/docs/a2ui_extension_specification.md",
+        "specification/v1_0/extensions/a2a/docs/a2ui_extension_specification.md",
+        "python/a2ui_a2a/src/a2ui/a2a/extension.py"
+      ]
+    },
+    {
+      "finding": 12,
+      "paths": [
+        "samples/client/angular/projects/restaurant/src/app/client.ts",
+        "samples/client/lit/shell/app.ts",
+        "samples/agent/adk/custom-components-example/agent_executor.py"
+      ]
+    },
+    {
+      "finding": 24,
+      "paths": [
+        "specification/v1_0/json/catalog_definition.json",
+        "conformance/test_data/catalogs/composition_catalog_v1_0.json"
+      ]
+    },
+    {
+      "finding": 25,
+      "paths": [
+        "samples/agent/adk/custom-components-example/a2ui_examples.py",
+        "samples/agent/adk/custom-components-example/inline_catalog_0.9.json"
+      ]
+    },
+    {
+      "finding": 26,
+      "paths": [
+        "specification/v0_9/json/server_to_client.json",
+        "specification/v0_9/docs/a2ui_protocol.md",
+        "typescript/core/web_core/src/validation/payload-validator.ts"
+      ]
+    },
+    {
+      "finding": 27,
+      "paths": [
+        "typescript/renderers/react/src/node-view.tsx",
+        "typescript/renderers/react/src/web_component_node.tsx",
+        "typescript/core/web_core/src/universal/a2ui-lit-element.ts"
+      ]
+    },
+    {
+      "finding": 30,
+      "paths": [
+        "typescript/renderers/lit/src/surface/a2ui-surface.ts",
+        "typescript/renderers/angular/src/core/component-host.component.ts",
+        "typescript/core/web_core/src/universal/a2ui-lit-element.ts"
+      ]
+    },
+    {
+      "finding": 31,
+      "paths": [
+        "samples/agent/adk/restaurant_finder/agent.py"
+      ]
+    },
+    {
+      "finding": 32,
+      "paths": [
+        "samples/agent/adk/custom-components-example/agent.py",
+        "samples/agent/adk/custom-components-example/a2ui_examples.py",
+        "samples/agent/adk/custom-components-example/examples/0.9/"
+      ]
+    },
+    {
+      "finding": 33,
+      "paths": [
+        "python/a2ui_agent/src/a2ui/parser/errors.py",
+        "typescript/agents/a2ui_agent/src/errors.ts",
+        "python/a2ui_core/src/a2ui/core/validation/payload_validator.py",
+        "typescript/core/web_core/src/validation/payload-validator.ts",
+        "python/a2ui_agent/src/a2ui/inference_formats/express/compiler.py",
+        "typescript/agents/a2ui_agent/src/inference-formats/express/errors.ts",
+        "typescript/agents/a2ui_agent/src/inference-formats/direct-json/prompt-generator.ts"
+      ]
+    },
+    {
+      "finding": 35,
+      "paths": [
+        "python/a2ui_adk/src/a2ui/adk/send_a2ui_to_client_toolset.py"
+      ]
+    },
+    {
+      "finding": 36,
+      "paths": [
+        "python/a2ui_agent/src/a2ui/inference_format.py",
+        "python/a2ui_agent/src/a2ui/inference_formats/",
+        "typescript/agents/a2ui_agent/src/inference-format.ts",
+        "typescript/agents/a2ui_agent/src/inference-formats/"
+      ]
+    },
+    {
+      "finding": 38,
+      "paths": [
+        "python/a2ui_core/src/a2ui/core/basic_catalog/v1_0/components.py"
+      ]
+    },
+    {
+      "finding": 40,
+      "paths": [
+        "typescript/agents/a2ui_agent/package.json",
+        "typescript/agents/a2ui_agent/src/index.ts"
+      ]
+    },
+    {
+      "finding": 41,
+      "paths": [
+        "typescript/agents/a2ui_agent/src/parser/response-part.ts",
+        "typescript/agents/a2ui_agent/src/inference-formats/direct-json/response-stream.ts",
+        "typescript/agents/a2ui_agent/src/inference-formats/express/response-stream.ts",
+        "python/a2ui_agent/src/a2ui/parser/response_part.py"
+      ]
+    },
+    {
+      "finding": 42,
+      "paths": [
+        "typescript/core/web_core/src/processing/message-processor.ts",
+        "typescript/agents/a2ui_agent/src/inference-formats/direct-json/response-stream.ts"
+      ]
+    }
+  ]
+}

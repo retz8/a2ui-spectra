@@ -39,19 +39,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@a2ui/agent@npm:0.1.0":
+"@a2ui/agent@file:./vendor/a2ui/a2ui-agent-0.1.0.tgz::locator=a2ui-spectra-workspace%40workspace%3A.":
   version: 0.1.0
-  resolution: "@a2ui/agent@npm:0.1.0"
+  resolution: "@a2ui/agent@file:./vendor/a2ui/a2ui-agent-0.1.0.tgz#./vendor/a2ui/a2ui-agent-0.1.0.tgz::hash=b52572&locator=a2ui-spectra-workspace%40workspace%3A."
   dependencies:
     "@a2ui/web_core": "npm:^0.15.0"
     antlr4ng: "npm:3.0.16"
-  checksum: 10c0/64dae9dbeae55ebd579b1281ef478fe68a36b1e1f626a04e1e1bca60ac30069b50c3686783845ccc04ae49e0125c3503243fa03a36c33b3c5954c187239c5674
+  checksum: 10c0/f0ccd96d536e27d913cada1bd3fae62bfaa0e6e7187831ab6e16e1d659b75d8d89c900d1958bfa6fca96721c9255cd21b7efb4a544a3ee8016c881d241c365a2
   languageName: node
   linkType: hard
 
-"@a2ui/angular@npm:0.14.0":
+"@a2ui/angular@file:./vendor/a2ui/a2ui-angular-0.14.0.tgz::locator=a2ui-spectra-workspace%40workspace%3A.":
   version: 0.14.0
-  resolution: "@a2ui/angular@npm:0.14.0"
+  resolution: "@a2ui/angular@file:./vendor/a2ui/a2ui-angular-0.14.0.tgz#./vendor/a2ui/a2ui-angular-0.14.0.tgz::hash=1b9699&locator=a2ui-spectra-workspace%40workspace%3A."
   dependencies:
     "@a2ui/web_core": "npm:^0.15.0"
     tslib: "npm:^2.8.1"
@@ -64,13 +64,13 @@ __metadata:
   peerDependenciesMeta:
     "@a2ui/markdown-it":
       optional: true
-  checksum: 10c0/2a9155422813a3df5f9723ea5246f05b0cf5a68dd471fba5b237837b6a94cf586967b44fda53c0a96365384357de196c6433498ccbe413b64a0729d201d872b9
+  checksum: 10c0/c43f369e5c8b69d2d8b6dee449dc09c2b6909fc29d80b9104530ddf7a0ccf49daed1360f443809ac7aff8f6a031269921884533df008be72f4fb2344c28feecc
   languageName: node
   linkType: hard
 
-"@a2ui/lit@npm:0.15.0":
+"@a2ui/lit@file:./vendor/a2ui/a2ui-lit-0.15.0.tgz::locator=a2ui-spectra-workspace%40workspace%3A.":
   version: 0.15.0
-  resolution: "@a2ui/lit@npm:0.15.0"
+  resolution: "@a2ui/lit@file:./vendor/a2ui/a2ui-lit-0.15.0.tgz#./vendor/a2ui/a2ui-lit-0.15.0.tgz::hash=75ab08&locator=a2ui-spectra-workspace%40workspace%3A."
   dependencies:
     "@a2ui/web_core": "npm:^0.15.0"
     "@lit-labs/signals": "npm:^0.3.0"
@@ -83,25 +83,25 @@ __metadata:
   peerDependenciesMeta:
     "@a2ui/markdown-it":
       optional: true
-  checksum: 10c0/ec13986d5734d4bf36035f908aaccfc937e2a87b82f6accdbb101935e999837af23dfde568e4a05f6da03ebd110f99e92df2aa0231bbf16a0766536de0f28fd0
+  checksum: 10c0/0721374eed4324a9e6eed3ef1a1d13eb234616fcb3771169696f619c288bf8fad01adbae66917e9317caa12f5e190abbb1ace23c63c00a41408accb6c4dc4348
   languageName: node
   linkType: hard
 
-"@a2ui/markdown-it@npm:^0.2.2":
+"@a2ui/markdown-it@file:./vendor/a2ui/a2ui-markdown-it-0.2.2.tgz::locator=a2ui-spectra-workspace%40workspace%3A.":
   version: 0.2.2
-  resolution: "@a2ui/markdown-it@npm:0.2.2"
+  resolution: "@a2ui/markdown-it@file:./vendor/a2ui/a2ui-markdown-it-0.2.2.tgz#./vendor/a2ui/a2ui-markdown-it-0.2.2.tgz::hash=517a14&locator=a2ui-spectra-workspace%40workspace%3A."
   dependencies:
     dompurify: "npm:3.4.11"
     markdown-it: "npm:^14.2.0"
   peerDependencies:
-    "@a2ui/web_core": ^0.14.0
-  checksum: 10c0/bd971ae89ef5ea61c319d2ec6e8813b1a4345809c595f35e18b209976ccd909c1451e4bb15e9c0e69002f1ba10c40d3c1764847fc5a213cdbc554c1120a85541
+    "@a2ui/web_core": ^0.15.0
+  checksum: 10c0/34b6a4044aaca885296946be5f9ba88450a81be0d1fd55e1114470780e52c6b546eb0d6ff6e5a26eed21ef46d42bc288001cbef0fcad2cea5f2a66cf9d4decf2
   languageName: node
   linkType: hard
 
-"@a2ui/react@npm:0.15.0":
+"@a2ui/react@file:./vendor/a2ui/a2ui-react-0.15.0.tgz::locator=a2ui-spectra-workspace%40workspace%3A.":
   version: 0.15.0
-  resolution: "@a2ui/react@npm:0.15.0"
+  resolution: "@a2ui/react@file:./vendor/a2ui/a2ui-react-0.15.0.tgz#./vendor/a2ui/a2ui-react-0.15.0.tgz::hash=b3e9ae&locator=a2ui-spectra-workspace%40workspace%3A."
   dependencies:
     "@a2ui/markdown-it": "npm:^0.2.2"
     "@a2ui/web_core": "npm:^0.15.0"
@@ -109,25 +109,24 @@ __metadata:
     markdown-it: "npm:^14.2.0"
     zod: "npm:^3.25.76"
   peerDependencies:
-    react: ^18.0.0 || ^19.0.0
-    react-dom: ^18.0.0 || ^19.0.0
+    react: ^17.0.0 || ^18.0.0 || ^19.0.0
+    react-dom: ^17.0.0 || ^18.0.0 || ^19.0.0
     zod: ^3.25.76
-  checksum: 10c0/f939119d5abf42be26155b452bd0f703a1d763f42f4b9360adcf09464b9640249c796978d1391ac607786ec03e02bff338b8be93ce065ba30e672b58e5cc2475
+  checksum: 10c0/2450891b10e155619081f0252fa81fdd876260da329005a595230894e13f7f8e023cc09f22cb7f178e035f56bd01bf520cd5d5c633a94a0de5ed3ea5f1b6d168
   languageName: node
   linkType: hard
 
-"@a2ui/web_core@npm:0.15.0, @a2ui/web_core@npm:^0.15.0":
+"@a2ui/web_core@file:./vendor/a2ui/a2ui-web_core-0.15.0.tgz::locator=a2ui-spectra-workspace%40workspace%3A.":
   version: 0.15.0
-  resolution: "@a2ui/web_core@npm:0.15.0"
+  resolution: "@a2ui/web_core@file:./vendor/a2ui/a2ui-web_core-0.15.0.tgz#./vendor/a2ui/a2ui-web_core-0.15.0.tgz::hash=e3fa5d&locator=a2ui-spectra-workspace%40workspace%3A."
   dependencies:
     "@lit/context": "npm:^1.1.6"
     "@preact/signals-core": "npm:^1.14.2"
     lit: "npm:^3.3.3"
-    redos-detector: "npm:^6.1.4"
     validate-color: "npm:^2.2.4"
     zod: "npm:^3.25.76"
     zod-to-json-schema: "npm:^3.25.2"
-  checksum: 10c0/9c235ef60bf87003120d1f336dd5d6a9b04db5f3e018f86633c502d7eb5b6bc17b2267a9514f160d84591615210b79dcd3367e7377d0a4601eaec86fc06f589f
+  checksum: 10c0/67032d58e5478338da0befe874f4ee6ac24e89a66592d8c93022dceeb1a0b8a27f93d895f7ac19a9586a8944d735c378cd40217ef555d96cc0ca5d3b6a9c4020
   languageName: node
   linkType: hard
 
@@ -8272,7 +8271,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"jsesc@npm:^3.0.2, jsesc@npm:~3.1.0":
+"jsesc@npm:^3.0.2":
   version: 3.1.0
   resolution: "jsesc@npm:3.1.0"
   bin:
@@ -10416,32 +10415,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"redos-detector@npm:^6.1.4":
-  version: 6.1.4
-  resolution: "redos-detector@npm:6.1.4"
-  dependencies:
-    regjsparser: "npm:0.13.0"
-  bin:
-    redos-detector: bin.js
-  checksum: 10c0/5119a875985da41a83883f533cd5117048ba2f418a0f4f00aa8825489ee3bdc391c47ead0d1936e64edc584c47a4997fe85d671037a539ee926f883a67a44c60
-  languageName: node
-  linkType: hard
-
 "reflect-metadata@npm:^0.2.0":
   version: 0.2.2
   resolution: "reflect-metadata@npm:0.2.2"
   checksum: 10c0/1cd93a15ea291e420204955544637c264c216e7aac527470e393d54b4bb075f10a17e60d8168ec96600c7e0b9fcc0cb0bb6e91c3fbf5b0d8c9056f04e6ac1ec2
-  languageName: node
-  linkType: hard
-
-"regjsparser@npm:0.13.0":
-  version: 0.13.0
-  resolution: "regjsparser@npm:0.13.0"
-  dependencies:
-    jsesc: "npm:~3.1.0"
-  bin:
-    regjsparser: bin/parser
-  checksum: 10c0/4702f85cda09f67747c1b2fb673a0f0e5d1ba39d55f177632265a0be471ba59e3f320623f411649141f752b126b8126eac3ff4c62d317921e430b0472bfc6071
   languageName: node
   linkType: hard
 

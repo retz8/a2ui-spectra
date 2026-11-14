@@ -16,6 +16,10 @@ members = [
 
 [tool.uv.sources]
 a2ui-spectra-instrumentation = { workspace = true }
+# Upstream's Python packages patched locally to the pin; see _dev/upstream-pin.json.
+a2ui-core = { git = "https://github.com/a2ui-project/a2ui", rev = "0888f88b2835c44abdc871505f3f395e5ee0177d", subdirectory = "python/a2ui_core" }
+a2ui-agent-sdk = { git = "https://github.com/a2ui-project/a2ui", rev = "0888f88b2835c44abdc871505f3f395e5ee0177d", subdirectory = "python/a2ui_agent" }
+a2ui-a2a = { git = "https://github.com/a2ui-project/a2ui", rev = "0888f88b2835c44abdc871505f3f395e5ee0177d", subdirectory = "python/a2ui_a2a" }
 
 [dependency-groups]
 dev = [

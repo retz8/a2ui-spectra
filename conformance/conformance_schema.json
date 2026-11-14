@@ -354,6 +354,22 @@
               }
             }
           ]
+        },
+        "expected_to_fail": {
+          "type": "object",
+          "description": "Per language, why the case fails at the pin, starting with the sub-task that owns it in the form \"Sub-task N.M, at the pin:\". The case still runs, as Node's test runner's todo.",
+          "minProperties": 1,
+          "additionalProperties": false,
+          "properties": {
+            "python": {
+              "type": "string",
+              "pattern": "^Sub-task [0-9]+\\.[0-9]+, at the pin: "
+            },
+            "typescript": {
+              "type": "string",
+              "pattern": "^Sub-task [0-9]+\\.[0-9]+, at the pin: "
+            }
+          }
         }
       },
       "required": ["name", "description", "action", "job", "expect"],
