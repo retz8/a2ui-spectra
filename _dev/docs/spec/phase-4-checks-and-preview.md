@@ -68,7 +68,7 @@ Turn record v0.1 is amended in place. A check event lists the surfaces it skippe
 
 ### 10. The checks in the viewer
 
-The findings of the three checks join the one problem count as Phase 3 has it, in Phase 3's problem blocks. A web core rejection of a message that a finding points into folds under the finding as a quiet line and is not counted; one on a message with no finding stays a counted problem. The header's check list grows to the four checks, and shows the "Not checked" form with its reason for a surface with no definition.
+The findings of the three checks join the one problem count as Phase 3 has it, in Phase 3's problem blocks. A web core rejection of a message that a finding points into folds under the finding as a quiet line and is not counted; one on a message with no finding stays a counted problem. The header's check list grows to the four checks, and shows the "Not checked" form with its reason for a surface with no definition. From Phase 9, the Catalog check's row carries the count of a v1.0 turn's components in the legacy form, and the header's label reads "No problems · legacy form".
 
 ### 11. Structure and the rejection count on real catalogs
 
