@@ -16,13 +16,105 @@
  * from the variable's name, when it has one, to the closing parenthesis of
  * its call.
  */
-import {closeTagOf, EXPRESS_PAYLOAD_START, openTagOf, type BlockConfig} from './blocks.ts';
+import {
+  type Block,
+  closeTagOf,
+  EXPRESS_PAYLOAD_START,
+  openTagOf,
+  type BlockConfig,
+} from './blocks.ts';
 import {
   ANY_CATALOG,
   type BlockReading,
   type FoundComponent,
   type ReaderCatalog,
 } from './reading.ts';
+
+/** Python's `_SENTINEL_TOKEN_RE`: the strings and comments a compile text's sentinel tags are not looked for in. */
+const SENTINEL_TOKEN =
+  /[rR]"""[\s\S]*?(?:"""|$)|[rR]"[^\r\n"]*(?:"|$)|"""(?:\\[\s\S]|[^\\])*?(?:"""|$)|"(?:\\[\s\S]|[^\\"\r\n])*(?:"|$)|(?:#|\/\/|--)[^\r\n]*|\/\*[\s\S]*?(?:\*\/|$)/g;
+const OPEN_SENTINEL = /<a2ui(?:\s[^>]*)?>/gi;
+const CLOSE_SENTINEL = /<\/a2ui\s*>/gi;
+
+function sentinelAt(pattern: RegExp, text: string, from: number, end: number) {
+  pattern.lastIndex = from;
+  const match = pattern.exec(text);
+  return match !== null && match.index + match[0].length <= end ? match : null;
+}
+
+/**
+ * The parts of a text the Express compiler compiles when it is handed one
+ * block, as Python's `_strip_sentinel_tags` keeps them: outside strings and
+ * comments, what lies between each `<a2ui>` and the next `</a2ui>`, a further
+ * open tag dropped, the last part running to the end when unclosed; with no
+ * open tag, the text up to the first close tag. Parts that touch are joined;
+ * a text with no tag is one part, the whole.
+ */
+export function expressCompileBlocks(text: string): Block[] {
+  const segments: Array<{token: boolean; start: number; end: number}> = [];
+  let pos = 0;
+  SENTINEL_TOKEN.lastIndex = 0;
+  for (let m = SENTINEL_TOKEN.exec(text); m !== null; m = SENTINEL_TOKEN.exec(text)) {
+    if (m[0] === '') {
+      SENTINEL_TOKEN.lastIndex++;
+      continue;
+    }
+    if (m.index > pos) segments.push({token: false, start: pos, end: m.index});
+    const end = m.index + m[0].length;
+    const close = /^["rR]|^\/\*/.test(m[0]) ? null : sentinelAt(CLOSE_SENTINEL, text, m.index, end);
+    if (close !== null) {
+      // A close tag in a line comment ends the comment there.
+      if (close.index > m.index) segments.push({token: true, start: m.index, end: close.index});
+      segments.push({token: false, start: close.index, end});
+    } else {
+      segments.push({token: true, start: m.index, end});
+    }
+    pos = end;
+  }
+  if (pos < text.length) segments.push({token: false, start: pos, end: text.length});
+  const hasOpen = segments.some(
+    seg => !seg.token && sentinelAt(OPEN_SENTINEL, text, seg.start, seg.end) !== null,
+  );
+  const kept: Array<[number, number]> = [];
+  const keep = (start: number, end: number) => {
+    const last = kept[kept.length - 1];
+    if (last !== undefined && last[1] === start) last[1] = end;
+    else if (end > start) kept.push([start, end]);
+  };
+  let inside = !hasOpen;
+  done: for (const seg of segments) {
+    if (seg.token) {
+      if (inside) keep(seg.start, seg.end);
+      continue;
+    }
+    let cursor = seg.start;
+    while (cursor < seg.end) {
+      const open = sentinelAt(OPEN_SENTINEL, text, cursor, seg.end);
+      if (!inside) {
+        if (open === null) break;
+        inside = true;
+        cursor = open.index + open[0].length;
+        continue;
+      }
+      const close = sentinelAt(CLOSE_SENTINEL, text, cursor, seg.end);
+      if (open !== null && (close === null || open.index < close.index)) {
+        keep(cursor, open.index);
+        cursor = open.index + open[0].length;
+        continue;
+      }
+      if (close !== null) {
+        keep(cursor, close.index);
+        inside = false;
+        cursor = close.index + close[0].length;
+        if (!hasOpen) break done;
+        continue;
+      }
+      keep(cursor, seg.end);
+      break;
+    }
+  }
+  return kept.map(([start, end]) => ({start, end, final: true}));
+}
 
 export const EXPRESS_BLOCKS: BlockConfig = {
   openTag: openTagOf('a2ui'),

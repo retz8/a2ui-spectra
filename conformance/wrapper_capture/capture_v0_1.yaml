@@ -407,3 +407,9 @@
   action: capture_wrapper
   job: "test_data/wrapper_capture/v0_1/express_unicode_identifier/input.json"
   expect: "test_data/wrapper_capture/v0_1/express_unicode_identifier/expected.json"
+
+- name: express_compile_sentinel_tags
+  description: "Express on the basic catalog at v1.0: a block compiled on its own in <a2ui> tags, the tags written again inside a block comment and a string; the compiler strips the outer tags outside strings and comments."
+  action: capture_wrapper
+  job: "test_data/wrapper_capture/v0_1/express_compile_sentinel_tags/input.json"
+  expect: "test_data/wrapper_capture/v0_1/express_compile_sentinel_tags/expected.json"

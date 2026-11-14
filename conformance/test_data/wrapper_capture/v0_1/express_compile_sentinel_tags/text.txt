@@ -1,0 +1,4 @@
+<a2ui>
+/* comment mentioning </a2ui> */
+root = Text("Literal </a2ui> and <a2ui> tags")
+</a2ui>

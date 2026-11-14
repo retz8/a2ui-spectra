@@ -9,7 +9,7 @@ import {type Block, type BlockConfig, blocksOf} from './readers/blocks.ts';
 import {DIRECT_JSON_BLOCKS, readDirectJsonBlock} from './readers/direct_json.ts';
 import {ATOM_BLOCKS, readAtomBlock} from './readers/atom.ts';
 import {ELEMENTAL_BLOCKS, readElementalBlock} from './readers/elemental.ts';
-import {EXPRESS_BLOCKS, readExpressBlock} from './readers/express.ts';
+import {EXPRESS_BLOCKS, expressCompileBlocks, readExpressBlock} from './readers/express.ts';
 import {ANY_CATALOG, type BlockReader, type ReaderCatalog} from './readers/reading.ts';
 
 import type {ComponentRange, InferenceFormat} from './record.ts';
@@ -117,7 +117,9 @@ export function readRanges(
   const {wrapped = true, messages = [], catalog = ANY_CATALOG} = options;
   const blocks: Block[] = wrapped
     ? blocksOf(input, BLOCKS[format])
-    : [{start: 0, end: input.length, final: true}];
+    : format === 'express'
+      ? expressCompileBlocks(input)
+      : [{start: 0, end: input.length, final: true}];
   const surfaces = surfacesOfMessages(messages);
   const ranges: ComponentRange[] = [];
   let stoppedAt: number | undefined;
