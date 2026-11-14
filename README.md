@@ -10,9 +10,14 @@ A debugging and observation tool for the developer of an [A2UI](https://github.c
 
 ## Why
 
-A generative UI turn is more than the surface it ends with. The agent builds a prompt from your catalog; the model calls tools and writes the UI in an inference format; the agent SDK compiles that into A2UI messages, and asks the model again when a block fails; the renderer draws what arrives. When the surface comes out wrong, the reason is somewhere in that chain, spread across the agent's logs, the network and the browser.
+A generative UI turn is a chain, and a wrong surface can come from any link in it:
 
-Spectra puts the whole turn on one screen, checks it, and records it, so you can run it again without paying for the model.
+1. **The prompt.** The agent builds it from your catalog and your own instructions.
+2. **The model.** It calls tools and writes the UI in an inference format.
+3. **The compile.** The agent SDK turns that text into A2UI messages, and asks the model again when a block fails.
+4. **The renderer.** It draws whatever arrives.
+
+The evidence is spread across the agent's logs, the network and the browser, and seeing the turn again means paying for the model again. Spectra puts the whole chain on one screen, checks it, and records it so that it runs again for free.
 
 ## What you get
 
@@ -26,8 +31,27 @@ Spectra puts the whole turn on one screen, checks it, and records it, so you can
 - **See inside the turn.** The exact request your agent sent the model, with the system prompt, tools and settings; tokens, cache use and estimated cost; every tool call; the raw text the model wrote, and which part of it became which component; the A2UI messages, the tree, the data model and the drawn surface, step by step on one timeline.
 - **Catch mistakes before a user does.** Each response is checked against its protocol version's schema and its catalog: an unknown component or property, a child id that points nowhere, a missing root or a loop, a binding the data model never fills.
 - **Press the buttons.** The preview is live. Pressing a control shows the exact action event your agent would receive, with its data model, and sends it as the next turn if you choose. Switch between narrow and wide widths.
-- **Stop paying to reproduce.** Save a turn as a fixture and replay it with everything recorded, for free, or after a prompt edit with the tools recorded and the model live, paying only from where the request changed. `a2ui-spectra test` runs every fixture in CI.
+- **Stop paying to reproduce.** Save a turn as a fixture and replay it for free; see [Record once, replay for free](#record-once-replay-for-free).
 - **Stay in the loop.** Under `a2ui-spectra run`, Spectra restarts your agent when you save, shows its logs, re-runs the last turn with one press, and reloads the preview when your catalog changes.
+
+## Record once, replay for free
+
+Every turn Spectra sees is recorded with the exact model and tool calls made in it. One click saves it as a fixture: a plain JSON file in your repo, the turn record. Replay it from the viewer or from the command line, in one of two modes, each labelled with its cost:
+
+- **Everything recorded: free.** Every model and tool call is answered from the record, and no call leaves your machine. Your agent gets exactly the replies it got the first time, so a turn that went wrong comes back on demand, for nothing, while you fix the code that handled it.
+- **Tools recorded, model live: model tokens only.** After you edit a prompt, every request that is still the same is served from the record, and the model is called only from the point where the request changed.
+
+A replay passes when every call was served from the record and the turn ends as it did, with the same A2UI messages. `a2ui-spectra test` replays every fixture with everything recorded and exits non-zero when one no longer passes, so your saved turns become a test suite that runs in CI without calling the model.
+
+```
+a2ui-spectra replay a2ui-spectra-fixtures/chinese-restaurants.json -- uv run .
+a2ui-spectra replay a2ui-spectra-fixtures/chinese-restaurants.json --model-live -- uv run .
+a2ui-spectra test -- uv run .
+```
+
+<sub>With the agent's URL in `a2ui-spectra.json`. Spectra starts the agent for the replay and points it at the record.</sub>
+
+It is the record-and-replay pattern of Ruby's VCR and Netflix's Polly.js, applied to model calls.
 
 ## How it works
 
