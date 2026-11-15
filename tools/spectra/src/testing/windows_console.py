@@ -2,7 +2,8 @@
 
 `run -- <command>...` starts the command in a console of its own, its window
 hidden, with no input and this process's stdout and stderr, in a Job Object
-that ends it when this process ends. Each line written to this process's
+that ends it and everything it starts when this process ends; the command is
+created suspended and resumed once it is in the job. Each line written to this process's
 stdin, `ctrl-c`, `ctrl-break` or `close`, sends that console event to the
 command's console, or closes that console's window, without it reaching any
 other console. This process exits with the command's exit code.
@@ -19,8 +20,10 @@ import time
 from ctypes import wintypes
 
 kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+ntdll = ctypes.WinDLL("ntdll")
 user32 = ctypes.WinDLL("user32", use_last_error=True)
 
+CREATE_SUSPENDED = 0x00000004
 CREATE_NEW_CONSOLE = 0x00000010
 STARTF_USESHOWWINDOW = 0x00000001
 SW_HIDE = 0
@@ -83,6 +86,7 @@ kernel32.GenerateConsoleCtrlEvent.argtypes = [wintypes.DWORD, wintypes.DWORD]
 kernel32.GetConsoleWindow.restype = wintypes.HWND
 kernel32.SetConsoleCtrlHandler.argtypes = [HANDLER_ROUTINE, wintypes.BOOL]
 kernel32.ExitProcess.argtypes = [wintypes.UINT]
+ntdll.NtResumeProcess.argtypes = [wintypes.HANDLE]
 user32.PostMessageW.argtypes = [
     wintypes.HWND,
     wintypes.UINT,
@@ -150,10 +154,12 @@ def run(command: list[str]) -> int:
     child = subprocess.Popen(
         command,
         stdin=subprocess.DEVNULL,
-        creationflags=CREATE_NEW_CONSOLE,
+        creationflags=CREATE_NEW_CONSOLE | CREATE_SUSPENDED,
         startupinfo=startupinfo,
     )
-    kernel32.AssignProcessToJobObject(job, int(child._handle))  # type: ignore[attr-defined]
+    handle = int(child._handle)  # type: ignore[attr-defined]
+    kernel32.AssignProcessToJobObject(job, handle)
+    ntdll.NtResumeProcess(handle)
 
     def take_events() -> None:
         for line in sys.stdin:

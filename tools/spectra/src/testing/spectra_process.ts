@@ -18,11 +18,17 @@ export const binary = process.env.SPECTRA_BINARY;
 
 const windows = process.platform === 'win32';
 
-/** The console helper and the workspace's Python, which runs it, on Windows. */
-const consoleHelper = fileURLToPath(
+/**
+ * The tests' console helper on Windows, and the workspace's Python, which runs
+ * it: a command run under it is in a console of its own and in a Job Object
+ * that ends its whole tree when the helper is ended.
+ */
+export const consoleHelper = fileURLToPath(
   new URL('../../src/testing/windows_console.py', import.meta.url),
 );
-const python = fileURLToPath(new URL('../../../../.venv/Scripts/python.exe', import.meta.url));
+export const python = fileURLToPath(
+  new URL('../../../../.venv/Scripts/python.exe', import.meta.url),
+);
 
 /** How a test asks Spectra to stop, as a user does: SIGTERM, and on Windows a console Ctrl-C. */
 export const STOP_SIGNAL: NodeJS.Signals = windows ? 'SIGINT' : 'SIGTERM';

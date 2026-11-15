@@ -10,6 +10,8 @@ export interface ListedProcess {
   pid: number;
   parent: number;
   name: string;
+  /** When it was created, as a Windows file time; 0 off Windows. */
+  created: number;
 }
 
 /**
@@ -26,27 +28,40 @@ function processTable(): ListedProcess[] {
             '-NonInteractive',
             '-Command',
             "Get-CimInstance Win32_Process | Where-Object { $_.Name -ne 'conhost.exe' } | " +
-              'ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId) $($_.Name)" }',
+              'ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId) $($_.CreationDate.ToFileTimeUtc()) $($_.Name)" }',
           ],
           {encoding: 'utf8'},
         )
       : execFileSync('ps', ['-A', '-o', 'pid=,ppid=,comm='], {encoding: 'utf8'});
+  const line =
+    process.platform === 'win32'
+      ? /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(.*)$/
+      : /^\s*(\d+)\s+(\d+)\s+()(.*)$/;
   return text
     .split(/\r?\n/)
-    .map(line => /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line))
+    .map(row => line.exec(row))
     .filter(match => match !== null)
-    .map(([, pid, parent, name]) => ({
+    .map(([, pid, parent, created, name]) => ({
       pid: Number(pid),
       parent: Number(parent),
       name: name.trim(),
+      created: Number(created || 0),
     }));
 }
 
-/** Every process below the one given, children first. */
+/**
+ * Every process below the one given, children first. On Windows a parent id
+ * is the creator's as it was, and ids are reused: a process created before the
+ * one now holding its parent's id is not that one's child.
+ */
 export function descendantsOf(root: number): ListedProcess[] {
+  const table = processTable();
+  const byId = new Map(table.map(listed => [listed.pid, listed]));
   const children = new Map<number, ListedProcess[]>();
-  for (const listed of processTable()) {
+  for (const listed of table) {
     if (listed.pid === listed.parent) continue;
+    const parent = byId.get(listed.parent);
+    if (parent !== undefined && parent.created > listed.created) continue;
     children.set(listed.parent, [...(children.get(listed.parent) ?? []), listed]);
   }
   const found: ListedProcess[] = [];

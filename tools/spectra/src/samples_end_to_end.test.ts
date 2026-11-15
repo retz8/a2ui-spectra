@@ -19,7 +19,7 @@
  * names one. Chromium is installed with Playwright's own command.
  */
 import assert from 'node:assert/strict';
-import {type ChildProcess, spawn, spawnSync} from 'node:child_process';
+import {type ChildProcess, spawn} from 'node:child_process';
 import {mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {connect, createServer, type Server, type Socket} from 'node:net';
 import {tmpdir} from 'node:os';
@@ -40,7 +40,7 @@ import {
   type WireInputEvent,
   type WireOutputEvent,
 } from './record/turn_record.js';
-import {binary, SpectraProcess} from './testing/spectra_process.js';
+import {binary, consoleHelper, python, SpectraProcess} from './testing/spectra_process.js';
 import {startStub} from './testing/stub_agent.js';
 import {freePort} from './testing/free_port.js';
 
@@ -66,8 +66,8 @@ after(() => {
 function stopServer(server: ChildProcess): void {
   try {
     if (windows) {
-      // The dev server runs under cmd.exe, which yarn needs there; its tree is ended whole.
-      spawnSync('taskkill', ['/pid', String(server.pid), '/t', '/f'], {stdio: 'ignore'});
+      // The console helper's job ends the dev server's whole tree with the helper.
+      server.kill();
     } else {
       // The dev server is the group's leader, so its own children stop with it.
       process.kill(-server.pid!, 'SIGTERM');
@@ -80,13 +80,17 @@ function stopServer(server: ChildProcess): void {
 
 /** Starts a sample's dev server, as its README does, and resolves once its page answers. */
 async function startDevServer(sample: string, page: string): Promise<ChildProcess> {
-  // On Windows yarn is a batch file, which Node starts only through a shell.
-  const server = spawn('yarn', ['dev'], {
-    cwd: path.join(samplesDir, sample),
-    stdio: ['ignore', 'pipe', 'pipe'],
-    detached: !windows,
-    shell: windows,
-  });
+  // On Windows yarn is a batch file, run through cmd.exe under the console helper, whose job holds its tree.
+  const server = windows
+    ? spawn(python, [consoleHelper, 'run', '--', 'cmd', '/d', '/s', '/c', 'yarn dev'], {
+        cwd: path.join(samplesDir, sample),
+        stdio: ['pipe', 'pipe', 'pipe'],
+      })
+    : spawn('yarn', ['dev'], {
+        cwd: path.join(samplesDir, sample),
+        stdio: ['ignore', 'pipe', 'pipe'],
+        detached: true,
+      });
   servers.add(server);
   let output = '';
   for (const stream of [server.stdout, server.stderr]) {
