@@ -4,18 +4,28 @@
  * launcher leads a process group of its own; the launcher attaches to
  * Spectra's console, waits until Spectra has put it into the agent's Job
  * Object, starts the agent's command as Bun resolves it, sharing the console
- * and the process group, and exits with the command's exit code.
+ * and the process group, then leaves the console, so that the console's
+ * events reach the agent's processes and not it. It writes the command's exit
+ * code, which an exit code of its own would cut to eight bits, or why the
+ * command could not start, to the launch's report file, and exits.
  */
+import {writeFileSync} from 'node:fs';
+
 import {loadWin32} from './win32.js';
 
-/** The variable that makes the binary the agent's launcher: the command as JSON. */
+/** The variable that makes the binary the agent's launcher: the launch as JSON. */
 export const LAUNCH_VARIABLE = 'A2UI_SPECTRA_LAUNCH';
 
-/** The command the launcher starts. */
+/** What the launcher starts, and where it writes the outcome. */
 export interface Launch {
   command: string;
   args: string[];
+  /** The file the launcher writes a `LaunchOutcome` to. */
+  reportFile?: string;
 }
+
+/** How the command ended, or why it could not start, as Bun.spawn said. */
+export type LaunchOutcome = {exitCode: number} | {failure: {message: string; code?: string}};
 
 /** What the launcher found as it started the command, for the first run's probe. */
 export interface LaunchReport {
@@ -23,6 +33,12 @@ export interface LaunchReport {
   inAnyJob: boolean;
   spawnError?: string;
   pid?: number;
+}
+
+export interface LauncherOptions {
+  onReport?: (report: LaunchReport) => void;
+  /** Stays on the console after the command starts, as the first run's probe compares. */
+  stayAttached?: boolean;
 }
 
 /** The part of Bun.spawn used here. */
@@ -42,10 +58,15 @@ interface BunGlobal {
   ): BunSubprocess;
 }
 
-/** Reads the launch from the variable, when this process is a launcher. */
-export function launchOf(env: NodeJS.ProcessEnv): Launch | undefined {
+/** The launch, when this process is the compiled binary started as a launcher on Windows. */
+export function launchOf(
+  env: NodeJS.ProcessEnv,
+  platform: NodeJS.Platform = process.platform,
+): Launch | undefined {
   const value = env[LAUNCH_VARIABLE];
-  if (value === undefined) return undefined;
+  if (value === undefined || platform !== 'win32' || process.versions.bun === undefined) {
+    return undefined;
+  }
   return JSON.parse(value) as Launch;
 }
 
@@ -61,9 +82,9 @@ function waitForGo(): Promise<boolean> {
 /** Runs the launcher; resolves with the exit code it exits with. */
 export async function runLauncher(
   launch: Launch,
-  onReport?: (report: LaunchReport) => void,
+  {onReport, stayAttached = false}: LauncherOptions = {},
 ): Promise<number> {
-  // The console's events reach the launcher's whole group; they are the agent's to act on.
+  // Until it leaves the console, the console's events reach the launcher; they are the agent's.
   for (const signal of ['SIGINT', 'SIGBREAK', 'SIGHUP'] as const) {
     process.on(signal, () => {});
   }
@@ -77,6 +98,9 @@ export async function runLauncher(
   delete env[LAUNCH_VARIABLE];
   const bun = (globalThis as unknown as {Bun: BunGlobal}).Bun;
   const report: LaunchReport = {attachedConsole, inAnyJob: win32?.inAnyJob() ?? false};
+  const write = (outcome: LaunchOutcome) => {
+    if (launch.reportFile !== undefined) writeFileSync(launch.reportFile, JSON.stringify(outcome));
+  };
   let child: BunSubprocess;
   try {
     child = bun.spawn([launch.command, ...launch.args], {
@@ -87,12 +111,18 @@ export async function runLauncher(
       windowsHide: !attachedConsole,
     });
   } catch (error) {
-    report.spawnError = error instanceof Error ? error.message : String(error);
+    const message = error instanceof Error ? error.message : String(error);
+    const code = (error as {code?: unknown}).code;
+    report.spawnError = message;
     onReport?.(report);
-    process.stderr.write(`${report.spawnError}\n`);
+    write({failure: {message, ...(typeof code === 'string' && {code})}});
+    if (launch.reportFile === undefined) process.stderr.write(`${message}\n`);
     return 1;
   }
+  if (attachedConsole && !stayAttached) win32?.freeConsole();
   report.pid = child.pid;
   onReport?.(report);
-  return await child.exited;
+  const exitCode = await child.exited;
+  write({exitCode});
+  return exitCode;
 }

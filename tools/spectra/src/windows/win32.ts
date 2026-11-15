@@ -45,6 +45,8 @@ export interface Win32 {
   sendConsoleEvent(event: ConsoleEvent, groupId: number): boolean;
   /** Attaches this process to its parent's console; false when it could not. */
   attachParentConsole(): boolean;
+  /** Detaches this process from its console, so that the console's events no longer reach it. */
+  freeConsole(): void;
   /** Whether this process is in a job of any kind. */
   inAnyJob(): boolean;
   /** Whether the process with that id is still running. */
@@ -104,6 +106,7 @@ async function load(): Promise<Win32 | undefined> {
     CloseHandle: {args: ['u64'], returns: 'i32'},
     GenerateConsoleCtrlEvent: {args: ['u32', 'u32'], returns: 'i32'},
     AttachConsole: {args: ['u32'], returns: 'i32'},
+    FreeConsole: {args: [], returns: 'i32'},
     GetLastError: {args: [], returns: 'u32'},
   });
   const call = <T>(name: string, ...args: unknown[]): T => k[name]!(...args) as T;
@@ -196,6 +199,9 @@ async function load(): Promise<Win32 | undefined> {
     },
     attachParentConsole() {
       return call<number>('AttachConsole', ATTACH_PARENT_PROCESS) !== 0;
+    },
+    freeConsole() {
+      call('FreeConsole');
     },
     inAnyJob() {
       const result = new Uint8Array(4);

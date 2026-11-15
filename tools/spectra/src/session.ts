@@ -9,6 +9,7 @@ import {
   type AgentProcess,
   describeExit,
   forceKilledLine,
+  handlesProcessTree,
   startAgentProcess,
 } from './agent_process.js';
 import {AgentSupervisor} from './agent_supervisor.js';
@@ -18,6 +19,7 @@ import {openBrowser} from './browser.js';
 import {CatalogRegistry, rereadLine} from './catalog/registry.js';
 import {startCatalogWatch} from './catalog/watch.js';
 import {agentHeaders, ConfigError, type SpectraConfig} from './config.js';
+import {ownEnvironment, pythonVariables} from './environment.js';
 import {FixturesFolder} from './fixtures/fixtures.js';
 import {MessageBox, unsetVariablesClause} from './message_box.js';
 import {type ModelProxy, startModelProxy} from './model_proxy/proxy.js';
@@ -70,8 +72,18 @@ export interface HeadlessSession {
 /** A headless command's work, run in place of the viewer; resolves with its exit code. */
 export type HeadlessWork = (session: HeadlessSession) => Promise<number>;
 
+/**
+ * Spectra's stops: Ctrl-C, SIGTERM and SIGHUP on macOS and Linux; on Windows,
+ * where a SIGTERM listener never fires, Ctrl-C, Ctrl-Break and the console
+ * window's close. Spectra exits with 128 plus the stop's number.
+ */
 const STOP_SIGNALS: NodeJS.Signals[] =
-  process.platform === 'win32' ? ['SIGINT', 'SIGTERM'] : ['SIGINT', 'SIGTERM', 'SIGHUP'];
+  process.platform === 'win32' ? ['SIGINT', 'SIGBREAK', 'SIGHUP'] : ['SIGINT', 'SIGTERM', 'SIGHUP'];
+
+/** What Spectra says under Node on Windows, where the agent's process tree is not handled. */
+export const NODE_ON_WINDOWS_LINE =
+  "Under Node on Windows, Spectra stops and restarts the agent's command alone, not the processes " +
+  "it starts. The compiled binary handles the agent's whole process tree.";
 
 /**
  * Names the stand-in provider's origin, for the tests: a call forwarded there
@@ -128,11 +140,16 @@ export async function runSession(
   if (options.config.file !== undefined) {
     out.info(`Settings read from ${options.config.file}`);
   }
+  if (agentCommand !== undefined && !handlesProcessTree) {
+    out.info(NODE_ON_WINDOWS_LINE);
+  }
   const configured = catalogs.known.filter(catalog => catalog.source === 'configured');
   if (configured.length > 0) {
     out.info(`Catalogs configured: ${configured.map(catalog => catalog.id).join(', ')}`);
   }
-  const {headers, unset, left} = agentHeaders(options.config.headers, options.headers, process.env);
+  // Spectra's own environment, read by name; on Windows a name is found in any case.
+  const own = ownEnvironment(process.env);
+  const {headers, unset, left} = agentHeaders(options.config.headers, options.headers, own);
   if (unset.length > 0) {
     out.error(
       `${unsetVariablesClause(unset)}, so the ${left.join(', ')} header${left.length === 1 ? ' is' : 's are'} not sent ` +
@@ -141,7 +158,7 @@ export async function runSession(
   }
   let tools: ToolServer[];
   try {
-    tools = toolServers(options.config.tools, options.toolPorts, process.env);
+    tools = toolServers(options.config.tools, options.toolPorts, own);
   } catch (error) {
     if (error instanceof ToolServerError) {
       out.error(error.message);
@@ -213,10 +230,10 @@ export async function runSession(
     log: line => out.info(line),
   });
   const receiverOrigin = `http://${LOOPBACK_ADDRESS}:${options.receiverPort}`;
-  const otel = receiverVariables(process.env, receiverOrigin);
+  const otel = receiverVariables(own, receiverOrigin);
   const modelProxyOrigin = `http://${LOOPBACK_ADDRESS}:${options.modelProxyPort}`;
-  const redirected = redirections(process.env, modelProxyOrigin);
-  const standIn = process.env[STAND_IN_VARIABLE]?.trim().replace(/\/+$/, '');
+  const redirected = redirections(own, modelProxyOrigin);
+  const standIn = own[STAND_IN_VARIABLE]?.trim().replace(/\/+$/, '');
 
   const stop = new AbortController();
   let stoppedBy: NodeJS.Signals | undefined;
@@ -359,11 +376,8 @@ export async function runSession(
       };
       const agentProcess = new AgentSupervisor({
         command: agentCommand,
-        // Python holds its stdout back when it is not a terminal, and the agent's streams are pipes.
-        env: {
-          ...agentEnvironment,
-          ...(process.env.PYTHONUNBUFFERED === undefined && {PYTHONUNBUFFERED: '1'}),
-        },
+        // The agent's streams are pipes, which Python holds back and, on Windows, writes in the ANSI code page.
+        env: {...agentEnvironment, ...pythonVariables(own, {unbuffered: true})},
         cardUrl,
         headers,
         out,
@@ -470,7 +484,7 @@ export async function runSession(
         const replaced = replacedLine(otel);
         if (replaced !== undefined) out.info(replaced);
         agent = startAgentProcess(agentCommand.command, agentCommand.args, {
-          env: agentEnvironment,
+          env: {...agentEnvironment, ...pythonVariables(own, {unbuffered: false})},
           output: 'stderr',
         });
         void agent.exited.then(exit => {
@@ -552,9 +566,9 @@ export async function runSession(
           out.info(`The OpenTelemetry receiver is at ${receiverListener.origin}`);
           out.info(`Turns are saved in ${store.turnsDir}`);
           out.info(`Fixtures are saved in ${fixtures.dir}`);
-          const lines = attachLines(redirected, [
-            ...exportLines(tools),
-            ...receiverExportLines(otel),
+          const lines = attachLines(redirected, shell => [
+            ...exportLines(tools, shell),
+            ...receiverExportLines(otel, shell),
           ]);
           out.info(lines.intro);
           for (const line of lines.exports) out.print(line);
@@ -579,7 +593,11 @@ export async function runSession(
               : error.port === options.receiverPort
                 ? '--receiver-port'
                 : '--tool-proxy-port';
-      out.error(`Port ${error.port} is taken. Choose another port with ${option}.`);
+      out.error(
+        error.refused
+          ? `The system would not give Spectra port ${error.port}. Choose another port with ${option}.`
+          : `Port ${error.port} is taken. Choose another port with ${option}.`,
+      );
     } else {
       out.error(`Spectra failed: ${error instanceof Error ? error.message : String(error)}`);
     }

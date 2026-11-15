@@ -1,11 +1,20 @@
 import {type ChildProcess, spawn} from 'node:child_process';
 
+import {agentEnvironment} from './environment.js';
+import {startAgentTree} from './windows/agent_tree.js';
+import {loadWin32} from './windows/win32.js';
+
 /** How the agent's process ended. */
 export interface AgentExit {
   code: number | null;
   signal: NodeJS.Signals | null;
   /** Why the command could not start, when it could not. */
   error?: Error;
+  /**
+   * How Spectra ended it on Windows, where an end carries no signal: it
+   * stopped when asked, or Spectra ended it, after the grace when it waited.
+   */
+  ending?: {kind: 'asked'} | {kind: 'ended'; afterMs?: number};
 }
 
 /** The time a stopped process gets before it is force-killed, as `docker stop` waits. */
@@ -15,6 +24,14 @@ export const STOP_GRACE_MS = 10_000;
 export function describeExit(exit: AgentExit): string {
   if (exit.error !== undefined) {
     return `could not start: ${exit.error.message}`;
+  }
+  if (exit.ending?.kind === 'asked') {
+    return 'ended when Spectra asked it to stop';
+  }
+  if (exit.ending?.kind === 'ended') {
+    return exit.ending.afterMs === undefined
+      ? 'was ended by Spectra'
+      : `was ended by Spectra after ${secondsOf(exit.ending.afterMs)}`;
   }
   if (exit.code !== null) {
     return `exited with code ${exit.code}`;
@@ -28,13 +45,15 @@ export interface AgentStop {
   forceKilled: boolean;
 }
 
+/** A time in whole seconds, in words. */
+function secondsOf(ms: number): string {
+  const seconds = ms / 1000;
+  return `${seconds} ${seconds === 1 ? 'second' : 'seconds'}`;
+}
+
 /** What the terminal says when a stop ran out its grace period. */
 export function forceKilledLine(graceMs: number = STOP_GRACE_MS): string {
-  const seconds = graceMs / 1000;
-  return (
-    `The agent's process did not stop within ${seconds} ${seconds === 1 ? 'second' : 'seconds'}, ` +
-    'so it was force-killed.'
-  );
+  return `The agent's process did not stop within ${secondsOf(graceMs)}, so it was force-killed.`;
 }
 
 /** The agent's command, started under `run`. */
@@ -60,6 +79,16 @@ export interface AgentProcess {
 
 const posix = process.platform !== 'win32';
 
+/** The Win32 calls, under the compiled binary on Windows, which handle the agent's tree there. */
+const win32 = await loadWin32();
+
+/**
+ * Whether Spectra handles the agent's whole process tree here: on macOS and
+ * Linux, and on Windows under the compiled binary. Under Node on Windows it
+ * stops the command's own process alone.
+ */
+export const handlesProcessTree = posix || win32 !== undefined;
+
 export interface AgentProcessOptions {
   /** The time the stopped process gets before it is force-killed. */
   graceMs?: number;
@@ -79,18 +108,28 @@ export interface AgentProcessOptions {
  * Starts the command without a shell, with Spectra's environment, the
  * variables given added, and its working directory, writing to Spectra's
  * stdout and stderr, or to its stderr alone, or to the taker of its output,
- * with its input closed. On POSIX systems it leads its own process group.
+ * with its input closed. On POSIX systems it leads its own process group; on
+ * Windows under the compiled binary its tree is held in a Job Object, and the
+ * command is taken as Bun resolves it, batch files included.
  */
 export function startAgentProcess(
   command: string,
   args: readonly string[],
   {graceMs = STOP_GRACE_MS, env = {}, output = 'inherit', onOutput}: AgentProcessOptions = {},
 ): AgentProcess {
+  if (win32 !== undefined) {
+    return startAgentTree(win32, command, args, {
+      graceMs,
+      env: agentEnvironment(process.env, env),
+      output,
+      ...(onOutput !== undefined && {onOutput}),
+    });
+  }
   const piped = onOutput !== undefined || output === 'stderr';
   const child = spawn(command, args, {
     stdio: piped ? ['ignore', 'pipe', 'pipe'] : ['ignore', 'inherit', 'inherit'],
     detached: posix,
-    env: {...process.env, ...env},
+    env: agentEnvironment(process.env, env),
     cwd: process.cwd(),
   });
   if (onOutput !== undefined) {
