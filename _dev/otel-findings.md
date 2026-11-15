@@ -469,40 +469,105 @@ reports `unknown format "binary" ignored in schema at path
 Generate `"contentEncoding": "base64"` for `BlobPart.content` in place of
 `"format": "binary"`.
 
-## 18. Gemini has no normative document, and the registry and the reference scenario name its operation differently
+## 18. The `google-genai` reference scenario names Gemini `generate_content` calls `chat`, where the registry defines `generate_content`
 
-**Component:** `model/gen-ai/registry.yaml` (`gen_ai.operation.name`, around line
-653); `reference/scenarios/google-genai/scenario.py` and `README.md`.
+**Component:** `reference/scenarios/google-genai/scenario.py` and `README.md`;
+`model/gen-ai/registry.yaml` (`gen_ai.operation.name`).
 
-**Severity:** documentation gap and inconsistency: an instrumentation cannot tell
-which operation name a Gemini call takes.
+**Severity:** inconsistency: the reference for the `google-genai` client shows a
+different operation name from the one the registry gives for that API and from
+what the client's instrumentations emit.
+
+**Upstream:** issue #710, PR #711 (in review).
+
+**Standing:** rechecked at `e6658f14c9` (2026-11-06), with google-genai 2.30.0 and
+opentelemetry-instrumentation-google-genai 1.3b0. The registry members are at
+`model/gen-ai/registry.yaml:720` and `:724`. The instrumentation's source was read
+at `open-telemetry/opentelemetry-python-genai` `df1e23b7b0`, and the Vertex AI
+instrumentation at `open-telemetry/opentelemetry-python-contrib` `ea8ef02ad1`,
+read and not run.
 
 ### Issue
 
 The registry defines the operation name `generate_content` as a "Multimodal
 content generation operation such as [Gemini Generate Content]", beside `chat`
-for "Chat completion operation such as [OpenAI Chat API]". No normative page
-under `docs/gen-ai/` covers Gemini, where `docs/gen-ai/openai.md`,
-`docs/gen-ai/anthropic.md` and others cover their providers. The repository's own
-reference instrumentation of Google's `google-genai` client,
-`reference/scenarios/google-genai/scenario.py`, writes
-`"gen_ai.operation.name": "chat"` on every `generate_content` and
-`generate_content_stream` call (lines 175, 225, 258, 344, 402, 485, 543 and 596),
-and its `README.md` lists the client's inference operation as `chat`. The
-registry's own example for Gemini is thus not what the reference scenario
-produces.
+for "Chat completion operation such as [OpenAI Chat API]". The note on
+`gen_ai.operation.name` tells an instrumentation to use the applicable
+predefined value where no other name is documented
+(`model/gen-ai/registry.yaml:813`), so the registry already says which name a
+Gemini `generateContent` call takes.
+
+The repository's own reference instrumentation of Google's `google-genai` client
+calls that API, `client.models.generate_content` and `generate_content_stream`,
+and writes `"gen_ai.operation.name": "chat"`: on the five spans around those
+calls (`scenario.py` lines 312, 540, 618, 681 and 748), each named
+`chat gemini-2.0-flash`; on their usage metrics (line 230); and on their
+inference-details events (line 279). Its `README.md` lists the client's
+inference operation as `chat`.
+
+Instrumentations of the same API write `generate_content`:
+
+- the OpenTelemetry `google-genai` instrumentation
+  (`google_genai/generate_content.py:537`). The value entered the registry to
+  match it, in `open-telemetry/semantic-conventions` issue #2048 and PR #2049;
+- Google ADK's native telemetry, which `reference/scenarios/adk_a2a/conformance.yaml`
+  records as "its generate_content span".
+
+No scenario's reference instrumentation emits `generate_content`; the value
+appears only in the `adk_a2a` scenario, from ADK's own telemetry.
+
+Three more `chat` sites in the scenario (lines 372, 395 and 413) are around
+`client.interactions.create`, the Interactions API, which the registry has no
+value for. The `vertexai` scenario also writes `chat` around
+`GenerativeModel.generate_content`, as the OpenTelemetry Vertex AI
+instrumentation does (`vertexai/utils.py:106`).
+
+`docs/gen-ai/` has pages for OpenAI, Anthropic, AWS Bedrock and Azure AI
+Inference, and none for Gemini.
+
+Three open upstream issues discuss the attribute and none covers this: #20
+proposes a separate attribute for the kind of operation, #21 proposes deriving
+the name from the backend's operation or the library's function, and #544 keeps
+`chat`, `generate_content` and `text_completion` as names "defined by the API
+they name".
 
 ### Reproduction
 
-Compare `model/gen-ai/registry.yaml` at `id: generate_content` with the value of
-`gen_ai.operation.name` set in `reference/scenarios/google-genai/scenario.py`
-around line 175.
+Start the conformance runner's mock server
+(`~/.cache/semconv-genai/conformance/<sha>/tools/gen-ai/runner/.venv/bin/genai-mock-server --host 127.0.0.1 --port 18731`)
+and set `MOCK_LLM_URL` to it. Issue #710 carries the two scripts.
+
+The scenario's inference spans, by the function that emits them:
+
+```
+$ cd reference
+$ uv run --frozen --python 3.12 --project scenarios/google-genai python ref_side.py scenarios/google-genai/scenario.py
+run_chat                       'chat gemini-2.0-flash'              chat
+run_chat_tool_call             'chat gemini-2.0-flash'              chat
+run_chat_multimodal            'chat gemini-2.0-flash'              chat
+run_generate_media             'chat gemini-2.0-flash'              chat
+run_generate_media             'chat gemini-2.0-flash'              chat
+run_chat_streaming             'chat gemini-2.0-flash'              chat
+run_interactions_continuation  'chat gemini-2.0-flash'              chat
+```
+
+`run_chat` and `run_chat_streaming`'s calls under the OpenTelemetry
+instrumentation:
+
+```
+$ uv run --no-project --python 3.12 --with "google-genai==2.30.0" --with "opentelemetry-instrumentation-google-genai==1.3b0" --with opentelemetry-sdk python otel_side.py
+opentelemetry-instrumentation-google-genai 1.3b0
+'generate_content gemini-2.0-flash' gen_ai.operation.name='generate_content'
+'generate_content gemini-2.0-flash' gen_ai.operation.name='generate_content'
+```
 
 ### Fix
 
-Add a Gemini page under `docs/gen-ai/` that fixes the operation name, and make the
-reference scenario write it; or drop `generate_content` from the registry if
-`chat` is meant to cover Gemini.
+Make the `google-genai` reference scenario write `generate_content` on the
+telemetry around `client.models.generate_content` and
+`generate_content_stream`, name those spans `generate_content {model}`, and
+update the README row. PR #711 does. The Interactions API span keeps `chat`,
+and the `vertexai` scenario and the registry stay as they are.
 
 ## 19. The MCP transport table ties HTTP with SSE to protocol versions that current SDKs do not keep to
 
