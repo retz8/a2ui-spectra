@@ -129,7 +129,7 @@ The packages' READMEs are a DX product, their details moved to design docs in `d
 
 The binaries are not signed with a paid developer identity. The macOS binaries carry an ad-hoc signature and the Windows binaries are unsigned. A release's integrity rests on its checksums and its build provenance attestation. The README says how to clear the operating system's warning on a binary downloaded by hand from the release page.
 
-Two facts are established on the runners in the release workflow's sub-task: that an install through `npx`, `uvx` or the install scripts meets no such warning, and whether a macOS binary Bun compiles on a Linux runner carries the ad-hoc signature, the macOS binaries being built or signed on a macOS runner if it does not.
+One fact is established on the runners in the release workflow's sub-task: that an install through `npx`, `uvx` or the install scripts meets no such warning.
 
 ### 18. The platform packages' names
 
