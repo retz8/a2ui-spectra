@@ -52,6 +52,16 @@ export interface Exit {
   signal: NodeJS.Signals | null;
 }
 
+export interface SpectraOptions {
+  /** The command that runs Spectra, in place of the binary or Node: the npm launcher's, say. */
+  command?: [string, ...string[]];
+  /**
+   * On macOS and Linux, start it leading a process group of its own, which
+   * `signalGroup` reaches, as the terminal reaches its foreground group.
+   */
+  ownGroup?: boolean;
+}
+
 /** Spectra running as a process, with its stdout and stderr collected. */
 export class SpectraProcess {
   /** Both streams, in arrival order. */
@@ -60,14 +70,21 @@ export class SpectraProcess {
   stderr = '';
   readonly exited: Promise<Exit>;
   readonly #child: ChildProcess;
+  readonly #ownGroup: boolean;
   #listeners: Array<() => void> = [];
 
   /**
    * Spectra starts in `cwd`, by default a fresh directory, where it creates
    * its store, with these variables added to its environment.
    */
-  constructor(args: string[], cwd: string = workingDir(), env: Record<string, string> = {}) {
-    const [command, ...prefix] = spectraCommand;
+  constructor(
+    args: string[],
+    cwd: string = workingDir(),
+    env: Record<string, string> = {},
+    options: SpectraOptions = {},
+  ) {
+    const [command, ...prefix] = options.command ?? spectraCommand;
+    this.#ownGroup = !windows && options.ownGroup === true;
     this.#child = windows
       ? spawn(python, [consoleHelper, 'run', '--', command, ...prefix, ...args], {
           stdio: ['pipe', 'pipe', 'pipe'],
@@ -78,6 +95,7 @@ export class SpectraProcess {
           stdio: ['ignore', 'pipe', 'pipe'],
           cwd,
           env: {...process.env, ...env},
+          detached: this.#ownGroup,
         });
     for (const [stream, name] of [
       [this.#child.stdout, 'stdout'],
@@ -143,6 +161,25 @@ export class SpectraProcess {
     this.#child.stdin?.write(`${event}\n`);
   }
 
+  /**
+   * Sends the signal to the whole process group the process leads, under
+   * `ownGroup`; on Windows a console event reaches every process on the
+   * console, as `signal` sends it.
+   */
+  signalGroup(signal: NodeJS.Signals): void {
+    if (!this.#ownGroup) {
+      this.signal(signal);
+      return;
+    }
+    const pid = this.#child.pid;
+    if (pid === undefined) return;
+    try {
+      process.kill(-pid, signal);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ESRCH') throw error;
+    }
+  }
+
   /** Asks Spectra to stop, as a user does: SIGTERM, or a console Ctrl-C on Windows. */
   requestStop(): void {
     this.signal(STOP_SIGNAL);
@@ -167,7 +204,8 @@ export class SpectraProcess {
     if (await gone(3000)) return;
     this.signal('SIGINT');
     if (await gone(2000)) return;
-    this.signal('SIGKILL');
+    // Under its own group, whatever it started is ended with it.
+    this.signalGroup('SIGKILL');
     await this.exited;
   }
 }

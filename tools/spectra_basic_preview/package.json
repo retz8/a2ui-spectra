@@ -23,10 +23,12 @@
         "src/**/*",
         "index.html",
         "tsconfig.json",
-        "vite.config.*"
+        "vite.config.*",
+        "../../vite_bundle_report.mjs"
       ],
       "output": [
-        "dist/"
+        "dist/",
+        "bundle-report.json"
       ]
     },
     "clean": {

@@ -1,0 +1,30 @@
+# The wheel that holds the a2ui-spectra binary for one platform. `yarn build:packages` builds it
+# once per platform through `uv build`, from a copy of this folder holding the platform's binary,
+# LICENSE, THIRD_PARTY_NOTICES.md and the tool's README.md, with A2UI_SPECTRA_VERSION set to the
+# version and A2UI_SPECTRA_WHEEL_TAG to the platform's tag; see hatch_build.py.
+
+[build-system]
+requires = ["hatchling==1.33.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "a2ui-spectra"
+dynamic = ["version"]
+description = "A debugging and observation tool for the developer of an A2UI agent: attach to the running agent, see every turn, check and preview it, record and replay it."
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
+
+[project.urls]
+Repository = "https://github.com/retz8/a2ui-spectra"
+
+[tool.hatch.version]
+source = "env"
+variable = "A2UI_SPECTRA_VERSION"
+
+[tool.hatch.build.targets.wheel]
+# No Python module: the binary alone, put in by the hook.
+bypass-selection = true
+
+[tool.hatch.build.targets.wheel.hooks.custom]
+path = "hatch_build.py"

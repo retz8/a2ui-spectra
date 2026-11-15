@@ -4,8 +4,11 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import {defineConfig} from 'vite';
 
+import {bundleReport} from '../../vite_bundle_report.mjs';
+
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  // The report says what the build bundled, for the binary's third-party notices.
+  plugins: [bundleReport(), react(), tailwindcss()],
   resolve: {
     alias: {'@': path.resolve(import.meta.dirname, 'src')},
   },

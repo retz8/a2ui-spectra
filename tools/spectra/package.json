@@ -12,6 +12,8 @@
     "build:viewer": "wireit",
     "build:binary": "wireit",
     "build:binaries": "wireit",
+    "build:packages": "wireit",
+    "check:packages": "wireit",
     "generate:otlp": "wireit",
     "test": "wireit",
     "lint": "eslint .",
@@ -41,7 +43,8 @@
         "dist/**",
         "!dist/viewer/**",
         "!dist/a2ui-spectra",
-        "!dist/binaries/**"
+        "!dist/binaries/**",
+        "!dist/packages/**"
       ],
       "clean": "if-file-deleted"
     },
@@ -90,6 +93,37 @@
       "output": [
         "dist/binaries/**"
       ]
+    },
+    "build:packages": {
+      "command": "node scripts/build_packages.mjs",
+      "dependencies": [
+        "build:binaries",
+        "build:tsc"
+      ],
+      "files": [
+        "scripts/build_packages.mjs",
+        "scripts/notices.mjs",
+        "scripts/notices_by_hand.md",
+        "scripts/packages.mjs",
+        "wheel/**",
+        "README.md",
+        "../../LICENSE",
+        "src/prices/NOTICE"
+      ],
+      "output": [
+        "dist/packages/**"
+      ]
+    },
+    "check:packages": {
+      "command": "node scripts/check_packages.mjs",
+      "dependencies": [
+        "build:packages"
+      ],
+      "files": [
+        "scripts/check_packages.mjs",
+        "scripts/packages.mjs"
+      ],
+      "output": []
     },
     "test": {
       "command": "node --test --enable-source-maps --test-reporter spec \"dist/**/*.test.js\"",

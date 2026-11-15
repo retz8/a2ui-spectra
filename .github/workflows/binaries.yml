@@ -42,3 +42,9 @@ jobs:
           path: tools/spectra/dist/binaries/a2ui-spectra-windows-x64.exe
           archive: false
           if-no-files-found: error
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+      # The packages are checked here and not uploaded; the release workflow alone uploads them.
+      - name: Make the binary's packages
+        run: yarn workspace a2ui-spectra build:packages
+      - name: Check the binary's packages, and install this Mac's
+        run: yarn workspace a2ui-spectra check:packages

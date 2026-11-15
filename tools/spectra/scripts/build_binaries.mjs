@@ -10,7 +10,9 @@
 // npm registry itself, checks it against npm's published integrity value held in
 // `bun_runtimes.json`, and gives its runtime to Bun; a package that does not match fails the build.
 // Bun signs the macOS arm64 binary ad hoc and the build signs the macOS x64 one ad hoc with
-// `codesign`; both signatures are verified before the build ends.
+// `codesign`; both signatures are verified before the build ends. Beside each binary, Bun's
+// metafile for its build, `<file>.metafile.json`, says what the build bundled, for the
+// third-party notices.
 
 import {execFileSync, spawnSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
@@ -114,6 +116,7 @@ async function main() {
         '--no-compile-autoload-bunfig',
         `--target=${platform.target}`,
         `--compile-executable-path=${runtime}`,
+        `--metafile=${file}.metafile.json`,
         'src/cli.ts',
         '--asset',
         'dist/viewer',

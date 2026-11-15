@@ -24,10 +24,12 @@
         "index.html",
         "tsconfig.json",
         "vite.config.*",
+        "../../vite_bundle_report.mjs",
         "components.json"
       ],
       "output": [
-        "dist/"
+        "dist/",
+        "bundle-report.json"
       ],
       "dependencies": [
         "../../typescript/preview/core:build"

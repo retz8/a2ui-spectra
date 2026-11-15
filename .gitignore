@@ -31,3 +31,6 @@ __pycache__
 !.yarn/plugins
 !.yarn/sdks
 .yarn/cache
+
+# What a Vite build bundled, for the binary's third-party notices
+bundle-report.json

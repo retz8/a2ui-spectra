@@ -81,6 +81,17 @@ export type HeadlessWork = (session: HeadlessSession) => Promise<number>;
 const STOP_SIGNALS: NodeJS.Signals[] =
   process.platform === 'win32' ? ['SIGINT', 'SIGBREAK', 'SIGHUP'] : ['SIGINT', 'SIGTERM', 'SIGHUP'];
 
+/**
+ * Set to `1` in Spectra's environment by the npm launcher, which passes
+ * SIGTERM and SIGHUP on to Spectra: one sent to the whole process group
+ * reaches Spectra twice, directly and through the launcher. Under the mark,
+ * that signal arriving again once it has begun the stop is the same stop.
+ */
+const NPM_LAUNCHER_VARIABLE = 'A2UI_SPECTRA_NPM_LAUNCHER';
+
+/** The stops the npm launcher passes on. */
+const PASSED_ON: ReadonlySet<NodeJS.Signals> = new Set(['SIGTERM', 'SIGHUP']);
+
 /** What Spectra says under Node on Windows, where the agent's process tree is not handled. */
 export const NODE_ON_WINDOWS_LINE =
   "Under Node on Windows, Spectra stops and restarts the agent's command alone, not the processes " +
@@ -150,6 +161,9 @@ export async function runSession(
   }
   // Spectra's own environment, read by name; on Windows a name is found in any case.
   const own = ownEnvironment(process.env);
+  // The launcher's mark is Spectra's alone; the agent's environment does not carry it.
+  const underNpmLauncher = own[NPM_LAUNCHER_VARIABLE] === '1';
+  delete process.env[NPM_LAUNCHER_VARIABLE];
   const {headers, unset, left} = agentHeaders(options.config.headers, options.headers, own);
   if (unset.length > 0) {
     out.error(
@@ -266,6 +280,8 @@ export async function runSession(
       );
       supervisor?.beginStop();
       stop.abort();
+    } else if (underNpmLauncher && signal === stoppedBy && PASSED_ON.has(signal)) {
+      // The stop's own signal again, passed on by the launcher after reaching Spectra directly.
     } else if (agentAlive()) {
       out.info("Forcing the agent's process to stop.");
       agent?.kill();

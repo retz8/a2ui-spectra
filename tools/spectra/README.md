@@ -15,6 +15,7 @@ What Spectra is and what it supports are in the [root README](../../README.md). 
 1. [Node.js](https://nodejs.org/en) 22.
 2. Yarn, through Corepack: `corepack enable`.
 3. For the browser end-to-end test only, Playwright's Chromium, once: `npx playwright@1.58.1 install chromium chromium-headless-shell`.
+4. For the binary's packages only, [uv](https://docs.astral.sh/uv/).
 
 ## Usage
 
@@ -421,6 +422,20 @@ Spectra is held to PowerShell and cmd on Windows x64. Git Bash is not tested, WS
 - Bun signs the macOS arm64 binary ad hoc, and the build signs the macOS x64 binary ad hoc with `codesign`. The build verifies both signatures.
 - A move to another Bun version writes the five packages' integrity values at that version into `scripts/bun_runtimes.json`, as `npm view <package>@<version> dist.integrity` prints them; until then the build stops, naming both versions.
 
+### The binary's packages
+
+`yarn build:packages`, on macOS, makes the binary's packages from the five binaries into `dist/packages/`. It takes no version: each is stamped with the tool's, from `src/version.ts`, which the host's binary must print, and each carries the repository's `LICENSE` and the build's `THIRD_PARTY_NOTICES.md`.
+
+- `npm/`: the launcher's package, `a2ui-spectra-<version>.tgz`, holding the launcher, [`src/npm/launcher.ts`](src/npm/launcher.ts) as compiled, and this README, with the five platform packages as its optional dependencies, pinned to the version, and no install script; and the five platform packages, `a2ui-spectra-<platform>-<version>.tgz`, each holding its binary, with its `os` and `cpu`, `"libc": ["glibc"]` on Linux, and no README.
+- `pypi/`: the five wheels, built by hatchling through `uv build` from [`wheel/`](wheel), each holding its binary alone in its scripts folder, tagged from the binaries' floors, macOS 13.0 and glibc 2.17, with this README as its text.
+- `release/`: the five archives, `a2ui-spectra-v<version>-<platform>.tar.gz`, and `.zip` for Windows, flat, holding the binary, `LICENSE`, `THIRD_PARTY_NOTICES.md` and this README; and `checksums.txt`, which lists them in `sha256sum`'s format.
+
+`THIRD_PARTY_NOTICES.md` lists every npm package that contributed a file to the binary, as the builds report what they bundled: Bun's metafile beside each binary, and each Vite build's `bundle-report.json`, which the root's `vite_bundle_report.mjs` writes. Each package comes with its version, its licence, its licence text and its NOTICE file when it has one, read from the installed package. Then follows [`scripts/notices_by_hand.md`](scripts/notices_by_hand.md), kept by hand, for what no bundler reports: upstream's copied schemas and catalogs, OpenTelemetry's proto files, LiteLLM's price table, whose section is `src/prices/NOTICE`, and Bun's runtime, whose section is Bun's `LICENSE.md` at the pinned version's tag. The build stops on a bundled package with no licence text, on a Bun version in that list other than the pinned one, and on a LiteLLM section other than the notice.
+
+`yarn check:packages` checks what `build:packages` made: for all five platforms, each npm package, wheel and archive holds exactly its files, the binary with the built binary's SHA-256 and its executable bit; each wheel's tag and every stated version are right; and `checksums.txt` verifies. Then it installs the Mac's own as an adopter does: the launcher and its platform package by npm from the built packages, the wheel through `uvx`, and the archive extracted, each running `a2ui-spectra --version`. CI runs both on the Mac that builds the five binaries, on every push and pull request; the packages are uploaded by the release workflow alone.
+
+The launcher runs its platform's binary with the arguments as given and stays until the binary has ended, then exits with its exit code, or by the signal that ended it. On macOS and Linux it passes SIGTERM and SIGHUP on to the binary, and holds Ctrl-C, which the terminal sends the binary itself. It sets `A2UI_SPECTRA_NPM_LAUNCHER=1` in the binary's environment, and under it the SIGTERM or SIGHUP that began the stop, arriving again as one sent to the whole process group does, directly and through the launcher, is the same stop and does not force the agent's; the agent's environment does not carry it. On Windows the launcher holds Ctrl-C, Ctrl-Break and the console's close, which reach the binary directly. On a platform outside the five, on Linux with musl, and where the platform's package is missing, it says so in one line and exits 1. It fetches nothing.
+
 ## Layout
 
 - `src/`: the TypeScript source, with each unit test beside its source as `*.test.ts`.
@@ -464,8 +479,11 @@ Spectra is held to PowerShell and cmd on Windows x64. Git Bash is not tested, WS
 - `src/testing/turn_record_schema.ts`: validates the records tests produce against turn record v0.1's schema.
 - `src/testing/turns.ts`: the turns the checks' tests build.
 - `src/record/turn_record.ts`: the types for turn record v0.1.
+- `src/npm/launcher.ts`: the npm launcher, which the `a2ui-spectra` npm package holds as compiled; its test lays out this platform's binary as its platform package, the binary `SPECTRA_BINARY` names or under Node a script that runs the tool under Node.
 - `scripts/build_binaries.mjs`: the five binaries' build, and `scripts/bun_runtimes.json`, npm's integrity value of each Bun runtime package they are compiled onto.
-- `dist/`: the compiled tool, with the viewer's build copied into `dist/viewer/` and the built-in preview page's into `dist/viewer/preview/`; the host's binary, `dist/a2ui-spectra`, and the five in `dist/binaries/`.
+- `scripts/build_packages.mjs` and `scripts/check_packages.mjs`: the binary's packages made and checked, with what they share in `scripts/packages.mjs`; `scripts/notices.mjs`, the third-party notices, and `scripts/notices_by_hand.md`, their part kept by hand.
+- `wheel/`: the uv project each wheel is built from, with its build hook, `hatch_build.py`.
+- `dist/`: the compiled tool, with the viewer's build copied into `dist/viewer/` and the built-in preview page's into `dist/viewer/preview/`; the host's binary, `dist/a2ui-spectra`, the five in `dist/binaries/`, and their packages in `dist/packages/`.
 
 ## Commands
 
@@ -474,6 +492,8 @@ From `tools/spectra/`:
 - `yarn build`: compiles `src/` into `dist/` and copies the viewer's build into `dist/viewer/` and the built-in preview page's into `dist/viewer/preview/`, building both first.
 - `yarn build:binary`: compiles the binary into `dist/a2ui-spectra`.
 - `yarn build:binaries`: on macOS, compiles the five binaries into `dist/binaries/`.
+- `yarn build:packages`: on macOS, makes the binary's packages from the five into `dist/packages/`, building them first; see [The binary's packages](#the-binarys-packages).
+- `yarn check:packages`: on macOS, checks the packages, making them first, and installs the Mac's own.
 - `yarn generate:otlp`: generates `src/receiver/gen/` from `proto/` with `buf` and `protoc-gen-es`, both dev dependencies, so that the build needs no protobuf compiler. The generated code is checked in; `@bufbuild/protobuf` is its runtime dependency.
 - `yarn test`: builds the tool, the conformance workspace, whose stub agent the end-to-end tests run, and the three preview adapters, which the sample catalog apps' dev servers serve from their builds, then runs the unit tests, the command-line test and the end-to-end tests under Node's test runner. The browser end-to-end test needs Playwright's Chromium, as under [Prerequisites](#prerequisites).
 - `SPECTRA_BINARY=dist/a2ui-spectra yarn test`: runs the same tests with the command-line test and the end-to-end tests against the binary. The commands end-to-end test records the stub agent's model-calling conversation against the stand-in provider playing the Gemini restaurant finder recording, then runs `replay` and `test` on it, the stand-in stopped, in both agent forms. `SPECTRA_BINARY` may name one of the five in `dist/binaries/` instead, on its own platform, as CI runs each of the five platforms' binaries on that platform's runner, Windows' as [Windows](#windows) describes.
