@@ -3,6 +3,7 @@ import {randomBytes} from 'node:crypto';
 import type {TurnListener, TurnNotification} from './a2a/turn.js';
 import type {CatalogRegistry} from './catalog/registry.js';
 import {checkEvents, checkTurn} from './check/checks.js';
+import {nowUnixNano} from './clock.js';
 import type {Output} from './output.js';
 import {isEventOfKind, type Turn, type TurnEvent} from './record/turn_record.js';
 import type {TurnStore} from './store/store.js';
@@ -144,8 +145,4 @@ export class TurnRecorder {
       for (const resolve of waiting) resolve();
     }
   }
-}
-
-function nowUnixNano(): bigint {
-  return BigInt(Math.round((performance.timeOrigin + performance.now()) * 1000)) * 1000n;
 }

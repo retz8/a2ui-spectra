@@ -27,6 +27,7 @@ import {fileURLToPath} from 'node:url';
 
 import * as yaml from 'js-yaml';
 
+import {nowUnixNano} from '../clock.js';
 import {CallPlacer} from '../placement.js';
 import {
   type CallEvent,
@@ -124,10 +125,6 @@ function expectedPath(c: CaptureWrapperCase, language: Language): string {
   const file = typeof c.expect === 'string' ? c.expect : c.expect[language];
   assert.ok(file, `${c.name} names an expected record for ${language}`);
   return file;
-}
-
-function nowUnixNano(): bigint {
-  return BigInt(Math.round((performance.timeOrigin + performance.now()) * 1000)) * 1000n;
 }
 
 function hex(bytes: number): string {
@@ -373,7 +370,11 @@ async function runCase(c: CaptureWrapperCase, language: Language): Promise<void>
     return;
   }
   assert.deepEqual(turnRecordErrors(expected), [], 'the expected record validates');
-  assert.equal(turn.events.length, expectedTurn.events.length, 'as many events as the record');
+  assert.equal(
+    turn.events.length,
+    expectedTurn.events.length,
+    `as many events as the record; the receiver's lines: ${JSON.stringify(lines)}`,
+  );
   for (const [index, event] of turn.events.entries()) {
     const wanted = expectedTurn.events[index];
     const where = `event ${index}, ${event.name}`;

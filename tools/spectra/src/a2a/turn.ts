@@ -10,6 +10,7 @@ import {
   type WirePart,
   recordFormOf,
 } from '../record/turn_record.js';
+import {nowUnixNano} from '../clock.js';
 import {splitInputMetadata} from './metadata.js';
 import {wirePart} from './parts.js';
 import {
@@ -364,8 +365,4 @@ function a2uiVersions(content: unknown): string[] {
 
 function only(values: string[]): string | undefined {
   return values.length === 1 ? values[0] : undefined;
-}
-
-function nowUnixNano(): bigint {
-  return BigInt(Math.round((performance.timeOrigin + performance.now()) * 1000)) * 1000n;
 }

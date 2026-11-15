@@ -1,6 +1,6 @@
 /**
- * What the model proxy and the tool proxy share in passing traffic on: the
- * clock, reading a body through its content encoding, the test for an OAuth
+ * What the model proxy and the tool proxy share in passing traffic on:
+ * reading a body through its content encoding, the test for an OAuth
  * token request, which both pass on unrecorded, and the tunnel a WebSocket
  * upgrade passes through, unrecorded.
  */
@@ -9,11 +9,6 @@ import {connect as netConnect, type Socket} from 'node:net';
 import {type Duplex, PassThrough, type Transform} from 'node:stream';
 import {connect as tlsConnect} from 'node:tls';
 import {createBrotliDecompress, createGunzip, createInflate} from 'node:zlib';
-
-/** Nanoseconds since the Unix epoch. */
-export function nowUnixNano(): bigint {
-  return BigInt(Math.round((performance.timeOrigin + performance.now()) * 1000)) * 1000n;
-}
 
 /** A content-encoding's decoder; zlib's streams flush, a pass-through has nothing to. */
 export type Decoder = Transform & {flush?(callback: () => void): void};

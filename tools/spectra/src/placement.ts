@@ -1,5 +1,6 @@
 import type {TurnListener, TurnNotification} from './a2a/turn.js';
 import {parseTraceparent} from './a2a/trace_context.js';
+import {nowUnixNano} from './clock.js';
 import {
   type CallEvent,
   type CapturePath,
@@ -276,10 +277,6 @@ function compareUnixNano(a: string, b: string): number {
 
 function capitalise(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-function nowUnixNano(): bigint {
-  return BigInt(Math.round((performance.timeOrigin + performance.now()) * 1000)) * 1000n;
 }
 
 function isoTime(unixNano: string): string {

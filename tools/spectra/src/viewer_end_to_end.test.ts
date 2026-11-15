@@ -534,7 +534,8 @@ describe(`the dev loop in the viewer on the fake agent under run, in Chromium, $
         await page.waitForURL(/#\/turns\/[0-9a-f]{32}/);
         const first = turnInAddress(page);
         await preview(page).getByText('Version one').waitFor();
-        assert.equal(await rerun.getAttribute('aria-disabled'), 'false');
+        // Re-run is off for the moment the turn is open after its surface is drawn.
+        await becomes(rerun, 'aria-disabled', 'false');
 
         // 1. Save the agent's file: Spectra restarts the agent, and its card is waited for.
         await logsButton(page).click();

@@ -34,17 +34,11 @@ import {
   type Upstream,
   wasStreamed,
 } from '../replay/served.js';
+import {nowUnixNano} from '../clock.js';
 import {LOOPBACK_ADDRESS, PortTakenError} from '../server.js';
 import {NAME} from '../version.js';
 import {chunkEvent, endToEndHeaders, requestAttributes, responseAttributes} from './exchange.js';
-import {
-  bodyJson,
-  decoderFor,
-  isTokenRequest,
-  nowUnixNano,
-  readBody,
-  tunnelUpgrade,
-} from './forwarding.js';
+import {bodyJson, decoderFor, isTokenRequest, readBody, tunnelUpgrade} from './forwarding.js';
 import {seconds} from './genai.js';
 import {type ApiReader, readerFor, type StreamChunk} from './readers/index.js';
 import {forwardTo, type Redirection, splitPrefix, VARIABLES} from './redirection.js';

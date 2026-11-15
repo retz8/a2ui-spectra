@@ -35,7 +35,6 @@ import {
   bodyJson,
   decoderFor,
   isTokenRequest,
-  nowUnixNano,
   readBody,
   tunnelUpgrade,
 } from '../model_proxy/forwarding.js';
@@ -57,6 +56,7 @@ import {
   type Upstream,
   wasStreamed,
 } from '../replay/served.js';
+import {nowUnixNano} from '../clock.js';
 import {LOOPBACK_ADDRESS, PortTakenError} from '../server.js';
 import {NAME} from '../version.js';
 import {
