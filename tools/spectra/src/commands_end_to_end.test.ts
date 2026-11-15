@@ -182,7 +182,7 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
         assert.equal(records.length, 2);
         for (const [index, record] of records.entries()) {
           const attributes = turnEventOf(record.turns.at(-1)!).attributes;
-          assert.equal(attributes['a2ui.replay.source'], 'fixtures/greet-ada.json');
+          assert.equal(attributes['a2ui.replay.source'], path.join('fixtures', 'greet-ada.json'));
           assert.equal(attributes['a2ui.replay.turn'], [recorded.first, recorded.second][index]);
           assert.equal(attributes['a2ui.replay.mode'], 'model_live');
           assert.equal(attributes['a2ui.replay.verdict'], 'passed');
@@ -202,7 +202,7 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
         const liveClosing = allLive.stdout.match(
           new RegExp(
             `^turn 1 of 2: ${outcomes[0]}\\nturn 2 of 2: ${outcomes[1]}\\n` +
-              'fixtures/greet-ada\\.json: 2 of 2 turns sent; the replayed turns are in (\\.a2ui-spectra/turns/\\S+)\\n$',
+              'fixtures[\\\\/]greet-ada\\.json: 2 of 2 turns sent; the replayed turns are in (\\.a2ui-spectra[\\\\/]turns[\\\\/]\\S+)\\n$',
           ),
         );
         assert.ok(liveClosing, `stdout was:\n${allLive.stdout}`);
@@ -210,7 +210,7 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
         assert.equal(liveRecords.length, 2);
         for (const record of liveRecords) {
           const attributes = turnEventOf(record.turns.at(-1)!).attributes;
-          assert.equal(attributes['a2ui.replay.source'], 'fixtures/greet-ada.json');
+          assert.equal(attributes['a2ui.replay.source'], path.join('fixtures', 'greet-ada.json'));
           assert.equal(attributes['a2ui.replay.mode'], 'live');
           assert.equal(attributes['a2ui.replay.verdict'], undefined);
         }
@@ -229,7 +229,7 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
         assert.equal(nothing.code, 1, nothing.output);
         assert.equal(
           nothing.stdout,
-          `fixtures/greet-ada.json: failed (${NOTHING_TO_SERVE} Replay it with --model-live.)\n`,
+          `${path.join('fixtures', 'greet-ada.json')}: failed (${NOTHING_TO_SERVE} Replay it with --model-live.)\n`,
         );
         assert.doesNotMatch(nothing.stderr, /Turns are saved in|Waiting for the agent's card/);
 
@@ -264,7 +264,7 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
         assert.equal(launched.code, 0, launched.output);
         assert.match(
           launched.stdout,
-          /^turn 1 of 2: passed\nturn 2 of 2: passed\nfixtures\/greet-ada\.json: passed; the replayed turns are in \.a2ui-spectra\/turns\/\S+\n$/,
+          /^turn 1 of 2: passed\nturn 2 of 2: passed\nfixtures[\\/]greet-ada\.json: passed; the replayed turns are in \.a2ui-spectra[\\/]turns[\\/]\S+\n$/,
         );
         assert.match(
           launched.stderr,
@@ -487,7 +487,7 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
         assert.match(failedLines[1], /^turn 2 of 2: failed /);
         assert.match(
           failedLines[2],
-          /^fixtures\/restaurants\.json: failed; the replayed turns are in (\.a2ui-spectra\/turns\/\S+)$/,
+          /^fixtures[\\/]restaurants\.json: failed; the replayed turns are in (\.a2ui-spectra[\\/]turns[\\/]\S+)$/,
         );
         assert.match(
           changed.stderr,
@@ -612,7 +612,7 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
         );
         assert.match(
           unreached.stderr,
-          /No model call and no tool call reached the proxies while fixtures\/restaurants\.json replayed, and none of its recorded calls was asked for\./,
+          /No model call and no tool call reached the proxies while fixtures[\\/]restaurants\.json replayed, and none of its recorded calls was asked for\./,
         );
       } finally {
         for (const stub of stubs) stub.kill();

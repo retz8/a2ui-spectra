@@ -202,7 +202,7 @@ describe(`fixtures and replay against the stub agent, ${binary ? 'the binary' : 
           ],
         );
         // The stream's event can arrive before Spectra's terminal line is read: wait for the line.
-        await spectra.waitFor(/Replay of fixtures\/greet-ada\.json, turn 2 of 2: passed\./);
+        await spectra.waitFor(/Replay of fixtures[\\/]greet-ada\.json, turn 2 of 2: passed\./);
 
         // Each replayed turn's record carries the provenance and the verdict, and validates.
         for (const [index, turn] of replayed.entries()) {
@@ -480,12 +480,12 @@ describe(`fixtures and replay against the stub agent, ${binary ? 'the binary' : 
         // The fixture up to its first turn: one turn is sent.
         await replayLive(
           {fixture: 'restaurants', turn: first.traceId},
-          /^fixtures\/restaurants\.json$/,
+          /^fixtures[\\/]restaurants\.json$/,
           [first.traceId],
           [2],
         );
         assert.equal(answered(), 8);
-        await spectra.waitFor(/Re-run of fixtures\/restaurants\.json, turn 1 of 1: completed\./);
+        await spectra.waitFor(/Re-run of fixtures[\\/]restaurants\.json, turn 1 of 1: completed\./);
         assert.doesNotMatch(spectra.output, /matched nothing in the record|Replay of /);
         assert.equal((await boxSettled(base)).conversations.length, 3);
       } finally {

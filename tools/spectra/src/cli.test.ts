@@ -48,6 +48,7 @@ import {
 import {turnRecordErrors} from './testing/turn_record_schema.js';
 import {VERSION} from './version.js';
 import {freePort} from './testing/free_port.js';
+import {pasteLine, SHELL_LABELS, shellsOf} from './paste.js';
 
 const fakeAgentScript = fileURLToPath(new URL('./testing/fake_agent.js', import.meta.url));
 const posix = process.platform !== 'win32';
@@ -483,29 +484,40 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           /To see model and tool calls, set these in the agent's shell and restart it/,
         );
         await spectra.waitFor(/already sets one of the model or tool variables to another address/);
-        assert.match(
-          spectra.output,
-          new RegExp(
-            `^export GEMINI_API_BASE=.*\\n^export FLOOR_PLAN_SERVER_URL=http://127\\.0\\.0\\.1:${toolProxyPort}/sse  # forwards to http://127\\.0\\.0\\.1:8000/sse\\n` +
-              `^export OTEL_EXPORTER_OTLP_ENDPOINT=http://127\\.0\\.0\\.1:${receiverPort}  # for Spectra's OpenTelemetry receiver\\n` +
-              "^export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf  # for Spectra's OpenTelemetry receiver\\n" +
-              "^export OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true  # for Spectra's OpenTelemetry receiver$",
-            'm',
-          ),
-        );
-        for (const name of VARIABLES) {
+        // One block per shell of the platform: POSIX exports, or on Windows PowerShell's and cmd's, each labelled.
+        const literal = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        for (const shell of shellsOf()) {
+          const receiverLine = (name: string, value: string) =>
+            pasteLine(name, value, shell, "for Spectra's OpenTelemetry receiver");
+          const block = [
+            pasteLine(
+              'GEMINI_API_BASE',
+              `http://127.0.0.1:${modelProxyPort}/GEMINI_API_BASE`,
+              shell,
+              'forwards to https://litellm.example/v1beta?key=REMOVED',
+            ),
+            pasteLine(
+              'FLOOR_PLAN_SERVER_URL',
+              `http://127.0.0.1:${toolProxyPort}/sse`,
+              shell,
+              'forwards to http://127.0.0.1:8000/sse',
+            ),
+            receiverLine('OTEL_EXPORTER_OTLP_ENDPOINT', `http://127.0.0.1:${receiverPort}`),
+            receiverLine('OTEL_EXPORTER_OTLP_PROTOCOL', 'http/protobuf'),
+            receiverLine('OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT', 'true'),
+          ];
           assert.match(
             spectra.output,
-            new RegExp(
-              `^export ${name}=http://127\\.0\\.0\\.1:${modelProxyPort}/${name}  # forwards to `,
-              'm',
-            ),
+            new RegExp(block.map(line => `^${literal(line)}$`).join('\\n'), 'm'),
           );
+          if (shell !== 'posix') {
+            assert.match(spectra.output, new RegExp(`^${literal(SHELL_LABELS[shell])}$`, 'm'));
+          }
+          for (const name of VARIABLES) {
+            const line = pasteLine(name, `http://127.0.0.1:${modelProxyPort}/${name}`, shell);
+            assert.match(spectra.output, new RegExp(`^${literal(line)}`, 'm'));
+          }
         }
-        assert.match(
-          spectra.output,
-          /^export GEMINI_API_BASE=.*# forwards to https:\/\/litellm\.example\/v1beta\?key=REMOVED$/m,
-        );
         assert.equal(spectra.output.includes('secret'), false);
         const context = JSON.parse((await send(port, {path: '/api/context'})).body) as {
           mode: string;
@@ -2697,7 +2709,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
             );
             assert.ok(
               await eventually(() => pidsIn(pidFile).length >= 2 && !isAlive(firstPid), 10_000),
-              'The starting process was stopped and the command started again.',
+              `The starting process was stopped and the command started again:\n${waiting.spectra.output}`,
             );
             await stopped(waiting.spectra);
           } finally {
