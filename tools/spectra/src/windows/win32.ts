@@ -51,6 +51,13 @@ export interface Win32 {
   inAnyJob(): boolean;
   /** Whether the process with that id is still running. */
   processRunning(pid: number): boolean;
+  /**
+   * A handle to the process with that id, for its exit code once it has
+   * exited: the process stays readable while the handle is open.
+   */
+  openProcess(pid: number): bigint;
+  /** The whole exit code of an exited process, past the eight bits Bun passes on. */
+  exitCodeOf(handle: bigint): number | undefined;
 }
 
 const JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
@@ -209,6 +216,15 @@ async function load(): Promise<Win32 | undefined> {
         fail('IsProcessInJob');
       }
       return new DataView(result.buffer).getInt32(0, true) !== 0;
+    },
+    openProcess(pid) {
+      return openProcess(PROCESS_QUERY_LIMITED_INFORMATION, pid);
+    },
+    exitCodeOf(handle) {
+      const code = new Uint8Array(4);
+      if (call<number>('GetExitCodeProcess', handle, code) === 0) return undefined;
+      const value = new DataView(code.buffer).getUint32(0, true);
+      return value === STILL_ACTIVE ? undefined : value;
     },
     processRunning(pid) {
       let handle: bigint;

@@ -6,7 +6,8 @@
  * Object, starts the agent's command as Bun resolves it, sharing the console
  * and the process group, then leaves the console, so that the console's
  * events reach the agent's processes and not it. It writes the command's exit
- * code, which an exit code of its own would cut to eight bits, or why the
+ * code, read from the command's own process since Bun 1.4.4 cuts an exit code
+ * to its low eight bits both in a child's code and in process.exit, or why the
  * command could not start, to the launch's report file, and exits.
  */
 import {writeFileSync} from 'node:fs';
@@ -119,10 +120,18 @@ export async function runLauncher(
     if (launch.reportFile === undefined) process.stderr.write(`${message}\n`);
     return 1;
   }
+  // Opened before Bun reaps the command, so that its whole exit code can be read.
+  let handle: bigint | undefined;
+  try {
+    handle = win32?.openProcess(child.pid);
+  } catch {
+    handle = undefined;
+  }
   if (attachedConsole && !stayAttached) win32?.freeConsole();
   report.pid = child.pid;
   onReport?.(report);
-  const exitCode = await child.exited;
+  const cut = await child.exited;
+  const exitCode = (handle === undefined ? undefined : win32?.exitCodeOf(handle)) ?? cut;
   write({exitCode});
   return exitCode;
 }
