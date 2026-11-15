@@ -1,6 +1,7 @@
 import type {SessionContext} from '@/api.ts';
 import {type FirstScreenBox, type FirstScreenForm, firstScreenFormOf} from '@/model/dev_loop.ts';
 import {logTimeOf, tailSinceStartOf} from '@/model/logs.ts';
+import {pasteBlocksOf} from '@/model/paste.ts';
 import {cn} from '@/lib/utils';
 import {agentNameOf} from '@/state/selectors.ts';
 import {spectra, useSpectra} from '@/state/spectra.ts';
@@ -15,7 +16,8 @@ import {PressButton} from './Refusal.tsx';
  * The turn view with no turns: the agent and its live status, the first
  * example of each of its card's skills as prompts that fill the composer, the
  * wire proxy's address to point a host app at, and under `attach` the
- * variables to set in the agent's shell, with one copy button for all.
+ * variables to set in the agent's shell, with one copy button for all, and on
+ * Windows a PowerShell block and a cmd block, each with its own.
  *
  * While the agent is running and the message box cannot send, the ready form
  * says what can still start a turn instead: a host app pointed at the wire
@@ -55,6 +57,7 @@ export function FirstScreen({
   const said: FirstScreenBox | undefined = form === 'ready' ? box : undefined;
   const examples = said === 'canSend' ? (context?.examples ?? []) : [];
   const variables = context?.mode === 'attach' ? (context.variables ?? []) : [];
+  const blocks = pasteBlocksOf(variables, context?.shells);
   const tail = form === 'down' ? tailSinceStartOf(state.logs?.entries ?? []) : [];
   return (
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3.5 overflow-y-auto p-8 text-center">
@@ -181,27 +184,32 @@ export function FirstScreen({
       )}
       {variables.length > 0 && (
         <div className="mt-2.5 flex w-150 max-w-full flex-col gap-2 text-left">
-          <div className="flex items-center gap-2">
-            <span className="flex-1 text-xs text-muted-foreground">
+          {blocks.length > 1 && (
+            <span className="text-xs text-muted-foreground">
               To see model and tool calls, set these in the agent’s shell
             </span>
-            <CopyButton
-              text={variables
-                .map(({name: variable, value}) => `export ${variable}=${value}`)
-                .join('\n')}
-              label="Copy the variables"
-              className="h-7 gap-1.5 rounded-lg border bg-panel pr-2 pl-2.5 text-xs text-foreground hover:bg-panel"
-            >
-              Copy
-            </CopyButton>
-          </div>
-          <div className="overflow-x-auto rounded-lg bg-tint px-3 py-2 font-mono text-xs leading-relaxed">
-            {variables.map(({name: variable, value}) => (
-              <div key={variable} className="whitespace-pre">
-                {variable}={value}
+          )}
+          {blocks.map(block => (
+            <div key={block.caption} className="flex flex-col gap-2">
+              <div className="flex items-center gap-2">
+                <span className="flex-1 text-xs text-muted-foreground">{block.caption}</span>
+                <CopyButton
+                  text={block.copied}
+                  label={block.copyLabel}
+                  className="h-7 gap-1.5 rounded-lg border bg-panel pr-2 pl-2.5 text-xs text-foreground hover:bg-panel"
+                >
+                  Copy
+                </CopyButton>
               </div>
-            ))}
-          </div>
+              <div className="overflow-x-auto rounded-lg bg-tint px-3 py-2 font-mono text-xs leading-relaxed">
+                {block.lines.map(line => (
+                  <div key={line} className="whitespace-pre">
+                    {line}
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>

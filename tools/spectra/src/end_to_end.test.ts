@@ -37,6 +37,7 @@ import {boxSettled, getJson, LiveStream, sendMessage} from './testing/live_api.j
 import {startStub} from './testing/stub_agent.js';
 import {turnRecordErrors} from './testing/turn_record_schema.js';
 import {freePort} from './testing/free_port.js';
+import {shellsOf} from './paste.js';
 
 const customCatalog = fileURLToPath(
   new URL('../../../conformance/test_data/catalogs/custom_catalog_v1_0.json', import.meta.url),
@@ -167,6 +168,7 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
             proxyAddress: `http://127.0.0.1:${proxyPort}/`,
             previewPages: [],
             fixturesFolder: 'a2ui-spectra-fixtures',
+            shells: shellsOf(),
             variables: [
               ...VARIABLES.map(name => ({
                 name,
@@ -288,7 +290,7 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
           }
         } finally {
           live?.close();
-          spectra.signal('SIGTERM');
+          spectra.requestStop();
           await spectra.exited;
           stub.kill();
         }
@@ -379,7 +381,7 @@ describe(`the config file against the stub agent, ${binary ? 'the binary' : 'und
         });
       } finally {
         live?.close();
-        spectra.signal('SIGTERM');
+        spectra.requestStop();
         await spectra.exited;
         stub.kill();
       }
@@ -432,7 +434,7 @@ describe(`the config file against the stub agent, ${binary ? 'the binary' : 'und
         assert.equal(turnEventOf(turn).attributes['a2ui.turn.outcome'], 'waiting_for_input');
       } finally {
         live?.close();
-        spectra.signal('SIGTERM');
+        spectra.requestStop();
         await spectra.exited;
         stub.kill();
       }
@@ -489,7 +491,7 @@ describe(`the config file against the stub agent, ${binary ? 'the binary' : 'und
         assert.equal(response.status, 422);
         assert.deepEqual(await response.json(), {error: unavailable});
       } finally {
-        spectra.signal('SIGTERM');
+        spectra.requestStop();
         await spectra.exited;
         stub.kill();
       }
@@ -559,7 +561,7 @@ describe(`the flawed booking conversation against the stub agent, ${binary ? 'th
         });
       } finally {
         live?.close();
-        spectra.signal('SIGTERM');
+        spectra.requestStop();
         await spectra.exited;
         stub.kill();
       }
@@ -667,7 +669,7 @@ describe(`the v1.0 booking form against the stub agent, ${binary ? 'the binary' 
         });
       } finally {
         live?.close();
-        spectra.signal('SIGTERM');
+        spectra.requestStop();
         await spectra.exited;
         stub.kill();
       }

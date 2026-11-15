@@ -25,6 +25,7 @@ import {MessageBox, unsetVariablesClause} from './message_box.js';
 import {type ModelProxy, startModelProxy} from './model_proxy/proxy.js';
 import {attachLines, environmentOf, redirections, variablesOf} from './model_proxy/redirection.js';
 import type {Output} from './output.js';
+import {shellsOf} from './paste.js';
 import {CallPlacer} from './placement.js';
 import {type ReceiverListener, startReceiverListener} from './receiver/listener.js';
 import {SpanReceiver} from './receiver/receiver.js';
@@ -556,6 +557,7 @@ export async function runSession(
                 previewPages: options.config.preview,
                 fixturesFolder: fixtures.display,
                 variables: [...variablesOf(redirected), ...toolVariablesOf(tools), ...otel.printed],
+                shells: shellsOf(),
                 ...cardDetailsOf(card),
               },
             },

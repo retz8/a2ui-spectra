@@ -61,6 +61,8 @@ export interface SessionContext {
   previewPages?: string[];
   /** Under `attach`, the variables and values to set in the agent's shell, as `attach` prints them. */
   variables?: Array<{name: string; value: string}>;
+  /** Under `attach`, the shells to write the variables for: POSIX, or on Windows PowerShell and cmd. */
+  shells?: Array<'posix' | 'powershell' | 'cmd'>;
   /** The A2A versions the latest card states, in card order; none under `run` before any card has answered. */
   a2aVersions?: string[];
   /** The A2UI extensions the latest card advertises, in card order; none before any card has answered. */

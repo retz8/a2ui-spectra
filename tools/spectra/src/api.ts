@@ -18,6 +18,7 @@ import {pricesAnswer} from './prices.js';
 import {isEventOfKind, type ReplayMode, type Turn, type TurnRecord} from './record/turn_record.js';
 import type {StoredTurn, TurnStore} from './store/store.js';
 import type {HubEvent, TurnHub} from './turn_hub.js';
+import type {Shell} from './paste.js';
 
 /**
  * What the context bar, the agent's popover and the first screen show of the
@@ -38,6 +39,8 @@ export interface SessionContext extends Partial<CardDetails> {
   fixturesFolder: string;
   /** Under `attach`, the variables and values `attach` prints, to set in the agent's shell. */
   variables?: Array<{name: string; value: string}>;
+  /** Under `attach`, the shells the first screen writes the variables for, as `attach` prints them. */
+  shells?: Shell[];
 }
 
 /** The agent's process under `run`, as the API reads and restarts it. */
