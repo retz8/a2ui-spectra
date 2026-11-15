@@ -45,40 +45,7 @@ jobs:
         run: yarn test:all
 
   binaries:
-    name: The five binaries
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup-node
-      - name: Build the five binaries
-        run: yarn workspace a2ui-spectra build:binaries
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          path: tools/spectra/dist/binaries/a2ui-spectra-darwin-arm64
-          archive: false
-          if-no-files-found: error
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          path: tools/spectra/dist/binaries/a2ui-spectra-darwin-x64
-          archive: false
-          if-no-files-found: error
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          path: tools/spectra/dist/binaries/a2ui-spectra-linux-x64
-          archive: false
-          if-no-files-found: error
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          path: tools/spectra/dist/binaries/a2ui-spectra-linux-arm64
-          archive: false
-          if-no-files-found: error
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          path: tools/spectra/dist/binaries/a2ui-spectra-windows-x64.exe
-          archive: false
-          if-no-files-found: error
+    uses: ./.github/workflows/binaries.yml
 
   binary-test:
     name: The binary test run (${{ matrix.platform }})

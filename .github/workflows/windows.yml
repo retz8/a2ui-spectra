@@ -1,0 +1,21 @@
+name: Windows
+
+on:
+  workflow_dispatch:
+    inputs:
+      first-run:
+        description: Measure the sub-task 10.2 spec's first-run points before the test run
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  binaries:
+    uses: ./.github/workflows/binaries.yml
+  windows:
+    needs: binaries
+    uses: ./.github/workflows/windows_binary_test.yml
+    with:
+      first-run: ${{ inputs.first-run }}
