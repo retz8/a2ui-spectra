@@ -135,7 +135,7 @@ One fact is established on the runners in the release workflow's sub-task: that 
 
 ### 18. The platform packages' names
 
-The npm packages that hold the binary, one per platform, are named with the `a2ui-spectra` prefix, as SPEC.md has every package: `a2ui-spectra-darwin-arm64` and its four siblings.
+The npm packages that hold the binary, one per platform, are named with the `a2ui-spectra` prefix, as SPEC.md has every package: `a2ui-spectra-darwin-arm64`, `a2ui-spectra-darwin-x64`, `a2ui-spectra-linux-x64`, `a2ui-spectra-linux-arm64` and `a2ui-spectra-windows-x64`.
 
 ### 19. The sub-tasks
 
