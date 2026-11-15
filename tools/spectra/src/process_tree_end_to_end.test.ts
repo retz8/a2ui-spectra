@@ -98,20 +98,27 @@ async function startRun(command: (port: number, cwd: string) => string[]) {
       ...command(agentPort, cwd),
     ],
     cwd,
-    {A2UI_SPECTRA_TREE_DEBUG: '1'},
   );
   await spectra.waitFor(/The agent's card answered: Spectra stub agent\./, 60_000);
   return {spectra, base: `http://127.0.0.1:${port}`};
 }
 
-/** Spectra's own process: on Windows the one the console helper started. */
+/**
+ * Spectra's own process: on Windows the binary's first process below the
+ * console helper, which runs under the venv's python.exe, itself a launcher
+ * of the real Python, the agent's launcher being the binary again below it.
+ */
 function spectraPidOf(spectra: SpectraProcess): number {
-  return windows ? descendantsOf(spectra.pid!)[0] : spectra.pid!;
+  if (!windows) return spectra.pid!;
+  const image = path.basename(binary!).toLowerCase();
+  const found = descendantsOf(spectra.pid!).find(listed => listed.name.toLowerCase() === image);
+  assert.ok(found, `No ${image} below the console helper.`);
+  return found.pid;
 }
 
 /** The processes of the agent's tree: everything below Spectra. */
 function agentTreeOf(spectra: SpectraProcess): number[] {
-  return descendantsOf(spectraPidOf(spectra));
+  return descendantsOf(spectraPidOf(spectra)).map(listed => listed.pid);
 }
 
 async function eventually(check: () => boolean, timeoutMs = 10_000): Promise<boolean> {
@@ -150,7 +157,7 @@ describe(`the agent's process tree, ${binary ? 'the binary' : 'under Node'}`, ()
         }
         assert.ok(
           await eventually(() => first.every(pid => !isRunning(pid))),
-          `A process of the first launch's tree is left: ${first.filter(isRunning).join(', ')} of ${first.join(', ')}:\n${spectra.output}`,
+          `A process of the first launch's tree is left: ${first.filter(isRunning).join(', ')}`,
         );
         const second = agentTreeOf(spectra);
         assert.ok(second.length > 0);

@@ -2699,10 +2699,10 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           try {
             const pidFile = path.join(dir, 'pids');
             const waitCwd = workingDir();
-            const waiting = await launch([], idleWithPid(pidFile), waitCwd, {
-              A2UI_SPECTRA_TREE_DEBUG: '1',
-            });
+            const waiting = await launch([], idleWithPid(pidFile), waitCwd);
             await stateIs(waiting.base, 'waiting');
+            // The starting process is up once it has written its process id.
+            assert.ok(await eventually(() => pidsIn(pidFile).length === 1));
             const [firstPid] = pidsIn(pidFile);
             await savedUntil(
               waiting.spectra,

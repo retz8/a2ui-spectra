@@ -5,11 +5,18 @@
  */
 import {execFileSync} from 'node:child_process';
 
+/** A running process, with its parent and the name of its image. */
+export interface ListedProcess {
+  pid: number;
+  parent: number;
+  name: string;
+}
+
 /**
- * Every running process's id with its parent's. On Windows a console's own
- * host, conhost.exe, which lives as long as its console, is left out.
+ * Every running process. On Windows a console's own host, conhost.exe, which
+ * lives as long as its console, is left out.
  */
-function processTable(): Array<[number, number]> {
+function processTable(): ListedProcess[] {
   const text =
     process.platform === 'win32'
       ? execFileSync(
@@ -19,30 +26,31 @@ function processTable(): Array<[number, number]> {
             '-NonInteractive',
             '-Command',
             "Get-CimInstance Win32_Process | Where-Object { $_.Name -ne 'conhost.exe' } | " +
-              'ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId)" }',
+              'ForEach-Object { "$($_.ProcessId) $($_.ParentProcessId) $($_.Name)" }',
           ],
           {encoding: 'utf8'},
         )
-      : execFileSync('ps', ['-A', '-o', 'pid=,ppid='], {encoding: 'utf8'});
+      : execFileSync('ps', ['-A', '-o', 'pid=,ppid=,comm='], {encoding: 'utf8'});
   return text
     .split(/\r?\n/)
-    .map(line => line.trim().split(/\s+/).map(Number))
-    .filter((pair): pair is [number, number] => pair.length === 2 && pair.every(Number.isFinite));
+    .map(line => /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line))
+    .filter(match => match !== null)
+    .map(([, pid, parent, name]) => ({pid: Number(pid), parent: Number(parent), name: name.trim()}));
 }
 
-/** The ids of every process below the one given, children first. */
-export function descendantsOf(root: number): number[] {
-  const children = new Map<number, number[]>();
-  for (const [pid, parent] of processTable()) {
-    if (pid === parent) continue;
-    children.set(parent, [...(children.get(parent) ?? []), pid]);
+/** Every process below the one given, children first. */
+export function descendantsOf(root: number): ListedProcess[] {
+  const children = new Map<number, ListedProcess[]>();
+  for (const listed of processTable()) {
+    if (listed.pid === listed.parent) continue;
+    children.set(listed.parent, [...(children.get(listed.parent) ?? []), listed]);
   }
-  const found: number[] = [];
+  const found: ListedProcess[] = [];
   const next = [...(children.get(root) ?? [])];
   while (next.length > 0) {
-    const pid = next.shift()!;
-    found.push(pid);
-    next.push(...(children.get(pid) ?? []));
+    const listed = next.shift()!;
+    found.push(listed);
+    next.push(...(children.get(listed.pid) ?? []));
   }
   return found;
 }

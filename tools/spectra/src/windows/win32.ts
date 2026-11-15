@@ -49,8 +49,6 @@ export interface Win32 {
   freeConsole(): void;
   /** Whether this process is in a job of any kind. */
   inAnyJob(): boolean;
-  /** Whether the process with that id is in the job given. */
-  processInJob(pid: number, job: bigint): boolean;
   /** Whether the process with that id is still running. */
   processRunning(pid: number): boolean;
   /**
@@ -227,16 +225,6 @@ async function load(): Promise<Win32 | undefined> {
       if (call<number>('GetExitCodeProcess', handle, code) === 0) return undefined;
       const value = new DataView(code.buffer).getUint32(0, true);
       return value === STILL_ACTIVE ? undefined : value;
-    },
-    processInJob(pid, job) {
-      const handle = openProcess(PROCESS_QUERY_LIMITED_INFORMATION, pid);
-      try {
-        const result = new Uint8Array(4);
-        if (call<number>('IsProcessInJob', handle, job, result) === 0) fail('IsProcessInJob');
-        return new DataView(result.buffer).getInt32(0, true) !== 0;
-      } finally {
-        call('CloseHandle', handle);
-      }
     },
     processRunning(pid) {
       let handle: bigint;
