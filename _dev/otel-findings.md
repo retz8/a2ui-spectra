@@ -127,9 +127,9 @@ provider name, and run it under the conformance runner: it reports
 ### Fix
 
 Make `gen_ai.provider.name` conditionally required on the span and the metric.
-PR #707 uses the condition "If the agent is hosted by a named GenAI provider or
-service", the form the `gen_ai.memory.client` span has, and adds to the span
-note that the attribute identifies the provider hosting the agent.
+PR #707 uses the condition "If the provider hosting the agent is known to the
+instrumentation", and adds to the span note that the attribute identifies the
+provider hosting the agent.
 
 ## 4. The content schemas declare no draft and no id
 
