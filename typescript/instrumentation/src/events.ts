@@ -51,11 +51,38 @@ export function leave(event: Event): void {
   if (index >= 0) stack.splice(index);
 }
 
-/** A time in milliseconds since the Unix epoch, as an `HrTime`. */
-function hrTime(millis: number): HrTime {
-  const seconds = Math.floor(millis / 1000);
-  const nanos = Math.min(999_999_999, Math.round((millis - seconds * 1000) * 1e6));
-  return [seconds, nanos];
+// The clock: the wall clock, which the spans of the agent's other
+// instrumentations and Spectra's turns are stamped with, read finer than its
+// milliseconds through the monotonic clock, each reading later than the one
+// before, so that the span events keep their order. The monotonic clock counts
+// from one wall-clock reading, the anchor, taken again whenever the two are
+// more than a millisecond apart. A new anchor can put the clock back by less
+// than two milliseconds, which the readings step over; a step back the wall
+// clock takes itself, larger than that, is followed.
+
+/** How far apart the monotonic clock and the wall clock may grow before a new anchor, in milliseconds. */
+const DRIFT_MS = 1;
+
+/** The most a new anchor can put the clock back, in nanoseconds. */
+const ANCHOR_STEP_BACK = 2n * 1_000_000n;
+
+let anchorWall = Date.now();
+let anchorMonotonic = performance.now();
+let last = 0n;
+
+/** Now. */
+export function now(): HrTime {
+  const monotonic = performance.now();
+  const wall = Date.now();
+  if (Math.abs(anchorWall + (monotonic - anchorMonotonic) - wall) > DRIFT_MS) {
+    anchorWall = wall;
+    anchorMonotonic = monotonic;
+  }
+  let unixNano =
+    BigInt(anchorWall) * 1_000_000n + BigInt(Math.round((monotonic - anchorMonotonic) * 1e6));
+  if (unixNano <= last && last - unixNano <= ANCHOR_STEP_BACK) unixNano = last + 1n;
+  last = unixNano;
+  return [Number(unixNano / 1_000_000_000n), Number(unixNano % 1_000_000_000n)];
 }
 
 /** A protocol version in the record's form: `v0.9`, `v0.9.1`, `v1.0`. */
@@ -110,11 +137,7 @@ export type Surfaced = 'returned' | 'thrown';
 /** One event of the A2UI step, open from its outermost call to its end. */
 export abstract class Event {
   abstract readonly kind: 'parse' | 'prompt_generation';
-  // Times come from one wall-clock reading and the monotonic clock, so the
-  // span events keep their order.
-  readonly #wall = Date.now();
-  readonly #monotonic = performance.now();
-  readonly start: HrTime = hrTime(this.#wall);
+  readonly start: HrTime = now();
   /** The span current when the event opened is its parent. */
   readonly parent: Context = otelContext.active();
   format: InferenceFormat | undefined;
@@ -129,11 +152,6 @@ export abstract class Event {
   ended = false;
 
   constructor(readonly active: Active) {}
-
-  /** Now: the wall clock when the event opened, and the monotonic clock since. */
-  protected now(): HrTime {
-    return hrTime(this.#wall + (performance.now() - this.#monotonic));
-  }
 
   // What hooked calls nested in the event tell it. A prompt generation's event
   // takes only a generator's format and catalogs.
@@ -189,7 +207,7 @@ export abstract class Event {
     }
     const details = errorDetails(error);
     if (details.length > 0) attributes['a2ui.parse.error.details'] = JSON.stringify(details);
-    this.spanEvents.push({name: 'exception', attributes, time: this.now()});
+    this.spanEvents.push({name: 'exception', attributes, time: now()});
   }
 
   /** The outermost call threw: the error is recorded and the event ends. */
@@ -227,7 +245,7 @@ export abstract class Event {
     if (this.errors.length > 0) {
       span.setStatus({code: SpanStatusCode.ERROR, message: messageOf(this.errors[0])});
     }
-    span.end(this.now());
+    span.end(now());
   }
 
   protected sdk(): Attributes {
@@ -459,7 +477,7 @@ export class ParseEvent extends Event {
     this.spanEvents.push({
       name: 'a2ui.parse.chunk',
       attributes: {'a2ui.parse.chunk.end': this.fed},
-      time: this.now(),
+      time: now(),
     });
   }
 

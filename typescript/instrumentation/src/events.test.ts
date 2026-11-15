@@ -284,4 +284,24 @@ describe("an event's times", () => {
       );
     }
   });
+
+  it('start in the order they opened, with the wall clock in 50 ms steps', async t => {
+    const processor = await processorOf('direct_json');
+    const wall = Date.now.bind(Date);
+    t.mock.method(Date, 'now', () => Math.floor(wall() / 50) * 50);
+    const stream = processor.openStream();
+    stream.feed('Here it is.\n');
+    // A prompt generation made between two feeds of the stream: its own event, ended first.
+    assert.ok(processor.promptSnippet);
+    stream.feed(goodBlock('a'));
+    stream.close();
+
+    const startOf = (name: string) => {
+      const span = capture.spans().find(candidate => candidate.name === name);
+      assert.ok(span, name);
+      const [seconds, nanos] = span.startTime;
+      return BigInt(seconds) * 1_000_000_000n + BigInt(nanos);
+    };
+    assert.ok(startOf('parse') < startOf('prompt_generation'));
+  });
 });
