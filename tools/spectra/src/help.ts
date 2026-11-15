@@ -93,7 +93,56 @@ Options:
 ${sharedOptions}
 `;
 
-const runHelp = `Usage: ${NAME} run [--agent-url <url>] [options] -- <command> [args...]
+/** Run's help, written for the platform it is read on, its examples in the shells it takes. */
+function runHelpFor(platform: NodeJS.Platform): string {
+  const windows = platform === 'win32';
+  const command = windows
+    ? `The command after '--' starts without a shell, as Bun resolves it: a bare
+name is looked for as .exe, .cmd, .bat, then .com, in the working directory,
+then along PATH, and an argument a batch file cannot safely take is refused.
+It starts with Spectra's environment and working
+directory`
+    : `The command after '--' starts without a shell, with Spectra's environment and
+working directory`;
+  const python = windows
+    ? `Spectra sets
+PYTHONUNBUFFERED=1 for the command unless it is set, and PYTHONIOENCODING=utf-8
+unless it or PYTHONUTF8 is set.`
+    : `Spectra sets
+PYTHONUNBUFFERED=1 for the command unless it is set.`;
+  const examples = windows
+    ? `Other environment
+variables are set in the shell first:
+
+  ${NAME} run --agent-url http://localhost:10002 -- uv run .
+  In PowerShell:
+    $env:LITELLM_MODEL = 'gemini/gemini-2.5-flash'
+    ${NAME} run --agent-url http://localhost:10004 -- uv run .
+  In cmd:
+    set "LITELLM_MODEL=gemini/gemini-2.5-flash"
+    ${NAME} run --agent-url http://localhost:10004 -- uv run .`
+    : `Other environment
+variables go before ${NAME}:
+
+  ${NAME} run --agent-url http://localhost:10002 -- uv run .
+  LITELLM_MODEL=gemini/gemini-2.5-flash \\
+    ${NAME} run --agent-url http://localhost:10004 -- uv run .`;
+  const stop = windows
+    ? `Only Ctrl-C,
+Ctrl-Break or the console window's close ends Spectra, with its own exit
+code, 130, 149 or 129. It then asks the command and everything it started to
+stop with a Ctrl-Break and ends them after 10 seconds; a second Ctrl-C forces
+it.`
+    : `Only Ctrl-C or
+a stop signal ends Spectra, with its own exit code. It then stops the command
+and everything it started; a second Ctrl-C forces it.`;
+  return RUN_HELP.replace('{command}', command)
+    .replace('{python}', python)
+    .replace('{examples}', examples)
+    .replace('{stop}', stop);
+}
+
+const RUN_HELP = `Usage: ${NAME} run [--agent-url <url>] [options] -- <command> [args...]
 
 Start the wire proxy, the model proxy, the tool proxy, the OpenTelemetry
 receiver and the viewer, then the agent's command, and open the browser at
@@ -102,12 +151,10 @@ the command starts; until it answers, the viewer shows the agent as starting
 and the message box does not send. The URL may come from the config file
 instead, as agent.url.
 
-The command after '--' starts without a shell, with Spectra's environment and
-working directory, and writes to Spectra's terminal, which echoes its output
+{command}, and writes to Spectra's terminal, which echoes its output
 as written and keeps it for the viewer's logs. A save in the working
 directory restarts the agent; the config file's watch setting lists what is
-watched instead, or is false for an agent that reloads itself. Spectra sets
-PYTHONUNBUFFERED=1 for the command unless it is set. Spectra adds the model
+watched instead, or is false for an agent that reloads itself. {python} Spectra adds the model
 providers' base-URL variables, GOOGLE_GEMINI_BASE_URL, OPENAI_BASE_URL,
 ANTHROPIC_BASE_URL, ANTHROPIC_API_BASE and GEMINI_API_BASE, pointing at its
 model proxy, which forwards each call to the address the variable had before,
@@ -115,17 +162,10 @@ or to the provider; the variable of each tool server in the config file's
 tools, pointing at the tool proxy, which forwards to the server's URL; and
 OTEL_EXPORTER_OTLP_ENDPOINT, pointing at its OpenTelemetry receiver, with
 OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf and, unless it is set,
-OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true. Other environment
-variables go before ${NAME}:
-
-  ${NAME} run --agent-url http://localhost:10002 -- uv run .
-  LITELLM_MODEL=gemini/gemini-2.5-flash \\
-    ${NAME} run --agent-url http://localhost:10004 -- uv run .
+OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true. {examples}
 
 When the command exits, Spectra keeps running: the viewer shows the agent
-down with its exit line, and Restart starts the command again. Only Ctrl-C or
-a stop signal ends Spectra, with its own exit code. It then stops the command
-and everything it started; a second Ctrl-C forces it.
+down with its exit line, and Restart starts the command again. {stop}
 
 Options:
   --agent-url <url>    The agent's base address. Takes precedence over the
@@ -188,7 +228,7 @@ export function helpText(topic?: CommandName): string {
     case 'attach':
       return attachHelp;
     case 'run':
-      return runHelp;
+      return runHelpFor(process.platform);
     case 'replay':
       return replayHelp;
     case 'test':
