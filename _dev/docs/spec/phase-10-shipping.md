@@ -146,15 +146,16 @@ The npm packages that hold the binary, one per platform, are named with the `a2u
 | 10.3 The binary's packages | The npm launcher with one package per platform, the PyPI wheel per platform, the release archives with their checksums; the third-party notices file in each | After 10.1 |
 | 10.4 The libraries' published form | The preview core, the three preview adapters and the two wrappers publishable: one version set in one place for all seven packages, each with its licence, none referring to the workspace | At once |
 | 10.5 The install scripts | The shell script and the PowerShell script | After 10.3 |
-| 10.6 The release workflow | The workflow and its dry run; the release notes; the procedure for the steps done by hand | After 10.3 and 10.4 |
+| 10.6 The release workflow | The workflow and its dry run; the release notes; the procedure for the steps done by hand | After 10.3, 10.4 and 10.13 |
 | 10.7 The install check | An adopter's install on all five platforms from stand-in registries | After 10.5 and 10.6 |
 | 10.8 The contracts at release | Turn record `v0.1`'s closing review and its amendments; the newer-record rule; the preview mismatch line | At once |
 | 10.9 The documents | The root README with the install steps behind its status line; the packages' READMEs; the design docs; the viewer's hint for switching on a wrapper; a stable public URL for the config file's schema | The design docs at once; the install text after 10.5 |
 | 10.10 The acceptance run | The rehearsal, on all five platforms | Last |
 | 10.11 The skill | A skill, in the Agent Skills format, for a coding agent using Spectra | After 10.9, before 10.10 |
 | 10.12 The agent instructions | An `AGENTS.md` file; the `CLAUDE.md` file turned into a local file | At once |
+| 10.13 The wrappers' OpenTelemetry versions | Which OpenTelemetry releases the TypeScript and Python wrappers support, and the ranges their manifests state | At once |
 
-Sub-tasks 10.1, 10.4, 10.8 and 10.12, and the design docs of 10.9, run in parallel.
+Sub-tasks 10.1, 10.4, 10.8, 10.12 and 10.13, and the design docs of 10.9, run in parallel.
 
 ### 20. Phase 11, the release
 
