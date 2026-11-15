@@ -111,6 +111,20 @@ The sub-task opens with a run on `windows-latest`, through the workflow started 
 
 The run's results are written into this spec as measured. A point that comes back "no" reopens the decision that rests on it, with Jioh, before more is built: decisions 7 and 8 do not fall to `taskkill` without it, and decisions 9, 10 and 15 are not dropped without it.
 
+#### The first run, as measured
+
+On `windows-latest`, through the workflow started by hand, in two passes: run 43675351343 on `8d8e02f` and run 43676844196 on `518bbf9`, each with a probe compiled by Bun 1.4.4 on the runner (`_dev/tools/windows_first_run/`). The launcher is Spectra's own binary started again, detached, so that it leads a process group of its own.
+
+1. Yes. `npm run <script>`, given to Bun.spawn in the compiled binary with no shell, ran `npm.cmd`, its tree `cmd.exe`, `node`, `cmd.exe`, `node`, every process in the job. An argument holding `&` for the batch file was refused by Bun: "The argument 'args[3]' contains a cmd.exe special character and cannot be safely passed to a .bat/.cmd file. Received "a&b"".
+2. Yes. Through `bun:ffi` the compiled binary made a Job Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, put a detached process into it, read its processes with `QueryInformationJobObject` and ended them with `TerminateJobObject`, the binary itself already inside a job at its start.
+3. Yes. A detached Node grandchild, and a Python one, ran on in the job after their parent exited, and `TerminateJobObject` ended them. `TerminateProcess` on the binary ended the launcher, the agent and the agent's detached child.
+4. Yes, with the launcher leaving the console. The launcher attached to Spectra's console with `AttachConsole`. The terminal's Ctrl+C reached Spectra and neither a Node nor a Python agent with handlers for it; Spectra's Ctrl+Break to the launcher's group reached both agents and not Spectra. A launcher that stays on the console is ended by that Ctrl+Break within 5 ms, its own SIGBREAK listener not called, and the agent's direct child with it, through the launcher's own libuv job; a launcher that leaves the console with `FreeConsole` once the command has started lives until the command exits.
+5. A Node agent and a Python agent without a handler end at once, with `STATUS_CONTROL_C_EXIT`, `0xC000013A`; with a SIGBREAK handler, the handler runs and the agent exits as the handler says. Under `npm run`, the batch file's `cmd.exe` prints "Terminate batch job (Y/N)?" and, with no input, ends; under `cmd /d /c <program>`, `cmd.exe` waits for the program and exits with its code; under `uv run`, the Python agent's handler runs. No case left a process in the job.
+6. Yes. The helper started each Spectra in a console of its own, with `CREATE_NEW_CONSOLE`, and its Ctrl+C and Ctrl+Break reached that Spectra alone, not the test runner and not another Spectra so started. It closed the console by posting `WM_CLOSE` to its window; a Spectra that exits 300 ms after the SIGHUP that follows exited with 129. The window's close is tested.
+7. Yes. `http://localhost:<port>` from the binary reached a server bound to `127.0.0.1`, in 5 ms.
+
+Measured beside the points: SIGBREAK is 21 in the compiled binary's `os.constants.signals`; and Bun 1.4.4 cuts an exit code past 255 to its low eight bits, both in `process.exit` and in a child's code, `3221225786` reading 58. The launcher reads the command's whole exit code from the command's own process handle.
+
 ### 17. The lines to paste
 
 On Windows every line Spectra prints for the developer to paste is in a form PowerShell and cmd take. `a2ui-spectra attach` prints the redirection variables as a PowerShell block and a cmd block, each labelled, and the viewer's first screen shows both, each with its own copy button. The help text's example follows the same rule. On macOS and Linux nothing changes. The first screen's change is drawn on the Design canvas "Spectra viewer UI" before it is built.
