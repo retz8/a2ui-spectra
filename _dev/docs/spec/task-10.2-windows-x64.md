@@ -113,7 +113,7 @@ The run's results are written into this spec as measured. A point that comes bac
 
 #### The first run, as measured
 
-On `windows-latest`, through the workflow started by hand, in two passes: run 43675351343 on `8d8e02f` and run 43676844196 on `518bbf9`, each with a probe compiled by Bun 1.4.4 on the runner (`_dev/tools/windows_first_run/`). The launcher is Spectra's own binary started again, detached, so that it leads a process group of its own.
+On `windows-latest`, through the workflow started by hand, in two passes: run 43675351343 on `8d8e02f` and run 43676844196 on `518bbf9`, each with a probe compiled by Bun 1.4.4 on the runner, `_dev/tools/windows_first_run/` at `518bbf9`. The launcher is Spectra's own binary started again, detached, so that it leads a process group of its own.
 
 1. Yes. `npm run <script>`, given to Bun.spawn in the compiled binary with no shell, ran `npm.cmd`, its tree `cmd.exe`, `node`, `cmd.exe`, `node`, every process in the job. An argument holding `&` for the batch file was refused by Bun: "The argument 'args[3]' contains a cmd.exe special character and cannot be safely passed to a .bat/.cmd file. Received "a&b"".
 2. Yes. Through `bun:ffi` the compiled binary made a Job Object with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, put a detached process into it, read its processes with `QueryInformationJobObject` and ended them with `TerminateJobObject`, the binary itself already inside a job at its start.

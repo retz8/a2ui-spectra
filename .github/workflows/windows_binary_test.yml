@@ -2,11 +2,6 @@ name: The binary test run on Windows x64
 
 on:
   workflow_call:
-    inputs:
-      first-run:
-        description: Measure the sub-task 10.2 spec's first-run points before the test run
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -30,16 +25,6 @@ jobs:
         with:
           name: a2ui-spectra-windows-x64.exe
           path: ${{ runner.temp }}/binary
-      - name: The first run
-        if: inputs.first-run
-        timeout-minutes: 20
-        continue-on-error: true
-        run: |
-          yarn workspace a2ui-spectra exec bun build --compile ../../_dev/tools/windows_first_run/probe.ts --outfile "$env:RUNNER_TEMP\probe\probe.exe"
-          node _dev/tools/windows_first_run/driver.mjs
-        env:
-          PROBE_EXE: ${{ runner.temp }}\probe\probe.exe
-          PYTHON: ${{ github.workspace }}\.venv\Scripts\python.exe
       - name: Setup Wireit Cache
         uses: google/wireit@9d7c2e5346f8ef1b1ab6014c4e96c74e234f7ed5 # setup-github-actions-caching/v2.0.4
       - name: Build
@@ -47,7 +32,6 @@ jobs:
       - name: Install Playwright's Chromium
         run: npx playwright@1.58.1 install --with-deps chromium chromium-headless-shell
       - name: Test against the binary
-        continue-on-error: ${{ inputs.first-run }}
         run: yarn workspace a2ui-spectra test
         env:
           SPECTRA_BINARY: ${{ runner.temp }}\binary\a2ui-spectra-windows-x64.exe
