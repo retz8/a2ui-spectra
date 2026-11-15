@@ -10,6 +10,7 @@
  * stays unset.
  */
 import {removeFromUrl} from '../model_proxy/credentials.js';
+import {pasteLine, type Shell} from '../paste.js';
 
 export const ENDPOINT = 'OTEL_EXPORTER_OTLP_ENDPOINT';
 export const PROTOCOL = 'OTEL_EXPORTER_OTLP_PROTOCOL';
@@ -97,9 +98,12 @@ export function replacedLine(variables: ReceiverVariables): string | undefined {
   );
 }
 
-/** The POSIX `export` lines `attach` prints after the model and tool proxies' ones. */
-export function receiverExportLines(variables: ReceiverVariables): string[] {
-  return variables.printed.map(
-    ({name, value}) => `export ${name}=${value}  # for Spectra's OpenTelemetry receiver`,
+/** The lines `attach` prints after the model and tool proxies' ones, for a shell. */
+export function receiverExportLines(
+  variables: ReceiverVariables,
+  shell: Shell = 'posix',
+): string[] {
+  return variables.printed.map(({name, value}) =>
+    pasteLine(name, value, shell, "for Spectra's OpenTelemetry receiver"),
   );
 }

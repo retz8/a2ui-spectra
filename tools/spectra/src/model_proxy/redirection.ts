@@ -4,6 +4,7 @@
  * calls forward: what the variable's client would have resolved from the
  * values in Spectra's own environment, else the provider's own API.
  */
+import {pasteBlocks, pasteLine, type Shell} from '../paste.js';
 import {removeFromUrl} from './credentials.js';
 
 export const DEFAULT_MODEL_PROXY_PORT = 9822;
@@ -111,22 +112,27 @@ export function describeTarget(target: Target): string {
 }
 
 /**
- * The lines `attach` prints: the instruction, one POSIX export per variable,
- * then the tool servers' lines, and the note on values already set.
+ * The lines `attach` prints: the instruction, one line per variable for each
+ * shell of the platform, the tool servers' and the receiver's after the model
+ * proxy's, and the note on values already set. On macOS and Linux a line is a
+ * POSIX export; on Windows a PowerShell block and a cmd block, each labelled.
  */
 export function attachLines(
   list: Redirection[],
-  toolExports: string[] = [],
+  otherLines: (shell: Shell) => string[] = () => [],
+  platform: NodeJS.Platform = process.platform,
 ): {intro: string; exports: string[]; note: string} {
   return {
     intro: "To see model and tool calls, set these in the agent's shell and restart it:",
-    exports: [
-      ...list.map(
-        ({name, value, target}) =>
-          `export ${name}=${value}  # forwards to ${describeTarget(target)}`,
-      ),
-      ...toolExports,
-    ],
+    exports: pasteBlocks(
+      shell => [
+        ...list.map(({name, value, target}) =>
+          pasteLine(name, value, shell, `forwards to ${describeTarget(target)}`),
+        ),
+        ...otherLines(shell),
+      ],
+      platform,
+    ),
     note:
       "If the agent's shell already sets one of the model or tool variables to another address, " +
       'start Spectra with that value set as well, so the proxy forwards there.',

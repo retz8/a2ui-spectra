@@ -7,6 +7,7 @@
 import type {ToolServerConfig} from '../config.js';
 import {removeFromUrl} from '../model_proxy/credentials.js';
 import {LOOPBACK_ADDRESS} from '../server.js';
+import {pasteLine, type Shell} from '../paste.js';
 
 /** One tool server as Spectra reaches it. */
 export interface ToolServer {
@@ -100,11 +101,10 @@ export function startLines(servers: ToolServer[]): string[] {
   );
 }
 
-/** The POSIX `export` lines `attach` prints after the model proxy's, in config order. */
-export function exportLines(servers: ToolServer[]): string[] {
-  return servers.map(
-    server =>
-      `export ${server.variable}=${server.value}  # forwards to ${describeOriginal(server)}`,
+/** The lines `attach` prints after the model proxy's for a shell, in config order. */
+export function exportLines(servers: ToolServer[], shell: Shell = 'posix'): string[] {
+  return servers.map(server =>
+    pasteLine(server.variable, server.value, shell, `forwards to ${describeOriginal(server)}`),
   );
 }
 

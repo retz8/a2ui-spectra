@@ -148,6 +148,8 @@ describe('redirection', () => {
   it('prints an export line per variable with where it forwards, credentials removed', () => {
     const {intro, exports, note} = attachLines(
       redirections({GEMINI_API_BASE: 'https://g.example/v1beta?key=secret'}, ORIGIN),
+      undefined,
+      'linux',
     );
     assert.match(intro, /set these in the agent's shell and restart it/);
     assert.deepEqual(exports, [
@@ -159,8 +161,28 @@ describe('redirection', () => {
     ]);
     assert.match(note, /already sets one of the model or tool variables to another address/);
     assert.match(
-      attachLines(redirections({}, ORIGIN)).exports[4],
+      attachLines(redirections({}, ORIGIN), undefined, 'darwin').exports[4],
       /forwards to https:\/\/generativelanguage\.googleapis\.com\/v1beta, or \/v1alpha for a gemini-3 model$/,
     );
+  });
+
+  it("prints a PowerShell block and a cmd block on Windows, each labelled, the other lines after the model proxy's", () => {
+    const list = redirections({}, ORIGIN).slice(0, 2);
+    const {exports} = attachLines(
+      list,
+      shell => [shell === 'cmd' ? 'set "TOOL_URL=x"' : "$env:TOOL_URL = 'x'"],
+      'win32',
+    );
+    assert.deepEqual(exports, [
+      '# In PowerShell:',
+      `$env:GOOGLE_GEMINI_BASE_URL = '${ORIGIN}/GOOGLE_GEMINI_BASE_URL'  # forwards to https://generativelanguage.googleapis.com`,
+      `$env:OPENAI_BASE_URL = '${ORIGIN}/OPENAI_BASE_URL'  # forwards to https://api.openai.com/v1`,
+      "$env:TOOL_URL = 'x'",
+      '',
+      'rem In cmd:',
+      `set "GOOGLE_GEMINI_BASE_URL=${ORIGIN}/GOOGLE_GEMINI_BASE_URL"`,
+      `set "OPENAI_BASE_URL=${ORIGIN}/OPENAI_BASE_URL"`,
+      'set "TOOL_URL=x"',
+    ]);
   });
 });
