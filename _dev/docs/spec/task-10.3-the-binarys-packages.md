@@ -77,7 +77,7 @@ One archive per platform, `a2ui-spectra-v<version>-<platform>.tar.gz`, and `.zip
 
 ### 9. The notices file's packages
 
-The third-party notices file lists every npm package that contributed a file to the binary, as the tool's build, the viewer's build and the basic preview's build each report what they bundled: the package's version, its licence, its licence text, and its `NOTICE` file when it has one, read from the installed package. A bundled package with no licence text found fails the build.
+The third-party notices file lists every npm package that contributed a file to the binary, as the tool's build, the viewer's build and the basic preview's build each report what they bundled: the package's version, its licence, its licence text, and its `NOTICE` file when it has one, read from the installed package. For a package that ships no licence text, the text is one kept by hand in the repo for that package and version, taken from its source repository. A bundled package with neither fails the build.
 
 ### 10. What no bundler reports
 
