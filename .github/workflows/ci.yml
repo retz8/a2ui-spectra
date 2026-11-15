@@ -106,6 +106,8 @@ jobs:
           enable-cache: true
       - name: Sync the Python workspace
         run: uv sync --all-packages --locked
+      - name: Setup Wireit Cache
+        uses: google/wireit@9d7c2e5346f8ef1b1ab6014c4e96c74e234f7ed5 # setup-github-actions-caching/v2.0.4
       - name: Build
         run: yarn build:all
       - name: Install Playwright's Chromium
@@ -120,6 +122,8 @@ jobs:
         run: yarn workspace a2ui-spectra test
         env:
           SPECTRA_BINARY: ${{ runner.temp }}/binary/a2ui-spectra-${{ matrix.platform }}
+          # The build comes from the cache; the tests run against this run's binary.
+          WIREIT_CACHE: none
 
   windows-start:
     name: The Windows x64 binary's start check

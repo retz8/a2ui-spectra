@@ -12,15 +12,19 @@
  * A language whose driver project is not under `conformance/wrapper_driver/`
  * has its cases skipped, by name.
  *
+ * The cases run side by side, as many as the machine has processors, each
+ * with its own receiver, port, store and turn.
+ *
  * With `SPECTRA_WRITE_WRAPPER_CAPTURE=1` the harness writes each expected
- * record from what it captures instead of comparing.
+ * record from what it captures instead of comparing, one case at a time,
+ * since a case's languages can share an expected record.
  */
 import assert from 'node:assert/strict';
 import {spawn} from 'node:child_process';
 import {randomBytes} from 'node:crypto';
 import * as fs from 'node:fs';
 import {mkdtemp, rm} from 'node:fs/promises';
-import {tmpdir} from 'node:os';
+import {availableParallelism, tmpdir} from 'node:os';
 import * as path from 'node:path';
 import {describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
@@ -389,7 +393,7 @@ async function runCase(c: CaptureWrapperCase, language: Language): Promise<void>
 
 const cases = yaml.load(fs.readFileSync(SUITE, 'utf8')) as CaptureWrapperCase[];
 
-describe('wrapper capture v0.1', () => {
+describe('wrapper capture v0.1', {concurrency: WRITE ? 1 : availableParallelism()}, () => {
   for (const c of cases) {
     const job = readJson<Job>(c.job);
     for (const language of job.languages) {
