@@ -174,6 +174,26 @@ describe('the store', () => {
     assert.equal(listed.conversationId, 'a/b:c');
   });
 
+  it('encodes a conversation id Windows cannot hold as a folder name, and reads its turn back', async () => {
+    assert.equal(folderOf('con'), '%63on');
+    assert.equal(folderOf('COM1'), '%43OM1');
+    assert.equal(folderOf('Nul.txt'), 'Nul%2Etxt');
+    assert.equal(folderOf('ctx.'), 'ctx%2E');
+    assert.equal(folderOf('console'), 'console');
+    assert.equal(folderOf('com0'), 'com0');
+
+    const store = await TurnStore.open(workingDir());
+    const ids = ['con', 'COM1', 'Nul.txt', 'ctx.'];
+    for (const [index, id] of ids.entries()) {
+      await store.write(turnOf(String(index + 1), T0 + index * 1000, id));
+    }
+    const listed = await store.list();
+    assert.deepEqual(listed.map(turn => turn.conversationId).sort(), [...ids].sort());
+    for (const turn of listed) {
+      assert.equal((await store.read(turn.file)).turns.length, 1);
+    }
+  });
+
   it('lists every turn on disk, newest first, from the file names', async () => {
     const dir = workingDir();
     const earlier = await TurnStore.open(dir);

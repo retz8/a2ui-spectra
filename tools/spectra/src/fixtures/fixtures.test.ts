@@ -104,6 +104,24 @@ describe('the fixtures folder', () => {
     assert.equal(await folder.suggestedName('fresh'), 'fresh');
   });
 
+  it('refuses a name Windows reserves for a device, alone or before a dot, in any case, on every platform', async () => {
+    const folder = folderIn(freshDir());
+    for (const name of ['con', 'NUL', 'Aux.backup', 'com1', 'LPT9.v2', 'prn']) {
+      await assert.rejects(folder.save(record, name), (error: unknown) => {
+        assert.ok(error instanceof FixtureNameError);
+        assert.equal(
+          error.message,
+          "A fixture's name is not CON, PRN, AUX, NUL, COM1 to COM9 or LPT1 to LPT9, alone or before a dot: " +
+            'Windows reserves them for devices and cannot hold the file.',
+        );
+        return true;
+      });
+    }
+    for (const name of ['console', 'com0', 'lpt10', 'my-con', 'nullable']) {
+      assert.equal((await folder.save(record, name)).name, name);
+    }
+  });
+
   it('lists every .json under the folder recursively in path order, each by its relative path without .json, with its modification time and its record', async () => {
     const cwd = freshDir();
     const folder = folderIn(cwd);

@@ -13,6 +13,7 @@ import path from 'node:path';
 import type {InputBrief} from '../listing.js';
 import {quietSpell} from '../quiet_spell.js';
 import {isEventOfKind, type TurnRecord} from '../record/turn_record.js';
+import {isReservedDeviceName, RESERVED_NAMES_PHRASE} from '../windows/names.js';
 
 /** A fixture's typed name: ASCII letters, digits, `-`, `_` and `.`, not starting with a dot. */
 const NAME = /^[A-Za-z0-9_-][A-Za-z0-9_.-]*$/;
@@ -22,6 +23,11 @@ const SLUG_LENGTH = 40;
 
 export const NAME_RULE =
   "A fixture's name uses letters, digits, '-', '_' and '.', and does not start with a dot.";
+
+/** Why a name Windows reserves for a device is refused, on every platform. */
+export const RESERVED_NAME_RULE =
+  `A fixture's name is not ${RESERVED_NAMES_PHRASE}, alone or before a dot: ` +
+  'Windows reserves them for devices and cannot hold the file.';
 
 /** A name outside the rule. */
 export class FixtureNameError extends Error {
@@ -239,12 +245,13 @@ export class FixturesFolder {
 
   /**
    * Writes a record whole as `<name>.json` at the top of the folder, creating
-   * the folder when it is missing, atomically. A name outside the rule and a
-   * name the folder holds are refused, the clash naming the first free
-   * numbered name.
+   * the folder when it is missing, atomically. A name outside the rule, a
+   * name Windows reserves for a device and a name the folder holds are
+   * refused, the clash naming the first free numbered name.
    */
   async save(record: TurnRecord, name: string): Promise<{name: string; path: string}> {
     if (!isFixtureName(name)) throw new FixtureNameError();
+    if (isReservedDeviceName(name)) throw new FixtureNameError(RESERVED_NAME_RULE);
     const target = path.join(this.dir, `${name}.json`);
     if (await exists(target)) {
       throw new FixtureClashError(

@@ -12,6 +12,7 @@ import path from 'node:path';
 
 import {isEventOfKind, type Turn, type TurnEvent, type TurnRecord} from '../record/turn_record.js';
 import {NAME} from '../version.js';
+import {isReservedDeviceName, windowsCanHold} from '../windows/names.js';
 
 /** The store's directory, in the working directory Spectra was launched from. */
 export const STORE_DIR = '.a2ui-spectra';
@@ -390,17 +391,23 @@ function fromFileName(
   };
 }
 
-/** A conversation's folder: its id as it is when that is safe as a name, else percent-encoded. */
+/**
+ * A conversation's folder: its id as it is when that is safe as a name on
+ * every platform, else percent-encoded, with the first character encoded too
+ * when the rest would still be a name Windows reserves for a device.
+ */
 export function folderOf(conversationId: string): string {
-  if (SAFE_CONVERSATION.test(conversationId)) {
+  if (SAFE_CONVERSATION.test(conversationId) && windowsCanHold(conversationId)) {
     return conversationId;
   }
-  return Array.from(new TextEncoder().encode(conversationId), byte => {
-    const char = String.fromCharCode(byte);
-    return /[A-Za-z0-9_-]/.test(char)
-      ? char
-      : `%${byte.toString(16).toUpperCase().padStart(2, '0')}`;
-  }).join('');
+  const encode = (byte: number) => `%${byte.toString(16).toUpperCase().padStart(2, '0')}`;
+  const bytes = Array.from(new TextEncoder().encode(conversationId));
+  const folder = bytes
+    .map(byte =>
+      /[A-Za-z0-9_-]/.test(String.fromCharCode(byte)) ? String.fromCharCode(byte) : encode(byte),
+    )
+    .join('');
+  return isReservedDeviceName(folder) ? encode(bytes[0]!) + folder.slice(1) : folder;
 }
 
 /** The conversation a folder holds; nothing for a name no conversation is stored under. */
