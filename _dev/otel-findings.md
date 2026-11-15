@@ -249,6 +249,12 @@ Drop "or a built-in tool call outcome and details" from `ToolCallResponsePart`.
 
 **Severity:** documentation bug: consumers misclassify a transport.
 
+**Upstream:** issue #708, PR #709 (in review), together with finding 19.
+
+**Standing:** rechecked at `e6658f14c9` (2026-11-06), the table at
+`docs/gen-ai/mcp.md:1118`, and against `modelcontextprotocol/modelcontextprotocol`
+at `0175d20f8`.
+
 ### Issue
 
 The table tells consumers to tell Streamable HTTP from HTTP with SSE by
@@ -256,12 +262,17 @@ The table tells consumers to tell Streamable HTTP from HTTP with SSE by
 SSE is "`2024-11-05` or older". MCP `2025-03-26` falls in neither range, yet it is
 the version that introduced Streamable HTTP. MCP's own changelog for that version
 says it "Replaced the previous HTTP+SSE transport with a more flexible Streamable
-HTTP transport" (`docs/specification/2025-03-26/changelog.mdx` in
-`modelcontextprotocol/modelcontextprotocol` at `80041ab0`).
+HTTP transport" (`docs/specification/2025-03-26/changelog.mdx:13`).
+
+The same row gives Streamable HTTP `network.protocol.version = 2`. The MCP Python
+SDK 1.28.1 runs Streamable HTTP over HTTP/1.1, and the examples in MCP's
+`2026-07-28` specification are `POST /mcp HTTP/1.1`. Both HTTP transports run
+over HTTP/1.1 and over HTTP/2.
 
 ### Fix
 
-Change the Streamable HTTP row to "`2025-03-26` or newer".
+Change the Streamable HTTP row to "`2025-03-26` or newer". PR #709 does, and
+gives the row `network.protocol.version = 1.1` (or 2).
 
 ## 8. The MCP context-propagation examples are not valid JSON
 
@@ -499,6 +510,11 @@ reference scenario write it; or drop `generate_content` from the registry if
 
 **Severity:** documentation bug: consumers misclassify a transport.
 
+**Upstream:** issue #708, PR #709 (in review), together with finding 7.
+
+**Standing:** rechecked at `e6658f14c9` (2026-11-06), with `mcp` 1.28.1 and
+2.3.0 and `@modelcontextprotocol/sdk` 1.32.2.
+
 ### Issue
 
 The table gives HTTP with SSE the `mcp.protocol.version` "`2024-11-05` or older",
@@ -506,23 +522,38 @@ and its comment says "`mcp.protocol.version` distinguishes streamable HTTP from
 SSE". The MCP SDKs negotiate the protocol version independently of the
 transport: MCP's Python SDK 1.28.1, as client (`mcp.client.sse.sse_client`) and
 as server (`mcp.server.sse.SseServerTransport`), negotiates `2025-11-25` over
-HTTP with SSE. A consumer following the table reads such a session as streamable
-HTTP. Finding 7 faults the same table's streamable HTTP row.
+HTTP with SSE, and so does the TypeScript SDK 1.32.2 as client. A consumer
+following the table reads such a session as streamable HTTP. Finding 7 faults
+the same table's streamable HTTP row.
+
+The independence holds in both directions and for every version. With the
+client's requested version varied, a session over either transport agrees on
+`2024-11-05`, `2025-03-26`, `2025-06-18` and `2025-11-25` alike; `mcp` 2.3.0's
+`Client(mode="auto")` reaches `2026-07-28` over either. `2024-11-05` is the
+first published revision, so "or older" covers no published version; the
+TypeScript SDK also accepts a `2024-10-07` that the specification repository
+does not hold.
 
 ### Reproduction
 
-Run upstream A2UI's `samples/agent/adk/custom-components-example/floor_plan_server.py`
-with `mcp` 1.28.1, and connect with `mcp.client.sse.sse_client` to its `/sse`
-endpoint: the client's `initialize` request, POSTed to the endpoint the `GET /sse`
-stream announces, carries `"protocolVersion": "2025-11-25"`, and the `initialize`
-result on the stream answers `"protocolVersion": "2025-11-25"`.
+Serve one `FastMCP` server over each transport with `mcp` 1.28.1
+(`sse_app()`, `streamable_http_app()`), connect with `sse_client` and
+`streamablehttp_client`, and print `ClientSession.initialize()`'s
+`protocolVersion`: both print `2025-11-25`. The script is in issue #708.
 
 ### Fix
 
-Drop the version ranges from the HTTP rows, and tell the HTTP transports apart by
-what the transport carries: an `Mcp-Session-Id` header and POST replies with the
-response for streamable HTTP, a `GET` stream announcing an `endpoint` event for
-HTTP with SSE.
+Drop the claim that `mcp.protocol.version` distinguishes the two. PR #709 gives
+HTTP with SSE "`2024-11-05` or newer", marks it deprecated since MCP
+`2025-03-26`, and says in both rows that these attributes do not distinguish
+the transports.
+
+Telling them apart by an `Mcp-Session-Id` header or an `endpoint` event, as
+recorded here before, does not hold: neither is an attribute the table's
+consumer sees, the header is optional ("A server ... MAY assign a session ID",
+`2025-06-18` transports), and `2026-07-28` removes it. An attribute for the
+transport within HTTP is left to the maintainers; issue #708 quotes the earlier
+discussion of one.
 
 ## 20. The Python conventions package names the cache write `cache_creation`, where the conventions name it `cache_write`
 
