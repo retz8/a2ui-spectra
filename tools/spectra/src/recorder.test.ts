@@ -205,14 +205,20 @@ describe('the turn recorder', () => {
   it('hands on each checked turn once its write has finished', async () => {
     const store = await storeIn();
     const recorded: Array<{turn: Turn; files: number}> = [];
+    // The store is listed as each turn is handed on; the test waits for those listings.
+    const listings: Array<Promise<void>> = [];
     const recorder = new TurnRecorder(store, collect(), {
       onRecorded: turn => {
-        void store.list().then(listed => recorded.push({turn, files: listed.length}));
+        listings.push(
+          store.list().then(listed => {
+            recorded.push({turn, files: listed.length});
+          }),
+        );
       },
     });
     recorder.onTurn({type: 'turn_closed', traceId: TRACE_ID, turn: turnOf([SURFACE])});
     await recorder.idle();
-    await new Promise(resolve => setTimeout(resolve, 20));
+    await Promise.all(listings);
 
     assert.equal(recorded.length, 1);
     assert.equal(recorded[0].files, 1);
