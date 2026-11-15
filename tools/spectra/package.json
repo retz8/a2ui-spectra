@@ -102,6 +102,7 @@
       ],
       "files": [
         "scripts/build_packages.mjs",
+        "scripts/licences_by_hand/**",
         "scripts/notices.mjs",
         "scripts/notices_by_hand.md",
         "scripts/packages.mjs",

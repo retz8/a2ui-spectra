@@ -5,8 +5,11 @@
 // viewer's build and the basic preview's build each report what they bundled: Bun's metafile of
 // each of the five binaries, each input counted when it put bytes into the output, and each Vite
 // build's `bundle-report.json`. For each package, its version, its licence, its licence text and
-// its NOTICE file when it has one, read from the installed package; a bundled package with no
-// licence text fails the build. Then the list kept by hand, `notices_by_hand.md`, for what no
+// its NOTICE file when it has one, read from the installed package. For a package that ships no
+// licence text, the text kept by hand for that package and version in `licences_by_hand/`, taken
+// from its source repository, with where it came from in `licences_by_hand/sources.json`; a
+// bundled package with neither fails the build, and so does a text kept by hand that no bundled
+// package needs, as after a version's change. Then the list kept by hand, `notices_by_hand.md`, for what no
 // bundler reports: Bun's runtime and what it links, upstream's copied schemas and catalogs,
 // OpenTelemetry's proto files and LiteLLM's price table. Its section on Bun is Bun's
 // `LICENSE.md`, under a heading naming the Bun version, which must be the pinned one.
@@ -22,6 +25,9 @@ const REPORTS = [
   '../spectra_basic_preview/bundle-report.json',
 ];
 const BY_HAND = 'scripts/notices_by_hand.md';
+/** Licence texts kept by hand, under `<name>/<version>/`, for packages that ship none. */
+const LICENCES_BY_HAND = 'scripts/licences_by_hand';
+const SOURCES = path.join(LICENCES_BY_HAND, 'sources.json');
 const PRICES_NOTICE = 'src/prices/NOTICE';
 
 const LICENCE_FILE = /^(licen[cs]e|copying)([-._].*)?$/i;
@@ -109,6 +115,7 @@ function bundledPackages() {
     const key = `${found.name}@${found.version}`;
     if (!packages.has(key)) packages.set(key, found);
   }
+  keptByHand(packages);
   const unlicensed = [...packages.values()].filter(found => found.licences.length === 0);
   if (unlicensed.length > 0) {
     throw new BuildError(
@@ -121,6 +128,44 @@ function bundledPackages() {
       a.name.localeCompare(b.name, 'en') ||
       a.version.localeCompare(b.version, 'en', {numeric: true}),
   );
+}
+
+/**
+ * Gives each bundled package that ships no licence text the texts kept by hand for its name and
+ * version, each with where it came from. A text kept for a package that is not bundled at that
+ * version, or that ships its own, fails the build, as does a file the sources do not name.
+ */
+function keptByHand(packages) {
+  const sources = JSON.parse(readFileSync(SOURCES, 'utf8'));
+  const unneeded = [];
+  for (const [key, files] of Object.entries(sources)) {
+    const found = packages.get(key);
+    if (found === undefined || found.licences.length > 0) {
+      unneeded.push(
+        found === undefined ? `${key}, which is not bundled` : `${key}, which ships its own`,
+      );
+      continue;
+    }
+    const dir = path.join(LICENCES_BY_HAND, found.name, found.version);
+    const held = existsSync(dir) ? readdirSync(dir).sort() : [];
+    const named = Object.keys(files).sort();
+    if (JSON.stringify(held) !== JSON.stringify(named)) {
+      throw new BuildError(
+        `${dir} holds ${held.join(', ') || 'nothing'}, and ${SOURCES} names ${named.join(', ')} for ${key}.`,
+      );
+    }
+    found.licences = named.map(name => ({
+      name,
+      text: readFileSync(path.join(dir, name), 'utf8'),
+      source: files[name],
+    }));
+  }
+  if (unneeded.length > 0) {
+    throw new BuildError(
+      `${SOURCES} keeps licence texts no bundled package needs: ${unneeded.join('; ')}. Remove them, ` +
+        'and keep the texts of the bundled versions that ship none.',
+    );
+  }
 }
 
 /** The list kept by hand, checked against the pinned Bun version and LiteLLM's notice. */
@@ -152,8 +197,10 @@ export function thirdPartyNotices({version, bunVersion}) {
     [
       `### ${found.name} ${found.version}`,
       `Licence: ${found.licence ?? 'not stated in its package.json'}`,
-      ...[...found.licences, ...found.notices].flatMap(({name, text}) => [
-        `\`${name}\`:`,
+      ...[...found.licences, ...found.notices].flatMap(({name, text, source}) => [
+        source === undefined
+          ? `\`${name}\`:`
+          : `\`${name}\`, kept by hand, since the package ships no licence text: ${source}.`,
         fenced(text),
       ]),
     ].join('\n\n'),

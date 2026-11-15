@@ -1,0 +1,12 @@
+{
+  "@bufbuild/protobuf@2.16.0": {
+    "LICENSE": "protobuf-es's LICENSE at the tag v2.16.0, https://github.com/bufbuild/protobuf-es/blob/v2.16.0/LICENSE",
+    "varint-header.txt": "the licence header of dist/esm/wire/varint.js in the package itself, the BSD-3-Clause of Google's varint code, which the binary's build does not keep"
+  },
+  "@lit-labs/ssr-dom-shim@1.6.0": {
+    "LICENSE": "lit's LICENSE at the tag @lit-labs/ssr-dom-shim@1.6.0, https://github.com/lit/lit/blob/%40lit-labs/ssr-dom-shim%401.6.0/LICENSE"
+  },
+  "react-remove-scroll-bar@2.3.8": {
+    "LICENSE": "react-remove-scroll-bar's LICENSE as its repository added it on 2025-05-21, in commit 7301c160fda44cb8cf2b9fdfde61efad35736196, https://github.com/theKashey/react-remove-scroll-bar/blob/7301c160fda44cb8cf2b9fdfde61efad35736196/LICENSE; 2.3.8, published on 2024-12-15, states MIT in its package.json and its README and holds no licence text"
+  }
+}
