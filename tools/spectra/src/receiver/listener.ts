@@ -9,7 +9,7 @@
 import {createServer, type IncomingMessage, type ServerResponse} from 'node:http';
 import {gunzip} from 'node:zlib';
 
-import {LOOPBACK_ADDRESS, PortTakenError} from '../server.js';
+import {listenError, LOOPBACK_ADDRESS} from '../server.js';
 import {NAME} from '../version.js';
 import {
   DecodeError,
@@ -47,7 +47,7 @@ export function startReceiverListener(options: ReceiverListenerOptions): Promise
   const server = createServer((request, response) => handle(options, request, response));
   return new Promise((resolve, reject) => {
     server.once('error', (error: NodeJS.ErrnoException) => {
-      reject(error.code === 'EADDRINUSE' ? new PortTakenError(options.port) : error);
+      reject(listenError(error, options.port));
     });
     server.listen(options.port, LOOPBACK_ADDRESS, () => {
       resolve({

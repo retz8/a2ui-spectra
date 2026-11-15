@@ -57,7 +57,7 @@ import {
   wasStreamed,
 } from '../replay/served.js';
 import {nowUnixNano} from '../clock.js';
-import {LOOPBACK_ADDRESS, PortTakenError} from '../server.js';
+import {listenError, LOOPBACK_ADDRESS} from '../server.js';
 import {NAME} from '../version.js';
 import {
   asJsonRpc,
@@ -281,7 +281,7 @@ function listen(shared: Shared, server: ToolServer): Promise<Server> {
   });
   return new Promise((resolve, reject) => {
     http.once('error', (error: NodeJS.ErrnoException) => {
-      reject(error.code === 'EADDRINUSE' ? new PortTakenError(server.port) : error);
+      reject(listenError(error, server.port));
     });
     http.listen(server.port, LOOPBACK_ADDRESS, () => resolve(http));
   });

@@ -35,7 +35,7 @@ import {
   wasStreamed,
 } from '../replay/served.js';
 import {nowUnixNano} from '../clock.js';
-import {LOOPBACK_ADDRESS, PortTakenError} from '../server.js';
+import {listenError, LOOPBACK_ADDRESS} from '../server.js';
 import {NAME} from '../version.js';
 import {chunkEvent, endToEndHeaders, requestAttributes, responseAttributes} from './exchange.js';
 import {bodyJson, decoderFor, isTokenRequest, readBody, tunnelUpgrade} from './forwarding.js';
@@ -130,7 +130,7 @@ export function startModelProxy(options: ModelProxyOptions): Promise<ModelProxy>
   server.on('upgrade', (request, socket, head) => upgrade(state, request, socket, head));
   return new Promise((resolve, reject) => {
     server.once('error', (error: NodeJS.ErrnoException) => {
-      reject(error.code === 'EADDRINUSE' ? new PortTakenError(options.port) : error);
+      reject(listenError(error, options.port));
     });
     server.listen(options.port, LOOPBACK_ADDRESS, () => {
       resolve({

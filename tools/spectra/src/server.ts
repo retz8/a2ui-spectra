@@ -7,12 +7,27 @@ import {sendText, serveViewerFile} from './viewer_files.js';
 /** The address both listeners bind: loopback only. */
 export const LOOPBACK_ADDRESS = '127.0.0.1';
 
-/** A port that another process already holds. */
+/**
+ * A port Spectra cannot have: one another process already holds, or one the
+ * system refuses with an access error, as Windows does for a port another
+ * program holds with exclusive access or that the system has set aside.
+ */
 export class PortTakenError extends Error {
-  constructor(readonly port: number) {
-    super(`Port ${port} is taken.`);
+  constructor(
+    readonly port: number,
+    /** Whether the system refused the port, rather than another process holding it. */
+    readonly refused = false,
+  ) {
+    super(refused ? `The system would not give port ${port}.` : `Port ${port} is taken.`);
     this.name = 'PortTakenError';
   }
+}
+
+/** A listener's error as Spectra reports it: a port it cannot have, or the error itself. */
+export function listenError(error: NodeJS.ErrnoException, port: number): Error {
+  if (error.code === 'EADDRINUSE') return new PortTakenError(port);
+  if (error.code === 'EACCES') return new PortTakenError(port, true);
+  return error;
 }
 
 export interface ViewerServerOptions {
@@ -36,7 +51,7 @@ export function startViewerServer(options: ViewerServerOptions): Promise<ViewerS
   const server = createServer((request, response) => handle(options, request, response));
   return new Promise((resolve, reject) => {
     server.once('error', (error: NodeJS.ErrnoException) => {
-      reject(error.code === 'EADDRINUSE' ? new PortTakenError(options.port) : error);
+      reject(listenError(error, options.port));
     });
     server.listen(options.port, LOOPBACK_ADDRESS, () => {
       resolve({

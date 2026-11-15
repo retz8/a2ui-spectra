@@ -11,7 +11,7 @@ import {request as httpsRequest} from 'node:https';
 import {PassThrough, type Transform} from 'node:stream';
 import {createBrotliDecompress, createGunzip, createInflate} from 'node:zlib';
 
-import {LOOPBACK_ADDRESS, PortTakenError} from '../server.js';
+import {listenError, LOOPBACK_ADDRESS} from '../server.js';
 import {NAME, VERSION} from '../version.js';
 import {EXTENDED_CARD_METHODS, isCardPath, rewriteCard} from './card.js';
 import {isRecord, readTurnRequest} from './protocol.js';
@@ -110,7 +110,7 @@ export function startWireProxy(options: WireProxyOptions): Promise<WireProxy> {
   const server = createServer((request, response) => forward(options, state, request, response));
   return new Promise((resolve, reject) => {
     server.once('error', (error: NodeJS.ErrnoException) => {
-      reject(error.code === 'EADDRINUSE' ? new PortTakenError(options.port) : error);
+      reject(listenError(error, options.port));
     });
     server.listen(options.port, LOOPBACK_ADDRESS, () => {
       resolve({

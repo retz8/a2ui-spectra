@@ -7,7 +7,8 @@
  * included, which run as processes side by side. The ports here are below
  * that range, 32768 to 60999 by default on Linux and 49152 to 65535 on macOS,
  * and each process takes them from a slice of its own, which it holds by
- * listening on the slice's first port until it exits.
+ * listening on the slice's first port until it exits. A port the system
+ * refuses, as Windows does a port it has set aside, is passed over.
  */
 import {createServer, type Server} from 'node:net';
 
@@ -24,8 +25,9 @@ let last: Promise<unknown> = Promise.resolve();
 function listenOn(port: number): Promise<Server | undefined> {
   return new Promise((resolve, reject) => {
     const server = createServer();
+    // Windows refuses a port the system has set aside, or one held with exclusive access.
     server.once('error', (error: NodeJS.ErrnoException) =>
-      error.code === 'EADDRINUSE' ? resolve(undefined) : reject(error),
+      error.code === 'EADDRINUSE' || error.code === 'EACCES' ? resolve(undefined) : reject(error),
     );
     server.listen(port, '127.0.0.1', () => resolve(server));
   });
