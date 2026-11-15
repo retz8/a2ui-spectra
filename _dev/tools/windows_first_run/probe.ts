@@ -8,7 +8,7 @@
  * first line on stdout is `port <n>`.
  */
 import {type ChildProcess, spawn} from 'node:child_process';
-import {appendFileSync} from 'node:fs';
+import {appendFileSync, readFileSync} from 'node:fs';
 import {createServer} from 'node:http';
 import {constants} from 'node:os';
 
@@ -22,10 +22,32 @@ import {loadWin32} from '../../../tools/spectra/src/windows/win32.js';
 const launch = launchOf(process.env);
 if (launch !== undefined) {
   const reportFile = process.env.PROBE_LAUNCH_REPORT;
-  const code = await runLauncher(launch, report => {
-    if (reportFile !== undefined) appendFileSync(reportFile, `${JSON.stringify(report)}\n`);
+  const heartbeat = process.env.PROBE_HEARTBEAT;
+  if (heartbeat !== undefined) {
+    // What reaches the launcher, and whether it lives on, for the second run.
+    for (const signal of ['SIGINT', 'SIGBREAK', 'SIGHUP'] as const) {
+      process.on(signal, () => appendFileSync(heartbeat, `signal ${signal} ${Date.now()}\n`));
+    }
+    setInterval(() => appendFileSync(heartbeat, `beat ${Date.now()}\n`), 100);
+  }
+  const code = await runLauncher(launch, {
+    onReport: report => {
+      if (reportFile !== undefined) appendFileSync(reportFile, `${JSON.stringify(report)}\n`);
+    },
+    stayAttached: process.env.PROBE_STAY_ATTACHED === '1',
   });
   process.exit(code);
+}
+
+// The driver reads what Bun's process.exit passes on.
+if (process.argv[2] === 'exit-with') {
+  process.exit(Number(process.argv[3]));
+}
+
+// Plays Spectra's quick stop on the console's close: exit 129 soon after SIGHUP.
+const closeExit = process.argv[2] === 'close-exit';
+if (closeExit) {
+  process.on('SIGHUP', () => setTimeout(() => process.exit(129), 300));
 }
 
 const win32 = await loadWin32();
@@ -42,6 +64,7 @@ interface Started {
   output: string;
   exit?: {code: number | null; signal: string | null; at: number};
   assignError?: string;
+  outcomeFile?: string;
 }
 const started = new Map<string, Started>();
 
@@ -90,11 +113,16 @@ async function handle(url: string, body: string): Promise<unknown> {
     case '/signals':
       return signals;
     case '/start': {
-      const {command, args, cwd, reportFile} = JSON.parse(body) as {
+      const {command, args, cwd, reportFile, outcomeFile, heartbeat, stayAttached} = JSON.parse(
+        body,
+      ) as {
         command: string;
         args: string[];
         cwd: string;
         reportFile: string;
+        outcomeFile?: string;
+        heartbeat?: string;
+        stayAttached?: boolean;
       };
       const job = win32!.createJob();
       const launcher = spawn(process.execPath, [], {
@@ -102,13 +130,15 @@ async function handle(url: string, body: string): Promise<unknown> {
         stdio: ['pipe', 'pipe', 'pipe'],
         env: {
           ...process.env,
-          [LAUNCH_VARIABLE]: JSON.stringify({command, args}),
+          [LAUNCH_VARIABLE]: JSON.stringify({command, args, reportFile: outcomeFile}),
           PROBE_LAUNCH_REPORT: reportFile,
+          ...(heartbeat !== undefined && {PROBE_HEARTBEAT: heartbeat}),
+          PROBE_STAY_ATTACHED: stayAttached === true ? '1' : '0',
         },
         cwd,
         windowsHide: true,
       });
-      const record: Started = {job, launcher, output: ''};
+      const record: Started = {job, launcher, output: '', ...(outcomeFile !== undefined && {outcomeFile})};
       started.set(name, record);
       launcher.stdout?.on('data', (chunk: Buffer) => (record.output += chunk.toString('utf8')));
       launcher.stderr?.on('data', (chunk: Buffer) => (record.output += chunk.toString('utf8')));
@@ -140,12 +170,23 @@ async function handle(url: string, body: string): Promise<unknown> {
       while (entry!.exit === undefined && Date.now() < deadline) {
         await new Promise(resolve => setTimeout(resolve, 50));
       }
-      return {exit: entry!.exit ?? null, output: entry!.output};
+      let outcome: unknown = null;
+      try {
+        outcome = JSON.parse(readFileSync(entry!.outcomeFile ?? '', 'utf8'));
+      } catch {
+        // No outcome written.
+      }
+      return {exit: entry!.exit ?? null, outcome, output: entry!.output};
     }
     case '/close': {
       win32!.closeHandle(entry!.job);
       started.delete(name);
       return {closed: true};
+    }
+    case '/child-exit-code': {
+      // What Bun's child_process says of a child that exits with a code past 255.
+      const node = spawn('node', ['-e', 'process.exit(3221225786)'], {stdio: 'ignore'});
+      return await new Promise(resolve => node.once('exit', code => resolve({code})));
     }
     case '/running':
       return {running: win32!.processRunning(Number(searchParams.get('pid')))};

@@ -1,6 +1,8 @@
-// The first run on windows-latest: the seven points of the sub-task 10.2
-// spec's decision 16, measured before anything is built on them. Run with
-// Node from the repository root after the probe is compiled:
+// The first run on windows-latest, its second pass: the points of the sub-task
+// 10.2 spec's decision 16 that the first pass left open, measured with the
+// launcher leaving the console once the command has started, and the exit
+// codes past 255. Run with Node from the repository root after the probe is
+// compiled:
 //   node _dev/tools/windows_first_run/driver.mjs
 // PROBE_EXE names the compiled probe, PYTHON the Python to run the helper and
 // the Python agent with. It prints one block per point, as measured.
@@ -49,10 +51,10 @@ const running = pid => {
 };
 
 /** Starts the probe as Spectra, directly or in a console of its own through the helper. */
-async function startProbe({ownConsole}) {
+async function startProbe({ownConsole, args = []}) {
   const child = ownConsole
-    ? spawn(python, [helper, 'run', '--', probe], {stdio: ['pipe', 'pipe', 'pipe']})
-    : spawn(probe, [], {stdio: ['ignore', 'pipe', 'pipe']});
+    ? spawn(python, [helper, 'run', '--', probe, ...args], {stdio: ['pipe', 'pipe', 'pipe']})
+    : spawn(probe, args, {stdio: ['ignore', 'pipe', 'pipe']});
   let output = '';
   child.stdout.on('data', chunk => (output += chunk));
   child.stderr.on('data', chunk => (output += chunk));
@@ -113,154 +115,93 @@ async function point(title, run) {
 
 const dir = workDir();
 const launchReport = path.join(dir, 'launch.jsonl');
-const reports = () => readLog(launchReport).filter(Boolean).map(line => JSON.parse(line));
+let serial = 0;
+const fresh = name => path.join(dir, `${name}-${++serial}.txt`);
 
-// Point 2 first: the probe's own reading of the Job Object calls and the runner's jobs.
-const direct = await startProbe({ownConsole: false});
-await point('Point 2: the Job Object from the compiled binary', async () => {
-  const info = await direct.call('/info');
-  const start = await direct.call('/start?name=p2', {
-    command: process.execPath,
-    args: [path.join(dir, 'agent.mjs'), '--log', path.join(dir, 'p2.log')],
+const own = await startProbe({ownConsole: true});
+
+/** Starts a command under the probe in its own console, the launcher leaving the console or not. */
+async function startUnder(spectra, label, command, args, {stayAttached = false, heartbeat} = {}) {
+  const outcomeFile = fresh(`${label}-outcome`);
+  const start = await spectra.call(`/start?name=${label}`, {
+    command,
+    args,
     cwd: dir,
     reportFile: launchReport,
+    outcomeFile,
+    stayAttached,
+    ...(heartbeat !== undefined && {heartbeat}),
   });
-  await waitForLine(path.join(dir, 'p2.log'), /up (\d+)/);
-  const count = await direct.call('/count?name=p2');
-  const terminated = await direct.call('/terminate?name=p2');
-  return {info, start, launcher: reports().at(-1), count, named: named(count.pids), terminated};
-});
+  return start;
+}
 
-await point('Point 1: a batch-file launcher with no shell, and a refused argument', async () => {
-  const log = path.join(dir, 'npm.log');
-  const start = await direct.call('/start?name=p1', {
-    command: 'npm',
-    args: ['run', 'agent'],
-    cwd: dir,
-    reportFile: launchReport,
-  });
-  const up = await waitForLine(log, /up (\d+)/, 30_000);
-  const count = await direct.call('/count?name=p1');
-  const tree = named(count.pids);
-  const terminated = await direct.call('/terminate?name=p1');
-  const exit = await direct.call('/exit?name=p1&timeout=3000');
-  const refused = await direct.call('/start?name=p1b', {
-    command: 'npm',
-    args: ['run', 'agent', 'a&b'],
-    cwd: dir,
-    reportFile: launchReport,
-  });
-  const refusedExit = await direct.call('/exit?name=p1b&timeout=5000');
-  return {
-    start,
-    up: up?.[0] ?? null,
-    launcher: reports().at(-2),
-    tree,
-    terminated,
-    exit,
-    refused,
-    refusedLauncher: reports().at(-1),
-    refusedExit,
-  };
-});
-
-await point('Point 3a: ending the job ends a grandchild whose parent has exited', async () => {
+await point('A: the launcher on a Ctrl+Break, staying on the console or leaving it', async () => {
   const results = {};
-  for (const [label, command, args] of [
-    ['node', process.execPath, [path.join(dir, 'agent.mjs'), '--orphan']],
-    ['python', python, [path.join(dir, 'agent.py'), '--orphan']],
-  ]) {
-    const log = path.join(dir, `p3-${label}.log`);
-    await direct.call(`/start?name=p3${label}`, {
-      command,
-      args: [...args, '--log', log],
-      cwd: dir,
-      reportFile: launchReport,
+  for (const stayAttached of [true, false]) {
+    const label = stayAttached ? 'stays' : 'leaves';
+    const log = fresh(`a-${label}-log`);
+    const heartbeat = fresh(`a-${label}-beat`);
+    await startUnder(own, label, process.execPath, [path.join(dir, 'agent.mjs'), '--handler', '--log', log], {
+      stayAttached,
+      heartbeat,
     });
-    const child = await waitForLine(log, /child (\d+)/);
-    const exit = await direct.call(`/exit?name=p3${label}&timeout=5000`);
-    const pid = Number(child?.[1]);
-    const before = await direct.call(`/count?name=p3${label}`);
-    const terminated = await direct.call(`/terminate?name=p3${label}`);
+    await waitForLine(log, /up (\d+)/);
+    await sleep(500);
+    const tree = named((await own.call(`/count?name=${label}`)).pids);
+    const sent = await own.call(`/break?name=${label}`);
+    const exit = await own.call(`/exit?name=${label}&timeout=4000`);
+    await sleep(500);
+    const left = named((await own.call(`/count?name=${label}`)).pids);
+    const beats = readLog(heartbeat);
+    const beatsAfter = beats.filter(line => line.startsWith('beat') && Number(line.split(' ')[1]) > sent.at);
     results[label] = {
-      exitOfTheCommand: exit.exit,
-      grandchild: pid,
-      runningBefore: running(pid),
-      jobBefore: named(before.pids),
-      terminated,
-      runningAfter: running(pid),
+      tree,
+      sentAt: sent.at,
+      launcherExit: exit.exit,
+      msFromBreakToExit: exit.exit === null ? null : exit.exit.at - sent.at,
+      outcome: exit.outcome,
+      leftAfterBreak: left,
+      launcherSignals: beats.filter(line => line.startsWith('signal')),
+      launcherBeatsAfterBreak: beatsAfter.length,
+      agent: readLog(log),
     };
+    await own.call(`/terminate?name=${label}`);
   }
   return results;
 });
 
-await point('Point 3b: killing Spectra ends the whole tree', async () => {
-  const victim = await startProbe({ownConsole: false});
-  const log = path.join(dir, 'p3b.log');
-  const start = await victim.call('/start?name=p3b', {
-    command: process.execPath,
-    args: [path.join(dir, 'agent.mjs'), '--child', '--log', log],
-    cwd: dir,
-    reportFile: launchReport,
-  });
-  const up = Number((await waitForLine(log, /up (\d+)/))?.[1]);
-  const child = Number((await waitForLine(log, /child (\d+)/))?.[1]);
-  const before = {launcher: running(start.launcherPid), agent: running(up), child: running(child)};
-  victim.child.kill('SIGKILL');
-  await victim.exited;
-  await sleep(1000);
-  const after = {launcher: running(start.launcherPid), agent: running(up), child: running(child)};
-  return {before, after};
-});
-
-/** Starts an agent under a probe in its own console, and reads what one Ctrl+Break from the probe does. */
-async function breakFromSpectra(spectra, label, command, args, log) {
-  await spectra.call(`/start?name=${label}`, {command, args, cwd: dir, reportFile: launchReport});
-  const up = await waitForLine(log, /up (\d+)/, 30_000);
+await point("B: the terminal's Ctrl+C and Spectra's Ctrl+Break, with the launcher leaving the console", async () => {
+  const node = fresh('b-node');
+  const py = fresh('b-python');
+  await startUnder(own, 'bnode', process.execPath, [path.join(dir, 'agent.mjs'), '--handler', '--log', node]);
+  await startUnder(own, 'bpython', python, [path.join(dir, 'agent.py'), '--handler', '--log', py]);
+  await waitForLine(node, /up (\d+)/);
+  await waitForLine(py, /up (\d+)/);
   await sleep(500);
-  const before = await spectra.call(`/count?name=${label}`);
-  const tree = named(before.pids);
-  const sent = await spectra.call(`/break?name=${label}`);
-  const exit = await spectra.call(`/exit?name=${label}&timeout=4000`);
-  await sleep(500);
-  const after = await spectra.call(`/count?name=${label}`);
-  const left = named(after.pids);
-  await spectra.call(`/terminate?name=${label}`);
-  return {
-    up: up?.[0] ?? null,
-    tree,
-    sent,
-    exitOfTheCommand: exit.exit,
-    output: exit.output,
-    leftAfterBreak: left,
-    log: readLog(log),
-  };
-}
-
-const own = await startProbe({ownConsole: true});
-await point("Point 4: the agent's own group on Spectra's console", async () => {
-  const log = path.join(dir, 'p4.log');
-  await own.call('/start?name=p4', {
-    command: process.execPath,
-    args: [path.join(dir, 'agent.mjs'), '--handler', '--log', log],
-    cwd: dir,
-    reportFile: launchReport,
-  });
-  await waitForLine(log, /up (\d+)/);
-  const launcher = reports().at(-1);
-  const signalsBefore = await own.call('/signals');
+  const before = (await own.call('/signals')).length;
   own.send('ctrl-c');
   await sleep(1500);
-  const afterCtrlC = {spectra: await own.call('/signals'), agent: readLog(log)};
-  const sent = await own.call('/break?name=p4');
-  await sleep(1500);
-  const afterBreak = {spectra: await own.call('/signals'), agent: readLog(log)};
-  const exit = await own.call('/exit?name=p4&timeout=3000');
-  await own.call('/terminate?name=p4');
-  return {launcher, signalsBefore, afterCtrlC, sent, afterBreak, exit: exit.exit, driver: driverSignals};
+  const afterCtrlC = {
+    spectra: (await own.call('/signals')).slice(before),
+    node: readLog(node),
+    python: readLog(py),
+    driver: [...driverSignals],
+  };
+  const sent = [await own.call('/break?name=bnode'), await own.call('/break?name=bpython')];
+  const exits = {
+    node: await own.call('/exit?name=bnode&timeout=4000'),
+    python: await own.call('/exit?name=bpython&timeout=4000'),
+  };
+  const afterBreak = {
+    spectra: (await own.call('/signals')).slice(before),
+    node: readLog(node),
+    python: readLog(py),
+  };
+  for (const label of ['bnode', 'bpython']) await own.call(`/terminate?name=${label}`);
+  return {afterCtrlC, sent, exits, afterBreak};
 });
 
-await point("Point 5: what an agent does on Spectra's Ctrl+Break", async () => {
+await point("C: what an agent does on Spectra's Ctrl+Break, with the launcher leaving the console", async () => {
   const cases = [
     ['node-without-handler', process.execPath, [path.join(dir, 'agent.mjs')]],
     ['node-with-handler', process.execPath, [path.join(dir, 'agent.mjs'), '--handler']],
@@ -275,11 +216,28 @@ await point("Point 5: what an agent does on Spectra's Ctrl+Break", async () => {
   for (const [label, command, args] of cases) {
     const npm = label.startsWith('npm');
     const viaCmd = label.startsWith('cmd');
-    const log = path.join(dir, npm ? 'npm.log' : viaCmd ? 'cmd.log' : `p5-${label}.log`);
+    const log = npm ? path.join(dir, 'npm.log') : viaCmd ? path.join(dir, 'cmd.log') : fresh(`c-${label}`);
     if (existsSync(log)) writeFileSync(log, '');
-    const fullArgs = npm || viaCmd ? args : [...args, '--log', log];
     try {
-      results[label] = await breakFromSpectra(own, `p5${label}`, command, fullArgs, log);
+      await startUnder(own, label, command, npm || viaCmd ? args : [...args, '--log', log]);
+      const up = await waitForLine(log, /up (\d+)/, 30_000);
+      await sleep(500);
+      const tree = named((await own.call(`/count?name=${label}`)).pids);
+      const sent = await own.call(`/break?name=${label}`);
+      const exit = await own.call(`/exit?name=${label}&timeout=4000`);
+      await sleep(500);
+      const left = named((await own.call(`/count?name=${label}`)).pids);
+      results[label] = {
+        up: up?.[0] ?? null,
+        tree,
+        launcherExit: exit.exit?.code ?? null,
+        msFromBreakToExit: exit.exit === null ? null : exit.exit.at - sent.at,
+        outcome: exit.outcome,
+        output: exit.output,
+        leftAfterBreak: left,
+        log: readLog(log),
+      };
+      await own.call(`/terminate?name=${label}`);
     } catch (error) {
       results[label] = {failed: String(error)};
     }
@@ -287,59 +245,44 @@ await point("Point 5: what an agent does on Spectra's Ctrl+Break", async () => {
   return results;
 });
 
-await point('Point 6: the helper, one Spectra among two, and the console close', async () => {
-  const other = await startProbe({ownConsole: true});
-  const log = path.join(dir, 'p6.log');
-  await own.call('/start?name=p6', {
-    command: process.execPath,
-    args: [path.join(dir, 'agent.mjs'), '--handler', '--log', log],
-    cwd: dir,
-    reportFile: launchReport,
+await point('D: exit codes past 255, through Bun', async () => {
+  const exitWith = await new Promise(resolve => {
+    const child = spawn(probe, ['exit-with', '3221225786'], {stdio: 'ignore'});
+    child.once('exit', code => resolve(code));
   });
-  await waitForLine(log, /up (\d+)/);
-  const base = {own: (await own.call('/signals')).length, other: (await other.call('/signals')).length};
-  own.send('ctrl-c');
-  await sleep(1500);
-  const afterCtrlC = {own: await own.call('/signals'), other: await other.call('/signals'), driver: [...driverSignals]};
-  own.send('ctrl-break');
-  await sleep(1500);
-  const afterBreak = {
-    own: await own.call('/signals'),
-    other: await other.call('/signals'),
-    driver: [...driverSignals],
-    agent: readLog(log),
+  return {
+    bunProcessExitAsNodeSeesIt: exitWith,
+    bunChildProcessOfNodeExiting: await own.call('/child-exit-code'),
+    launcherOutcome: await (async () => {
+      await startUnder(own, 'code', process.execPath, ['-e', 'process.exit(3221225786)']);
+      return await own.call('/exit?name=code&timeout=5000');
+    })(),
   };
-  await own.call('/terminate?name=p6');
-  own.send('close');
-  const closed = await Promise.race([own.exited, sleep(10_000).then(() => 'still running')]);
-  const otherAfterClose = await other.call('/signals');
-  other.send('ctrl-c');
-  await sleep(1000);
-  const otherCtrlC = await other.call('/signals');
-  await other.call('/quit?code=7');
-  const otherExit = await other.exited;
-  return {base, afterCtrlC, afterBreak, closed, ownOutput: own.output(), otherAfterClose, otherCtrlC, otherExit};
 });
 
-await point('Point 7: localhost from the binary to a server on 127.0.0.1', async () => {
-  const server = createServer((_request, response) => response.end('on 127.0.0.1'));
-  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  const port = server.address().port;
-  const fetched = await direct.call(`/fetch?url=${encodeURIComponent(`http://localhost:${port}/`)}`);
-  server.close();
-  return fetched;
+await point('E: the console window closed under a Spectra that exits soon after SIGHUP', async () => {
+  const quick = await startProbe({ownConsole: true, args: ['close-exit']});
+  const log = fresh('e-log');
+  await startUnder(quick, 'e', process.execPath, [path.join(dir, 'agent.mjs'), '--handler', '--log', log]);
+  const up = Number((await waitForLine(log, /up (\d+)/))?.[1]);
+  quick.send('close');
+  const exit = await Promise.race([quick.exited, sleep(10_000).then(() => 'still running')]);
+  await sleep(500);
+  return {exit, agentRunningAfter: running(up), agent: readLog(log), output: quick.output()};
 });
 
-await point('The launcher passes on an exit code past 255', async () => {
-  await direct.call('/start?name=code', {
-    command: process.execPath,
-    args: ['-e', 'process.exit(3221225786)'],
-    cwd: dir,
-    reportFile: launchReport,
-  });
-  return await direct.call('/exit?name=code&timeout=5000');
+await point('F: a grandchild whose parent exited, alive until the job ends', async () => {
+  const log = fresh('f-log');
+  await startUnder(own, 'f', process.execPath, [path.join(dir, 'agent.mjs'), '--orphan', '--log', log]);
+  const pid = Number((await waitForLine(log, /child (\d+)/))?.[1]);
+  const exit = await own.call('/exit?name=f&timeout=5000');
+  await sleep(300);
+  const runningBefore = running(pid);
+  const jobBefore = named((await own.call('/count?name=f')).pids);
+  const terminated = await own.call('/terminate?name=f');
+  return {exitOfTheCommand: exit.outcome, grandchild: pid, runningBefore, jobBefore, terminated, runningAfter: running(pid)};
 });
 
-await direct.call('/quit?code=0');
-console.log('\nThe first run is done.');
+await own.call('/quit?code=0');
+console.log('\nThe second pass is done.');
 process.exit(0);
