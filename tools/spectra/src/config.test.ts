@@ -17,6 +17,11 @@ function freshDir(): string {
   return dir;
 }
 
+/** A path as it reads in a pattern, a Windows path's backslashes included. */
+function escaped(text: string): string {
+  return text.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
+}
+
 function write(dir: string, name: string, content: unknown): string {
   const file = path.join(dir, name);
   writeFileSync(file, typeof content === 'string' ? content : JSON.stringify(content));
@@ -169,7 +174,7 @@ describe('loadConfig', () => {
   it('stops on a file it cannot read or that holds what it does not know', async () => {
     const cwd = freshDir();
     const missing = path.join(cwd, 'missing.json');
-    await configError({cwd, path: missing}, new RegExp(`${missing}.*does not exist`));
+    await configError({cwd, path: missing}, new RegExp(`${escaped(missing)}.*does not exist`));
     write(cwd, 'bad.json', '{');
     await configError({cwd, path: 'bad.json'}, /bad\.json is not valid JSON/);
     write(cwd, 'list.json', '[]');

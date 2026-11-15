@@ -102,7 +102,7 @@ async function withViewer(
     await walk(page, `http://127.0.0.1:${port}`);
   } finally {
     await page.close();
-    spectra.signal('SIGTERM');
+    spectra.requestStop();
     await spectra.exited;
   }
 }
@@ -353,7 +353,7 @@ describe(`the agent popover on a catalog file that did not read, in Chromium, ${
         assert.equal(await popover.getByText('Notes', {exact: true}).count(), 0);
       } finally {
         await page.close();
-        spectra.signal('SIGTERM');
+        spectra.requestStop();
         await spectra.exited;
       }
     },

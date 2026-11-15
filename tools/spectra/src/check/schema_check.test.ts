@@ -146,7 +146,7 @@ describe('the schema check on recorded turns', () => {
         const result = checkSchema(turn);
         if (result === undefined) continue;
         checked += 1;
-        const name = `${path.relative('test_data/a2a_capture/v0_1', file)}#${index}`;
+        const name = `${path.relative('test_data/a2a_capture/v0_1', file).split(path.sep).join('/')}#${index}`;
         if (!result.passed) failed.push(name);
         if (result.protocolVersion === 'v1.0') v1_0.push(name);
       }

@@ -115,7 +115,7 @@ describe(`fixtures and replay against the stub agent, ${binary ? 'the binary' : 
       let live: LiveStream | undefined;
       try {
         await spectra.waitFor(/The viewer is at /);
-        await spectra.waitFor(/Fixtures are saved in \S+\/fixtures\n/);
+        await spectra.waitFor(/Fixtures are saved in \S+[\\/]fixtures\n/);
         const {body: context} = await getJson<SessionContext>(`${base}/api/context`);
         assert.equal(context.fixturesFolder, 'fixtures');
         live = new LiveStream(`${base}/api/stream`);
@@ -288,7 +288,7 @@ describe(`fixtures and replay against the stub agent, ${binary ? 'the binary' : 
         );
       } finally {
         live?.close();
-        spectra.signal('SIGTERM');
+        spectra.requestStop();
         await spectra.exited;
         stub.kill();
       }
@@ -471,7 +471,7 @@ describe(`fixtures and replay against the stub agent, ${binary ? 'the binary' : 
         // The second store turn: its record holds the conversation, and both turns are sent.
         await replayLive(
           {traceId: second.traceId},
-          /^\.a2ui-spectra\/turns\/.+\.json$/,
+          /^\.a2ui-spectra[\\/]turns[\\/].+\.json$/,
           [first.traceId, second.traceId],
           [2, 1],
         );
@@ -490,7 +490,7 @@ describe(`fixtures and replay against the stub agent, ${binary ? 'the binary' : 
         assert.equal((await boxSettled(base)).conversations.length, 3);
       } finally {
         live?.close();
-        spectra.signal('SIGTERM');
+        spectra.requestStop();
         await spectra.exited;
         standIn.process.kill('SIGKILL');
         toolServer.process.kill('SIGKILL');

@@ -94,6 +94,8 @@ describe('the four checks on recorded turns', () => {
     const registry = await CatalogRegistry.load([CIRCLECI]);
     const files = fs
       .readdirSync(RECORDINGS, {recursive: true, encoding: 'utf8'})
+      // A listing's names have '/' between folders on every platform, as the expected names do.
+      .map(file => file.split(path.sep).join('/'))
       .filter(file => file.endsWith('.json'))
       .sort();
     const table = Object.fromEntries(

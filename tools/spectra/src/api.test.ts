@@ -590,7 +590,7 @@ describe('the API', () => {
     });
     assert.equal(clash.status, 409);
     assert.deepEqual(await clash.json(), {
-      error: 'a2ui-spectra-fixtures/book-a-table-for-2.json exists already.',
+      error: `${path.join('a2ui-spectra-fixtures', 'book-a-table-for-2.json')} exists already.`,
       suggested: 'book-a-table-for-2-2',
     });
     const badName = await post(`${base}/api/fixtures`, {traceId: trace(1), name: 'a b'});

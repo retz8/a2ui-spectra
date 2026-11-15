@@ -287,6 +287,8 @@ describe('cardDetailsOf', () => {
     };
     const files = fs
       .readdirSync(RECORDINGS, {recursive: true, encoding: 'utf8'})
+      // A listing's names have '/' between folders on every platform, as the expected names do.
+      .map(file => file.split(path.sep).join('/'))
       .filter(file => file.endsWith('.har'))
       .sort();
     assert.deepEqual(files, Object.keys(expected).sort());

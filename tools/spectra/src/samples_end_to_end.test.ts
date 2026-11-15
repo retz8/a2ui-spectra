@@ -19,7 +19,7 @@
  * names one. Chromium is installed with Playwright's own command.
  */
 import assert from 'node:assert/strict';
-import {type ChildProcess, spawn} from 'node:child_process';
+import {type ChildProcess, spawn, spawnSync} from 'node:child_process';
 import {mkdtempSync, readFileSync, rmSync, writeFileSync} from 'node:fs';
 import {connect, createServer, type Server, type Socket} from 'node:net';
 import {tmpdir} from 'node:os';
@@ -46,6 +46,7 @@ import {freePort} from './testing/free_port.js';
 
 const samplesDir = fileURLToPath(new URL('../../../samples/preview/', import.meta.url));
 const SAMPLES = ['react', 'lit', 'angular'] as const;
+const windows = process.platform === 'win32';
 const TIMEOUT = 240_000;
 
 /** The preview page a sample's config file names. */
@@ -63,9 +64,14 @@ after(() => {
 });
 
 function stopServer(server: ChildProcess): void {
-  // The dev server is the group's leader, so its own children stop with it.
   try {
-    process.kill(-server.pid!, 'SIGTERM');
+    if (windows) {
+      // The dev server runs under cmd.exe, which yarn needs there; its tree is ended whole.
+      spawnSync('taskkill', ['/pid', String(server.pid), '/t', '/f'], {stdio: 'ignore'});
+    } else {
+      // The dev server is the group's leader, so its own children stop with it.
+      process.kill(-server.pid!, 'SIGTERM');
+    }
   } catch {
     // Already gone.
   }
@@ -74,10 +80,12 @@ function stopServer(server: ChildProcess): void {
 
 /** Starts a sample's dev server, as its README does, and resolves once its page answers. */
 async function startDevServer(sample: string, page: string): Promise<ChildProcess> {
+  // On Windows yarn is a batch file, which Node starts only through a shell.
   const server = spawn('yarn', ['dev'], {
     cwd: path.join(samplesDir, sample),
     stdio: ['ignore', 'pipe', 'pipe'],
-    detached: true,
+    detached: !windows,
+    shell: windows,
   });
   servers.add(server);
   let output = '';
@@ -251,9 +259,11 @@ describe(`the sample catalog apps in Chromium, ${binary ? 'the binary' : 'under 
 
           // Under attach, the first screen lists the variables to set in the agent's shell.
           await page.getByText('set these in the agent’s shell').waitFor();
+          // On Windows the first block is PowerShell's.
           for (const name of VARIABLES) {
+            const value = `http://127.0.0.1:${modelProxyPort}/${name}`;
             await page
-              .getByText(`${name}=http://127.0.0.1:${modelProxyPort}/${name}`, {exact: true})
+              .getByText(windows ? `$env:${name} = '${value}'` : `${name}=${value}`, {exact: true})
               .waitFor();
           }
 
@@ -305,7 +315,7 @@ describe(`the sample catalog apps in Chromium, ${binary ? 'the binary' : 'under 
           assert.match(echoed, /"volume":\{"volume":100,/);
         } finally {
           await page.close();
-          spectra.signal('SIGTERM');
+          spectra.requestStop();
           await spectra.exited;
           stopServer(server);
           stub.kill();
@@ -368,7 +378,7 @@ describe(`the sample catalog apps in Chromium, ${binary ? 'the binary' : 'under 
           assert.equal(await page.getByText('No preview for catalog').count(), 0);
         } finally {
           await page.close();
-          spectra.signal('SIGTERM');
+          spectra.requestStop();
           await spectra.exited;
           stopServer(server);
           stub.kill();
@@ -439,7 +449,7 @@ describe(`the sample catalog apps in Chromium, ${binary ? 'the binary' : 'under 
         assert.equal(await noteOf(page, pageUrl).textContent(), pageUrl);
       } finally {
         await page.close();
-        spectra.signal('SIGTERM');
+        spectra.requestStop();
         await spectra.exited;
         stopServer(server);
         stub.kill();
@@ -509,7 +519,7 @@ describe(`the sample catalog apps in Chromium, ${binary ? 'the binary' : 'under 
         assert.equal(await page.getByText('No preview for catalog').count(), 0);
       } finally {
         await page.close();
-        spectra.signal('SIGTERM');
+        spectra.requestStop();
         await spectra.exited;
         relay.server.close();
         stopServer(server);

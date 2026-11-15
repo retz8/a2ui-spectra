@@ -95,7 +95,10 @@ describe('the fixtures folder', () => {
     await folder.save(record, 'book-a-table-for-2');
     await assert.rejects(folder.save(record, 'book-a-table-for-2'), (error: unknown) => {
       assert.ok(error instanceof FixtureClashError);
-      assert.equal(error.message, 'a2ui-spectra-fixtures/book-a-table-for-2.json exists already.');
+      assert.equal(
+        error.message,
+        `${path.join('a2ui-spectra-fixtures', 'book-a-table-for-2.json')} exists already.`,
+      );
       assert.equal(error.suggested, 'book-a-table-for-2-2');
       return true;
     });

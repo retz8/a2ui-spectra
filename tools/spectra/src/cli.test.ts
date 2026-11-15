@@ -38,13 +38,24 @@ import {
 import {FAKE_TOOL_TOKEN, SEND_REPLY, startFakeAgent, STREAM_REPLY} from './testing/fake_agent.js';
 import {FAKE_PROVIDER_KEY, startFakeProvider} from './testing/fake_provider.js';
 import {boxSettled, getJson, LiveStream, postJson, sendMessage} from './testing/live_api.js';
-import {binary, finished, SpectraProcess, workingDir} from './testing/spectra_process.js';
+import {
+  binary,
+  finished,
+  SpectraProcess,
+  STOPPED_CODE,
+  workingDir,
+} from './testing/spectra_process.js';
 import {turnRecordErrors} from './testing/turn_record_schema.js';
 import {VERSION} from './version.js';
 import {freePort} from './testing/free_port.js';
 
 const fakeAgentScript = fileURLToPath(new URL('./testing/fake_agent.js', import.meta.url));
 const posix = process.platform !== 'win32';
+/**
+ * Whether the agent's whole process tree is handled: on macOS and Linux, and
+ * on Windows against the binary, which holds it in a Job Object.
+ */
+const treeHandled = posix || binary !== undefined;
 const TIMEOUT = 30_000;
 
 interface Answer {
@@ -275,9 +286,9 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
       assert.doesNotMatch(spectra.output, /Starting the agent|The agent's card answered/);
       assert.doesNotMatch(spectra.output, /restarts the agent|Restart on save/);
 
-      spectra.signal('SIGTERM');
+      spectra.requestStop();
       const exit = await spectra.exited;
-      assert.equal(exit.code, 128 + 15);
+      assert.equal(exit.code, STOPPED_CODE);
     } finally {
       await closeServer(agent);
     }
@@ -342,8 +353,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         assert.equal(headers.host, `localhost:${agentPort}`);
         assert.equal(headers['x-a2a-extensions'], 'https://a2ui.org/a2a-extension/a2ui/v0.9');
 
-        spectra.signal('SIGTERM');
-        assert.equal((await spectra.exited).code, 128 + 15);
+        spectra.requestStop();
+        assert.equal((await spectra.exited).code, STOPPED_CODE);
       } finally {
         await closeServer(agent);
       }
@@ -392,8 +403,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           });
           assert.equal(answer.status, 200);
         }
-        spectra.signal('SIGTERM');
-        assert.equal((await spectra.exited).code, 128 + 15, spectra.output);
+        spectra.requestStop();
+        assert.equal((await spectra.exited).code, STOPPED_CODE, spectra.output);
 
         assert.match(readFileSync(path.join(store, '.gitignore'), 'utf8'), /^\*$/m);
         const conversation = path.join(store, 'turns', 'ctx-1');
@@ -508,8 +519,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           {name: 'OTEL_EXPORTER_OTLP_PROTOCOL', value: 'http/protobuf'},
           {name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT', value: 'true'},
         ]);
-        spectra.signal('SIGTERM');
-        assert.equal((await spectra.exited).code, 128 + 15);
+        spectra.requestStop();
+        assert.equal((await spectra.exited).code, STOPPED_CODE);
       } finally {
         await closeServer(agent);
       }
@@ -633,8 +644,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
       try {
         await spectra.waitFor(/card prefers GRPC/);
         await spectra.waitFor(viewerUrl);
-        spectra.signal('SIGTERM');
-        assert.equal((await spectra.exited).code, 128 + 15);
+        spectra.requestStop();
+        assert.equal((await spectra.exited).code, STOPPED_CODE);
       } finally {
         await closeServer(agent);
       }
@@ -821,7 +832,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         assert.match(bare.stderr, /a2ui-spectra: No folder at a2ui-spectra-fixtures\./);
         const given = await finished(['test', 'ci/fixtures'], cwd);
         assert.equal(given.code, 2, given.output);
-        assert.match(given.stderr, /a2ui-spectra: No folder at ci\/fixtures\./);
+        assert.match(given.stderr, /a2ui-spectra: No folder at ci[\\/]fixtures\./);
         mkdirSync(path.join(cwd, 'empty'));
         writeFileSync(path.join(cwd, 'empty', 'readme.txt'), '');
         const empty = await finished(['test', 'empty'], cwd);
@@ -932,7 +943,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         file,
         async close() {
           live.close();
-          spectra.signal('SIGTERM');
+          spectra.requestStop();
           await spectra.exited;
           await closeServer(agent);
         },
@@ -1180,7 +1191,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
       "stops the agent's whole process group when Spectra stops",
       {
         timeout: TIMEOUT,
-        skip: !posix,
+        skip: !treeHandled,
       },
       async () => {
         const dir = mkdtempSync(path.join(tmpdir(), 'spectra-test-'));
@@ -1191,9 +1202,9 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           const grandchild = Number(readFileSync(pidFile, 'utf8'));
           assert.ok(isAlive(grandchild));
 
-          spectra.signal('SIGTERM');
+          spectra.requestStop();
           const exit = await spectra.exited;
-          assert.equal(exit.code, 128 + 15, spectra.output);
+          assert.equal(exit.code, STOPPED_CODE, spectra.output);
           assert.ok(
             await eventually(() => !isAlive(grandchild)),
             "The agent's grandchild outlived Spectra.",
@@ -1207,13 +1218,13 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
     it('forces the agent on a second stop signal', {timeout: TIMEOUT}, async () => {
       const spectra = new SpectraProcess(await runArgs(['--ignore-sigterm']));
       await spectra.waitFor(cardAnswered);
-      spectra.signal('SIGTERM');
+      spectra.requestStop();
       await spectra.waitFor(/Press Ctrl-C again to force it/);
       const forcedAt = Date.now();
       spectra.signal('SIGINT');
       const exit = await spectra.exited;
       // Spectra's exit code is its own, the first stop signal's.
-      assert.equal(exit.code, 128 + 15, spectra.output);
+      assert.equal(exit.code, STOPPED_CODE, spectra.output);
       assert.match(spectra.output, /Forcing the agent's process to stop\./);
       assert.ok(Date.now() - forcedAt < 5000, 'The agent went at once, not after the grace.');
     });
@@ -1240,8 +1251,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           );
           await spectra.waitFor(/The agent's process exited with code 5/);
           assert.match(spectra.output, /dotenv=undefined/);
-          spectra.signal('SIGTERM');
-          assert.equal((await spectra.exited).code, 128 + 15, spectra.output);
+          spectra.requestStop();
+          assert.equal((await spectra.exited).code, STOPPED_CODE, spectra.output);
         } finally {
           rmSync(dir, {recursive: true, force: true});
         }
@@ -1269,8 +1280,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           ),
         );
         assert.doesNotMatch(spectra.output, /set these in the agent's shell/);
-        spectra.signal('SIGTERM');
-        assert.equal((await spectra.exited).code, 128 + 15, spectra.output);
+        spectra.requestStop();
+        assert.equal((await spectra.exited).code, STOPPED_CODE, spectra.output);
       },
     );
 
@@ -1348,8 +1359,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           assert.deepEqual(call.status, {code: 1});
           assert.equal(served.body.includes(FAKE_PROVIDER_KEY), false, 'no key in the record');
 
-          spectra.signal('SIGTERM');
-          assert.equal((await spectra.exited).code, 128 + 15, spectra.output);
+          spectra.requestStop();
+          assert.equal((await spectra.exited).code, STOPPED_CODE, spectra.output);
           const store = path.join(realpathSync(cwd), '.a2ui-spectra', 'turns', 'ctx-1');
           const [file] = readdirSync(store);
           assert.equal(
@@ -1439,8 +1450,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
             },
           ]);
         } finally {
-          spectra.signal('SIGTERM');
-          assert.equal((await spectra.exited).code, 128 + 15, spectra.output);
+          spectra.requestStop();
+          assert.equal((await spectra.exited).code, STOPPED_CODE, spectra.output);
         }
       },
     );
@@ -1546,8 +1557,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           assert.deepEqual(call.attributes['http.request.header.authorization'], ['REMOVED']);
           assert.equal(call.attributes['url.full'], `http://127.0.0.1:${toolPort}/mcp`);
           assert.equal(served.body.includes(FAKE_TOOL_TOKEN), false, 'no token in the record');
-          spectra.signal('SIGTERM');
-          assert.equal((await spectra.exited).code, 128 + 15, spectra.output);
+          spectra.requestStop();
+          assert.equal((await spectra.exited).code, STOPPED_CODE, spectra.output);
         } finally {
           await closeServer(toolServer);
         }
@@ -1624,8 +1635,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
       const tempDir = () => mkdtempSync(path.join(tmpdir(), 'spectra-test-'));
 
       async function stopped(spectra: SpectraProcess) {
-        spectra.signal('SIGTERM');
-        assert.equal((await spectra.exited).code, 128 + 15, spectra.output);
+        spectra.requestStop();
+        assert.equal((await spectra.exited).code, STOPPED_CODE, spectra.output);
       }
 
       it(
@@ -1779,8 +1790,8 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           );
           assert.equal((await send(early.port)).status, 200, 'Spectra keeps serving.');
           assert.equal((await boxOf(early.base)).unavailable, "Can't send · the agent is down");
-          early.spectra.signal('SIGTERM');
-          assert.equal((await early.spectra.exited).code, 128 + 15, early.spectra.output);
+          early.spectra.requestStop();
+          assert.equal((await early.spectra.exited).code, STOPPED_CODE, early.spectra.output);
           assert.match(early.spectra.output, /a2ui-spectra: Stopping\.\n/);
 
           const late = await launch(['--exit-after-card', '4']);
@@ -1817,7 +1828,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
 
       it(
         'stops a member of the group that outlives the command, then reports down',
-        {timeout: TIMEOUT, skip: !posix},
+        {timeout: TIMEOUT, skip: !treeHandled},
         async () => {
           const dir = tempDir();
           try {
@@ -2445,9 +2456,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
               n: dividers[1].n,
               type: 'stopped',
               time: dividers[1].time,
-              exit: posix
-                ? 'was ended by SIGTERM'
-                : dividers[1].type === 'stopped' && dividers[1].exit,
+              exit: posix ? 'was ended by SIGTERM' : 'ended when Spectra asked it to stop',
               cause: {kind: 'press'},
             },
             {n: dividers[1].n + 1, type: 'started', time: dividers[2].time, command},
@@ -2654,7 +2663,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
 
       it(
         'starts a down agent on a save, and stops a starting process and starts another on a save during a card wait',
-        {timeout: TIMEOUT, skip: !posix},
+        {timeout: TIMEOUT, skip: !treeHandled},
         async () => {
           const cwd = workingDir();
           const down = await launch([], [process.execPath, '-e', 'process.exit(3)'], cwd);

@@ -97,7 +97,7 @@ async function recordFixture(cwd: string): Promise<{first: string; second: strin
     return {first: first.traceId, second: second.traceId};
   } finally {
     live?.close();
-    spectra.signal('SIGTERM');
+    spectra.requestStop();
     await spectra.exited;
   }
 }
@@ -168,12 +168,12 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
         );
         assert.equal(live.code, 0, live.output);
         const closing = live.stdout.match(
-          /^turn 1 of 2: passed\nturn 2 of 2: passed\nfixtures\/greet-ada\.json: passed; the replayed turns are in (\.a2ui-spectra\/turns\/\S+)\n$/,
+          /^turn 1 of 2: passed\nturn 2 of 2: passed\nfixtures[\\/]greet-ada\.json: passed; the replayed turns are in (\.a2ui-spectra[\\/]turns[\\/]\S+)\n$/,
         );
         assert.ok(closing, `stdout was:\n${live.stdout}`);
         assert.match(
           live.stderr,
-          /a2ui-spectra: Replay of fixtures\/greet-ada\.json, turn 2 of 2: passed\./,
+          /a2ui-spectra: Replay of fixtures[\\/]greet-ada\.json, turn 2 of 2: passed\./,
         );
         assert.match(live.stderr, /a2ui-spectra: Turns are saved in /);
         assert.doesNotMatch(live.output, /The viewer is at/);
@@ -405,7 +405,7 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
           recordedTurns = [first.traceId, second.traceId];
         } finally {
           live?.close();
-          spectra.signal('SIGTERM');
+          spectra.requestStop();
           await spectra.exited;
         }
         assert.deepEqual(
@@ -431,7 +431,7 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
         );
         assert.equal(free.code, 0, free.output);
         const closing = free.stdout.match(
-          /^turn 1 of 2: passed\nturn 2 of 2: passed\nfixtures\/restaurants\.json: passed; the replayed turns are in (\.a2ui-spectra\/turns\/\S+)\n$/,
+          /^turn 1 of 2: passed\nturn 2 of 2: passed\nfixtures[\\/]restaurants\.json: passed; the replayed turns are in (\.a2ui-spectra[\\/]turns[\\/]\S+)\n$/,
         );
         assert.ok(closing, `stdout was:\n${free.stdout}`);
         assert.doesNotMatch(

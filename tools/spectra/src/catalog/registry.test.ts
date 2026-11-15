@@ -39,6 +39,11 @@ after(() => {
   for (const dir of dirs) fs.rmSync(dir, {recursive: true, force: true});
 });
 
+/** A path as it reads in a pattern, a Windows path's backslashes included. */
+function escaped(text: string): string {
+  return text.replace(/[\\^$.*+?()[\]{}|]/g, '\\$&');
+}
+
 function write(name: string, content: unknown): string {
   const dir = fs.mkdtempSync(path.join(tmpdir(), 'spectra-catalogs-'));
   dirs.push(dir);
@@ -197,7 +202,7 @@ describe('configured catalogs', () => {
 
   it('stops on a file that does not load', async () => {
     const missing = path.join(CATALOGS, 'missing.json');
-    await loadError([missing], new RegExp(`catalog ${missing} does not exist`));
+    await loadError([missing], new RegExp(`catalog ${escaped(missing)} does not exist`));
     const broken = write('broken.json', '{');
     await loadError([broken], /broken\.json is not valid JSON/);
     const list = write('list.json', '[]');

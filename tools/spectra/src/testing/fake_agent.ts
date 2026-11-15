@@ -34,14 +34,18 @@
  *                                code 1, as an agent whose saved file no
  *                                longer imports.
  *   --exit-after-card <code>     Exit with <code> soon after answering the card.
- *   --ignore-sigterm             Ignore the stop signal.
+ *   --ignore-sigterm             Ignore the stop signal, SIGTERM, or on Windows
+ *                                the console's Ctrl-Break.
  *   --wait-for-open-requests     On the stop signal, stop listening and exit
  *                                once the open requests have ended, however
  *                                long that takes, as uvicorn does.
  *   --stop-delay <ms>            On the stop signal, exit after <ms>.
  *   --pid-file <path>            Append this process's id and a newline at
  *                                start.
- *   --grandchild-pid-file <path> Start a long-running child and write its pid.
+ *   --grandchild-pid-file <path> Start a long-running child and write its pid. On
+ *                                Windows the child is detached, so that it
+ *                                leaves this process's own job, which would
+ *                                end it with this process.
  *   --model-call                 Call the model at ANTHROPIC_BASE_URL during
  *                                each turn, before answering, as a redirected
  *                                agent does.
@@ -70,6 +74,9 @@ import {parseArgs} from 'node:util';
 import {FAKE_PROVIDER_KEY} from './fake_provider.js';
 
 export const FAKE_AGENT_NAME = 'Fake agent';
+
+/** The event Spectra stops the agent with: SIGTERM, and on Windows the console's Ctrl-Break. */
+const STOP_EVENT: NodeJS.Signals = process.platform === 'win32' ? 'SIGBREAK' : 'SIGTERM';
 
 /** The bearer token the fake agent sends its tool server, which no record may hold. */
 export const FAKE_TOOL_TOKEN = 'fake-tool-token-0f3c9a';
@@ -470,16 +477,16 @@ async function runAsScript(): Promise<void> {
     return;
   }
   if (values['ignore-sigterm']) {
-    process.on('SIGTERM', () => {});
+    process.on(STOP_EVENT, () => {});
   }
   if (values['model-call-on-stop']) {
-    process.on('SIGTERM', () =>
+    process.on(STOP_EVENT, () =>
       setTimeout(() => void callModel().then(() => process.exit(0)), 300),
     );
   }
   const stopDelay = values['stop-delay'];
   if (stopDelay !== undefined) {
-    process.on('SIGTERM', () => setTimeout(() => process.exit(0), Number(stopDelay)));
+    process.on(STOP_EVENT, () => setTimeout(() => process.exit(0), Number(stopDelay)));
   }
   const cardFile = values['card-file'];
   const fromFile =
@@ -496,6 +503,7 @@ async function runAsScript(): Promise<void> {
   if (values['grandchild-pid-file'] !== undefined) {
     const grandchild = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {
       stdio: 'ignore',
+      detached: process.platform === 'win32',
     });
     writeFileSync(values['grandchild-pid-file'], String(grandchild.pid));
   }
@@ -525,7 +533,7 @@ async function runAsScript(): Promise<void> {
     process.stderr.write(`Fake agent listening on port ${values.port}\n`);
   }
   if (values['wait-for-open-requests']) {
-    process.on('SIGTERM', () => server.close(() => process.exit(0)));
+    process.on(STOP_EVENT, () => server.close(() => process.exit(0)));
   }
 }
 

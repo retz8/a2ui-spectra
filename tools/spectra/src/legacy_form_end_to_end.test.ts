@@ -200,7 +200,7 @@ describe(`the v1.0 booking form's envelope keys in Chromium, ${binary ? 'the bin
           .waitFor();
       } finally {
         await page.close();
-        spectra.signal('SIGTERM');
+        spectra.requestStop();
         await spectra.exited;
         stub.kill();
       }

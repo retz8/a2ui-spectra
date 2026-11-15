@@ -1,7 +1,10 @@
 /**
  * Spectra as a separate process, for the tests that check it from outside.
  * It runs under Node by default. When SPECTRA_BINARY names a compiled
- * binary, it runs the binary instead.
+ * binary, it runs the binary instead. On Windows it runs in a console of its
+ * own, through the tests' console helper, which sends it the console's events
+ * as the terminal would: a stop is a console Ctrl-C there, and a SIGTERM
+ * elsewhere.
  */
 import {type ChildProcess, spawn} from 'node:child_process';
 import {mkdtempSync, rmSync} from 'node:fs';
@@ -12,6 +15,27 @@ import {fileURLToPath} from 'node:url';
 
 /** The binary under test, when one is named. */
 export const binary = process.env.SPECTRA_BINARY;
+
+const windows = process.platform === 'win32';
+
+/** The console helper and the workspace's Python, which runs it, on Windows. */
+const consoleHelper = fileURLToPath(
+  new URL('../../src/testing/windows_console.py', import.meta.url),
+);
+const python = fileURLToPath(new URL('../../../../.venv/Scripts/python.exe', import.meta.url));
+
+/** How a test asks Spectra to stop, as a user does: SIGTERM, and on Windows a console Ctrl-C. */
+export const STOP_SIGNAL: NodeJS.Signals = windows ? 'SIGINT' : 'SIGTERM';
+
+/** The code Spectra exits with after that stop: 128 plus the stop's number. */
+export const STOPPED_CODE = 128 + (windows ? 2 : 15);
+
+/** The console event the helper sends for a signal, on Windows. */
+const CONSOLE_EVENTS: Partial<Record<NodeJS.Signals, string>> = {
+  SIGINT: 'ctrl-c',
+  SIGBREAK: 'ctrl-break',
+  SIGHUP: 'close',
+};
 const spectraCommand: [string, ...string[]] =
   binary === undefined || binary === ''
     ? [process.execPath, fileURLToPath(new URL('../cli.js', import.meta.url))]
@@ -38,11 +62,17 @@ export class SpectraProcess {
    */
   constructor(args: string[], cwd: string = workingDir(), env: Record<string, string> = {}) {
     const [command, ...prefix] = spectraCommand;
-    this.#child = spawn(command, [...prefix, ...args], {
-      stdio: ['ignore', 'pipe', 'pipe'],
-      cwd,
-      env: {...process.env, ...env},
-    });
+    this.#child = windows
+      ? spawn(python, [consoleHelper, 'run', '--', command, ...prefix, ...args], {
+          stdio: ['pipe', 'pipe', 'pipe'],
+          cwd,
+          env: {...process.env, ...env},
+        })
+      : spawn(command, [...prefix, ...args], {
+          stdio: ['ignore', 'pipe', 'pipe'],
+          cwd,
+          env: {...process.env, ...env},
+        });
     for (const [stream, name] of [
       [this.#child.stdout, 'stdout'],
       [this.#child.stderr, 'stderr'],
@@ -88,8 +118,23 @@ export class SpectraProcess {
     });
   }
 
+  /**
+   * Sends Spectra a signal; on Windows a console event through the helper,
+   * and SIGKILL ends the helper, whose Job Object ends Spectra.
+   */
   signal(signal: NodeJS.Signals): void {
-    this.#child.kill(signal);
+    if (!windows || signal === 'SIGKILL') {
+      this.#child.kill(signal);
+      return;
+    }
+    const event = CONSOLE_EVENTS[signal];
+    if (event === undefined) throw new Error(`Windows has no console event for ${signal}.`);
+    this.#child.stdin?.write(`${event}\n`);
+  }
+
+  /** Asks Spectra to stop, as a user does: SIGTERM, or a console Ctrl-C on Windows. */
+  requestStop(): void {
+    this.signal(STOP_SIGNAL);
   }
 
   /**
@@ -107,7 +152,7 @@ export class SpectraProcess {
           resolve(true);
         });
       });
-    this.signal('SIGTERM');
+    this.requestStop();
     if (await gone(3000)) return;
     this.signal('SIGINT');
     if (await gone(2000)) return;
