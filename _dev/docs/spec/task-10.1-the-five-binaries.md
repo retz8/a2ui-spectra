@@ -28,7 +28,7 @@ Out of scope: Spectra working on Windows and the binary test run on a Windows ru
 
 ### 1. One build, cross-compiled
 
-One build produces all five binaries by cross-compilation, from one build of the viewer and one bundling of the tool.
+One build produces all five binaries by cross-compilation, from one build of the viewer.
 
 ### 2. The build runs on a Mac and signs
 
