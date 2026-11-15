@@ -164,23 +164,40 @@ Emit `"$schema": "https://json-schema.org/draft/2020-12/schema"` and a stable
 
 **Severity:** documentation and schema gap.
 
+**Upstream:** issue #533 (open), filed by another contributor.
+
+**Standing:** rechecked at `e6658f14c9` (2026-11-06). Issue #533,
+"`gen_ai.response.finish_reasons` has no vocabulary", reports the same gap and
+asks for a normative list of well-known values reconciled with the schema. A
+comment on it proposes definitions for the six values and mapping tables for
+Anthropic, AWS Bedrock and OpenAI. Issue #511, the stabilization tracker, lists
+it under "Finish reasons, interruption, and refusal". No PR implements it.
+
 ### Issue
 
 `changelog.d/363.deprecation.md` deprecates `gen_ai.output.messages[].finish_reason`
-in favour of `gen_ai.response.finish_reasons`. The well-known values (`stop`,
-`length`, `content_filter`, `tool_call`, `compaction`, `error`) survive only in
-`$defs/FinishReason`, referenced by the deprecated field.
-`gen_ai.response.finish_reasons` is a free `string[]` whose note defines only
-`error`, with examples `stop` and `length`. Three test cases still use the
+in favour of `gen_ai.response.finish_reasons`. The list of well-known values
+(`stop`, `length`, `content_filter`, `tool_call`, `compaction`, `error`) exists
+only as `$defs/FinishReason`, referenced by the deprecated field; `length` and
+`content_filter` also appear in prose at `model/gen-ai/spans.yaml:687` and
+`:1130`. `gen_ai.response.finish_reasons` is a free `string[]` whose note
+defines `interrupted` and `error`, with examples `stop` and `length`. The
+reference scenarios record the provider's own value.
+
+Four test cases under `docs/gen-ai/non-normative/tests/cases/` use the
 deprecated field: `output-messages-assistant-text.yaml`,
+`output-messages-blob-missing-content.yaml`,
 `output-messages-reasoning-and-generic-parts.yaml` and
-`output-messages-wrong-field-types.yaml` under
-`docs/gen-ai/non-normative/tests/cases/`.
+`output-messages-wrong-field-types.yaml`. They validate the output messages
+schema, which the field is still part of, and the last one tests the field's
+type.
 
 ### Fix
 
-Move the well-known values to `gen_ai.response.finish_reasons` as an open enum,
-and update the test cases to the non-deprecated attribute.
+Publish the well-known values on `gen_ai.response.finish_reasons`, as issue
+#533 asks. Its comment keeps the attribute a `string[]` and documents the
+values in the attribute's note, on the ground that Weaver enums are scalar
+(the comment's claim, not checked here).
 
 ## 6. `tool_call_response` claims built-in tool outcomes that the examples assign to another part
 
