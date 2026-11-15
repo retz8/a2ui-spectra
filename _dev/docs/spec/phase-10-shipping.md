@@ -16,6 +16,8 @@ In scope:
 - Turn record `v0.1`'s closing review, the newer-record rule, and the preview mismatch line.
 - The licence material a release carries.
 - The root README's install steps, the packages' READMEs as a DX product, the design docs in `docs/design/`, and a stable public URL for the config file's schema.
+- A skill for a coding agent using Spectra.
+- An `AGENTS.md` file, and the `CLAUDE.md` file turned into a local file.
 - SPEC.md's roadmap, distribution, preview and open list, and `_dev/TODO.md`'s phases, brought in line with this spec.
 
 Out of scope:
@@ -149,8 +151,10 @@ The npm packages that hold the binary, one per platform, are named with the `a2u
 | 10.8 The contracts at release | Turn record `v0.1`'s closing review and its amendments; the newer-record rule; the preview mismatch line | At once |
 | 10.9 The documents | The root README with the install steps behind its status line; the packages' READMEs; the design docs; the viewer's hint for switching on a wrapper; a stable public URL for the config file's schema | The design docs at once; the install text after 10.5 |
 | 10.10 The acceptance run | The rehearsal, on all five platforms | Last |
+| 10.11 The skill | A skill, in the Agent Skills format, for a coding agent using Spectra | After 10.9, before 10.10 |
+| 10.12 The agent instructions | An `AGENTS.md` file; the `CLAUDE.md` file turned into a local file | At once |
 
-Sub-tasks 10.1, 10.4 and 10.8, and the design docs of 10.9, run in parallel.
+Sub-tasks 10.1, 10.4, 10.8 and 10.12, and the design docs of 10.9, run in parallel.
 
 ### 20. Phase 11, the release
 
