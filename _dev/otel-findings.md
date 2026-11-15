@@ -62,27 +62,50 @@ examples).
 
 **Severity:** schema gap: a common tool result cannot be recorded validly.
 
+**Upstream:** issue #532 (open) and PRs #653, #654 and #676 (open), filed by
+another contributor.
+
+**Standing:** rechecked at `e6658f14c9` (2026-11-06). Issue #532,
+"`gen_ai.tool.call.result`: the schema only allows an object, but tool results
+are often strings or lists of content blocks", reports the same gap. Its three
+PRs are alternatives: #654 allows any JSON value, #653 allows any JSON value and
+adds `gen_ai.tool.call.result_parts` for content blocks, and #676 makes the
+attribute an object with `value` and `parts`. #676 has one approval; none is
+merged.
+
 ### Issue
 
-`gen-ai-tool-call-result.json` is `"type": "object"`. The registry note says the
-value "is expected to be an object" and that a serialized string should be
-deserialized "to an object" as a best effort. Many tools return plain text, which
-does not deserialize to an object. The registry's own `gen_ai.input.messages`
-example records the result of the `get_weather` call as the string
-`"rainy, 57°F"` in a `tool_call_response` part, whose `response` is untyped. The
-same result has no valid value under `gen_ai.tool.call.result`.
+The registry types `gen_ai.tool.call.result` as `any`
+(`model/gen-ai/registry.yaml:636`), and `gen-ai-tool-call-result.json` is
+`"type": "object"`. The registry note says the value "is expected to be an
+object" and that a serialized string should be deserialized "to an object" as a
+best effort. Many tools return plain text, which does not deserialize to an
+object. The registry's own `gen_ai.input.messages` example records the result of
+the `get_weather` call as the string `"rainy, 57°F"` in a `tool_call_response`
+part, whose `response` is untyped. The same result has no valid value under
+`gen_ai.tool.call.result`.
+
+The rejection is pinned by a test case:
+`docs/gen-ai/non-normative/tests/cases/tool-call-result-not-an-object.yaml` is
+described as "A tool call result must be an object; array results don't match
+this schema".
 
 ### Reproduction
 
 Validate the JSON string `"rainy, 57°F"` against `gen-ai-tool-call-result.json`:
-it fails on `type`. Compare the `gen_ai.input.messages` example in
-`docs/registry/attributes/gen-ai.md`, which uses that string as the tool response.
+it fails with `'rainy, 57°F' is not of type 'object'`, where
+`{"conditions": "rainy"}` is valid. Compare the `gen_ai.input.messages` example
+in `docs/registry/attributes/gen-ai.md`, which uses that string as the tool
+response.
 
 ### Fix
 
-Allow any JSON value, as `ToolCallResponsePart.response` already does, or define
-how a non-object result is wrapped. The same applies to
-`gen-ai-tool-call-arguments.json`.
+Allow any JSON value, as `ToolCallResponsePart.response` already does (PR #654),
+or define how a non-object result is wrapped (PR #676).
+
+`gen-ai-tool-call-arguments.json` is `"type": "object"` as well and rejects the
+same string. Whether any API passes tool arguments that are not an object is not
+checked, and none of the three PRs changes that schema.
 
 ## 3. A remote agent invocation requires a provider that a self-hosted agent does not have
 
