@@ -122,6 +122,11 @@ export class SpectraProcess {
    * Sends Spectra a signal; on Windows a console event through the helper,
    * and SIGKILL ends the helper, whose Job Object ends Spectra.
    */
+  /** The process the test started: Spectra, or on Windows the console helper that runs it. */
+  get pid(): number | undefined {
+    return this.#child.pid;
+  }
+
   signal(signal: NodeJS.Signals): void {
     if (!windows || signal === 'SIGKILL') {
       this.#child.kill(signal);
