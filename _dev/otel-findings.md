@@ -84,38 +84,52 @@ Allow any JSON value, as `ToolCallResponsePart.response` already does, or define
 how a non-object result is wrapped. The same applies to
 `gen-ai-tool-call-arguments.json`.
 
-## 3. A remote agent invocation requires a provider that agent protocols do not have
+## 3. A remote agent invocation requires a provider that a self-hosted agent does not have
 
-**Component:** `model/gen-ai/spans.yaml` (`gen_ai.invoke_agent.client`);
+**Component:** `model/gen-ai/spans.yaml` (`gen_ai.client.invoke_agent`);
+`model/gen-ai/metrics.yaml` (`gen_ai.client.invoke_agent.duration`);
 `model/gen-ai/registry.yaml` (`gen_ai.provider.name`).
 
 **Severity:** design gap: required attribute with no applicable value.
 
+**Upstream:** issue #706, PR #707 (in review).
+
+**Standing:** rechecked at `e6658f14c9` (2026-11-06). The span id is
+`gen_ai.client.invoke_agent` (`spans.yaml:794`), renamed from
+`gen_ai.invoke_agent.client`.
+
 ### Issue
 
-`gen_ai.invoke_agent.client` "describes GenAI agent invocation over a remote
-service" and requires `gen_ai.provider.name`. The registry note says that
-attribute "identifies the GenAI telemetry format flavor specific to that
-provider", and every listed value is a model or platform provider (`openai`,
-`gcp.gemini`, `aws.bedrock`, …). The span's examples, OpenAI Assistants API and
-AWS Bedrock Agents, are provider-hosted.
+`gen_ai.client.invoke_agent` "describes GenAI agent invocation over a remote
+service" and requires `gen_ai.provider.name` (`spans.yaml:822`), as does the
+`gen_ai.client.invoke_agent.duration` metric (`metrics.yaml:110`). The registry
+note says that attribute "identifies the GenAI telemetry format flavor specific
+to that provider", and every listed value is a model or platform provider
+(`openai`, `gcp.gemini`, `aws.bedrock`, …). The span's examples are the OpenAI
+Assistants API, AWS Bedrock Agents, Gemini Enterprise Agent Platform, Azure AI
+Foundry Agent Service, "or an A2A endpoint", and `docs/gen-ai/a2a.md` shows the
+span as the parent of the A2A client span.
 
-An agent reached over an agent protocol, such as a self-hosted A2A or AG-UI
-agent, has no provider in that sense: the caller does not know, and should not
-need to know, which model provider the agent uses. A client instrumenting that
-call cannot satisfy the requirement without inventing a value.
+A self-hosted agent reached over A2A has no provider in that sense. The Agent
+Card's `provider` field is optional and names an organization and a URL, not a
+GenAI provider. A client instrumenting that call cannot satisfy the requirement
+without inventing a value: Microsoft Agent Framework's `A2AAgent` sets `"A2A"`
+(`agent_framework_a2a/_agent.py:295` at `92838b604`, read and not run).
 
 ### Reproduction
 
-Read `gen_ai.invoke_agent.client` in `model/gen-ai/spans.yaml` (around line 505)
-and the `gen_ai.provider.name` note in `model/gen-ai/registry.yaml` (around line
-84). No value or rule covers an agent invoked over an agent protocol.
+Wrap the `a2a-python` reference scenario's `SendMessage` call in a
+`gen_ai.client.invoke_agent` span carrying the Agent Card's values and no
+provider name, and run it under the conformance runner: it reports
+`missing expected attribute 'gen_ai.provider.name'`. With the invented value
+`a2a` that line is gone. The patch is in issue #706.
 
 ### Fix
 
-Make `gen_ai.provider.name` conditionally required on `gen_ai.invoke_agent.client`
-("when the agent is hosted by a known provider"), or add a way to name the agent
-protocol in use, for example a well-known value per protocol.
+Make `gen_ai.provider.name` conditionally required on the span and the metric.
+PR #707 uses the condition "If the agent is hosted by a named GenAI provider or
+service", the form the `gen_ai.memory.client` span has, and adds to the span
+note that the attribute identifies the provider hosting the agent.
 
 ## 4. The content schemas declare no draft and no id
 
