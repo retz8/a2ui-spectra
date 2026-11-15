@@ -32,8 +32,6 @@ export interface Win32 {
   assignToJob(job: bigint, pid: number): void;
   /** How many processes the job holds that are still running. */
   activeProcesses(job: bigint): number;
-  /** The ids of the job's processes that are still running. */
-  processIds(job: bigint): number[];
   /** Ends every process in the job, with the exit code given. */
   terminateJob(job: bigint, exitCode: number): void;
   closeHandle(handle: bigint): void;
@@ -47,10 +45,6 @@ export interface Win32 {
   attachParentConsole(): boolean;
   /** Detaches this process from its console, so that the console's events no longer reach it. */
   freeConsole(): void;
-  /** Whether this process is in a job of any kind. */
-  inAnyJob(): boolean;
-  /** Whether the process with that id is still running. */
-  processRunning(pid: number): boolean;
   /**
    * A handle to the process with that id, for its exit code once it has
    * exited: the process stays readable while the handle is open.
@@ -62,7 +56,6 @@ export interface Win32 {
 
 const JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x2000;
 const JOB_OBJECT_BASIC_ACCOUNTING_INFORMATION = 1;
-const JOB_OBJECT_BASIC_PROCESS_ID_LIST = 3;
 const JOB_OBJECT_EXTENDED_LIMIT_INFORMATION = 9;
 /** sizeof(JOBOBJECT_EXTENDED_LIMIT_INFORMATION) on x64. */
 const EXTENDED_LIMIT_SIZE = 144;
@@ -72,8 +65,6 @@ const LIMIT_FLAGS_OFFSET = 16;
 const ACCOUNTING_SIZE = 48;
 /** The offset of ActiveProcesses in it. */
 const ACTIVE_PROCESSES_OFFSET = 40;
-/** How many process ids one query of the job's list reads. */
-const PROCESS_ID_LIST_LENGTH = 1024;
 
 const PROCESS_TERMINATE = 0x0001;
 const PROCESS_SET_QUOTA = 0x0100;
@@ -106,10 +97,8 @@ async function load(): Promise<Win32 | undefined> {
     QueryInformationJobObject: {args: ['u64', 'i32', 'buffer', 'u32', 'ptr'], returns: 'i32'},
     AssignProcessToJobObject: {args: ['u64', 'u64'], returns: 'i32'},
     TerminateJobObject: {args: ['u64', 'u32'], returns: 'i32'},
-    IsProcessInJob: {args: ['u64', 'u64', 'buffer'], returns: 'i32'},
     OpenProcess: {args: ['u32', 'i32', 'u32'], returns: 'u64'},
     GetExitCodeProcess: {args: ['u64', 'buffer'], returns: 'i32'},
-    GetCurrentProcess: {args: [], returns: 'u64'},
     CloseHandle: {args: ['u64'], returns: 'i32'},
     GenerateConsoleCtrlEvent: {args: ['u32', 'u32'], returns: 'i32'},
     AttachConsole: {args: ['u32'], returns: 'i32'},
@@ -175,25 +164,6 @@ async function load(): Promise<Win32 | undefined> {
       }
       return new DataView(info.buffer).getUint32(ACTIVE_PROCESSES_OFFSET, true);
     },
-    processIds(job) {
-      const info = new Uint8Array(8 + 8 * PROCESS_ID_LIST_LENGTH);
-      // ERROR_MORE_DATA still fills the list as far as it goes.
-      call<number>(
-        'QueryInformationJobObject',
-        job,
-        JOB_OBJECT_BASIC_PROCESS_ID_LIST,
-        info,
-        info.byteLength,
-        null,
-      );
-      const view = new DataView(info.buffer);
-      const listed = view.getUint32(4, true);
-      const ids: number[] = [];
-      for (let index = 0; index < Math.min(listed, PROCESS_ID_LIST_LENGTH); index++) {
-        ids.push(Number(view.getBigUint64(8 + 8 * index, true)));
-      }
-      return ids;
-    },
     terminateJob(job, exitCode) {
       if (call<number>('TerminateJobObject', job, exitCode) === 0) fail('TerminateJobObject');
     },
@@ -210,13 +180,6 @@ async function load(): Promise<Win32 | undefined> {
     freeConsole() {
       call('FreeConsole');
     },
-    inAnyJob() {
-      const result = new Uint8Array(4);
-      if (call<number>('IsProcessInJob', call<bigint>('GetCurrentProcess'), 0n, result) === 0) {
-        fail('IsProcessInJob');
-      }
-      return new DataView(result.buffer).getInt32(0, true) !== 0;
-    },
     openProcess(pid) {
       return openProcess(PROCESS_QUERY_LIMITED_INFORMATION, pid);
     },
@@ -225,21 +188,6 @@ async function load(): Promise<Win32 | undefined> {
       if (call<number>('GetExitCodeProcess', handle, code) === 0) return undefined;
       const value = new DataView(code.buffer).getUint32(0, true);
       return value === STILL_ACTIVE ? undefined : value;
-    },
-    processRunning(pid) {
-      let handle: bigint;
-      try {
-        handle = openProcess(PROCESS_QUERY_LIMITED_INFORMATION, pid);
-      } catch {
-        return false;
-      }
-      try {
-        const code = new Uint8Array(4);
-        if (call<number>('GetExitCodeProcess', handle, code) === 0) return false;
-        return new DataView(code.buffer).getUint32(0, true) === STILL_ACTIVE;
-      } finally {
-        call('CloseHandle', handle);
-      }
     },
   };
 }
