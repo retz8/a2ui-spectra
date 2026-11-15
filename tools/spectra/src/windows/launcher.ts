@@ -128,6 +128,11 @@ export async function runLauncher(
     handle = undefined;
   }
   if (attachedConsole && !stayAttached) win32?.freeConsole();
+  if (process.env.A2UI_SPECTRA_TREE_DEBUG === '1') {
+    process.stderr.write(
+      `launcher ${process.pid}: attached ${attachedConsole}, in a job ${report.inAnyJob}, started ${child.pid}\n`,
+    );
+  }
   report.pid = child.pid;
   onReport?.(report);
   const cut = await child.exited;

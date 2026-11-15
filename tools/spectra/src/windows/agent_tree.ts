@@ -18,6 +18,12 @@ import type {AgentExit, AgentProcess, AgentStop} from '../agent_process.js';
 import {LAUNCH_VARIABLE, type LaunchOutcome} from './launcher.js';
 import type {Win32} from './win32.js';
 
+/** A temporary diagnostic of the tree's handling, on stderr, while the Windows suite is brought up. */
+const debug = process.env.A2UI_SPECTRA_TREE_DEBUG === '1';
+const trace = (line: string) => {
+  if (debug) process.stderr.write(`tree: ${line}\n`);
+};
+
 /** The exit code a process the job ends exits with. */
 const ENDED_EXIT_CODE = 1;
 
@@ -99,6 +105,11 @@ export function startAgentTree(
     }
     // The launcher starts the command once it is in the job.
     if (assignError === undefined) launcher.stdin?.end('go\n');
+    trace(
+      `launcher ${launcher.pid} assigned: ${assignError?.message ?? 'yes'}; in the job: ${safely(() => win32.processInJob(launcher.pid!, job))}`,
+    );
+  } else {
+    trace('launcher has no pid at spawn');
   }
 
   const exited = new Promise<AgentExit>(resolve => {
@@ -167,8 +178,12 @@ export function startAgentTree(
           return {forceKilled: false};
         }
         asked = true;
+        trace(
+          `stop of ${launcher.pid}: active ${safely(() => win32.activeProcesses(job))}, ids ${safely(() => win32.processIds(job).join(' '))}`,
+        );
         // Without a console to share there is no asking: the job is ended at once.
         const sent = win32.sendConsoleEvent('ctrl-break', launcher.pid);
+        trace(`ctrl-break to ${launcher.pid} sent: ${sent}`);
         const deadline = Date.now() + (sent ? graceMs : 0);
         let forceKilled = false;
         while (alive()) {
@@ -179,6 +194,7 @@ export function startAgentTree(
           }
           await delay(50);
         }
+        trace(`stop of ${launcher.pid} waited: active ${safely(() => win32.activeProcesses(job))}`);
         await exited;
         closeJob();
         return {forceKilled};
@@ -210,6 +226,14 @@ function readOutcome(file: string): LaunchOutcome | undefined {
     return outcome;
   } catch {
     return undefined;
+  }
+}
+
+function safely(read: () => unknown): string {
+  try {
+    return String(read());
+  } catch (error) {
+    return `error: ${error instanceof Error ? error.message : String(error)}`;
   }
 }
 

@@ -98,6 +98,7 @@ async function startRun(command: (port: number, cwd: string) => string[]) {
       ...command(agentPort, cwd),
     ],
     cwd,
+    {A2UI_SPECTRA_TREE_DEBUG: '1'},
   );
   await spectra.waitFor(/The agent's card answered: Spectra stub agent\./, 60_000);
   return {spectra, base: `http://127.0.0.1:${port}`};
@@ -149,7 +150,7 @@ describe(`the agent's process tree, ${binary ? 'the binary' : 'under Node'}`, ()
         }
         assert.ok(
           await eventually(() => first.every(pid => !isRunning(pid))),
-          `A process of the first launch's tree is left: ${first.filter(isRunning).join(', ')}`,
+          `A process of the first launch's tree is left: ${first.filter(isRunning).join(', ')} of ${first.join(', ')}:\n${spectra.output}`,
         );
         const second = agentTreeOf(spectra);
         assert.ok(second.length > 0);
