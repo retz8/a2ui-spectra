@@ -35,7 +35,11 @@ function processTable(): ListedProcess[] {
     .split(/\r?\n/)
     .map(line => /^\s*(\d+)\s+(\d+)\s+(.*)$/.exec(line))
     .filter(match => match !== null)
-    .map(([, pid, parent, name]) => ({pid: Number(pid), parent: Number(parent), name: name.trim()}));
+    .map(([, pid, parent, name]) => ({
+      pid: Number(pid),
+      parent: Number(parent),
+      name: name.trim(),
+    }));
 }
 
 /** Every process below the one given, children first. */
