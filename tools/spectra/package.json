@@ -11,6 +11,7 @@
     "build:tsc": "wireit",
     "build:viewer": "wireit",
     "build:binary": "wireit",
+    "build:binaries": "wireit",
     "generate:otlp": "wireit",
     "test": "wireit",
     "lint": "eslint .",
@@ -39,7 +40,8 @@
       "output": [
         "dist/**",
         "!dist/viewer/**",
-        "!dist/a2ui-spectra"
+        "!dist/a2ui-spectra",
+        "!dist/binaries/**"
       ],
       "clean": "if-file-deleted"
     },
@@ -70,6 +72,23 @@
       ],
       "output": [
         "dist/a2ui-spectra"
+      ]
+    },
+    "build:binaries": {
+      "command": "node scripts/build_binaries.mjs",
+      "dependencies": [
+        "build:viewer"
+      ],
+      "files": [
+        "src/**/*.ts",
+        "src/**/*.json",
+        "tsconfig.json",
+        "package.json",
+        "scripts/build_binaries.mjs",
+        "scripts/bun_runtimes.json"
+      ],
+      "output": [
+        "dist/binaries/**"
       ]
     },
     "test": {

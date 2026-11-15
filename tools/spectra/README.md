@@ -401,6 +401,12 @@ The live stream's events:
 
 `yarn build:binary` compiles the tool with Bun, pinned as a dev dependency, into `dist/a2ui-spectra` for the host platform. The viewer's build, with the built-in preview page, is embedded, and the binary does not load `.env` or `bunfig.toml` files from its working directory.
 
+`yarn build:binaries`, on macOS, compiles the five binaries the same way, for macOS arm64, macOS x64, Linux x64, Linux arm64 and Windows x64, into `dist/binaries/` as `a2ui-spectra-darwin-arm64`, `a2ui-spectra-darwin-x64`, `a2ui-spectra-linux-x64`, `a2ui-spectra-linux-arm64` and `a2ui-spectra-windows-x64.exe`.
+
+- Bun cross-compiles each binary onto its platform's Bun runtime, the npm package `@oven/bun-<target>` at the pinned Bun version. The build fetches each package from the npm registry, checks it against npm's published integrity value in [`scripts/bun_runtimes.json`](scripts/bun_runtimes.json), and stops on a package that does not match.
+- Bun signs the macOS arm64 binary ad hoc, and the build signs the macOS x64 binary ad hoc with `codesign`. The build verifies both signatures.
+- A move to another Bun version writes the five packages' integrity values at that version into `scripts/bun_runtimes.json`, as `npm view <package>@<version> dist.integrity` prints them; until then the build stops, naming both versions.
+
 ## Layout
 
 - `src/`: the TypeScript source, with each unit test beside its source as `*.test.ts`.
@@ -439,7 +445,8 @@ The live stream's events:
 - `src/testing/turn_record_schema.ts`: validates the records tests produce against turn record v0.1's schema.
 - `src/testing/turns.ts`: the turns the checks' tests build.
 - `src/record/turn_record.ts`: the types for turn record v0.1.
-- `dist/`: the compiled tool, with the viewer's build copied into `dist/viewer/` and the built-in preview page's into `dist/viewer/preview/`.
+- `scripts/build_binaries.mjs`: the five binaries' build, and `scripts/bun_runtimes.json`, npm's integrity value of each Bun runtime package they are compiled onto.
+- `dist/`: the compiled tool, with the viewer's build copied into `dist/viewer/` and the built-in preview page's into `dist/viewer/preview/`; the host's binary, `dist/a2ui-spectra`, and the five in `dist/binaries/`.
 
 ## Commands
 
@@ -447,9 +454,10 @@ From `tools/spectra/`:
 
 - `yarn build`: compiles `src/` into `dist/` and copies the viewer's build into `dist/viewer/` and the built-in preview page's into `dist/viewer/preview/`, building both first.
 - `yarn build:binary`: compiles the binary into `dist/a2ui-spectra`.
+- `yarn build:binaries`: on macOS, compiles the five binaries into `dist/binaries/`.
 - `yarn generate:otlp`: generates `src/receiver/gen/` from `proto/` with `buf` and `protoc-gen-es`, both dev dependencies, so that the build needs no protobuf compiler. The generated code is checked in; `@bufbuild/protobuf` is its runtime dependency.
 - `yarn test`: builds the tool, the conformance workspace, whose stub agent the end-to-end tests run, and the three preview adapters, which the sample catalog apps' dev servers serve from their builds, then runs the unit tests, the command-line test and the end-to-end tests under Node's test runner. The browser end-to-end test needs Playwright's Chromium, as under [Prerequisites](#prerequisites).
-- `SPECTRA_BINARY=dist/a2ui-spectra yarn test`: runs the same tests with the command-line test and the end-to-end tests against the binary. The commands end-to-end test records the stub agent's model-calling conversation against the stand-in provider playing the Gemini restaurant finder recording, then runs `replay` and `test` on it, the stand-in stopped, in both agent forms.
+- `SPECTRA_BINARY=dist/a2ui-spectra yarn test`: runs the same tests with the command-line test and the end-to-end tests against the binary. The commands end-to-end test records the stub agent's model-calling conversation against the stand-in provider playing the Gemini restaurant finder recording, then runs `replay` and `test` on it, the stand-in stopped, in both agent forms. `SPECTRA_BINARY` may name one of the five in `dist/binaries/` instead, on its own platform, as CI runs each of the four POSIX platforms' binaries on that platform's runner.
 - `yarn lint` and `yarn lint:fix`: ESLint with the root ESLint preset.
 - `yarn format` and `yarn format:check`: Prettier, with the root `.prettierignore`.
 - `node dist/cli.js <command>`: runs the built tool under Node.

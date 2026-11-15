@@ -29,8 +29,6 @@ jobs:
         uses: google/wireit@9d7c2e5346f8ef1b1ab6014c4e96c74e234f7ed5 # setup-github-actions-caching/v2.0.4
       - name: Build
         run: yarn build:all
-      - name: Build the binary
-        run: yarn workspace a2ui-spectra build:binary
       - name: Lint
         run: yarn lint:all
       - name: Format check
@@ -45,7 +43,92 @@ jobs:
         run: npx playwright@1.58.1 install --with-deps chromium chromium-headless-shell
       - name: Test
         run: yarn test:all
+
+  binaries:
+    name: The five binaries
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+      - name: Build the five binaries
+        run: yarn workspace a2ui-spectra build:binaries
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: tools/spectra/dist/binaries/a2ui-spectra-darwin-arm64
+          archive: false
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: tools/spectra/dist/binaries/a2ui-spectra-darwin-x64
+          archive: false
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: tools/spectra/dist/binaries/a2ui-spectra-linux-x64
+          archive: false
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: tools/spectra/dist/binaries/a2ui-spectra-linux-arm64
+          archive: false
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: tools/spectra/dist/binaries/a2ui-spectra-windows-x64.exe
+          archive: false
+          if-no-files-found: error
+
+  binary-test:
+    name: The binary test run (${{ matrix.platform }})
+    needs: binaries
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: darwin-arm64
+            runner: macos-latest
+          - platform: darwin-x64
+            runner: macos-15-intel
+          - platform: linux-x64
+            runner: ubuntu-latest
+          - platform: linux-arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: true
+      - name: Sync the Python workspace
+        run: uv sync --all-packages --locked
+      - name: Build
+        run: yarn build:all
+      - name: Install Playwright's Chromium
+        run: npx playwright@1.58.1 install --with-deps chromium chromium-headless-shell
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: a2ui-spectra-${{ matrix.platform }}
+          path: ${{ runner.temp }}/binary
+      - name: Make the binary executable
+        run: chmod +x "$RUNNER_TEMP/binary/a2ui-spectra-${{ matrix.platform }}"
       - name: Test against the binary
         run: yarn workspace a2ui-spectra test
         env:
-          SPECTRA_BINARY: dist/a2ui-spectra
+          SPECTRA_BINARY: ${{ runner.temp }}/binary/a2ui-spectra-${{ matrix.platform }}
+
+  windows-start:
+    name: The Windows x64 binary's start check
+    needs: binaries
+    runs-on: windows-latest
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: a2ui-spectra-windows-x64.exe
+          path: ${{ runner.temp }}/binary
+      - name: Start the binary
+        run: '& "$env:RUNNER_TEMP\binary\a2ui-spectra-windows-x64.exe" --version'
