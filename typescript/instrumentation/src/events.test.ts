@@ -256,3 +256,32 @@ describe('the block an error belongs to', () => {
     assert.equal(event['a2ui.parse.error.details'], undefined);
   });
 });
+
+describe("an event's times", () => {
+  it('read the wall clock, with the monotonic clock an hour behind it', async t => {
+    const processor = await processorOf('direct_json');
+    const monotonic = performance.now.bind(performance);
+    t.mock.method(performance, 'now', () => monotonic() - 3_600_000);
+    const before = Date.now();
+    const stream = processor.openStream();
+    stream.feed(`Here it is.\n${goodBlock('a')}`);
+    stream.close();
+    const after = Date.now();
+
+    const span = capture.only();
+    const times: Array<[string, [number, number]]> = [
+      ['start', span.startTime],
+      ...span.events.map((event): [string, [number, number]] => [event.name, event.time]),
+      ['end', span.endTime],
+    ];
+    assert.ok(times.length > 2, 'the stream has span events');
+    for (const [what, [seconds, nanos]] of times) {
+      const millis = seconds * 1000 + nanos / 1e6;
+      // The wall clock reads whole milliseconds, the times within one past it.
+      assert.ok(
+        before <= millis && millis <= after + 1,
+        `${what} at ${millis}: ${before} to ${after}`,
+      );
+    }
+  });
+});

@@ -51,9 +51,8 @@ export function leave(event: Event): void {
   if (index >= 0) stack.splice(index);
 }
 
-/** Now, from the monotonic clock, so the span events keep their order. */
-export function now(): HrTime {
-  const millis = performance.timeOrigin + performance.now();
+/** A time in milliseconds since the Unix epoch, as an `HrTime`. */
+function hrTime(millis: number): HrTime {
   const seconds = Math.floor(millis / 1000);
   const nanos = Math.min(999_999_999, Math.round((millis - seconds * 1000) * 1e6));
   return [seconds, nanos];
@@ -111,7 +110,11 @@ export type Surfaced = 'returned' | 'thrown';
 /** One event of the A2UI step, open from its outermost call to its end. */
 export abstract class Event {
   abstract readonly kind: 'parse' | 'prompt_generation';
-  readonly start: HrTime = now();
+  // Times come from one wall-clock reading and the monotonic clock, so the
+  // span events keep their order.
+  readonly #wall = Date.now();
+  readonly #monotonic = performance.now();
+  readonly start: HrTime = hrTime(this.#wall);
   /** The span current when the event opened is its parent. */
   readonly parent: Context = otelContext.active();
   format: InferenceFormat | undefined;
@@ -126,6 +129,11 @@ export abstract class Event {
   ended = false;
 
   constructor(readonly active: Active) {}
+
+  /** Now: the wall clock when the event opened, and the monotonic clock since. */
+  protected now(): HrTime {
+    return hrTime(this.#wall + (performance.now() - this.#monotonic));
+  }
 
   // What hooked calls nested in the event tell it. A prompt generation's event
   // takes only a generator's format and catalogs.
@@ -181,7 +189,7 @@ export abstract class Event {
     }
     const details = errorDetails(error);
     if (details.length > 0) attributes['a2ui.parse.error.details'] = JSON.stringify(details);
-    this.spanEvents.push({name: 'exception', attributes, time: now()});
+    this.spanEvents.push({name: 'exception', attributes, time: this.now()});
   }
 
   /** The outermost call threw: the error is recorded and the event ends. */
@@ -219,7 +227,7 @@ export abstract class Event {
     if (this.errors.length > 0) {
       span.setStatus({code: SpanStatusCode.ERROR, message: messageOf(this.errors[0])});
     }
-    span.end(now());
+    span.end(this.now());
   }
 
   protected sdk(): Attributes {
@@ -451,7 +459,7 @@ export class ParseEvent extends Event {
     this.spanEvents.push({
       name: 'a2ui.parse.chunk',
       attributes: {'a2ui.parse.chunk.end': this.fed},
-      time: now(),
+      time: this.now(),
     });
   }
 
