@@ -93,7 +93,7 @@ For every pack:
 - every `exports` target exists in the pack;
 - every import in its built code resolves to a file in the pack, or to a dependency or peer its manifest declares.
 
-On CI, each pack is installed outside the workspace and loaded: the five tarballs by npm into a scratch project, the wheel by uv into a fresh environment; the core and the TypeScript wrapper imported under Node; the Python wrapper imported and its OpenTelemetry entry point found; the adapters installed and resolved.
+On CI, each pack is installed outside the workspace and loaded: the core's and the TypeScript wrapper's tarballs by npm into one scratch project, both imported under Node; each adapter's tarball, with the core's, by npm into a catalog app's scratch project of its own, after the peers its pack states, its renderer among them, and every import of its built code resolved there; the wheel by uv into a fresh environment, the Python wrapper imported and its OpenTelemetry entry point found.
 
 ### 12. The smoke checks
 

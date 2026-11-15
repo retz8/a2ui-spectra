@@ -136,7 +136,9 @@ export class SpectraPreviewElement extends LitElement {
     });
   }
 
-  override render() {
+  // Declared as LitElement declares it, so that the types name nothing from lit-html, which the
+  // adapter reaches only through lit.
+  override render(): unknown {
     if (this.#origin === undefined) {
       return html`<p style="margin: 16px; font: 14px/1.5 system-ui, sans-serif">
         ${STANDALONE_LINE}

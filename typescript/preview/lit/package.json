@@ -1,9 +1,17 @@
 {
   "name": "a2ui-spectra-preview-lit",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "The Lit preview adapter of Spectra for A2UI: one custom element for a catalog's preview page, on upstream's Lit renderer.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/retz8/a2ui-spectra.git",
+    "directory": "typescript/preview/lit"
+  },
+  "bugs": {
+    "url": "https://github.com/retz8/a2ui-spectra/issues"
+  },
   "type": "module",
   "exports": {
     ".": {

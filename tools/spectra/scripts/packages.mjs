@@ -1,17 +1,36 @@
 // What the binary's packages are, for the command that makes them, `build_packages.mjs`, and the
 // one that checks them, `check_packages.mjs`, both run from `tools/spectra/`: the five
-// platforms, the files' names, and the version every package and archive is stamped with.
+// platforms, the files' names, and the version every package and archive is stamped with. The
+// release's version, the repository and its issues page, and the helpers for running a command,
+// are shared with the version's command, `version.mjs`, and the libraries' packing command and
+// its check, `pack_libraries.mjs` and `check_libraries.mjs`.
 
 import {spawnSync} from 'node:child_process';
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
+import {fileURLToPath} from 'node:url';
 
 export const NAME = 'a2ui-spectra';
 export const REPOSITORY = 'https://github.com/retz8/a2ui-spectra';
+/** The issues page every released package names. */
+export const ISSUES = `${REPOSITORY}/issues`;
 export const BINARIES_DIR = 'dist/binaries';
 export const PACKAGES_DIR = 'dist/packages';
-/** Where the tool's version is set. */
+/** The tool's folder, `tools/spectra/`, and the repository's root. */
+export const TOOL_DIR = fileURLToPath(new URL('..', import.meta.url));
+export const REPO_DIR = path.resolve(TOOL_DIR, '../..');
+/** Where the release's version is set, from the tool's folder. */
 export const VERSION_FILE = 'src/version.ts';
+/** A version: three numbers, with no pre-release. */
+export const VERSION_PATTERN = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+
+/** An npm manifest's `repository`, naming the package's folder in the repository. */
+export function npmRepository(directory) {
+  return {type: 'git', url: `git+${REPOSITORY}.git`, directory};
+}
+
+/** An npm manifest's `bugs`. */
+export const NPM_BUGS = {url: ISSUES};
 
 /**
  * The five platforms: named as upstream's `a2ui` CLI names them, with npm's `os`, `cpu` and
@@ -60,11 +79,13 @@ export const PLATFORMS = [
 
 export class BuildError extends Error {}
 
-/** The tool's version, three numbers. */
+/** The release's version, three numbers, as `src/version.ts` sets it. */
 export function readVersion() {
-  const match = /^export const VERSION = '([^']*)';$/m.exec(readFileSync(VERSION_FILE, 'utf8'));
+  const match = /^export const VERSION = '([^']*)';$/m.exec(
+    readFileSync(path.join(TOOL_DIR, VERSION_FILE), 'utf8'),
+  );
   if (match === null) throw new BuildError(`${VERSION_FILE} sets no VERSION.`);
-  if (!/^\d+\.\d+\.\d+$/.test(match[1])) {
+  if (!VERSION_PATTERN.test(match[1])) {
     throw new BuildError(`The version in ${VERSION_FILE}, ${match[1]}, is not three numbers.`);
   }
   return match[1];

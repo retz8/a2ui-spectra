@@ -2233,14 +2233,24 @@ opposite order in the TypeScript stream.
 releases of 2026-11-02.
 
 **Severity:** every install of the React, Lit or Angular renderer of that release meets a peer
-range it cannot satisfy. Seen at upstream's release of 2026-11-02, `9e8a9bac5`.
+range it cannot satisfy, and under npm the three do not install in one project. Seen at
+upstream's release of 2026-11-02, `9e8a9bac5`.
 
 **Standing:** holds on npm: `@a2ui/markdown-it` 0.2.2 is still the latest, with
 the peer `@a2ui/web_core` `^0.14.0`, beside web core 0.15.0; run in a Yarn
-4.13.0 project, `yarn install` gives the `YN0060` warning. At the pin the peer
+4.13.0 project, `yarn install` gives the `YN0060` warning. Under npm 10.9.2, on
+2026-11-15, the three renderers installed in one project fail with `ERESOLVE`,
+and so does the Lit or the Angular preview adapter installed into an empty
+project, npm installing its peers; each renderer alone, and each adapter added
+to a project that holds its renderer, installs. At the pin the peer
 is still `"workspace:*"`
 (`typescript/renderers/markdown-it/package.json:65-67`), which a build at the
 pin writes as `^0.15.0`.
+
+**Held by:** `tools/spectra/scripts/check_libraries.mjs` installs each preview
+adapter's pack into a catalog app's scratch project of its own, after the peers
+its pack states, and the preview core's and the TypeScript wrapper's packs into
+another, in place of one project for the five npm packs.
 
 ### Issue
 
@@ -2260,6 +2270,21 @@ In a Yarn 4 workspace that depends on `@a2ui/react` 0.15.0 and `@a2ui/web_core` 
 
 ```
 YN0060: @a2ui/web_core is listed by your project with version 0.15.0, which doesn't satisfy what @a2ui/markdown-it and other dependencies request (but they have non-overlapping ranges!).
+```
+
+In an empty npm 10.9.2 project,
+`npm install @a2ui/web_core@^0.15.0 @a2ui/react@^0.15.0 react@^19 react-dom@^19 @a2ui/lit@^0.15.0 lit@^3.3.3 @a2ui/angular@^0.14.0 @angular/core@^21.2.5 @angular/common@^21.2.5 @angular/platform-browser@^21.2.5 rxjs`
+fails:
+
+```
+npm error code ERESOLVE
+npm error ERESOLVE could not resolve
+npm error
+npm error While resolving: @a2ui/markdown-it@0.2.2
+npm error Found: @a2ui/web_core@0.15.0
+...
+npm error Could not resolve dependency:
+npm error peer @a2ui/web_core@"^0.14.0" from @a2ui/markdown-it@0.2.2
 ```
 
 ### Fix

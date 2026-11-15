@@ -1,9 +1,17 @@
 {
   "name": "a2ui-spectra-preview-react",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "The React preview adapter of Spectra for A2UI: one component for a catalog's preview page, on upstream's React renderer.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/retz8/a2ui-spectra.git",
+    "directory": "typescript/preview/react"
+  },
+  "bugs": {
+    "url": "https://github.com/retz8/a2ui-spectra/issues"
+  },
   "type": "module",
   "exports": {
     ".": {

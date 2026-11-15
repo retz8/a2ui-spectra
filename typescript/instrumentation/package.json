@@ -1,9 +1,17 @@
 {
   "name": "a2ui-spectra-instrumentation",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "OpenTelemetry instrumentation of the A2UI agent SDK, @a2ui/agent, reporting the A2UI step to Spectra for A2UI.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/retz8/a2ui-spectra.git",
+    "directory": "typescript/instrumentation"
+  },
+  "bugs": {
+    "url": "https://github.com/retz8/a2ui-spectra/issues"
+  },
   "keywords": [
     "a2ui",
     "opentelemetry",

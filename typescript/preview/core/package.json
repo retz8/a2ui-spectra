@@ -1,9 +1,17 @@
 {
   "name": "a2ui-spectra-preview",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "The preview protocol of Spectra for A2UI and its framework-free core, for a catalog's preview page.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/retz8/a2ui-spectra.git",
+    "directory": "typescript/preview/core"
+  },
+  "bugs": {
+    "url": "https://github.com/retz8/a2ui-spectra/issues"
+  },
   "type": "module",
   "exports": {
     ".": {

@@ -41,11 +41,12 @@ import {
   hostPlatform,
   NAME,
   NOTICES,
+  NPM_BUGS,
+  npmRepository,
   npmTarball,
   PACKAGES_DIR,
   PLATFORMS,
   platformPackage,
-  REPOSITORY,
   readVersion,
   run,
   runMain,
@@ -74,7 +75,7 @@ function writeJson(file, value) {
   writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`);
 }
 
-const repository = {type: 'git', url: `git+${REPOSITORY}.git`, directory: 'tools/spectra'};
+const repository = npmRepository('tools/spectra');
 
 /** The launcher's package: its script, LICENSE, the notices and the README. */
 function launcherPackage(dir, version, description) {
@@ -85,6 +86,7 @@ function launcherPackage(dir, version, description) {
     description,
     license: 'Apache-2.0',
     repository,
+    bugs: NPM_BUGS,
     type: 'module',
     bin: {[NAME]: `bin/${NAME}.js`},
     files: [`bin/${NAME}.js`, 'THIRD_PARTY_NOTICES.md'],
@@ -112,6 +114,7 @@ function binaryPackage(dir, platform, version) {
     description: `The ${NAME} binary for ${platform.words}, which the ${NAME} package runs; install ${NAME}.`,
     license: 'Apache-2.0',
     repository,
+    bugs: NPM_BUGS,
     os: [platform.os],
     cpu: [platform.cpu],
     ...(platform.libc !== undefined && {libc: [platform.libc]}),

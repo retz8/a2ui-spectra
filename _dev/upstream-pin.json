@@ -331,6 +331,12 @@
       ]
     },
     {
+      "finding": 44,
+      "paths": [
+        "typescript/renderers/markdown-it/package.json"
+      ]
+    },
+    {
       "finding": 47,
       "paths": [
         "specification/v0_9_1/catalogs/basic/catalog.json"

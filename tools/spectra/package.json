@@ -1,7 +1,7 @@
 {
   "name": "a2ui-spectra",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "A debugging and observation tool for the developer of an A2UI agent: attach to the running agent, see every turn, check and preview it, record and replay it.",
   "license": "Apache-2.0",
   "type": "module",
@@ -14,6 +14,10 @@
     "build:binaries": "wireit",
     "build:packages": "wireit",
     "check:packages": "wireit",
+    "pack:libraries": "wireit",
+    "check:libraries": "wireit",
+    "set:version": "node scripts/version.mjs set",
+    "check:version": "node scripts/version.mjs check",
     "generate:otlp": "wireit",
     "test": "wireit",
     "lint": "eslint .",
@@ -44,7 +48,8 @@
         "!dist/viewer/**",
         "!dist/a2ui-spectra",
         "!dist/binaries/**",
-        "!dist/packages/**"
+        "!dist/packages/**",
+        "!dist/libraries/**"
       ],
       "clean": "if-file-deleted"
     },
@@ -122,7 +127,51 @@
       ],
       "files": [
         "scripts/check_packages.mjs",
-        "scripts/packages.mjs"
+        "scripts/packages.mjs",
+        "scripts/reading.mjs"
+      ],
+      "output": []
+    },
+    "pack:libraries": {
+      "command": "node scripts/pack_libraries.mjs",
+      "dependencies": [
+        "../../typescript/preview/core:build",
+        "../../typescript/preview/react:build",
+        "../../typescript/preview/lit:build",
+        "../../typescript/preview/angular:build",
+        "../../typescript/instrumentation:build"
+      ],
+      "files": [
+        "scripts/pack_libraries.mjs",
+        "scripts/libraries.mjs",
+        "scripts/packages.mjs",
+        "scripts/version.mjs",
+        "src/version.ts",
+        "package.json",
+        "../../LICENSE",
+        "../../typescript/preview/*/package.json",
+        "../../typescript/preview/*/README.md",
+        "../../typescript/instrumentation/package.json",
+        "../../typescript/instrumentation/README.md",
+        "../../python/a2ui_spectra_instrumentation/pyproject.toml",
+        "../../python/a2ui_spectra_instrumentation/README.md",
+        "../../python/a2ui_spectra_instrumentation/src/**/*.py",
+        "../../python/a2ui_spectra_instrumentation/src/**/py.typed"
+      ],
+      "output": [
+        "dist/libraries/**"
+      ]
+    },
+    "check:libraries": {
+      "command": "node scripts/check_libraries.mjs",
+      "dependencies": [
+        "pack:libraries"
+      ],
+      "files": [
+        "scripts/check_libraries.mjs",
+        "scripts/libraries.mjs",
+        "scripts/packages.mjs",
+        "scripts/reading.mjs"
       ],
       "output": []
     },

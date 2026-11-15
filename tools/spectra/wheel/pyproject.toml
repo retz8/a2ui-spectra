@@ -17,6 +17,7 @@ license-files = ["LICENSE", "THIRD_PARTY_NOTICES.md"]
 
 [project.urls]
 Repository = "https://github.com/retz8/a2ui-spectra"
+Issues = "https://github.com/retz8/a2ui-spectra/issues"
 
 [tool.hatch.version]
 source = "env"

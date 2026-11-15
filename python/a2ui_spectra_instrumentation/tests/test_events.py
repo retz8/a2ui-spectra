@@ -23,6 +23,8 @@ from a2ui.skill import SkillGenerator
 from google.adk.models.llm_request import LlmRequest
 from google.genai import types
 
+from a2ui_spectra_instrumentation.version import __version__
+
 BASIC_V1_0 = "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
 # A stand-in for ADK's readonly context, of which the toolset reads nothing.
 STAND_IN: Any = SimpleNamespace()
@@ -83,7 +85,7 @@ def test_the_processors_parse_response_is_one_parse(spans: Any, processor: Any) 
     assert "a2ui.parse.streamed" not in attributes
     assert span.instrumentation_scope is not None
     assert span.instrumentation_scope.name == "a2ui-spectra-instrumentation"
-    assert span.instrumentation_scope.version == "0.0.1"
+    assert span.instrumentation_scope.version == __version__
 
 
 def test_the_a2a_path_calling_the_parser_directly_is_one_parse(

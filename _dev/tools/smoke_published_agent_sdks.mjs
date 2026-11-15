@@ -2,10 +2,10 @@
 // published latest of each language's agent SDK, as an adopter has them.
 //
 // A scratch environment outside the workspace for each language: in Python, a virtual
-// environment holding the wrapper's wheel built from this repository and PyPI's latest
-// `a2ui-agent-sdk` and `a2ui-adk`; in TypeScript, a project holding the wrapper packed from this
-// repository and npm's latest `@a2ui/agent`, installed with Yarn, the TypeScript driver's build
-// copied into it. The repository's install and lockfiles are left as they are. The jobs are the
+// environment holding the wrapper's wheel, the one the libraries' packing command made, and
+// PyPI's latest `a2ui-agent-sdk` and `a2ui-adk`; in TypeScript, a project holding the wrapper's
+// pack, the one the packing command made, and npm's latest `@a2ui/agent`, installed with Yarn,
+// the TypeScript driver's build copied into it. The repository's install and lockfiles are left as they are. The jobs are the
 // wrapper capture suite's own, under `conformance/test_data/wrapper_capture/v0_1/`, run through
 // its drivers; the TypeScript jobs load the driver's copy of the pin's basic catalog, which
 // neither published package carries. Spectra's receiver, built from this repository, takes what
@@ -17,7 +17,8 @@
 // reaches it the same way. Nothing is compared against an expected record. The run prints the
 // versions it resolved.
 //
-// From the repository root, after `yarn build:all`, with `uv` on the path:
+// From the repository root, after `yarn build:all` and the libraries' packing command,
+// `yarn workspace a2ui-spectra pack:libraries`, with `uv` on the path:
 //
 //     node _dev/tools/smoke_published_agent_sdks.mjs [--keep]
 //
@@ -35,6 +36,8 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 
+import {NPM_LIBRARIES, npmPack, pythonWheel} from '../../tools/spectra/scripts/libraries.mjs';
+import {readVersion} from '../../tools/spectra/scripts/packages.mjs';
 import {REPO} from './upstream_pin.mjs';
 
 const keep = process.argv.includes('--keep');
@@ -71,6 +74,22 @@ const {startReceiverListener} = await receiverModule('receiver/listener.js');
 const {SpanReceiver} = await receiverModule('receiver/receiver.js');
 const {CallPlacer} = await receiverModule('placement.js');
 const {TurnStore} = await receiverModule('store/store.js');
+
+/** The wrapper's files, as the libraries' packing command made them. */
+const version = readVersion();
+const WRAPPER_WHEEL = pythonWheel(version);
+const WRAPPER_PACK = npmPack(
+  NPM_LIBRARIES.find(library => library.dir === 'typescript/instrumentation'),
+  version,
+);
+for (const file of [WRAPPER_WHEEL, WRAPPER_PACK]) {
+  if (!existsSync(file)) {
+    console.error(
+      `${path.relative(REPO, file)} is missing: make the libraries' packs first, \`yarn workspace a2ui-spectra pack:libraries\`.`,
+    );
+    process.exit(1);
+  }
+}
 
 const failures = [];
 const scratches = [];
@@ -119,11 +138,6 @@ async function latestOf(registry, name) {
 // The Python scratch environment: a virtual environment with the wrapper's wheel and PyPI's latest.
 function installPython(latest) {
   const scratch = scratchDir('python');
-  const wheels = path.join(scratch, 'wheels');
-  run('uv', ['build', '--wheel', '--out-dir', wheels, path.join(REPO, 'python/a2ui_spectra_instrumentation')], {
-    cwd: scratch,
-  });
-  const [wheel] = run('ls', [wheels]).trim().split('\n');
   run('uv', ['venv', '--quiet', path.join(scratch, '.venv')], {cwd: scratch});
   const python = path.join(scratch, '.venv/bin/python');
   run(
@@ -134,7 +148,7 @@ function installPython(latest) {
       '--quiet',
       '--python',
       python,
-      path.join(wheels, wheel),
+      WRAPPER_WHEEL,
       ...LANGUAGES.python.packages.map(name => `${name}==${latest[name]}`),
     ],
     {cwd: scratch},
@@ -160,7 +174,7 @@ function installPython(latest) {
 function installTypeScript(latest) {
   const scratch = scratchDir('typescript');
   const pack = path.join(scratch, 'a2ui-spectra-instrumentation.tgz');
-  run('yarn', ['pack', '--out', pack], {cwd: path.join(REPO, 'typescript/instrumentation')});
+  cpSync(WRAPPER_PACK, pack);
   const driver = path.join(scratch, 'conformance/wrapper_driver/typescript');
   mkdirSync(driver, {recursive: true});
   for (const part of ['dist', 'catalogs']) {

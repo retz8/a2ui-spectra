@@ -1,7 +1,7 @@
 {
   "name": "a2ui-spectra-sample-preview-react",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.0",
   "description": "The React sample catalog app of Spectra for A2UI: the sample catalog's React implementation and its preview page, built with the React preview adapter.",
   "license": "Apache-2.0",
   "type": "module",

@@ -1,16 +1,17 @@
 // The smoke check on the published renderers: Spectra's React, Lit and Angular sample pages,
 // each built on the published latest of its renderer and of web core, as an adopter has them.
 //
-// A scratch project outside the workspace holds Spectra's preview core and adapters packed from
-// this repository, the three sample pages' sources beside them, and the renderers and web core
-// from npm at their latest, installed with Yarn. The repository's install and lockfile are left
+// A scratch project outside the workspace holds Spectra's preview core and adapters, the packs
+// the libraries' packing command made, the three sample pages' sources beside them, and the
+// renderers and web core from npm at their latest, installed with Yarn. The repository's install and lockfile are left
 // as they are. Spectra, built from the repository on the pin's web core, attaches to the stub
 // agent's canned conversation and uses each page in turn. For each page: it loads and answers
 // Spectra with the catalogs it claims, so the sample catalog's v0.9.1 surface is routed to it;
 // it draws that surface; it reports no error; and one press comes back as the action. No v1.0
 // envelope key is involved. The run prints the versions it resolved.
 //
-// From the repository root, after `yarn build:all`, with Playwright's Chromium installed and the
+// From the repository root, after `yarn build:all` and the libraries' packing command,
+// `yarn workspace a2ui-spectra pack:libraries`, with Playwright's Chromium installed and the
 // sample pages' ports, 9831 to 9833, free:
 //
 //     node _dev/tools/smoke_published_renderers.mjs [--keep]
@@ -28,6 +29,8 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {pathToFileURL} from 'node:url';
 
+import {NPM_LIBRARIES, npmPack} from '../../tools/spectra/scripts/libraries.mjs';
+import {readVersion} from '../../tools/spectra/scripts/packages.mjs';
 import {REPO} from './upstream_pin.mjs';
 
 const keep = process.argv.includes('--keep');
@@ -39,13 +42,19 @@ const SAMPLES = [
   {name: 'angular', renderer: '@a2ui/angular', adapter: 'a2ui-spectra-preview-angular'},
 ];
 
-/** Spectra's preview packages, packed from the repository: the core and the three adapters. */
-const PACKS = [
-  {name: 'a2ui-spectra-preview', dir: 'typescript/preview/core'},
-  {name: 'a2ui-spectra-preview-react', dir: 'typescript/preview/react'},
-  {name: 'a2ui-spectra-preview-lit', dir: 'typescript/preview/lit'},
-  {name: 'a2ui-spectra-preview-angular', dir: 'typescript/preview/angular'},
-];
+/** Spectra's preview packages, the core and the three adapters, as the packing command made them. */
+const version = readVersion();
+const PACKS = NPM_LIBRARIES.filter(library => library.name.startsWith('a2ui-spectra-preview')).map(
+  library => ({name: library.name, file: npmPack(library, version)}),
+);
+for (const pack of PACKS) {
+  if (!existsSync(pack.file)) {
+    console.error(
+      `${path.relative(REPO, pack.file)} is missing: make the libraries' packs first, \`yarn workspace a2ui-spectra pack:libraries\`.`,
+    );
+    process.exit(1);
+  }
+}
 
 /** The sample pages' development dependencies the dev server does not need. */
 const LINT_AND_BUILD_TOOLS = ['eslint', 'eslint-plugin-react-hooks', 'gts', 'prettier', 'wireit'];
@@ -181,12 +190,7 @@ for (const [name, version] of Object.entries(latest)) console.log(`  ${name} ${v
 const scratch = mkdtempSync(path.join(tmpdir(), 'spectra-smoke-'));
 const packs = path.join(scratch, 'packs');
 mkdirSync(packs);
-for (const pack of PACKS) {
-  execFileSync('yarn', ['pack', '--out', path.join(packs, `${pack.name}.tgz`)], {
-    cwd: path.join(REPO, pack.dir),
-    stdio: 'ignore',
-  });
-}
+for (const pack of PACKS) cpSync(pack.file, path.join(packs, `${pack.name}.tgz`));
 cpSync(path.join(REPO, 'samples/preview/catalog.json'), path.join(scratch, 'catalog.json'));
 for (const sample of SAMPLES) {
   const from = path.join(REPO, 'samples/preview', sample.name);

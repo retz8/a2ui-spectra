@@ -1,7 +1,7 @@
 {
   "name": "a2ui-spectra-basic-preview",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.0",
   "description": "Spectra's built-in preview page for the basic catalogs, built with the React preview adapter and served by the a2ui-spectra tool.",
   "license": "Apache-2.0",
   "type": "module",

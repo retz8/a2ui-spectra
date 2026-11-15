@@ -1,9 +1,17 @@
 {
   "name": "a2ui-spectra-preview-angular",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.1.0",
   "description": "The Angular preview adapter of Spectra for A2UI: one standalone component for a catalog's preview page, on upstream's Angular renderer.",
   "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/retz8/a2ui-spectra.git",
+    "directory": "typescript/preview/angular"
+  },
+  "bugs": {
+    "url": "https://github.com/retz8/a2ui-spectra/issues"
+  },
   "exports": {
     ".": {
       "types": "./dist/types/a2ui-spectra-preview-angular.d.ts",

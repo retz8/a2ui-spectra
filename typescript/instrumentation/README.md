@@ -4,12 +4,11 @@ The A2UI wrapper of Spectra for A2UI, for TypeScript: OpenTelemetry instrumentat
 
 ## Installing
 
-A dev dependency of the agent, on Node 22.12 or later, the first Node that loads an ES module through `require()` with no flag. The wrapper patches the `@a2ui/agent` it resolves from its own place, so it is installed beside the agent's own copy, in the agent's `node_modules`; a second copy of the SDK elsewhere in the process is left unpatched. Until it ships, it is installed from a packed tarball:
+A dev dependency of the agent, on Node 22.12 or later, the first Node that loads an ES module through `require()` with no flag. The wrapper patches the `@a2ui/agent` it resolves from its own place, so it is installed beside the agent's own copy, in the agent's `node_modules`; a second copy of the SDK elsewhere in the process is left unpatched. Until it ships, it is installed from the pack the libraries' packing command makes:
 
 ```
-yarn workspace a2ui-spectra-instrumentation build
-yarn workspace a2ui-spectra-instrumentation pack --out a2ui-spectra-instrumentation.tgz
-npm install --save-dev /path/to/a2ui-spectra/typescript/instrumentation/a2ui-spectra-instrumentation.tgz
+yarn workspace a2ui-spectra pack:libraries
+npm install --save-dev /path/to/a2ui-spectra/tools/spectra/dist/libraries/npm/a2ui-spectra-instrumentation-*.tgz
 ```
 
 `@a2ui/agent` and `@opentelemetry/api` are peer dependencies: the agent's own copies are the ones used.

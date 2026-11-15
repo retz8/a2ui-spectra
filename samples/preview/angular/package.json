@@ -1,7 +1,7 @@
 {
   "name": "a2ui-spectra-sample-preview-angular",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.0",
   "description": "The Angular sample catalog app of Spectra for A2UI: the sample catalog's Angular implementation and its preview page, built with the Angular preview adapter.",
   "license": "Apache-2.0",
   "type": "module",

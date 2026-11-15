@@ -1,7 +1,7 @@
 {
   "name": "a2ui-spectra-viewer",
   "private": true,
-  "version": "0.0.1",
+  "version": "0.0.0",
   "description": "The viewer of Spectra for A2UI, served by the a2ui-spectra tool.",
   "license": "Apache-2.0",
   "type": "module",
