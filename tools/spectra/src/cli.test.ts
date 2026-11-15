@@ -2548,6 +2548,32 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
       );
 
       it(
+        "sets PYTHONIOENCODING=utf-8 in the agent's environment on Windows, unless it or PYTHONUTF8 is set, and nothing elsewhere",
+        {timeout: TIMEOUT},
+        async () => {
+          const show = [
+            process.execPath,
+            '-e',
+            "process.stdout.write('encoding=' + process.env.PYTHONIOENCODING + '\\n'); process.exit(7)",
+          ];
+          if (process.env.PYTHONIOENCODING === undefined && process.env.PYTHONUTF8 === undefined) {
+            const set = await launch([], show);
+            await set.spectra.waitFor(/The agent's process exited with code 7/);
+            assert.match(set.spectra.output, posix ? /encoding=undefined\n/ : /encoding=utf-8\n/);
+            await stopped(set.spectra);
+            const utf8 = await launch([], show, undefined, {PYTHONUTF8: '1'});
+            await utf8.spectra.waitFor(/The agent's process exited with code 7/);
+            assert.match(utf8.spectra.output, /encoding=undefined\n/);
+            await stopped(utf8.spectra);
+          }
+          const kept = await launch([], show, undefined, {PYTHONIOENCODING: 'cp1252'});
+          await kept.spectra.waitFor(/The agent's process exited with code 7/);
+          assert.match(kept.spectra.output, /encoding=cp1252\n/);
+          await stopped(kept.spectra);
+        },
+      );
+
+      it(
         'restarts the agent on a save, the cause naming the file on the restart event, in the terminal and on the stopped divider',
         {timeout: TIMEOUT},
         async () => {

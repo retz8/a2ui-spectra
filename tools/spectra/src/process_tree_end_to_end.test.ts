@@ -15,7 +15,7 @@ import {after, describe, it} from 'node:test';
 import type {AgentSnapshot} from './agent_supervisor.js';
 import {freePort} from './testing/free_port.js';
 import {getJson, postJson} from './testing/live_api.js';
-import {descendantsOf, isRunning} from './testing/process_tree.js';
+import {descendantsOf, isRunning, type ListedProcess} from './testing/process_tree.js';
 import {binary, SpectraProcess} from './testing/spectra_process.js';
 import {stubScript} from './testing/stub_agent.js';
 
@@ -117,9 +117,20 @@ function spectraPidOf(spectra: SpectraProcess): number {
 }
 
 /** The processes of the agent's tree: everything below Spectra. */
-function agentTreeOf(spectra: SpectraProcess): number[] {
-  return descendantsOf(spectraPidOf(spectra)).map(listed => listed.pid);
+function agentTreeOf(spectra: SpectraProcess): ListedProcess[] {
+  return descendantsOf(spectraPidOf(spectra));
 }
+
+/** The tree's processes still running, by id, parent and name, for a failure's message. */
+function leftOf(tree: readonly ListedProcess[]): string {
+  return tree
+    .filter(listed => isRunning(listed.pid))
+    .map(listed => `${listed.pid} (${listed.name}, below ${listed.parent})`)
+    .join(', ');
+}
+
+const listing = (tree: readonly ListedProcess[]) =>
+  tree.map(listed => `${listed.pid} ${listed.name} below ${listed.parent}`).join('; ');
 
 async function eventually(check: () => boolean, timeoutMs = 10_000): Promise<boolean> {
   const deadline = Date.now() + timeoutMs;
@@ -156,8 +167,8 @@ describe(`the agent's process tree, ${binary ? 'the binary' : 'under Node'}`, ()
           again = await agentOf(base);
         }
         assert.ok(
-          await eventually(() => first.every(pid => !isRunning(pid))),
-          `A process of the first launch's tree is left: ${first.filter(isRunning).join(', ')}`,
+          await eventually(() => first.every(listed => !isRunning(listed.pid))),
+          `A process of the first launch's tree is left: ${leftOf(first)}, of ${listing(first)}:\n${spectra.output}`,
         );
         const second = agentTreeOf(spectra);
         assert.ok(second.length > 0);
@@ -165,8 +176,8 @@ describe(`the agent's process tree, ${binary ? 'the binary' : 'under Node'}`, ()
         spectra.requestStop();
         await spectra.exited;
         assert.ok(
-          await eventually(() => second.every(pid => !isRunning(pid))),
-          `A process of the second launch's tree is left: ${second.filter(isRunning).join(', ')}`,
+          await eventually(() => second.every(listed => !isRunning(listed.pid))),
+          `A process of the second launch's tree is left: ${leftOf(second)}, of ${listing(second)}`,
         );
       },
     );
@@ -184,8 +195,8 @@ describe(`the agent's process tree, ${binary ? 'the binary' : 'under Node'}`, ()
         const {code} = await spectra.exited;
         assert.equal(code, 128 + (constants.signals[stop] ?? 0), spectra.output);
         assert.ok(
-          await eventually(() => tree.every(pid => !isRunning(pid))),
-          `A process of the agent's tree is left: ${tree.filter(isRunning).join(', ')}`,
+          await eventually(() => tree.every(listed => !isRunning(listed.pid))),
+          `A process of the agent's tree is left: ${leftOf(tree)}, of ${listing(tree)}`,
         );
       },
     );
