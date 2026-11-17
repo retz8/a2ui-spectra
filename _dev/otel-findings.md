@@ -478,7 +478,8 @@ Generate `"contentEncoding": "base64"` for `BlobPart.content` in place of
 different operation name from the one the registry gives for that API and from
 what the client's instrumentations emit.
 
-**Upstream:** issue #710, PR #711 (in review).
+**Upstream:** issue #710, PR #711 (approved by lmolkova 2026-11-16, not merged). For
+the Interactions API span: issue #714, PR #715 (in review), stacked on PR #711.
 
 **Standing:** rechecked at `e6658f14c9` (2026-11-06), with google-genai 2.30.0 and
 opentelemetry-instrumentation-google-genai 1.3b0. The registry members are at
@@ -518,7 +519,12 @@ appears only in the `adk_a2a` scenario, from ADK's own telemetry.
 
 Three more `chat` sites in the scenario (lines 372, 395 and 413) are around
 `client.interactions.create`, the Interactions API, which the registry has no
-value for. The `vertexai` scenario also writes `chat` around
+value for. The OpenTelemetry `google-genai` instrumentation writes
+`interactions.create` there (`google_genai/interactions.py:1190` at
+`6493e55dce`, and run with 1.3b0), a value the conformance runner rejects as
+`genai_operation_name_unknown`. The nearest equivalent, the OpenAI Responses
+API, is `chat` in the `openai` scenario (`scenario.py:401`) and in the
+OpenTelemetry OpenAI instrumentation, which passes no operation name. The `vertexai` scenario also writes `chat` around
 `GenerativeModel.generate_content`, as the OpenTelemetry Vertex AI
 instrumentation does (`vertexai/utils.py:106`).
 
@@ -566,8 +572,13 @@ opentelemetry-instrumentation-google-genai 1.3b0
 Make the `google-genai` reference scenario write `generate_content` on the
 telemetry around `client.models.generate_content` and
 `generate_content_stream`, name those spans `generate_content {model}`, and
-update the README row. PR #711 does. The Interactions API span keeps `chat`,
-and the `vertexai` scenario and the registry stay as they are.
+update the README row. PR #711 does, and leaves the Interactions API span at
+`chat`, the `vertexai` scenario and the registry as they are.
+
+For the Interactions API span, raised in PR #711's review: add
+`interactions.create` to the registry's `gen_ai.operation.name` values and
+write it in the scenario. PR #715 does. Issue #714 also puts the other
+direction, keeping `chat` and changing the instrumentation.
 
 ## 19. The MCP transport table ties HTTP with SSE to protocol versions that current SDKs do not keep to
 
