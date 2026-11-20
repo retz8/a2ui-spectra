@@ -70,6 +70,45 @@ jobs:
           path: tools/spectra/dist/libraries/pypi/*
           if-no-files-found: error
 
+  # The floor end of the wrappers' OpenTelemetry ranges: each wrapper's own tests and the wrapper
+  # capture suite, with OpenTelemetry and wrapt held at the floors the two manifests state. The
+  # other jobs run on the lockfiles, the latest end.
+  wrapper-floors:
+    name: The wrappers' floor run
+    runs-on: ubuntu-24.04
+    env:
+      # uv takes the lowest version each manifest admits: the Python wrapper's floors.
+      UV_RESOLUTION: lowest-direct
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+        with:
+          install: false
+          cache: true
+      - name: Hold the TypeScript wrapper's floors
+        run: node scripts/wrapper_floors.mjs hold
+      - name: Install at the floors
+        run: yarn install --no-immutable
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: true
+      - name: Sync the Python workspace at the floors
+        run: uv sync --all-packages
+      - name: Check that each floor is what is installed
+        run: node scripts/wrapper_floors.mjs check
+      - name: Setup Wireit Cache
+        uses: google/wireit@9d7c2e5346f8ef1b1ab6014c4e96c74e234f7ed5 # setup-github-actions-caching/v2.0.4
+      - name: The Python wrapper's tests
+        run: uv run pytest
+      - name: The TypeScript wrapper's tests
+        run: yarn workspace a2ui-spectra-instrumentation test
+      - name: The wrapper capture suite
+        run: yarn workspace a2ui-spectra test
+        env:
+          SPECTRA_TEST_PART: wrapper-capture
+
   binaries:
     uses: ./.github/workflows/binaries.yml
     with:

@@ -5,16 +5,19 @@
 //
 //     node _dev/tools/upstream_check.mjs
 //
-// It fetches the upstream remote in the sibling fork, then prints five readings and the commits
+// It fetches the upstream remote in the sibling fork, then prints six readings and the commits
 // that touch the held-by findings' paths:
 //
 //   1. the commits since the pin, as a count and a list per area Spectra uses;
 //   2. each copied file, the pin against upstream main;
 //   3. each upstream package's published latest on npm and PyPI, against the version Spectra has;
 //   4. `specification/versions.json` at upstream main, against the supported versions;
-//   5. the watch list, each item's state on GitHub.
+//   5. the watch list, each item's state on GitHub;
+//   6. each OpenTelemetry package the two wrappers' manifests state, and `wrapt`, its published
+//      latest against the version the lockfile resolves, and the OpenTelemetry range ADK states.
 
 import {execFileSync} from 'node:child_process';
+import {readFileSync} from 'node:fs';
 import {
   fileAt,
   forkDir,
@@ -201,6 +204,90 @@ for (const item of pin.watch) {
     state = `unread: ${error.message}`;
   }
   console.log(`${item.kind === 'pull' ? 'PR' : 'issue'} #${item.number}: ${state} (${item.about})`);
+}
+
+// --- 6. OpenTelemetry ----------------------------------------------------------------------------
+
+// A new release here is not an event and moves no pin: the lockfile moves to it and CI runs both
+// ends of each range (`_dev/re-pin-procedure.md`, "A new OpenTelemetry release").
+
+heading("6. Each OpenTelemetry package the wrappers state, its published latest against the lockfile");
+
+const numbers = v => v.split('.').map(Number);
+const compare = (a, b) => {
+  const [x, y] = [numbers(a), numbers(b)];
+  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i];
+  return 0;
+};
+/** Whether a plain `x.y.z` version lies in a range of `^`, `>=` and `<` comparators. */
+function inRange(version, range) {
+  return range.split(/\s+/).every(part => {
+    if (part.startsWith('^')) {
+      const floor = part.slice(1);
+      const [major, minor] = numbers(floor);
+      const next = major > 0 ? `${major + 1}.0.0` : `0.${minor + 1}.0`;
+      return compare(version, floor) >= 0 && compare(version, next) < 0;
+    }
+    if (part.startsWith('>=')) return compare(version, part.slice(2)) >= 0;
+    if (part.startsWith('<')) return compare(version, part.slice(1)) < 0;
+    return version === part;
+  });
+}
+
+const tsManifest = JSON.parse(readFileSync('typescript/instrumentation/package.json', 'utf8'));
+const tsRanges = Object.entries({...tsManifest.dependencies, ...tsManifest.peerDependencies}).filter(
+  ([name]) => name.startsWith('@opentelemetry/'),
+);
+console.log("The TypeScript wrapper, on OpenTelemetry JavaScript's 2.x line:");
+for (const [name, range] of tsRanges) {
+  let published;
+  try {
+    const doc = await fetchJson(`https://registry.npmjs.org/${name.replace('/', '%2f')}`);
+    const within = Object.keys(doc.versions)
+      .filter(v => /^\d+\.\d+\.\d+$/.test(v) && inRange(v, range))
+      .sort(compare)
+      .at(-1);
+    const tags = doc['dist-tags'];
+    const line = tags['latest-2'] ? `; latest-2 ${tags['latest-2']}` : '';
+    published = `newest in the range ${within} (${doc.time[within].slice(0, 10)})${line}; latest ${tags.latest} (${doc.time[tags.latest].slice(0, 10)})`;
+  } catch (error) {
+    published = `unread: ${error.message}`;
+  }
+  const lock = yarnLockVersions(name).map(l => l.version);
+  console.log(`  npm ${name} ${range}: ${published}; the lockfile has ${lock.join(', ') || 'none'}`);
+}
+
+const pyManifest = readFileSync('python/a2ui_spectra_instrumentation/pyproject.toml', 'utf8');
+const pyRanges = [...pyManifest.matchAll(/^\s*"((?:opentelemetry-[a-z-]+|wrapt))([^"]*)",$/gm)].map(m => [m[1], m[2]]);
+console.log('The Python wrapper:');
+for (const [name, range] of pyRanges) {
+  let published;
+  try {
+    const doc = await fetchJson(`https://pypi.org/pypi/${name}/json`);
+    const latest = doc.info.version;
+    published = `latest ${latest} (${doc.releases[latest]?.[0]?.upload_time_iso_8601?.slice(0, 10) ?? '?'})`;
+  } catch (error) {
+    published = `unread: ${error.message}`;
+  }
+  const lock = uvLockVersions(name).map(l => l.version);
+  console.log(`  pypi ${name}${range}: ${published}; the lockfile has ${lock.join(', ') || 'none'}`);
+}
+
+console.log("ADK's own OpenTelemetry ranges, at its published latest:");
+try {
+  const doc = await fetchJson('https://pypi.org/pypi/google-adk/json');
+  const ranges = (doc.info.requires_dist ?? []).filter(r => /^opentelemetry-(api|sdk)[^;]*$/.test(r));
+  const lock = uvLockVersions('google-adk').map(l => l.version);
+  console.log(`  pypi google-adk ${doc.info.version}: ${ranges.join('; ')}; the lockfile has ${lock.join(', ') || 'none'}`);
+} catch (error) {
+  console.log(`  pypi google-adk: unread: ${error.message}`);
+}
+try {
+  const doc = await fetchJson('https://registry.npmjs.org/@google%2fadk/latest');
+  const api = doc.dependencies?.['@opentelemetry/api'] ?? doc.peerDependencies?.['@opentelemetry/api'] ?? 'none';
+  console.log(`  npm @google/adk ${doc.version}: @opentelemetry/api ${api}`);
+} catch (error) {
+  console.log(`  npm @google/adk: unread: ${error.message}`);
 }
 
 // --- The held-by findings ------------------------------------------------------------------------

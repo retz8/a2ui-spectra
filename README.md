@@ -99,6 +99,9 @@ Add more as you need it:
 - **Transport:** A2A 0.3 and A2A 1.0, over JSON-RPC.
 - **Model APIs read in full:** Gemini, OpenAI's Chat Completions and Responses, and Anthropic's Messages. Any other call is recorded raw.
 - **Upstream packages:** each agent SDK and renderer at upstream's main, pinned at `0888f88b2` (2026-11-13), and at its published latest.
+- **OpenTelemetry, for the wrappers:** each range tested at its floor and at its published latest.
+  - The Python wrapper: OpenTelemetry `>=1.39.0,<2`, tested at 1.39.0 and 1.45.2; `opentelemetry-instrumentation` from 0.60b0, tested to 0.66b2; `wrapt` `>=1.16.0,<3`, tested at 1.16.0 and 2.5.2.
+  - The TypeScript wrapper: OpenTelemetry JavaScript's 2.x line, `@opentelemetry/api` `>=1.3.0 <1.10.0`, tested at 1.3.0 and 1.9.1, with `@opentelemetry/instrumentation` and `@opentelemetry/exporter-trace-otlp-http` `^0.223.0` and `@opentelemetry/sdk-trace-node` `^2.12.0`, tested to 0.223.2 and 2.12.1. Not OpenTelemetry JavaScript 3.x yet.
 
 <details>
 <summary><b>v1.0's renamed envelope keys, and which release reads which</b></summary>

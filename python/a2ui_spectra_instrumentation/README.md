@@ -10,6 +10,16 @@ A dev dependency of the agent, installed by name. `opentelemetry-bootstrap` does
 uv add --dev "a2ui-spectra-instrumentation @ git+https://github.com/retz8/a2ui-spectra#subdirectory=python/a2ui_spectra_instrumentation"
 ```
 
+It shares the agent's OpenTelemetry, in the agent's one environment:
+
+| Distribution                                                                       | Range         | Tested at its floor and at |
+| ---------------------------------------------------------------------------------- | ------------- | -------------------------- |
+| `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-exporter-otlp-proto-http` | `>=1.39.0,<2` | 1.45.2                     |
+| `opentelemetry-instrumentation`                                                    | `>=0.60b0`    | 0.66b2                     |
+| `wrapt`                                                                            | `>=1.16.0,<3` | 2.5.2                      |
+
+See [What Spectra supports](../../README.md#what-spectra-supports).
+
 ## Switching it on
 
 Either way, the agent needs the `OTEL_EXPORTER_OTLP_*` variables that point at Spectra's receiver.

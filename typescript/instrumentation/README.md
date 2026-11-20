@@ -13,6 +13,17 @@ npm install --save-dev /path/to/a2ui-spectra/tools/spectra/dist/libraries/npm/a2
 
 `@a2ui/agent` and `@opentelemetry/api` are peer dependencies: the agent's own copies are the ones used.
 
+The wrapper is on OpenTelemetry JavaScript's 2.x line:
+
+| Package                                   | Range             | Tested at its floor and at |
+| ----------------------------------------- | ----------------- | -------------------------- |
+| `@opentelemetry/api`, the peer            | `>=1.3.0 <1.10.0` | 1.9.1                      |
+| `@opentelemetry/instrumentation`          | `^0.223.0`        | 0.223.2                    |
+| `@opentelemetry/exporter-trace-otlp-http` | `^0.223.0`        | 0.223.2                    |
+| `@opentelemetry/sdk-trace-node`           | `^2.12.0`         | 2.12.1                     |
+
+An agent whose own OpenTelemetry setup is on 3.x, `@opentelemetry/api` 1.10 with `@opentelemetry/sdk-trace` 3.x, is not supported yet: npm refuses the install with `ERESOLVE`. See [What Spectra supports](../../README.md#what-spectra-supports).
+
 ## Switching it on
 
 Each way, the agent needs the `OTEL_EXPORTER_OTLP_*` variables that point at Spectra's receiver.

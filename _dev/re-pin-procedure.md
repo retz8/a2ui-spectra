@@ -31,6 +31,7 @@ At the start of each sub-task and each phase, and before an acceptance run.
    3. each upstream package's published latest on npm and PyPI, with its date, beside the version Spectra has and the version the pin's source states, the locally patched ones flagged;
    4. `specification/versions.json` at `upstream/main`, each version's status, with a change from the pin marked: a new version, or a supported version (v0.9, v0.9.1, v1.0) moved to `deprecated`;
    5. the watch list, each item open, merged or closed;
+   6. each OpenTelemetry package the two wrappers' manifests state, and `wrapt`, its published latest beside the version the lockfile resolves: on npm, the newest release in the stated range and the `latest-2` tag, the 2.x line the TypeScript wrapper is on, beside `latest`, the 3.x line; and the OpenTelemetry ranges ADK states at its published latest, `google-adk`'s on PyPI and `@google/adk`'s `@opentelemetry/api` on npm;
 
    and the commits since the pin that touch each held-by finding's upstream paths.
 2. Judge which event has happened. The pin moves, or a local patch gives way, on three events only:
@@ -40,8 +41,20 @@ At the start of each sub-task and each phase, and before an acceptance run.
 
    A supported version moved to `deprecated` in reading 4 is the signal to deprecate it in Spectra; what Spectra then does is decided in the phase that meets it.
 
+   A new OpenTelemetry release, in reading 6, is not an event and moves no pin. It is handled at the check, under [A new OpenTelemetry release](#a-new-opentelemetry-release).
+
    A commit on upstream's install scripts or their test, in reading 1, is not an event. Each is read at the check and judged there: carried into Spectra's install scripts, `scripts/public/install.sh` and `scripts/public/install.ps1`, or recorded as not applying.
 3. The spec written at the sub-task's or the phase's start opens with what the check read: `upstream/main`'s commit and date, and which event it found or that it found none. An event adds to the phase the sub-task that handles it.
+
+## A new OpenTelemetry release
+
+Each wrapper's ranges are tested at their two ends in CI: the lockfiles are the latest end, and the floor run, `wrapper-floors` in `.github/workflows/checks.yml`, holds the floors the manifests state. When reading 6 shows a release newer than the lockfile resolves, inside a stated range:
+
+1. The lockfile moves to it: `uv lock --upgrade-package <name>` for each distribution, `google-adk` with them where its cap admits the release; `yarn up -R '@opentelemetry/*'` for the npm packages.
+2. CI runs both ends.
+3. The tested latest is written again in the root `README.md`'s "What Spectra supports" and in the two wrappers' READMEs.
+
+Where ADK's cap holds the Python lockfile below the published latest, the spec's opening line on the check says so. A failure at the new latest adds a sub-task to the phase that meets it. `@google/adk`'s published latest stating `@opentelemetry/api` at 1.10 or later is the backlog's sign for the TypeScript wrapper's move to OpenTelemetry JavaScript 3.x.
 
 ## The smoke check on the published renderers
 

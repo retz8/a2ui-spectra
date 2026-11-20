@@ -15,4 +15,4 @@
   - Save as fixture; replay with everything recorded, or with tools recorded and the model live; `a2ui-spectra replay <file>` and `a2ui-spectra test [<folder>]`.
 - Turn record `v0.1`, the format every capture path writes and every fixture is.
 - `a2ui-spectra-preview`, the preview core, and the preview adapters `a2ui-spectra-preview-react`, on `@a2ui/react` `^0.15.0`, `a2ui-spectra-preview-lit`, on `@a2ui/lit` `^0.15.0`, and `a2ui-spectra-preview-angular`, on `@a2ui/angular` `^0.14.0`, each with `@a2ui/web_core` `^0.15.0`.
-- `a2ui-spectra-instrumentation`, the wrapper reporting the A2UI step, on npm for `@a2ui/agent` 0.1.0 or later, and on PyPI for `a2ui-agent-sdk` 0.11.0 or later.
+- `a2ui-spectra-instrumentation`, the wrapper reporting the A2UI step, on npm for `@a2ui/agent` 0.1.0 or later, on OpenTelemetry JavaScript's 2.x line with `@opentelemetry/api` `>=1.3.0 <1.10.0`, and on PyPI for `a2ui-agent-sdk` 0.11.0 or later, with OpenTelemetry `>=1.39.0,<2`.

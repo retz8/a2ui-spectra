@@ -7,11 +7,11 @@ requires-python = ">=3.10"
 license = "Apache-2.0"
 keywords = ["a2ui", "opentelemetry", "instrumentation", "spectra"]
 dependencies = [
-  "opentelemetry-api>=1.39.0",
-  "opentelemetry-exporter-otlp-proto-http>=1.39.0",
+  "opentelemetry-api>=1.39.0,<2",
+  "opentelemetry-exporter-otlp-proto-http>=1.39.0,<2",
   "opentelemetry-instrumentation>=0.60b0",
-  "opentelemetry-sdk>=1.39.0",
-  "wrapt>=1.14.0",
+  "opentelemetry-sdk>=1.39.0,<2",
+  "wrapt>=1.16.0,<3",
 ]
 
 [project.urls]

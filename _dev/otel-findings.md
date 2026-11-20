@@ -968,6 +968,13 @@ not speak, and say in its README that it speaks `http/json` only.
 an `@opentelemetry/api` with the newest released trace SDK, so a package that needs both stays
 on the 0.223 line.
 
+**Standing:** rechecked on 2026-11-20. It does not hold. The trace SDK's 3.0 was released
+on 2026-10-20, with the 3.0 core, as `@opentelemetry/sdk-trace` 3.0.0, the package in place
+of `@opentelemetry/sdk-trace-node` and `@opentelemetry/sdk-trace-base`, which 3.x removes
+(`doc/3.x/migration-guide.md` in `open-telemetry/opentelemetry-js`, "`@opentelemetry/sdk-trace-node`
+(package removed)"). The 2.x packages' cap on the API below 1.10.0 is the rule that guide
+states: "A project that stays on SDK 2.x keeps `@opentelemetry/api` at 1.9.x."
+
 ### Issue
 
 `@opentelemetry/instrumentation` 0.300.0 and `@opentelemetry/core` 3.0.0 were released on

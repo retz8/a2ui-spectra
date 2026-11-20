@@ -71,7 +71,9 @@ from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 
 print(json.dumps({
-    "hooked": isinstance(vars(Parser)["parse_response"], wrapt.BaseObjectProxy),
+    "hooked": isinstance(
+        vars(Parser)["parse_response"], getattr(wrapt, "BaseObjectProxy", wrapt.ObjectProxy)
+    ),
     "sdk_provider": isinstance(trace.get_tracer_provider(), TracerProvider),
 }))
 """
