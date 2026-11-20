@@ -128,7 +128,8 @@
       "files": [
         "scripts/check_packages.mjs",
         "scripts/packages.mjs",
-        "scripts/reading.mjs"
+        "scripts/reading.mjs",
+        "../../scripts/public/install.sh"
       ],
       "output": []
     },
@@ -218,7 +219,8 @@
         "../../python/a2ui_spectra_instrumentation/pyproject.toml",
         "../../pyproject.toml",
         "../../uv.lock",
-        "../../.python-version"
+        "../../.python-version",
+        "../../scripts/public/**"
       ],
       "output": []
     },

@@ -9,9 +9,12 @@
 // version, the repository and the issues page are right, and checksums.txt verifies. Then this Mac's own packages are installed as an
 // adopter installs them, each ending in `a2ui-spectra --version`: the launcher and this
 // platform's package by npm from the built packages, this platform's wheel by uv, and this
-// platform's archive extracted.
+// platform's archive by the shell install script, `scripts/public/install.sh`, from a stand-in
+// for the GitHub release serving the built archives and checksums.txt.
 
+import {spawn} from 'node:child_process';
 import {existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync} from 'node:fs';
+import {createServer} from 'node:http';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 
@@ -35,6 +38,7 @@ import {
   PLATFORMS,
   platformPackage,
   readVersion,
+  REPO_DIR,
   REPOSITORY,
   run,
   runMain,
@@ -212,8 +216,56 @@ function checkPackages(version, checks) {
   }
 }
 
+/**
+ * This platform's archive installed into the folder by the shell install script, run as a file,
+ * from a stand-in for the GitHub release that serves `dist/packages/release/`, the archive
+ * verified against its checksums.txt.
+ */
+async function installByScript(version, installDir, env) {
+  const repo = new URL(REPOSITORY).pathname.slice(1);
+  const prefix = `/${repo}/releases/download/v${version}/`;
+  const server = createServer((request, response) => {
+    const name = request.url?.startsWith(prefix) ? request.url.slice(prefix.length) : '';
+    const file = path.join(PACKAGES_DIR, 'release', name);
+    if (request.method !== 'GET' || !/^[\w.-]+$/.test(name) || !existsSync(file)) {
+      response.writeHead(404).end();
+      return;
+    }
+    response.writeHead(200, {'content-type': 'application/octet-stream'}).end(readFileSync(file));
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  try {
+    const script = path.join(REPO_DIR, 'scripts', 'public', 'install.sh');
+    const scriptEnv = Object.fromEntries(
+      Object.entries(env).filter(([key]) => !key.startsWith('A2UI_SPECTRA_')),
+    );
+    const child = spawn('/bin/sh', [script], {
+      env: {
+        ...scriptEnv,
+        A2UI_SPECTRA_VERSION: version,
+        A2UI_SPECTRA_GITHUB_URL: `http://127.0.0.1:${server.address().port}`,
+        A2UI_SPECTRA_INSTALL_DIR: installDir,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let printed = '';
+    child.stdout.setEncoding('utf8').on('data', chunk => (printed += chunk));
+    child.stderr.setEncoding('utf8').on('data', chunk => (printed += chunk));
+    const code = await new Promise((resolve, reject) => {
+      child.on('error', reject);
+      child.on('close', resolve);
+    });
+    if (code !== 0) throw new BuildError(`install.sh exited with ${code}:\n${printed.trim()}`);
+    if (!printed.includes('SHA-256 checksum verified.')) {
+      throw new BuildError(`install.sh did not verify the archive's checksum:\n${printed.trim()}`);
+    }
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+}
+
 /** This Mac's packages installed as an adopter installs them, each ending in `--version`. */
-function install(version, scratch) {
+async function install(version, scratch) {
   const host = hostPlatform();
   // Caches of their own, so that nothing installed before stands in for these packages.
   const isolated = {
@@ -258,13 +310,16 @@ function install(version, scratch) {
     `uv: ${path.basename(wheelFile(host, version))} run, and --version printed ${version}.`,
   );
 
-  // This platform's archive, extracted.
-  const extracted = path.join(scratch, 'release');
-  mkdirSync(extracted);
-  run('tar', ['-xzf', path.resolve(archiveFile(host, version)), '-C', extracted]);
-  expectVersion(path.join(extracted, NAME), version);
+  // This platform's archive, by the shell install script.
+  const installDir = path.join(scratch, 'release', 'bin');
+  await installByScript(version, installDir, isolated);
+  const installed = readdirSync(installDir);
+  if (installed.length !== 1 || installed[0] !== NAME) {
+    throw new BuildError(`install.sh installed ${installed.join(', ')}, not ${NAME} alone.`);
+  }
+  expectVersion(path.join(installDir, NAME), version);
   console.log(
-    `release: ${archiveName(host, version)} extracted, and --version printed ${version}.`,
+    `release: ${archiveName(host, version)} installed by install.sh, its checksum verified, and --version printed ${version}.`,
   );
 }
 
@@ -291,7 +346,7 @@ async function main() {
   );
   const scratch = mkdtempSync(path.join(tmpdir(), 'a2ui-spectra-installs-'));
   try {
-    install(version, scratch);
+    await install(version, scratch);
   } finally {
     rmSync(scratch, {recursive: true, force: true});
   }

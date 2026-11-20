@@ -42,6 +42,10 @@ const AREAS = [
     ],
   ],
   ['The sample clients', ['samples/client/']],
+  [
+    "Upstream's install scripts and their test",
+    ['scripts/public/install_cli.sh', 'scripts/public/install_cli.ps1', 'scripts/test_install_cli.sh'],
+  ],
 ];
 
 // The protocol versions Spectra supports: those `specification/versions.json` gives as current or

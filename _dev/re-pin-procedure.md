@@ -26,7 +26,7 @@ The scripts, from the repository root:
 At the start of each sub-task and each phase, and before an acceptance run.
 
 1. Run `node _dev/tools/upstream_check.mjs`. It prints `upstream/main`'s commit and date and:
-   1. the commits since the pin, as a count and a list per area Spectra uses;
+   1. the commits since the pin, as a count and a list per area Spectra uses, upstream's two install scripts and their test, `scripts/public/install_cli.sh`, `scripts/public/install_cli.ps1` and `scripts/test_install_cli.sh`, among them;
    2. each copied file, unchanged or differing between the pin and `upstream/main`;
    3. each upstream package's published latest on npm and PyPI, with its date, beside the version Spectra has and the version the pin's source states, the locally patched ones flagged;
    4. `specification/versions.json` at `upstream/main`, each version's status, with a change from the pin marked: a new version, or a supported version (v0.9, v0.9.1, v1.0) moved to `deprecated`;
@@ -39,6 +39,8 @@ At the start of each sub-task and each phase, and before an acceptance run.
    - **A bug in upstream that Spectra is held by is fixed**: read each commit listed under a held-by finding and judge whether it is the fix. The pin moves.
 
    A supported version moved to `deprecated` in reading 4 is the signal to deprecate it in Spectra; what Spectra then does is decided in the phase that meets it.
+
+   A commit on upstream's install scripts or their test, in reading 1, is not an event. Each is read at the check and judged there: carried into Spectra's install scripts, `scripts/public/install.sh` and `scripts/public/install.ps1`, or recorded as not applying.
 3. The spec written at the sub-task's or the phase's start opens with what the check read: `upstream/main`'s commit and date, and which event it found or that it found none. An event adds to the phase the sub-task that handles it.
 
 ## The smoke check on the published renderers
@@ -84,10 +86,11 @@ On an event that moves the pin, to a commit on `upstream/main`, normally its hea
 5. **The findings.** Each finding in `a2ui-findings.md` is read again at the new pin, and its standing line written in the file: it holds at the pin; it is fixed upstream, with the commit and the pull request; or it is changed, with what differs now. A standing is established by reading the finding's component paths at the pin and, where the finding has a reproduction runnable without a model key or a running sample, by running it against the worktree. A fixed finding stays in the file with its number. A finding Spectra carries something for, a workaround in code, an altered copy or a test expectation that encodes the bug, gets its held-by line saying what Spectra carries and where, and is listed in the pin file's `heldBy` with its upstream paths. The file's header names the pin.
 6. **The roster.** Each recording of the coverage roster, in `conformance/README.md`'s A2A capture section, is judged at the new pin as standing, to be recorded again, or to be retired, under the roster's rule in [Recording](../conformance/README.md#recording). The recording itself is outside the move.
 7. **The documents.** Every statement about upstream in `SPEC.md`, the root `README.md`, the packages' READMEs and `CLAUDE.md` is read again at the new pin and judged as standing or to be written again. The writing is outside the move, in the sub-task the judgement adds.
-8. **The suites.** Everything `.github/workflows/ci.yml` runs, from a clean build: `yarn clean:all`, then `WIREIT_CACHE=none yarn build:all`, since `tsc -b` does not see a package changed under `node_modules`; the binary; lint, format, `pyink`, `mypy`, `pytest`; `yarn test:all`; and the tool's tests against the binary.
+8. **The install scripts.** The diff of upstream's two install scripts and their test between the old pin and the new is read, and each change is carried into Spectra's install scripts or recorded as not applying.
+9. **The suites.** Everything `.github/workflows/ci.yml` runs, from a clean build: `yarn clean:all`, then `WIREIT_CACHE=none yarn build:all`, since `tsc -b` does not see a package changed under `node_modules`; the binary; lint, format, `pyink`, `mypy`, `pytest`; `yarn test:all`; and the tool's tests against the binary.
    - A case that fails at the new pin is marked expected-to-fail with the sub-task that owns it, under [The expected-to-fail mark](#the-expected-to-fail-mark).
    - A break of the build, a type check or lint, in TypeScript or in Python, gets the smallest change that builds and passes, listed under the sub-task that owns the area; its behaviour stays that sub-task's. A change that is more than mechanical, such as an API that is gone with no direct replacement, is brought to Jioh before it is made.
-9. **The outcome**, in the spec of the sub-task that made the move: per owning sub-task, the marked cases, the mechanical build changes, and any workaround or test expectation whose finding is now fixed; under the sub-task that owns the recordings, the roster's judgement; under the sub-task that owns the documents, the documents' judgement.
+10. **The outcome**, in the spec of the sub-task that made the move: per owning sub-task, the marked cases, the mechanical build changes, and any workaround or test expectation whose finding is now fixed; under the sub-task that owns the recordings, the roster's judgement; under the sub-task that owns the documents, the documents' judgement.
 
 ### Removing a local patch
 
