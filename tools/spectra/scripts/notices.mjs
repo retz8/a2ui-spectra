@@ -107,7 +107,12 @@ function fenced(text) {
   return `${fence}text\n${text.replace(/\r\n/g, '\n').trimEnd()}\n${fence}`;
 }
 
-function bundledPackages() {
+/**
+ * The npm packages the three builds bundled, each by name and version, with its folder, licence
+ * and texts. It reads from `tools/spectra/`; the release workflow's refusal of unpublished
+ * upstream code reads it too.
+ */
+export function bundledPackages() {
   const packages = new Map();
   for (const root of new Set([...bundledFiles()].map(packageRootOf))) {
     if (root === undefined) continue;

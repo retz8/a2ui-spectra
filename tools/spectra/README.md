@@ -453,6 +453,20 @@ The libraries bundle nothing, and no pack carries a third-party notices file.
 
 `yarn check:libraries` checks what `pack:libraries` made: each pack holds exactly its files, each the build's or the repo's byte for byte, its `LICENSE` the repository's; its manifest states the version of `src/version.ts`, the repository and the issues page, and refers to nothing in the workspace; every `exports` target is in the pack; and every import in its built code resolves to a file in the pack, or to a dependency or peer its manifest declares. Then it installs each pack outside the workspace, with npm's and uv's caches of its own: the preview core and the TypeScript wrapper by npm into one project, each of their entry points imported under Node; each adapter by npm into a catalog app's project of its own, after the peers its pack states, its renderer among them, every import of its code resolved there; and the wheel by uv into a fresh environment, the wrapper imported and its OpenTelemetry entry point found. CI runs both on Linux x64 on every push and pull request; the packs are uploaded by the release workflow alone.
 
+## The release
+
+A release is made by the release workflow, [`.github/workflows/release.yml`](../../.github/workflows/release.yml), started by hand with the version and a dry-run switch; its steps are the commands of [`scripts/release.mjs`](scripts/release.mjs), and the steps done by hand around it are in [`_dev/release-procedure.md`](../../_dev/release-procedure.md). The version given must be the committed version, and the changelog, the root [`CHANGELOG.md`](../../CHANGELOG.md), must hold a section for it that is not empty. The workflow runs everything CI runs, from the definition CI runs, [`.github/workflows/checks.yml`](../../.github/workflows/checks.yml), with the binary's packages and the libraries' packs uploaded to the run; its publishing jobs publish those files. Before each publish, a publishing step asks the registry whether that version is already there: a file held with the same checksum is skipped, and one held with another checksum fails the step before anything is published.
+
+A dry run is started from any branch, by the Actions tab's "Run workflow" or with
+
+```
+gh workflow run release.yml --ref <branch> -f version=<version> -f dry-run=true
+```
+
+It runs the same publishing steps into two stand-ins on its runner, [`scripts/stand_ins.mjs`](scripts/stand_ins.mjs): Verdaccio for npm and pypiserver for PyPI, neither with an uplink. The placeholders go into the stand-in npm registry first, then the seven PyPI files and the eleven npm packages, and a second pass finds every file already there. It touches nothing on GitHub: no tag, no draft and no attestation. The release notes, the changelog's section with the preview protocol's lines, are in the run's summary, and so is each npm package bundled into the binary that resolves to a local patch, which a real run refuses.
+
+`yarn pack:placeholders` makes the eleven npm placeholders into `dist/placeholders/`: for each npm name a release publishes, `<name>-0.0.0-placeholder.tgz`, holding its manifest, the repository's `LICENSE` and a README saying that the first release is on its way and naming the repository. A new npm name is created by publishing its placeholder by hand, under the dist-tag `placeholder`, so that its trusted publisher can be configured before the release workflow publishes the release.
+
 ## Layout
 
 - `src/`: the TypeScript source, with each unit test beside its source as `*.test.ts`.
@@ -501,8 +515,9 @@ The libraries bundle nothing, and no pack carries a third-party notices file.
 - `scripts/build_packages.mjs` and `scripts/check_packages.mjs`: the binary's packages made and checked, with what they share in `scripts/packages.mjs`; `scripts/notices.mjs`, the third-party notices; `scripts/notices_by_hand.md`, their part kept by hand; and `scripts/licences_by_hand/`, the licence texts kept by hand for the bundled packages that ship none.
 - `scripts/version.mjs`: the version's command and its check.
 - `scripts/pack_libraries.mjs` and `scripts/check_libraries.mjs`: the libraries' packs made and checked, with what the six libraries are in `scripts/libraries.mjs`; `scripts/reading.mjs`, what the checks of the binary's packages and of the libraries' packs read a package's files with.
+- `scripts/release.mjs`: the release workflow's steps; `scripts/placeholders.mjs`, the npm placeholders; `scripts/stand_ins.mjs`, the dry run's stand-in registries. `src/release_steps.test.ts` tests the first step's refusals, the refusal of unpublished upstream code and the publishing steps' check against a stand-in registry and a stand-in index it serves.
 - `wheel/`: the uv project each wheel is built from, with its build hook, `hatch_build.py`.
-- `dist/`: the compiled tool, with the viewer's build copied into `dist/viewer/` and the built-in preview page's into `dist/viewer/preview/`; the host's binary, `dist/a2ui-spectra`, the five in `dist/binaries/`, and their packages in `dist/packages/`; the libraries' packs in `dist/libraries/`.
+- `dist/`: the compiled tool, with the viewer's build copied into `dist/viewer/` and the built-in preview page's into `dist/viewer/preview/`; the host's binary, `dist/a2ui-spectra`, the five in `dist/binaries/`, and their packages in `dist/packages/`; the libraries' packs in `dist/libraries/`; the npm placeholders in `dist/placeholders/`.
 
 ## Commands
 
@@ -517,6 +532,7 @@ From `tools/spectra/`:
 - `yarn check:version`: fails when a place that carries the version states another than `src/version.ts`.
 - `yarn pack:libraries`: packs the six libraries into `dist/libraries/`, building the npm libraries first; see [The libraries' packs](#the-libraries-packs).
 - `yarn check:libraries`: checks the libraries' packs, making them first, and installs each outside the workspace.
+- `yarn pack:placeholders`: makes the eleven npm placeholders into `dist/placeholders/`; see [The release](#the-release).
 - `yarn generate:otlp`: generates `src/receiver/gen/` from `proto/` with `buf` and `protoc-gen-es`, both dev dependencies, so that the build needs no protobuf compiler. The generated code is checked in; `@bufbuild/protobuf` is its runtime dependency.
 - `yarn test`: builds the tool, the conformance workspace, whose stub agent the end-to-end tests run, and the three preview adapters, which the sample catalog apps' dev servers serve from their builds, then runs the unit tests, the command-line test and the end-to-end tests under Node's test runner. The browser end-to-end test needs Playwright's Chromium, as under [Prerequisites](#prerequisites).
 - `SPECTRA_BINARY=dist/a2ui-spectra yarn test`: runs the same tests with the command-line test and the end-to-end tests against the binary. The commands end-to-end test records the stub agent's model-calling conversation against the stand-in provider playing the Gemini restaurant finder recording, then runs `replay` and `test` on it, the stand-in stopped, in both agent forms. `SPECTRA_BINARY` may name one of the five in `dist/binaries/` instead, on its own platform, as CI runs each of the five platforms' binaries on that platform's runner, Windows' as [Windows](#windows) describes.

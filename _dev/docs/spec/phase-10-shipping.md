@@ -61,7 +61,7 @@ Work that follows the release may be brought forward when upstream's release is 
 
 ### 6. No package name is held before the release
 
-No package is published to hold a name. The names are taken at the release. As read on 2026-11-15, all eight are free: on npm, `a2ui-spectra`, `a2ui-spectra-preview`, `a2ui-spectra-preview-react`, `a2ui-spectra-preview-lit`, `a2ui-spectra-preview-angular` and `a2ui-spectra-instrumentation`; on PyPI, `a2ui-spectra` and `a2ui-spectra-instrumentation`.
+No package is published to hold a name before the release. The names are taken at the release; each npm name by a placeholder, a pre-release below `0.1.0` published by hand on the release day, so that its trusted publisher can be configured. As read on 2026-11-15, all eight are free: on npm, `a2ui-spectra`, `a2ui-spectra-preview`, `a2ui-spectra-preview-react`, `a2ui-spectra-preview-lit`, `a2ui-spectra-preview-angular` and `a2ui-spectra-instrumentation`; on PyPI, `a2ui-spectra` and `a2ui-spectra-instrumentation`.
 
 ### 7. The platforms
 
@@ -80,7 +80,7 @@ A release is made by one GitHub Actions workflow, started by hand, taking a vers
 - The release notes come from a root `CHANGELOG.md`.
 - A release that changes the preview protocol says so in its release notes.
 
-Whether the first publish of a new npm package name can go through trusted publishing is established in the workflow's sub-task; npm's documentation, as read on 2026-11-15, places the trusted publisher in an existing package's settings and says nothing of a package that does not exist yet.
+The first publish of a new npm package name cannot go through trusted publishing: a trusted publisher is configured on a package that already exists. Each npm name is first published by hand as a placeholder, and the release goes through the workflow under trusted publishing.
 
 ### 10. The rehearsal
 
@@ -132,7 +132,7 @@ The packages' READMEs are a DX product, their details moved to design docs in `d
 
 The binaries are not signed with a paid developer identity. The macOS binaries carry an ad-hoc signature and the Windows binaries are unsigned. A release's integrity rests on its checksums and its build provenance attestation. The README says how to clear the operating system's warning on a binary downloaded by hand from the release page.
 
-One fact is established on the runners in the release workflow's sub-task: that an install through `npx`, `uvx` or the install scripts meets no such warning.
+One fact is established on the runners in the install check's sub-task, 10.7: that an install through `npx`, `uvx` or the install scripts meets no such warning.
 
 ### 18. The platform packages' names
 
@@ -164,8 +164,8 @@ Sub-tasks 10.1, 10.4, 10.8, 10.12, 10.13 and 10.14, and the design docs of 10.9,
 Phase 11 holds what waits for upstream's release:
 
 - the local patches of `@a2ui/web_core`, `@a2ui/react` and `@a2ui/markdown-it` removed, and the suites run on published upstream;
-- the npm and PyPI accounts and their trusted publishers;
-- turn record `v0.1` closed, and `0.1.0` published;
+- the steps done once by hand: the npm and PyPI accounts; the `release` environment; immutable releases; the npm placeholders with their trusted publishers; PyPI's pending publishers;
+- turn record `v0.1` closed, and `0.1.0` published, then the placeholders deprecated;
 - the install check against the real registries, and the root README's status line deleted;
 - A2UIVerse's CircleCI preview page committed in A2UIVerse, on the published React adapter. A2UIVerse's CircleCI catalog is on `@a2ui/react` 0.14.0 and the React adapter takes `^0.15.0`, so A2UIVerse moves its renderer first.
 

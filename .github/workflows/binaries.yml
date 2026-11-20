@@ -2,6 +2,15 @@ name: The five binaries
 
 on:
   workflow_call:
+    inputs:
+      release-files:
+        description: Upload the binary's packages to the run
+        type: boolean
+        default: false
+      refuse-local-patches:
+        description: Fail when an npm package bundled into the binary resolves to a local patch
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -43,8 +52,28 @@ jobs:
           archive: false
           if-no-files-found: error
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
-      # The packages are checked here and not uploaded; the release workflow alone uploads them.
       - name: Make the binary's packages
         run: yarn workspace a2ui-spectra build:packages
       - name: Check the binary's packages, and install this Mac's
         run: yarn workspace a2ui-spectra check:packages
+      - name: Upstream code in the binary, from a local patch
+        run: node tools/spectra/scripts/release.mjs local-patches ${{ inputs.refuse-local-patches && '--refuse' || '' }}
+      # The packages the binary test runs' binaries are in, for the release workflow's publishing jobs.
+      - if: inputs.release-files
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: npm-binary
+          path: tools/spectra/dist/packages/npm/*.tgz
+          if-no-files-found: error
+      - if: inputs.release-files
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pypi-binary
+          path: tools/spectra/dist/packages/pypi/*.whl
+          if-no-files-found: error
+      - if: inputs.release-files
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: github-release
+          path: tools/spectra/dist/packages/release/*
+          if-no-files-found: error

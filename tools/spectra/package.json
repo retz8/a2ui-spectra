@@ -16,6 +16,7 @@
     "check:packages": "wireit",
     "pack:libraries": "wireit",
     "check:libraries": "wireit",
+    "pack:placeholders": "wireit",
     "set:version": "node scripts/version.mjs set",
     "check:version": "node scripts/version.mjs check",
     "generate:otlp": "wireit",
@@ -49,7 +50,8 @@
         "!dist/a2ui-spectra",
         "!dist/binaries/**",
         "!dist/packages/**",
-        "!dist/libraries/**"
+        "!dist/libraries/**",
+        "!dist/placeholders/**"
       ],
       "clean": "if-file-deleted"
     },
@@ -176,6 +178,19 @@
       ],
       "output": []
     },
+    "pack:placeholders": {
+      "command": "node scripts/placeholders.mjs",
+      "files": [
+        "scripts/placeholders.mjs",
+        "scripts/release.mjs",
+        "scripts/packages.mjs",
+        "scripts/libraries.mjs",
+        "../../LICENSE"
+      ],
+      "output": [
+        "dist/placeholders/**"
+      ]
+    },
     "test": {
       "command": "node --test --enable-source-maps --test-reporter spec \"dist/**/*.test.js\"",
       "dependencies": [
@@ -220,7 +235,12 @@
         "../../pyproject.toml",
         "../../uv.lock",
         "../../.python-version",
-        "../../scripts/public/**"
+        "../../scripts/public/**",
+        "scripts/release.mjs",
+        "scripts/packages.mjs",
+        "scripts/libraries.mjs",
+        "../../CHANGELOG.md",
+        "../../typescript/preview/core/src/protocol.ts"
       ],
       "output": []
     },

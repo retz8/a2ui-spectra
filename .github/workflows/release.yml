@@ -1,0 +1,246 @@
+name: Release
+
+# A release of every package at the committed version, started by hand: everything CI runs, then,
+# on a real run from main, the draft release with its attestation, PyPI and npm through trusted
+# publishing, and last the draft published, which makes the tag. A dry run publishes the same
+# files into stand-in registries on its runner and touches nothing on GitHub. The steps done by
+# hand around it are in `_dev/release-procedure.md`; the trusted publishers on npm and PyPI name
+# this file and the `release` environment.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The committed version, as a confirmation
+        required: true
+        type: string
+      dry-run:
+        description: A dry run, into stand-in registries
+        type: boolean
+        default: true
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  VERSION: ${{ inputs.version }}
+
+jobs:
+  first-step:
+    name: The first step
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # The tags, for the preview protocol of the release before.
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-node
+        with:
+          install: false
+      - name: The version, the ref, the changelog's section, and the tag and the release
+        run: node tools/spectra/scripts/release.mjs first-step --version "$VERSION" --ref "$GITHUB_REF" --notes "$RUNNER_TEMP/release-notes.md" $DRY_RUN
+        env:
+          DRY_RUN: ${{ inputs.dry-run && '--dry-run' || '' }}
+          GITHUB_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          path: ${{ runner.temp }}/release-notes.md
+          archive: false
+          if-no-files-found: error
+
+  checks:
+    needs: first-step
+    uses: ./.github/workflows/checks.yml
+    with:
+      release-files: true
+      refuse-local-patches: ${{ !inputs.dry-run }}
+
+  # The dry run: the same publishing steps, into stand-ins, with no permission beyond reading.
+  dry-run:
+    name: The publishing steps, into stand-ins
+    if: inputs.dry-run
+    needs: checks
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+        with:
+          install: false
+      - name: npm 11.21.1, for trusted publishing
+        run: npm install --global npm@11.21.1
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: npm-*
+          merge-multiple: true
+          path: release-files/npm
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: pypi-*
+          merge-multiple: true
+          path: release-files/pypi
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: github-release
+          path: release-files/github
+      - name: The release's files
+        run: ls -l release-files/*
+      - name: Start the stand-ins
+        run: node tools/spectra/scripts/stand_ins.mjs start "$RUNNER_TEMP/stand-ins"
+      - name: The placeholders, first
+        run: |
+          node tools/spectra/scripts/placeholders.mjs
+          node tools/spectra/scripts/release.mjs npm --placeholders --registry "$A2UI_SPECTRA_STAND_IN_NPM" --files tools/spectra/dist/placeholders
+      - name: PyPI
+        uses: ./.github/actions/publish-pypi
+        with:
+          index: ${{ env.A2UI_SPECTRA_STAND_IN_PYPI_INDEX }}
+          repository-url: ${{ env.A2UI_SPECTRA_STAND_IN_PYPI_UPLOAD }}
+          user: dry-run
+          password: dry-run
+          attestations: false
+          files: release-files/pypi
+      - name: npm
+        uses: ./.github/actions/publish-npm
+        with:
+          registry: ${{ env.A2UI_SPECTRA_STAND_IN_NPM }}
+          files: release-files/npm
+      - name: PyPI again, every file already there
+        uses: ./.github/actions/publish-pypi
+        with:
+          index: ${{ env.A2UI_SPECTRA_STAND_IN_PYPI_INDEX }}
+          repository-url: ${{ env.A2UI_SPECTRA_STAND_IN_PYPI_UPLOAD }}
+          user: dry-run
+          password: dry-run
+          attestations: false
+          files: release-files/pypi
+          expect-all-there: true
+      - name: npm again, every package already there
+        uses: ./.github/actions/publish-npm
+        with:
+          registry: ${{ env.A2UI_SPECTRA_STAND_IN_NPM }}
+          files: release-files/npm
+          expect-all-there: true
+      - name: What the stand-ins hold, and in which order
+        run: >-
+          node tools/spectra/scripts/release.mjs stand-ins
+          --npm-registry "$A2UI_SPECTRA_STAND_IN_NPM" --npm-files release-files/npm
+          --pypi-index "$A2UI_SPECTRA_STAND_IN_PYPI_INDEX" --pypi-files release-files/pypi
+
+  # A real run, from main. The jobs that hold the release's permissions download the run's files
+  # and publish them, and do nothing else.
+  draft:
+    name: The draft release, and its attestation
+    if: ${{ !inputs.dry-run }}
+    needs: checks
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+        with:
+          install: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: github-release
+          path: release-files/github
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: release-notes.md
+          path: ${{ runner.temp }}
+      - name: The draft, holding the five archives and checksums.txt
+        run: node tools/spectra/scripts/release.mjs draft --tag "v$VERSION" --target "$GITHUB_SHA" --files release-files/github --notes "$RUNNER_TEMP/release-notes.md"
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: The attestation of the five archives
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-checksums: release-files/github/checksums.txt
+
+  pypi:
+    name: PyPI
+    needs: draft
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+        with:
+          install: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: pypi-*
+          merge-multiple: true
+          path: release-files/pypi
+      - uses: ./.github/actions/publish-pypi
+        with:
+          index: https://pypi.org/simple/
+          files: release-files/pypi
+
+  npm:
+    name: npm
+    needs: draft
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+        with:
+          install: false
+      - name: npm 11.21.1, for trusted publishing
+        run: npm install --global npm@11.21.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: npm-*
+          merge-multiple: true
+          path: release-files/npm
+      - uses: ./.github/actions/publish-npm
+        with:
+          registry: https://registry.npmjs.org/
+          files: release-files/npm
+
+  release:
+    name: The release published
+    needs: [pypi, npm]
+    runs-on: ubuntu-24.04
+    environment: release
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+        with:
+          install: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: github-release
+          path: release-files/github
+      - name: The draft published, which makes the tag
+        run: node tools/spectra/scripts/release.mjs publish-draft --tag "v$VERSION" --files release-files/github
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

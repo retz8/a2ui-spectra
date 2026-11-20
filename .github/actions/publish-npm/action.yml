@@ -1,0 +1,22 @@
+name: Publish to npm
+description: The release's eleven npm packages, in their order, each published unless the registry already holds it with the same checksum
+inputs:
+  registry:
+    description: The registry's address
+    required: true
+  files:
+    description: The folder holding the eleven packages
+    required: true
+  expect-all-there:
+    description: Fail on a package the registry does not hold, instead of publishing it
+    default: "false"
+runs:
+  using: composite
+  steps:
+    - name: The npm packages
+      shell: bash
+      run: node "$GITHUB_WORKSPACE/tools/spectra/scripts/release.mjs" npm --registry "$REGISTRY" --files "$FILES" $EXPECT
+      env:
+        REGISTRY: ${{ inputs.registry }}
+        FILES: ${{ inputs.files }}
+        EXPECT: ${{ inputs.expect-all-there == 'true' && '--expect-all-there' || '' }}
