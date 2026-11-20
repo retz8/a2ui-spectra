@@ -46,12 +46,57 @@ const GENERATED_ATTRIBUTES = new Set([
   'http.response.header.keep-alive',
 ]);
 
+/** How long the streamable HTTP client's stream `GET` has to be answered. */
+const STREAM_TIMEOUT_MS = 10_000;
+
+/**
+ * A fetch for the streamable HTTP client, and when its stream `GET` was
+ * answered. The client opens that `GET` once `notifications/initialized` is
+ * accepted, without waiting for it, so a scenario run at once could reach the
+ * server before it: a session ended first refuses the `GET`, which is then
+ * recorded as a failed call.
+ */
+function watchingTheStream(): {
+  fetch: (url: string | URL, init?: RequestInit) => Promise<Response>;
+  answered: Promise<void>;
+} {
+  let settle!: () => void;
+  let fail!: (error: Error) => void;
+  const answered = new Promise<void>((resolve, reject) => {
+    settle = resolve;
+    fail = reject;
+  });
+  const timer = setTimeout(
+    () =>
+      fail(new Error(`the client's stream GET was not answered within ${STREAM_TIMEOUT_MS} ms`)),
+    STREAM_TIMEOUT_MS,
+  );
+  timer.unref();
+  // Observed here too, for a client that fails before `withClient` waits on it.
+  answered.catch(() => undefined);
+  return {
+    answered,
+    fetch: async (url, init) => {
+      const opening = (init?.method ?? 'GET') === 'GET';
+      try {
+        return await fetch(url, init);
+      } finally {
+        if (opening) {
+          clearTimeout(timer);
+          settle();
+        }
+      }
+    },
+  };
+}
+
 /**
  * Runs `use` with a client connected over the transport, which answers
  * sampling with a fixed reply, and closes it after, once every message the
  * client sent has been posted: an answer to a server's request that arrived
  * just before its tool's result, as a replayed stream gives them, is posted
- * before the client goes.
+ * before the client goes. Over streamable HTTP, `use` runs once the client's
+ * stream `GET` has been answered.
  */
 export async function withClient(
   transport: Transport,
@@ -71,8 +116,11 @@ export async function withClient(
     content: {type: 'text' as const, text: 'Yes.'},
     stopReason: 'endTurn',
   }));
+  const stream = transport === 'http_sse' ? undefined : watchingTheStream();
   const carrier =
-    transport === 'http_sse' ? new SSEClientTransport(url) : new StreamableHTTPClientTransport(url);
+    stream === undefined
+      ? new SSEClientTransport(url)
+      : new StreamableHTTPClientTransport(url, {fetch: stream.fetch});
   const sending = new Set<Promise<void>>();
   type Send = (...args: Parameters<SSEClientTransport['send']>) => Promise<void>;
   const send: Send = carrier.send.bind(carrier);
@@ -87,6 +135,7 @@ export async function withClient(
   };
   try {
     await client.connect(carrier);
+    if (stream !== undefined) await stream.answered;
     await use(client, carrier);
     await new Promise(resolve => setImmediate(resolve));
     await Promise.allSettled([...sending]);
