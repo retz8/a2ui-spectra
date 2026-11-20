@@ -92,10 +92,11 @@ The same install check runs after the real publish, against the real registries.
 
 ### 11. The install scripts
 
-A shell script for macOS and Linux and a PowerShell script for Windows, served from this repo's `main` on raw GitHub, behaving as the install scripts of upstream's `a2ui` CLI do:
+A shell script for macOS and Linux and a PowerShell script for Windows, `scripts/public/install.sh` and `scripts/public/install.ps1`, served from this repo's `main` on raw GitHub, behaving as the install scripts of upstream's `a2ui` CLI do:
 
 - the platform is detected and its archive downloaded from the GitHub release; on Linux with musl the script stops and says musl is not supported;
-- the download is verified against the release's checksums before it is installed;
+- `A2UI_SPECTRA_REPO` names another repository, and `A2UI_SPECTRA_GITHUB_URL` and `A2UI_SPECTRA_GITHUB_API_URL` name another origin for the release's files and for the releases list;
+- the download is verified against the release's checksums before it is installed, unless `A2UI_SPECTRA_SKIP_CHECKSUM=1` is set;
 - the install needs no `sudo`: into `$XDG_BIN_HOME`, else `~/.local/bin`, and on Windows into a folder under `%LOCALAPPDATA%\Programs`; `A2UI_SPECTRA_INSTALL_DIR` names another folder;
 - the latest release is installed by default; `A2UI_SPECTRA_VERSION` names another;
 - on macOS and Linux no shell file is edited, and when the folder is not on `PATH` the script prints the line to add; the Windows script adds the folder to the user's `PATH`.
@@ -154,8 +155,9 @@ The npm packages that hold the binary, one per platform, are named with the `a2u
 | 10.11 The skill | A skill, in the Agent Skills format, for a coding agent using Spectra | After 10.9, before 10.10 |
 | 10.12 The agent instructions | An `AGENTS.md` file; the `CLAUDE.md` file turned into a local file | At once |
 | 10.13 The wrappers' OpenTelemetry versions | Which OpenTelemetry releases the TypeScript and Python wrappers support, and the ranges their manifests state | At once |
+| 10.14 The published Python releases | The local patches of `a2ui-core`, `a2ui-agent-sdk` and `a2ui-a2a` giving way to PyPI's releases; the smoke check on the published agent SDKs; the documents' statements about those releases | At once; before 10.10 |
 
-Sub-tasks 10.1, 10.4, 10.8, 10.12 and 10.13, and the design docs of 10.9, run in parallel.
+Sub-tasks 10.1, 10.4, 10.8, 10.12, 10.13 and 10.14, and the design docs of 10.9, run in parallel.
 
 ### 20. Phase 11, the release
 
