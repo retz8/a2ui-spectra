@@ -17,7 +17,8 @@ import {fileURLToPath} from 'node:url';
 
 import {VERSION} from './version.js';
 
-const SCRIPT = fileURLToPath(new URL('../scripts/release.mjs', import.meta.url));
+const SCRIPT_URL = new URL('../scripts/release.mjs', import.meta.url);
+const SCRIPT = fileURLToPath(SCRIPT_URL);
 
 interface Section {
   count: number;
@@ -84,7 +85,8 @@ interface ReleaseSteps {
   orderFailures(times: Record<string, Record<string, string>>, version: string): string[];
 }
 
-const steps = (await import(SCRIPT)) as ReleaseSteps;
+// By its URL, which Windows needs of an import.
+const steps = (await import(SCRIPT_URL.href)) as ReleaseSteps;
 
 function sha256(bytes: Buffer): string {
   return createHash('sha256').update(bytes).digest('hex');
