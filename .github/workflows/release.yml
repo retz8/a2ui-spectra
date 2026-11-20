@@ -1,13 +1,15 @@
 name: Release
 
-# A release of every package at the committed version, started by hand: everything CI runs, then,
-# on a real run from main, the draft release with its attestation, PyPI and npm through trusted
-# publishing, and last the draft published, which makes the tag. A dry run publishes the same
-# files into stand-in registries on its runner and touches nothing on GitHub. The steps done by
-# hand around it are in `_dev/release-procedure.md`; the trusted publishers on npm and PyPI name
-# this file and the `release` environment. The PyPI publishing action is called from each job
-# itself: called from inside another action, it does not find its own container image. Its upload
-# folder is in the workspace, which its container mounts.
+# A release of every package at the committed version, started by hand: everything CI runs; the
+# publishing steps into stand-in registries on their runner, whose stores are uploaded to the run;
+# and the install check on the five platforms from those stores, `install_check.yml`. A dry run
+# ends there and touches nothing on GitHub. A real run, from main, goes on once the install check
+# has passed: the draft release with its attestation, PyPI and npm through trusted publishing, the
+# draft published, which makes the tag, and the install check again, against npm, PyPI and GitHub
+# themselves. The steps done by hand around it are in `_dev/release-procedure.md`; the trusted
+# publishers on npm and PyPI name this file and the `release` environment. The PyPI publishing
+# action is called from each job itself: called from inside another action, it does not find its
+# own container image. Its upload folder is in the workspace, which its container mounts.
 
 on:
   workflow_dispatch:
@@ -62,10 +64,9 @@ jobs:
       release-files: true
       refuse-local-patches: ${{ !inputs.dry-run }}
 
-  # The dry run: the same publishing steps, into stand-ins, with no permission beyond reading.
-  dry-run:
+  # The publishing steps, into stand-ins, with no permission beyond reading, on both runs.
+  stand-ins:
     name: The publishing steps, into stand-ins
-    if: inputs.dry-run
     needs: checks
     runs-on: ubuntu-24.04
     steps:
@@ -140,13 +141,33 @@ jobs:
           node tools/spectra/scripts/release.mjs stand-ins
           --npm-registry "$A2UI_SPECTRA_STAND_IN_NPM" --npm-files release-files/npm
           --pypi-index "$A2UI_SPECTRA_STAND_IN_PYPI_INDEX" --pypi-files release-files/pypi
+      - name: Stop the stand-ins
+        run: node tools/spectra/scripts/stand_ins.mjs stop "$RUNNER_TEMP/stand-ins"
+      # Their stores, for the install check. A job run again replaces them.
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: stand-in-stores
+          path: |
+            ${{ runner.temp }}/stand-ins/npm/storage
+            ${{ runner.temp }}/stand-ins/pypi/packages
+          include-hidden-files: true
+          overwrite: true
+          if-no-files-found: error
 
-  # A real run, from main. The jobs that hold the release's permissions download the run's files
-  # and publish them, and do nothing else.
+  # The install check, from the stores the publishing steps left, on both runs.
+  install-check:
+    name: The install check, from the stand-ins
+    needs: stand-ins
+    uses: ./.github/workflows/install_check.yml
+    with:
+      stand-ins: true
+
+  # A real run, from main, once the install check has passed. The jobs that hold the release's
+  # permissions download the run's files and publish them, and do nothing else.
   draft:
     name: The draft release, and its attestation
     if: ${{ !inputs.dry-run }}
-    needs: checks
+    needs: install-check
     runs-on: ubuntu-24.04
     environment: release
     permissions:
@@ -256,3 +277,13 @@ jobs:
         run: node tools/spectra/scripts/release.mjs publish-draft --tag "v$VERSION" --files release-files/github
         env:
           GITHUB_TOKEN: ${{ github.token }}
+
+  # The install check again, against npm, PyPI and GitHub themselves. A failed install is run
+  # again, as a failed publishing job is.
+  install-check-published:
+    name: The install check, against the registries
+    if: ${{ !inputs.dry-run }}
+    needs: release
+    uses: ./.github/workflows/install_check.yml
+    with:
+      stand-ins: false

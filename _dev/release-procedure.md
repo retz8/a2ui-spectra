@@ -30,7 +30,7 @@ The steps of a release done by hand, around the release workflow, [`.github/work
    gh workflow run release.yml --ref main -f version=<version> -f dry-run=true
    ```
 
-   It passes, and its summary holds the release notes, with the preview protocol's lines, and every file in the stand-ins.
+   It passes, and its summary holds the release notes, with the preview protocol's lines, every file in the stand-ins, and each install of the install check from the stand-ins on the five platforms.
 
 ## The real run
 
@@ -38,10 +38,11 @@ The steps of a release done by hand, around the release workflow, [`.github/work
 gh workflow run release.yml --ref main -f version=<version> -f dry-run=false
 ```
 
-It refuses at its first step unless the version is the committed version, it was dispatched from `main`, the changelog's section is there and not empty, and neither the tag `v<version>` nor a published release of it exists. It runs everything CI runs, creates the draft release holding the five archives and `checksums.txt` and attests the archives, publishes to PyPI and to npm, and last publishes the draft, which makes the tag.
+It refuses at its first step unless the version is the committed version, it was dispatched from `main`, the changelog's section is there and not empty, and neither the tag `v<version>` nor a published release of it exists. It runs everything CI runs, the publishing steps into the stand-ins and the install check from their stores on the five platforms, as a dry run does. Nothing is published before that install check has passed. Then it creates the draft release holding the five archives and `checksums.txt` and attests the archives, publishes to PyPI and to npm, publishes the draft, which makes the tag, and last runs the install check again on the five platforms, against npm, PyPI and GitHub themselves.
 
 When it ends:
 
+- the install check against the registries has passed on the five platforms;
 - the release page of `v<version>` holds the six files and the notes, and the tag names the commit the run was dispatched on;
 - `gh attestation verify <archive> --repo retz8/a2ui-spectra` verifies each archive downloaded from it;
 - each of the eleven npm packages shows the version with its provenance on npmjs.com, and each of the seven PyPI files its attestation on pypi.org.
@@ -52,8 +53,18 @@ After the first release, each placeholder is deprecated with a message naming th
 npm deprecate <name>@0.0.0-placeholder "A placeholder; install 0.1.0 or later."
 ```
 
+## The install check by hand
+
+The install check against the real registries runs outside any release run, from the Actions tab's "Run workflow" on `install_check.yml` or with
+
+```
+gh workflow run install_check.yml --ref main
+```
+
+Each install must print the committed version at the ref, so it fails between the commit that sets a version and that version's release.
+
 ## When a run fails
 
-- **A job failed.** The failed job is run again in the same run, from the Actions tab's "Re-run failed jobs" or with `gh run rerun <run-id> --failed`. Nothing is rebuilt: it downloads the files the run uploaded, and each publishing step skips a file already there with the same checksum. A draft an earlier attempt made is completed with the files it lacks.
+- **A job failed.** The failed job is run again in the same run, from the Actions tab's "Re-run failed jobs" or with `gh run rerun <run-id> --failed`, an install of the install check after the publish among them. Nothing is rebuilt: it downloads the files the run uploaded, and each publishing step skips a file already there with the same checksum. A draft an earlier attempt made is completed with the files it lacks.
 - **A published file is wrong.** The version is abandoned. The cause is fixed, the version moves to the next patch number with its own changelog section, and a new run publishes everything. The abandoned version is deprecated on npm, `npm deprecate <name>@<version> "<message>"` for each of the eleven packages, and yanked on PyPI, in each of the two projects' release settings. A draft release of the abandoned version, never published, is deleted.
 - **A draft of the version is left from an earlier run.** A draft is not visible to the first step. The draft job completes it when every file it holds has the run's checksum, and refuses it otherwise; a draft from another commit is deleted before the run.

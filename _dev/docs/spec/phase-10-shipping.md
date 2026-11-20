@@ -86,9 +86,9 @@ The first publish of a new npm package name cannot go through trusted publishing
 
 The rehearsal is the release workflow's dry run and an install check.
 
-The install check runs on all five platforms. The dry run's packages are served from stand-in registries inside the workflow, and each platform's runner installs as an adopter does: through `npx`, through `uvx`, and through the install script reading the workflow's own files. Each install ends with `a2ui-spectra --version` and one turn from the stub agent. The README's install commands are run as written.
+The install check runs on all five platforms. The packages the publishing steps put into stand-in registries are served from those registries' stores on each platform's runner, and each runner installs as an adopter does: through `npx`, through `uvx`, and through the install script reading the run's own files. The README's install commands are run as written. Each install prints the committed version on `a2ui-spectra --version`; serves one turn under `a2ui-spectra run` from the stub agent, the turn closing waiting for input with the stub agent's canned surface; and stops on a terminal's Ctrl-C, the command exiting and the stub agent's process gone, each within a bound.
 
-The same install check runs after the real publish, against the real registries.
+A real run is gated on the install check from the stand-ins: on a real run too the publishing steps run into the stand-ins first, and nothing is published before the install check from their stores has passed. The same install check runs after the real publish, against the real registries, and is startable by hand against them, outside any release run.
 
 ### 11. The install scripts
 
@@ -132,7 +132,7 @@ The packages' READMEs are a DX product, their details moved to design docs in `d
 
 The binaries are not signed with a paid developer identity. The macOS binaries carry an ad-hoc signature and the Windows binaries are unsigned. A release's integrity rests on its checksums and its build provenance attestation. The README says how to clear the operating system's warning on a binary downloaded by hand from the release page.
 
-One fact is established on the runners in the install check's sub-task, 10.7: that an install through `npx`, `uvx` or the install scripts meets no such warning.
+The install check's sub-task, 10.7, establishes on the runners that a binary installed through `npx`, `uvx` or the install scripts carries no download mark: no `com.apple.quarantine` on macOS and no `Zone.Identifier` stream on Windows. Smart App Control on Windows 11, SmartScreen at a launch from a terminal, and Gatekeeper beyond quarantine stay open.
 
 ### 18. The platform packages' names
 

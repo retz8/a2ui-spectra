@@ -61,6 +61,24 @@ a2ui-spectra replay a2ui-spectra-fixtures/chinese-restaurants.json -- uv run .
 a2ui-spectra test -- uv run .
 ```
 
+## Install
+
+```sh
+npx a2ui-spectra
+```
+
+```sh
+uvx a2ui-spectra
+```
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/retz8/a2ui-spectra/main/scripts/public/install.sh | sh
+```
+
+```powershell
+irm https://raw.githubusercontent.com/retz8/a2ui-spectra/main/scripts/public/install.ps1 | iex
+```
+
 ## How it works
 
 Spectra is one local process at the edges every agent stack already has: the wire, the model and tool calls, and OpenTelemetry. So it works with any A2UI agent, in any language and on any framework.

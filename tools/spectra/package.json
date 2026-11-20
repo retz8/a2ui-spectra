@@ -240,6 +240,8 @@
         "../../uv.lock",
         "../../.python-version",
         "../../scripts/public/**",
+        "../../README.md",
+        "scripts/install_check.mjs",
         "scripts/release.mjs",
         "scripts/packages.mjs",
         "scripts/libraries.mjs",
