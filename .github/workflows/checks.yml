@@ -77,16 +77,21 @@ jobs:
       refuse-local-patches: ${{ inputs.refuse-local-patches }}
 
   binary-test:
-    name: The binary test run (${{ matrix.platform }})
+    name: The binary test run (${{ matrix.platform }}${{ matrix.part && format(', {0}', matrix.part) || '' }})
     needs: binaries
     strategy:
       fail-fast: false
       matrix:
+        # The macOS x64 runner, the slowest, runs the tool's test target as two parts, on two runners.
         include:
           - platform: darwin-arm64
             runner: macos-latest
           - platform: darwin-x64
             runner: macos-15-intel
+            part: wrapper-capture
+          - platform: darwin-x64
+            runner: macos-15-intel
+            part: others
           - platform: linux-x64
             runner: ubuntu-24.04
           - platform: linux-arm64
@@ -118,6 +123,7 @@ jobs:
         run: yarn workspace a2ui-spectra test
         env:
           SPECTRA_BINARY: ${{ runner.temp }}/binary/a2ui-spectra-${{ matrix.platform }}
+          SPECTRA_TEST_PART: ${{ matrix.part }}
           # The build comes from the cache; the tests run against this run's binary.
           WIREIT_CACHE: none
 

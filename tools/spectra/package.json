@@ -192,7 +192,7 @@
       ]
     },
     "test": {
-      "command": "node --test --enable-source-maps --test-reporter spec \"dist/**/*.test.js\"",
+      "command": "node scripts/run_tests.mjs",
       "dependencies": [
         "build",
         "../../conformance:build",
@@ -204,9 +204,13 @@
       "env": {
         "SPECTRA_BINARY": {
           "external": true
+        },
+        "SPECTRA_TEST_PART": {
+          "external": true
         }
       },
       "files": [
+        "scripts/run_tests.mjs",
         "../../conformance/test_data/turn_record/v0_1/minimal_*.json",
         "../../conformance/test_data/turn_record/v0_1/full_record_*.json",
         "../../conformance/a2a_capture/**",
