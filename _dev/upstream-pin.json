@@ -131,25 +131,19 @@
       "registry": "pypi",
       "name": "a2ui-core",
       "upstreamPath": "python/a2ui_core",
-      "patch": {
-        "source": "uv git"
-      }
+      "patch": null
     },
     {
       "registry": "pypi",
       "name": "a2ui-agent-sdk",
       "upstreamPath": "python/a2ui_agent",
-      "patch": {
-        "source": "uv git"
-      }
+      "patch": null
     },
     {
       "registry": "pypi",
       "name": "a2ui-a2a",
       "upstreamPath": "python/a2ui_a2a",
-      "patch": {
-        "source": "uv git"
-      }
+      "patch": null
     },
     {
       "registry": "pypi",

@@ -34,12 +34,16 @@ wheels = [
 
 [[package]]
 name = "a2ui-a2a"
-version = "0.3.1.dev45"
-source = { git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_a2a&rev=0888f88b2835c44abdc871505f3f395e5ee0177d#0888f88b2835c44abdc871505f3f395e5ee0177d" }
+version = "0.4.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "a2a-sdk" },
     { name = "a2ui-agent-sdk" },
     { name = "packaging" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/41/69/86d736a02a1a3b8a1fceab07d05ece5965f08a77466073e5ea033e58eac4/a2ui_a2a-0.4.0.tar.gz", hash = "sha256:97dee30b923a9184cd8fb9e3e7bf80db6bccf80ff2e091821f9d44311754ddcb", size = 19400, upload-time = "2026-11-17T19:22:45.443Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/88/96/4a6e2965240e2ff4c9f19fcda63be2fccc95f121124d2a3cb77b9f4a5ab3/a2ui_a2a-0.4.0-py3-none-any.whl", hash = "sha256:8aa68884bc956786e0c30e7b9567653aff66a382c311af5637146db9c3af2a01", size = 10652, upload-time = "2026-11-17T19:22:41.803Z" },
 ]
 
 [[package]]
@@ -60,8 +64,8 @@ wheels = [
 
 [[package]]
 name = "a2ui-agent-sdk"
-version = "0.11.1.dev45"
-source = { git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_agent&rev=0888f88b2835c44abdc871505f3f395e5ee0177d#0888f88b2835c44abdc871505f3f395e5ee0177d" }
+version = "0.12.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "a2ui-core" },
     { name = "antlr4-python3-runtime" },
@@ -69,17 +73,25 @@ dependencies = [
     { name = "pydantic" },
     { name = "pyyaml" },
 ]
+sdist = { url = "https://files.pythonhosted.org/packages/df/2b/5a011ee64fc398a6b784efa9119123ea7e7a919f82d33115d1b50b29ab0b/a2ui_agent_sdk-0.12.0.tar.gz", hash = "sha256:5616b30a509817bb452c4ac937f2574e4aef9090ab1808a20b9c1ab0250b0a83", size = 519388, upload-time = "2026-11-17T19:22:44.346Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/7d/6f/a66e9d900592890be3aa71b2fb514277791d1c41bef7c76ef60ce09b37ea/a2ui_agent_sdk-0.12.0-py3-none-any.whl", hash = "sha256:68ac55cafb166898436cb16df19554b7b186842fbfb7efb1140b3c40cf664eed", size = 367919, upload-time = "2026-11-17T19:22:40.337Z" },
+]
 
 [[package]]
 name = "a2ui-core"
-version = "0.6.1.dev45"
-source = { git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_core&rev=0888f88b2835c44abdc871505f3f395e5ee0177d#0888f88b2835c44abdc871505f3f395e5ee0177d" }
+version = "0.7.0"
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "babel" },
     { name = "jsonschema" },
     { name = "pydantic" },
     { name = "referencing" },
     { name = "regex" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6c/0b/1b796669e106078d351f7524f99c7b209855248b9d0310f64846e9d45c76/a2ui_core-0.7.0.tar.gz", hash = "sha256:fc414e1b961203e29cfd55d53d3d183b884fa40745c5b981fa7afa2ec0aeb396", size = 421014, upload-time = "2026-11-17T19:22:42.86Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/af/f3/6673b80cf73d127b6f9caf970eee8e64721bbc455b5375d0f0370a976b1f/a2ui_core-0.7.0-py3-none-any.whl", hash = "sha256:c69d43dce8f6aea7b6dcc8b17248d6e003d68cfa1d6f772d7ab8e120efab35da", size = 324525, upload-time = "2026-11-17T19:22:38.694Z" },
 ]
 
 [[package]]
@@ -105,7 +117,7 @@ instruments = [
 
 [package.metadata]
 requires-dist = [
-    { name = "a2ui-agent-sdk", marker = "extra == 'instruments'", git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_agent&rev=0888f88b2835c44abdc871505f3f395e5ee0177d" },
+    { name = "a2ui-agent-sdk", marker = "extra == 'instruments'", specifier = ">=0.11.0" },
     { name = "opentelemetry-api", specifier = ">=1.39.0" },
     { name = "opentelemetry-exporter-otlp-proto-http", specifier = ">=1.39.0" },
     { name = "opentelemetry-instrumentation", specifier = ">=0.60b0" },
@@ -149,10 +161,10 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "a2ui-a2a", git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_a2a&rev=0888f88b2835c44abdc871505f3f395e5ee0177d" },
+    { name = "a2ui-a2a", specifier = "==0.4.0" },
     { name = "a2ui-adk", specifier = "==0.3.0" },
-    { name = "a2ui-agent-sdk", git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_agent&rev=0888f88b2835c44abdc871505f3f395e5ee0177d" },
-    { name = "a2ui-core", git = "https://github.com/a2ui-project/a2ui?subdirectory=python%2Fa2ui_core&rev=0888f88b2835c44abdc871505f3f395e5ee0177d" },
+    { name = "a2ui-agent-sdk", specifier = "==0.12.0" },
+    { name = "a2ui-core", specifier = "==0.7.0" },
     { name = "a2ui-spectra-instrumentation", editable = "python/a2ui_spectra_instrumentation" },
 ]
 

@@ -34,7 +34,7 @@ At the start of each sub-task and each phase, and before an acceptance run.
 
    and the commits since the pin that touch each held-by finding's upstream paths.
 2. Judge which event has happened. The pin moves, or a local patch gives way, on three events only:
-   - **npm or PyPI carries a new release of a package Spectra uses**, in reading 3. That package's local patch is removed and the published release is used, under [Removing a local patch](#removing-a-local-patch). The release must carry the pin's state; one that is behind it leaves the patch in place.
+   - **npm or PyPI carries a new release of a package Spectra uses**, in reading 3. That package's local patch is removed and the published release is used, under [Removing a local patch](#removing-a-local-patch). The release must carry the pin's state, at the pin or past it; one that is behind it leaves the patch in place.
    - **A pull request that changes the v1.0 wire format is merged**: a watch-list item merged, or a commit under `specification/` in reading 1 or a copied file differing in reading 2 that changes the v1.0 messages. The pin moves.
    - **A bug in upstream that Spectra is held by is fixed**: read each commit listed under a held-by finding and judge whether it is the fix. The pin moves.
 

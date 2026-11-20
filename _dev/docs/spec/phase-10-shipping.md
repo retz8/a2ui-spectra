@@ -51,7 +51,7 @@ No Spectra artifact ships upstream code that upstream has not published. `0.1.0`
 
 ### 4. The gate on `0.1.0`
 
-`0.1.0` waits for upstream's npm release of the three packages compiled into the binary, `@a2ui/web_core`, `@a2ui/react` and `@a2ui/markdown-it`, carrying the pin's state. It waits for nothing else: the local patches of `@a2ui/lit`, `@a2ui/angular`, `@a2ui/agent`, `a2ui-core`, `a2ui-agent-sdk` and `a2ui-a2a`, which Spectra uses to build and test and does not distribute, may stand at the release.
+`0.1.0` waits for upstream's npm release of the three packages compiled into the binary, `@a2ui/web_core`, `@a2ui/react` and `@a2ui/markdown-it`, carrying the pin's state. It waits for nothing else: the local patches of `@a2ui/lit`, `@a2ui/angular` and `@a2ui/agent`, which Spectra uses to build and test and does not distribute, may stand at the release.
 
 ### 5. Phase 10 ends at release-ready; the release is a phase of its own
 
