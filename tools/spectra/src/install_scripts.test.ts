@@ -352,7 +352,13 @@ async function install(
   const home = freshDir('spectra-install-home-');
   const base: NodeJS.ProcessEnv = {};
   for (const [key, value] of Object.entries(process.env)) {
-    if (!key.toUpperCase().startsWith('A2UI_SPECTRA_')) base[key] = value;
+    const name = key.toUpperCase();
+    if (name.startsWith('A2UI_SPECTRA_')) continue;
+    // Windows PowerShell composes its own module path, as when it is started from Windows: the
+    // one PowerShell 7 leaves in the environment names 7's modules, which 5.1 cannot load,
+    // losing their script functions, Get-FileHash among them.
+    if (name === 'PSMODULEPATH' && interpreter.name === 'powershell.exe') continue;
+    base[key] = value;
   }
   const full: NodeJS.ProcessEnv = {
     ...base,
