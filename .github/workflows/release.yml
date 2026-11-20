@@ -5,7 +5,9 @@ name: Release
 # publishing, and last the draft published, which makes the tag. A dry run publishes the same
 # files into stand-in registries on its runner and touches nothing on GitHub. The steps done by
 # hand around it are in `_dev/release-procedure.md`; the trusted publishers on npm and PyPI name
-# this file and the `release` environment.
+# this file and the `release` environment. The PyPI publishing action is called from each job
+# itself: called from inside another action, it does not find its own container image. Its upload
+# folder is in the workspace, which its container mounts.
 
 on:
   workflow_dispatch:
@@ -98,30 +100,35 @@ jobs:
         run: |
           node tools/spectra/scripts/placeholders.mjs
           node tools/spectra/scripts/release.mjs npm --placeholders --registry "$A2UI_SPECTRA_STAND_IN_NPM" --files tools/spectra/dist/placeholders
-      - name: PyPI
-        uses: ./.github/actions/publish-pypi
+      - name: PyPI, the files not there yet
+        id: pypi
+        run: node tools/spectra/scripts/release.mjs pypi --index "$A2UI_SPECTRA_STAND_IN_PYPI_INDEX" --files release-files/pypi --upload release-upload/pypi
+      - name: PyPI, their upload
+        if: steps.pypi.outputs.upload == 'true'
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
-          index: ${{ env.A2UI_SPECTRA_STAND_IN_PYPI_INDEX }}
           repository-url: ${{ env.A2UI_SPECTRA_STAND_IN_PYPI_UPLOAD }}
           user: dry-run
           password: dry-run
           attestations: false
-          files: release-files/pypi
+          packages-dir: release-upload/pypi/
       - name: npm
         uses: ./.github/actions/publish-npm
         with:
           registry: ${{ env.A2UI_SPECTRA_STAND_IN_NPM }}
           files: release-files/npm
-      - name: PyPI again, every file already there
-        uses: ./.github/actions/publish-pypi
+      - name: PyPI again, every file already there, the files not there yet
+        id: pypi-again
+        run: node tools/spectra/scripts/release.mjs pypi --index "$A2UI_SPECTRA_STAND_IN_PYPI_INDEX" --files release-files/pypi --upload release-upload/pypi --expect-all-there
+      - name: PyPI again, every file already there, their upload
+        if: steps.pypi-again.outputs.upload == 'true'
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
-          index: ${{ env.A2UI_SPECTRA_STAND_IN_PYPI_INDEX }}
           repository-url: ${{ env.A2UI_SPECTRA_STAND_IN_PYPI_UPLOAD }}
           user: dry-run
           password: dry-run
           attestations: false
-          files: release-files/pypi
-          expect-all-there: true
+          packages-dir: release-upload/pypi/
       - name: npm again, every package already there
         uses: ./.github/actions/publish-npm
         with:
@@ -190,10 +197,15 @@ jobs:
           pattern: pypi-*
           merge-multiple: true
           path: release-files/pypi
-      - uses: ./.github/actions/publish-pypi
+      - name: PyPI, the files not there yet
+        id: pypi
+        run: node tools/spectra/scripts/release.mjs pypi --index "https://pypi.org/simple/" --files release-files/pypi --upload release-upload/pypi
+      - name: PyPI, their upload
+        if: steps.pypi.outputs.upload == 'true'
+        uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086 # v1.14.3
         with:
-          index: https://pypi.org/simple/
-          files: release-files/pypi
+          # Trusted publishing, with PyPI's attestations.
+          packages-dir: release-upload/pypi/
 
   npm:
     name: npm
