@@ -104,10 +104,15 @@ jobs:
         run: uv run pytest
       - name: The TypeScript wrapper's tests
         run: yarn workspace a2ui-spectra-instrumentation test
+        env:
+          # Wireit's fingerprint leaves out yarn.lock and the root's resolutions, which hold the
+          # floors, so a cached result says nothing of this install: the tests run.
+          WIREIT_CACHE: none
       - name: The wrapper capture suite
         run: yarn workspace a2ui-spectra test
         env:
           SPECTRA_TEST_PART: wrapper-capture
+          WIREIT_CACHE: none
 
   binaries:
     uses: ./.github/workflows/binaries.yml
