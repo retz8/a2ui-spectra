@@ -5,8 +5,8 @@ This doc explains the wire, the first of Spectra's capture depths: the wire prox
 The running example is upstream's Python restaurant finder, `samples/agent/adk/restaurant_finder`, asked "Top 3 Chinese restaurants in New York" by upstream's Angular sample client. It speaks A2A 0.3 over JSON-RPC, answers with a stream, sends A2UI v0.9 one message per part inside status updates, and ends the turn waiting for input. What it does not exercise, A2A 1.0 and the message box, is shown on the repository's stub agent.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="diagrams/wire-dark.svg">
-  <img alt="A host, either the developer's own host app or Spectra's message box, sends its A2A request to the wire proxy. The proxy forwards it to the agent with a traceparent added, and passes the agent's reply back to the host as received. Each send or stream request is one turn, written as a wire input and one wire output per delivery; once the reply ends, the turn is checked, written to the store and closed on the viewer's live stream." src="diagrams/wire.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/wire-dark.png">
+  <img alt="A host, the developer's own host app or Spectra's message box, sends its send or stream request to the wire proxy. The proxy passes it on to the agent with a traceparent added, and passes the agent's reply back to the host as sent. A text or an action from the viewer goes out through the message box, which speaks A2A to the proxy like any host. The proxy writes each turn's events, and the turn is checked and written to the store, while the viewer follows the turns on Spectra's live stream." src="diagrams/wire.png">
 </picture>
 
 ## Problem it solves
