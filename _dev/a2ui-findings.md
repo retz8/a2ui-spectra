@@ -2506,28 +2506,67 @@ and functions only, with the Python core's property errors kept under it; or
 the Python core's, stated in both cores' documentation of the flag and done in
 web core too.
 
-## 49. Web core's v1.0 validation accepts v0.9's `path` and `call`, which its v1.0 resolution reads as literal values
+## 49. Web core's and the Python core's v1.0 validation accept v0.9's `path` and `call`, which their v1.0 resolution reads as literal values
 
-**Component:** `typescript/core/web_core/src/v1_0/schema/common-types.ts`;
-`typescript/core/web_core/src/resolution/data-context.ts`.
+**Component:** `typescript/core/web_core/src/v1_0/scripts/generate-schemas.mjs`,
+which writes `src/v1_0/schema/common-types.ts`;
+`typescript/core/web_core/src/catalog/schema_loader.ts` (`resolveProtocolRef`)
+with `src/types/common-types.ts`;
+`typescript/core/web_core/src/resolution/data-context.ts`;
+`.agents/skills/a2ui-generate-pydantic-models/scripts/engine.py`, which writes
+`python/a2ui_core/src/a2ui/core/schema/v1_0/common_types.py`.
 
 **Severity:** a v1.0 payload written with v0.9's binding or call keys passes
-web core's validation, in strict mode too, and then draws the wrong value: the
-literal object in place of the bound one. Found at the pin `0888f88b2`
-(2026-11-13).
+web core's validation, in strict mode too, on the built-in v1.0 basic catalog
+and on a catalog loaded with `Catalog.fromJson`, and passes the Python core's.
+Both then draw the wrong value: the literal object in place of the bound one.
+Found at the pin `0888f88b2` (2026-11-13).
+
+**Upstream:** issue #4346, PR #4347.
+
+Checked at `5ff1b05f0` (2026-11-20): run against web core built there, on its
+built-in v1.0 basic catalog and on `catalogs/basic/v1/catalog.json` loaded with
+`Catalog.fromJson`, and against the Python core, at v1.0, with v0.9 as the
+counter-case. Dart's v1.0 `dataBinding` requires `@path` and takes no other key
+(read, not run). The gap was recorded before: #3013's description and ditman's
+status comment on #3006 list it as open, and #3006 was closed with it open.
+PR #4347 fixes the catalogs built on web core's v1.0 schemas, the basic catalog
+and `@a2ui/catalog-mcp` among them: the generator emits `DataBinding`,
+`FunctionCommon` and `IndexSystemFunction` from the v1.0 common types as
+written, so a `DataBinding` also takes no other key, and `DynamicValue`'s
+literal branch excludes only `@path` and `@call`. `Catalog.fromJson` catalogs,
+which go through finding 65's superset, and the Python core are left open in
+#4346.
 
 **Standing:** holds. Run against web core built at the pin, Spectra's
 `vendor/a2ui/a2ui-web_core-0.15.0.tgz`.
 
 ### Issue
 
-Web core's v1.0 `DataBindingSchema` (`common-types.ts:38-46`) takes either
-`@path` or `path`, "Either '@path' or 'path' must be provided.", and its
-`FunctionCommonSchema` (from line 49) either `@call` or `call`. Its v1.0
-resolution takes only the `@` keys: `isDataBindingObject`
-(`data-context.ts:541-551`, "In v1.0, data bindings must use `@path`") and
-`isFunctionCallObject` (`data-context.ts:556-565`, "In v1.0, function calls
-must use `@call`"). The specification agrees with the resolution: the v1.0
+Web core's v1.0 `DataBindingSchema` takes either `@path` or `path`, "Either
+'@path' or 'path' must be provided.", its `FunctionCommonSchema` either `@call`
+or `call`, and its `IndexSystemFunctionSchema` either for `@index`. They are not
+the specification's definitions: `generate-schemas.mjs` replaces those with
+these hand-written schemas when it writes `common-types.ts`
+(`generate-schemas.mjs:79-119` at `5ff1b05f0`). They came with #2891, although
+its description says v1.0 "Preserves plain `"path"` and `"call"` as literal
+static dictionary keys". A catalog loaded with `Catalog.fromJson` resolves its
+`common_types.json#/$defs/…` references in `src/types/common-types.ts`
+(`resolveProtocolRef`, `schema_loader.ts:92-97`), the superset of v0.9 and v1.0,
+whatever the catalog's version (finding 65), and that superset's `DataBinding`
+and `FunctionCommon` take both spellings too. Web core's v1.0 resolution takes
+only the `@` keys: `isDataBindingObject` and `isFunctionCallObject`
+(`data-context.ts:548-567` at `5ff1b05f0`, "In v1.0, data bindings must use
+`@path`", "In v1.0, function calls must use `@call`").
+
+The Python core's generated v1.0 models set `populate_by_name=True`
+(`engine.py:549`), so `DataBinding`'s field `path`, aliased `@path`, accepts
+`{"path": ...}`, and `FunctionCommon`'s `call` accepts `{"call": ...}`. With
+`by_name=False` the model refuses `{"path": ...}`. Its v1.0 resolution reads only
+`@path` (`data_context.py:719-726`). #3531 found the same `populate_by_name`
+hiding a `call` key in Swift's `callAgentFunction`.
+
+The specification agrees with the resolution: the v1.0
 common types' `DataBinding` (`specification/v1_0/json/common_types.json`, from
 line 104) requires `@path` and allows nothing else, and the v1.0 evolution
 guide says plain objects with `"path"` or `"call"` keys "are treated as
@@ -2543,15 +2582,22 @@ strict mode: `createSurface` for `s`, an `updateComponents` of `{"id": "root",
 accepts them. A `DataContext` on the surface at `/` resolves the TextField's
 `value` to `{"path": "/name"}`; with `{"@path": "/name"}` it resolves to
 `"Ada"`. Validated against the v1.0 common types and basic catalog, the
-`{"path": "/name"}` value fails `DynamicString`.
+`{"path": "/name"}` value fails `DynamicString`. The same holds for a `Text`
+whose `text` is `{"call": "formatString", ...}`, and for the catalog loaded with
+`Catalog.fromJson`. In the Python core, the same messages through
+`MessageProcessor` on `BasicCatalog("1.0")` leave a `Text`'s `{"path": "/name"}`
+resolving to itself, and `{"@path": "/name"}` to `'Ada'`.
 
 ### Fix
 
-Drop `path` from the v1.0 `DataBindingSchema` and `call` from the v1.0
-`FunctionCommonSchema`, so that web core's validation takes the keys its
-resolution and the specification take; or, if the unprefixed keys are kept on
-purpose for a transition, read them in resolution too and say so in the
-evolution guide.
+In web core's generator, emit `DataBinding`, `FunctionCommon` and
+`IndexSystemFunction` from the v1.0 common types as written, and exclude only
+`@path` and `@call` from `DynamicValue`'s literal branch, which otherwise refuses
+a plain object with `path` or `call` keys that the common types allow
+(PR #4347). For `Catalog.fromJson` catalogs, resolve a v1.0 catalog's references
+in the v1.0 common types, finding 65's fix. In the Python core, stop accepting a
+field's Python name where the specification names its alias
+(`populate_by_name`).
 
 ## 50. Web core's checks refuse an unresolved value instead of failing the check
 
