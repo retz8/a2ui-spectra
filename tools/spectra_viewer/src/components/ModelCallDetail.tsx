@@ -51,6 +51,7 @@ import {
   Section,
   TextBlock,
 } from './CallParts.tsx';
+import {CopyButton} from './CopyButton.tsx';
 import {SectionedText} from './SectionedText.tsx';
 import {SwitchOnHint} from './SwitchOnHint.tsx';
 import {formatDuration, formatOffset, formatTime} from './format.ts';
@@ -424,18 +425,22 @@ function PrefixSentence({
 /**
  * A segment's text with the prefix break marked in it: the text up to the
  * line the break is on, a thin grey rule, the line as the earlier call and
- * as this one had it with the differing span tinted, then the rest.
+ * as this one had it with the differing span tinted, then the rest. With
+ * the segment's text, it has Copy, as every other prompt block does.
  */
 function MarkedText({
   label,
   meta,
   marker,
   mono,
+  text,
 }: {
   label: string;
   meta?: string;
   marker: Marker;
   mono: boolean;
+  /** This call's text of the segment, which Copy copies; none in the tool list, whose definitions have no Copy. */
+  text?: string;
 }) {
   const fold = useBlockFold(label);
   const line = ([before, differing, after]: readonly [string, string, string]) => (
@@ -447,7 +452,18 @@ function MarkedText({
   );
   return (
     <section data-anchor="prefix-break" className="flex min-w-0 flex-col gap-1.5">
-      <BlockLabel label={label} meta={meta} fold={fold} />
+      <BlockLabel label={label} meta={meta} fold={fold}>
+        {text !== undefined && (
+          <CopyButton
+            iconFirst
+            text={text}
+            label={`Copy the ${label.toLowerCase()}`}
+            className="h-6 px-1.5 text-xs"
+          >
+            Copy
+          </CopyButton>
+        )}
+      </BlockLabel>
       {fold.open && (
         <div
           className={cn(
@@ -534,7 +550,12 @@ function Request({
             mono={false}
           />
         ) : marker?.segment === systemSegment ? (
-          <MarkedText label="System prompt" marker={marker} mono={false} />
+          <MarkedText
+            label="System prompt"
+            marker={marker}
+            mono={false}
+            text={system.map(partText).join('\n\n')}
+          />
         ) : (
           <TextBlock label="System prompt" text={system.map(partText).join('\n\n')} />
         ))}
@@ -573,7 +594,14 @@ function Request({
         if (marker?.segment === firstMessage + index) {
           const mono = list.some(part => (part as {type?: unknown})?.type !== 'text');
           return (
-            <MarkedText key={index} label={label} meta={roleMeta} marker={marker} mono={mono} />
+            <MarkedText
+              key={index}
+              label={label}
+              meta={roleMeta}
+              marker={marker}
+              mono={mono}
+              text={list.map(partText).join('\n\n')}
+            />
           );
         }
         return <PartsBlock key={index} label={label} meta={roleMeta} parts={list} />;
