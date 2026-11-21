@@ -83,15 +83,15 @@ export function readSpan(span: ReceivedSpan, logs: readonly ReceivedLog[]): Read
     default:
       names = {};
   }
-  return {...(dialect !== undefined && {dialect}), kind, names: withCacheWrite(names, span)};
+  return {...(dialect !== undefined && {dialect}), kind, names: withCacheWrite(names)};
 }
 
-/** The pinned conventions' cache write name, read from the name the Python conventions package writes. */
-function withCacheWrite(
-  names: Record<string, unknown>,
-  span: ReceivedSpan,
-): Record<string, unknown> {
-  const creation = names[CACHE_CREATION_NAME] ?? span.attributes[CACHE_CREATION_NAME];
+/**
+ * The pinned conventions' cache write name, read from the name the Python
+ * conventions package writes, where the span's reader took that name.
+ */
+function withCacheWrite(names: Record<string, unknown>): Record<string, unknown> {
+  const creation = names[CACHE_CREATION_NAME];
   const result = {...names};
   delete result[CACHE_CREATION_NAME];
   if (result['gen_ai.usage.cache_write.input_tokens'] === undefined && creation !== undefined) {
@@ -570,6 +570,7 @@ function readOpenInference(span: ReceivedSpan, kind: ReceivedKind): Record<strin
       'gen_ai.tool.name': attributes['tool.name'],
       'gen_ai.tool.call.arguments': parsedJson(attributes['input.value']),
       'gen_ai.tool.call.result': parsedJson(attributes['output.value']),
+      [CACHE_CREATION_NAME]: attributes[CACHE_CREATION_NAME],
     });
   }
   if (kind !== 'model_call') return {};
@@ -614,6 +615,7 @@ function readOpenInference(span: ReceivedSpan, kind: ReceivedKind): Record<strin
     'gen_ai.usage.cache_read.input_tokens': attributes['llm.token_count.prompt_details.cache_read'],
     'gen_ai.usage.cache_write.input_tokens':
       attributes['llm.token_count.prompt_details.cache_write'],
+    [CACHE_CREATION_NAME]: attributes[CACHE_CREATION_NAME],
     'gen_ai.usage.reasoning.output_tokens':
       attributes['llm.token_count.completion_details.reasoning'],
     'gen_ai.request.temperature': request['gen_ai.request.temperature'],

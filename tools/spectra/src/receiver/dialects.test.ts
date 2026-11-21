@@ -483,4 +483,21 @@ describe('the dialects', () => {
       names: {},
     });
   });
+
+  it("translates the cache creation count only on a span its dialect's reader reads", () => {
+    const creation = {'gen_ai.usage.cache_creation.input_tokens': 4};
+    assert.deepEqual(readSpan(span('POST /', creation), []), {
+      kind: 'framework_span',
+      names: {},
+    });
+    assert.deepEqual(
+      readSpan(span('chain', {'openinference.span.kind': 'CHAIN', ...creation}), []),
+      {dialect: 'openinference', kind: 'framework_span', names: {}},
+    );
+    for (const kind of ['LLM', 'EMBEDDING', 'TOOL']) {
+      const {names} = readSpan(span('x', {'openinference.span.kind': kind, ...creation}), []);
+      assert.equal(names['gen_ai.usage.cache_write.input_tokens'], 4, kind);
+      assert.equal(names['gen_ai.usage.cache_creation.input_tokens'], undefined, kind);
+    }
+  });
 });
