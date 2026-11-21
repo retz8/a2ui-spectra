@@ -31,32 +31,18 @@ import {CopyButton} from './CopyButton.tsx';
 import {Icon} from './icons.tsx';
 import {FailureLine, PressButton} from './Refusal.tsx';
 
-const POPOVER = 'fade-in-quick z-50 flex flex-col rounded-xl bg-panel text-foreground shadow-float';
+const POPOVER = 'fade-in-quick z-50 flex flex-col rounded-xl bg-panel shadow-float';
 
-/** "Fixture · find-italian-restaurants.json · 3 turns · recorded $0.031 · saved 2026-11-05 14:02". */
+/** "Fixture find-italian-restaurants.json · 3 turns · recorded $0.031 · saved 2026-11-05 14:02". */
 export function FixtureLine({file, parts}: {file: string; parts: readonly string[]}) {
   return (
     <div
       aria-label="The fixture"
-      className="mb-0.5 flex min-w-0 items-center gap-1.5 overflow-hidden text-xs whitespace-nowrap text-muted-foreground"
+      className="type-meta mb-0.5 min-w-0 truncate leading-5 whitespace-nowrap"
     >
-      <span>Fixture</span>
-      <span>·</span>
-      <CopyButton
-        text={file}
-        label="Copy the file name"
-        className="h-5 font-medium text-foreground hover:bg-transparent"
-      >
-        {file}
-      </CopyButton>
-      {parts.map((part, index) => (
-        <span key={index} className="contents">
-          <span>·</span>
-          <span className={index === parts.length - 1 ? 'min-w-0 truncate' : undefined}>
-            {part}
-          </span>
-        </span>
-      ))}
+      Fixture {file}
+      <CopyButton text={file} label="Copy the file name" className="-my-1 ml-0.5 align-middle" />
+      {parts.map(part => ` · ${part}`).join('')}
     </div>
   );
 }
@@ -77,19 +63,12 @@ export function ReplayedLine({
 }) {
   const to = sourceAddressOf(line.source, recordedTurn === '' ? undefined : recordedTurn);
   return (
-    <div
-      aria-label={line.lead}
-      className="min-w-0 truncate text-xs whitespace-nowrap text-muted-foreground"
-    >
+    <div aria-label={line.lead} className="type-meta min-w-0 truncate whitespace-nowrap">
       {line.lead}{' '}
       {to === undefined ? (
         sourceName(line.source)
       ) : (
-        <button
-          type="button"
-          onClick={() => onAddress(to)}
-          className="cursor-pointer font-medium text-brand hover:underline"
-        >
+        <button type="button" onClick={() => onAddress(to)} className="type-link cursor-pointer">
           {sourceName(line.source)}
         </button>
       )}{' '}
@@ -97,12 +76,7 @@ export function ReplayedLine({
       {line.verdict !== undefined && (
         <>
           {' · '}
-          <span
-            className={cn(
-              'font-medium',
-              line.verdict === 'passed' ? 'text-success' : 'text-problem',
-            )}
-          >
+          <span className={line.verdict === 'passed' ? 'type-mark-success' : 'type-mark-problem'}>
             {line.verdict}
           </span>
         </>
@@ -165,11 +139,11 @@ export function ReplayControl({
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="ease-quick inline-flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border bg-panel pr-2 pl-2.5 text-xs font-medium whitespace-nowrap hover:bg-tint data-[state=open]:bg-tint"
+          className="ease-quick type-control inline-flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border bg-panel px-2.5 whitespace-nowrap hover:bg-tint data-[state=open]:bg-tint"
         >
-          <Icon kind="replay" size={14} className="text-muted-foreground" />
+          <Icon kind="replay" size={14} className="tone-muted" />
           Replay
-          <Icon kind="chevronDown" size={12} className="text-muted-foreground" />
+          <Icon kind="chevronDown" size={12} className="tone-muted" />
         </button>
       </Popover.Trigger>
       <Popover.Portal>
@@ -233,16 +207,12 @@ function ReplayRows({
           onClick={() => void start(row.mode)}
           className={cn(
             'ease-quick flex w-full flex-col gap-0.5 rounded-lg px-2.5 py-2 text-left',
-            row.off || starting
-              ? 'cursor-default text-muted-foreground'
-              : 'cursor-pointer hover:bg-tint',
+            row.off || starting ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-tint',
           )}
         >
-          <span className="font-medium">{row.title}</span>
-          <span className="text-xs text-muted-foreground">{row.label}</span>
-          {row.note !== undefined && (
-            <span className="text-xs font-medium text-muted-foreground">{row.note}</span>
-          )}
+          <span className={row.off || starting ? 'type-name-off' : 'type-name'}>{row.title}</span>
+          <span className="type-meta">{row.label}</span>
+          {row.note !== undefined && <span className="type-meta">{row.note}</span>}
         </button>
       ))}
       {failure !== undefined && <FailureLine text={failure} className="mx-1 mt-1 mb-0.5" />}
@@ -273,8 +243,8 @@ export function SaveAsFixture({
           type="button"
           disabled={disabled}
           className={cn(
-            'ease-quick inline-flex h-7 shrink-0 items-center rounded-lg border bg-panel px-2.5 text-xs font-medium whitespace-nowrap data-[state=open]:bg-tint',
-            disabled ? 'cursor-not-allowed text-muted-foreground' : 'cursor-pointer hover:bg-tint',
+            'ease-quick type-control inline-flex h-7 shrink-0 items-center rounded-lg border bg-panel px-2.5 whitespace-nowrap data-[state=open]:bg-tint',
+            disabled ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-tint',
           )}
         >
           Save as fixture
@@ -285,7 +255,7 @@ export function SaveAsFixture({
           align="end"
           sideOffset={6}
           aria-label="Save as fixture"
-          className={cn(POPOVER, 'gap-2 p-3')}
+          className={cn(POPOVER, 'gap-1.5 px-3.5 py-3')}
         >
           <SavePrompt
             traceId={traceId}
@@ -360,23 +330,15 @@ function SavePrompt({
 
   if (saved !== undefined) {
     return (
-      <div
-        ref={savedLine}
-        className="flex w-114 min-w-0 items-center gap-1.5 text-xs whitespace-nowrap"
-      >
-        <span className="shrink-0 text-muted-foreground">Saved as</span>
-        <CopyButton
-          text={saved.path}
-          label="Copy the path"
-          className="h-5 min-w-0 font-medium text-foreground hover:bg-transparent"
-        >
-          <span className="min-w-0 truncate">{saved.path}</span>
-        </CopyButton>
+      <div ref={savedLine} className="flex w-113 min-w-0 items-center gap-1.5 whitespace-nowrap">
+        <span className="type-meta shrink-0">Saved as</span>
+        <span className="type-value min-w-0 truncate">{saved.path}</span>
+        <CopyButton text={saved.path} label="Copy the path" className="-ml-1" />
         <div className="flex-1" />
         <button
           type="button"
           onClick={() => onOpenFixture(saved.name)}
-          className="shrink-0 cursor-pointer font-semibold text-brand hover:underline"
+          className="type-link shrink-0 cursor-pointer text-xs"
         >
           Open
         </button>
@@ -384,7 +346,7 @@ function SavePrompt({
     );
   }
   return (
-    <form onSubmit={event => void save(event)} className="flex w-89 flex-col gap-2">
+    <form onSubmit={event => void save(event)} className="flex w-88 flex-col gap-1.5">
       <div className="flex items-center gap-1.5">
         <label
           className={cn(
@@ -404,21 +366,21 @@ function SavePrompt({
             }}
             onFocus={event => event.target.select()}
             spellCheck={false}
-            className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+            className="type-field min-w-0 flex-1 bg-transparent outline-none"
           />
         </label>
-        <span className="shrink-0 text-muted-foreground">.json</span>
+        <span className="type-quiet shrink-0">.json</span>
         <button
           type="submit"
           disabled={off}
-          className="ease-quick ml-0.5 h-8 shrink-0 cursor-pointer rounded-lg bg-brand px-3 text-xs font-semibold text-brand-on disabled:cursor-default disabled:bg-border disabled:text-muted-foreground"
+          className="ease-quick type-control-accent ml-0.5 h-8 shrink-0 cursor-pointer rounded-lg bg-brand px-3 disabled:cursor-default disabled:bg-border"
         >
           Save
         </button>
       </div>
-      <span className="text-xs leading-4 text-muted-foreground">{folder}/</span>
+      <span className="type-meta">{folder}/</span>
       {problem !== undefined && (
-        <span className="text-xs leading-4 text-muted-strong">
+        <span className="type-field-message">
           {problem.line}
           {problem.offer !== undefined && (
             <>
@@ -426,7 +388,7 @@ function SavePrompt({
               <button
                 type="button"
                 onClick={() => setName(problem.offer!)}
-                className="cursor-pointer font-semibold text-brand hover:underline"
+                className="type-link cursor-pointer"
               >
                 Use {problem.offer}
               </button>
@@ -435,7 +397,7 @@ function SavePrompt({
         </span>
       )}
       {failure !== undefined && <FailureLine text={failure} />}
-      <span className="text-xs leading-4 text-muted-foreground">{savedTurnsLine(turns)}</span>
+      <span className="type-meta">{savedTurnsLine(turns)}</span>
     </form>
   );
 }

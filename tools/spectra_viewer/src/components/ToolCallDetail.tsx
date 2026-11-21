@@ -1,12 +1,13 @@
 /**
- * A tool call's detail, in a model call's order with Arguments and Result in
- * place of the usage, the request and the response: Arguments as JSON;
- * Result, a text block as text and every other block as JSON, labelled
- * "Error" for the tool's own `isError` or a JSON-RPC error; the exchange,
- * folded on MCP and open on an HTTP tool; MCP's names; then the agent's
- * spans. A housekeeping request shows its params and its result in the same
- * places. A call read from spans only takes its arguments and result from
- * the span, each label naming the spans.
+ * A tool call's detail, in a model call's tabs with Arguments and Result in
+ * place of Prompt and Reply: Arguments as JSON, and on a replay miss the
+ * recorded requests it is compared with; Result, a text block as text and
+ * every other block as JSON, labelled "Error" for the tool's own `isError`
+ * or a JSON-RPC error; HTTP, the exchange and MCP's names, for a call
+ * through the tool proxy; Spans, the agent's spans. A housekeeping request
+ * shows its params and its result in the same places. A call read from spans
+ * only takes its arguments and result from the span, each label's facts
+ * naming the spans.
  */
 import {
   type CallRow,
@@ -17,7 +18,6 @@ import {
 } from '@/model/call_rows.ts';
 import type {CallReplay, RecordedCall, ToolMissList} from '@/model/provenance.ts';
 import type {OtherEvent, TurnRecordEvent} from '@/model/record.ts';
-import {useBlockFold} from '@/state/block_folds.ts';
 import {
   argumentsOf,
   contentBlocksOf,
@@ -25,11 +25,22 @@ import {
   resultOf,
   type ToolResult,
 } from '@/model/tool_calls.ts';
+import {useBlockFold} from '@/state/block_folds.ts';
 
-import {AgentSpans} from './AgentSpans.tsx';
-import {DetailLink, Exchange, Pairs, ReplaySentence, TextBlock} from './CallParts.tsx';
+import {AgentSpans, spansFactsOf} from './AgentSpans.tsx';
+import {
+  type Connection,
+  Exchange,
+  exchangeFactsOf,
+  Pairs,
+  Prose,
+  replayConnection,
+  RowList,
+  TextBlock,
+} from './CallParts.tsx';
 import {formatOffset} from './format.ts';
 import {BlockLabel, JsonBlock, JsonLines} from './JsonBlock.tsx';
+import type {DetailTab, TabbedDetail} from './ModelCallDetail.tsx';
 
 /** MCP's names, in the order the block lists them; any other MCP or JSON-RPC name follows. */
 const MCP_NAMES = [
@@ -39,7 +50,7 @@ const MCP_NAMES = [
   'jsonrpc.request.id',
 ];
 
-export function ToolCallBlocks({
+export function toolCallDetailOf({
   row,
   events,
   startMs,
@@ -53,12 +64,12 @@ export function ToolCallBlocks({
   replay?: CallReplay;
   /** Selects a recorded call in its source. */
   onRecorded: (recorded: RecordedCall) => void;
-}) {
+}): TabbedDetail {
   const {fromSpans} = readingOf(row);
   const from = (names: readonly string[]) => {
-    if (!fromSpans) return '';
+    if (!fromSpans) return undefined;
     const source = sourceOfNames(row, names);
-    return source === undefined ? '' : ` · from ${source}`;
+    return source === undefined ? undefined : `from ${source}`;
   };
   const proxy = row.proxy;
   const mcp = proxy !== undefined && isMcpEvent(proxy);
@@ -69,31 +80,64 @@ export function ToolCallBlocks({
   const hasExchange =
     proxy !== undefined &&
     (proxy.attributes['http.request.method'] !== undefined || (proxy.events ?? []).length > 0);
-  return (
-    <>
-      {replay?.kind === 'served' && <ReplaySentence replay={replay} onRecorded={onRecorded} />}
-      {replay?.kind === 'toolMiss' && (
-        <RecordedRequests list={replay.list} onRecorded={onRecorded} />
-      )}
-      {args !== undefined && (
-        <JsonBlock
-          label={`${full ? 'Arguments' : 'Params'}${from(['gen_ai.tool.call.arguments'])}`}
-          value={args}
-        />
-      )}
-      {result !== undefined ? (
-        <ResultBlock result={result} suffix={from(['gen_ai.tool.call.result'])} />
-      ) : (
-        inFlight && <p className="text-muted-foreground">No result yet.</p>
-      )}
-      {replay?.kind === 'toolMiss' && proxy?.status?.message !== undefined && (
-        <TextBlock label="Error" meta="HTTP 502" text={proxy.status.message} />
-      )}
-      {hasExchange && <Exchange call={proxy} startsOpen={!mcp} tool />}
-      {mcp && <McpNames proxy={proxy} />}
-      {row.spans.length > 0 && <AgentSpans row={row} events={events} startMs={startMs} />}
-    </>
-  );
+  const missed = replay?.kind === 'toolMiss';
+  const connections: Connection[] =
+    replay?.kind === 'served' ? [replayConnection(replay, onRecorded)] : [];
+  const tabs: DetailTab[] = [];
+  if (args !== undefined || missed) {
+    tabs.push({
+      name: 'Arguments',
+      content: (
+        <>
+          {args !== undefined && (
+            <JsonBlock
+              label={full ? 'Arguments' : 'Params'}
+              meta={from(['gen_ai.tool.call.arguments'])}
+              value={args}
+            />
+          )}
+          {missed && <RecordedRequests list={replay.list} onRecorded={onRecorded} />}
+        </>
+      ),
+    });
+  }
+  const missError = missed && proxy?.status?.message !== undefined;
+  if (result !== undefined || inFlight || missError) {
+    tabs.push({
+      name: 'Result',
+      content: (
+        <>
+          {result !== undefined ? (
+            <ResultBlock result={result} meta={from(['gen_ai.tool.call.result'])} />
+          ) : (
+            inFlight && <p className="type-quiet">No result yet.</p>
+          )}
+          {missError && <TextBlock label="Error" meta="HTTP 502" text={proxy!.status!.message!} />}
+        </>
+      ),
+    });
+  }
+  if (hasExchange) {
+    tabs.push({
+      name: 'HTTP',
+      facts: exchangeFactsOf(proxy, true),
+      content: (
+        <>
+          <Exchange call={proxy} />
+          {mcp && <McpNames proxy={proxy} />}
+        </>
+      ),
+    });
+  }
+  if (row.spans.length > 0) {
+    const present = tabs.map(tab => tab.name);
+    tabs.push({
+      name: 'Spans',
+      facts: spansFactsOf(row),
+      content: <AgentSpans row={row} events={events} startMs={startMs} present={present} />,
+    });
+  }
+  return {connections, tabs, first: 'Result'};
 }
 
 /** A tool miss's list: the recorded requests of the same method and tool, each its arguments in brief and a link to it. */
@@ -104,33 +148,23 @@ function RecordedRequests({
   list: ToolMissList;
   onRecorded: (recorded: RecordedCall) => void;
 }) {
-  const fold = useBlockFold('Recorded requests');
   if (list.rows.length === 0) {
-    return (
-      <p className="text-muted-foreground">No recorded request of this tool to compare with.</p>
-    );
+    return <p className="type-quiet">No recorded request of this tool to compare with.</p>;
   }
   return (
-    <section className="flex min-w-0 flex-col gap-1.5">
-      <BlockLabel label="Recorded requests" meta={list.of} fold={fold} />
-      {fold.open && (
-        <div className="flex flex-col rounded-lg bg-tint py-1 text-xs">
-          {list.rows.map(({args, recorded}) => (
-            <div
-              key={recorded.call.spanId}
-              className="flex h-7 min-w-0 items-center gap-2 pr-3 pl-8.5"
-            >
-              <span className="min-w-0 flex-1 truncate font-mono font-medium">{args}</span>
-              <span className="shrink-0">
-                <DetailLink onClick={() => onRecorded(recorded)}>
-                  the call at {formatOffset(recorded.offsetMs)}, turn {recorded.turn}
-                </DetailLink>
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
+    <RowList
+      label="Recorded requests"
+      meta={list.of}
+      rows={list.rows.map(({args, recorded}) => ({
+        key: recorded.call.spanId,
+        name: args,
+        verbatim: true,
+        link: {
+          text: `the call at ${formatOffset(recorded.offsetMs)}, turn ${recorded.turn}`,
+          onClick: () => onRecorded(recorded),
+        },
+      }))}
+    />
   );
 }
 
@@ -144,10 +178,12 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  * text, with its media type and URI; anything else as JSON. Labelled "Error"
  * for the tool's own `isError` or a JSON-RPC error.
  */
-function ResultBlock({result, suffix}: {result: ToolResult; suffix: string}) {
-  const label = `${result.error ? 'Error' : 'Result'}${suffix}`;
+function ResultBlock({result, meta: source}: {result: ToolResult; meta: string | undefined}) {
+  const label = result.error ? 'Error' : 'Result';
+  const facts = (meta: string | undefined) =>
+    [source, meta].filter((part): part is string => part !== undefined && part !== '').join(' · ');
   if (result.code !== undefined) {
-    return <JsonBlock label={label} meta={`JSON-RPC ${result.code}`} value={result.value} />;
+    return <JsonBlock label={label} meta={facts(`JSON-RPC ${result.code}`)} value={result.value} />;
   }
   const blocks = contentBlocksOf(result.value);
   if (blocks !== undefined) {
@@ -161,7 +197,7 @@ function ResultBlock({result, suffix}: {result: ToolResult; suffix: string}) {
     return (
       <Parts
         label={label}
-        meta={types.join(', ')}
+        meta={facts(types.join(', '))}
         parts={[
           ...ordered.map(block =>
             isText(block) ? {text: (block as {text: string}).text} : {json: block},
@@ -183,7 +219,7 @@ function ResultBlock({result, suffix}: {result: ToolResult; suffix: string}) {
     return (
       <Parts
         label={label}
-        meta={meta}
+        meta={facts(meta)}
         parts={contents.map(content =>
           isRecord(content) && typeof content.text === 'string'
             ? {text: content.text}
@@ -192,7 +228,7 @@ function ResultBlock({result, suffix}: {result: ToolResult; suffix: string}) {
       />
     );
   }
-  return <JsonBlock label={label} value={result.value} />;
+  return <JsonBlock label={label} meta={facts(undefined)} value={result.value} />;
 }
 
 /**
@@ -211,14 +247,11 @@ function Parts({
   const fold = useBlockFold(label);
   const parts = all.filter(part => !('text' in part) || part.text !== '');
   if (parts.length === 0 && all.length > 0) {
-    // Indented by the fold chevron's width and gap, so its label lines up with the labels that fold.
     return (
-      <div className="pl-6">
-        <BlockLabel
-          label={label}
-          meta={meta === '' || meta === 'text' ? 'empty text' : `${meta} · empty text`}
-        />
-      </div>
+      <BlockLabel
+        label={label}
+        meta={meta === '' || meta === 'text' ? 'empty text' : `${meta} · empty text`}
+      />
     );
   }
   if (parts.length === 1) {
@@ -235,12 +268,7 @@ function Parts({
       {fold.open &&
         parts.map((part, index) =>
           'text' in part ? (
-            <p
-              key={index}
-              className="rounded-lg bg-tint px-3 py-2.5 break-words whitespace-pre-wrap"
-            >
-              {part.text}
-            </p>
+            <Prose key={index} text={part.text} />
           ) : (
             <JsonLines key={index} value={part.json} />
           ),
@@ -260,5 +288,5 @@ function McpNames({proxy}: {proxy: OtherEvent}) {
   const pairs = [...MCP_NAMES, ...others].flatMap(name =>
     attributes[name] === undefined ? [] : [{key: name, value: String(attributes[name])}],
   );
-  return <Pairs label="MCP" layout="mcp" pairs={pairs} />;
+  return <Pairs label="MCP" verbatim pairs={pairs} />;
 }

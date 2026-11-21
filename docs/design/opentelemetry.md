@@ -388,7 +388,7 @@ A scope with no name is named `no scope`.
 
 ### What the viewer reads from a call's spans
 
-The viewer reads the received spans of a turn into its calls; how it shows them, the "From the agent's spans" section of a call's detail among them, is in [The viewer](viewer.md).
+The viewer reads the received spans of a turn into its calls; how it shows them, the Spans tab of a call's detail among them, is in [The viewer](viewer.md#the-spans-tab).
 
 - **One call.** A call a proxy recorded and the received spans linked to it are one call. Received spans of one kind, `model_call` or `tool_call`, that nest one inside the next are one chain: a span and the nearest span of its kind above it are one chain when that span holds no other span of the kind. A chain linked to no proxy's call is a call read from spans only, such as ADK's `call_llm` around its `generate_content` with no proxy in between. Framework spans are not calls.
 - **What fills a call.** A call the proxy read in full, a model call read into the GenAI names or an MCP request, is shown from the proxy's reading. A call read from spans only, or one the proxy recorded raw, takes its usage, request and response from its chain: each name from the innermost span that carries it, and the token counts together from the innermost span that has input tokens.

@@ -599,7 +599,8 @@ export function readByLinesOf(
   return parsesOf(events)
     .filter(parse => readBy.get(parse.spanId) === rowId)
     .map(parse => {
-      const at = formatOffset(unixMillis(parse.startTimeUnixNano) - startMs);
+      // Named where its row is placed: a stream opened before the call it reads, by its first chunk.
+      const at = formatOffset(unixMillis(parseStartOf(parse)) - startMs);
       const format = formatNameOf(parse.attributes['a2ui.parse.inference_format']);
       return {
         text: `Read by the parse at ${at}${format === undefined ? '' : ` · ${format}`}`,

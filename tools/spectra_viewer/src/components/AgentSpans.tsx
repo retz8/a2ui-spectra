@@ -1,24 +1,20 @@
 /**
- * "From the agent's spans": what the receiver placed for a call, under its
- * other sections. One source line per source and scope of the call's chain;
- * every span above the call, root first, then the call's own chain marked
- * "this call", each with its duration and folding open to its attributes as
- * received; the translated names, each once, the innermost span's value
- * winning; the chain's span events in time order, a received log record
- * marked; and each span of the chain as received.
+ * What the receiver placed for a step, the Spans tab's content: every span
+ * above it, root first, then its own chain marked "this call", each with
+ * its duration; one table of the chain's attributes, the innermost span's
+ * value winning, by their translated names or as received, the translated
+ * names leaving out what another tab shows; and the chain's span events in
+ * time order, a received log record marked, each opening to its attributes.
  */
 import {type ReactNode, useState} from 'react';
 
-import {cn} from '@/lib/utils';
 import {ancestorsOf, type CallRow, sourceLinesOf} from '@/model/call_rows.ts';
+import {jsonInString} from '@/model/json_lines.ts';
 import {isTurnEvent, type SpanEvent, type TurnRecordEvent, unixMillis} from '@/model/record.ts';
-import {plural} from '@/model/steps.ts';
-import {useBlockFold} from '@/state/block_folds.ts';
 
-import {Pairs, Section} from './CallParts.tsx';
-import {formatDuration, formatOffsetCompact} from './format.ts';
-import {Icon} from './icons.tsx';
-import {BlockLabel, JsonBlock, JsonLines} from './JsonBlock.tsx';
+import {DetailLink, Pairs, type Row, RowList} from './CallParts.tsx';
+import {formatDuration, formatOffset} from './format.ts';
+import {JsonLines, ShownSwitch} from './JsonBlock.tsx';
 
 /** The names the receiver writes about a span itself, which are not translated names. */
 const SPAN_NAMES = new Set([
@@ -28,6 +24,18 @@ const SPAN_NAMES = new Set([
   'a2ui.received.dialect',
   'a2ui.received.attributes',
 ]);
+
+/** The attributes another tab shows, by the tab that shows them. */
+const SHOWN_ELSEWHERE: Record<string, string> = {
+  'gen_ai.tool.call.arguments': 'Arguments',
+  'gen_ai.tool.call.result': 'Result',
+  'gen_ai.input.messages': 'Prompt',
+  'gen_ai.system_instructions': 'Prompt',
+  'gen_ai.tool.definitions': 'Prompt',
+  'gen_ai.output.messages': 'Reply',
+  'a2ui.parse.input': 'Raw text',
+  'a2ui.parse.messages': 'Messages',
+};
 
 /** The prefix of the names a log record attached to its span carries. */
 const LOG_PREFIX = 'a2ui.received.log.';
@@ -49,23 +57,28 @@ function durationOf(event: TurnRecordEvent): string {
   return formatDuration(unixMillis(event.endTimeUnixNano) - unixMillis(event.startTimeUnixNano));
 }
 
+/** The Spans tab's facts: where its spans came from, each source and scope once. */
+export function spansFactsOf(row: CallRow, sources?: readonly string[]): string {
+  return (sources ?? sourceLinesOf(row)).join(' · ');
+}
+
 export function AgentSpans({
   row,
   events,
   startMs,
-  sources: given,
   subject = 'call',
+  present = [],
   lead,
 }: {
   row: CallRow;
   events: readonly TurnRecordEvent[];
   startMs: number;
-  /** The source lines, when the row's own naming does not fit: an A2UI step span's scope. */
-  sources?: readonly string[];
-  /** What the row is, as the spans section names it: "this call", "this parse". */
+  /** What the row is, as the chain names it: "this call", "this parse". */
   subject?: string;
+  /** The detail's other tabs, whose attributes the translated table leaves out. */
+  present?: readonly string[];
   /**
-   * A span shown first, with its source line and its translated names: the
+   * A span shown first, with its source line and its attributes: the
    * toolset's parse, above the tool call's own spans.
    */
   lead?: {line: string; event: TurnRecordEvent};
@@ -84,13 +97,6 @@ export function AgentSpans({
     });
   }
   const ancestors = [...above.values()].sort((a, b) => a.depth - b.depth).map(({event}) => event);
-  const sources = given ?? sourceLinesOf(row);
-  const translated = new Map<string, unknown>();
-  for (const span of [...chain].reverse()) {
-    for (const [name, value] of Object.entries(attributesOf(span))) {
-      if (!SPAN_NAMES.has(name) && !translated.has(name)) translated.set(name, value);
-    }
-  }
   const spanEvents = chain
     .flatMap(span => span.events ?? [])
     .sort((a, b) => {
@@ -99,167 +105,118 @@ export function AgentSpans({
       return x === y ? 0 : x < y ? -1 : 1;
     });
   return (
-    <section aria-label="From the agent’s spans" className="flex min-w-0 flex-col gap-2.5">
-      <Section label="From the agent’s spans" open>
-        {lead !== undefined && (
-          <>
-            <p>{lead.line}</p>
-            <Pairs
-              label="Translated"
-              layout="names"
-              pairs={Object.entries(attributesOf(lead.event))
-                .filter(([name]) => !SPAN_NAMES.has(name))
-                .map(([key, value]) => ({key, value: <NameValue value={value} />}))}
-            />
-          </>
-        )}
-        <div className="flex flex-col gap-0.5">
-          {sources.map(line => (
-            <p key={line}>{line}</p>
-          ))}
-        </div>
-        <FoldRows
-          label={`Above this ${subject}`}
-          rows={[
-            ...ancestors.map((event, index) => spanRow(event, index, undefined)),
-            ...chain.map((event, index) => spanRow(event, ancestors.length + index, subject)),
-          ]}
+    <>
+      {lead !== undefined && (
+        <>
+          <p className="type-quiet">{lead.line}</p>
+          <Attributes label="Toolset parse" chain={[lead.event]} present={present} />
+        </>
+      )}
+      <RowList
+        label={`Above this ${subject}`}
+        rows={[
+          ...ancestors.map((event, index) => spanRow(event, index, undefined)),
+          ...chain.map((event, index) => spanRow(event, ancestors.length + index, subject)),
+        ]}
+      />
+      <Attributes label="Attributes" chain={chain} present={present} />
+      {spanEvents.length > 0 && (
+        <RowList
+          label="Events"
+          rows={spanEvents.map((event, index) => eventRow(event, index, startMs))}
         />
-        <Pairs
-          label="Translated"
-          layout="names"
-          pairs={[...translated].map(([key, value]) => ({key, value: <NameValue value={value} />}))}
-        />
-        {spanEvents.length > 0 && (
-          <FoldRows
-            label="Events"
-            mono
-            rows={spanEvents.map((event, index) => eventRow(event, index, startMs))}
-          />
-        )}
-        {chain.map(span => {
-          const received = attributesOf(span)['a2ui.received.attributes'];
-          const count =
-            typeof received === 'object' && received !== null ? Object.keys(received).length : 0;
-          return (
-            <JsonBlock
-              key={keyOf(span)}
-              label="As received"
-              meta={`${span.name} · ${plural(count, 'attribute')}`}
-              value={received ?? {}}
-              folded={['']}
-            />
-          );
-        })}
-      </Section>
-    </section>
+      )}
+    </>
   );
 }
 
-/** A span of the chain above the call, or of the call's own chain, as a row that folds open to its attributes. */
-function spanRow(event: TurnRecordEvent, index: number, ownChain: string | undefined): FoldRow {
-  const failed = event.status?.code === 2;
-  const duration = durationOf(event);
+/**
+ * One table of a chain's attributes, the innermost span's value winning: by
+ * their translated names, the default, leaving out what another tab shows
+ * with a line naming that tab; or as the receiver got them, every one.
+ */
+function Attributes({
+  label,
+  chain,
+  present,
+}: {
+  label: string;
+  chain: readonly TurnRecordEvent[];
+  present: readonly string[];
+}) {
+  const [asReceived, setAsReceived] = useState(false);
+  const merged = new Map<string, unknown>();
+  for (const span of [...chain].reverse()) {
+    const attributes = asReceived
+      ? asRecord(attributesOf(span)['a2ui.received.attributes'])
+      : attributesOf(span);
+    for (const [name, value] of Object.entries(attributes)) {
+      if ((asReceived || !SPAN_NAMES.has(name)) && !merged.has(name)) merged.set(name, value);
+    }
+  }
+  const leftOut = asReceived
+    ? []
+    : [...merged.keys()].filter(name => present.includes(SHOWN_ELSEWHERE[name] ?? ''));
+  const tabs = [...new Set(leftOut.map(name => SHOWN_ELSEWHERE[name]))];
+  const pairs = [...merged]
+    .filter(([name]) => !leftOut.includes(name))
+    .map(([key, value]) => {
+      const parsed = !asReceived && typeof value === 'string' ? jsonInString(value) : undefined;
+      return parsed === undefined
+        ? {key, value: <NameValue value={value} />}
+        : {key, value: <JsonLines value={parsed} />, note: 'JSON in a string'};
+    });
+  return (
+    <Pairs
+      label={label}
+      pairs={pairs}
+      verbatim
+      keys="attributes"
+      aside={
+        <ShownSwitch
+          label="Attribute names"
+          options={['Translated', 'As received']}
+          on={asReceived ? 1 : 0}
+          onChange={index => setAsReceived(index === 1)}
+        />
+      }
+      {...(tabs.length > 0 && {
+        after: `The ${tabs.join(' and ')} tab${tabs.length === 1 ? ' shows' : 's show'} the attributes left out here.`,
+      })}
+    />
+  );
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+}
+
+/** A span of the chain above the step, or of its own chain, as a row with its duration. */
+function spanRow(event: TurnRecordEvent, index: number, ownChain: string | undefined): Row {
   return {
     key: keyOf(event),
     name: event.name,
-    ...(ownChain !== undefined && {meta: `this ${ownChain}`}),
-    end: failed ? [duration, 'status error'].filter(Boolean).join(' · ') : duration,
+    ...(ownChain !== undefined && {tag: `this ${ownChain}`}),
+    end: durationOf(event),
+    ...(event.status?.code === 2 && {mark: 'status error'}),
     indent: index,
-    value: attributesOf(event)['a2ui.received.attributes'] ?? {},
   };
 }
 
-/** A span event as a row: its time since the turn's start, its name, and "log record" for a received log. */
-function eventRow(event: SpanEvent, index: number, startMs: number): FoldRow {
+/** A span event as a row: its time since the turn's start, its name, "log record" for a received log, opening to its attributes. */
+function eventRow(event: SpanEvent, index: number, startMs: number): Row {
   const attributes = event.attributes ?? {};
   const log = Object.keys(attributes).some(name => name.startsWith(LOG_PREFIX));
   return {
     key: `${index}`,
-    time: formatOffsetCompact(unixMillis(event.timeUnixNano) - startMs),
+    time: formatOffset(unixMillis(event.timeUnixNano) - startMs),
     name: event.name === '' ? 'event' : event.name,
-    ...(log && {meta: 'log record'}),
-    value: attributes,
+    ...(log && {tag: 'log record'}),
+    opened: <JsonLines value={attributes} className="bg-panel" />,
   };
 }
 
-interface FoldRow {
-  key: string;
-  time?: string;
-  name: string;
-  meta?: string;
-  end?: string;
-  /** How deep it sits, for the chain above a call. */
-  indent?: number;
-  value: unknown;
-}
-
-/** A labelled list of rows on a tinted block, each folding open to its JSON. */
-function FoldRows({label, rows, mono = false}: {label: string; rows: FoldRow[]; mono?: boolean}) {
-  const [open, setOpen] = useState<ReadonlySet<string>>(() => new Set());
-  const fold = useBlockFold(label);
-  if (rows.length === 0) return null;
-  return (
-    <section className="flex min-w-0 flex-col gap-1.5">
-      <BlockLabel label={label} fold={fold} />
-      {fold.open && (
-        <div className="flex flex-col rounded-lg bg-tint py-1 text-xs">
-          {rows.map(row => {
-            const unfolded = open.has(row.key);
-            return (
-              <div key={row.key} className="flex flex-col">
-                <div
-                  className={cn('flex min-w-0 items-center gap-2 pr-3', mono ? 'h-7' : 'h-8')}
-                  style={{paddingLeft: 10 + (row.indent ?? 0) * 16}}
-                >
-                  <button
-                    type="button"
-                    aria-expanded={unfolded}
-                    aria-label={`${unfolded ? 'Fold' : 'Unfold'} ${row.name}`}
-                    onClick={() => {
-                      const next = new Set(open);
-                      if (!next.delete(row.key)) next.add(row.key);
-                      setOpen(next);
-                    }}
-                    className="flex size-4 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-border hover:text-foreground"
-                  >
-                    <Icon kind={unfolded ? 'chevronDown' : 'chevronRight'} size={12} />
-                  </button>
-                  {row.time !== undefined && (
-                    <span className="w-14 shrink-0 text-right whitespace-nowrap text-muted-foreground">
-                      {row.time}
-                    </span>
-                  )}
-                  <span
-                    className={cn(
-                      'min-w-0 shrink truncate font-medium',
-                      mono ? 'font-mono' : 'text-sm',
-                    )}
-                  >
-                    {row.name}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                    {row.meta ?? ''}
-                  </span>
-                  {row.end !== undefined && row.end !== '' && (
-                    <span className="shrink-0 text-muted-foreground">{row.end}</span>
-                  )}
-                </div>
-                {unfolded && (
-                  <div className="px-2.5 pb-2">
-                    <JsonLines value={row.value} className="bg-panel" />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </section>
-  );
-}
-
-/** A translated name's value: text as it is, anything else as JSON, a long one shown in full once opened. */
+/** An attribute's value: text as it is, anything else as JSON, a long one shown in full once opened. */
 function NameValue({value}: {value: unknown}): ReactNode {
   const [whole, setWhole] = useState(false);
   const text = typeof value === 'string' ? value : JSON.stringify(value);
@@ -267,13 +224,7 @@ function NameValue({value}: {value: unknown}): ReactNode {
   return (
     <>
       {whole ? text : `${text.slice(0, LONG_VALUE)}…`}{' '}
-      <button
-        type="button"
-        onClick={() => setWhole(!whole)}
-        className="cursor-pointer font-sans font-medium text-brand hover:underline"
-      >
-        {whole ? 'Show less' : 'Show all'}
-      </button>
+      <DetailLink onClick={() => setWhole(!whole)}>{whole ? 'Show less' : 'Show all'}</DetailLink>
     </>
   );
 }

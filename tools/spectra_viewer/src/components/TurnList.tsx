@@ -22,6 +22,7 @@ import {briefText, rowTextOf, searchGroups, type TurnGroup} from '@/model/turn_g
 
 import {formatClock, formatDuration, formatTime, toneOf, turnIconOf} from './format.ts';
 import {Icon, type IconKind} from './icons.tsx';
+import {Key} from './KeysDialog.tsx';
 
 /** The agent picker's choices, the agent shown and what picking one does. */
 export interface AgentPicker {
@@ -177,22 +178,22 @@ export function GroupedList<T extends ListedTurn>({
     >
       <div className="flex shrink-0 flex-col gap-2.5 px-3.5 pt-3.5 pb-2.5">
         <div className="flex items-baseline gap-2">
-          <h2 className="text-base font-semibold">{heading}</h2>
+          <h2 className="type-pane-title">{heading}</h2>
           {headerExtra}
-          <span className="text-xs text-muted-foreground">{count}</span>
+          <span className="type-meta">{count}</span>
           {onCollapse !== undefined && (
             <button
               type="button"
               aria-label={collapseLabel}
               title={collapseLabel}
               onClick={onCollapse}
-              className="ease-quick ml-auto flex size-6 cursor-pointer items-center justify-center self-center rounded-md text-muted-foreground hover:bg-tint hover:text-foreground"
+              className="ease-quick ml-auto flex size-6 cursor-pointer items-center justify-center self-center rounded-md tone-muted hover:bg-tint hover:tone-foreground"
             >
               <Icon kind="chevronLeft" size={14} />
             </button>
           )}
         </div>
-        <label className="flex h-8 items-center gap-2 rounded-lg bg-tint pr-2 pl-2.5 text-muted-foreground">
+        <label className="flex h-8 items-center gap-2 rounded-lg bg-tint pr-2 pl-2.5 tone-muted">
           <Icon kind="search" size={14} />
           <input
             ref={search}
@@ -201,14 +202,14 @@ export function GroupedList<T extends ListedTurn>({
             onChange={event => setQuery(event.target.value)}
             placeholder={searchLabel}
             aria-label={searchLabel}
-            className="min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            className="type-field min-w-0 flex-1 bg-transparent outline-none"
           />
-          <kbd className="rounded border px-1.5 text-xs leading-4 text-muted-foreground">/</kbd>
+          <Key>/</Key>
         </label>
       </div>
-      {groups.length === 0 && <p className="mx-4 my-6 text-muted-foreground">{emptyText}</p>}
+      {groups.length === 0 && <p className="type-quiet mx-3.5 my-1.5">{emptyText}</p>}
       {groups.length > 0 && shown.length === 0 && (
-        <p className="mx-4 my-6 text-muted-foreground">{noMatchText(query.trim())}</p>
+        <p className="type-quiet mx-3.5 my-1.5">{noMatchText(query.trim())}</p>
       )}
       <div
         ref={tree}
@@ -322,10 +323,10 @@ function AgentMenu({agents}: {agents: AgentPicker}) {
       <DropdownMenu.Trigger asChild>
         <button
           type="button"
-          className="ease-quick inline-flex h-6 max-w-40 min-w-0 cursor-pointer items-center gap-1 self-center rounded-md pr-1.5 pl-2 text-xs font-medium text-muted-strong hover:bg-tint data-[state=open]:bg-tint"
+          className="ease-quick type-quiet-control inline-flex h-6 max-w-40 min-w-0 cursor-pointer items-center gap-1 self-center rounded-md pr-1.5 pl-2 hover:bg-tint data-[state=open]:bg-tint"
         >
           <span className="min-w-0 truncate">{agentLabel(shown)}</span>
-          <Icon kind="chevronDown" size={12} className="shrink-0 text-muted-foreground" />
+          <Icon kind="chevronDown" size={12} className="shrink-0 tone-muted" />
         </button>
       </DropdownMenu.Trigger>
       <DropdownMenu.Portal>
@@ -333,7 +334,7 @@ function AgentMenu({agents}: {agents: AgentPicker}) {
           align="start"
           sideOffset={6}
           aria-label="Agents"
-          className="fade-in-quick z-50 flex w-64 flex-col rounded-xl bg-panel p-1.5 text-foreground shadow-float"
+          className="fade-in-quick z-50 flex w-64 flex-col rounded-xl bg-panel p-1.5 shadow-float"
         >
           <DropdownMenu.RadioGroup
             value={value}
@@ -346,14 +347,13 @@ function AgentMenu({agents}: {agents: AgentPicker}) {
               <AgentItem
                 key={agent.name}
                 value={valueOf({name: agent.name})}
-                checked={value === valueOf({name: agent.name})}
                 name={agent.name}
                 note={agent.connected ? 'connected' : undefined}
                 count={agent.turns}
               />
             ))}
             <DropdownMenu.Separator className="mx-1.5 my-1 h-px bg-border" />
-            <AgentItem value="all" checked={value === 'all'} name="All agents" count={total} />
+            <AgentItem value="all" name="All agents" count={total} />
           </DropdownMenu.RadioGroup>
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
@@ -363,13 +363,11 @@ function AgentMenu({agents}: {agents: AgentPicker}) {
 
 function AgentItem({
   value,
-  checked,
   name,
   note,
   count,
 }: {
   value: string;
-  checked: boolean;
   name: string;
   note?: string;
   count: number;
@@ -379,14 +377,14 @@ function AgentItem({
       value={value}
       className="ease-quick flex h-8 cursor-pointer items-center gap-2 rounded-lg px-2 outline-none data-[highlighted]:bg-tint"
     >
-      <span className="flex size-3.5 shrink-0 text-brand">
+      <span className="flex size-3.5 shrink-0 tone-brand">
         <DropdownMenu.ItemIndicator>
           <Icon kind="checked" size={14} />
         </DropdownMenu.ItemIndicator>
       </span>
-      <span className={cn('min-w-0 flex-1 truncate', checked && 'font-semibold')}>{name}</span>
-      {note !== undefined && <span className="shrink-0 text-xs text-muted-foreground">{note}</span>}
-      <span className="min-w-4 shrink-0 text-right text-xs text-muted-foreground">{count}</span>
+      <span className="type-name min-w-0 flex-1 truncate">{name}</span>
+      {note !== undefined && <span className="type-meta shrink-0">{note}</span>}
+      <span className="type-meta min-w-4 shrink-0 text-right">{count}</span>
     </DropdownMenu.RadioItem>
   );
 }
@@ -417,7 +415,7 @@ function DividerRow({text}: {text: string}) {
       role="separator"
       aria-label={text}
       title={text}
-      className="fade-in-quick flex h-7 items-center gap-2 px-2 text-xs text-muted-foreground"
+      className="fade-in-quick type-divider flex h-7 items-center gap-2 px-2"
     >
       <span className="h-px flex-1 bg-border" />
       <span className="min-w-0 truncate">{text}</span>
@@ -463,27 +461,25 @@ function Group<T extends ListedTurn>({
           active === id && ACTIVE,
         )}
       >
-        <Icon kind={line.icon} size={16} className={cn('mt-0.5', toneOf(line.icon))} />
+        <Icon kind={line.icon} size={16} className={cn('mt-0.5 shrink-0', toneOf(line.icon))} />
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline gap-2">
-            <span className="min-w-0 flex-1 truncate font-medium">{line.title}</span>
-            <span className="shrink-0 text-xs text-muted-foreground">{line.time}</span>
+            <span className="type-meta shrink-0">{line.time}</span>
+            <span className="type-name min-w-0 flex-1 truncate">{line.title}</span>
           </span>
-          <span className="mt-px flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span className="truncate">{line.meta}</span>
+          <span className="mt-px flex items-center gap-1.5">
+            <span className="type-meta truncate">{line.meta}</span>
             <ProblemMark count={group.problems} size={12} />
           </span>
         </span>
         <Icon
           kind={open ? 'chevronDown' : 'chevronRight'}
           size={14}
-          className="mt-0.5 text-muted-foreground"
+          className="mt-0.5 shrink-0 tone-muted"
         />
       </button>
       {open && line.reason !== undefined && (
-        <p className="mb-1 ml-8 pr-2 text-xs leading-4 wrap-anywhere text-muted-foreground">
-          {line.reason}
-        </p>
+        <p className="type-meta mb-1 ml-8 pr-2 wrap-anywhere">{line.reason}</p>
       )}
       {open && (
         <div role="group" aria-label={line.title} className="flex flex-col gap-px pl-3.5">
@@ -535,21 +531,18 @@ function Row({
         active && ACTIVE,
       )}
     >
-      <Icon kind={icon} size={14} className={toneOf(icon)} />
-      <span className="shrink-0 text-xs text-muted-foreground">{formatTime(turn.startTime)}</span>
+      <Icon kind={icon} size={14} className={cn('shrink-0', toneOf(icon))} />
+      <span className="type-meta shrink-0">{formatTime(turn.startTime)}</span>
       <span
         className={cn(
           'min-w-0 flex-1 truncate',
-          selected && 'font-semibold',
-          turn.newer !== undefined && 'text-muted-foreground',
+          turn.newer === undefined ? 'type-name' : 'type-name-off',
         )}
       >
         {rowTextOf(turn)}
       </span>
       {turn.durationMs !== undefined && (
-        <span className="shrink-0 text-xs text-muted-foreground">
-          {formatDuration(turn.durationMs)}
-        </span>
+        <span className="type-meta shrink-0">{formatDuration(turn.durationMs)}</span>
       )}
       <ProblemMark count={listedProblemCount(turn)} size={12} />
     </button>
@@ -562,7 +555,7 @@ export function ProblemMark({count, size}: {count: number; size: number}) {
   return (
     <span
       title={plural(count, 'problem')}
-      className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-problem"
+      className="type-mark-problem inline-flex shrink-0 items-center gap-1"
     >
       <Icon kind="failed" size={size} />
       {count}

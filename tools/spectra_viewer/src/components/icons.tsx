@@ -331,7 +331,7 @@ export function LegacyMark({size = 12, className}: {size?: number; className?: s
       role="img"
       aria-label="Legacy form"
       title="Legacy form"
-      className={cn('inline-flex shrink-0 text-muted-foreground', className)}
+      className={cn('inline-flex shrink-0 tone-muted', className)}
     >
       <Icon kind="legacy" size={size} />
     </span>

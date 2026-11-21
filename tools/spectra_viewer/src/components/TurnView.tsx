@@ -83,6 +83,7 @@ import {
   useNeededRecords,
 } from '@/state/selectors.ts';
 import {useSpectra} from '@/state/spectra.ts';
+import {requestDetailTab} from '@/state/detail_tab.ts';
 import {requestTimelineFocus} from '@/state/timeline_focus.ts';
 import {useSmallWindow} from '@/state/window.ts';
 
@@ -99,7 +100,7 @@ import {Icon} from './icons.tsx';
 import {formatDuration, formatOffset, formatStart} from './format.ts';
 import type {StepOnCall} from './ModelCallDetail.tsx';
 import {ResultPane} from './ResultPane.tsx';
-import {StepDetail} from './StepDetail.tsx';
+import {HEAD_MOST, headHeightOf, StepDetail} from './StepDetail.tsx';
 import {Timeline} from './Timeline.tsx';
 import {TurnHeader} from './TurnHeader.tsx';
 import {useNow} from './use_now.ts';
@@ -110,7 +111,7 @@ const NO_REPORTS: [] = [];
 /** No surfaces, kept the same from render to render. */
 const NO_SURFACES: [] = [];
 
-/** The detail's height when collapsed to its title line, in pixels. */
+/** The detail's height when collapsed to its title line, with no step in it, in pixels. */
 const DETAIL_TITLE = 41;
 
 /** The result pane's height when folded to its header line, while the detail is maximized, in pixels. */
@@ -120,8 +121,8 @@ const RESULT_TITLE = 45;
 const DETAIL_OPEN = '38';
 
 /** The timeline's width until its divider is dragged, in pixels: on a wide window and below 1,280px. */
-const TIMELINE_WIDE = 380;
-const TIMELINE_SMALL = 340;
+const TIMELINE_WIDE = 420;
+const TIMELINE_SMALL = 380;
 
 /** The turn view: the selected turn, or the first screen with no turns, with the composer docked under it. */
 export function TurnView({
@@ -281,12 +282,10 @@ export function TurnView({
 /** A stored turn whose record is of a turn record version newer than this Spectra reads, in place of the turn. */
 function NewerRecord({version}: {version: string}) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2.5 p-8 text-center">
-      <Icon kind="file" size={32} className="text-muted-foreground" />
-      <h2 className="text-base leading-tight font-semibold">
-        Turn record {version}, newer than this Spectra reads
-      </h2>
-      <p className="max-w-130 text-muted-foreground">
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
+      <Icon kind="file" size={24} className="tone-muted" />
+      <h2 className="type-view-title">Turn record {version}, newer than this Spectra reads</h2>
+      <p className="type-quiet max-w-130">
         This Spectra reads {readRecordVersionsText()}. Upgrade a2ui-spectra to open, save or replay
         this turn.
       </p>
@@ -296,7 +295,7 @@ function NewerRecord({version}: {version: string}) {
 
 export function Empty({children}: {children: string}) {
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center p-8 text-center text-muted-foreground">
+    <div className="type-quiet flex min-h-0 flex-1 items-center justify-center p-6 text-center">
       {children}
     </div>
   );
@@ -632,8 +631,10 @@ export function TurnBody({
   };
   const onEarlier = (found: Exclude<PrefixBreak, {form: 'first'}>) => {
     const {traceId: turnOf, call, recorded} = found.earlier;
-    // The timeline takes focus once the earlier call is selected, so the keys go on from it.
+    // The timeline takes focus once the earlier call is selected, so the keys go on from it; its
+    // detail opens on Prompt, where the line the break compares stands.
     requestTimelineFocus();
+    requestDetailTab('Prompt');
     if (recorded !== undefined) toRecorded(turnOf, call.spanId);
     else if (turnOf === traceId) setPicked(call.spanId);
     else onOther(turnOf, call.spanId);
@@ -656,6 +657,9 @@ export function TurnBody({
 
   const detail = usePanelRef();
   const result = usePanelRef();
+  // Collapsed, the detail keeps its head: the title row and the facts lines under it.
+  const head =
+    selected === undefined ? DETAIL_TITLE : headHeightOf(selected, events, startMs, state.prices);
   const timelinePanel = usePanelRef();
   const [collapsed, setCollapsed] = useState(!inView.selected);
   // The detail is collapsed to its title line until a step is selected.
@@ -900,13 +904,11 @@ export function TurnBody({
             <ResizableHandle />
             <ResizablePanel
               panelRef={detail}
-              defaultSize={
-                inView.selected ? (rememberedSize('detail') ?? DETAIL_OPEN) : DETAIL_TITLE
-              }
+              defaultSize={inView.selected ? (rememberedSize('detail') ?? DETAIL_OPEN) : head}
               minSize={120}
               collapsible
               groupResizeBehavior="preserve-pixel-size"
-              collapsedSize={DETAIL_TITLE}
+              collapsedSize={head}
             >
               {selected !== undefined && (
                 <StepDetail
@@ -965,7 +967,7 @@ function openDetail(panel: PanelImperativeHandle | null): void {
   const height = rememberedHeight(panel);
   panel.expand();
   if (height !== undefined) panel.resize(height);
-  else if (panel.getSize().inPixels <= DETAIL_TITLE + 1) panel.resize(DETAIL_OPEN);
+  else if (panel.getSize().inPixels <= HEAD_MOST + 1) panel.resize(DETAIL_OPEN);
 }
 
 /** The detail's remembered height in the pane it shares with the result, if one is remembered. */

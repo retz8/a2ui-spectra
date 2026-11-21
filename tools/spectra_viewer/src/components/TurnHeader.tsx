@@ -1,5 +1,5 @@
 import {Tooltip} from 'radix-ui';
-import type {ReactNode} from 'react';
+import {Fragment, type ReactNode} from 'react';
 
 import {cn} from '@/lib/utils';
 import {type CheckLine, type CheckState, checkLabelOf} from '@/model/check_state.ts';
@@ -56,7 +56,7 @@ export function TurnHeader({
     <header className="flex shrink-0 flex-col gap-1.5 border-b px-4 pt-3.5 pb-3">
       {fixtureLine}
       <div className="flex min-w-0 items-center gap-3">
-        <h1 className="min-w-0 truncate text-lg leading-tight font-semibold">{title}</h1>
+        <h1 className="type-view-title min-w-0 truncate">{title}</h1>
         <OutcomeBadge status={status} />
         {check !== undefined && (
           <CheckChip check={check} checks={checks} filtered={filtered} onFilter={onFilter} />
@@ -65,18 +65,12 @@ export function TurnHeader({
           <div className="ml-auto flex shrink-0 items-center gap-2">{actions}</div>
         )}
       </div>
-      <div className="flex min-w-0 items-center gap-1.5 overflow-hidden text-xs whitespace-nowrap text-muted-foreground">
-        {meta.map((part, index) => (
-          <span key={index} className="contents">
-            {index > 0 && <span>·</span>}
-            <span>{part}</span>
-          </span>
-        ))}
-        <span>·</span>
+      <div className="type-meta min-w-0 truncate leading-5 whitespace-nowrap">
+        {[...meta, ''].join(' · ')}
         <ShortId label="Trace" id={traceId} />
         {conversationId !== undefined && (
           <>
-            <span>·</span>
+            {' · '}
             <ShortId label="Conversation" id={conversationId} />
           </>
         )}
@@ -84,7 +78,7 @@ export function TurnHeader({
       {inside !== undefined && (
         <div
           aria-label="Inside the turn"
-          className="min-w-0 truncate text-xs whitespace-nowrap text-muted-foreground"
+          className="type-meta min-w-0 truncate whitespace-nowrap"
           title={inside.join(' · ')}
         >
           {inside.join(' · ')}
@@ -97,9 +91,13 @@ export function TurnHeader({
 
 function ShortId({label, id}: {label: string; id: string}) {
   return (
-    <span className="inline-flex items-center gap-1" title={id}>
+    <span title={id}>
       {label} {shortId(id)}
-      <CopyButton text={id} label={`Copy the ${label.toLowerCase()} id`} className="size-5" />
+      <CopyButton
+        text={id}
+        label={`Copy the ${label.toLowerCase()} id`}
+        className="-my-1 ml-0.5 align-middle"
+      />
     </span>
   );
 }
@@ -109,18 +107,18 @@ export function OutcomeBadge({status}: {status: TurnStatus}) {
   return (
     <span
       className={cn(
-        'inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full bg-tint pr-2.5 pl-2 text-xs font-medium',
+        'inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full bg-tint pr-2.5 pl-2',
         status === 'failed'
-          ? 'text-problem'
+          ? 'type-mark-problem'
           : status === 'completed'
-            ? 'text-success'
-            : 'text-foreground',
+            ? 'type-mark-success'
+            : 'type-mark',
       )}
     >
       <Icon
         kind={icon}
         size={14}
-        className={status === 'completed' ? 'text-success' : toneOf(icon)}
+        className={cn('shrink-0', status === 'completed' ? 'tone-success' : toneOf(icon))}
       />
       {STATUS_LABELS[status]}
     </span>
@@ -160,10 +158,10 @@ function CheckChip({
               onClick: onFilter,
             })}
             className={cn(
-              'ease-quick inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border pr-2.5 pl-2 text-xs',
+              'ease-quick inline-flex h-6 shrink-0 items-center gap-1.5 rounded-full border',
               problems
-                ? 'cursor-pointer font-semibold text-problem'
-                : 'cursor-default font-medium text-muted-strong',
+                ? 'type-mark-problem cursor-pointer pr-2.5 pl-2'
+                : 'type-mark-muted cursor-default px-2.5',
               problems && filtered && 'border-problem bg-problem-soft',
             )}
           >
@@ -186,41 +184,42 @@ function CheckChip({
             align="start"
             sideOffset={6}
             className={cn(
-              'fade-in-quick z-50 flex flex-col gap-1.5 rounded-xl bg-panel px-3 py-2.5 text-xs text-foreground shadow-float',
-              remarked ? 'w-110' : 'w-80',
+              'fade-in-quick z-50 flex flex-col gap-1.5 rounded-lg bg-panel px-2.5 py-2 shadow-float',
+              remarked ? 'w-110' : 'w-100',
             )}
           >
-            <span className="section-label">Checks</span>
-            {checks.map((line, index) => (
-              <div key={index} className="flex flex-col gap-px">
-                <div className="flex items-baseline gap-2">
-                  <span className="shrink-0 font-medium">{line.name}</span>
-                  <span className="shrink-0 text-muted-foreground">{line.version}</span>
-                  <span className="flex-1" />
-                  <span className="text-right text-muted-strong">
-                    {line.result.map((run, runIndex) =>
-                      run.mono ? (
-                        <code key={runIndex} className="font-mono">
-                          {run.text}
-                        </code>
-                      ) : (
-                        <span
-                          key={runIndex}
-                          className={run.muted === true ? 'text-muted-foreground' : undefined}
-                        >
-                          {run.text}
-                        </span>
-                      ),
-                    )}
+            <span className="type-section-label">Checks</span>
+            <div className="grid grid-cols-pairs gap-x-3 gap-y-0.5">
+              {checks.map((line, index) => (
+                <Fragment key={index}>
+                  <span className="type-meta leading-5">
+                    {line.version === '' ? line.name : `${line.name} · ${line.version}`}
                   </span>
-                </div>
-                {line.notes.map(note => (
-                  <span key={note} className="text-right font-mono break-all text-muted-foreground">
-                    {note}
+                  <span className="flex min-w-0 flex-col">
+                    <span className="type-value leading-5 wrap-anywhere">
+                      {line.result.map((run, runIndex) =>
+                        run.mono ? (
+                          <code key={runIndex} className="type-code-inline">
+                            {run.text}
+                          </code>
+                        ) : run.muted === true ? (
+                          <span key={runIndex} className="type-meta">
+                            {run.text}
+                          </span>
+                        ) : (
+                          <Fragment key={runIndex}>{run.text}</Fragment>
+                        ),
+                      )}
+                    </span>
+                    {line.notes.map(note => (
+                      <span key={note} className="type-meta leading-5 break-all">
+                        <code className="type-code-inline">{note}</code>
+                      </span>
+                    ))}
                   </span>
-                ))}
-              </div>
-            ))}
+                </Fragment>
+              ))}
+            </div>
           </Tooltip.Content>
         </Tooltip.Portal>
       </Tooltip.Root>

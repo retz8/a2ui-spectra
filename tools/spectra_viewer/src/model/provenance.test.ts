@@ -357,7 +357,7 @@ describe('a served call', () => {
     ];
     assert.deepEqual(insideLineOf(events, START, PRICES)?.slice(-2), [
       '2 calls from the record',
-      'Free',
+      'free',
     ]);
   });
 
@@ -387,7 +387,7 @@ describe('a served call', () => {
     assert.deepEqual(insideLineOf(events, START, PRICES)?.slice(-3), [
       '1 tool call',
       '2 calls from the record',
-      'Free',
+      'free',
     ]);
   });
 
@@ -397,8 +397,8 @@ describe('a served call', () => {
     assert.ok(line?.includes('1 model call'));
     assert.ok(line?.includes('1 call from the record'));
     assert.ok(line?.includes('1 in'));
-    assert.ok(line?.includes('Est. $2.0'));
-    assert.ok(!line?.includes('Free'));
+    assert.ok(line?.includes('est. $2.0'));
+    assert.ok(!line?.includes('free'));
   });
 
   it('says where it was served from, linked to the recorded call', () => {

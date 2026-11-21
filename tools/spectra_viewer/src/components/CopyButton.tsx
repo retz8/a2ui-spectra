@@ -20,21 +20,21 @@ async function copy(text: string): Promise<void> {
   area.remove();
 }
 
-/** A button that copies text, its icon a check for a moment after. */
+/**
+ * A button that copies text, its icon a check for a moment after: "Copy" with
+ * its icon first, or the icon alone after a copyable value.
+ */
 export function CopyButton({
   text,
   label,
   className,
-  iconFirst = false,
   children,
 }: {
   text: string;
   /** What the button copies, for its accessible name. */
   label: string;
   className?: string;
-  /** The icon before the text, as a block's "Copy" draws it; after it, as an address's does. */
-  iconFirst?: boolean;
-  /** The text beside the icon; an icon alone without it. */
+  /** The button's text after its icon; the icon alone without it. */
   children?: ReactNode;
 }) {
   const [copied, setCopied] = useState(false);
@@ -44,7 +44,10 @@ export function CopyButton({
       aria-label={label}
       title={label}
       className={cn(
-        'ease-quick inline-flex shrink-0 cursor-pointer items-center justify-center gap-1 rounded-md text-muted-foreground hover:bg-tint hover:text-foreground',
+        'ease-quick inline-flex shrink-0 cursor-pointer items-center justify-center rounded-md hover:bg-tint',
+        children === undefined
+          ? 'size-6 tone-muted hover:tone-foreground'
+          : 'type-quiet-control h-6 gap-1 px-1.5',
         className,
       )}
       onClick={() => {
@@ -54,12 +57,8 @@ export function CopyButton({
         });
       }}
     >
-      {!iconFirst && children}
-      <Icon
-        kind={copied ? 'checked' : 'copy'}
-        size={children === undefined || iconFirst ? 12 : 14}
-      />
-      {iconFirst && children}
+      <Icon kind={copied ? 'checked' : 'copy'} size={12} />
+      {children}
     </button>
   );
 }

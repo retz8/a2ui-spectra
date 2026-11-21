@@ -39,7 +39,7 @@ export function Rail({
     >
       <div className="mb-2.5 flex flex-col items-center gap-1 pt-1">
         <Mark size={24} />
-        <span className="text-xs font-semibold">Spectra</span>
+        <span className="type-wordmark">Spectra</span>
       </div>
       {SECTIONS.map(({section: each, icon, label}) => (
         <a
@@ -47,16 +47,12 @@ export function Rail({
           href={hrefOf(each)}
           aria-current={each === section ? 'page' : undefined}
           className={cn(
-            'ease-quick flex w-13 flex-col items-center gap-1 rounded-lg pt-2 pb-1.5',
-            each === section
-              ? 'bg-brand-soft text-brand'
-              : 'text-muted-foreground hover:bg-tint hover:text-foreground',
+            'ease-quick type-quiet-control flex w-13 flex-col items-center gap-1 rounded-lg pt-2 pb-1.5',
+            each === section ? 'bg-brand-soft' : 'hover:bg-tint',
           )}
         >
           <Icon kind={icon} size={20} />
-          <span className={cn('text-xs', each === section ? 'font-semibold' : 'font-medium')}>
-            {label}
-          </span>
+          <span>{label}</span>
         </a>
       ))}
       <div className="flex-1" />
@@ -69,9 +65,7 @@ export function Rail({
         onClick={onKeys}
         className={cn(
           'ease-quick mb-0.5 flex h-8 w-9 cursor-pointer items-center justify-center rounded-lg',
-          keysOpen
-            ? 'bg-tint text-foreground'
-            : 'text-muted-foreground hover:bg-border hover:text-foreground',
+          keysOpen ? 'bg-tint tone-foreground' : 'tone-muted hover:bg-border hover:tone-foreground',
         )}
       >
         <Icon kind="keys" size={16} />
@@ -92,8 +86,8 @@ export function Rail({
             className={cn(
               'ease-quick flex h-7 w-8 cursor-pointer items-center justify-center rounded-md',
               theme === choice
-                ? 'bg-panel text-foreground shadow-panel'
-                : 'text-muted-foreground hover:text-foreground',
+                ? 'bg-panel tone-foreground shadow-panel'
+                : 'tone-muted hover:tone-foreground',
             )}
           >
             <Icon kind={icon} size={14} />

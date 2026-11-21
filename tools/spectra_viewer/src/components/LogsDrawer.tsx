@@ -125,10 +125,10 @@ export function LogsDrawer({
       >
         <span className="h-1 w-9 rounded-full bg-border" />
       </div>
-      <div className="flex h-7.5 shrink-0 items-center gap-2.5 pr-2.5 pb-0.5 pl-4">
-        <h2 className="section-label shrink-0">Logs</h2>
-        <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">{command}</span>
-        <span className="shrink-0 text-xs text-muted-foreground">
+      <div className="flex h-9 shrink-0 items-center gap-2.5 pr-2.5 pb-1 pl-4">
+        <h2 className="type-pane-title shrink-0">Logs</h2>
+        <span className="type-code-muted min-w-0 truncate">{command}</span>
+        <span className="type-meta shrink-0">
           {lineCountOf(logs?.lines ?? 0, logs?.cap ?? 1000)}
         </span>
         <div className="flex-1" />
@@ -137,7 +137,7 @@ export function LogsDrawer({
           aria-label="Close the logs"
           title="Close the logs"
           onClick={onClose}
-          className="ease-quick flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md text-muted-foreground hover:bg-tint hover:text-foreground"
+          className="ease-quick flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md tone-muted hover:bg-tint hover:tone-foreground"
         >
           <Icon kind="close" size={14} />
         </button>
@@ -152,21 +152,19 @@ export function LogsDrawer({
           const atEnd = element.scrollHeight - element.scrollTop - element.clientHeight <= AT_END;
           if (atEnd !== following) setFollowing(atEnd);
         }}
-        className="min-h-0 flex-1 overflow-auto pb-2.5 font-mono text-xs leading-4.5 outline-none"
+        className="type-code min-h-0 flex-1 overflow-auto pb-2.5 leading-4.5 outline-none"
       >
         {rows.map(row => (
           <Row key={row.key} row={row} onTurn={onTurn} />
         ))}
-        {(logs?.lines ?? 0) === 0 && (
-          <p className="mx-4 my-1 font-sans text-sm text-muted-foreground">No output yet.</p>
-        )}
+        {(logs?.lines ?? 0) === 0 && <p className="type-quiet mx-4 my-1">No output yet.</p>}
       </div>
       {!following && (
         <div className="fade-in-quick pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
           <button
             type="button"
             onClick={() => setFollowing(true)}
-            className="ease-quick pointer-events-auto inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-foreground pr-3 pl-2.5 text-xs font-semibold text-panel shadow-float"
+            className="ease-quick type-control-inverse pointer-events-auto inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-foreground pr-3 pl-2.5 shadow-float"
           >
             <Icon kind="jump" size={14} />
             Jump to latest
@@ -182,8 +180,8 @@ function Row({row, onTurn}: {row: DrawerRow; onTurn: (traceId: string) => void})
   if (row.kind === 'line') {
     return (
       <div className="flex gap-3 px-4 whitespace-pre">
-        <span className="shrink-0 text-muted-foreground">{logTimeOf(row.time)}</span>
-        <span className="w-6 shrink-0 text-muted-foreground">{row.stream}</span>
+        <span className="type-code-muted shrink-0 leading-4.5">{logTimeOf(row.time)}</span>
+        <span className="type-code-muted w-[3ch] shrink-0 leading-4.5">{row.stream}</span>
         <span>{row.text}</span>
       </div>
     );
@@ -194,7 +192,7 @@ function Row({row, onTurn}: {row: DrawerRow; onTurn: (traceId: string) => void})
       <div
         role="separator"
         aria-label={row.text}
-        className="sticky left-0 flex h-7 items-center gap-2.5 px-4 font-sans text-xs font-medium whitespace-nowrap text-muted-strong"
+        className="type-divider sticky left-0 flex h-7 items-center gap-2 px-4 whitespace-nowrap"
       >
         <span className="h-px min-w-4 flex-1 bg-border" />
         <span title={row.text} className="min-w-0 truncate">
@@ -205,7 +203,7 @@ function Row({row, onTurn}: {row: DrawerRow; onTurn: (traceId: string) => void})
     );
   }
   return (
-    <div className="sticky left-0 flex h-6.5 items-center gap-2 px-4 font-sans text-xs whitespace-nowrap text-muted-foreground">
+    <div className="type-divider sticky left-0 flex h-6.5 items-center gap-2 px-4 whitespace-nowrap">
       <span className="w-5 shrink-0 border-t border-dashed" />
       <span className="min-w-0 truncate">
         {row.kind === 'opened' ? (
@@ -214,7 +212,7 @@ function Row({row, onTurn}: {row: DrawerRow; onTurn: (traceId: string) => void})
             <button
               type="button"
               onClick={() => onTurn(row.traceId)}
-              className="cursor-pointer font-medium text-brand hover:underline"
+              className="type-link cursor-pointer"
             >
               {row.name}
             </button>

@@ -6,7 +6,7 @@ import {type Lane, lanesOf, shareOf} from '@/model/lanes.ts';
 import {deliveryLabel, type TimelineRow} from '@/model/steps.ts';
 import {takeTimelineFocusRequest} from '@/state/timeline_focus.ts';
 
-import {brandIconOf, formatDurationCompact, formatOffsetCompact, toneOf} from './format.ts';
+import {brandIconOf, formatDuration, formatOffset, toneOf} from './format.ts';
 import {Icon, LegacyMark} from './icons.tsx';
 import {ProblemMark} from './TurnList.tsx';
 import {useNow} from './use_now.ts';
@@ -85,26 +85,26 @@ export function Timeline({
   return (
     <section aria-label="Steps" className="relative flex h-full min-h-0 flex-col">
       <div className="flex h-10 shrink-0 items-center gap-2 pr-3 pl-4">
-        <span className="section-label">Steps</span>
-        <span className="text-xs text-muted-foreground">
+        <span className="type-section-label">Steps</span>
+        <span className="type-meta">
           {filter === undefined ? steps : `${steps} of ${filter.steps}`}
         </span>
         <div className="flex-1" />
         {filter !== undefined && (
           <>
-            <span className="text-xs text-muted-foreground">Problems only</span>
+            <span className="type-meta">Problems only</span>
             <button
               type="button"
               onClick={filter.onShowAll}
-              className="cursor-pointer text-xs font-semibold text-brand hover:underline"
+              className="type-link cursor-pointer text-xs"
             >
               Show all
             </button>
           </>
         )}
         {live && (
-          <span className="inline-flex items-center gap-1 text-xs font-semibold text-brand">
-            <Icon kind="dot" size={8} />
+          <span className="type-mark inline-flex items-center gap-1.5">
+            <Icon kind="dot" size={8} className="tone-brand" />
             Live
           </span>
         )}
@@ -147,8 +147,8 @@ export function Timeline({
           const lane = lanes.byRow.get(row.id);
           const end = (
             <>
-              <span className="w-12 shrink-0 text-right text-xs font-normal whitespace-nowrap text-muted-foreground">
-                {lane?.kind === 'bar' ? formatDurationCompact(lane.end - lane.start) : ''}
+              <span className="type-meta w-16 shrink-0 text-right whitespace-nowrap">
+                {lane?.kind === 'bar' ? formatDuration(lane.end - lane.start) : ''}
               </span>
               <LaneMark
                 lane={lane}
@@ -165,19 +165,15 @@ export function Timeline({
                 role="option"
                 aria-selected={isSelected}
                 {...press}
-                className={cn(
-                  base,
-                  'h-7 px-2 text-xs',
-                  isSelected ? 'font-semibold' : 'text-muted-foreground',
-                )}
+                className={cn(base, 'type-minor-row h-7 px-2')}
               >
-                <span className="w-13 shrink-0 text-right">
-                  {row.offsetMs === undefined ? '' : formatOffsetCompact(row.offsetMs)}
+                <span className="type-meta w-19 shrink-0 text-right">
+                  {row.offsetMs === undefined ? '' : formatOffset(row.offsetMs)}
                 </span>
                 <Icon
                   kind={row.row === 'delivery' ? 'delivery' : 'tool'}
                   size={14}
-                  className={following && isSelected ? 'text-brand' : 'text-muted-foreground'}
+                  className={cn('shrink-0', following && isSelected ? 'tone-brand' : 'tone-muted')}
                 />
                 <span className="min-w-0 truncate">
                   {row.row === 'delivery' ? deliveryLabel(row) : row.label}
@@ -200,13 +196,8 @@ export function Timeline({
               {...press}
               className={cn(base, 'h-8 pr-2', row.grouped ? 'pl-6' : 'pl-2')}
             >
-              <span
-                className={cn(
-                  'shrink-0 text-right text-xs text-muted-foreground',
-                  row.grouped ? 'w-9' : 'w-13',
-                )}
-              >
-                {row.offsetMs === undefined ? '' : formatOffsetCompact(row.offsetMs)}
+              <span className={cn('type-meta shrink-0 text-right', row.grouped ? 'w-15' : 'w-19')}>
+                {row.offsetMs === undefined ? '' : formatOffset(row.offsetMs)}
               </span>
               {row.row === 'step' && row.brand !== undefined ? (
                 <Icon kind={row.icon} size={14} {...brandIconOf(row.brand)} />
@@ -214,18 +205,15 @@ export function Timeline({
                 <Icon
                   kind={row.icon}
                   size={14}
-                  className={following && isSelected ? 'text-brand' : toneOf(row.icon)}
+                  className={cn(
+                    'shrink-0',
+                    following && isSelected ? 'tone-brand' : toneOf(row.icon),
+                  )}
                 />
               )}
               {/* At the timeline's narrowest, the name truncates before the problem mark is hidden. */}
-              <span
-                className={cn('min-w-0 truncate', isSelected ? 'font-semibold' : 'font-medium')}
-              >
-                {row.label}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
-                {row.target}
-              </span>
+              <span className="type-name min-w-0 truncate">{row.label}</span>
+              <span className="type-meta min-w-0 flex-1 truncate">{row.target}</span>
               {tags?.get(row.id) !== undefined && <RowTag tag={tags.get(row.id)!} />}
               <ProblemMark count={count} size={12} />
               {legacy?.has(row.id) === true && <LegacyMark size={12} />}
@@ -239,7 +227,7 @@ export function Timeline({
           <button
             type="button"
             onClick={onJump}
-            className="ease-quick pointer-events-auto inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-foreground pr-3 pl-2.5 text-xs font-semibold text-panel shadow-float"
+            className="ease-quick type-control-inverse pointer-events-auto inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-foreground pr-3 pl-2.5 shadow-float"
           >
             <Icon kind="jump" size={14} />
             Jump to latest
@@ -253,7 +241,7 @@ export function Timeline({
 /** A row's grey tag. */
 function RowTag({tag}: {tag: string}) {
   return (
-    <span className="shrink-0 rounded-sm bg-tint px-1 text-[11px] leading-4 whitespace-nowrap text-muted-foreground">
+    <span className="type-meta inline-flex h-5 shrink-0 items-center rounded-sm bg-tint px-1.5 whitespace-nowrap">
       {tag}
     </span>
   );

@@ -307,7 +307,7 @@ describe('the header’s second line with tool calls and spans', () => {
       '1 tool call',
       '3.0k in',
       '200 out',
-      'Est. $0.0021',
+      'est. $0.0021',
       'LiteLLM prices 2026-10-28',
     ]);
   });

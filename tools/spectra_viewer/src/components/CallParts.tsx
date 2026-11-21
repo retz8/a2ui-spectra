@@ -1,9 +1,9 @@
 /**
- * The parts a call's detail is built of, a model call's and a tool call's
- * alike: sections on a rule, keys and values, a text block, and the HTTP
- * exchange with its chunks.
+ * The parts a step's detail is built of: the connections, sections on a
+ * rule, keys and values, a text block, a list of rows, the segmented switch,
+ * and the HTTP exchange with its chunks.
  */
-import {type ReactNode, useState} from 'react';
+import {Fragment, type ReactNode, useState} from 'react';
 
 import {cn} from '@/lib/utils';
 import {statusLine} from '@/model/model_calls.ts';
@@ -13,139 +13,206 @@ import {plural} from '@/model/steps.ts';
 import {useBlockFold} from '@/state/block_folds.ts';
 
 import {CopyButton} from './CopyButton.tsx';
-import {formatOffset} from './format.ts';
+import {formatDuration, formatOffset} from './format.ts';
 import {Icon} from './icons.tsx';
-import {BlockLabel, JsonBlock, JsonLines} from './JsonBlock.tsx';
+import {BlockLabel, FoldButton, JsonBlock, JsonLines} from './JsonBlock.tsx';
 
 /** A link in the accent, in a detail's line, which selects another step. */
 export function DetailLink({onClick, children}: {onClick: () => void; children: ReactNode}) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="cursor-pointer text-left font-medium text-brand hover:underline"
-    >
+    <button type="button" onClick={onClick} className="type-link cursor-pointer text-left">
       {children}
     </button>
   );
 }
 
 /**
- * The grey sentence under a call's title line, where a retry's sits: served
- * from the record, the recorded call a link; or gone to the model.
+ * How a step connects to others: a key and its target, as "Read from" and
+ * the call it read; or a sentence across the grid, as the retry's.
  */
-export function ReplaySentence({
-  replay,
-  onRecorded,
-}: {
-  replay: Extract<CallReplay, {kind: 'served' | 'live'}>;
-  onRecorded: (recorded: RecordedCall) => void;
-}) {
-  if (replay.kind === 'live') {
-    return (
-      <p className="text-muted-foreground">Went to the model · matched nothing in the record</p>
-    );
-  }
-  const {recorded, name} = replay;
+export interface Connection {
+  key?: string;
+  value: ReactNode;
+}
+
+/** A step's connections, one quiet pairs grid under its problems. */
+export function Connections({rows}: {rows: readonly Connection[]}) {
+  if (rows.length === 0) return null;
   return (
-    <p className="text-muted-foreground">
-      Served from the record ·{' '}
-      {recorded === undefined ? (
-        name
-      ) : (
-        <>
-          <DetailLink onClick={() => onRecorded(recorded)}>
-            the call at {formatOffset(recorded.offsetMs)}
-          </DetailLink>{' '}
-          in {name}
-        </>
+    <div
+      role="group"
+      aria-label="How this step connects to others"
+      className="grid shrink-0 grid-cols-facts gap-x-3 gap-y-0.5"
+    >
+      {rows.map((row, index) =>
+        row.key === undefined ? (
+          <span key={index} className="type-meta col-span-2 min-w-0 leading-5 wrap-anywhere">
+            {row.value}
+          </span>
+        ) : (
+          <Fragment key={index}>
+            <span className="type-meta leading-5">{row.key}</span>
+            <span className="type-value min-w-0 leading-5 wrap-anywhere">{row.value}</span>
+          </Fragment>
+        ),
       )}
-    </p>
+    </div>
   );
 }
 
-/** A section of the detail: a small label on a rule, folding what follows when it can. */
+/** A sentence that ends with a full stop, as a connection written as one does. */
+export function finished(text: string): string {
+  return /[.!?]$/.test(text) ? text : `${text}.`;
+}
+
+/**
+ * A replayed call's connection: served from the record, the recorded call a
+ * link; or gone to the model.
+ */
+export function replayConnection(
+  replay: Extract<CallReplay, {kind: 'served' | 'live'}>,
+  onRecorded: (recorded: RecordedCall) => void,
+): Connection {
+  if (replay.kind === 'live') {
+    return {value: 'Went to the model · matched nothing in the record.'};
+  }
+  const {recorded, name} = replay;
+  return {
+    value:
+      recorded === undefined ? (
+        `Served from the record · ${name}.`
+      ) : (
+        <>
+          Served from the record ·{' '}
+          <DetailLink onClick={() => onRecorded(recorded)}>
+            the call at {formatOffset(recorded.offsetMs)}
+          </DetailLink>{' '}
+          in {name}.
+        </>
+      ),
+  };
+}
+
+/**
+ * A section of a column with no tabs: a small label on a rule, its facts
+ * beside it, folding what follows when it can. A label that does not fold
+ * keeps the chevron's place, so every label lines up.
+ */
 export function Section({
   label,
   meta,
+  mark,
   open,
   onToggle,
   children,
 }: {
   label: string;
   meta?: string;
+  /** A status in red beside the facts, as a span's error. */
+  mark?: string;
   open: boolean;
   onToggle?: () => void;
   children: ReactNode;
 }) {
   return (
     <>
-      <div className="mt-0.5 flex h-9 shrink-0 items-center gap-2 border-t px-0.5 text-xs text-muted-foreground">
-        {onToggle !== undefined && (
-          <button
-            type="button"
-            aria-expanded={open}
-            aria-label={`${open ? 'Fold' : 'Unfold'} ${label.toLowerCase()}`}
-            onClick={onToggle}
-            className="flex size-4 cursor-pointer items-center justify-center rounded hover:bg-tint hover:text-foreground"
-          >
-            <Icon kind={open ? 'chevronDown' : 'chevronRight'} size={12} />
-          </button>
+      <div className="mt-0.5 flex h-9 shrink-0 items-center gap-2 border-t px-0.5">
+        {onToggle === undefined ? (
+          <span aria-hidden="true" className="size-4 shrink-0" />
+        ) : (
+          <FoldButton open={open} label={label} onToggle={onToggle} />
         )}
-        <span className="shrink-0 font-semibold tracking-wider uppercase">{label}</span>
-        {meta !== undefined && meta !== '' && <span className="min-w-0 truncate">{meta}</span>}
+        <span className="type-section-label shrink-0">{label}</span>
+        {meta !== undefined && meta !== '' && (
+          <span className="type-meta min-w-0 truncate">{meta}</span>
+        )}
+        {mark !== undefined && <ErrorMark text={mark} />}
       </div>
       {open && children}
     </>
   );
 }
 
+/** A status in red with its icon, as a span's error. */
+export function ErrorMark({text}: {text: string}) {
+  return (
+    <span className="type-mark-problem inline-flex shrink-0 items-center gap-1">
+      <Icon kind="failed" size={12} />
+      {text}
+    </span>
+  );
+}
+
+/** A pairs grid's key column: 96px for short keys, 168px for names and headers, 208px for the longest attribute names. */
+export type KeyColumn = 'short' | 'names' | 'attributes';
+
+const KEY_COLUMNS: Record<KeyColumn, string> = {
+  short: 'grid-cols-facts',
+  names: 'grid-cols-pairs',
+  attributes: 'grid-cols-pairs-wide',
+};
+
 /**
- * Settings, headers and names: keys and values in two columns. Headers set
- * their values in mono on narrower keys; MCP's names set theirs in mono; the
- * translated names take wider keys.
+ * Keys and values in two columns, under a label: settings with sans keys;
+ * headers, URL parameters, MCP's names and span attributes verbatim, their
+ * keys in muted monospace and their values in monospace.
  */
 export function Pairs({
   label,
+  meta,
   pairs,
-  monoKeys = false,
-  layout,
+  verbatim = false,
+  keys = 'names',
+  aside,
+  after,
 }: {
   label: string;
-  pairs: ReadonlyArray<{key: string; value: ReactNode; removed?: boolean}>;
-  /** Headers: values in mono, on narrower keys. */
-  monoKeys?: boolean;
-  /** MCP's names, values in mono; or the translated names, values in mono on wider keys. */
-  layout?: 'mcp' | 'names';
+  meta?: string;
+  pairs: ReadonlyArray<{key: string; value: ReactNode; removed?: boolean; note?: string}>;
+  /** Keys and values shown as a machine wrote them. */
+  verbatim?: boolean;
+  keys?: KeyColumn;
+  /** What sits at the right of the label line, as a switch. */
+  aside?: ReactNode;
+  /** A quiet line under the grid. */
+  after?: string;
 }) {
   const fold = useBlockFold(label);
-  if (pairs.length === 0) return null;
-  const mono = monoKeys || layout !== undefined;
+  if (pairs.length === 0 && after === undefined) return null;
   return (
     <div className="flex flex-col gap-1.5">
-      <BlockLabel label={label} fold={fold} />
+      <BlockLabel label={label} meta={meta} fold={fold}>
+        {aside}
+      </BlockLabel>
       {fold.open && (
-        <div
-          className={cn(
-            'grid gap-x-3 gap-y-0.5 text-xs leading-5',
-            layout === 'names'
-              ? 'grid-cols-pairs-wide'
-              : monoKeys
-                ? 'grid-cols-pairs-narrow'
-                : 'grid-cols-pairs',
-          )}
-        >
-          {pairs.map(({key, value, removed}, index) => (
-            <span key={index} className="contents">
-              <span className="break-all text-muted-foreground">{key}</span>
-              <span
-                className={cn('break-all', removed ? 'text-muted-foreground' : mono && 'font-mono')}
-              >
-                {removed ? 'Removed by Spectra' : value}
-              </span>
-            </span>
-          ))}
-        </div>
+        <>
+          <div className={cn('grid gap-x-3 gap-y-0.5', KEY_COLUMNS[keys])}>
+            {pairs.map(({key, value, removed, note}, index) => (
+              <Fragment key={index}>
+                <span className="flex min-w-0 flex-col">
+                  <span
+                    className={cn(
+                      'leading-5 wrap-anywhere',
+                      verbatim ? 'type-code-muted' : 'type-meta',
+                    )}
+                  >
+                    {key}
+                  </span>
+                  {note !== undefined && <span className="type-meta leading-5">{note}</span>}
+                </span>
+                <span
+                  className={cn(
+                    'min-w-0 leading-5 wrap-anywhere',
+                    removed ? 'type-meta' : verbatim ? 'type-code' : 'type-value',
+                  )}
+                >
+                  {removed ? 'Removed by Spectra' : value}
+                </span>
+              </Fragment>
+            ))}
+          </div>
+          {after !== undefined && <span className="type-meta leading-5">{after}</span>}
+        </>
       )}
     </div>
   );
@@ -157,61 +224,179 @@ export function TextBlock({label, meta, text}: {label: string; meta?: string; te
   return (
     <section className="flex min-w-0 flex-col gap-1.5">
       <BlockLabel label={label} meta={meta} fold={fold}>
-        <CopyButton
-          iconFirst
-          text={text}
-          label={`Copy the ${label.toLowerCase()}`}
-          className="h-6 px-1.5 text-xs"
-        >
+        <CopyButton text={text} label={`Copy the ${label.toLowerCase()}`}>
           Copy
         </CopyButton>
       </BlockLabel>
+      {fold.open && <Prose text={text} />}
+    </section>
+  );
+}
+
+/** Text that is read, on a tinted block. */
+export function Prose({text}: {text: string}) {
+  return (
+    <p className="type-body rounded-lg bg-tint px-3 py-2.5 break-words whitespace-pre-wrap">
+      {text}
+    </p>
+  );
+}
+
+/** One row of a list on a tinted block. */
+export interface Row {
+  key: string;
+  /** A time in the row's time column: a chunk's since its call's start, a span event's since the turn's. */
+  time?: string;
+  name: string;
+  /** The name shown as a machine wrote it, as a recorded request's arguments. */
+  verbatim?: boolean;
+  /** A tag on the panel's colour, as "this call" or "log record". */
+  tag?: string;
+  /** The facts after the name; a chunk's body in muted monospace. */
+  meta?: string;
+  metaVerbatim?: boolean;
+  /** At the row's end: a span's duration. */
+  end?: string;
+  /** A status in red after the end, as a span's error. */
+  mark?: string;
+  /** A link at the row's end. */
+  link?: {text: string; onClick: () => void};
+  /** How deep it sits, for the chain above a call. */
+  indent?: number;
+  /** What the row opens to; a row with none does not fold. */
+  opened?: ReactNode;
+  /** Whether the facts after the name hide while it is open. */
+  metaWhileShut?: boolean;
+  /** Open at first, as the tool whose definition the prefix breaks in. */
+  startsOpen?: boolean;
+}
+
+/** A labelled list of rows on a tinted block, 32px each, a row with something under it folding open to it. */
+export function RowList({
+  label,
+  meta,
+  rows,
+  startsFolded = false,
+}: {
+  label: string;
+  meta?: string;
+  rows: readonly Row[];
+  startsFolded?: boolean;
+}) {
+  const [open, setOpen] = useState<ReadonlySet<string>>(
+    () => new Set(rows.filter(row => row.startsOpen === true).map(row => row.key)),
+  );
+  const fold = useBlockFold(label, startsFolded);
+  if (rows.length === 0) return null;
+  return (
+    <section className="flex min-w-0 flex-col gap-1.5">
+      <BlockLabel label={label} meta={meta} fold={fold} />
       {fold.open && (
-        <p className="rounded-lg bg-tint px-3 py-2.5 break-words whitespace-pre-wrap">{text}</p>
+        <div className="flex flex-col rounded-lg bg-tint py-1">
+          {rows.map(row => {
+            const unfolded = open.has(row.key);
+            return (
+              <div key={row.key} className="flex flex-col">
+                <div
+                  className="flex h-8 min-w-0 items-center gap-2 pr-3"
+                  style={{paddingLeft: 10 + (row.indent ?? 0) * 16}}
+                >
+                  <span className="flex w-4 shrink-0 items-center justify-center">
+                    {row.opened !== undefined && (
+                      <FoldButton
+                        open={unfolded}
+                        label={row.name}
+                        onTint
+                        onToggle={() => {
+                          const next = new Set(open);
+                          if (!next.delete(row.key)) next.add(row.key);
+                          setOpen(next);
+                        }}
+                      />
+                    )}
+                  </span>
+                  {row.time !== undefined && (
+                    <span className="type-meta w-19 shrink-0 text-right whitespace-nowrap">
+                      {row.time}
+                    </span>
+                  )}
+                  <span
+                    className={cn(
+                      'max-w-[70%] min-w-0 shrink-0 truncate',
+                      row.verbatim === true ? 'type-code' : 'type-name',
+                    )}
+                  >
+                    {row.name}
+                  </span>
+                  {row.tag !== undefined && (
+                    <span className="type-meta inline-flex h-5 shrink-0 items-center rounded-sm bg-panel px-1.5">
+                      {row.tag}
+                    </span>
+                  )}
+                  <span
+                    className={cn(
+                      'min-w-0 flex-1 truncate',
+                      row.metaVerbatim === true ? 'type-code-muted' : 'type-meta',
+                    )}
+                  >
+                    {unfolded && row.metaWhileShut === true ? '' : (row.meta ?? '')}
+                  </span>
+                  {row.end !== undefined && row.end !== '' && (
+                    <span className="type-meta shrink-0">{row.end}</span>
+                  )}
+                  {row.mark !== undefined && <ErrorMark text={row.mark} />}
+                  {row.link !== undefined && (
+                    <button
+                      type="button"
+                      onClick={row.link.onClick}
+                      className="type-link shrink-0 cursor-pointer text-xs"
+                    >
+                      {row.link.text}
+                    </button>
+                  )}
+                </div>
+                {unfolded && row.opened !== undefined && (
+                  <div className="flex flex-col gap-1.5 pr-3 pb-2.5 pl-8.5">{row.opened}</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       )}
     </section>
   );
 }
 
-/**
- * The HTTP exchange as recorded: the request and the response, each with its
- * headers and body or chunks. Folded, its line names the request, the status,
- * and then a model call's chunk count; for a tool call, that its reply came
- * on the server's SSE stream, its chunk count, or the response's media type.
- */
-export function Exchange({
-  call,
-  startsOpen,
-  tool = false,
-}: {
-  call: OtherEvent | ModelCallEvent;
-  startsOpen: boolean;
-  /** A tool call's exchange. */
-  tool?: boolean;
-}) {
-  const [open, setOpen] = useState(startsOpen);
+/** A line as a machine wrote it, under a label, on a tinted block: an HTTP request's or response's line. */
+export function MonoLine({label, text}: {label: string; text: string}) {
+  const fold = useBlockFold(label);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <BlockLabel label={label} fold={fold} />
+      {fold.open && (
+        <div className="type-code rounded-lg bg-tint px-3 py-2.5 leading-relaxed break-all">
+          {text}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The HTTP exchange's facts, as the HTTP tab's line says them: the request, the status, then a model call's chunks or a tool call's reply. */
+export function exchangeFactsOf(call: OtherEvent | ModelCallEvent, tool = false): string {
   const attributes = call.attributes as Record<string, unknown>;
   const method = String(attributes['http.request.method'] ?? '');
   const url = typeof attributes['url.full'] === 'string' ? attributes['url.full'] : '';
-  // A miss holds no response attributes; the proxy answered it with its `502` line.
-  const status =
-    attributes['http.response.status_code'] ??
-    (attributes['error.type'] === 'replay_miss' ? 502 : undefined);
-  const chunks = (call.events ?? []).filter(event => event.name === 'a2ui.http.response.chunk');
-  let host = '';
-  let parameters: Array<{key: string; value: string; removed?: boolean}> = [];
+  const status = statusOf(attributes);
+  const chunks = chunksOf(call);
+  let host = url;
   try {
     const parsed = new URL(url);
     host = `${parsed.host}${parsed.pathname}`;
-    parameters = [...parsed.searchParams].map(([key, value]) => ({
-      key,
-      value,
-      removed: value === 'REMOVED',
-    }));
   } catch {
-    host = url;
+    // Not a URL: shown as recorded.
   }
-  const meta = [
+  return [
     `${method} ${host}`,
     ...(typeof status === 'number' ? [String(status)] : []),
     ...(tool
@@ -220,44 +405,59 @@ export function Exchange({
         ? [plural(chunks.length, 'chunk')]
         : []),
   ].join(' · ');
+}
+
+/** A miss holds no response attributes; the proxy answered it with its `502` line. */
+function statusOf(attributes: Record<string, unknown>): unknown {
+  return (
+    attributes['http.response.status_code'] ??
+    (attributes['error.type'] === 'replay_miss' ? 502 : undefined)
+  );
+}
+
+function chunksOf(call: OtherEvent | ModelCallEvent): SpanEvent[] {
+  return (call.events ?? []).filter(event => event.name === 'a2ui.http.response.chunk');
+}
+
+/**
+ * The HTTP exchange as recorded: the request and the response, each with its
+ * line, its headers and its body or chunks.
+ */
+export function Exchange({call}: {call: OtherEvent | ModelCallEvent}) {
+  const attributes = call.attributes as Record<string, unknown>;
+  const method = String(attributes['http.request.method'] ?? '');
+  const url = typeof attributes['url.full'] === 'string' ? attributes['url.full'] : '';
+  const status = statusOf(attributes);
+  const chunks = chunksOf(call);
+  let parameters: Array<{key: string; value: string; removed?: boolean}> = [];
+  try {
+    parameters = [...new URL(url).searchParams].map(([key, value]) => ({
+      key,
+      value,
+      removed: value === 'REMOVED',
+    }));
+  } catch {
+    // Not a URL: no parameters to list.
+  }
   const requestBody = attributes['a2ui.http.request.body'];
   const responseBody = attributes['a2ui.http.response.body'];
   const start = BigInt(call.startTimeUnixNano);
   return (
-    <Section
-      label="Exchange"
-      meta={open ? undefined : meta}
-      open={open}
-      onToggle={() => setOpen(!open)}
-    >
+    <>
       <MonoLine label="Request" text={`${method} ${url}`} />
-      {parameters.length > 0 && <Pairs label="URL parameters" pairs={parameters} monoKeys />}
-      <Pairs label="Headers" pairs={headersOf(attributes, 'request')} monoKeys />
+      {parameters.length > 0 && <Pairs label="URL parameters" pairs={parameters} verbatim />}
+      <Pairs label="Headers" pairs={headersOf(attributes, 'request')} verbatim />
       {requestBody !== undefined && <Body value={requestBody} />}
       <MonoLine
         label="Response"
         text={typeof status === 'number' ? statusLine(status) : 'No response'}
       />
-      <Pairs label="Headers" pairs={headersOf(attributes, 'response')} monoKeys />
+      <Pairs label="Headers" pairs={headersOf(attributes, 'response')} verbatim />
       {responseBody !== undefined && <Body value={responseBody} />}
       {chunks.length > 0 && (
         <Chunks chunks={chunks} start={start} inFlight={call.endTimeUnixNano === undefined} />
       )}
-    </Section>
-  );
-}
-
-export function MonoLine({label, text}: {label: string; text: string}) {
-  const fold = useBlockFold(label);
-  return (
-    <div className="flex flex-col gap-1.5">
-      <BlockLabel label={label} fold={fold} />
-      {fold.open && (
-        <div className="rounded-lg bg-tint px-3 py-1.5 font-mono text-xs leading-relaxed break-all">
-          {text}
-        </div>
-      )}
-    </div>
+    </>
   );
 }
 
@@ -276,7 +476,7 @@ export function Body({value}: {value: unknown}) {
 }
 
 /**
- * What a tool call's folded exchange adds after its status: that its reply
+ * What a tool call's exchange line adds after its status: that its reply
  * came on the server's `GET` stream, named by its path, as an HTTP+SSE
  * request's does; its chunks when its own response streamed; else its
  * response's media type.
@@ -317,7 +517,7 @@ function headersOf(
   });
 }
 
-/** A stream's chunks, each with its time since the call started and its event name, its data folded. */
+/** A stream's chunks, each with its time since the call started as a duration, its event name and its data, which it opens to. */
 function Chunks({
   chunks,
   start,
@@ -327,59 +527,25 @@ function Chunks({
   start: bigint;
   inFlight: boolean;
 }) {
-  const [open, setOpen] = useState<ReadonlySet<number>>(() => new Set());
-  const fold = useBlockFold('Chunks');
   return (
-    <section className="flex min-w-0 flex-col gap-1.5">
-      <BlockLabel
-        label="Chunks"
-        meta={inFlight ? `${chunks.length} so far` : plural(chunks.length, 'chunk')}
-        fold={fold}
-      />
-      {fold.open && (
-        <div className="flex flex-col rounded-lg bg-tint py-1 text-xs">
-          {chunks.map((chunk, index) => {
-            const body = chunk.attributes?.['a2ui.http.response.chunk.body'];
-            const event = chunk.attributes?.['a2ui.http.response.chunk.event'];
-            const unfolded = open.has(index);
-            const ms = Number((BigInt(chunk.timeUnixNano) - start) / 1_000_000n);
-            return (
-              <div key={index} className="flex flex-col">
-                <div className="flex h-7 min-w-0 items-center gap-2 pr-3 pl-2.5">
-                  <button
-                    type="button"
-                    aria-expanded={unfolded}
-                    aria-label={`${unfolded ? 'Fold' : 'Unfold'} chunk ${index + 1}`}
-                    onClick={() => {
-                      const next = new Set(open);
-                      if (!next.delete(index)) next.add(index);
-                      setOpen(next);
-                    }}
-                    className="flex size-4 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground hover:bg-border hover:text-foreground"
-                  >
-                    <Icon kind={unfolded ? 'chevronDown' : 'chevronRight'} size={12} />
-                  </button>
-                  <span className="w-12 shrink-0 text-right text-muted-foreground">
-                    {formatOffset(ms)}
-                  </span>
-                  <span className="shrink-0 font-mono font-medium">
-                    {typeof event === 'string' ? event : 'data'}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate font-mono text-muted-foreground">
-                    {typeof body === 'string' ? body : JSON.stringify(body)}
-                  </span>
-                </div>
-                {unfolded && (
-                  <div className="px-2.5 pb-2">
-                    <JsonLines value={body} className="bg-panel" />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </section>
+    <RowList
+      label="Chunks"
+      meta={inFlight ? `${chunks.length} so far` : plural(chunks.length, 'chunk')}
+      rows={chunks.map((chunk, index) => {
+        const body = chunk.attributes?.['a2ui.http.response.chunk.body'];
+        const event = chunk.attributes?.['a2ui.http.response.chunk.event'];
+        const ms = Number((BigInt(chunk.timeUnixNano) - start) / 1_000_000n);
+        return {
+          key: String(index),
+          time: formatDuration(ms),
+          name: typeof event === 'string' ? event : 'data',
+          meta: typeof body === 'string' ? body : JSON.stringify(body),
+          metaVerbatim: true,
+          metaWhileShut: true,
+          opened: <JsonLines value={body} className="bg-panel" />,
+        };
+      })}
+    />
   );
 }
 

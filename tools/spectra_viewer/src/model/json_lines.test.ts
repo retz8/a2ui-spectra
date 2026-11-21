@@ -2,7 +2,14 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import {readRecording} from '../testing/recordings.ts';
-import {jsonLines, lineMarksOf, markedLine, markedPath, unfoldedTo} from './json_lines.ts';
+import {
+  carriesJsonInString,
+  jsonLines,
+  lineMarksOf,
+  markedLine,
+  markedPath,
+  unfoldedTo,
+} from './json_lines.ts';
 import {isWireOutput} from './record.ts';
 
 const message = {
@@ -13,6 +20,36 @@ const message = {
 };
 
 describe('jsonLines', () => {
+  it('shows a string holding a JSON object or array parsed, its line noting it, when asked', () => {
+    const value = {result: '[{"name": "Han Il Kwan"}]', note: 'not {json}', count: '3'};
+    const lines = jsonLines(value, new Set(), {parseStrings: true});
+    assert.deepEqual(
+      lines.map(line => [line.text, line.note]),
+      [
+        ['{', undefined],
+        ['  "result": [', 'JSON in a string'],
+        ['    {', undefined],
+        ['      "name": "Han Il Kwan"', undefined],
+        ['    }', undefined],
+        ['  ],', undefined],
+        ['  "note": "not {json}",', undefined],
+        ['  "count": "3"', undefined],
+        ['}', undefined],
+      ],
+    );
+    assert.equal(lines[1].fold, '/result');
+    assert.deepEqual(jsonLines(value, new Set(['/result']), {parseStrings: true})[1], {
+      text: '  "result": [ … 1 item ],',
+      fold: '/result',
+      folded: true,
+      path: '/result',
+      note: 'JSON in a string',
+    });
+    assert.equal(jsonLines(value)[1].text, '  "result": "[{\\"name\\": \\"Han Il Kwan\\"}]",');
+    assert.equal(carriesJsonInString(value), true);
+    assert.equal(carriesJsonInString({note: 'not {json}', list: ['3']}), false);
+  });
+
   it('shows JSON as JSON.stringify indents it, each object and array foldable', () => {
     const lines = jsonLines(message);
     assert.deepEqual(

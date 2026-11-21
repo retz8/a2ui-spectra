@@ -1,32 +1,19 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import {
-  formatDuration,
-  formatDurationCompact,
-  formatOffset,
-  formatOffsetCompact,
-  turnIconOf,
-} from './format.ts';
+import {formatDuration, formatOffset, turnIconOf} from './format.ts';
 
-describe('formatDurationCompact', () => {
-  it('reads as formatDuration under a minute', () => {
-    for (const ms of [0, 12, 999, 1000, 12_340, 59_949]) {
-      assert.equal(formatDurationCompact(ms), formatDuration(ms));
-    }
-  });
-
-  it('writes minutes and seconds without spaces inside them from a minute on', () => {
-    assert.equal(formatDuration(87_000), '1 min 27 s');
-    assert.equal(formatDurationCompact(87_000), '1m 27s');
-    assert.equal(formatDurationCompact(60_000), '1m 0s');
-    assert.equal(formatDurationCompact(127_400), '2m 7s');
-  });
-
-  it('prefixes an offset with a plus and clamps it at zero', () => {
-    assert.equal(formatOffsetCompact(90_200), '+1m 30s');
-    assert.equal(formatOffsetCompact(-5), '+0 ms');
+describe('formatOffset', () => {
+  it("writes a time since the turn's start in the long form, with a plus, clamped at zero", () => {
+    assert.equal(formatOffset(12), '+12 ms');
+    assert.equal(formatOffset(2_300), '+2.3 s');
     assert.equal(formatOffset(90_200), '+1 min 30 s');
+    assert.equal(formatOffset(630_000), '+10 min 30 s');
+    assert.equal(formatOffset(-5), '+0 ms');
+  });
+
+  it('writes a duration in the same form, without the plus', () => {
+    assert.equal(formatDuration(87_000), '1 min 27 s');
   });
 });
 

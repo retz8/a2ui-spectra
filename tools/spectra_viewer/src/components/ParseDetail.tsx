@@ -1,9 +1,10 @@
 /**
- * A parse's detail under its problems: the model call it read, the call
- * that retried it, its raw text with its component ranges, what the
- * toolset returned to the model, its messages, folded, and its spans. A
- * failed prompt generation's detail is its spans alone, its problem block
- * above.
+ * A parse's detail: what it read from and what retried it, as connections;
+ * then its tabs. Raw text holds the text it read with its component ranges
+ * and the marks of its problems; Messages the A2UI messages it produced, and
+ * for the toolset's parse what it returned to the model; Spans its own span,
+ * and for the toolset's parse the tool call's. A failed prompt generation's
+ * detail is its span alone, in one column, its problem block above.
  */
 import {useMemo} from 'react';
 
@@ -28,11 +29,12 @@ import type {
 import {plural, type Step} from '@/model/steps.ts';
 
 import {AgentSpans} from './AgentSpans.tsx';
-import {DetailLink} from './CallParts.tsx';
+import {type Connection, DetailLink, Section} from './CallParts.tsx';
 import {JsonBlock} from './JsonBlock.tsx';
+import type {DetailTab, TabbedDetail} from './ModelCallDetail.tsx';
 import {type RangeReveal, RawText} from './RawText.tsx';
 
-export function ParseBlocks({
+export function parseDetailOf({
   step,
   events,
   startMs,
@@ -53,8 +55,101 @@ export function ParseBlocks({
   /** Selects another step of the turn. */
   onStep: (stepId: string) => void;
   reveal: RangeReveal | undefined;
-}) {
+}): TabbedDetail {
   const parse = step.parse!;
+  const {attributes} = parse;
+  const readFrom = readFromOf(events, parse, startMs);
+  const retried = retriedByOf(events, parse, startMs);
+  const messages = attributes['a2ui.parse.messages'] ?? [];
+  const returned = attributes['gen_ai.tool.call.result'];
+  const row: CallRow = {kind: 'tool', id: parse.spanId, spans: [parse as OtherEvent]};
+  const connections: Connection[] = [
+    {
+      key: 'Read from',
+      value:
+        readFrom.stepId === undefined ? (
+          readFrom.text
+        ) : (
+          <DetailLink onClick={() => onStep(readFrom.stepId!)}>{readFrom.text}</DetailLink>
+        ),
+    },
+    ...(retried === undefined
+      ? []
+      : [
+          {
+            key: 'Retried by',
+            value: (
+              <DetailLink onClick={() => onStep(retried.stepId)}>
+                {retried.text.replace(/^Retried by /, '')}
+              </DetailLink>
+            ),
+          },
+        ]),
+  ];
+  const tabs: DetailTab[] = [
+    {
+      name: 'Raw text',
+      content: (
+        <ParseRawText
+          parse={parse}
+          catalogs={catalogs}
+          selectedNode={selectedNode}
+          onSelectNode={onSelectNode}
+          reveal={reveal}
+        />
+      ),
+    },
+    {
+      name: 'Messages',
+      content: (
+        <>
+          {returned !== undefined && (
+            <JsonBlock
+              label="Returned to the model"
+              value={returned}
+              folded={['/validated_a2ui_json']}
+            />
+          )}
+          <JsonBlock label="Messages" meta={plural(messages.length, 'message')} value={messages} />
+        </>
+      ),
+    },
+  ];
+  const spans =
+    step.call === undefined
+      ? {row, sources: [sourceLineOfStep(parse)], subject: 'parse'}
+      : {row: step.call, sources: sourceLinesOfCall(step.call), subject: 'tool call'};
+  tabs.push({
+    name: 'Spans',
+    facts: spans.sources.join(' · '),
+    content: (
+      <AgentSpans
+        row={spans.row}
+        events={events}
+        startMs={startMs}
+        subject={spans.subject}
+        present={['Raw text', 'Messages']}
+        {...(step.call !== undefined && {lead: {line: sourceLineOfStep(parse), event: parse}})}
+      />
+    ),
+  });
+  return {connections, tabs, first: 'Raw text'};
+}
+
+/** The parse's raw text, its component ranges read once for its catalogs. */
+function ParseRawText({
+  parse,
+  catalogs,
+  selectedNode,
+  onSelectNode,
+  reveal,
+}: {
+  parse: ParseEvent;
+  catalogs: readonly KnownCatalog[] | undefined;
+  selectedNode: NodeRef | undefined;
+  onSelectNode: (node: NodeRef) => void;
+  reveal: RangeReveal | undefined;
+}) {
   const {attributes} = parse;
   const reading = useMemo(
     () => rangesOfParse(attributes, readerCatalogOf(catalogs, attributes)),
@@ -63,68 +158,16 @@ export function ParseBlocks({
   const blocks = parseProblemsOf(parse).flatMap(problem =>
     problem.range === undefined ? [] : [problem.range],
   );
-  const readFrom = readFromOf(events, parse, startMs);
-  const retried = retriedByOf(events, parse, startMs);
-  const messages = attributes['a2ui.parse.messages'] ?? [];
-  const returned = attributes['gen_ai.tool.call.result'];
-  const row: CallRow = {kind: 'tool', id: parse.spanId, spans: [parse as OtherEvent]};
   return (
-    <>
-      <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
-        <span className="section-label shrink-0">Read from</span>
-        {readFrom.stepId === undefined ? (
-          <span className="text-muted-foreground">{readFrom.text}</span>
-        ) : (
-          <DetailLink onClick={() => onStep(readFrom.stepId!)}>{readFrom.text}</DetailLink>
-        )}
-      </div>
-      {retried !== undefined && (
-        <div>
-          <DetailLink onClick={() => onStep(retried.stepId)}>{retried.text}</DetailLink>
-        </div>
-      )}
-      <RawText
-        text={attributes['a2ui.parse.input']}
-        ranges={reading?.ranges ?? []}
-        blocks={blocks}
-        selected={selectedNode}
-        onSelect={onSelectNode}
-        reveal={reveal}
-        sentence={rangesSentenceOf(reading, attributes['a2ui.parse.inference_format'])}
-      />
-      {returned !== undefined && (
-        <JsonBlock
-          label="Returned to the model"
-          value={returned}
-          folded={['/validated_a2ui_json']}
-        />
-      )}
-      <JsonBlock
-        label="Messages"
-        meta={plural(messages.length, 'message')}
-        value={messages}
-        startsFolded
-      />
-      {step.call === undefined ? (
-        <AgentSpans
-          row={row}
-          events={events}
-          startMs={startMs}
-          subject="parse"
-          sources={[sourceLineOfStep(parse)]}
-        />
-      ) : (
-        // The toolset's parse first, then the tool call's own spans.
-        <AgentSpans
-          row={step.call}
-          events={events}
-          startMs={startMs}
-          subject="tool call"
-          sources={sourceLinesOfCall(step.call)}
-          lead={{line: sourceLineOfStep(parse), event: parse}}
-        />
-      )}
-    </>
+    <RawText
+      text={attributes['a2ui.parse.input']}
+      ranges={reading?.ranges ?? []}
+      blocks={blocks}
+      selected={selectedNode}
+      onSelect={onSelectNode}
+      reveal={reveal}
+      sentence={rangesSentenceOf(reading, attributes['a2ui.parse.inference_format'])}
+    />
   );
 }
 
@@ -153,6 +196,7 @@ function sourceLinesOfCall(call: CallRow): string[] {
   return [...lines];
 }
 
+/** A failed prompt generation's span, in one column under its section. */
 export function GenerationBlocks({
   step,
   events,
@@ -165,13 +209,9 @@ export function GenerationBlocks({
   const generation: PromptGenerationEvent = step.generation!;
   const row: CallRow = {kind: 'tool', id: generation.spanId, spans: [generation as OtherEvent]};
   return (
-    <AgentSpans
-      row={row}
-      events={events}
-      startMs={startMs}
-      subject="prompt generation"
-      sources={[sourceLineOfStep(generation)]}
-    />
+    <Section label="From the agent’s spans" meta={sourceLineOfStep(generation)} open>
+      <AgentSpans row={row} events={events} startMs={startMs} subject="prompt generation" />
+    </Section>
   );
 }
 

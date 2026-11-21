@@ -3,8 +3,8 @@
  * rejected block in red-soft; hovering outlines the innermost component
  * under the pointer, clicking selects it, and the selected component's
  * whole range takes the soft accent. Text outside any component stays
- * plain and links to nothing. A grey sentence above says when the ranges
- * are not all worked out.
+ * plain and links to nothing. The label's facts say when the ranges are not
+ * all worked out.
  */
 import {type MouseEvent, type ReactNode, useEffect, useRef, useState} from 'react';
 
@@ -154,9 +154,8 @@ export function RawText({
   };
   return (
     <section className="flex min-w-0 flex-col gap-1.5">
-      {sentence !== undefined && <p className="text-xs text-muted-foreground">{sentence}</p>}
-      <BlockLabel label={label} fold={fold}>
-        <CopyButton iconFirst text={text} label="Copy the raw text" className="h-6 px-1.5 text-xs">
+      <BlockLabel label={label} meta={sentence} fold={fold}>
+        <CopyButton text={text} label="Copy the raw text">
           Copy
         </CopyButton>
       </BlockLabel>
@@ -171,7 +170,7 @@ export function RawText({
             const [surfaceId, componentId] = key.split('\u0000');
             onSelect({surfaceId, componentId});
           }}
-          className="rounded-lg bg-tint px-3 py-2.5 font-mono text-xs leading-relaxed break-words whitespace-pre-wrap"
+          className="type-code rounded-lg bg-tint px-3 py-2.5 leading-relaxed break-words whitespace-pre-wrap"
         >
           {render(tree, 0, text.length)}
         </div>

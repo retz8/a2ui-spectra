@@ -7,9 +7,24 @@ import {brandOf, failureOf, figuresOf, hitRatioOf, rowTextOf, usageOf} from './m
 import {failedCallsOf} from './call_rows.ts';
 import {problemsOf} from './problems.ts';
 import {timelineOf} from './steps.ts';
-import {insideLineOf} from './turn_calls.ts';
+import {callUsageLineOf, insideLineOf} from './turn_calls.ts';
 
 const START = Number(T0 / 1_000_000n);
+
+const prices: Prices = {
+  release: 'v1.106.6',
+  date: '2026-10-28',
+  entries: {
+    'claude-sonnet-5-5': {
+      litellm_provider: 'anthropic',
+      input_cost_per_token: 3e-6,
+      output_cost_per_token: 15e-6,
+      cache_read_input_token_cost: 0.3e-6,
+      cache_creation_input_token_cost: 3.75e-6,
+    },
+  },
+  overrides: {},
+};
 
 describe('a model call’s row', () => {
   it('names the model as requested and the provider, or the host and the method and path for a call recorded raw', () => {
@@ -158,21 +173,6 @@ describe('a failed model call', () => {
 });
 
 describe('the header’s second line', () => {
-  const prices: Prices = {
-    release: 'v1.106.6',
-    date: '2026-10-28',
-    entries: {
-      'claude-sonnet-5-5': {
-        litellm_provider: 'anthropic',
-        input_cost_per_token: 3e-6,
-        output_cost_per_token: 15e-6,
-        cache_read_input_token_cost: 0.3e-6,
-        cache_creation_input_token_cost: 3.75e-6,
-      },
-    },
-    overrides: {},
-  };
-
   it('times the first token and the first component, counts the calls, sums their tokens, cache share and cost', () => {
     const events = byStart(
       modelCall({
@@ -186,7 +186,7 @@ describe('the header’s second line', () => {
     );
     assert.equal(
       insideLineOf(events, START, prices)?.join(' · '),
-      'First token 1.9 s · First component 2.3 s · 1 model call · 24.6k in · 640 out · 91% from cache · Est. $0.024 · LiteLLM prices 2026-10-28',
+      'First token 1.9 s · first component 2.3 s · 1 model call · 24.6k in · 640 out · 91% from cache · est. $0.024 · LiteLLM prices 2026-10-28',
     );
   });
 
@@ -206,7 +206,7 @@ describe('the header’s second line', () => {
     });
     assert.equal(
       insideLineOf([unknown, priced], START, prices)?.join(' · '),
-      'First token 900 ms · 2 model calls · 1.8k in · 30 out · Est. $0.0032 · 1 call unpriced · LiteLLM prices 2026-10-28',
+      'First token 900 ms · 2 model calls · 1.8k in · 30 out · est. $0.0032 · 1 call unpriced · LiteLLM prices 2026-10-28',
     );
     const raw = [rawCall('c'.repeat(16), 44, 1900), rawCall('d'.repeat(16), 1950, 6400)];
     assert.equal(
@@ -230,8 +230,42 @@ describe('the header’s second line', () => {
     const inFlight = modelCall({spanId: 'b'.repeat(16), start: 1000, usage: {input: 5000}});
     assert.equal(
       insideLineOf([ended, inFlight], START, withOverride)?.join(' · '),
-      'First token 900 ms · 2 model calls · 1.0k in · 100 out · Est. $0.0012 · Prices from the config',
+      'First token 900 ms · 2 model calls · 1.0k in · 100 out · est. $0.0012 · prices from the config',
     );
+  });
+});
+
+describe('a model call’s usage line', () => {
+  it('says the tokens, the share from the cache, the estimate and its prices, in the turn header’s form', () => {
+    const call = modelCall({
+      spanId: 'a'.repeat(16),
+      start: 52,
+      end: 6100,
+      usage: {input: 24562, output: 640, cacheRead: 22400, cacheWrite: 1850},
+    });
+    assert.equal(
+      callUsageLineOf(call, prices),
+      '24.6k in · 640 out · 91% from cache · est. $0.024 · LiteLLM prices 2026-10-28',
+    );
+    assert.equal(
+      callUsageLineOf(call, prices, 'ADK spans'),
+      '24.6k in · 640 out · 91% from cache · est. $0.024 · LiteLLM prices 2026-10-28 · tokens from ADK spans',
+    );
+  });
+
+  it('says no price, and nothing for a call with no tokens recorded', () => {
+    const unknown = modelCall({
+      spanId: 'a'.repeat(16),
+      start: 10,
+      end: 900,
+      model: 'my-model',
+      usage: {input: 800, output: 20},
+    });
+    assert.equal(
+      callUsageLineOf(unknown, prices),
+      '800 in · 20 out · 0% from cache · no price for my-model',
+    );
+    assert.equal(callUsageLineOf(rawCall('c'.repeat(16), 44, 1900), prices), undefined);
   });
 });
 

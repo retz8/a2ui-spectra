@@ -11,15 +11,38 @@
  */
 import {retryCountOf} from './a2ui_step.ts';
 import {type CallRow, callRowsOf, modelReadingOf, timedEventOf} from './call_rows.ts';
-import {callCostOf, formatCost, formatShare, formatTokensBrief, type Prices} from './cost.ts';
-import {firstChunkMs, isReadInFull, usageOf} from './model_calls.ts';
+import {
+  callCostOf,
+  formatCost,
+  formatShare,
+  formatTokensBrief,
+  type Prices,
+  shownCostOf,
+} from './cost.ts';
+import {firstChunkMs, hitRatioOf, isReadInFull, usageOf} from './model_calls.ts';
 import {isMissCall, isServedRow} from './provenance.ts';
 import {isWireOutput, type ModelCallEvent, type TurnRecordEvent, unixMillis} from './record.ts';
 import {plural, toolRowsOfParses} from './steps.ts';
 import {isFullToolRow} from './tool_calls.ts';
 
+/** A facts line's parts in sentence case: the first fact with its capital, the others as written. */
+function sentenceCase(parts: string[]): string[] {
+  return parts.map((part, index) =>
+    index === 0 ? `${part.charAt(0).toUpperCase()}${part.slice(1)}` : part,
+  );
+}
+
 /** The second line's parts, in order, or none for a turn with no model call and no tool call. */
 export function insideLineOf(
+  events: readonly TurnRecordEvent[],
+  startMs: number,
+  prices: Prices | undefined,
+): string[] | undefined {
+  const parts = insidePartsOf(events, startMs, prices);
+  return parts === undefined ? undefined : sentenceCase(parts);
+}
+
+function insidePartsOf(
   events: readonly TurnRecordEvent[],
   startMs: number,
   prices: Prices | undefined,
@@ -39,10 +62,10 @@ export function insideLineOf(
   const firstToken = firstTokenMs(
     models.filter(row => row.proxy === undefined || !isMissCall(row.proxy)),
   );
-  if (firstToken !== undefined) parts.push(`First token ${seconds(firstToken - startMs)}`);
+  if (firstToken !== undefined) parts.push(`first token ${seconds(firstToken - startMs)}`);
   const firstComponent = firstComponentMs(events);
   if (firstComponent !== undefined)
-    parts.push(`First component ${seconds(firstComponent - startMs)}`);
+    parts.push(`first component ${seconds(firstComponent - startMs)}`);
   if (liveModels.length > 0) parts.push(plural(liveModels.length, 'model call'));
   const retries = retryCountOf(events);
   if (retries > 0) parts.push(plural(retries, 'retry').replace(/retrys$/, 'retries'));
@@ -50,7 +73,7 @@ export function insideLineOf(
   if (served > 0) parts.push(`${plural(served, 'call')} from the record`);
   // A replay pays for the model alone: a live tool call, such as a function in the agent's process, costs nothing.
   if (served > 0 && liveModels.length === 0) {
-    parts.push('Free');
+    parts.push('free');
     return parts;
   }
 
@@ -70,13 +93,13 @@ export function insideLineOf(
   const priced = costs.filter(cost => cost.kind === 'priced');
   const unpriced = costs.filter(cost => cost.kind === 'unpriced').length;
   if (priced.length > 0) {
-    parts.push(`Est. ${formatCost(priced.reduce((sum, cost) => sum + cost.usd, 0))}`);
+    parts.push(`est. ${formatCost(priced.reduce((sum, cost) => sum + cost.usd, 0))}`);
   }
   if (unpriced > 0) parts.push(`${plural(unpriced, 'call')} unpriced`);
   if (priced.length > 0) {
     parts.push(
       priced.every(cost => cost.source === 'config')
-        ? 'Prices from the config'
+        ? 'prices from the config'
         : `LiteLLM prices ${prices?.date ?? ''}`,
     );
   }
@@ -116,4 +139,36 @@ function firstComponentMs(events: readonly TurnRecordEvent[]): number | undefine
 function seconds(ms: number): string {
   const at = Math.max(0, ms);
   return at < 1000 ? `${Math.round(at)} ms` : `${(at / 1000).toFixed(1)} s`;
+}
+
+/**
+ * A model call's usage as the head of its detail says it, in the turn
+ * header's form: its tokens in and out, its reasoning tokens, its share from
+ * the cache, its estimated cost and where the price came from, and the spans
+ * its tokens were read from; none for a call with no tokens recorded.
+ */
+export function callUsageLineOf(
+  call: ModelCallEvent,
+  prices: Prices | undefined,
+  source?: string,
+): string | undefined {
+  const usage = usageOf(call);
+  if (usage.input === undefined) return undefined;
+  const parts = [
+    `${formatTokensBrief(usage.input)} in`,
+    `${formatTokensBrief(usage.output ?? 0)} out`,
+  ];
+  if ((usage.reasoning ?? 0) > 0) parts.push(`${formatTokensBrief(usage.reasoning!)} reasoning`);
+  const ratio = hitRatioOf(usage);
+  if (ratio !== undefined) parts.push(`${formatShare(ratio)} from cache`);
+  const {value, note} = shownCostOf(call, prices);
+  if (value !== undefined) parts.push(value.startsWith('$') ? `est. ${value}` : lowerFirst(value));
+  if (note !== undefined) parts.push(lowerFirst(note.replace(' · ', ' ')));
+  if (source !== undefined) parts.push(`tokens from ${source}`);
+  return parts.join(' · ');
+}
+
+/** A fact after the line's first, in lower case unless it starts with a name. */
+function lowerFirst(fact: string): string {
+  return /^LiteLLM/.test(fact) ? fact : `${fact.charAt(0).toLowerCase()}${fact.slice(1)}`;
 }

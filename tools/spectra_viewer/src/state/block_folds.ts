@@ -3,7 +3,7 @@
  * label: a block folded stays folded on every step for the session, so a long
  * system prompt folded once stays out of the way on every call.
  */
-import {useSyncExternalStore} from 'react';
+import {useState, useSyncExternalStore} from 'react';
 
 /** A block's fold: whether its content is shown, and the toggle for its label line. */
 export interface BlockFold {
@@ -50,4 +50,15 @@ export function useBlockFold(label: string, startsFolded = false): BlockFold {
   const current = useSyncExternalStore(subscribe, () => folded);
   const toggled = current.has(label);
   return {open: startsFolded ? toggled : !toggled, onToggle: () => toggleBlockFold(label)};
+}
+
+/**
+ * A block that starts folded unless something in it is to be seen at once,
+ * as a system prompt the prefix breaks inside: then it starts open, and its
+ * toggle folds it for this step alone.
+ */
+export function useFoldUnless(label: string, opened: boolean): BlockFold {
+  const fold = useBlockFold(label, true);
+  const [shut, setShut] = useState(false);
+  return opened ? {open: !shut, onToggle: () => setShut(!shut)} : fold;
 }

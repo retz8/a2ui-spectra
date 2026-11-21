@@ -749,7 +749,8 @@ describe(`the dev loop in the viewer on the fake agent under run, in Chromium, $
         // A header's variable is not set: a host app at the wire proxy can still start a turn.
         await main.getByRole('heading', {level: 1, name: 'Fake agent'}).waitFor();
         await main.getByText('To start your first turn, point your host app at').waitFor();
-        await proxyAddress.getByText(String(proxyPort)).waitFor();
+        // The address is its own text, followed by its copy button.
+        await main.locator('code', {hasText: `127.0.0.1:${proxyPort}`}).waitFor();
         assert.equal(await proxyAddress.count(), 1);
         assert.equal(await main.getByText('Send a message to start your first turn.').count(), 0);
         assert.equal(await main.getByText('or point your host app at').count(), 0);

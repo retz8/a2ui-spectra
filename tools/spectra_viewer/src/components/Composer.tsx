@@ -176,13 +176,13 @@ export function Composer({
     <div className="flex shrink-0 flex-col gap-2 border-t px-4 pt-2.5 pb-3.5">
       <div
         className={cn(
-          'flex min-w-0 gap-2 text-xs text-muted-foreground',
+          'type-meta flex min-w-0 gap-2',
           unavailable === undefined ? 'items-center' : 'items-start',
         )}
       >
         {unavailable !== undefined ? (
           <>
-            <Icon kind="failed" size={14} className="mt-px" />
+            <Icon kind="failed" size={14} className="mt-px shrink-0" />
             <span className="min-w-0 wrap-anywhere">{unavailable}</span>
           </>
         ) : replaying ? (
@@ -199,7 +199,7 @@ export function Composer({
           </>
         ) : (
           <>
-            <Icon kind={icon} size={14} className={toneOf(icon)} />
+            <Icon kind={icon} size={14} className={cn('shrink-0', toneOf(icon))} />
             <span className="min-w-0 truncate">{label}</span>
           </>
         )}
@@ -211,7 +211,7 @@ export function Composer({
               setError(undefined);
               onStartNew();
             }}
-            className="ease-quick inline-flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-md px-2 font-medium hover:bg-tint hover:text-foreground"
+            className="ease-quick type-quiet-control inline-flex h-6 shrink-0 cursor-pointer items-center gap-1 rounded-md px-2 hover:bg-tint"
           >
             <Icon kind="plus" size={14} />
             New conversation
@@ -256,22 +256,22 @@ export function Composer({
                   ? 'Waiting for the turn to finish'
                   : (view.waiting ?? (waitsForInput ? `Reply to ${agent}` : `Message ${agent}`))
             }
-            className="max-h-33 min-w-0 flex-1 resize-none bg-transparent py-1.5 text-sm leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-default"
+            className="type-field max-h-33 min-w-0 flex-1 resize-none bg-transparent py-1.5 leading-5 outline-none disabled:cursor-default"
           />
           {!disabled && refused === undefined && (
-            <span className="shrink-0 pb-2 text-xs text-muted-foreground">Enter to send</span>
+            <span className="type-meta shrink-0 pb-2">Enter to send</span>
           )}
           <button
             type="submit"
             aria-label="Send"
             disabled={disabled || text.trim() === '' || refused !== undefined}
-            className="ease-quick flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-brand text-brand-on disabled:cursor-default disabled:bg-border disabled:text-muted-foreground"
+            className="ease-quick flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-lg bg-brand tone-brand-on disabled:cursor-default disabled:bg-border disabled:tone-muted"
           >
             <Icon kind="send" size={16} />
           </button>
         </form>
       )}
-      {error !== undefined && <p className="text-xs text-problem">{error}</p>}
+      {error !== undefined && <p className="type-field-message">{error}</p>}
     </div>
   );
 }
@@ -314,24 +314,20 @@ function PendingBox({
       className="ease-quick flex flex-col gap-1.5 rounded-xl border bg-panel pt-1 pr-1 pb-2.5 pl-3 focus-within:border-brand focus-within:ring-3 focus-within:ring-brand-soft"
     >
       <div className="flex h-8 min-w-0 items-center gap-2">
-        <Icon kind="input" size={14} className="shrink-0 text-muted-foreground" />
-        <span className="shrink-0 font-semibold">Action “{action.name}”</span>
-        <span className="min-w-0 truncate text-xs text-muted-foreground">
+        <Icon kind="input" size={14} className="shrink-0 tone-muted" />
+        <span className="type-name shrink-0">Action “{action.name}”</span>
+        <span className="type-meta min-w-0 truncate">
           from {source} on surface {action.surfaceId}
         </span>
         <div className="flex-1" />
-        <CopyButton
-          text={JSON.stringify(shown, null, 2)}
-          label="Copy the action"
-          className="h-8 rounded-lg px-2 text-xs"
-        >
+        <CopyButton text={JSON.stringify(shown, null, 2)} label="Copy the action">
           Copy
         </CopyButton>
         <button
           ref={discardRef}
           type="button"
           onClick={onDiscard}
-          className="ease-quick h-8 shrink-0 cursor-pointer rounded-lg px-2.5 text-xs font-medium text-muted-foreground hover:bg-tint hover:text-foreground"
+          className="ease-quick type-quiet-control h-8 shrink-0 cursor-pointer rounded-lg px-2.5 hover:bg-tint"
         >
           Discard
         </button>
@@ -340,7 +336,7 @@ function PendingBox({
           type="button"
           disabled={sendOff}
           onClick={onSend}
-          className="ease-quick inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-brand pr-3 pl-2.5 text-xs font-semibold text-brand-on disabled:cursor-default disabled:bg-border disabled:text-muted-foreground"
+          className="ease-quick type-control-accent inline-flex h-8 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg bg-brand px-3 disabled:cursor-default disabled:bg-border"
         >
           <Icon kind="send" size={14} />
           Send
@@ -361,7 +357,7 @@ function refusedLine(variables: readonly string[]) {
   const names = variables.map((variable, index) => (
     <span key={variable}>
       {index > 0 && (index === variables.length - 1 ? ' and ' : ', ')}
-      <code className="font-mono">{variable}</code>
+      <code className="type-code-inline">{variable}</code>
     </span>
   ));
   return (

@@ -2,7 +2,6 @@ import type {SessionContext} from '@/api.ts';
 import {type FirstScreenBox, type FirstScreenForm, firstScreenFormOf} from '@/model/dev_loop.ts';
 import {logTimeOf, tailSinceStartOf} from '@/model/logs.ts';
 import {pasteBlocksOf} from '@/model/paste.ts';
-import {cn} from '@/lib/utils';
 import {agentNameOf} from '@/state/selectors.ts';
 import {spectra, useSpectra} from '@/state/spectra.ts';
 
@@ -63,14 +62,7 @@ export function FirstScreen({
     <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3.5 overflow-y-auto p-8 text-center">
       <Mark size={40} />
       <div className="flex flex-col items-center gap-1">
-        <h1
-          className={cn(
-            'max-w-full text-lg leading-tight font-semibold wrap-anywhere',
-            name.isCommand && 'font-mono',
-          )}
-        >
-          {name.text}
-        </h1>
+        <h1 className="type-view-title max-w-160 wrap-anywhere">{name.text}</h1>
         {form === 'ready' ? (
           <Status connected={connected} />
         ) : (
@@ -80,22 +72,23 @@ export function FirstScreen({
         )}
       </div>
       {said === 'canSend' && (
-        <p className="max-w-105 text-muted-foreground">Send a message to start your first turn.</p>
+        <p className="type-quiet max-w-105">Send a message to start your first turn.</p>
       )}
       {said === 'hostOnly' && context !== undefined && (
-        <div className="flex flex-wrap items-center justify-center gap-2 text-muted-foreground">
+        <div className="type-quiet flex flex-wrap items-center justify-center gap-1.5">
           To start your first turn, point your host app at
+          <span>
+            <code className="type-code-inline text-xs">{addressOf(context.proxyAddress)}</code>.
+          </span>
           <CopyButton
             text={context.proxyAddress}
             label="Copy the wire proxy's address"
-            className="h-7 gap-1.5 rounded-lg border bg-panel pr-2 pl-2.5 text-xs text-foreground hover:bg-panel"
-          >
-            {addressOf(context.proxyAddress)}
-          </CopyButton>
+            className="-ml-1"
+          />
         </div>
       )}
       {said === 'noTurn' && (
-        <p className="max-w-140 text-muted-foreground">
+        <p className="type-quiet max-w-140">
           <span className="block">
             No turn can start until the agent’s card lists an A2A JSON-RPC interface.
           </span>
@@ -103,21 +96,19 @@ export function FirstScreen({
         </p>
       )}
       {form === 'notReady' && (
-        <p className="max-w-105 text-muted-foreground">
-          The message box opens when the agent’s card answers.
-        </p>
+        <p className="type-quiet max-w-105">The message box opens when the agent’s card answers.</p>
       )}
       {form === 'down' && (
         <div className="mt-1.5 flex w-170 max-w-full flex-col gap-2.5 text-left">
           {tail.length > 0 && (
             <div
               aria-label="The agent’s last lines"
-              className="overflow-x-auto rounded-lg bg-tint px-3 py-2 font-mono text-xs leading-relaxed"
+              className="type-code overflow-x-auto rounded-lg bg-tint px-3 py-2.5 leading-relaxed"
             >
               {tail.map(line => (
                 <div key={line.key} className="flex gap-3 whitespace-pre">
-                  <span className="shrink-0 text-muted-foreground">{logTimeOf(line.time)}</span>
-                  <span className="w-6 shrink-0 text-muted-foreground">{line.stream}</span>
+                  <span className="type-code-muted shrink-0">{logTimeOf(line.time)}</span>
+                  <span className="type-code-muted w-[3ch] shrink-0">{line.stream}</span>
                   <span>{line.text}</span>
                 </div>
               ))}
@@ -129,7 +120,7 @@ export function FirstScreen({
               aria-controls={LOGS_DRAWER_ID}
               aria-expanded={logsOpen}
               onClick={onLogs}
-              className="cursor-pointer text-xs font-semibold text-brand hover:underline"
+              className="type-link cursor-pointer text-xs"
             >
               Open Logs
             </button>
@@ -144,64 +135,54 @@ export function FirstScreen({
               off={connected === false}
               onPress={() => spectra.restart()}
               refusalLabel="Restart was refused"
-              className={cn(
-                'h-8 gap-1.5 border-0 pr-3.5 pl-3 font-semibold',
-                connected === false
-                  ? 'bg-border'
-                  : 'bg-brand text-brand-on hover:bg-brand [&>span]:text-brand-on',
-              )}
+              accent
             />
           </div>
         </div>
       )}
       {examples.length > 0 && (
         <div className="mt-1.5 flex flex-col items-center gap-2">
-          <span className="section-label">From the agent's card</span>
+          <span className="type-section-label">From the agent's card</span>
           {examples.map((example, index) => (
             <button
               key={index}
               type="button"
               onClick={() => onExample(example)}
-              className="ease-quick inline-flex h-9 max-w-140 cursor-pointer items-center gap-2 rounded-full border bg-panel px-3.5 hover:bg-tint"
+              className="ease-quick type-name inline-flex h-9 max-w-140 cursor-pointer items-center gap-2 rounded-full border bg-panel px-3.5 hover:bg-tint"
             >
-              <Icon kind="text" size={14} className="text-muted-foreground" />
+              <Icon kind="text" size={14} className="shrink-0 tone-muted" />
               <span className="truncate">{example}</span>
             </button>
           ))}
         </div>
       )}
       {context !== undefined && (said === 'canSend' || form === 'notReady') && (
-        <div className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="type-meta mt-3 flex items-center gap-1.5">
           or point your host app at
+          <code className="type-code-inline">{addressOf(context.proxyAddress)}</code>
           <CopyButton
             text={context.proxyAddress}
             label="Copy the wire proxy's address"
-            className="h-7 gap-1.5 rounded-lg border bg-panel pr-2 pl-2.5 text-xs text-foreground hover:bg-panel"
-          >
-            {addressOf(context.proxyAddress)}
-          </CopyButton>
+            className="-ml-0.5"
+          />
         </div>
       )}
       {variables.length > 0 && (
         <div className="mt-2.5 flex w-150 max-w-full flex-col gap-2 text-left">
           {blocks.length > 1 && (
-            <span className="text-xs text-muted-foreground">
+            <span className="type-meta">
               To see model and tool calls, set these in the agent’s shell
             </span>
           )}
           {blocks.map(block => (
             <div key={block.caption} className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
-                <span className="flex-1 text-xs text-muted-foreground">{block.caption}</span>
-                <CopyButton
-                  text={block.copied}
-                  label={block.copyLabel}
-                  className="h-7 gap-1.5 rounded-lg border bg-panel pr-2 pl-2.5 text-xs text-foreground hover:bg-panel"
-                >
+                <span className="type-meta flex-1">{block.caption}</span>
+                <CopyButton text={block.copied} label={block.copyLabel}>
                   Copy
                 </CopyButton>
               </div>
-              <div className="overflow-x-auto rounded-lg bg-tint px-3 py-2 font-mono text-xs leading-relaxed">
+              <div className="type-code overflow-x-auto rounded-lg bg-tint px-3 py-2.5 leading-relaxed">
                 {block.lines.map(line => (
                   <div key={line} className="whitespace-pre">
                     {line}
@@ -220,20 +201,15 @@ export function FirstScreen({
 function Status({connected}: {connected: boolean | undefined}) {
   if (connected === false) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-problem">
+      <span className="type-mark-problem inline-flex items-center gap-1.5">
         <Icon kind="dot" size={8} />
         Not connected to Spectra · reconnecting
       </span>
     );
   }
   return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1.5 text-xs font-semibold',
-        connected ? 'text-brand' : 'text-muted-foreground',
-      )}
-    >
-      <Icon kind="dot" size={8} />
+    <span className="type-mark inline-flex items-center gap-1.5">
+      <Icon kind="dot" size={8} className={connected ? 'tone-brand' : 'tone-muted'} />
       {connected ? 'Capturing' : 'Connecting'}
     </span>
   );

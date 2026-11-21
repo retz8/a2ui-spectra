@@ -237,6 +237,24 @@ describe('the model call a parse read', () => {
     assert.deepEqual([...readByOf(events)], [['parse-1', 'call-b']]);
   });
 
+  it('names a parse that read a call by where its row is placed: a stream opened before the call, by its first chunk', () => {
+    const text = `Here are the top 3 Chinese restaurants in New York:\n\n${GOOD}`;
+    const events = byStart(
+      parse({
+        spanId: 'parse-1',
+        start: 10,
+        end: 2001,
+        input: text,
+        messages: GOOD_MESSAGES,
+        chunks: [{ms: 1500, end: text.length}],
+      }),
+      modelCall({spanId: 'call-b', start: 1100, end: 2000, attributes: reply(text)}),
+    );
+    assert.deepEqual(readByLinesOf(events, 'call-b', unixMillis(at(0))), [
+      {text: 'Read by the parse at +1.5 s · Direct JSON', parseSpanId: 'parse-1'},
+    ]);
+  });
+
   it('ties a stream fed its call’s reply twice to that call, the one accounting for the most of its input', () => {
     // The restaurant finder feeds a stream ADK's partial chunks, then the aggregated copy.
     const text = `Here are the top 3 Chinese restaurants in New York:\n\n${GOOD}`;

@@ -38,15 +38,15 @@ export function turnIconOf(turn: Pick<ListedTurn, 'open' | 'outcome' | 'newer'>)
  * in its gradient, which the icon draws.
  */
 export function brandIconOf(brand: Brand): {className: string; gradient?: 'gemini'} {
-  if (brand === 'gemini') return {className: 'text-gemini', gradient: 'gemini'};
-  if (brand === 'claude') return {className: 'text-claude'};
-  return {className: 'text-foreground'};
+  if (brand === 'gemini') return {className: 'tone-gemini', gradient: 'gemini'};
+  if (brand === 'claude') return {className: 'tone-claude'};
+  return {className: 'tone-foreground'};
 }
 
 export function toneOf(icon: IconKind): string {
-  if (icon === 'failed') return 'text-problem';
-  if (icon === 'open') return 'text-brand';
-  return 'text-muted-foreground';
+  if (icon === 'failed') return 'tone-problem';
+  if (icon === 'open') return 'tone-brand';
+  return 'tone-muted';
 }
 
 // Times read on a 24-hour clock, as the design artifact sets them.
@@ -101,20 +101,6 @@ export function formatDuration(ms: number): string {
 /** A time since the turn's start, such as `+12 ms`. */
 export function formatOffset(ms: number): string {
   return `+${formatDuration(Math.max(0, ms))}`;
-}
-
-/**
- * A duration for the timeline's narrow columns: as `formatDuration` under a
- * minute, and `1m 27s` from a minute on, where `1 min 27 s` would wrap.
- */
-export function formatDurationCompact(ms: number): string {
-  if (ms < 60_000) return formatDuration(ms);
-  return `${Math.floor(ms / 60_000)}m ${Math.round((ms % 60_000) / 1000)}s`;
-}
-
-/** A time since the turn's start for the timeline's offset column, such as `+1m 30s`. */
-export function formatOffsetCompact(ms: number): string {
-  return `+${formatDurationCompact(Math.max(0, ms))}`;
 }
 
 export function shortId(id: string): string {

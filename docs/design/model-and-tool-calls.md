@@ -384,7 +384,7 @@ The POST itself was answered `202 Accepted`; the result came on the carrier and 
 
 ### Tokens and the hit ratio
 
-The viewer reads a call's tokens from its record as they are: Input, Output, Reasoning and Cache read on every API, and Cache write on Anthropic's. The hit ratio is the cache read tokens over the input tokens, the share of the input read from the cache; a call with no input tokens has none. How the usage block and its figures are drawn is in [the viewer doc](viewer.md).
+The viewer reads a call's tokens from its record as they are: Input, Output, Reasoning and Cache read on every API, and Cache write on Anthropic's. The hit ratio is the cache read tokens over the input tokens, the share of the input read from the cache; a call with no input tokens has none. How a call's usage line says them is in [the viewer doc](viewer.md#a-model-calls-detail).
 
 A call the model proxy recorded raw has no tokens of its own. When received spans are linked to it, or when the call is seen through the agent's spans alone, its tokens, its model and its provider are read from the spans instead, the token counts together from one span. Its provider `gcp.gemini` reads as Gemini and `gcp.gen_ai` as Google, and both are priced from the table's `gemini` entries.
 
@@ -397,7 +397,7 @@ Across the turn, the header's second line counts, from the turn's calls so far:
 - the input and output tokens summed over the ended calls that carry input tokens, those seen through spans included, and the share read from the cache when the turn read any;
 - the estimated cost of the priced calls, how many calls have no price, and how many were recorded raw.
 
-A call still in flight counts among the calls, and its tokens and cost join once it ends. On a replayed turn the line counts the live calls alone and adds how many came from the record; with no live model call it reads "Free", with no tokens and no price table's date.
+A call still in flight counts among the calls, and its tokens and cost join once it ends. On a replayed turn the line counts the live calls alone and adds how many came from the record; with no live model call it reads "free", with no tokens and no price table's date.
 
 ### The estimated cost and the price table
 
@@ -409,7 +409,7 @@ A call still in flight counts among the calls, and its tokens and cost join once
 2. The table's entry of the call's provider, `gemini` for `gcp.gemini` and `gcp.gen_ai`, `openai` and `anthropic`, whose key, as written or less a `gemini/` prefix, is the model id as requested. So `gemini-3.6-flash` from Gemini's path meets `gemini/gemini-3.6-flash`, and a LiteLLM span's `gemini/gemini-3.6-flash` meets it as written.
 3. The same, with the model id as the response named it.
 
-Nothing is stripped from or added to a model id beyond that, and a model neither the config nor the table knows has no price: the call's detail says "No price for" the model, and the turn counts it among the calls with no price. A call with no input tokens, such as one recorded raw with no spans or a call that failed before its usage, has no cost at all.
+Nothing is stripped from or added to a model id beyond that, and a model neither the config nor the table knows has no price: the call's usage line says "no price for" the model, and the turn counts it among the calls with no price. A call with no input tokens, such as one recorded raw with no spans or a call that failed before its usage, has no cost at all.
 
 **The rates.** The uncached input, the input tokens less the cache read and cache write tokens, is priced at the input rate; the cache reads and writes at their own rates, a cache rate the entry lacks being the input rate; the reasoning tokens at the entry's reasoning rate, `output_cost_per_reasoning_token`, when it has one, and the rest of the output at the output rate. An entry with no reasoning rate prices all output tokens at the output rate. A config price is per million tokens, and has no reasoning rate.
 

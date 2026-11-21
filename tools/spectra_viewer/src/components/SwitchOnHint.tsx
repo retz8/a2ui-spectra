@@ -21,8 +21,8 @@ export function SwitchOnHint({mode}: {mode: 'run' | 'attach' | undefined}) {
   const attach = mode === 'attach';
   return (
     <div className="flex flex-col gap-1.5">
-      <p className="text-muted-foreground">
-        No A2UI step recorded · switch the wrapper on to see which text became which component
+      <p className="type-quiet">
+        No A2UI step recorded · switch the wrapper on to see which text became which component.
       </p>
       <BlockLabel label="How to switch it on" fold={{open, onToggle: () => setOpen(!open)}} />
       {open && (
@@ -32,7 +32,7 @@ export function SwitchOnHint({mode}: {mode: 'run' | 'attach' | undefined}) {
             const launch = launchFor(lines, attach);
             return (
               <div key={lines.language} className="flex min-w-0 flex-col gap-2">
-                <span className="text-xs font-semibold">{lines.language}</span>
+                <span className="type-name">{lines.language}</span>
                 <Code label="Install" code={lines.install} />
                 <Code label={launch.label} code={launch.code} />
                 <Code label={lines.line.label} code={lines.line.code} />
@@ -41,7 +41,7 @@ export function SwitchOnHint({mode}: {mode: 'run' | 'attach' | undefined}) {
                   target="_blank"
                   rel="noreferrer"
                   aria-label={`The ${lines.language} wrapper's README, at ${readme.ref}, on GitHub`}
-                  className="inline-flex min-h-6 items-center gap-1 self-start text-xs font-medium text-brand hover:underline"
+                  className="type-link inline-flex min-h-6 items-center gap-1 self-start text-xs"
                 >
                   {readme.text}
                   <Icon kind="external" size={12} />
@@ -59,12 +59,12 @@ function Code({label, code}: {label: string; code: string}) {
   return (
     <div className="flex min-w-0 flex-col gap-1">
       <div className="flex min-h-6 items-center gap-2">
-        <span className="min-w-0 flex-1 text-xs text-muted-foreground">{label}</span>
-        <CopyButton iconFirst text={code} label={`Copy: ${label}`} className="h-6 px-1.5 text-xs">
+        <span className="type-meta min-w-0 flex-1">{label}</span>
+        <CopyButton text={code} label={`Copy: ${label}`}>
           Copy
         </CopyButton>
       </div>
-      <pre className="overflow-x-auto rounded-lg bg-tint px-2.5 py-1.5 font-mono text-xs leading-relaxed wrap-anywhere whitespace-pre-wrap">
+      <pre className="type-code overflow-x-auto rounded-lg bg-tint px-3 py-2.5 leading-relaxed wrap-anywhere whitespace-pre-wrap">
         {code}
       </pre>
     </div>

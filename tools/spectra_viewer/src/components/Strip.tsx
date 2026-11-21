@@ -77,7 +77,7 @@ export function Strip<T extends ListedTurn>({
         onClick={onOpen}
         className={cn(
           'ease-quick flex h-8 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg',
-          open ? 'bg-brand-soft text-brand' : 'bg-tint text-foreground hover:bg-border',
+          open ? 'bg-brand-soft tone-brand' : 'bg-tint tone-foreground hover:bg-border',
         )}
       >
         <Icon kind={fixtures ? 'fixtures' : 'turns'} size={16} />

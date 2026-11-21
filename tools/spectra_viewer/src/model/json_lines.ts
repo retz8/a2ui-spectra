@@ -2,6 +2,8 @@
  * JSON as the viewer shows it: one line per value, indented two spaces, and
  * each object or array with a line that folds it. A folded one is a single
  * line that says how many keys or items it holds. The lines a problem marks.
+ * A string that holds a JSON object or array shows parsed, in place, its
+ * line noting it came in a string.
  */
 
 export interface JsonLine {
@@ -11,13 +13,54 @@ export interface JsonLine {
   folded?: boolean;
   /** The JSON Pointer of the value the line shows. */
   path: string;
+  /** Beside the line: "JSON in a string", where a string's JSON shows parsed. */
+  note?: string;
 }
 
-export function jsonLines(value: unknown, folded: ReadonlySet<string> = new Set()): JsonLine[] {
+/** The note on the line of a string's JSON shown parsed. */
+export const IN_A_STRING = 'JSON in a string';
+
+/** A string's JSON object or array, parsed; none for any other string. */
+export function jsonInString(text: string): object | undefined {
+  const trimmed = text.trim();
+  if (!/^[[{]/.test(trimmed)) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    return typeof parsed === 'object' && parsed !== null ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Whether a value holds a string whose JSON a block would show parsed. */
+export function carriesJsonInString(value: unknown): boolean {
+  if (typeof value === 'string') return jsonInString(value) !== undefined;
+  if (value === null || typeof value !== 'object') return false;
+  return Object.values(value).some(carriesJsonInString);
+}
+
+export function jsonLines(
+  value: unknown,
+  folded: ReadonlySet<string> = new Set(),
+  {parseStrings = false}: {parseStrings?: boolean} = {},
+): JsonLine[] {
   const lines: JsonLine[] = [];
-  const walk = (item: unknown, depth: number, prefix: string, path: string, comma: boolean) => {
+  const walk = (
+    item: unknown,
+    depth: number,
+    prefix: string,
+    path: string,
+    comma: boolean,
+    note?: string,
+  ) => {
     const indent = '  '.repeat(depth);
     const end = comma ? ',' : '';
+    const noted = note === undefined ? {} : {note};
+    const parsed = parseStrings && typeof item === 'string' ? jsonInString(item) : undefined;
+    if (parsed !== undefined) {
+      walk(parsed, depth, prefix, path, comma, IN_A_STRING);
+      return;
+    }
     if (item === null || typeof item !== 'object') {
       lines.push({text: `${indent}${prefix}${JSON.stringify(item) ?? 'null'}${end}`, path});
       return;
@@ -28,7 +71,7 @@ export function jsonLines(value: unknown, folded: ReadonlySet<string> = new Set(
       : Object.entries(item);
     const [open, close] = isArray ? ['[', ']'] : ['{', '}'];
     if (entries.length === 0) {
-      lines.push({text: `${indent}${prefix}${open}${close}${end}`, path});
+      lines.push({text: `${indent}${prefix}${open}${close}${end}`, path, ...noted});
       return;
     }
     if (folded.has(path)) {
@@ -38,10 +81,11 @@ export function jsonLines(value: unknown, folded: ReadonlySet<string> = new Set(
         fold: path,
         folded: true,
         path,
+        ...noted,
       });
       return;
     }
-    lines.push({text: `${indent}${prefix}${open}`, fold: path, folded: false, path});
+    lines.push({text: `${indent}${prefix}${open}`, fold: path, folded: false, path, ...noted});
     entries.forEach(([key, child], index) =>
       walk(
         child,

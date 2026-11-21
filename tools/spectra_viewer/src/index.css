@@ -10,7 +10,6 @@
   --color-canvas: var(--canvas);
   --color-panel: var(--panel);
   --color-tint: var(--tint);
-  --color-muted-strong: var(--muted-strong);
   --color-brand: var(--brand);
   --color-brand-soft: var(--brand-soft);
   --color-brand-on: var(--brand-on);
@@ -26,12 +25,10 @@
   /* The selected row's mark at its start, and the selected tab's under it. */
   --shadow-mark-start: inset 2px 0 0 var(--brand);
   --shadow-mark-bottom: inset 0 -2px 0 var(--brand);
-  /* Two columns, a key of a fixed width and its value: the agent's facts, a prefix break's lines and the keys and values. */
+  /* A pairs grid's key column: 96px for short keys, 168px for names and headers, 208px for the longest attribute names. */
   --grid-template-columns-facts: calc(var(--spacing) * 24) minmax(0, 1fr);
-  --grid-template-columns-diff: calc(var(--spacing) * 21) minmax(0, 1fr);
   --grid-template-columns-pairs: calc(var(--spacing) * 42) minmax(0, 1fr);
-  --grid-template-columns-pairs-narrow: calc(var(--spacing) * 38) minmax(0, 1fr);
-  --grid-template-columns-pairs-wide: calc(var(--spacing) * 65) minmax(0, 1fr);
+  --grid-template-columns-pairs-wide: calc(var(--spacing) * 52) minmax(0, 1fr);
   --color-scrim: var(--scrim);
   --color-ring: var(--ring);
   --color-input: var(--input);
@@ -68,7 +65,6 @@
   --canvas: #eff0f3;
   --panel: #ffffff;
   --tint: #f5f6f8;
-  --muted-strong: #55595f;
   --brand: #0b57d0;
   --brand-soft: #ebf2fb;
   --brand-on: #ffffff;
@@ -104,7 +100,6 @@
   --canvas: #0e0f11;
   --panel: #17181b;
   --tint: #1e1f23;
-  --muted-strong: #aeb2b9;
   --brand: #8ab4f8;
   --brand-soft: #252b36;
   --brand-on: #062e6f;
@@ -134,9 +129,215 @@
   }
 }
 
-/* A small label in capitals, separating sections inside a panel. */
-@utility section-label {
-  @apply text-xs font-semibold tracking-wider text-muted-foreground uppercase;
+/*
+ * The rule of text levels: each role is one style, and a component styles its
+ * text with these alone. Sizes are the viewer's four, 18, 16, 14 and 12px;
+ * weights regular, medium and semibold; greys foreground and muted.
+ */
+
+/* The turn's title, and what stands in its place. */
+@utility type-view-title {
+  @apply font-sans text-lg leading-tight font-semibold text-foreground;
+}
+
+/* The title of what is open: a pane, the step's detail, a dialog, a popover. */
+@utility type-pane-title {
+  @apply font-sans text-base font-semibold text-foreground;
+}
+
+/* The heading of a fixed section, and nothing else. */
+@utility type-section-label {
+  @apply font-sans text-xs font-semibold tracking-wider text-muted-foreground uppercase;
+}
+
+/* Text that is read. */
+@utility type-body {
+  @apply font-sans text-sm font-normal text-foreground;
+}
+
+/* A statement standing alone, ending with a full stop. */
+@utility type-quiet {
+  @apply font-sans text-sm font-normal text-muted-foreground;
+}
+
+/* The facts beside a name or a title, a facts line, a pairs grid's keys, a caption, helper text, a tag. */
+@utility type-meta {
+  @apply font-sans text-xs font-normal text-muted-foreground;
+}
+
+/* A pairs grid's value; a popover's or a tooltip's text. */
+@utility type-value {
+  @apply font-sans text-xs font-normal text-foreground;
+}
+
+/* Verbatim text: JSON, raw text, HTTP lines, logs and commands; a verbatim value. */
+@utility type-code {
+  @apply font-mono text-xs font-normal text-foreground;
+}
+
+/* A piece of code quoted in a sentence, in its sentence's size and colour. */
+@utility type-code-inline {
+  @apply font-mono font-normal;
+}
+
+/* A verbatim key in a pairs grid; a log line's time and stream; a chunk's body. */
+@utility type-code-muted {
+  @apply font-mono text-xs font-normal text-muted-foreground;
+}
+
+/* A name in a list, at rest and selected alike. */
+@utility type-name {
+  @apply font-sans text-sm font-medium text-foreground;
+}
+
+/* A name that is off: a deleted surface, a disabled mode. */
+@utility type-name-off {
+  @apply font-sans text-sm font-medium text-muted-foreground;
+}
+
+/* The timeline's delivery and housekeeping rows, at rest and selected alike. */
+@utility type-minor-row {
+  @apply font-sans text-xs font-medium text-muted-foreground;
+}
+
+/* A tab, or a toggle drawn as one: off muted, on foreground, with the accent mark under it. */
+@utility type-tab {
+  @apply font-sans text-sm font-medium text-muted-foreground;
+  &:where(:hover),
+  &[aria-pressed='true'],
+  &[aria-selected='true'] {
+    @apply text-foreground;
+  }
+}
+
+/* A segmented option: off muted, on foreground on its raised fill. */
+@utility type-segment {
+  @apply font-sans text-xs font-medium text-muted-foreground;
+  &:where(:hover),
+  &[aria-checked='true'] {
+    @apply text-foreground;
+  }
+}
+
+/* A button's text. Disabled, muted. */
+@utility type-control {
+  @apply font-sans text-xs font-medium text-foreground;
+  &:disabled,
+  &[aria-disabled='true'] {
+    @apply text-muted-foreground;
+  }
+}
+
+/* A button's text on the foreground fill: Jump to latest. */
+@utility type-control-inverse {
+  @apply font-sans text-xs font-medium text-panel;
+}
+
+/* A button's text on the accent fill. */
+@utility type-control-accent {
+  @apply font-sans text-xs font-medium text-brand-on;
+  &:disabled,
+  &[aria-disabled='true'] {
+    @apply text-muted-foreground;
+  }
+}
+
+/* A frameless button: muted, foreground on hover; the selected one in the accent. */
+@utility type-quiet-control {
+  @apply font-sans text-xs font-medium text-muted-foreground;
+  &:where(:hover:not(:disabled)) {
+    @apply text-foreground;
+  }
+  &[aria-current='page'],
+  &[aria-current='true'] {
+    @apply text-brand;
+  }
+}
+
+/* Every text link, at the size of its line. */
+@utility type-link {
+  @apply font-sans font-medium text-brand;
+  &:hover {
+    @apply underline;
+  }
+}
+
+/* A status beside a name or in a chip, in its state's colour, with its icon. */
+@utility type-mark {
+  @apply font-sans text-xs font-medium text-foreground;
+}
+
+@utility type-mark-problem {
+  @apply font-sans text-xs font-medium text-problem;
+}
+
+@utility type-mark-success {
+  @apply font-sans text-xs font-medium text-success;
+}
+
+@utility type-mark-muted {
+  @apply font-sans text-xs font-medium text-muted-foreground;
+}
+
+/* The search field, the composer, the fixture name field. */
+@utility type-field {
+  @apply font-sans text-sm font-normal text-foreground;
+  &::placeholder {
+    @apply text-muted-foreground;
+  }
+}
+
+/* A message under the field it is about. */
+@utility type-field-message {
+  @apply font-sans text-xs font-normal text-problem;
+}
+
+/* A key cap. */
+@utility type-key {
+  @apply font-sans text-xs font-medium text-foreground;
+}
+
+/* Text between two hairlines. */
+@utility type-divider {
+  @apply font-sans text-xs font-normal text-muted-foreground;
+}
+
+/* "Spectra" under the mark in the rail. */
+@utility type-wordmark {
+  @apply font-sans text-xs font-semibold text-foreground;
+}
+
+/* An icon's or a dot's colour, in its state's tone; text takes its colour from its role. */
+@utility tone-foreground {
+  color: var(--foreground);
+}
+
+@utility tone-muted {
+  color: var(--muted-foreground);
+}
+
+@utility tone-brand {
+  color: var(--brand);
+}
+
+@utility tone-brand-on {
+  color: var(--brand-on);
+}
+
+@utility tone-problem {
+  color: var(--problem);
+}
+
+@utility tone-success {
+  color: var(--success);
+}
+
+@utility tone-claude {
+  color: var(--color-claude);
+}
+
+@utility tone-gemini {
+  color: var(--color-gemini);
 }
 
 /* Motion is brief, and stops when the system asks for reduced motion. */

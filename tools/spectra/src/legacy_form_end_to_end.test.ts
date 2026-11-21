@@ -171,7 +171,7 @@ describe(`the v1.0 booking form's envelope keys in Chromium, ${binary ? 'the bin
         const properties = node(page, 'name').locator('xpath=following-sibling::div[1]');
         await holds(properties, 'Legacy form: checks');
         const names = await properties
-          .locator('span.w-21')
+          .locator('span.type-code-muted')
           .evaluateAll(spans => spans.map(span => span.textContent));
         assert.deepEqual(names, ['checks', 'label', 'value']);
 

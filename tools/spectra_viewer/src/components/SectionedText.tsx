@@ -11,11 +11,41 @@ import {type ReactNode, useState} from 'react';
 import {cn} from '@/lib/utils';
 import type {UiSection} from '@/model/a2ui_step.ts';
 import {type Marker, resumeAfterLine} from '@/model/prefix.ts';
-import {useBlockFold} from '@/state/block_folds.ts';
+import {useBlockFold, useFoldUnless} from '@/state/block_folds.ts';
 
 import {CopyButton} from './CopyButton.tsx';
 import {Icon} from './icons.tsx';
 import {BlockLabel} from './JsonBlock.tsx';
+
+/** The two lines the prefix break compares, the differing span tinted: the earlier call's and this one's. */
+export function BreakLines({marker}: {marker: Marker}) {
+  const line = ([before, differing, after]: readonly [string, string, string]) => (
+    <span className="min-w-0 break-words whitespace-pre-wrap">
+      {before}
+      <span className="rounded-sm bg-muted-foreground/25 px-0.5">{differing}</span>
+      {after}
+    </span>
+  );
+  return (
+    <>
+      <span
+        role="separator"
+        aria-label="Shared prefix ends"
+        className="type-divider my-1 mb-1.5 flex items-center gap-2 whitespace-nowrap"
+      >
+        <span className="h-px flex-1 bg-muted-foreground" />
+        Shared prefix ends
+        <span className="h-px flex-1 bg-muted-foreground" />
+      </span>
+      <span className="mb-1.5 grid grid-cols-facts gap-x-3 gap-y-0.5">
+        <span className="type-meta leading-5">{marker.earlierLabel ?? 'Earlier call'}</span>
+        {line(marker.earlier)}
+        <span className="type-meta leading-5">This call</span>
+        {line(marker.current)}
+      </span>
+    </>
+  );
+}
 
 interface Piece {
   start: number;
@@ -49,6 +79,7 @@ export function SectionedText({
   labelOf,
   marker,
   mono,
+  startsFolded = false,
 }: {
   label: string;
   meta?: string;
@@ -58,8 +89,12 @@ export function SectionedText({
   /** The prefix break, when it falls in this segment. */
   marker: Marker | undefined;
   mono: boolean;
+  /** Folded at first, as a system prompt is, unless the prefix breaks inside it. */
+  startsFolded?: boolean;
 }) {
-  const fold = useBlockFold(label);
+  const folds = useBlockFold(label);
+  const unless = useFoldUnless(label, marker !== undefined);
+  const fold = startsFolded ? unless : folds;
   const pieces = piecesOf(text.length, sections, labelOf);
   // The break's line sits after the text before it; the section holding it starts open.
   const breakAt = marker === undefined ? undefined : marker.before.length;
@@ -76,33 +111,10 @@ export function SectionedText({
       return text.slice(piece.start, piece.end);
     }
     const resumeAt = resumeAfterLine(marker, text);
-    const line = ([before, differing, after]: readonly [string, string, string]) => (
-      <span className="min-w-0 break-words whitespace-pre-wrap">
-        {before}
-        <span className="rounded-sm bg-muted-foreground/25 px-0.5">{differing}</span>
-        {after}
-      </span>
-    );
     return (
       <>
         {text.slice(piece.start, breakAt).replace(/\n$/, '')}
-        <span
-          role="separator"
-          aria-label="Shared prefix ends"
-          className="my-1 mb-1.5 flex items-center gap-2 font-sans text-xs font-semibold whitespace-nowrap text-muted-strong"
-        >
-          <span className="h-px flex-1 bg-muted-foreground" />
-          Shared prefix ends
-          <span className="h-px flex-1 bg-muted-foreground" />
-        </span>
-        <span className="mb-1.5 grid grid-cols-diff gap-x-2.5 gap-y-0.5">
-          <span className="font-sans text-xs leading-5 text-muted-foreground">
-            {marker.earlierLabel ?? 'Earlier call'}
-          </span>
-          {line(marker.earlier)}
-          <span className="font-sans text-xs leading-5 text-muted-foreground">This call</span>
-          {line(marker.current)}
-        </span>
+        <BreakLines marker={marker} />
         {text
           .slice(Math.max(piece.start, Math.min(piece.end, resumeAt)), piece.end)
           .replace(/^\n/, '')}
@@ -115,12 +127,7 @@ export function SectionedText({
       className="flex min-w-0 flex-col gap-1.5"
     >
       <BlockLabel label={label} meta={meta} fold={fold}>
-        <CopyButton
-          iconFirst
-          text={text}
-          label={`Copy the ${label.toLowerCase()}`}
-          className="h-6 px-1.5 text-xs"
-        >
+        <CopyButton text={text} label={`Copy the ${label.toLowerCase()}`}>
           Copy
         </CopyButton>
       </BlockLabel>
@@ -128,7 +135,7 @@ export function SectionedText({
         <div
           className={cn(
             'flex flex-col rounded-lg bg-tint px-3 py-2.5 break-words whitespace-pre-wrap',
-            mono && 'font-mono text-xs leading-relaxed',
+            mono ? 'type-code leading-relaxed' : 'type-body',
           )}
         >
           {pieces.map((piece, index) =>
@@ -149,7 +156,7 @@ export function SectionedText({
                     if (!next.delete(index)) next.add(index);
                     setOpened(next);
                   }}
-                  className="ease-quick flex h-6.5 min-w-0 cursor-pointer items-center gap-1.5 pr-2 pl-1.5 text-left font-sans text-xs font-semibold whitespace-nowrap text-muted-strong hover:text-foreground"
+                  className="ease-quick type-quiet-control flex h-6.5 min-w-0 cursor-pointer items-center gap-1.5 pr-2 pl-1.5 text-left whitespace-nowrap"
                 >
                   <span className="flex size-4 shrink-0 items-center justify-center">
                     <Icon kind={isOpen(piece, index) ? 'chevronDown' : 'chevronRight'} size={12} />

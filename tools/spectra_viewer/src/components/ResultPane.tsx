@@ -91,54 +91,61 @@ export function ResultPane({
     <section aria-label="Result" className="flex h-full min-h-0 flex-col">
       {reply !== '' && !folded && (
         <div className="mx-4 mt-3 flex shrink-0 items-start gap-2.5 rounded-lg bg-tint px-3 py-2.5">
-          <Icon kind="text" size={14} className="mt-0.5 text-muted-foreground" />
-          <p className="min-w-0 flex-1">{reply}</p>
+          <Icon kind="text" size={14} className="mt-0.5 shrink-0 tone-muted" />
+          <p className="type-body min-w-0 flex-1">{reply}</p>
         </div>
       )}
-      <div className="flex h-11 shrink-0 items-center gap-3 border-b px-4">
-        <div role="group" aria-label="Result panes" className="flex gap-4 self-stretch">
-          {toggles.map(toggle => (
-            <button
-              key={toggle.key}
-              type="button"
-              aria-pressed={toggle.on}
-              // The only pane shown stays: hiding it would leave none.
-              onClick={() => {
-                if (!toggle.on || toggle.other) setViewSetting(toggle.key, !toggle.on);
-              }}
-              className={cn(
-                'ease-quick cursor-pointer px-0.5 text-sm',
-                toggle.on
-                  ? 'font-semibold text-foreground shadow-mark-bottom'
-                  : 'font-medium text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {toggle.label}
-            </button>
-          ))}
+      <div className="flex shrink-0 flex-col border-b">
+        <div className="flex h-11 items-center gap-3 px-4">
+          <div role="group" aria-label="Result panes" className="flex gap-4 self-stretch">
+            {toggles.map(toggle => (
+              <button
+                key={toggle.key}
+                type="button"
+                aria-pressed={toggle.on}
+                // The only pane shown stays: hiding it would leave none.
+                onClick={() => {
+                  if (!toggle.on || toggle.other) setViewSetting(toggle.key, !toggle.on);
+                }}
+                className={cn(
+                  'ease-quick type-tab cursor-pointer px-0.5',
+                  toggle.on && 'shadow-mark-bottom',
+                )}
+              >
+                {toggle.label}
+              </button>
+            ))}
+          </div>
+          <div className="flex-1" />
+          {drawn !== undefined && <WidthSwitch width={settings.width} />}
+          {surface !== undefined && (
+            <SurfaceSwitcher
+              replay={replay!}
+              current={surface}
+              problemsBySurface={problemsBySurface}
+              onPick={onPick}
+            />
+          )}
         </div>
-        <span className="min-w-0 truncate text-xs text-muted-foreground">{asOf}</span>
-        <div className="flex-1" />
-        {drawn !== undefined && (
-          <>
-            <span
-              role="status"
-              title={drawn.label === 'built-in' ? 'Spectra’s built-in preview page' : drawn.label}
-              className="flex max-w-55 min-w-0 items-center gap-1.5 text-xs text-muted-foreground"
-            >
-              {note?.reloading === true && <Icon kind="open" size={12} className="shrink-0" />}
-              <span className="min-w-0 truncate">{note?.text}</span>
-            </span>
-            <WidthSwitch width={settings.width} />
-          </>
-        )}
-        {surface !== undefined && (
-          <SurfaceSwitcher
-            replay={replay!}
-            current={surface}
-            problemsBySurface={problemsBySurface}
-            onPick={onPick}
-          />
+        {(asOf !== '' || drawn !== undefined) && (
+          <div className="type-meta mt-1.5 flex min-w-0 items-center gap-1.5 overflow-hidden px-4 pb-2 whitespace-nowrap">
+            {asOf !== '' && <span className="min-w-0 truncate">{asOf}</span>}
+            {drawn !== undefined && (
+              <>
+                {asOf !== '' && <span className="shrink-0">·</span>}
+                {note?.reloading === true && <Icon kind="open" size={12} className="shrink-0" />}
+                <span
+                  role="status"
+                  title={
+                    drawn.label === 'built-in' ? 'Spectra’s built-in preview page' : drawn.label
+                  }
+                  className="min-w-0 truncate"
+                >
+                  {note?.text}
+                </span>
+              </>
+            )}
+          </div>
         )}
       </div>
       {/* Folded, the panes unmount, so the preview's iframe, laid over its frame, hides too. */}
@@ -243,8 +250,8 @@ function Panes({
 
 function Centered({children, icon = false}: {children: string; icon?: boolean}) {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground">
-      {icon && <Icon kind="createSurface" size={24} />}
+    <div className="type-quiet flex flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
+      {icon && <Icon kind="createSurface" size={24} className="tone-muted" />}
       <p className="max-w-90">{children}</p>
     </div>
   );
@@ -272,24 +279,24 @@ function SurfaceSwitcher({
       <Popover.Trigger asChild>
         <button
           type="button"
-          className="ease-quick inline-flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border bg-panel pr-2 pl-2.5 text-xs whitespace-nowrap hover:bg-tint"
+          className="ease-quick type-control inline-flex h-7 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border bg-panel pr-2 pl-2.5 whitespace-nowrap hover:bg-tint"
         >
-          <span className="text-muted-foreground">Surface</span>
-          <span className="font-semibold">{current.surfaceId}</span>
+          <span className="type-meta">Surface</span>
+          <span>{current.surfaceId}</span>
           <ProblemMark count={problemsBySurface.get(current.surfaceId) ?? 0} size={12} />
-          <Icon kind="chevronDown" size={12} className="text-muted-foreground" />
+          <Icon kind="chevronDown" size={12} className="tone-muted" />
         </button>
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content
           align="end"
           sideOffset={6}
-          className="fade-in-quick z-50 flex w-105 flex-col gap-0.5 rounded-xl bg-panel p-1.5 text-sm shadow-float"
+          className="fade-in-quick z-50 flex w-105 flex-col gap-0.5 rounded-xl bg-panel p-1.5 shadow-float"
         >
           <div role="listbox" aria-label="Surfaces" className="flex flex-col gap-0.5">
             {groups.map(group => (
               <Fragment key={group.label}>
-                <div className="section-label px-2 pt-2 pb-1">{group.label}</div>
+                <div className="type-section-label px-2 pt-2 pb-1">{group.label}</div>
                 {group.surfaces.map(view => {
                   const selected = view.surfaceId === current.surfaceId;
                   return (
@@ -308,15 +315,11 @@ function SurfaceSwitcher({
                       )}
                     >
                       <span className="flex min-w-0 items-center gap-1.5">
-                        <Icon kind="createSurface" size={14} className="text-muted-foreground" />
-                        <span
-                          className={cn('truncate', selected ? 'font-semibold' : 'font-medium')}
-                        >
-                          {view.surfaceId}
-                        </span>
+                        <Icon kind="createSurface" size={14} className="shrink-0 tone-muted" />
+                        <span className="type-name truncate">{view.surfaceId}</span>
                         <ProblemMark count={problemsBySurface.get(view.surfaceId) ?? 0} size={12} />
                       </span>
-                      <span className="truncate pl-5 text-xs text-muted-foreground">
+                      <span className="type-meta truncate pl-5">
                         {view.catalogId ?? 'No catalog named'}
                       </span>
                     </button>
@@ -326,14 +329,11 @@ function SurfaceSwitcher({
             ))}
             {replay.deleted.length > 0 && (
               <>
-                <div className="section-label px-2 pt-2 pb-1">Deleted in this turn</div>
+                <div className="type-section-label px-2 pt-2 pb-1">Deleted in this turn</div>
                 {replay.deleted.map(surfaceId => (
-                  <div
-                    key={surfaceId}
-                    className="flex items-center gap-1.5 px-2 py-1.5 text-muted-foreground"
-                  >
-                    <Icon kind="deleteSurface" size={14} />
-                    <span className="truncate font-medium">{surfaceId}</span>
+                  <div key={surfaceId} className="flex items-center gap-1.5 px-2 py-1.5">
+                    <Icon kind="deleteSurface" size={14} className="shrink-0 tone-muted" />
+                    <span className="type-name-off truncate">{surfaceId}</span>
                   </div>
                 ))}
               </>
@@ -385,9 +385,9 @@ function Structure({
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-auto">
       <div className="min-w-0 shrink-0 border-b px-4 py-3">
-        <div className="section-label mb-1.5">Tree</div>
+        <div className="type-section-label mb-1.5">Tree</div>
         {surface.rejectedUpdates !== undefined ? (
-          <p className="my-2 text-muted-foreground">
+          <p className="type-quiet">
             {surface.rejectedUpdates === 1
               ? 'No components: this surface’s only updateComponents was rejected.'
               : `No components: each of this surface’s ${surface.rejectedUpdates} updateComponents was rejected.`}
@@ -409,7 +409,7 @@ function Structure({
         )}
         {sections.map(section => (
           <Fragment key={section.label}>
-            <div className="section-label mt-3.5 mb-1.5">{section.label}</div>
+            <div className="type-section-label mt-3.5 mb-1.5">{section.label}</div>
             {section.nodes.map(node => (
               <TreeRows
                 key={node.id}
@@ -432,8 +432,8 @@ function Structure({
           <JsonBlock label="Data model" value={data} />
         ) : (
           <>
-            <div className="section-label mb-1.5">Data model</div>
-            <p className="my-2 text-muted-foreground">Empty.</p>
+            <div className="type-section-label mb-1.5 flex h-6 items-center">Data model</div>
+            <p className="type-quiet">Empty.</p>
           </>
         )}
       </div>
@@ -469,17 +469,14 @@ function TreeRows({
   surface: SurfaceView;
   legacyKeys: ReadonlyMap<string, string[]>;
 }) {
-  const pad = {paddingLeft: depth * 16};
+  const pad = {paddingLeft: depth * 16 + 6};
   if ('missing' in node) {
     return (
-      <div
-        style={pad}
-        className="flex h-6 items-center gap-1.5 whitespace-nowrap text-muted-foreground"
-      >
+      <div style={pad} className="-mx-1.5 flex h-6 items-center gap-1.5 pr-1.5 whitespace-nowrap">
         <span className="w-3.5 shrink-0" />
-        <span>#{node.id}</span>
+        <span className="type-meta">#{node.id}</span>
         <span className="flex-1" />
-        <span className="text-xs">{open ? 'not received yet' : 'no component has this id'}</span>
+        <span className="type-meta">{open ? 'not received yet' : 'no component has this id'}</span>
       </div>
     );
   }
@@ -505,7 +502,7 @@ function TreeRows({
           },
         })}
         className={cn(
-          'flex h-6 items-center gap-1.5 rounded-md whitespace-nowrap',
+          '-mx-1.5 flex h-6 items-center gap-1.5 rounded-md pr-1.5 whitespace-nowrap',
           onSelect !== undefined && 'cursor-pointer',
           isSelected
             ? 'bg-brand-soft shadow-mark-start'
@@ -520,39 +517,41 @@ function TreeRows({
             event.stopPropagation();
             onToggle(key);
           }}
-          className="flex size-3.5 shrink-0 cursor-pointer items-center justify-center rounded text-muted-foreground hover:text-foreground"
+          className="flex size-3.5 shrink-0 cursor-pointer items-center justify-center rounded-sm tone-muted hover:bg-tint hover:tone-foreground"
         >
           <Icon kind={isOpen ? 'chevronDown' : 'chevronRight'} size={12} />
         </button>
-        <span className="font-medium">{node.type}</span>
-        <span className="text-muted-foreground">#{node.id}</span>
+        <span className="type-name">{node.type}</span>
+        <span className="type-meta">#{node.id}</span>
         {legacy !== undefined && <LegacyMark size={12} />}
         <span className="flex-1" />
-        <span className="truncate text-xs text-muted-foreground">{bindingOf(node.properties)}</span>
+        <span className="type-meta truncate">{bindingOf(node.properties)}</span>
       </div>
       {isOpen && (
         <div
           style={{marginLeft: depth * 16 + 20}}
-          className="mb-1.5 flex flex-col gap-0.5 rounded-lg bg-tint px-2.5 py-1.5 text-xs"
+          className="mt-0.5 mb-1.5 grid grid-cols-facts gap-x-3 gap-y-0.5"
         >
-          {properties.length === 0 && <span className="text-muted-foreground">No properties.</span>}
+          {properties.length === 0 && (
+            <span className="type-meta col-span-2 leading-5">No properties.</span>
+          )}
           {properties.map(([name, value]) => (
-            <div key={name} className="flex min-w-0 gap-2.5 leading-5">
-              <span className="w-21 shrink-0 text-muted-foreground">{name}</span>
-              <span className="min-w-0 font-mono break-all whitespace-pre-wrap">
+            <Fragment key={name}>
+              <span className="type-code-muted min-w-0 leading-5 wrap-anywhere">{name}</span>
+              <span className="type-code min-w-0 leading-5 wrap-anywhere whitespace-pre-wrap">
                 {JSON.stringify(value)}
               </span>
-            </div>
+            </Fragment>
           ))}
           {legacy !== undefined && (
-            <div className="flex min-w-0 items-center gap-1.5 leading-5 text-muted-foreground">
-              <Icon kind="legacy" size={12} />
+            <div className="type-meta col-span-2 flex min-w-0 items-center gap-1.5 leading-5">
+              <Icon kind="legacy" size={12} className="shrink-0" />
               <span>
                 Legacy form:{' '}
                 {legacy.map((name, index) => (
                   <span key={name}>
                     {index > 0 && ', '}
-                    <code className="font-mono">{name}</code>
+                    <code className="type-code-inline">{name}</code>
                   </span>
                 ))}
               </span>

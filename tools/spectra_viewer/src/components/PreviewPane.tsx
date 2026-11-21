@@ -7,7 +7,7 @@ import {previewHost} from '@/state/preview_host.ts';
 import {useSpectra} from '@/state/spectra.ts';
 import {setViewSetting, type ViewSettings} from '@/state/view_settings.ts';
 
-import {Icon} from './icons.tsx';
+import {FailureLine} from './Refusal.tsx';
 
 /** Narrow's frame width: a phone-like width, Tailwind's `sm` container. */
 export const NARROW = 384;
@@ -34,22 +34,20 @@ export function PreviewPane({
   }
   if (route.kind === 'none') {
     return (
-      <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
+      <div className="type-quiet flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-6 text-center">
         {route.catalogId === undefined ? (
-          <p className="max-w-140 leading-relaxed">No preview: the surface names no catalog.</p>
+          <p className="max-w-140">No preview: the surface names no catalog.</p>
         ) : (
-          <p className="max-w-140 leading-relaxed">
+          <p className="max-w-140">
             No preview for catalog{' '}
-            <span className="rounded-md bg-tint px-1.5 py-0.5 font-mono text-xs wrap-anywhere">
-              {route.catalogId}
-            </span>
+            <code className="type-code-inline text-xs wrap-anywhere">{route.catalogId}</code>.
           </p>
         )}
-        <p className="max-w-110 text-muted-foreground">
+        <p className="max-w-110">
           Add a page built with a Spectra preview adapter to the config’s preview pages.
         </p>
         {route.unanswered.map(page => (
-          <p key={page.id} className="max-w-110 text-xs text-muted-foreground wrap-anywhere">
+          <p key={page.id} className="max-w-110 wrap-anywhere">
             {unansweredLine(page, PREVIEW_PROTOCOL, version)}
           </p>
         ))}
@@ -59,15 +57,9 @@ export function PreviewPane({
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
       {lines.length > 0 && (
-        <div className="flex shrink-0 flex-col gap-1 px-4 pt-2.5">
+        <div className="flex shrink-0 flex-col gap-2.5 px-4 pt-2.5">
           {lines.map((line, index) => (
-            <div
-              key={index}
-              className="flex h-8 items-center gap-2 rounded-lg bg-problem-soft px-3 text-xs"
-            >
-              <Icon kind="failed" size={14} className="shrink-0 text-problem" />
-              <span className="min-w-0 truncate font-medium">{line}</span>
-            </div>
+            <FailureLine key={index} text={line} />
           ))}
         </div>
       )}
@@ -129,7 +121,7 @@ function Frame({pageId, width}: {pageId: string; width: ViewSettings['width']}) 
 
 function Quiet({children}: {children: string}) {
   return (
-    <div className="flex min-h-0 flex-1 items-center justify-center p-6 text-center text-muted-foreground">
+    <div className="type-quiet flex min-h-0 flex-1 items-center justify-center p-6 text-center">
       <p>{children}</p>
     </div>
   );
@@ -157,10 +149,8 @@ export function WidthSwitch({width}: {width: ViewSettings['width']}) {
             aria-checked={on}
             onClick={() => setViewSetting('width', option.value)}
             className={cn(
-              'ease-quick h-6 cursor-pointer rounded-md px-2.5 text-xs font-medium whitespace-nowrap',
-              on
-                ? 'bg-panel text-foreground shadow-panel'
-                : 'text-muted-foreground hover:text-foreground',
+              'ease-quick type-segment h-6 cursor-pointer rounded-md px-2.5 whitespace-nowrap',
+              on && 'bg-panel shadow-panel',
             )}
           >
             {option.label}
