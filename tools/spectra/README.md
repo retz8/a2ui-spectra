@@ -150,7 +150,7 @@ Each step is optional, and each adds to what you see:
 | [OpenTelemetry](../../docs/design/opentelemetry.md#the-recipe-for-a-python-agent) in your agent                                                                                  | Your framework's spans: tools in the agent's process, its own retries                |
 | A preview adapter, for [React](../../typescript/preview/react/README.md), [Lit](../../typescript/preview/lit/README.md) or [Angular](../../typescript/preview/angular/README.md) | Your own components, drawn by your own renderer, and pressing them                   |
 
-How each part works, its rules and why, is in the design docs; start with [A turn, end to end](../../docs/design/turn-end-to-end.md). The scripts and coding agents that drive Spectra have [The API](../../docs/design/api.md).
+How each part works, its rules and why, is in the design docs; start with [A turn, end to end](../../docs/design/turn-end-to-end.md). The scripts and coding agents that drive Spectra have [The API](../../docs/design/api.md), and a coding agent has the skill in [`skills/a2ui-spectra/`](../../skills/a2ui-spectra/SKILL.md).
 
 ## Development
 

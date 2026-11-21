@@ -4,7 +4,7 @@ A debugging and observation tool for the developer of an [A2UI](https://github.c
 
 > **Status:** not released yet. Spectra runs from source; see [`tools/spectra/`](tools/spectra/README.md).
 
-[Install](#install) · [First run](#first-run) · [OpenTelemetry](#opentelemetry-instrumentation) · [Replay](#record-once-replay-for-free) · [How it works](#how-it-works) · [Design docs](#how-each-part-works)
+[Install](#install) · [First run](#first-run) · [OpenTelemetry](#opentelemetry-instrumentation) · [Replay](#record-once-replay-for-free) · [Coding agents](#with-a-coding-agent) · [How it works](#how-it-works) · [Design docs](#how-each-part-works)
 
 ![A message sent to upstream's Python restaurant finder from Spectra's viewer: the model call, the tool call and the A2UI messages arrive as steps while the surface draws itself in the preview](docs/images/turn.gif)
 
@@ -179,6 +179,12 @@ Both read the agent's URL from `agent.url` in `a2ui-spectra.json`, or take `--ag
 
 <sub>The restaurant turn, recorded for $0.036 and replayed from its fixture: 146 ms instead of 25 s, free, and passed, the parse failure and its retry included.</sub>
 
+## With a coding agent
+
+Let your coding agent debug the A2UI agent with you. The skill in [`skills/a2ui-spectra/`](skills/a2ui-spectra/SKILL.md) teaches it Spectra's loop: start the agent under Spectra, send a message or an action, read the turn's calls, parse errors and checks, change the code and send again, then save the turn as a fixture that `a2ui-spectra test` replays. The preview stays yours to look at.
+
+Copy the folder into your coding agent's skills folder. It is in the [Agent Skills](https://agentskills.io/specification) format, and lives in this repository, not in Spectra's packages.
+
 ## How it works
 
 Spectra is one local process at the edges every agent stack already has: the wire, the model and tool calls, and OpenTelemetry. So it works with any A2UI agent, in any language and on any framework.
@@ -261,6 +267,7 @@ The turn record, the file format every fixture is, is specified in [`specificati
 | [`typescript/instrumentation/`](typescript/instrumentation/README.md), [`python/a2ui_spectra_instrumentation/`](python/a2ui_spectra_instrumentation/README.md) | The wrapper, for TypeScript and for Python                           |
 | [`specification/turn_record/v0_1/`](specification/turn_record/v0_1/README.md)                                                                                  | The turn record: the file format every fixture is                    |
 | [`conformance/`](conformance/README.md)                                                                                                                        | The turn record's shared test data                                   |
+| [`skills/a2ui-spectra/`](skills/a2ui-spectra/SKILL.md)                                                                                                         | The skill for a coding agent using Spectra                           |
 | [`samples/preview/`](samples/preview/react/README.md)                                                                                                          | Sample catalog apps, one per preview adapter                         |
 
 ## Development
