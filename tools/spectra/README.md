@@ -80,6 +80,7 @@ a2ui-spectra <command> --help
 a2ui-spectra --version
 ```
 
+- `<command> --help` prints the command's forms, its options and examples; on Windows its examples are written for PowerShell and for cmd.
 - `run` starts the agent's command with Spectra's variables set and owns its process: it restarts it on save and from the viewer, and shows its output. The command after `--` starts without a shell. See [The agent's process](../../docs/design/agent-process.md).
 - `attach` watches an agent that is already running at `<agent-url>`, and prints the variables to set in its shell; see [The wire](../../docs/design/wire.md#attach-at-start).
 - `replay` replays one record, a fixture or a stored turn, with everything recorded, with the model live under `--model-live`, or with every call live under `--live`. `test` replays every fixture under the folder, the fixtures folder by default, with everything recorded, and exits 0 when every one passes. See [Replay and fixtures](../../docs/design/replay-and-fixtures.md#the-commands-replay-and-test).
@@ -163,4 +164,4 @@ node tools/spectra/dist/cli.js run -- …      # the built tool under Node
 ```
 
 - `SPECTRA_BINARY=dist/a2ui-spectra yarn test`, from `tools/spectra/`, runs the command-line and end-to-end tests against the binary; `SPECTRA_TEST_PART` runs `wrapper-capture` or `others` alone. The browser end-to-end tests need Playwright's Chromium, once: `npx playwright@1.58.1 install chromium chromium-headless-shell`.
-- On macOS, `build:binaries` builds the five platforms' binaries, `build:packages` and `check:packages` make and check their npm packages, wheels and archives, with [uv](https://docs.astral.sh/uv/), and `pack:libraries` and `check:libraries` pack and check the six libraries. `set:version` and `check:version` set and check the release's version in every place it is stated. `generate:otlp` generates the receiver's OTLP code from `proto/`. How these make a release is in [Distribution](../../docs/design/distribution.md).
+- On macOS, `build:binaries` builds the five platforms' binaries, `build:packages` and `check:packages` make and check their npm packages, wheels and archives, with [uv](https://docs.astral.sh/uv/), and `pack:libraries` and `check:libraries` pack and check the six libraries. `set:version` and `check:version` set and check the release's version in every place it is stated. `generate:otlp` generates the receiver's OTLP code from `proto/`, and `python3 -I _dev/tools/copy_litellm_prices.py <tag>`, from the repository root, copies the price table from LiteLLM's release `<tag>`; moving the table to a newer release is running it again. How these make a release is in [Distribution](../../docs/design/distribution.md).
