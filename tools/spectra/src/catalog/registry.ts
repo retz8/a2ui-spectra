@@ -14,6 +14,7 @@ import {isDeepStrictEqual} from 'node:util';
 import {Catalog, type ComponentApi, type FunctionApi} from '@a2ui/web_core/catalog';
 import {basicCatalog as basicCatalogV10} from '@a2ui/web_core/catalogs/basic/v1';
 import {basicCatalog as basicCatalogV09} from '@a2ui/web_core/v0_9/basic_catalog';
+import {isAtLeastVersion, toSemVer} from '@a2ui/web_core/semver';
 import {Ajv2020} from 'ajv/dist/2020.js';
 
 import basicV09 from '../check/schemas/v0_9/catalogs/basic/catalog.json' with {type: 'json'};
@@ -355,7 +356,10 @@ export class CatalogRegistry {
       if (majorMinor(catalog.protocolVersion) === '0.9') {
         offer['v0.9'].push(catalog.id);
         offer['v0.9.1'].push(catalog.id, ...catalog.aliases);
-      } else if (majorMinor(catalog.protocolVersion) === '1.0') {
+      } else if (
+        majorMinor(catalog.protocolVersion) === '1.0' &&
+        isAtLeastVersion(catalog.protocolVersion, '1.0')
+      ) {
         offer['v1.0'].push(catalog.id, ...catalog.aliases);
       }
     }
@@ -413,7 +417,8 @@ async function loadDefinition(
     throw new ReadFailure('names no catalogId');
   }
   const declared = typeof json.protocolVersion === 'string' ? json.protocolVersion : undefined;
-  if (declared !== undefined && Number(majorMinor(declared)?.split('.')[0]) >= 1) {
+  // Web core loads a definition as 1.0 by this test, so the 1.0 meta-schema follows it.
+  if (isAtLeastVersion(declared, '1.0')) {
     if (!validateDefinition(json)) {
       throw new ReadFailure(
         `is not a 1.0 catalog definition: ${metaSchema.errorsText(validateDefinition.errors, {dataVar: ''})}`,
@@ -469,8 +474,10 @@ function functionNames(functions: unknown): string[] {
   return isObject(functions) ? Object.keys(functions) : [];
 }
 
+/** A version's major and minor, read as web core reads a version: a leading `v`, no patch and a pre-release allowed. */
 function majorMinor(version: string): string | undefined {
-  return /^(\d+\.\d+)(?:\.\d+)?$/.exec(version.trim())?.[1];
+  const parsed = toSemVer(version);
+  return parsed === null ? undefined : `${parsed.major}.${parsed.minor}`;
 }
 
 function isObject(value: unknown): value is Record<string, unknown> {

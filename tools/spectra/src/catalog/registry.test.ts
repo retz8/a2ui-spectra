@@ -228,6 +228,28 @@ describe('configured catalogs', () => {
     await loadError([surface], /surface\.json is not a 1\.0 catalog definition: .*components/);
   });
 
+  it('reads a protocolVersion as web core does, a leading v, no patch and a pre-release allowed', async () => {
+    for (const version of ['v1.0', 'V1_0', '1.0.1', '1.1.0-beta.1']) {
+      const surface = write('surface.json', {
+        protocolVersion: version,
+        catalogId: 'test/surface',
+        components: {Surface: {}},
+        $defs: {anyComponent: {oneOf: []}, anyFunction: {oneOf: []}},
+      });
+      await loadError([surface], /surface\.json is not a 1\.0 catalog definition: /);
+    }
+    const definition = JSON.parse(fs.readFileSync(custom, 'utf8')) as Record<string, unknown>;
+    // Upstream's 1.0 meta-schema holds a definition's own protocolVersion to numbers alone.
+    const prefixed = write('prefixed.json', {...definition, protocolVersion: 'v1.0'});
+    await loadError(
+      [prefixed],
+      /prefixed\.json is not a 1\.0 catalog definition: \/protocolVersion must match pattern/,
+    );
+    const preRelease = write('pre_release.json', {...definition, protocolVersion: '1.0.1-beta.1'});
+    const registry = await CatalogRegistry.load([preRelease]);
+    assert.deepEqual(registry.offer()['v1.0'], [BASIC_V1_0, 'conformance/custom']);
+  });
+
   it('takes a 0.9 definition that parses, carries a catalogId and is a schema', async () => {
     const notSchema = write('not_schema.json', {catalogId: 'test/not', type: 5});
     await loadError([notSchema], /not_schema\.json is not a JSON Schema: .*type/);
