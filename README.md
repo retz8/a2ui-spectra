@@ -50,7 +50,7 @@ The evidence is scattered across logs, the network and the browser, and every re
 
 ## Install
 
-One binary, the same through every channel, for macOS arm64 and x64, Linux x64 and arm64 on glibc, and Windows x64.
+**Works with** an agent speaking A2UI v0.9, v0.9.1 or v1.0, over A2A 0.3 or 1.0 with JSON-RPC, in any language and on any framework. Everything else Spectra supports is in [What Spectra supports](#what-spectra-supports).
 
 **npm**, with Node 22 or later:
 
@@ -76,7 +76,7 @@ curl -fsSL https://raw.githubusercontent.com/retz8/a2ui-spectra/main/scripts/pub
 irm https://raw.githubusercontent.com/retz8/a2ui-spectra/main/scripts/public/install.ps1 | iex
 ```
 
-Not supported: Windows on arm64, and Linux on musl, such as Alpine. The binary makes no request of its own: no update check and no usage counts.
+Runs on macOS arm64 and x64, Linux x64 and arm64 on glibc, and Windows x64; not on Windows arm64, or Linux on musl, such as Alpine. The binary makes no request of its own: no update check and no usage counts.
 
 <details>
 <summary><b>Downloading the binary by hand</b></summary>
