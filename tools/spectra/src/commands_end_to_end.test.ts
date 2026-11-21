@@ -45,7 +45,7 @@ function escapeRegExp(text: string): string {
 }
 
 const NOTHING_TO_SERVE =
-  'The record holds no model call and no tool call, so there is nothing to serve with everything recorded.';
+  'The record holds no model call or tool call the proxies can answer with, so there is nothing to serve with everything recorded.';
 
 function turnEventOf(turn: TurnRecord['turns'][number]): TurnEvent {
   const turnEvent = turn.events.find((event): event is TurnEvent => isEventOfKind(event, 'turn'));

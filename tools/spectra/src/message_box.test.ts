@@ -878,7 +878,7 @@ describe('the message box replaying a record', () => {
     await assert.rejects(box.replay({path: SOURCE, record: empty}, 'recorded'), {
       status: 422,
       message:
-        'The record holds no model call and no tool call, so there is nothing to serve with everything recorded. Replay it with the model live.',
+        'The record holds no model call or tool call the proxies can answer with, so there is nothing to serve with everything recorded. Replay it with the model live.',
     });
     const noInput = recordOf(turnOf(RECORDED[0], 'recorded-ctx'));
     await assert.rejects(box.replay({path: SOURCE, record: noInput}, 'model_live'), {

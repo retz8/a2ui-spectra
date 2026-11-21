@@ -32,9 +32,14 @@ import {hasNothingToServe, ReplayPool} from './replay/pool.js';
 import {inWords, outcomeOf, verdictOf} from './replay/verdict.js';
 import type {LiveReplayedTurn, ReplayedTurn, TurnHub} from './turn_hub.js';
 
-/** Why everything-recorded mode refuses a record with no model call and no tool call. */
+/**
+ * Why everything-recorded mode refuses a record with no model call or tool
+ * call the proxies can answer with: a call known only from the agent's spans,
+ * an operation the server initiated, a notification, a client's response and
+ * a session end do not count.
+ */
 export const NOTHING_TO_SERVE =
-  'The record holds no model call and no tool call, so there is nothing to serve with everything recorded.';
+  'The record holds no model call or tool call the proxies can answer with, so there is nothing to serve with everything recorded.';
 
 /** A send the box refuses, with the HTTP status the server answers with. */
 export class MessageBoxError extends Error {
