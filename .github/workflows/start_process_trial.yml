@@ -1,0 +1,86 @@
+name: The Start-Process trial
+
+# Why the skill's Windows block that starts Spectra in the background does not return to a caller
+# that captures its output: a PowerShell script starting a long-lived process with Start-Process,
+# run from Node through pipes as the skill's test and a coding agent's shell run it, in the block's
+# own form and in variants, under Windows PowerShell and PowerShell 7. Each case reports whether
+# the caller got PowerShell's exit, and after how long. Started by hand; it publishes nothing.
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  windows:
+    name: The Start-Process trial (windows-x64)
+    runs-on: windows-latest
+    steps:
+      - name: The cases
+        shell: bash
+        run: |
+          mkdir trial && cd trial
+          cat > child.js <<'EOF'
+          console.log('up');
+          setTimeout(() => {}, 90_000);
+          EOF
+          cat > trial.mjs <<'EOF'
+          import {spawnSync} from 'node:child_process';
+          import {existsSync, readFileSync, writeFileSync} from 'node:fs';
+
+          const blocks = {
+            // The skill's form: output redirected to files, the window hidden, the process passed back.
+            as_written:
+              "$p = Start-Process node -ArgumentList 'child.js' -WindowStyle Hidden -PassThru -RedirectStandardOutput NAME.log -RedirectStandardError NAME.err.log\n$p.Id | Set-Content NAME.pid\n'started'",
+            // No redirection: Start-Process then starts the process through the shell.
+            no_redirect:
+              "$p = Start-Process node -ArgumentList 'child.js' -WindowStyle Hidden -PassThru\n$p.Id | Set-Content NAME.pid\n'started'",
+            // Redirection done by cmd.exe inside the started process, none by Start-Process.
+            through_cmd:
+              "$p = Start-Process cmd.exe -ArgumentList '/c node child.js > NAME.log 2> NAME.err.log' -WindowStyle Hidden -PassThru\n$p.Id | Set-Content NAME.pid\n'started'",
+          };
+          const callers = {
+            pipes: ['ignore', 'pipe', 'pipe'],
+            no_pipes: ['ignore', 'ignore', 'ignore'],
+          };
+
+          const rows = [];
+          for (const shell of ['powershell.exe', 'pwsh.exe']) {
+            for (const [block, text] of Object.entries(blocks)) {
+              for (const [caller, stdio] of Object.entries(callers)) {
+                const name = `${shell.split('.')[0]}_${block}_${caller}`;
+                writeFileSync(`${name}.ps1`, text.replaceAll('NAME', name));
+                const from = Date.now();
+                const result = spawnSync(
+                  shell,
+                  ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', `${name}.ps1`],
+                  {stdio, encoding: 'utf8', timeout: 20_000},
+                );
+                const seconds = ((Date.now() - from) / 1000).toFixed(1);
+                const pid = existsSync(`${name}.pid`) ? Number(readFileSync(`${name}.pid`, 'utf8')) : undefined;
+                let alive = false;
+                if (pid) {
+                  try {
+                    process.kill(pid, 0);
+                    alive = true;
+                  } catch {}
+                }
+                const log = existsSync(`${name}.log`) ? readFileSync(`${name}.log`, 'utf8').trim() : '';
+                rows.push({
+                  shell,
+                  block,
+                  caller,
+                  returned: result.error ? String(result.error.code) : `exit ${result.status}`,
+                  seconds,
+                  'pid written': pid !== undefined,
+                  'started process alive': alive,
+                  'its log': log,
+                  stderr: (result.stderr ?? '').trim().slice(0, 200),
+                });
+                if (pid && alive) spawnSync('taskkill', ['/PID', String(pid), '/T', '/F']);
+              }
+            }
+          }
+          console.table(rows);
+          EOF
+          node trial.mjs
