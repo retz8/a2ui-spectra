@@ -5,8 +5,8 @@ This doc explains how Spectra's preview draws a surface and lets you press it: t
 The running example is upstream's Python restaurant finder, `samples/agent/adk/restaurant_finder`, asked for "Top 2 Chinese restaurants in New York". It answers with a surface on the v0.9 basic catalog, two restaurant cards each with a Book Now button, which Spectra's built-in page draws with no setup. What the example does not reach, a custom catalog drawn on an adopter's own page, is shown with the sample catalog apps in [`samples/preview/`](../../samples/preview/react/README.md).
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="diagrams/preview-dark.svg">
-  <img alt="The viewer's turn view sends the surface's messages to the first preview page that claims its catalog, your own page, served by your catalog's dev server, before Spectra's built-in page for the basic catalogs. The page sends its reports back to the turn view, and the action a press makes goes to the composer, which sends it to the agent as the next turn." src="diagrams/preview.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/preview-dark.png">
+  <img alt="Your catalog's dev server serves your preview page into your browser, where the viewer loads it in an iframe, as it loads Spectra's built-in page. The viewer sends the surface in view to your page as a render. The page draws it with your renderer and sends back its reports and the surface's data model. When no page of yours claims the surface, the built-in page draws it, for the basic catalogs. A press in either page comes back as an action, which waits in the composer as a pending action until Send sends it to your agent as the next turn." src="diagrams/preview.png">
 </picture>
 
 ## Problem it solves
