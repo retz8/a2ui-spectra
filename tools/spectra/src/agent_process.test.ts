@@ -135,16 +135,21 @@ describe("the agent's stop", () => {
         assert.equal(isAlive(pid), false);
         return;
       }
+      let up: () => void = () => {};
+      const written = new Promise<void>(resolve => (up = resolve));
       const agent = startAgentProcess(
         process.execPath,
         [
           '-e',
           "process.on('SIGTERM', () => {}); process.stdout.write('up\\n'); setInterval(() => {}, 1000)",
         ],
-        {graceMs: 300, output: 'stderr'},
+        {
+          graceMs: 300,
+          onOutput: (stream, chunk) => stream === 'stdout' && chunk.includes('up') && up(),
+        },
       );
       // The handler is in place once the process has written.
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await written;
       assert.deepEqual(await agent.stop(), {forceKilled: true});
       assert.equal((await agent.exited).signal, 'SIGKILL');
     },
