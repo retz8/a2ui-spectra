@@ -18,7 +18,7 @@ import {
 } from './call_rows.ts';
 import {inputBrief} from './input_brief.ts';
 import {agentMessages, isThrough, messageKey, type Position} from './messages.ts';
-import {parseOfMessage} from './a2ui_step.ts';
+import {parseOfMessage, parseStartOf} from './a2ui_step.ts';
 
 export {isThrough, type Position};
 import {type Brand, brandOf, modelOf, providerOf, rowTextOf} from './model_calls.ts';
@@ -200,7 +200,7 @@ export function timelineOf(events: readonly TurnRecordEvent[], startMs: number):
       continue;
     }
     units.push({
-      start: BigInt(parse.startTimeUnixNano),
+      start: BigInt(parseStartOf(parse)),
       index: indexOf.get(parse) ?? events.length,
       rows: [step],
     });
@@ -344,7 +344,7 @@ function parseStep(
   if (through === undefined && parse.endTimeUnixNano !== undefined) {
     through = lastWireEventBy(events, BigInt(parse.endTimeUnixNano));
   }
-  const timed = tool === undefined ? parse : timedEventOf(tool);
+  const start = tool === undefined ? parseStartOf(parse) : timedEventOf(tool).startTimeUnixNano;
   return {
     row: 'step',
     id: tool?.proxy?.spanId ?? parse.spanId,
@@ -352,7 +352,7 @@ function parseStep(
     icon: 'parse',
     label: 'Parse',
     target,
-    offsetMs: unixMillis(timed.startTimeUnixNano) - startMs,
+    offsetMs: unixMillis(start) - startMs,
     grouped: false,
     ...(through !== undefined && {position: {eventIndex: through}}),
     ...(tool !== undefined && {call: tool}),

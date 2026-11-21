@@ -32,6 +32,30 @@ describe("the A2UI step's lanes", () => {
     });
   });
 
+  it("draws a streamed parse's bar from its first chunk to its end", () => {
+    const events = [
+      parse({
+        spanId: 'p',
+        start: 10,
+        end: 520,
+        input: 'x',
+        chunks: [
+          {ms: 310, end: 1},
+          {ms: 400, end: 1},
+        ],
+      }),
+    ];
+    const start = unixMillis(at(0));
+    const {byRow} = lanesOf(timelineOf(events, start), start, start + 600);
+    assert.deepEqual(byRow.get('p'), {
+      kind: 'bar',
+      start: 310,
+      end: 520,
+      inFlight: false,
+      waitsForToken: false,
+    });
+  });
+
   it('draws one that states no end as a dot at its start', () => {
     const generation = promptGeneration({
       spanId: 'g',

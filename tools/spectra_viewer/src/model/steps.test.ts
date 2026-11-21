@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import {parse, promptGeneration} from '../testing/a2ui_step.ts';
-import {a2uiDelivery, at, byStart, receivedSpan} from '../testing/model_calls.ts';
+import {a2uiDelivery, at, byStart, modelCall, receivedSpan} from '../testing/model_calls.ts';
 import {readRecording} from '../testing/recordings.ts';
 import {isTurnEvent, type Turn, unixMillis} from './record.ts';
 import {insideLineOf} from './turn_calls.ts';
@@ -169,7 +169,7 @@ describe("the A2UI step's rows", () => {
     delete bare.attributes['a2ui.parse.inference_format'];
     const rows = timelineOf([...events, bare], unixMillis(at(0)));
     assert.deepEqual(outline(rows).slice(0, 3), [
-      'Parse | Express · streamed +1010',
+      'Parse | Express · streamed +1012',
       'Parse | Direct JSON +1500',
       'Parse |  +1600',
     ]);
@@ -178,6 +178,30 @@ describe("the A2UI step's rows", () => {
     assert.equal(first.icon, 'parse');
     assert.equal(first.id, 'p1');
     assert.equal(first.parse?.spanId, 'p1');
+  });
+
+  it('places a streamed parse at its first chunk, after the model call that fed it, and a stream given nothing at its start', () => {
+    // The agent opens the stream before its run calls the model.
+    const events = byStart(
+      parse({
+        spanId: 'fed',
+        start: 10,
+        end: 520,
+        input: GOOD,
+        chunks: [
+          {ms: 400, end: 30},
+          {ms: 310, end: 5},
+        ],
+      }),
+      modelCall({spanId: 'm', start: 100, end: 500}),
+      parse({spanId: 'unfed', start: 600, end: 610, input: '', chunks: []}),
+    );
+    const rows = timelineOf(events, unixMillis(at(0)));
+    assert.deepEqual(outline(rows).slice(0, 3), [
+      'claude-sonnet-5-5 | Anthropic +100',
+      'Parse | Direct JSON · streamed +310',
+      'Parse | Direct JSON · streamed +600',
+    ]);
   });
 
   it("rows the toolset's tool call as its parse, joined to the tool span it sits under, or that shares its call id", () => {

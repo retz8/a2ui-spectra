@@ -7,6 +7,7 @@
  * the agent's last reply is never clipped; on a live turn the end is the
  * present, and the scale grows as the turn runs.
  */
+import {parseStartOf} from './a2ui_step.ts';
 import {timedEventOf} from './call_rows.ts';
 import {firstChunkMs} from './model_calls.ts';
 import {isModelCall, type ModelCallEvent, type TurnRecordEvent, unixMillis} from './record.ts';
@@ -73,9 +74,15 @@ export function lanesOf(rows: readonly TimelineRow[], startMs: number, endMs: nu
       row.row === 'step' ? (row.parse ?? row.generation) : undefined;
     if (timed !== undefined) {
       // A parse or a failed prompt generation: a bar in the darker tone from
-      // start to end. A span is received once it has ended, so one that states
-      // no end is an instant: a dot at its start.
-      const start = unixMillis(timed.startTimeUnixNano) - startMs;
+      // start to end, a streamed parse's from its first chunk. A span is
+      // received once it has ended, so one that states no end is an instant: a
+      // dot at its start.
+      const start =
+        unixMillis(
+          row.row === 'step' && row.parse !== undefined
+            ? parseStartOf(row.parse)
+            : timed.startTimeUnixNano,
+        ) - startMs;
       if (timed.endTimeUnixNano === undefined) {
         byRow.set(row.id, {kind: 'dot', at: start});
         latest = Math.max(latest, start);

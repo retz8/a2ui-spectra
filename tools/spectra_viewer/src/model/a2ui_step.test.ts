@@ -567,13 +567,27 @@ describe('what the A2UI step says in the detail', () => {
     assert.ok(insideLineOf(retriedTwice(), startMs, undefined)!.includes('2 retries'));
   });
 
+  it('times a streamed parse from its first chunk, and says when its stream opened', () => {
+    const streamed = parse({
+      spanId: 'fed',
+      start: 10,
+      end: 520,
+      input: 'x',
+      chunks: [{ms: 310, end: 1}],
+    });
+    const t0 = Number(BigInt(at(0)) / 1_000_000n);
+    const step = timelineOf([streamed], t0).find((row): row is Step => row.row === 'step')!;
+    assert.equal(parseTitleOf(step, t0).times, '+310 ms · 210 ms · the stream opened at +10 ms');
+  });
+
   it('titles a parse with its format, streamed, and its scope, or "A2UI step spans" without one', () => {
     const step = timelineOf(events, startMs).find(
       (row): row is Step => row.row === 'step' && row.parse?.spanId === failedParse.spanId,
     )!;
     assert.deepEqual(parseTitleOf(step, startMs), {
       target: 'Direct JSON · streamed · a2ui-spectra-instrumentation 0.1.0',
-      times: '+2.0 s · 20 ms',
+      // From its first chunk, 2 ms after its stream opened, which reads the same.
+      times: '+2.0 s · 18 ms',
     });
     assert.equal(sourceLineOfStep(failedParse), 'a2ui-spectra-instrumentation 0.1.0');
     const bare = parse({spanId: 'p', start: 0, input: ''});

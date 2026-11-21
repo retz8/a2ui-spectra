@@ -511,14 +511,38 @@ export function sourceLineOfStep(event: ParseEvent | PromptGenerationEvent): str
   return typeof version === 'string' && version !== '' ? `${name} ${version}` : name;
 }
 
-/** A parse row's title line: its target with its source, then its offset and duration. */
+/**
+ * Where a parse's row is placed and its bar starts: a streamed parse's first
+ * chunk, else its span's start. An agent can open its stream before its run
+ * calls the model, and the stream reads nothing until the model's first text
+ * is fed to it; a stream fed nothing keeps its span's start.
+ */
+export function parseStartOf(parse: ParseEvent): string {
+  if (parse.attributes['a2ui.parse.streamed'] !== true) return parse.startTimeUnixNano;
+  let first: string | undefined;
+  for (const event of parse.events ?? []) {
+    if (event.name !== 'a2ui.parse.chunk') continue;
+    if (first === undefined || BigInt(event.timeUnixNano) < BigInt(first)) {
+      first = event.timeUnixNano;
+    }
+  }
+  return first ?? parse.startTimeUnixNano;
+}
+
+/**
+ * A parse row's title line: its target with its source, then its offset and
+ * duration from where its row is placed, and for a stream first fed after it
+ * opened, when it opened, where that offset reads otherwise.
+ */
 export function parseTitleOf(step: Step, startMs: number): {target: string; times: string} {
   const parse = step.parse!;
-  const start = unixMillis(parse.startTimeUnixNano);
+  const start = unixMillis(parseStartOf(parse));
   const times = [formatOffset(start - startMs)];
   if (parse.endTimeUnixNano !== undefined) {
     times.push(formatDuration(unixMillis(parse.endTimeUnixNano) - start));
   }
+  const opened = formatOffset(unixMillis(parse.startTimeUnixNano) - startMs);
+  if (opened !== times[0]) times.push(`the stream opened at ${opened}`);
   return {
     target: [step.target, sourceLineOfStep(parse)].filter(part => part !== '').join(' · '),
     times: times.join(' · '),
