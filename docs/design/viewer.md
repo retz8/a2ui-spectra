@@ -738,7 +738,7 @@ Spectra's server sends a heartbeat on the live stream every two seconds, and the
 Any turn record placed in the fixtures folder opens in the Fixtures section, whatever agent recorded it, with no model call. Run Spectra on your agent as you do, then copy the committed record of the same kind of retry, assembled by hand, into the folder Spectra prints at start:
 
 ```bash
-a2ui-spectra run -- <your agent's command>
+a2ui-spectra run --agent-url <your agent's address> -- <your agent's command>
 cp conformance/test_data/turn_record/v0_1/full_record_retried_parse.json a2ui-spectra-fixtures/
 ```
 

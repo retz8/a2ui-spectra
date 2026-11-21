@@ -455,8 +455,10 @@ The handling of the agent's process tree below is the compiled binary's. Which W
 The restaurant finder starts without a model call, so the whole loop can be tried with no key spent. From upstream's `samples/agent/adk/restaurant_finder`, with its environment set up as its README says:
 
 ```bash
-a2ui-spectra run -- uv run .
+a2ui-spectra run --agent-url http://localhost:10002 -- uv run .
 ```
+
+`run` needs the agent's address, from `--agent-url` or the config file's `agent.url`; the restaurant finder serves A2A at `http://localhost:10002`.
 
 Then, in order: wait for `The agent's card answered: Restaurant Agent.`; save `prompt_builder.py` with no change and read `Restarting the agent: prompt_builder.py changed.`; press Restart in the viewer and open Logs to see the two `Stopped` dividers; and press Ctrl-C once, to see the agent's shutdown lines and Spectra's exit.
 
