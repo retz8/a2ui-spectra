@@ -663,13 +663,21 @@ export function TurnBody({
     if (inView.selected) openDetail(detail.current);
     else detail.current?.collapse();
   }, [inView.selected, detail]);
-  // A detail open as the turn opens takes its remembered height, at most half the pane.
+  // A detail open as the turn opens takes its remembered height, at most half the pane. It is
+  // worked out a frame later, once the panels are laid out: a remembered height the pane cannot
+  // hold beside the result folds the result to its header line as they mount, until the effect
+  // below opens it, and until then the panels' sizes disagree. Maximized, the detail stays whole.
   useEffect(() => {
-    const panel = detail.current;
-    if (panel === null || panel.isCollapsed()) return;
-    const height = rememberedHeight(panel);
-    if (height !== undefined && height < panel.getSize().inPixels) panel.resize(height);
-  }, [detail]);
+    const frame = requestAnimationFrame(() => {
+      const panel = detail.current;
+      if (panel === null || panel.isCollapsed() || result.current?.isCollapsed() !== false) return;
+      const height = rememberedHeight(panel);
+      if (height !== undefined && height < panel.getSize().inPixels) panel.resize(height);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, [detail, result]);
 
   // Maximized, the selected step's detail takes the result pane's height and the pane folds to its
   // header line. While a live turn is followed with no step selected, the split stays.
