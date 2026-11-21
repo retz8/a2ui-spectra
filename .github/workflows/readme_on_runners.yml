@@ -248,6 +248,10 @@ jobs:
         with:
           install: false
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          # The stand-in Python index's process holds a file in uv's cache after the stop on
+          # Windows, and the prune after the job cannot remove it.
+          prune-cache: false
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: stand-in-stores
