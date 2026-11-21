@@ -257,6 +257,8 @@
         "../../.python-version",
         "../../scripts/public/**",
         "../../README.md",
+        "../../skills/**",
+        "../../specification/turn_record/v0_1/docs/turn_record.md",
         "scripts/install_check.mjs",
         "scripts/release.mjs",
         "scripts/packages.mjs",
