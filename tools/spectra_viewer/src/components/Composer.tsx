@@ -258,7 +258,7 @@ export function Composer({
             }
             className="max-h-33 min-w-0 flex-1 resize-none bg-transparent py-1.5 text-sm leading-5 outline-none placeholder:text-muted-foreground disabled:cursor-default"
           />
-          {!disabled && (
+          {!disabled && refused === undefined && (
             <span className="shrink-0 pb-2 text-xs text-muted-foreground">Enter to send</span>
           )}
           <button
