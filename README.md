@@ -4,6 +4,8 @@ A debugging and observation tool for the developer of an [A2UI](https://github.c
 
 > **Status:** not released yet. Spectra runs from source; see [`tools/spectra/`](tools/spectra/README.md).
 
+[Install](#install) · [First run](#first-run) · [OpenTelemetry](#opentelemetry-instrumentation) · [Replay](#record-once-replay-for-free) · [How it works](#how-it-works) · [Design docs](#how-each-part-works)
+
 ![A message sent to upstream's Python restaurant finder from Spectra's viewer: the model call, the tool call and the A2UI messages arrive as steps while the surface draws itself in the preview](docs/images/turn.gif)
 
 <sub>Upstream's Python restaurant finder on Gemini, at three times speed.</sub>
@@ -35,35 +37,33 @@ The evidence is scattered across logs, the network and the browser, and every re
 
 ## Install
 
-The same binary through every channel.
+One binary, the same through every channel, for macOS arm64 and x64, Linux x64 and arm64 on glibc, and Windows x64.
 
-Run it through npm, with Node 22 or later:
+**npm**, with Node 22 or later:
 
 ```sh
 npx a2ui-spectra
 ```
 
-Run it through PyPI, with [uv](https://docs.astral.sh/uv/):
+**PyPI**, with [uv](https://docs.astral.sh/uv/):
 
 ```sh
 uvx a2ui-spectra
 ```
 
-Install it on macOS or Linux, into `$XDG_BIN_HOME`, else `~/.local/bin`, from the GitHub release, its checksum verified:
+**macOS and Linux**, from the GitHub release into `~/.local/bin`, or `$XDG_BIN_HOME` when it is set, its checksum verified:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/retz8/a2ui-spectra/main/scripts/public/install.sh | sh
 ```
 
-Install it on Windows, into `%LOCALAPPDATA%\Programs\a2ui-spectra\bin` and onto your `PATH`, from the GitHub release, its checksum verified:
+**Windows**, from the GitHub release into `%LOCALAPPDATA%\Programs\a2ui-spectra\bin` and onto your `PATH`, its checksum verified:
 
 ```powershell
 irm https://raw.githubusercontent.com/retz8/a2ui-spectra/main/scripts/public/install.ps1 | iex
 ```
 
-One binary for macOS arm64 and x64, Linux x64 and arm64 on glibc, and Windows x64. Windows on arm64 and Linux on musl, such as Alpine, are not supported.
-
-The binary makes no request of its own: no update check and no usage counts.
+Not supported: Windows on arm64, and Linux on musl, such as Alpine. The binary makes no request of its own: no update check and no usage counts.
 
 <details>
 <summary><b>Downloading the binary by hand</b></summary>
@@ -103,21 +103,31 @@ A binary installed through `npx`, `uvx` or the install scripts carries no downlo
 
 ## First run
 
-From your agent's folder, start the agent under Spectra, naming the address it serves A2A on:
+From your agent's folder, start the agent under Spectra: the URL it serves A2A on, then the command that starts it.
+
+**Python:**
 
 ```sh
 a2ui-spectra run --agent-url http://localhost:10002 -- uv run .
 ```
 
-Spectra starts its listeners, then the agent, and opens the viewer in your browser. Send a message from the viewer's message box, and the turn arrives step by step. Saving a file in the folder restarts the agent. Ctrl-C stops Spectra and the agent.
+**TypeScript:**
 
-For an agent already running, attach to it instead, and set the variables Spectra prints in the agent's shell before restarting the agent:
+```sh
+a2ui-spectra run --agent-url http://localhost:10002 -- node agent.js
+```
+
+Through npm or PyPI, put `npx` or `uvx` in front: `npx a2ui-spectra run …`.
+
+The viewer opens in your browser. Send a message from its message box, and the turn arrives step by step. A save in the folder restarts the agent, and Ctrl-C stops both.
+
+**An agent already running:** attach to it, then set the variables Spectra prints in the agent's shell and restart the agent.
 
 ```sh
 a2ui-spectra attach http://localhost:10002
 ```
 
-The commands, their options and the config file are in [`tools/spectra/`](tools/spectra/README.md).
+Every command, option and config setting is in [`tools/spectra/`](tools/spectra/README.md).
 
 ## OpenTelemetry instrumentation
 
@@ -127,14 +137,16 @@ Out of the box, Spectra sees what goes in and out of your agent. Add the wrapper
 - **Why a block failed to parse**, and the retry it cost.
 - **The prompt the SDK wrote** from your catalog.
 
-Install it beside your agent, and launch the agent under it. In Python, on `a2ui-agent-sdk`:
+Install it beside your agent, and launch the agent under it.
+
+**Python**, on `a2ui-agent-sdk`:
 
 ```sh
 uv add --dev a2ui-spectra-instrumentation
 a2ui-spectra run --agent-url http://localhost:10002 -- uv run opentelemetry-instrument python agent.py
 ```
 
-In TypeScript, on `@a2ui/agent`:
+**TypeScript**, on `@a2ui/agent`:
 
 ```sh
 npm install --save-dev a2ui-spectra-instrumentation
@@ -153,11 +165,12 @@ Like Ruby's VCR, for model calls. Save any turn as a fixture, a JSON file in you
 - **Tools recorded, model live: tokens only.** After a prompt edit, the model is called only from where the request changed.
 - **In CI.** `a2ui-spectra test` replays every fixture and fails when a turn no longer matches its record.
 
+```sh
+a2ui-spectra replay a2ui-spectra-fixtures/chinese-restaurants.json -- uv run .   # one fixture
+a2ui-spectra test -- uv run .                                                     # every fixture, for CI
 ```
-# the agent's URL from agent.url in a2ui-spectra.json
-a2ui-spectra replay a2ui-spectra-fixtures/chinese-restaurants.json -- uv run .
-a2ui-spectra test -- uv run .
-```
+
+Both read the agent's URL from `agent.url` in `a2ui-spectra.json`, or take `--agent-url`.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/replay-passed-dark.png">
@@ -182,7 +195,7 @@ Add more as you need it:
 | Add                                                                                        | And see                                                                              |
 | ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
 | Nothing                                                                                    | Turns, checks, the basic catalog's preview, model calls with tokens and cost, replay |
-| A config file                                                                              | Your own catalog's checks, and your tool calls recorded                              |
+| A [config file](tools/spectra/README.md#the-config-file)                                   | Your own catalog's checks, and your tool calls recorded                              |
 | The [wrapper](#opentelemetry-instrumentation) for upstream's agent SDKs, and OpenTelemetry | The A2UI step: raw text to components, retries, parse errors; your framework's spans |
 | A [preview adapter](typescript/preview/core/README.md) on your catalog's dev server        | Your own components, drawn by your own renderer                                      |
 
@@ -192,9 +205,7 @@ Add more as you need it:
 - **Transport:** A2A 0.3 and A2A 1.0, over JSON-RPC.
 - **Model APIs read in full:** Gemini, OpenAI's Chat Completions and Responses, and Anthropic's Messages. Any other call is recorded raw.
 - **Upstream packages:** each agent SDK and renderer at upstream's main, pinned at `0888f88b2` (2026-11-13), and at its published latest.
-- **OpenTelemetry, for the wrappers:** each range tested at its floor and at its published latest.
-  - The Python wrapper: OpenTelemetry `>=1.39.0,<2`, tested at 1.39.0 and 1.45.2; `opentelemetry-instrumentation` from 0.60b0, tested to 0.66b2; `wrapt` `>=1.16.0,<3`, tested at 1.16.0 and 2.5.2.
-  - The TypeScript wrapper: OpenTelemetry JavaScript's 2.x line, `@opentelemetry/api` `>=1.3.0 <1.10.0`, tested at 1.3.0 and 1.9.1, with `@opentelemetry/instrumentation` and `@opentelemetry/exporter-trace-otlp-http` `^0.223.0` and `@opentelemetry/sdk-trace-node` `^2.12.0`, tested to 0.223.2 and 2.12.1. Not OpenTelemetry JavaScript 3.x yet.
+- **OpenTelemetry, for the wrappers:** OpenTelemetry Python 1.x from 1.39.0, and OpenTelemetry JavaScript's 2.x line, not its 3.x yet. Each range is tested at its floor and at its published latest; the ranges are in the [Python](python/a2ui_spectra_instrumentation/README.md#what-it-supports) and [TypeScript](typescript/instrumentation/README.md#what-it-supports) wrappers' READMEs.
 
 <details>
 <summary><b>v1.0's renamed envelope keys, and which release reads which</b></summary>

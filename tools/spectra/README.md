@@ -9,33 +9,33 @@ The command of [Spectra for A2UI](../../README.md), a debugging and observation 
 
 ## Install
 
-The same binary through every channel.
+One binary, the same through every channel, for macOS arm64 and x64, Linux x64 and arm64 on glibc, and Windows x64.
 
-Run it through npm, with Node 22 or later:
+**npm**, with Node 22 or later:
 
 ```sh
 npx a2ui-spectra
 ```
 
-Run it through PyPI, with [uv](https://docs.astral.sh/uv/):
+**PyPI**, with [uv](https://docs.astral.sh/uv/):
 
 ```sh
 uvx a2ui-spectra
 ```
 
-Install it on macOS or Linux, into `$XDG_BIN_HOME`, else `~/.local/bin`, from the GitHub release, its checksum verified:
+**macOS and Linux**, from the GitHub release into `~/.local/bin`, or `$XDG_BIN_HOME` when it is set, its checksum verified:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/retz8/a2ui-spectra/main/scripts/public/install.sh | sh
 ```
 
-Install it on Windows, into `%LOCALAPPDATA%\Programs\a2ui-spectra\bin` and onto your `PATH`, from the GitHub release, its checksum verified:
+**Windows**, from the GitHub release into `%LOCALAPPDATA%\Programs\a2ui-spectra\bin` and onto your `PATH`, its checksum verified:
 
 ```powershell
 irm https://raw.githubusercontent.com/retz8/a2ui-spectra/main/scripts/public/install.ps1 | iex
 ```
 
-One binary for macOS arm64 and x64, Linux x64 and arm64 on glibc, and Windows x64. Windows on arm64 and Linux on musl, such as Alpine, are not supported. To download the binary by hand from the release page, see the root README's [Install](../../README.md#install).
+Not supported: Windows on arm64, and Linux on musl, such as Alpine. To download the binary by hand from the release page, see the root README's [Install](../../README.md#install).
 
 ## First run
 
@@ -44,6 +44,8 @@ From your agent's folder, start the agent under Spectra, naming the address it s
 ```sh
 a2ui-spectra run --agent-url http://localhost:10002 -- uv run .
 ```
+
+Through npm or PyPI, put `npx` or `uvx` in front: `npx a2ui-spectra run …`.
 
 Spectra starts its listeners, then the agent, and opens the viewer in your browser. These are the first lines of a run of upstream's Python restaurant finder, its folder shortened:
 
