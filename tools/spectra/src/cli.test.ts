@@ -1764,7 +1764,10 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
               reason: 'no answer within 2 seconds',
               seq: 2,
             });
-            assert.ok(spectra.output.includes(`a2ui-spectra: ${line}\n`), line);
+            // The terminal's line can arrive after the live stream's event.
+            await spectra.waitFor(
+              new RegExp(`a2ui-spectra: ${line.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\n`),
+            );
             assert.match(
               line,
               /^Waiting for the agent's card at http:\/\/localhost:\d+\/\.well-known\/agent-card\.json: no answer within 2 seconds\. Change the agent's URL with --agent-url, or agent\.url in the config file\.$/,
