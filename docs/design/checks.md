@@ -140,7 +140,7 @@ A v1.0 message declares `"version": "1.0"`. One declaring `v1.0`, as messages di
 The catalog, structural and binding checks read one conversation, built once per turn:
 
 - **What goes in.** The agent's A2UI messages of the conversation's earlier turns, then the turn's own, one by one into upstream web core's message processor in its relaxed validation mode, each as a copy.
-- **The catalogs registered.** Every catalog the registry knows; the catalogs the conversation's hosts sent inline, in any of their messages so far; and a stand-in, a catalog with no component schemas, under each other catalog id a message writes under a `catalogId` key at any depth, v1.0's when the message declares v1.x and v0.9's otherwise. Web core's relaxed mode lets any component and any function through a stand-in.
+- **The catalogs registered.** Every catalog the registry knows; the catalogs the conversation's hosts sent inline, in any of their messages so far; and a stand-in, a catalog with no component schemas, under each other catalog id a message writes under a `catalogId` key, or a v1.0 `@catalogId` key, at any depth, v1.0's when the message declares v1.x and v0.9's otherwise. Web core's relaxed mode lets any component and any function through a stand-in.
 - **A refused message.** When the processor throws on a message, the message keeps web core's refusal, its error code and its sentence, and the surface stays as web core left it.
 - **What the checks read.** The surfaces as they stand at the close; the turn's own messages, each with web core's refusal when there was one; the surfaces the turn's messages name, in order of first naming; every surface a `createSurface` of the conversation named, accepted or not; the surfaces the turn deleted that are gone at the close; each surface's catalog id, from the last `createSurface` naming it; and the message that carried each standing component.
 
@@ -388,7 +388,6 @@ While the cut-short file stood, the file's entry of `GET /api/catalogs` read, it
 | `The checks failed on turn …: The definition of <id> does not compile: …`          | A configured or inline definition whose own schemas Ajv cannot compile. The turn is written unchecked and reads "Not checked"                                                                            |
 | A saved catalog file is not read again                                             | A line in the terminal says why when a watch failed or its folder went. Otherwise the save fell in the moment of a new watch on macOS, or the path is a symbolic link: save again, or name the real path |
 | An earlier turn's findings no longer match the catalog                             | Its check events were written against the definition at its close. Replay the turn live to check it anew                                                                                                 |
-| A component's `@catalogId` names a catalog Spectra does not know                   | Web core refuses its `updateComponents`, "Catalog not found: <id>", and the structural check finds `ROOT_MISSING`; see [Known limits](#known-limits)                                                     |
 
 ## Design decisions
 
@@ -412,7 +411,6 @@ While the cut-short file stood, the file's entry of `GET /api/catalogs` read, it
 - Formats in the schemas, such as `uri`, are not checked.
 - v0.8 is not checked. A turn in v0.8 gets four events, its schema check failing every message.
 - The message box sends no catalog inline, so an inline catalog comes from your own host only.
-- A stand-in catalog is registered for a catalog id written under a `catalogId` key. A v1.0 component's `@catalogId` naming a catalog no source defines gets none in the conversation the checks read, so web core refuses the component's whole `updateComponents` with "Catalog not found: <id>", the structural check finds `ROOT_MISSING`, and the refusal counts in the turn listing; the catalog check lists the surface as skipped with that id. The viewer's Structure registers a stand-in for it and draws the surface.
 - The config file is read once, at start. Only the catalog files it names are read again.
 - A catalog path that is a symbolic link is not read again when its target changes on macOS.
 

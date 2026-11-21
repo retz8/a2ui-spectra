@@ -302,8 +302,8 @@ function feed(processor: MessageProcessor, message: unknown): Rejection | undefi
 
 /**
  * A catalog with no component schemas under each catalog id the messages
- * name that no catalog is known under: a surface's, a component's or a
- * function call's. The relaxed mode lets any component and function through it.
+ * name that no catalog is known under: a surface's, a component's, its
+ * `@catalogId` included, or a function call's. The relaxed mode lets any component and function through it.
  */
 function standInCatalogs(
   messages: readonly unknown[],
@@ -321,13 +321,14 @@ function standInCatalogs(
   return [...versions].map(([id, version]) => new Catalog<never>(id, version, [], []));
 }
 
-/** Every string under a `catalogId` key, at any depth. */
+/** Every string under a `catalogId` or a v1.0 `@catalogId` key, at any depth, as the viewer reads them. */
 function catalogIdsIn(value: unknown, found: string[] = []): string[] {
   if (Array.isArray(value)) {
     for (const item of value) catalogIdsIn(item, found);
   } else if (typeof value === 'object' && value !== null) {
     for (const [key, item] of Object.entries(value)) {
-      if (key === 'catalogId' && typeof item === 'string') found.push(item);
+      if ((key === 'catalogId' || key === '@catalogId') && typeof item === 'string')
+        found.push(item);
       else catalogIdsIn(item, found);
     }
   }

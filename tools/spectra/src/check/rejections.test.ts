@@ -145,6 +145,23 @@ describe('rejectionCount', () => {
     assert.equal(rejectionCount(turn, [], await CatalogRegistry.load([CIRCLECI])), 1);
   });
 
+  it("lets a v1.0 component through a stand-in for the catalog its @catalogId names, as the viewer's Structure does", () => {
+    const turn = turnOf(
+      undefined,
+      {version: '1.0', createSurface: {surfaceId: 's', catalogId: BASIC_V1_0}},
+      {
+        version: '1.0',
+        updateComponents: {
+          surfaceId: 's',
+          components: [
+            {id: 'root', component: 'Chart', '@catalogId': 'example.com:unknown', values: [1]},
+          ],
+        },
+      },
+    );
+    assert.equal(rejectionCount(turn, [], CatalogRegistry.builtIn()), 0);
+  });
+
   it('knows the v0.9 basic catalog under its v0.9.1 URL', () => {
     assert.equal(
       rejectionCount(turnOf(undefined, ...badText(BASIC_V0_9_1)), [], CatalogRegistry.builtIn()),
