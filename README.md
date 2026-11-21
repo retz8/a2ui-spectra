@@ -33,34 +33,6 @@ The evidence is scattered across logs, the network and the browser, and every re
 - **Press the buttons.** The live preview shows the exact action event your agent would receive, and can send it as the next turn.
 - **Stay in the loop.** Restart on save, the agent's logs, the last turn re-run with one press, and the preview reloading when your catalog changes.
 
-## Record once, replay for free
-
-Like Ruby's VCR, for model calls. Save any turn as a fixture, a JSON file in your repo, and replay it:
-
-- **Everything recorded: free.** Every model and tool call is answered from the record, and nothing leaves your machine. A broken turn comes back on demand while you fix the code.
-- **Tools recorded, model live: tokens only.** After a prompt edit, the model is called only from where the request changed.
-- **In CI.** `a2ui-spectra test` replays every fixture and fails when a turn no longer matches its record.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/replay-menu-dark.png">
-  <img alt="The restaurant turn saved as the fixture chinese-restaurants.json and opened, its Replay menu offering Everything recorded, free, and Tools recorded, model live, up to $0.036" src="docs/images/replay-menu-light.png">
-</picture>
-
-<sub>The turn, saved as a fixture. It cost $0.036 to record.</sub>
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/replay-passed-dark.png">
-  <img alt="The replayed turn: 146 ms, three calls from the record, free, replayed from chinese-restaurants.json with everything recorded, passed, the same parse failure and retry in its steps" src="docs/images/replay-passed-light.png">
-</picture>
-
-<sub>Replayed: 146 ms instead of 25 s, free, and passed, the parse failure and its retry included.</sub>
-
-```
-# the agent's URL from agent.url in a2ui-spectra.json
-a2ui-spectra replay a2ui-spectra-fixtures/chinese-restaurants.json -- uv run .
-a2ui-spectra test -- uv run .
-```
-
 ## Install
 
 The same binary through every channel.
@@ -129,6 +101,69 @@ A binary installed through `npx`, `uvx` or the install scripts carries no downlo
 
 </details>
 
+## First run
+
+From your agent's folder, start the agent under Spectra, naming the address it serves A2A on:
+
+```sh
+a2ui-spectra run --agent-url http://localhost:10002 -- uv run .
+```
+
+Spectra starts its listeners, then the agent, and opens the viewer in your browser. Send a message from the viewer's message box, and the turn arrives step by step. Saving a file in the folder restarts the agent. Ctrl-C stops Spectra and the agent.
+
+For an agent already running, attach to it instead, and set the variables Spectra prints in the agent's shell before restarting the agent:
+
+```sh
+a2ui-spectra attach http://localhost:10002
+```
+
+The commands, their options and the config file are in [`tools/spectra/`](tools/spectra/README.md).
+
+## OpenTelemetry instrumentation
+
+With nothing added, Spectra sees a turn at the agent's edges: the wire, the model calls and the tool calls. To see inside the agent's process, it reads OpenTelemetry. Its receiver takes OTLP over HTTP; `run` points the agent's exporter at it, and `attach` prints the variables that do.
+
+**The A2UI step, from the wrapper.** For an agent on upstream's agent SDK, the wrapper `a2ui-spectra-instrumentation` reports each prompt the SDK writes and each parse of the model's raw text. Each parse becomes a step of the turn: the raw text with each component's characters linked to the tree, the error that stopped a block, the model reply it read and the call that retried it. Install it as a dev dependency of the agent, and launch the agent under it.
+
+A Python agent, on `a2ui-agent-sdk`:
+
+```sh
+uv add --dev a2ui-spectra-instrumentation
+a2ui-spectra run --agent-url http://localhost:10002 -- uv run opentelemetry-instrument python agent.py
+```
+
+A TypeScript agent, on `@a2ui/agent`:
+
+```sh
+npm install --save-dev a2ui-spectra-instrumentation
+a2ui-spectra run --agent-url http://localhost:10002 -- node --import a2ui-spectra-instrumentation/register agent.js
+```
+
+Or switch it on with one line in the agent's code, and launch the agent as you do today. The [Python wrapper's README](python/a2ui_spectra_instrumentation/README.md) and the [TypeScript wrapper's](typescript/instrumentation/README.md) have the line, and what each supports.
+
+**Your framework's own spans.** The receiver also reads the spans your agent's framework exports, in ADK's, OpenInference's and OpenLLMetry's dialects: which step of the framework made each call, tools that never cross the network, and the framework's log records. Launch the agent with an OTLP exporter over HTTP. For a Python agent, [the recipe](docs/design/opentelemetry.md#the-recipe-for-a-python-agent) adds three things to its run and nothing to its code.
+
+## Record once, replay for free
+
+Like Ruby's VCR, for model calls. Save any turn as a fixture, a JSON file in your repo, and replay it:
+
+- **Everything recorded: free.** Every model and tool call is answered from the record, and nothing leaves your machine. A broken turn comes back on demand while you fix the code.
+- **Tools recorded, model live: tokens only.** After a prompt edit, the model is called only from where the request changed.
+- **In CI.** `a2ui-spectra test` replays every fixture and fails when a turn no longer matches its record.
+
+```
+# the agent's URL from agent.url in a2ui-spectra.json
+a2ui-spectra replay a2ui-spectra-fixtures/chinese-restaurants.json -- uv run .
+a2ui-spectra test -- uv run .
+```
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/replay-passed-dark.png">
+  <img alt="The replayed turn: 146 ms, three calls from the record, free, replayed from chinese-restaurants.json with everything recorded, passed, the same parse failure and retry in its steps" src="docs/images/replay-passed-light.png">
+</picture>
+
+<sub>The restaurant turn, recorded for $0.036 and replayed from its fixture: 146 ms instead of 25 s, free, and passed, the parse failure and its retry included.</sub>
+
 ## How it works
 
 Spectra is one local process at the edges every agent stack already has: the wire, the model and tool calls, and OpenTelemetry. So it works with any A2UI agent, in any language and on any framework.
@@ -138,23 +173,16 @@ Spectra is one local process at the edges every agent stack already has: the wir
   <img alt="Spectra at the edges of an agent: the host's turn passes through Spectra's wire proxy to your agent; the agent's model calls, tool calls and OpenTelemetry spans pass through the model proxy, the tool proxy and the receiver; each of the four feeds the viewer in your browser" src="docs/design/diagrams/spectra.svg">
 </picture>
 
-```
-a2ui-spectra run --agent-url http://localhost:10002 -- uv run .   # start your agent under Spectra
-a2ui-spectra attach http://localhost:10002                        # or attach to one already running
-```
-
 **Your keys stay yours.** Spectra runs on your machine and nothing is deployed. API keys and other credentials are removed from everything it records, before it shows or saves anything.
 
 Add more as you need it:
 
-| Add                                                                                                       | And see                                                                              |
-| --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Nothing                                                                                                   | Turns, checks, the basic catalog's preview, model calls with tokens and cost, replay |
-| A config file                                                                                             | Your own catalog's checks, and your tool calls recorded                              |
-| The [wrapper](python/a2ui_spectra_instrumentation/README.md) for upstream's agent SDKs, and OpenTelemetry | The A2UI step: raw text to components, retries, parse errors; your framework's spans |
-| A [preview adapter](typescript/preview/core/README.md) on your catalog's dev server                       | Your own components, drawn by your own renderer                                      |
-
-The command, its options and the config file are in [`tools/spectra/`](tools/spectra/README.md).
+| Add                                                                                        | And see                                                                              |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------ |
+| Nothing                                                                                    | Turns, checks, the basic catalog's preview, model calls with tokens and cost, replay |
+| A config file                                                                              | Your own catalog's checks, and your tool calls recorded                              |
+| The [wrapper](#opentelemetry-instrumentation) for upstream's agent SDKs, and OpenTelemetry | The A2UI step: raw text to components, retries, parse errors; your framework's spans |
+| A [preview adapter](typescript/preview/core/README.md) on your catalog's dev server        | Your own components, drawn by your own renderer                                      |
 
 ## What Spectra supports
 
