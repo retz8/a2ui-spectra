@@ -5,8 +5,8 @@ This doc explains Spectra's OpenTelemetry receiver: how it takes the spans and l
 The running example is upstream's Python restaurant finder, `samples/agent/adk/restaurant_finder`, launched under `opentelemetry-instrument` with [the recipe for a Python agent](#the-recipe-for-a-python-agent) and asked "Top 2 Chinese restaurants in New York". Its export requests and the record Spectra wrote from them are committed as the receiver capture case `adk_trace_context`, and every excerpt of that run below is cut from it. The spans of the A2UI step, which the wrapper sends, reach the same receiver; what they carry and how they are read is in [The A2UI step](a2ui-step.md).
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="diagrams/opentelemetry-dark.svg">
-  <img alt="Inside the agent's process, one span tree runs from the server span through ADK's spans and the model client's span to the HTTP client span. The wire proxy's traceparent enters at the server span and the client span's traceparent leaves on the call to the model and tool proxies. Every span and log record is exported over OTLP/HTTP to Spectra's receiver, which reads each in its dialect and places it in its turn, where the proxies' exchange of the same call is linked to it." src="diagrams/opentelemetry.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/opentelemetry-dark.png">
+  <img alt="The viewer sends the turn through the wire proxy, whose traceparent enters the agent's process at Starlette's server span. The turn's trace id passes down through ADK's spans to aiohttp's client span, and leaves on the call to Gemini through the model proxy. Every span and log record is exported over OTLP/HTTP to Spectra's receiver. The receiver reads each one in its dialect and places it in its turn record by trace id, where the model proxy's exchange of the same call is linked to it, not merged. Spans that arrive after the turn was written amend it, and the viewer shows the call once." src="diagrams/opentelemetry.png">
 </picture>
 
 ## Problem it solves
