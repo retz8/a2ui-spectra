@@ -1,3 +1,8 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/spectra-mark-dark.svg">
+  <img alt="Spectra's mark" src="docs/images/spectra-mark.svg" width="64">
+</picture>
+
 # Spectra for A2UI
 
 A debugging and observation tool for the developer of an [A2UI](https://github.com/a2ui-project/a2ui) agent: attach to the running agent, see every turn, check and preview it, record and replay it.
