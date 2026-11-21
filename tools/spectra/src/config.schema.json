@@ -1,5 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/retz8/a2ui-spectra/main/tools/spectra/src/config.schema.json",
   "title": "Spectra config",
   "description": "The settings of a2ui-spectra.json, the optional config file in the directory Spectra is launched from, or the file --config names.",
   "type": "object",

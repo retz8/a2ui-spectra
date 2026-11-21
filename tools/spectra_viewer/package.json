@@ -51,7 +51,9 @@
         "../../conformance/test_data/wrapper_capture/**",
         "../../conformance/test_data/catalogs/*.json",
         "../spectra/src/check/schemas/*/catalogs/basic/catalog.json",
-        "../spectra/src/prices/*.json"
+        "../spectra/src/prices/*.json",
+        "../../python/a2ui_spectra_instrumentation/README.md",
+        "../../typescript/instrumentation/README.md"
       ],
       "output": [],
       "dependencies": [

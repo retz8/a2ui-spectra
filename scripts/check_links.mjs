@@ -7,7 +7,8 @@
 //     node scripts/check_links.mjs
 //
 // It exits non-zero with a line for each link that does not resolve. Links with a scheme, such
-// as `https:`, are not fetched.
+// as `https:`, are not fetched. `--untracked` counts the files git does not ignore as tracked,
+// for a document not yet added.
 
 import {readFileSync} from 'node:fs';
 import path from 'node:path';
@@ -17,7 +18,7 @@ import {linksOf, pathProblem, resolveTarget, trackedFiles, trackedFolders} from 
 
 const REPO_DIR = path.resolve(fileURLToPath(new URL('..', import.meta.url)));
 
-const files = trackedFiles(REPO_DIR);
+const files = trackedFiles(REPO_DIR, {untracked: process.argv.includes('--untracked')});
 const folders = trackedFolders(files);
 const texts = new Map();
 const read = file => {

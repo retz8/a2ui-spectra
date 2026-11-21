@@ -217,10 +217,18 @@ export function anchorsOf(text) {
   return anchors;
 }
 
-/** The repository's tracked files, as paths from its root with `/`. */
-export function trackedFiles(repoDir) {
+/**
+ * The repository's tracked files, as paths from its root with `/`; with `untracked`, the files
+ * git does not ignore as well.
+ */
+export function trackedFiles(repoDir, {untracked = false} = {}) {
+  const args = [
+    'ls-files',
+    '-z',
+    ...(untracked ? ['--cached', '--others', '--exclude-standard'] : []),
+  ];
   return new Set(
-    execFileSync('git', ['ls-files', '-z'], {cwd: repoDir, encoding: 'utf8', maxBuffer: 1 << 26})
+    execFileSync('git', args, {cwd: repoDir, encoding: 'utf8', maxBuffer: 1 << 26})
       .split('\0')
       .filter(file => file !== ''),
   );

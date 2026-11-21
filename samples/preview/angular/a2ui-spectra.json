@@ -1,5 +1,5 @@
 {
-  "$schema": "http://localhost:9820/api/config.schema.json",
+  "$schema": "https://raw.githubusercontent.com/retz8/a2ui-spectra/main/tools/spectra/src/config.schema.json",
   "catalogs": ["../catalog.json"],
   "preview": ["http://localhost:9833/"]
 }

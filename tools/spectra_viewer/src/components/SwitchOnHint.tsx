@@ -1,54 +1,23 @@
 /**
  * The hint on a model call of a turn with no A2UI step events: switch the
  * wrapper on to see which text became which component, with how to in
- * both languages, each line as the packages' READMEs give it. Under
- * `attach`, each launch line's caption says the variables on the first
- * screen go in the agent's shell, and the launch is the agent's own.
+ * both languages, each line as the wrappers' READMEs give it, and each
+ * README linked at this Spectra's version. Under `attach`, each launch
+ * line's caption says the variables on the first screen go in the agent's
+ * shell, and the launch is the agent's own.
  */
 import {useState} from 'react';
 
+import {readmeLink, SWITCH_ON_LINES} from '@/model/switch_on.ts';
+import {useSpectra} from '@/state/spectra.ts';
+
 import {CopyButton} from './CopyButton.tsx';
+import {Icon} from './icons.tsx';
 import {BlockLabel} from './JsonBlock.tsx';
-
-interface Lines {
-  language: string;
-  install: string;
-  launch: {label: string; code: string};
-  line: {label: string; code: string};
-}
-
-/** The lines of the two packages' READMEs, "Installing" and "Switching it on". */
-const LINES: Lines[] = [
-  {
-    language: 'Python',
-    install:
-      'uv add --dev "a2ui-spectra-instrumentation @ git+https://github.com/retz8/a2ui-spectra#subdirectory=python/a2ui_spectra_instrumentation"',
-    launch: {
-      label: 'Launch under opentelemetry-instrument',
-      code: 'a2ui-spectra run -- opentelemetry-instrument python agent.py',
-    },
-    line: {
-      label: 'Or one line, before the agent parses or generates a prompt',
-      code: 'import a2ui_spectra_instrumentation\n\na2ui_spectra_instrumentation.instrument()',
-    },
-  },
-  {
-    language: 'TypeScript',
-    install:
-      'npm install --save-dev /path/to/a2ui-spectra/typescript/instrumentation/a2ui-spectra-instrumentation.tgz',
-    launch: {
-      label: "Launch through Node's --import",
-      code: 'a2ui-spectra run -- node --import a2ui-spectra-instrumentation/register agent.js',
-    },
-    line: {
-      label: 'Or one line, before the agent parses or generates a prompt',
-      code: "import {instrument} from 'a2ui-spectra-instrumentation';\n\ninstrument();",
-    },
-  },
-];
 
 export function SwitchOnHint({mode}: {mode: 'run' | 'attach' | undefined}) {
   const [open, setOpen] = useState(false);
+  const version = useSpectra().context?.version;
   const attach = mode === 'attach';
   return (
     <div className="flex flex-col gap-1.5">
@@ -58,25 +27,38 @@ export function SwitchOnHint({mode}: {mode: 'run' | 'attach' | undefined}) {
       <BlockLabel label="How to switch it on" fold={{open, onToggle: () => setOpen(!open)}} />
       {open && (
         <div className="grid gap-4 pl-0.5 md:grid-cols-2">
-          {LINES.map(lines => (
-            <div key={lines.language} className="flex min-w-0 flex-col gap-2">
-              <span className="text-xs font-semibold">{lines.language}</span>
-              <Code label="Install" code={lines.install} />
-              <Code
-                label={
-                  attach
-                    ? `${lines.launch.label}, with the variables on the first screen set in the agent’s shell`
-                    : lines.launch.label
-                }
-                code={
-                  attach
-                    ? lines.launch.code.replace(/^a2ui-spectra run -- /, '')
-                    : lines.launch.code
-                }
-              />
-              <Code label={lines.line.label} code={lines.line.code} />
-            </div>
-          ))}
+          {SWITCH_ON_LINES.map(lines => {
+            const readme = readmeLink(lines.readme, version);
+            return (
+              <div key={lines.language} className="flex min-w-0 flex-col gap-2">
+                <span className="text-xs font-semibold">{lines.language}</span>
+                <Code label="Install" code={lines.install} />
+                <Code
+                  label={
+                    attach
+                      ? `${lines.launch.label}, with the variables on the first screen set in the agent’s shell`
+                      : lines.launch.label
+                  }
+                  code={
+                    attach
+                      ? lines.launch.code.replace(/^a2ui-spectra run -- /, '')
+                      : lines.launch.code
+                  }
+                />
+                <Code label={lines.line.label} code={lines.line.code} />
+                <a
+                  href={readme.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={`The ${lines.language} wrapper's README, at ${readme.ref}, on GitHub`}
+                  className="inline-flex min-h-6 items-center gap-1 self-start text-xs font-medium text-brand hover:underline"
+                >
+                  {readme.text}
+                  <Icon kind="open" size={12} />
+                </a>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
