@@ -222,9 +222,8 @@ export function shownCostOf(
 /** A cost in dollars, to two significant figures and at most four decimals: $0.024, $0.20, $0.0009. */
 export function formatCost(usd: number): string {
   if (usd === 0) return '$0';
-  const rounded = Number(usd.toPrecision(2));
-  const magnitude = Math.floor(Math.log10(Math.abs(rounded)));
-  return `$${rounded.toFixed(Math.min(4, Math.max(0, 1 - magnitude)))}`;
+  const magnitude = Math.floor(Math.log10(Math.abs(Number(usd.toPrecision(2)))));
+  return `$${usd.toFixed(Math.min(4, Math.max(0, 1 - magnitude)))}`;
 }
 
 /** A token total in brief: "9.1k" above a thousand, "640" below. */

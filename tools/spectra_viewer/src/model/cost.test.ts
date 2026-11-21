@@ -244,10 +244,11 @@ describe('callCostOf on the copied table', () => {
 
 describe('the figures', () => {
   it('round a cost to two significant figures and at most four decimals', () => {
-    assert.deepEqual([0.0241, 0.2, 0.00087, 0.11, 1.234].map(formatCost), [
+    assert.deepEqual([0.0241, 0.2, 0.00087, 0.000351, 0.11, 1.234].map(formatCost), [
       '$0.024',
       '$0.20',
       '$0.0009',
+      '$0.0004',
       '$0.11',
       '$1.2',
     ]);
