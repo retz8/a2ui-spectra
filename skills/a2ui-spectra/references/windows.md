@@ -8,11 +8,11 @@ The loop of `SKILL.md` is the same on Windows. In PowerShell, these are written 
 '{"text": "<message>"}' | curl.exe -s -X POST http://localhost:9820/api/message-box/messages -H 'content-type: application/json' -d '@-'
 ```
 
-Start Spectra in the background, keeping its process id:
+Start Spectra in the background through `cmd.exe`, which writes Spectra's output to the log, and keep `cmd.exe`'s process id. `Start-Process` must not redirect the output itself: Spectra would then hold this shell's output open, and a caller reading it would wait until Spectra exits.
 
 ```powershell
 New-Item -ItemType Directory -Force "$env:TEMP\a2ui-spectra" | Out-Null
-$spectra = Start-Process a2ui-spectra -ArgumentList 'run --no-open --agent-url <agent-url> -- <agent-command>' -WindowStyle Hidden -PassThru -RedirectStandardOutput "$env:TEMP\a2ui-spectra\spectra.log" -RedirectStandardError "$env:TEMP\a2ui-spectra\spectra.err.log"
+$spectra = Start-Process cmd.exe -ArgumentList '/c a2ui-spectra run --no-open --agent-url <agent-url> -- <agent-command> > "%TEMP%\a2ui-spectra\spectra.log" 2>&1' -WindowStyle Hidden -PassThru
 $spectra.Id | Set-Content "$env:TEMP\a2ui-spectra\spectra.pid"
 ```
 
@@ -38,8 +38,8 @@ foreach ($i in 1..180) {
 $code
 ```
 
-Stop Spectra, and the agent with it:
+Stop Spectra, and the agent with it, by ending the process tree under that id:
 
 ```powershell
-Stop-Process -Id (Get-Content "$env:TEMP\a2ui-spectra\spectra.pid")
+taskkill.exe /PID (Get-Content "$env:TEMP\a2ui-spectra\spectra.pid") /T /F
 ```

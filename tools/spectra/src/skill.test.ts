@@ -63,6 +63,8 @@ const TOOL_SERVER_VARIABLE = 'SPECTRA_STUB_TOOL_SERVER_URL';
 const VIEWER = 'http://localhost:9820';
 const POSIX_FOLDER = '/tmp/a2ui-spectra';
 const WINDOWS_FOLDER = '$env:TEMP\\a2ui-spectra';
+/** The same folder as `cmd.exe` writes it. */
+const CMD_FOLDER = '%TEMP%\\a2ui-spectra';
 
 /** The part of `scripts/install_check.mjs` the test uses. */
 interface InstallCheck {
@@ -192,6 +194,7 @@ function run(
     .replaceAll(VIEWER, s.viewer)
     .replaceAll(POSIX_FOLDER, s.folder)
     .replaceAll(WINDOWS_FOLDER, s.folder)
+    .replaceAll(CMD_FOLDER, s.folder)
     .replaceAll('--no-open', `--no-open --port ${new URL(s.viewer).port} ${s.ports}`);
   let result;
   if (windows) {
@@ -620,6 +623,7 @@ if (runsBlocks && windows) {
         const s = await session();
         const ps = (holding: string) => block('powershell', holding);
         const pidFile = path.join(s.folder, 'spectra.pid');
+        const viewerPort = Number(new URL(s.viewer).port);
         try {
           const started = run(s, ps('Start-Process'), {
             '<agent-url>': s.agentUrl,
@@ -629,6 +633,7 @@ if (runsBlocks && windows) {
           const pid = Number(readFileSync(pidFile, 'utf8'));
           const ready = run(s, ps('/api/agent'));
           assert.match(ready.stdout, /"state":"running"/, ready.stdout + ready.stderr);
+          assert.notEqual(readFileSync(path.join(s.folder, 'spectra.log'), 'utf8'), '');
 
           const sent = run(s, ps('/api/message-box/messages'), {'<message>': 'Hello'});
           const {traceId} = JSON.parse(sent.stdout) as {traceId?: string};
@@ -641,14 +646,16 @@ if (runsBlocks && windows) {
           const turnEvent = record.turns.at(-1)!.events.find(event => kindOf(event) === 'turn')!;
           assert.equal(turnEvent.attributes['a2ui.turn.outcome'], 'waiting_for_input');
 
-          const stopped = run(s, ps('Stop-Process'));
+          const stopped = run(s, ps('taskkill.exe'));
           assert.equal(stopped.status, 0, stopped.stdout + stopped.stderr);
-          await until('Spectra exits', async () => !alive(pid));
+          await until('the started process exits', async () => !alive(pid));
+          await until('Spectra stops listening', async () => !(await listens(viewerPort)));
           await until('the agent stops listening', async () => !(await listens(s.agentPort)));
         } finally {
+          // The id is `cmd.exe`'s, with Spectra and the agent under it.
           if (existsSync(pidFile)) {
             const pid = Number(readFileSync(pidFile, 'utf8'));
-            if (alive(pid)) process.kill(pid, 'SIGKILL');
+            if (alive(pid)) spawnSync('taskkill.exe', ['/PID', String(pid), '/T', '/F']);
           }
         }
       },
