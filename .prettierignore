@@ -33,3 +33,6 @@ tools/spectra/src/prices/*.json
 
 # The third-party notices kept by hand, Bun's LICENSE.md and LiteLLM's notice among them, copied unchanged
 tools/spectra/scripts/notices_by_hand.md
+
+# The drawn diagrams' sources, as the diagram-design skill writes them, beside their exported SVGs
+docs/design/diagrams/*.html
