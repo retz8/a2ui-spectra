@@ -131,8 +131,12 @@ async function launch(dir, serving) {
   writeFileSync(path.join(npmDir, 'config.yaml'), verdaccioConfig(npmDir, serving));
   const npmLog = path.join(npmDir, 'log.txt');
   const pypiLog = path.join(pypiDir, 'log.txt');
-  // On Linux the Python index listens beyond loopback, for the publishing action's container.
-  const pypiListen = process.platform === 'linux' ? '0.0.0.0' : '127.0.0.1';
+  // On Linux the Python index `start` starts listens beyond loopback, for the publishing action's
+  // container.
+  const pypiListen = process.platform === 'linux' && !serving ? '0.0.0.0' : '127.0.0.1';
+  // `start` takes an upload with any credentials. `serve` authenticates uploads with no password
+  // file, under which pypiserver admits no one.
+  const pypiAuth = serving ? ['-a', 'update'] : ['-a', '.', '-P', '.'];
   const pids = [
     startProcess(
       'npx',
@@ -150,7 +154,7 @@ async function launch(dir, serving) {
       'uvx',
       [
         ...['--python', '3.12', '--from', PYPISERVER, 'pypi-server', 'run'],
-        ...['-p', String(PYPI_PORT), '-i', pypiListen, '-a', '.', '-P', '.'],
+        ...['-p', String(PYPI_PORT), '-i', pypiListen, ...pypiAuth],
         ...['--hash-algo', 'sha256', '--disable-fallback', path.join(pypiDir, 'packages')],
       ],
       pypiLog,
