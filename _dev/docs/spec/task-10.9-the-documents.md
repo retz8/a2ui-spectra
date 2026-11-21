@@ -170,8 +170,8 @@ Sub-task 10.9 stays one line in `_dev/TODO.md`, worked in this order:
 
 1. the link check and the packing commands' link rewriting;
 2. the first set: the A2UI step design doc, the Python wrapper's README, the A2UI step doc's lead diagram and the style guide it needs;
-3. Jioh's review of the first set; what it settles about tone, depth, layout and the diagram's look is written into this spec as an amendment, and everything after follows it;
-4. the remaining design docs, READMEs and diagrams, with the hint's round on the canvas, the two `$id` tests and the install check's second README;
+3. the remaining design docs, READMEs and diagrams, with the hint's round on the canvas, the two `$id` tests and the install check's second README;
+4. Jioh's review of the documents; what it settles about tone, depth, layout and the diagrams' look is written into this spec as an amendment, and the documents are brought in line with it;
 5. the two audits.
 
 ### 24. What the documents are held by
