@@ -5,8 +5,8 @@ This doc explains how Spectra judges the A2UI an agent sends: the four checks ev
 The running example is upstream's Python restaurant finder, `samples/agent/adk/restaurant_finder`, in its booking turn: you asked for "Top 2 Chinese restaurants in New York", pressed Book on Xi'an Famous Foods, and the agent answered with its booking form. The form's Dietary Requirements field binds `/dietary`, which the form's data model never fills, and the binding check says so twice. The restaurant finder uses the basic catalog alone and speaks v0.9, so the parts it does not exercise, a configured catalog and v1.0's envelope keys, are shown on the repository's stub agent.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="diagrams/checks-dark.svg">
-  <img alt="At a turn's close, each of the agent's A2UI messages goes to the schema check, which judges it against its protocol version's schema. The same messages, the conversation's earlier turns first, are fed in order through upstream web core with the catalog registry's catalogs, built in, from the config file and sent inline by the host; the surfaces that stand at the close go to the catalog, structural and binding checks. Each of the four checks writes one check event into the turn record." src="diagrams/checks.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/checks-dark.png">
+  <img alt="Your agent's A2UI reaches Spectra two ways. Each message goes alone to the schema check, which judges it against upstream's schemas. The same messages, in order, go into upstream's web core, which also takes the earlier turns from the turn record and the catalogs from the catalog registry. The registry holds the basic catalogs, yours from the config file, read again when you save it, and those sent inline. The surfaces web core holds at the close go to the catalog, structural and binding checks. All four checks write into the turn record, four check events, and the viewer in your browser shows their findings." src="diagrams/checks.png">
 </picture>
 
 ## Problem it solves
