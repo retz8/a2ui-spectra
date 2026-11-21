@@ -2,10 +2,11 @@
 
 The loop of `SKILL.md` is the same on Windows. In PowerShell, these are written differently.
 
-`curl` must be `curl.exe`, and a JSON body goes in on standard input, so its quotes survive:
+`curl` must be `curl.exe`, and a JSON body goes in from a file written without a byte order mark. Quotes in an argument do not survive, and Windows PowerShell puts a byte order mark before text it pipes to a program, which Spectra refuses as not JSON. The folder is the one the start step makes:
 
 ```powershell
-'{"text": "<message>"}' | curl.exe -s -X POST http://localhost:9820/api/message-box/messages -H 'content-type: application/json' -d '@-'
+[IO.File]::WriteAllText("$env:TEMP\a2ui-spectra\body.json", '{"text": "<message>"}')
+curl.exe -s -X POST http://localhost:9820/api/message-box/messages -H 'content-type: application/json' -d "@$env:TEMP\a2ui-spectra\body.json"
 ```
 
 Start Spectra in the background through `cmd.exe`, which writes Spectra's output to the log, and keep `cmd.exe`'s process id. `Start-Process` must not redirect the output itself: Spectra would then hold this shell's output open, and a caller reading it would wait until Spectra exits.
