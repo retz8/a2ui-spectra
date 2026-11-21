@@ -1,19 +1,12 @@
 {
   "enabledPlugins": {
-    "daily-work-harness@retz8-harness": true,
-    "diagram-design@diagram-design": true
+    "daily-work-harness@retz8-harness": true
   },
   "extraKnownMarketplaces": {
     "retz8-harness": {
       "source": {
         "source": "github",
         "repo": "retz8/daily-work-harness"
-      }
-    },
-    "diagram-design": {
-      "source": {
-        "source": "github",
-        "repo": "cathrynlavery/diagram-design"
       }
     }
   }
