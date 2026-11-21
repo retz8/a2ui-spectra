@@ -1,6 +1,7 @@
 // The install check: an adopter's install of the binary, each command as the root README's
-// install section writes it, from the stand-in registries a release run's publishing steps left,
-// or against npm, PyPI and GitHub themselves. One install a run, from any folder:
+// install section writes it, which the command's own README, `tools/spectra/README.md`, must
+// give word for word, from the stand-in registries a release run's publishing steps left, or
+// against npm, PyPI and GitHub themselves. One install a run, from any folder:
 //
 //     node tools/spectra/scripts/install_check.mjs <install> --from <stand-ins|registries> [options]
 //
@@ -76,7 +77,9 @@ import {
 } from './packages.mjs';
 
 export const README = path.join(REPO_DIR, 'README.md');
-/** The root README's install section, by its heading. */
+/** The command's own README, which every package of the binary carries. */
+export const TOOL_README = path.join(TOOL_DIR, 'README.md');
+/** Each README's install section, by its heading. */
 export const INSTALL_HEADING = '## Install';
 /** Raw GitHub's origin, which the two script commands name. */
 export const RAW_GITHUB = 'https://raw.githubusercontent.com';
@@ -108,44 +111,65 @@ export const COMMAND_KINDS = {
 };
 
 /**
- * The root README's install commands: every line of every fenced block in the section under
+ * A README's install commands: every line of every fenced block in the section under
  * `## Install`, up to the next heading of its level or above, each one of the four kinds and
- * each kind once.
+ * each kind once. A block inside a collapsed `<details>` block, such as the root README's on a
+ * binary downloaded by hand, is not one of them. `where` names the README in a failure.
  */
-export function installCommands(text) {
+export function installCommands(text, where = 'README.md') {
   const lines = text.split(/\r?\n/);
   const starts = lines.flatMap((line, at) => (line.trim() === INSTALL_HEADING ? [at] : []));
   if (starts.length !== 1) {
     throw new BuildError(
-      `README.md holds ${starts.length} sections \`${INSTALL_HEADING}\`, not one.`,
+      `${where} holds ${starts.length} sections \`${INSTALL_HEADING}\`, not one.`,
     );
   }
   const end = lines.findIndex((line, at) => at > starts[0] && /^#{1,2} /.test(line));
   const commands = [];
   let fenced = false;
+  let collapsed = 0;
   for (const line of lines.slice(starts[0] + 1, end === -1 ? undefined : end)) {
-    if (/^\s*```/.test(line)) fenced = !fenced;
-    else if (fenced && line.trim() !== '') commands.push(line.trim());
+    if (!fenced && /^\s*<details\b/.test(line)) collapsed += 1;
+    else if (!fenced && /^\s*<\/details>/.test(line)) collapsed = Math.max(0, collapsed - 1);
+    else if (/^\s*```/.test(line)) fenced = !fenced;
+    else if (fenced && collapsed === 0 && line.trim() !== '') commands.push(line.trim());
   }
-  if (fenced) throw new BuildError("README.md's install section leaves a code block open.");
+  if (fenced) throw new BuildError(`${where}'s install section leaves a code block open.`);
   const found = {};
   for (const command of commands) {
     const kinds = Object.keys(COMMAND_KINDS).filter(kind => COMMAND_KINDS[kind](command));
     if (kinds.length !== 1) {
       throw new BuildError(
-        `README.md's install section holds \`${command}\`, which is none of its four commands.`,
+        `${where}'s install section holds \`${command}\`, which is none of its four commands.`,
       );
     }
     if (found[kinds[0]] !== undefined) {
-      throw new BuildError(`README.md's install section holds two ${kinds[0]} commands.`);
+      throw new BuildError(`${where}'s install section holds two ${kinds[0]} commands.`);
     }
     found[kinds[0]] = command;
   }
   const missing = Object.keys(COMMAND_KINDS).filter(kind => found[kind] === undefined);
   if (missing.length > 0) {
-    throw new BuildError(`README.md's install section holds no ${missing.join(', ')} command.`);
+    throw new BuildError(`${where}'s install section holds no ${missing.join(', ')} command.`);
   }
   return found;
+}
+
+/**
+ * The install commands both READMEs give, the root README's and the command's own, which the
+ * packages carry: the same four, word for word.
+ */
+export function readmeInstallCommands() {
+  const root = installCommands(readFileSync(README, 'utf8'));
+  const tool = installCommands(readFileSync(TOOL_README, 'utf8'), 'tools/spectra/README.md');
+  for (const kind of Object.keys(COMMAND_KINDS)) {
+    if (root[kind] !== tool[kind]) {
+      throw new BuildError(
+        `tools/spectra/README.md's ${kind} command is \`${tool[kind]}\`, not README.md's \`${root[kind]}\`.`,
+      );
+    }
+  }
+  return root;
 }
 
 /** The words of the npx or uvx command, which run without a shell, as written. */
@@ -780,7 +804,7 @@ async function installByScript({command, from, githubFiles, installDir, shell, e
 async function main({install, from, githubFiles, installDir, shell}) {
   const host = hostPlatform();
   const version = readVersion();
-  const commands = installCommands(readFileSync(README, 'utf8'));
+  const commands = readmeInstallCommands();
   if (!['npx', 'uvx', 'script'].includes(install)) {
     throw new BuildError(`Name an install: npx, uvx or script, not ${install}.`);
   }

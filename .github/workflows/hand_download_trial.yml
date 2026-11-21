@@ -1,0 +1,87 @@
+name: The hand-download trial
+
+# The root README's steps for a binary downloaded by hand, tried on Windows x64 as the README words
+# them, on the release's own archive and checksums.txt: the checksum line; the binary marked as a
+# browser marks a download, launched, unblocked and launched again; and the archive marked,
+# unblocked, extracted and its binary unblocked and launched. Under Windows PowerShell and
+# PowerShell 7. Started by hand; it publishes nothing.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  binaries:
+    uses: ./.github/workflows/binaries.yml
+    with:
+      release-files: true
+
+  windows:
+    name: The hand-download trial (windows-x64, ${{ matrix.shell }})
+    needs: binaries
+    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shell: [powershell, pwsh]
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: github-release
+          path: ${{ runner.temp }}\release
+      - name: The checksum line
+        working-directory: ${{ runner.temp }}\release
+        run: |
+          $zip = (Get-ChildItem a2ui-spectra-v*-windows-x64.zip).Name
+          $line = "(Get-FileHash .\$zip).Hash -eq (Select-String windows-x64 .\checksums.txt).Line.Split(' ')[0]"
+          Write-Output "> $line"
+          $ok = Invoke-Expression $line
+          Write-Output $ok
+          if ($ok -ne $true) { throw 'The checksum line did not print True.' }
+      - name: The binary, marked, launched, unblocked and launched again
+        working-directory: ${{ runner.temp }}\release
+        run: |
+          $zip = (Get-ChildItem a2ui-spectra-v*-windows-x64.zip).Name
+          New-Item -ItemType Directory marked | Out-Null
+          Expand-Archive $zip -DestinationPath marked
+          $exe = (Resolve-Path marked\a2ui-spectra.exe).Path
+          Set-Content -LiteralPath $exe -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3"
+          Write-Output "Marked: $((Get-Content -LiteralPath $exe -Stream Zone.Identifier) -join ' ')"
+          Write-Output '> a2ui-spectra.exe --version, marked'
+          try {
+            & $exe --version
+            Write-Output "Exit: $LASTEXITCODE"
+          } catch {
+            Write-Output "Refused: $($_.Exception.Message)"
+          }
+          Write-Output "> Unblock-File $exe"
+          Unblock-File $exe
+          $left = Get-Item -LiteralPath $exe -Stream * | Where-Object Stream -eq 'Zone.Identifier'
+          if ($left) { throw 'Unblock-File left the Zone.Identifier stream.' }
+          Write-Output '> a2ui-spectra.exe --version, unblocked'
+          $version = & $exe --version
+          Write-Output $version
+          if ($LASTEXITCODE -ne 0) { throw "The unblocked binary exited with $LASTEXITCODE." }
+      - name: The archive, marked, then the README's three lines
+        working-directory: ${{ runner.temp }}\release
+        run: |
+          $zip = (Get-ChildItem a2ui-spectra-v*-windows-x64.zip).Name
+          $folder = [IO.Path]::GetFileNameWithoutExtension($zip)
+          Set-Content -LiteralPath $zip -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3"
+          Write-Output "Marked: $zip"
+          Write-Output "> Unblock-File .\$zip"
+          Unblock-File ".\$zip"
+          Write-Output "> Expand-Archive .\$zip"
+          Expand-Archive ".\$zip"
+          Write-Output "> Unblock-File .\$folder\a2ui-spectra.exe"
+          Unblock-File ".\$folder\a2ui-spectra.exe"
+          $left = Get-Item -LiteralPath ".\$folder\a2ui-spectra.exe" -Stream * | Where-Object Stream -eq 'Zone.Identifier'
+          if ($left) { throw 'The binary still carries the Zone.Identifier stream.' }
+          $version = & ".\$folder\a2ui-spectra.exe" --version
+          Write-Output $version
+          if ($LASTEXITCODE -ne 0) { throw "The binary exited with $LASTEXITCODE." }

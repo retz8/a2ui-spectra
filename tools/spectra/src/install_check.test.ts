@@ -20,10 +20,12 @@ type Kind = 'npx' | 'uvx' | 'sh' | 'powershell';
 /** The part of `scripts/install_check.mjs` the tests use. */
 interface InstallCheck {
   README: string;
+  TOOL_README: string;
   RAW_GITHUB: string;
   MARK: string;
   CANNED_SURFACE: unknown[];
-  installCommands(text: string): Record<Kind, string>;
+  installCommands(text: string, where?: string): Record<Kind, string>;
+  readmeInstallCommands(): Record<Kind, string>;
   commandWords(command: string): string[];
   fromStandIn(command: string, origin: string): string;
   githubStandIn(input: {
@@ -82,6 +84,31 @@ describe('the install check', () => {
       sh: SH,
       powershell: PS,
     });
+  });
+
+  it("reads the command's own README, which the packages carry, as the same four commands", () => {
+    assert.deepEqual(
+      check.installCommands(readFileSync(check.TOOL_README, 'utf8'), 'tools/spectra/README.md'),
+      check.installCommands(readFileSync(check.README, 'utf8')),
+    );
+    assert.deepEqual(check.readmeInstallCommands(), {
+      npx: 'npx a2ui-spectra',
+      uvx: 'uvx a2ui-spectra',
+      sh: SH,
+      powershell: PS,
+    });
+  });
+
+  it('passes over the blocks of a collapsed <details> inside the section', () => {
+    const text = section('npx a', 'uvx a', SH, PS).replace(
+      '## Next',
+      '<details>\n<summary>By hand</summary>\n\n```sh\nxattr -d com.apple.quarantine a\n```\n\n</details>\n\n## Next',
+    );
+    assert.deepEqual(Object.keys(check.installCommands(text)), ['npx', 'uvx', 'sh', 'powershell']);
+    assert.throws(
+      () => check.installCommands(section('npx a', 'uvx a', SH), 'tools/spectra/README.md'),
+      /tools\/spectra\/README\.md's install section holds no powershell command\./,
+    );
   });
 
   it("writes the two script commands as the scripts' header comments do", () => {

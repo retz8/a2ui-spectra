@@ -63,37 +63,80 @@ a2ui-spectra test -- uv run .
 
 ## Install
 
+The same binary through every channel.
+
+Run it through npm, with Node 22 or later:
+
 ```sh
 npx a2ui-spectra
 ```
+
+Run it through PyPI, with [uv](https://docs.astral.sh/uv/):
 
 ```sh
 uvx a2ui-spectra
 ```
 
+Install it on macOS or Linux, into `~/.local/bin`, from the GitHub release, its checksum verified:
+
 ```sh
 curl -fsSL https://raw.githubusercontent.com/retz8/a2ui-spectra/main/scripts/public/install.sh | sh
 ```
+
+Install it on Windows, into `%LOCALAPPDATA%\Programs\a2ui-spectra\bin` and onto your `PATH`, from the GitHub release, its checksum verified:
 
 ```powershell
 irm https://raw.githubusercontent.com/retz8/a2ui-spectra/main/scripts/public/install.ps1 | iex
 ```
 
+One binary for macOS arm64 and x64, Linux x64 and arm64 on glibc, and Windows x64. Windows on arm64 and Linux on musl, such as Alpine, are not supported.
+
+The binary makes no request of its own: no update check and no usage counts.
+
+<details>
+<summary><b>Downloading the binary by hand</b></summary>
+
+<br>
+
+Download your platform's archive and `checksums.txt` from the release page into one folder, and verify the archive: its checksum, then its build provenance attestation with GitHub's `gh`.
+
+```sh
+shasum -a 256 --ignore-missing -c checksums.txt     # sha256sum on Linux
+gh attestation verify a2ui-spectra-v0.1.0-darwin-arm64.tar.gz --repo retz8/a2ui-spectra
+```
+
+```powershell
+(Get-FileHash .\a2ui-spectra-v0.1.0-windows-x64.zip).Hash -eq (Select-String windows-x64 .\checksums.txt).Line.Split(' ')[0]
+gh attestation verify .\a2ui-spectra-v0.1.0-windows-x64.zip --repo retz8/a2ui-spectra
+```
+
+The binaries are not signed with a paid developer identity, and a browser's download carries the download mark. On macOS, clear it on the archive and unpack it with `tar`; if Safari or the Finder unpacked it already, run the first line on `a2ui-spectra` instead.
+
+```sh
+xattr -d com.apple.quarantine a2ui-spectra-v0.1.0-darwin-arm64.tar.gz
+tar -xzf a2ui-spectra-v0.1.0-darwin-arm64.tar.gz
+```
+
+On Windows, unblock the archive, extract it and unblock the binary.
+
+```powershell
+Unblock-File .\a2ui-spectra-v0.1.0-windows-x64.zip
+Expand-Archive .\a2ui-spectra-v0.1.0-windows-x64.zip
+Unblock-File .\a2ui-spectra-v0.1.0-windows-x64\a2ui-spectra.exe
+```
+
+A binary installed through `npx`, `uvx` or the install scripts carries no download mark; the install check establishes it on macOS and Windows. Not established: whether Smart App Control on Windows 11, which blocks unsigned code it cannot vouch for and allows no exception for one app, lets the binary run; whether SmartScreen checks it when started from a terminal; and whether Gatekeeper assesses it beyond the mark. The full account, with Apple's and Microsoft's pages, is in [Distribution](docs/design/distribution.md#a-binary-downloaded-by-hand).
+
+</details>
+
 ## How it works
 
 Spectra is one local process at the edges every agent stack already has: the wire, the model and tool calls, and OpenTelemetry. So it works with any A2UI agent, in any language and on any framework.
 
-```
-   Spectra's message box, or your own host app
-        │ A2A
-        ▼
- ┌───────────────────── a2ui-spectra, local ──────────────────────┐
- │ wire proxy · model proxy · tool proxy · OpenTelemetry receiver │──▶ the viewer, in your browser
- └────────────────────────────────────────────────────────────────┘
-        ▲ the wire     ▲ model calls     ▲ tool calls     ▲ spans
-        └──────────────┴─────────────────┴────────────────┘
-                 your agent: any language, any framework
-```
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/design/diagrams/spectra-dark.svg">
+  <img alt="Spectra at the edges of an agent: the host's turn passes through Spectra's wire proxy to your agent; the agent's model calls, tool calls and OpenTelemetry spans pass through the model proxy, the tool proxy and the receiver; each of the four feeds the viewer in your browser" src="docs/design/diagrams/spectra.svg">
+</picture>
 
 ```
 a2ui-spectra run --agent-url http://localhost:10002 -- uv run .   # start your agent under Spectra
@@ -110,6 +153,8 @@ Add more as you need it:
 | A config file                                                                                             | Your own catalog's checks, and your tool calls recorded                              |
 | The [wrapper](python/a2ui_spectra_instrumentation/README.md) for upstream's agent SDKs, and OpenTelemetry | The A2UI step: raw text to components, retries, parse errors; your framework's spans |
 | A [preview adapter](typescript/preview/core/README.md) on your catalog's dev server                       | Your own components, drawn by your own renderer                                      |
+
+The command, its options and the config file are in [`tools/spectra/`](tools/spectra/README.md).
 
 ## What Spectra supports
 
@@ -143,6 +188,27 @@ A preview page on a published renderer reports what that renderer refuses, in it
 
 </details>
 
+## How each part works
+
+The design docs explain each part of Spectra: what it does, the rules it follows and why, and where its code is. Start with [A turn, end to end](docs/design/turn-end-to-end.md).
+
+| Doc                                                         | What it explains                                                                                   |
+| ----------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| [A turn, end to end](docs/design/turn-end-to-end.md)        | One turn from the message box to the viewer, passing each part once                                |
+| [The wire](docs/design/wire.md)                             | The wire proxy and the message box: where A2UI sits in an A2A message, how a turn opens and closes |
+| [Model and tool calls](docs/design/model-and-tool-calls.md) | Redirection, the model proxy and the tool proxy, tokens, the estimated cost                        |
+| [OpenTelemetry](docs/design/opentelemetry.md)               | The receiver: each framework's spans, and how a span joins its turn                                |
+| [The A2UI step](docs/design/a2ui-step.md)                   | The wrappers: the prompt and the parse inside the agent SDK, raw text to components, retries       |
+| [The checks](docs/design/checks.md)                         | The four checks and the catalogs they check against                                                |
+| [The preview](docs/design/preview.md)                       | The preview protocol, its core and adapters, the built-in page, a press                            |
+| [Replay and fixtures](docs/design/replay-and-fixtures.md)   | The record, the two replay modes, the verdict, `replay` and `test`, the store and fixtures         |
+| [The agent's process](docs/design/agent-process.md)         | Under `run`: start, restart on save, the agent's output, the stop                                  |
+| [The viewer](docs/design/viewer.md)                         | The page: what each area shows and where it comes from                                             |
+| [The API](docs/design/api.md)                               | The routes and the live stream, for a script or a coding agent                                     |
+| [Distribution](docs/design/distribution.md)                 | The binary, its packages, the install scripts, and what a release verifies                         |
+
+The turn record, the file format every fixture is, is specified in [`specification/turn_record/v0_1/`](specification/turn_record/v0_1/README.md).
+
 ## In this repo
 
 | Package                                                                                                                                                        | What it is                                                           |
@@ -155,3 +221,19 @@ A preview page on a published renderer reports what that renderer refuses, in it
 | [`specification/turn_record/v0_1/`](specification/turn_record/v0_1/README.md)                                                                                  | The turn record: the file format every fixture is                    |
 | [`conformance/`](conformance/README.md)                                                                                                                        | The turn record's shared test data                                   |
 | [`samples/preview/`](samples/preview/react/README.md)                                                                                                          | Sample catalog apps, one per preview adapter                         |
+
+## Development
+
+The repository is Yarn workspaces built with Wireit, and a uv workspace for the Python wrapper. With Node 22, Yarn 4 through Corepack, and uv, from the repository root:
+
+```sh
+yarn install
+uv sync --all-packages
+yarn build:all
+yarn test:all
+yarn lint:all
+yarn format:check:all
+node scripts/check_links.mjs
+```
+
+Each package's README closes with its own commands. The licence is Apache 2.0, as upstream's.

@@ -1,6 +1,15 @@
 # Conformance Testing
 
-Language-agnostic test data for the A2UI turn record, specified in [`specification/turn_record/`](../specification/turn_record), for the capture paths that write it, and for the proxies replaying it. A fixture is a turn record.
+Language-agnostic test data for the A2UI turn record, specified in [`specification/turn_record/`](../specification/turn_record/v0_1/README.md), for the capture paths that write it, and for the proxies replaying it. A fixture is a turn record. It holds every capture path in every language to the same record, the way upstream's `conformance/` suite holds its SDKs in different languages to the same behaviour.
+
+This README is for whoever adds a case or a capture path. It is laid out in four parts:
+
+1. [The suites](#suite-structure), one per area, each with what its cases hold and how its recordings are made.
+2. The helpers the suites run against: [the stub agent](#the-stub-agent), [the stand-in provider](#the-stand-in-provider) and [the tool server](#the-tool-server).
+3. How to write a case for each suite, from [`validate_turn_record`](#writing-cases-for-validate_turn_record) to [`capture_wrapper`](#writing-cases-for-capture_wrapper), and the [checks on the test data as a whole](#checks-on-the-test-data-as-a-whole).
+4. [Development](#development): building and running the suites.
+
+How Spectra writes and reads the record, part by part, is in the design docs under [`docs/design/`](../docs/design), such as [Replay and fixtures](../docs/design/replay-and-fixtures.md) and [The A2UI step](../docs/design/a2ui-step.md).
 
 ## Suite Structure
 
@@ -437,7 +446,7 @@ A new case's valid text is recorded with the recorder, its error text written by
 - Every file under `test_data/a2a_capture/`, `test_data/model_capture/`, `test_data/tool_capture/`, `test_data/receiver_capture/` and `test_data/wrapper_capture/` is named by a case: for the wrapper capture suite, by its job, the files the job names, or its expected records.
 - Every case of the model and tool replay suites names a capture case of its name, and that case's recording or scenario and expected records.
 
-## Commands
+## Development
 
 From `conformance/`:
 

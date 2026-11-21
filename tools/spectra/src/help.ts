@@ -83,11 +83,12 @@ const attachHelp = `Usage: ${NAME} attach [<agent-url>] [options]
 
 Attach to an agent that is already running at <agent-url>, its base address,
 or at agent.url in the config file when the argument is left out. Spectra
-waits until the agent's card answers at <agent-url>/.well-known/agent-card.json,
-then starts the wire proxy, the model proxy, the tool proxy, the OpenTelemetry
-receiver and the viewer. Point a host at the wire proxy's address in place of
-the agent's URL. To see the agent's model and tool calls and its spans, set the
-variables Spectra prints at start in the agent's shell and restart the agent.
+starts the model proxy, the tool proxy and the OpenTelemetry receiver, waits
+until the agent's card answers at <agent-url>/.well-known/agent-card.json, then
+starts the wire proxy and the viewer. Point a host at the wire proxy's address
+in place of the agent's URL. To see the agent's model and tool calls and its
+spans, set the variables Spectra prints at start in the agent's shell and
+restart the agent.
 
 Options:
 ${sharedOptions}

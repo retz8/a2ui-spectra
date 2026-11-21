@@ -33,7 +33,7 @@
       "items": {
         "type": "string"
       },
-      "description": "Paths of catalog definition files, each carrying its own catalogId. A relative path is relative to this file's directory. Read once at start; a change needs a restart."
+      "description": "Paths of catalog definition files, each carrying its own catalogId. A relative path is relative to this file's directory. Read at start, and read again when the file changes."
     },
     "preview": {
       "type": "array",
