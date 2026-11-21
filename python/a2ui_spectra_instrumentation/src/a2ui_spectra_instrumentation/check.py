@@ -98,15 +98,16 @@ def _add_group(plan: Plan, group: str) -> None:
 
 
 def _refuse(distribution: str, version: str | None, why: str) -> None:
+    # The floor is the agent SDK's alone; `a2ui-adk` is named by its release.
     logger.warning(
         "a2ui-spectra-instrumentation left %s %s unpatched: %s; it was written"
-        " against %s, %s (%s)",
+        " against %s, %s%s",
         distribution,
         version if version is not None else "(not installed)",
         why,
         PINS[distribution],
         RELEASE,
-        FLOOR,
+        f" ({FLOOR})" if distribution == AGENT_SDK else "",
     )
 
 

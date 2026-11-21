@@ -7,7 +7,7 @@ import sys
 from typing import Any
 
 import pytest
-from a2ui.adk import SendA2uiToClientToolset
+from a2ui.adk import SendA2uiToClientToolset, send_a2ui_to_client_toolset
 from a2ui.inference_formats import AtomParser, ElementalParser, ExpressParser
 from a2ui.inference_formats.experimental.atom import (
     prompt_generator as atom_prompt_generator,
@@ -119,6 +119,28 @@ def test_an_unimportable_adk_extension_is_skipped_silently(
     assert support.hooked(Parser, "parse_response")
     assert not support.hooked(SendA2uiToClientToolset, "get_tools")
     assert support.lines(caplog) == []
+
+
+def test_a_missing_toolset_name_skips_the_toolset_naming_its_own_release(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    provider: TracerProvider,
+    support: Any,
+) -> None:
+    monkeypatch.delattr(send_a2ui_to_client_toolset, "validate_payload")
+    with caplog.at_level(logging.DEBUG, logger=WRAPPER_LOGGER):
+        a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
+
+    assert support.hooked(Parser, "parse_response")
+    assert not support.hooked(SendA2uiToClientToolset, "get_tools")
+    [line] = support.lines(caplog)
+    assert line.levelno == logging.WARNING
+    message = line.getMessage()
+    assert "left a2ui-adk 0.3.0 unpatched" in message
+    assert "send_a2ui_to_client_toolset.validate_payload is missing" in message
+    assert message.endswith(
+        "it was written against a2ui-adk 0.3.0, upstream's release of 2026-11-10"
+    )
 
 
 def test_an_sdk_at_the_floor_is_refused(
