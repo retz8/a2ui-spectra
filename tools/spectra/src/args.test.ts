@@ -62,7 +62,7 @@ describe('parseCommandLine', () => {
     assert.equal(run.command, 'uv');
   });
 
-  it('reads every option', () => {
+  it('reads every option, an allowed host name as the Host check compares it, lowercased and without its trailing dot', () => {
     const commandLine = parseCommandLine([
       'attach',
       'https://agent.example/a2a',
@@ -78,7 +78,7 @@ describe('parseCommandLine', () => {
       '--allow-host',
       'One.Example',
       '--allow-host',
-      'two.example',
+      'two.example.',
     ]);
     assert.ok(commandLine.name === 'attach');
     assert.equal(commandLine.options.port, 7000);
@@ -142,6 +142,7 @@ describe('parseCommandLine', () => {
       ['attach', 'http://a', '--allow-host', 'http://x.example'],
       /--allow-host takes a host name/,
     );
+    usageError(['attach', 'http://a', '--allow-host', '.'], /--allow-host takes a host name/);
     usageError(['run', '--agent-url', 'http://a'], /after '--'/);
     usageError(['run', '--agent-url', 'http://a', '--'], /after '--'/);
     usageError(['run', '--agent-url', 'http://a', 'uv', 'run', '.'], /goes after '--'/);

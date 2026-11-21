@@ -500,8 +500,10 @@ function parsePort(
   return port;
 }
 
+/** A host name as the `Host` check compares it: lowercased, without one trailing dot. */
 function parseHostName(value: string, topic: CommandName): string {
-  const name = value.trim().toLowerCase();
+  const given = value.trim().toLowerCase();
+  const name = given.endsWith('.') ? given.slice(0, -1) : given;
   if (name === '' || /[\s/:@]/.test(name.replace(/^\[.*\]$/, ''))) {
     throw new UsageError(
       `--allow-host takes a host name without a scheme or port, not '${value}'.`,
