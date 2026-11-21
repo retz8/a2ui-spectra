@@ -58,9 +58,9 @@
 }
 
 /*
- * The design artifact's colours. The one accent is the teal of A2UI's
- * documentation site, from Material Design's palette: 700 in light, 400 in
- * dark. shadcn/ui's names point at them.
+ * The design artifact's colours. The one accent is A2UI's documentation
+ * site's `--a2-accent`: #0b57d0 in light, #8ab4f8 in dark. shadcn/ui's names
+ * point at them.
  */
 :root {
   color-scheme: light;
@@ -69,8 +69,8 @@
   --panel: #ffffff;
   --tint: #f5f6f8;
   --muted-strong: #55595f;
-  --brand: #00796b;
-  --brand-soft: #e0f2f1;
+  --brand: #0b57d0;
+  --brand-soft: #ebf2fb;
   --brand-on: #ffffff;
   --problem: #c62828;
   --problem-soft: #fcedec;
@@ -105,9 +105,9 @@
   --panel: #17181b;
   --tint: #1e1f23;
   --muted-strong: #aeb2b9;
-  --brand: #26a69a;
-  --brand-soft: #192f2f;
-  --brand-on: #06201d;
+  --brand: #8ab4f8;
+  --brand-soft: #252b36;
+  --brand-on: #062e6f;
   --problem: #f2726f;
   --problem-soft: #3a1c1c;
   --success: #66bb6a;

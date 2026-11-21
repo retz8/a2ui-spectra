@@ -20,7 +20,7 @@
 
 ![A message sent to upstream's Python restaurant finder from Spectra's viewer: the model call, the tool call and the A2UI messages arrive as steps while the surface draws itself in the preview](docs/images/turn.gif)
 
-<sub>Upstream's Python restaurant finder on Gemini, at three times speed.</sub>
+<sub>Upstream's Python restaurant finder on Gemini, at four times speed.</sub>
 
 ## Why
 

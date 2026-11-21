@@ -17,7 +17,7 @@ import {formatOffset} from './format.ts';
 import {Icon} from './icons.tsx';
 import {BlockLabel, JsonBlock, JsonLines} from './JsonBlock.tsx';
 
-/** A teal link in a detail's line, which selects another step. */
+/** A link in the accent, in a detail's line, which selects another step. */
 export function DetailLink({onClick, children}: {onClick: () => void; children: ReactNode}) {
   return (
     <button

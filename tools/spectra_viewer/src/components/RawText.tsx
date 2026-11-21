@@ -2,7 +2,7 @@
  * A parse's raw text with its component ranges: plain at rest, each
  * rejected block in red-soft; hovering outlines the innermost component
  * under the pointer, clicking selects it, and the selected component's
- * whole range takes the teal-soft tint. Text outside any component stays
+ * whole range takes the soft accent. Text outside any component stays
  * plain and links to nothing. A grey sentence above says when the ranges
  * are not all worked out.
  */

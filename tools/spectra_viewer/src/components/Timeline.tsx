@@ -262,7 +262,7 @@ function RowTag({tag}: {tag: string}) {
 /**
  * A row's lane: a narrow track with a call's bar from its start to its end,
  * lighter until a streamed model call's first token and darker after, or a
- * step's or a delivery's dot at its moment. Grey at rest, teal on the
+ * step's or a delivery's dot at its moment. Grey at rest, the accent on the
  * selected or followed row, red for a row with a problem.
  */
 function LaneMark({

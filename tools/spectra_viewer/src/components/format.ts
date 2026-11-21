@@ -31,7 +31,7 @@ export function turnIconOf(turn: Pick<ListedTurn, 'open' | 'outcome' | 'newer'>)
   return STATUS_ICONS[turn.open ? 'open' : (turn.outcome ?? 'open')];
 }
 
-/** An icon's colour: grey for its shape alone, red for trouble, teal for what is live. */
+/** An icon's colour: grey for its shape alone, red for trouble, the accent for what is live. */
 /**
  * A model call's icon in its provider's colour: Claude's clay, OpenAI's in the
  * text colour, since OpenAI's mark carries no colour of its own, and Gemini's
