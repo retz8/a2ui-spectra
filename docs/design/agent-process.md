@@ -5,8 +5,8 @@ This doc explains what Spectra does with your agent's process when you launch it
 The running example is upstream's Python restaurant finder, `samples/agent/adk/restaurant_finder`, started with its README's command, `uv run .`. Its process is a small tree: `uv` starts Python, and Python runs uvicorn, which serves the agent and its card.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="diagrams/agent-process-dark.svg">
-  <img alt="Where you work, the editor, the terminal and the viewer, each reaches Spectra's supervisor: a save through the save watcher, Ctrl-C from the terminal and Restart from the viewer. The supervisor starts the agent's command and sends the stop signal to its whole process group, which holds the command and what it starts, and reads the agent's card at each start. The group's output pipes reach Spectra, which keeps the output for the viewer's logs." src="diagrams/agent-process.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/agent-process-dark.png">
+  <img alt="Where you work, the editor, the viewer and the terminal, sits on the left, Spectra in the middle and the agent's process on the right. Restart in the viewer reaches Spectra's supervisor, which stops the agent's whole process group and starts the same command again: uv, which starts Python, which runs uvicorn. A save in the editor reaches the supervisor through the save watcher, unless watch is false. The supervisor reads the agent card at each start. The agent's stdout and stderr reach Spectra, which echoes each chunk to the terminal and keeps the last 1,000 lines for the viewer's logs." src="diagrams/agent-process.png">
 </picture>
 
 ## Problem it solves
