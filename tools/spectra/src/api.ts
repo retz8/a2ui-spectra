@@ -324,7 +324,10 @@ async function storedRecord(
   return record === undefined ? undefined : {record, stored};
 }
 
-/** A stored turn's record, or nothing once the answer says it is of a newer version. */
+/**
+ * A stored turn's record, or nothing once the answer says why its file does
+ * not read as one: of a newer version, or not a record at all.
+ */
 async function readStored(
   api: Api,
   file: string,
@@ -333,7 +336,7 @@ async function readStored(
   try {
     return await api.store.read(file);
   } catch (error) {
-    if (!(error instanceof NewerRecordError)) throw error;
+    if (!(error instanceof RecordReadError)) throw error;
     sendJson(response, 422, {error: error.message});
     return undefined;
   }

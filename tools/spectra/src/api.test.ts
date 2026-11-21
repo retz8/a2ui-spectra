@@ -320,6 +320,28 @@ describe('the API', () => {
     assert.deepEqual(await replayed.json(), {error: line});
   });
 
+  it('answers 422 with the reason for a stored turn whose file does not read as a record, and does not save or replay it', async () => {
+    const {store, base} = await serve(60_000, undefined, {replay: true});
+    await store.write(closedTurn(1, 'ctx-1'));
+    mkdirSync(path.join(store.turnsDir, 'ctx-2'));
+    writeFileSync(
+      path.join(store.turnsDir, 'ctx-2', `2026-10-21T10-00-02.000Z_${trace(2)}.json`),
+      'not json',
+    );
+    const record = await getJson(`${base}/api/turns/${trace(2)}`);
+    assert.equal(record.status, 422);
+    assert.match((record.body as {error: string}).error, /^The file is not JSON: /);
+    const saved = await post(`${base}/api/fixtures`, {traceId: trace(2), name: 'broken'});
+    assert.equal(saved.status, 422);
+    assert.match(((await saved.json()) as {error: string}).error, /^The file is not JSON: /);
+    const replayed = await post(`${base}/api/replays`, {
+      source: {traceId: trace(2)},
+      mode: 'model_live',
+    });
+    assert.equal(replayed.status, 422);
+    assert.match(((await replayed.json()) as {error: string}).error, /^The file is not JSON: /);
+  });
+
   it('returns a turn kept in memory after its write failed, and marks it in the listing', async () => {
     const {store, base} = await serve();
     await store.write(closedTurn(2, 'ctx-2'));
