@@ -4,7 +4,7 @@ A debugging and observation tool for the developer of an [A2UI](https://github.c
 
 > **Status:** not released yet. Spectra runs from source; see [`tools/spectra/`](tools/spectra/README.md).
 
-[Install](#install) · [First run](#first-run) · [OpenTelemetry](#opentelemetry-instrumentation) · [Replay](#record-once-replay-for-free) · [Coding agents](#with-a-coding-agent) · [How it works](#how-it-works) · [Design docs](#how-each-part-works)
+[Install](#install) · [First run](#first-run) · [OpenTelemetry](#opentelemetry-instrumentation) · [Coding agents](#with-a-coding-agent) · [How it works](#how-it-works) · [Design docs](#how-each-part-works)
 
 ![A message sent to upstream's Python restaurant finder from Spectra's viewer: the model call, the tool call and the A2UI messages arrive as steps while the surface draws itself in the preview](docs/images/turn.gif)
 
@@ -33,6 +33,7 @@ The evidence is scattered across logs, the network and the browser, and every re
 - **See inside the turn.** The exact model request, tokens and cost, every tool call, the raw text and which part of it became which component, and the surface, step by step.
 - **Catch mistakes.** Each response is checked against its schema and catalog: unknown components, child ids that point nowhere, loops, bindings the data model never fills.
 - **Press the buttons.** The live preview shows the exact action event your agent would receive, and can send it as the next turn.
+- **Replay for free.** Save any turn as a fixture, a JSON file in your repo, and replay it like Ruby's VCR, every model and tool call answered from the record. After a prompt edit, the model is called only from where the request changed. In CI, `a2ui-spectra test` replays them all.
 - **Stay in the loop.** Restart on save, the agent's logs, the last turn re-run with one press, and the preview reloading when your catalog changes.
 
 ## Install
@@ -156,28 +157,6 @@ a2ui-spectra run --agent-url http://localhost:10002 -- node --import a2ui-spectr
 Or switch it on with one line of code: see the [Python](python/a2ui_spectra_instrumentation/README.md) and [TypeScript](typescript/instrumentation/README.md) wrappers' READMEs.
 
 Your framework's own spans, ADK's among them, join the same turn: which step made each call, and the tools that never cross the network. See [the recipe for a Python agent](docs/design/opentelemetry.md#the-recipe-for-a-python-agent).
-
-## Record once, replay for free
-
-Like Ruby's VCR, for model calls. Save any turn as a fixture, a JSON file in your repo, and replay it:
-
-- **Everything recorded: free.** Every model and tool call is answered from the record, and nothing leaves your machine. A broken turn comes back on demand while you fix the code.
-- **Tools recorded, model live: tokens only.** After a prompt edit, the model is called only from where the request changed.
-- **In CI.** `a2ui-spectra test` replays every fixture and fails when a turn no longer matches its record.
-
-```sh
-a2ui-spectra replay a2ui-spectra-fixtures/chinese-restaurants.json -- uv run .   # one fixture
-a2ui-spectra test -- uv run .                                                     # every fixture, for CI
-```
-
-Both read the agent's URL from `agent.url` in `a2ui-spectra.json`, or take `--agent-url`.
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/replay-passed-dark.png">
-  <img alt="The replayed turn: 146 ms, three calls from the record, free, replayed from chinese-restaurants.json with everything recorded, passed, the same parse failure and retry in its steps" src="docs/images/replay-passed-light.png">
-</picture>
-
-<sub>The restaurant turn, recorded for $0.036 and replayed from its fixture: 146 ms instead of 25 s, free, and passed, the parse failure and its retry included.</sub>
 
 ## With a coding agent
 

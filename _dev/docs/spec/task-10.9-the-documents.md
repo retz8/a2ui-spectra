@@ -93,7 +93,7 @@ Each README closes with a short "Development" section holding its prerequisites 
 
 ### 12. Two product READMEs
 
-- The root `README.md` is the landing page, a DX product for a developer who came for their own command: the case for Spectra and its screenshots, the install section with each channel named before its command, the first run, the OpenTelemetry instrumentation and what it shows, record and replay, how it works, what it supports, and the map to the documents.
+- The root `README.md` is the landing page, a DX product for a developer who came for their own command: the case for Spectra and its screenshots, what you get with replay and fixtures among it, the install section with each channel named before its command, the first run, the OpenTelemetry instrumentation and what it shows, the skill for a coding agent, how it works, what it supports, and the map to the documents.
 - `tools/spectra/README.md` is the command's README, the one every npm package, wheel and archive of the binary carries and the registries show. It opens with what Spectra is and one screenshot, then holds the install commands, the first run, the commands and the options table, the config file's settings a line each, the going-deeper steps, and links to the design docs.
 
 The install commands appear in both, and the install check reads them in both.
