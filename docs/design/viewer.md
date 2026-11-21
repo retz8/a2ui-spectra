@@ -47,7 +47,7 @@ The surface is drawn by a preview page, the config's or Spectra's built-in one, 
 
 ## One turn in the viewer, end to end
 
-The restaurant finder runs under `a2ui-spectra run`, with the Python wrapper switched on. You send "Top 3 Chinese restaurants in New York" from the message box. The turn ends on the agent's own retry, [A2UI finding 31](../../_dev/a2ui-findings.md#31-the-python-restaurant-finder-retries-its-model-call-on-surface-default-already-exists), and the page lands on it:
+The restaurant finder runs under `a2ui-spectra run`, with the Python wrapper switched on. You send "Top 3 Chinese restaurants in New York" from the message box. The turn ends on the agent's own retry, and the page lands on it:
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="../images/viewer-dark.png">

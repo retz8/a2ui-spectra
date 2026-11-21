@@ -1,14 +1,12 @@
 .DS_Store
 node_modules
 
-# Personal, machine-local Claude instructions (auto-loaded alongside CLAUDE.md)
+# The maintainer's own working area and assistant setup, kept on his machine. The instructions
+# for any coding agent are in AGENTS.md.
+_dev/
+CLAUDE.md
 CLAUDE.local.md
-
-# Per-machine Claude Code settings
-.claude/settings.local.json
-
-# Claude Code worktrees (native EnterWorktree) + SDD scratch ledger
-.claude/worktrees/
+.claude/
 .superpowers/
 
 # Wireit and build output

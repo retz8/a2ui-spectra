@@ -238,7 +238,7 @@ describe('the model call a parse read', () => {
   });
 
   it('ties a stream fed its call’s reply twice to that call, the one accounting for the most of its input', () => {
-    // The restaurant finder feeds a stream ADK's partial chunks, then the aggregated copy: A2UI finding 31.
+    // The restaurant finder feeds a stream ADK's partial chunks, then the aggregated copy.
     const text = `Here are the top 3 Chinese restaurants in New York:\n\n${GOOD}`;
     const events = byStart(
       modelCall({

@@ -341,7 +341,7 @@ export function planOf(files, expectAllThere) {
   const differing = files.filter(file => file.there !== undefined && file.there !== file.checksum);
   if (differing.length > 0) {
     throw new BuildError(
-      `The registry already holds ${differing.map(file => file.label).join(', ')} with another checksum than this run's file. Nothing is published; a version whose published file is wrong is abandoned, under _dev/release-procedure.md.`,
+      `The registry already holds ${differing.map(file => file.label).join(', ')} with another checksum than this run's file. Nothing is published; a version whose published file is wrong is abandoned.`,
     );
   }
   const missing = files.filter(file => file.there === undefined);

@@ -2,7 +2,7 @@
 
 This doc explains how Spectra sees the A2UI step, the part of a turn where upstream's agent SDK writes the UI section of the prompt and then turns the model's raw text into A2UI messages. It is written for the developer of an A2UI agent who uses Spectra and wants to know what the wrapper does inside their agent's process and what Spectra makes of it. It starts with the problem, follows one turn of upstream's Python restaurant finder from the prompt to a retry, then opens up the wrapper's rules, and ends with the design decisions and where the code is.
 
-The running example is upstream's Python restaurant finder, `samples/agent/adk/restaurant_finder`, asked for "Top 3 Chinese restaurants in New York". Its reply is parsed twice by one stream, the second copy of the surface is rejected, and the agent asks the model again. That retry is [A2UI finding 31](../../_dev/a2ui-findings.md#31-the-python-restaurant-finder-retries-its-model-call-on-surface-default-already-exists), and it is the turn in the root README's screenshots.
+The running example is upstream's Python restaurant finder, `samples/agent/adk/restaurant_finder`, asked for "Top 3 Chinese restaurants in New York". Its reply is parsed twice by one stream, the second copy of the surface is rejected, and the agent asks the model again. That retry is the turn in the root README's screenshots.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="diagrams/a2ui-step-dark.png">

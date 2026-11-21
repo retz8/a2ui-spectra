@@ -1,0 +1,148 @@
+{
+  "pin": {
+    "commit": "0888f88b2835c44abdc871505f3f395e5ee0177d",
+    "date": "2026-11-13"
+  },
+  "copies": [
+    {
+      "upstream": "specification/v0_9/json/server_to_client.json",
+      "spectra": "tools/spectra/src/check/schemas/v0_9/server_to_client.json"
+    },
+    {
+      "upstream": "specification/v0_9/json/common_types.json",
+      "spectra": "tools/spectra/src/check/schemas/v0_9/common_types.json"
+    },
+    {
+      "upstream": "specification/v0_9/catalogs/basic/catalog.json",
+      "spectra": "tools/spectra/src/check/schemas/v0_9/catalogs/basic/catalog.json"
+    },
+    {
+      "upstream": "specification/v0_9_1/json/server_to_client.json",
+      "spectra": "tools/spectra/src/check/schemas/v0_9_1/server_to_client.json"
+    },
+    {
+      "upstream": "specification/v1_0/json/agent_to_renderer.json",
+      "spectra": "tools/spectra/src/check/schemas/v1_0/agent_to_renderer.json"
+    },
+    {
+      "upstream": "specification/v1_0/json/common_types.json",
+      "spectra": "tools/spectra/src/check/schemas/v1_0/common_types.json"
+    },
+    {
+      "upstream": "specification/v1_0/json/catalog_definition.json",
+      "spectra": "tools/spectra/src/check/schemas/v1_0/catalog_definition.json"
+    },
+    {
+      "upstream": "catalogs/basic/v1/catalog.json",
+      "spectra": "tools/spectra/src/check/schemas/v1_0/catalogs/basic/catalog.json"
+    },
+    {
+      "upstream": "specification/v0_9/catalogs/basic/catalog.json",
+      "spectra": "conformance/wrapper_driver/typescript/catalogs/basic_v0_9.json"
+    },
+    {
+      "upstream": "catalogs/basic/v1/catalog.json",
+      "spectra": "conformance/wrapper_driver/typescript/catalogs/basic_v1_0.json"
+    },
+    {
+      "upstream": "conformance/test_data/catalogs/custom_catalog_v1_0.json",
+      "spectra": "conformance/test_data/catalogs/custom_catalog_v1_0.json"
+    },
+    {
+      "upstream": "conformance/test_data/catalogs/composition_catalog_v1_0.json",
+      "spectra": "conformance/test_data/catalogs/composition_catalog_v1_0.json",
+      "alterations": [
+        {
+          "reason": "Upstream's file lacks `$defs.anyFunction`, which its catalog definition meta-schema requires.",
+          "mergePatch": {
+            "$defs": {
+              "anyFunction": {
+                "not": {}
+              }
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "packages": [
+    {
+      "registry": "npm",
+      "name": "@a2ui/web_core",
+      "upstreamPath": "typescript/core/web_core",
+      "patch": {
+        "source": "tarball",
+        "tarball": "vendor/a2ui/a2ui-web_core-0.15.0.tgz"
+      }
+    },
+    {
+      "registry": "npm",
+      "name": "@a2ui/markdown-it",
+      "upstreamPath": "typescript/renderers/markdown-it",
+      "patch": {
+        "source": "tarball",
+        "tarball": "vendor/a2ui/a2ui-markdown-it-0.2.2.tgz"
+      }
+    },
+    {
+      "registry": "npm",
+      "name": "@a2ui/react",
+      "upstreamPath": "typescript/renderers/react",
+      "patch": {
+        "source": "tarball",
+        "tarball": "vendor/a2ui/a2ui-react-0.15.0.tgz"
+      }
+    },
+    {
+      "registry": "npm",
+      "name": "@a2ui/lit",
+      "upstreamPath": "typescript/renderers/lit",
+      "patch": {
+        "source": "tarball",
+        "tarball": "vendor/a2ui/a2ui-lit-0.15.0.tgz"
+      }
+    },
+    {
+      "registry": "npm",
+      "name": "@a2ui/angular",
+      "upstreamPath": "typescript/renderers/angular",
+      "patch": {
+        "source": "tarball",
+        "tarball": "vendor/a2ui/a2ui-angular-0.14.0.tgz"
+      }
+    },
+    {
+      "registry": "npm",
+      "name": "@a2ui/agent",
+      "upstreamPath": "typescript/agents/a2ui_agent",
+      "patch": {
+        "source": "tarball",
+        "tarball": "vendor/a2ui/a2ui-agent-0.1.0.tgz"
+      }
+    },
+    {
+      "registry": "pypi",
+      "name": "a2ui-core",
+      "upstreamPath": "python/a2ui_core",
+      "patch": null
+    },
+    {
+      "registry": "pypi",
+      "name": "a2ui-agent-sdk",
+      "upstreamPath": "python/a2ui_agent",
+      "patch": null
+    },
+    {
+      "registry": "pypi",
+      "name": "a2ui-a2a",
+      "upstreamPath": "python/a2ui_a2a",
+      "patch": null
+    },
+    {
+      "registry": "pypi",
+      "name": "a2ui-adk",
+      "upstreamPath": "python/a2ui_adk",
+      "patch": null
+    }
+  ]
+}

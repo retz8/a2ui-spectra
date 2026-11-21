@@ -1,6 +1,6 @@
 # A2UI protocol schemas and catalogs
 
-The schemas the schema check validates the agent's A2UI messages against, and the catalog definitions the catalog registry knows, one folder per protocol version. They are copied unchanged from `a2ui-project/a2ui` at the pin that [`_dev/upstream-pin.json`](../../../../../_dev/upstream-pin.json) names, under that repository's Apache 2.0 licence. How the checks use them is in [The checks](../../../../../docs/design/checks.md).
+The schemas the schema check validates the agent's A2UI messages against, and the catalog definitions the catalog registry knows, one folder per protocol version. They are copied unchanged from `a2ui-project/a2ui` at the pin that [`vendor/a2ui/upstream-pin.json`](../../../../../vendor/a2ui/upstream-pin.json) names, under that repository's Apache 2.0 licence. How the checks use them is in [The checks](../../../../../docs/design/checks.md).
 
 ## The files
 
@@ -21,4 +21,4 @@ Only the files the checks and the registry load are copied. Each version's refer
 
 ## Copying them again
 
-The pin file lists each copy. Moving the pin is [`_dev/re-pin-procedure.md`](../../../../../_dev/re-pin-procedure.md), whose move script copies these files again from the new commit.
+The pin file lists each copy. Moving the pin copies these files again from the new commit.

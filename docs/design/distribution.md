@@ -268,7 +268,7 @@ The installed binary carried no extended attribute, and printed `0.1.0` on `--ve
 
 ### The release workflow
 
-A release is made by one GitHub Actions workflow, `.github/workflows/release.yml`, started by hand with the version and a dry-run switch, which is on by default. Each step is one command of `tools/spectra/scripts/release.mjs`. The steps done by hand around it, once before the first release and at each release, are in [`_dev/release-procedure.md`](../../_dev/release-procedure.md).
+A release is made by one GitHub Actions workflow, `.github/workflows/release.yml`, started by hand with the version and a dry-run switch, which is on by default. Each step is one command of `tools/spectra/scripts/release.mjs`. Some steps around it are done by hand, once before the first release and at each release.
 
 ```mermaid
 flowchart TD

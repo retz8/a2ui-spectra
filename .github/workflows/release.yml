@@ -6,7 +6,7 @@ name: Release
 # ends there and touches nothing on GitHub. A real run, from main, goes on once the install check
 # has passed: the draft release with its attestation, PyPI and npm through trusted publishing, the
 # draft published, which makes the tag, and the install check again, against npm, PyPI and GitHub
-# themselves. The steps done by hand around it are in `_dev/release-procedure.md`; the trusted
+# themselves. Some steps around it are done by hand; the trusted
 # publishers on npm and PyPI name this file and the `release` environment. The PyPI publishing
 # action is called from each job itself: called from inside another action, it does not find its
 # own container image. Its upload folder is in the workspace, which its container mounts.

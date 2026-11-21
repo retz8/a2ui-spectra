@@ -70,7 +70,7 @@
     - "The receiver did not record 2 spans from a2a-python-sdk, which started at 2026-10-31T07:28:23.535Z: their start falls in no turn's time range."
 
 - name: several_exchanges
-  description: "The restaurant finder with the distro and the OTLP exporter, its first Gemini call answered 503 by _dev/tools/fail_first_call.py: google-genai retries inside one generate_content span, and call_llm and generate_content each link back to both exchanges."
+  description: "The restaurant finder with the distro and the OTLP exporter, its first Gemini call answered 503 by a stand-in provider: google-genai retries inside one generate_content span, and call_llm and generate_content each link back to both exchanges."
   action: capture_receiver
   exports: "test_data/receiver_capture/v0_1/several_exchanges/exports.json"
   expect: "test_data/receiver_capture/v0_1/several_exchanges/expected.json"

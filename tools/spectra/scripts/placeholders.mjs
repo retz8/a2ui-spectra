@@ -10,7 +10,7 @@
 //
 //     node scripts/release.mjs npm --placeholders --registry <url> --files dist/placeholders
 //
-// under the dist-tag `placeholder`, as `_dev/release-procedure.md` has it, and the release
+// under the dist-tag `placeholder`, and the release
 // workflow's dry run publishes them into its stand-in npm registry first.
 
 import {copyFileSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync} from 'node:fs';

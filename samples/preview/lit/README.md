@@ -11,7 +11,7 @@ With the repository built, `yarn build:all` from its root:
 3. From `samples/preview/lit/`, `node ../../../tools/spectra/dist/cli.js attach http://127.0.0.1:10013` starts Spectra with this folder's `a2ui-spectra.json`, and its store in `.a2ui-spectra/`, which git ignores.
 4. In the viewer, send a message from the composer. The surface is drawn in the Preview pane from this page, its URL named in the pane's header. Moving the slider and pressing the Button lands the action in the composer; sending it, the stub answers with the volume.
 
-The browser end-to-end test, `tools/spectra/src/samples_end_to_end.test.ts`, runs the same with this folder's `a2ui-spectra.json` as written, and draws the stub agent's v1.0 booking form, `--v1-booking`, on this page in its `@` form and its bare form. The smoke check on the published renderers, `_dev/tools/smoke_published_renderers.mjs`, builds this page in a scratch project on npm's latest of its renderer and of web core.
+The browser end-to-end test, `tools/spectra/src/samples_end_to_end.test.ts`, runs the same with this folder's `a2ui-spectra.json` as written, and draws the stub agent's v1.0 booking form, `--v1-booking`, on this page in its `@` form and its bare form. The smoke check on the published renderers builds this page in a scratch project on npm's latest of its renderer and of web core.
 
 ## What to copy
 

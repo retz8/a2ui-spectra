@@ -1,6 +1,6 @@
 # Upstream's npm packages at the pin
 
-Tarballs of `a2ui-project/a2ui`'s npm packages, built at the pin that [`_dev/upstream-pin.json`](../../_dev/upstream-pin.json) names, under that repository's Apache 2.0 licence. Each stands in for its package's published release, whose state is behind the pin, until npm carries the pin's state. A tarball states the version number of the release it stands in for.
+Tarballs of `a2ui-project/a2ui`'s npm packages, built at the pin that [`upstream-pin.json`](upstream-pin.json) names, under that repository's Apache 2.0 licence. Each stands in for its package's published release, whose state is behind the pin, until npm carries the pin's state. A tarball states the version number of the release it stands in for.
 
 ## The tarballs
 
@@ -15,7 +15,7 @@ Tarballs of `a2ui-project/a2ui`'s npm packages, built at the pin that [`_dev/ups
 
 ## How they are built and used
 
-The root `package.json` points each package at its tarball with one `resolutions` line; the workspaces' declared versions and the preview adapters' peer ranges are left as they are. [`_dev/tools/build_upstream_tarballs.mjs`](../../_dev/tools/build_upstream_tarballs.mjs) builds them in the `a2ui-upstream` worktree through each package's own publish preparation, and writes the `resolutions` lines and the pin file's entries.
+The root `package.json` points each package at its tarball with one `resolutions` line; the workspaces' declared versions and the preview adapters' peer ranges are left as they are. They are built from upstream's source at the pin through each package's own publish preparation, and the build writes the `resolutions` lines and the pin file's entries.
 
 ## Removing a patch
 

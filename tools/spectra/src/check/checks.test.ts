@@ -140,7 +140,7 @@ describe('the four checks on recorded turns', () => {
       'ag2/stream_v1_0_failed.json': [{}],
       'ag2/stream_v1_0_function_call.json': [{}],
       'angular_client/python_restaurant_finder_booking.json': [{}, {}, {}],
-      // The sample's host put the inline catalog where Spectra does not read capabilities (finding 5).
+      // The sample's host put the inline catalog where Spectra does not read capabilities.
       'custom_components/action_then_model_turn.json': [noDefinition('action-modal'), null],
       'file_upload_summarizer/artifact_stream_and_send.json': [
         noDefinition('file_upload_surface_0c619c30'),

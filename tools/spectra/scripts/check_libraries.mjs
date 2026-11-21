@@ -507,7 +507,7 @@ function install(version, npm, scratch, checks) {
   // them, before the core's and the adapter's packs are added, as an adopter adds the adapter to
   // the catalog's app. The renderers of upstream's npm release of 2026-11-02 do not install in
   // one npm project together, nor the Lit or Angular adapter with npm installing its peers:
-  // finding 44, `@a2ui/markdown-it` 0.2.2 asking for web core `^0.14.0`.
+  // `@a2ui/markdown-it` 0.2.2 asks for web core `^0.14.0`.
   const [core] = npm;
   const projects = [
     {name: 'core-and-wrapper', libraries: npm.filter(each => !each.library.adapter), first: []},

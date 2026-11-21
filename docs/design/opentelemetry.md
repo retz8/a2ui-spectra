@@ -120,7 +120,7 @@ The model proxy's call and ADK's `call_llm` of steps 3, 5 and 7, as the turn rec
 }
 ```
 
-`call_llm` carries no `gen_ai.provider.name`: ADK writes the literal `gcp.vertex.agent` as its `gen_ai.system`, which names no provider ([OpenTelemetry finding 22](../../_dev/otel-findings.md#22-adk-writes-the-literal-gcpvertexagent-as-gen_aisystem-and-the-deprecated-name-only)). Its conversation id is ADK's session id, `gcp.vertex.agent.session_id`.
+`call_llm` carries no `gen_ai.provider.name`: ADK writes the literal `gcp.vertex.agent` as its `gen_ai.system`, which names no provider. Its conversation id is ADK's session id, `gcp.vertex.agent.session_id`.
 
 ## Inside the machinery
 
@@ -173,7 +173,7 @@ export OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true  # for Spectra's 
 | `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT`                                                            | `true`, the older name the instrumentations in use read           | Kept as Spectra's environment sets it                                                                |
 
 - **The protocol variable moves Python onto HTTP.** Python's auto-configuration, `opentelemetry-instrument`, exports over gRPC unless the protocol variable says otherwise, and the receiver reads OTLP over HTTP alone.
-- **The content capture switches** let an instrumentation record the messages, which the GenAI conventions leave off by default. The conventions name the variable only as an example and give it no values, so producers read it differently: ADK reads `true` as content in log records, not on the span ([OpenTelemetry finding 21](../../_dev/otel-findings.md#21-the-content-capture-variable-is-named-only-as-an-example-with-no-values)). The receiver reads content from both places.
+- **The content capture switches** let an instrumentation record the messages, which the GenAI conventions leave off by default. The conventions name the variable only as an example and give it no values, so producers read it differently: ADK reads `true` as content in log records, not on the span. The receiver reads content from both places.
 - **A replaced variable is said once,** at start, under `run`, and under `replay` and `test` when they start the agent's command, with any credentials in a URL removed. This line is cut from a run of the built binary started with `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` and `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces` in its environment:
 
   ```
@@ -202,9 +202,9 @@ OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=click \
 ```
 
 - **An agent whose server runs inside a Click command,** as upstream's ADK samples do, needs `OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=click` beside the bootstrap set. The Click instrumentation's span around the whole command makes each request's server span an internal one under it, which drops the incoming `traceparent`.
-- **a2a-sdk does not read the incoming `traceparent` itself** ([OpenTelemetry finding 23](../../_dev/otel-findings.md#23-a2a-sdk-does-not-read-an-incoming-traceparent)): without the HTTP server instrumentation, its request handler's span starts a trace of its own, and the agent's spans are placed by time.
+- **a2a-sdk does not read the incoming `traceparent` itself**: without the HTTP server instrumentation, its request handler's span starts a trace of its own, and the agent's spans are placed by time.
 - **ADK exports to an endpoint set in the environment only inside its own CLI server,** `adk web` or `adk api_server`. An agent that serves A2A itself, as the restaurant finder does, switches an exporter on by launching under `opentelemetry-instrument`, or with one call to ADK's `maybe_set_otel_providers()`.
-- **The wrapper is not in the bootstrap set.** `opentelemetry-bootstrap` lists only instrumentations from OpenTelemetry's contrib repository ([OpenTelemetry finding 25](../../_dev/otel-findings.md#25-opentelemetry-bootstrap-cannot-suggest-an-instrumentation-from-outside-contrib)), so the wrapper is added by name, as [Switching it on](a2ui-step.md#switching-it-on) has it.
+- **The wrapper is not in the bootstrap set.** `opentelemetry-bootstrap` lists only instrumentations from OpenTelemetry's contrib repository, so the wrapper is added by name, as [Switching it on](a2ui-step.md#switching-it-on) has it.
 
 ### The event a span becomes
 
@@ -230,7 +230,7 @@ The rows are tried in this order, so an OpenInference span that also carries `ge
 
 **ADK,** as tested at 2.3.0:
 
-- On every span, the names the pinned conventions define are copied as written. `gcp.vertex.agent.session_id` is the conversation, `gen_ai.conversation.id`, unless the span names one. `gen_ai.system` `gemini` and `vertex_ai` are read as the provider `gcp.gemini` and `gcp.vertex_ai`; the literal `gcp.vertex.agent` on `call_llm` names no provider ([OpenTelemetry finding 22](../../_dev/otel-findings.md#22-adk-writes-the-literal-gcpvertexagent-as-gen_aisystem-and-the-deprecated-name-only)).
+- On every span, the names the pinned conventions define are copied as written. `gcp.vertex.agent.session_id` is the conversation, `gen_ai.conversation.id`, unless the span names one. `gen_ai.system` `gemini` and `vertex_ai` are read as the provider `gcp.gemini` and `gcp.vertex_ai`; the literal `gcp.vertex.agent` on `call_llm` names no provider.
 - `call_llm`: its `gcp.vertex.agent.llm_request`, ADK's model, config and contents, is read as a Gemini API request by the model proxy's Gemini reader, for the settings, the system instructions, the input messages and the tool definitions; its `gcp.vertex.agent.llm_response` for the output messages and the finish reason. The request's operation, model, provider and streaming are not taken from it.
 - `generate_content`: the conventions' names, content parsed when it arrives as a JSON string; then the content of its per-message log records, `gen_ai.system.message`, `gen_ai.user.message`, `gen_ai.assistant.message`, `gen_ai.tool.message` and `gen_ai.choice`; then, under `OTEL_SEMCONV_STABILITY_OPT_IN=gen_ai_latest_experimental`, its `gen_ai.client.inference.operation.details` log record, the last one when there are several, whose conventions' names win. A per-message log record whose content is `<elided>`, content that was not captured, adds no message.
 - `execute_tool`: `gcp.vertex.agent.tool_call_args` as the arguments and `gcp.vertex.agent.tool_response` as the result, each kept when it is an object.
@@ -271,7 +271,7 @@ An excerpt of the OpenInference span from the custom-components example, `sample
 
 ### What every dialect shares
 
-- **The cache write count.** `gen_ai.usage.cache_creation.input_tokens`, which the Python conventions package, OpenLLMetry and LiteLLM write, is read as the pinned conventions' `gen_ai.usage.cache_write.input_tokens` when the span carries no such name ([OpenTelemetry finding 20](../../_dev/otel-findings.md#20-the-python-conventions-package-names-the-cache-write-cache_creation-where-the-conventions-name-it-cache_write)).
+- **The cache write count.** `gen_ai.usage.cache_creation.input_tokens`, which the Python conventions package, OpenLLMetry and LiteLLM write, is read as the pinned conventions' `gen_ai.usage.cache_write.input_tokens` when the span carries no such name.
 - **Finish reasons** are normalised as the model proxy's readers normalise them, in `gen_ai.response.finish_reasons` and in each output message. A value the conventions' output messages schema allows, `stop`, `length`, `content_filter`, `tool_call`, `compaction` or `error`, stays. A provider's own value is read through that provider's map, Gemini's for `gcp.gemini`, `gcp.vertex_ai` and `gcp.gen_ai`, OpenAI's for `openai` and every `azure.` provider, Anthropic's for `anthropic`; with any other provider, through OpenAI's, Anthropic's and Gemini's maps in turn. Each map is matched without regard to case, so Gemini's `STOP` and `stop` read alike. Any other value is `error`. An empty reason, which ADK writes for a response with none, is dropped.
 - **Each translated name is fitted to the record.** The four content names, `gen_ai.system_instructions`, `gen_ai.input.messages`, `gen_ai.output.messages` and `gen_ai.tool.definitions`, are kept when they fit the GenAI schemas the turn record copies, its [copied schemas](../../specification/turn_record/v0_1/docs/turn_record.md#copied-schemas). The names the record types on [`model_call`](../../specification/turn_record/v0_1/docs/turn_record.md#model_call) and [`tool_call`](../../specification/turn_record/v0_1/docs/turn_record.md#tool_call) are kept when they have its type, the tool call's arguments and result when they are objects, read from their JSON text. Every other name is kept as it is. A value left out stays in `a2ui.received.attributes`.
 
@@ -361,7 +361,7 @@ flowchart TD
 
 - **Both ways.** Each exchange links to each span it is the same call as, and each span back to it, beside the links the span carried as received.
 - **Rebuilt each time.** The receiver's links are made again whenever the turn is assembled, so a span that arrives later joins its chain; a link the receiver did not make is kept.
-- **Stale context exists.** The MCP Python SDK sends every request of a session from one task, which puts the span current when the session opened, such as the first turn's `invoke_agent`, into each request's `traceparent` ([OpenTelemetry finding 24](../../_dev/otel-findings.md#24-the-mcp-clients-writer-task-carries-the-sessions-opening-span-into-every-request)). The time rule is what links those calls.
+- **Stale context exists.** The MCP Python SDK sends every request of a session from one task, which puts the span current when the session opened, such as the first turn's `invoke_agent`, into each request's `traceparent`. The time rule is what links those calls.
 
 The turn record's [links](../../specification/turn_record/v0_1/docs/turn_record.md#links) is the contract. How a proxy's call is placed in its turn is in [Model and tool calls](model-and-tool-calls.md).
 

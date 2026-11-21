@@ -316,7 +316,7 @@ describe('the catalog check', () => {
         ],
       }),
     );
-    // The v0.9 file's List keeps listStyle, which the v0.9.1 file lacks; see finding 47.
+    // The v0.9 file's List keeps listStyle, which the v0.9.1 file lacks.
     assert.deepEqual(
       result.findings.map(({code, path: at}) => [code, at]),
       [['VALIDATION_FAILED', `${COMPONENTS}/0/colour`]],

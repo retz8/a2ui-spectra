@@ -1,5 +1,5 @@
 // What the six libraries' packs are, for the packing command, `pack_libraries.mjs`, its check,
-// `check_libraries.mjs`, and the two smoke checks under `_dev/tools/` that install them: each
+// `check_libraries.mjs`, and the two smoke checks that install them: each
 // library's folder, the files a registry receives, and the built files a pack holds.
 
 import {readdirSync} from 'node:fs';
