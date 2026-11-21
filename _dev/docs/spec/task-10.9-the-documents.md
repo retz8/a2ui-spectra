@@ -81,13 +81,11 @@ The command forms, the options table and the config file's general rules, where 
 - Every other diagram inside a design doc is Mermaid.
 - A README carries no Mermaid.
 
-A drawn diagram is committed as SVG, a light and a dark file.
+A drawn diagram is committed as PNG, a light and a dark file, each carrying the diagram's legend under it.
 
 ### 10. The drawn diagrams' tool and look
 
-The drawn diagrams are made with the `diagram-design` skill, `cathrynlavery/diagram-design`, which Jioh installs before the first set's diagram. Its style guide is written once from the viewer's tokens: the viewer's colours in light and dark, the brand colour as the one accent, and a system font stack led by Inter. Each diagram's source is committed beside its two exported SVGs.
-
-Whether its export keeps text as text and honours the system font stack is established on the first diagram. Where it does not, the export step is SVG written by hand.
+The drawn diagrams are made with the `stack-diagram` skill, `caru-ini/stack-diagram`, in its own look: official logos on white tiles, Lucide pictograms for what has no brand, labelled groups, and orthogonal lines with mono labels. Across the diagrams, Spectra's parts sit in one accent group, the agent's process in a warm one and everything outside both in a neutral one; the same part keeps the same icon; each diagram's main flow is its accent line, and every line has a label or a legend entry. Each diagram's source is its one self-contained HTML file, committed beside the light and dark PNGs rendered from it, the canvas and its legend at scale 2.
 
 ### 11. Contributor material
 
@@ -95,7 +93,7 @@ Each README closes with a short "Development" section holding its prerequisites 
 
 ### 12. Two product READMEs
 
-- The root `README.md` is the landing page: the case for Spectra, the screenshots, the install section, how it works, what it supports, and the map to the documents.
+- The root `README.md` is the landing page, a DX product for a developer who came for their own command: the case for Spectra and its screenshots, the install section with each channel named before its command, the first run, the OpenTelemetry instrumentation and what it shows, record and replay, how it works, what it supports, and the map to the documents.
 - `tools/spectra/README.md` is the command's README, the one every npm package, wheel and archive of the binary carries and the registries show. It opens with what Spectra is and one screenshot, then holds the install commands, the first run, the commands and the options table, the config file's settings a line each, the going-deeper steps, and links to the design docs.
 
 The install commands appear in both, and the install check reads them in both.
