@@ -5,8 +5,8 @@ This doc explains how Spectra sees the A2UI step, the part of a turn where upstr
 The running example is upstream's Python restaurant finder, `samples/agent/adk/restaurant_finder`, asked for "Top 3 Chinese restaurants in New York". Its reply is parsed twice by one stream, the second copy of the surface is rejected, and the agent asks the model again. That retry is [A2UI finding 31](../../_dev/a2ui-findings.md#31-the-python-restaurant-finder-retries-its-model-call-on-surface-default-already-exists), and it is the turn in the root README's screenshots.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="diagrams/a2ui-step-dark.svg">
-  <img alt="Inside the agent's process, the prompt generator and the parser are hooked by the wrapper; each sends a span, a prompt span and a parse span, to Spectra's receiver, which places them in their turn for the turn view. The model sits between the two, and a failed parse sends the agent back to the model." src="diagrams/a2ui-step.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/a2ui-step-dark.png">
+  <img alt="Inside the agent's process, the wrapper hooks the agent SDK's prompt generator and parser. The prompt, carrying the UI section the generator wrote, goes through Spectra's model proxy to Gemini. The reply's raw text comes back to the parser, and the parser's A2UI messages go through the wire proxy to the host. A failed parse sends the agent back to the model, a retry. Each hooked piece sends a span over OTLP, a prompt_generation span and a parse span, to Spectra's receiver, which places them in their turn for the viewer's turn view." src="diagrams/a2ui-step.png">
 </picture>
 
 ## Problem it solves
