@@ -269,17 +269,51 @@ function parsesBefore(
     .reverse();
 }
 
-/** The parse a wire message came from: the latest parse started before it was sent that holds an equal message. */
+const TRACED = new WeakMap<readonly TurnRecordEvent[], Map<string, ParseEvent>>();
+
+/**
+ * The parse each wire message came from, by its key. The messages are traced in the order they
+ * were sent, and each parse's in the order it produced them, from the first not yet traced: a
+ * message goes to a parse started before it was sent that holds an equal message from there on,
+ * the one whose next message it is first, then the one passing over the fewest, then the latest
+ * started, and that parse reads on after it.
+ */
+function tracedMessages(events: readonly TurnRecordEvent[]): Map<string, ParseEvent> {
+  const known = TRACED.get(events);
+  if (known !== undefined) return known;
+  const parses = parsesOf(events).map(parse => ({
+    parse,
+    messages: parseMessagesOf(parse),
+    next: 0,
+  }));
+  const traced = new Map<string, ParseEvent>();
+  for (const message of agentMessages(events)) {
+    const sentAt = start(events[message.eventIndex]);
+    let best: {from: (typeof parses)[number]; at: number; passed: number} | undefined;
+    for (const from of parses) {
+      if (start(from.parse) >= sentAt) continue;
+      const at = from.messages.findIndex(
+        (held, index) => index >= from.next && deepEqual(held, message.message),
+      );
+      if (at < 0) continue;
+      const passed = at - from.next;
+      // Parses come in the order they started, so an equal count goes to the later one.
+      if (best === undefined || passed <= best.passed) best = {from, at, passed};
+    }
+    if (best === undefined) continue;
+    best.from.next = best.at + 1;
+    traced.set(message.key, best.from.parse);
+  }
+  TRACED.set(events, traced);
+  return traced;
+}
+
+/** The parse a wire message came from, traced as `tracedMessages` says. */
 export function parseOfMessage(
   events: readonly TurnRecordEvent[],
   key: string,
 ): ParseEvent | undefined {
-  const message = agentMessages(events).find(m => m.key === key);
-  if (message === undefined) return undefined;
-  const sentAt = start(events[message.eventIndex]);
-  return parsesBefore(events, sentAt).find(parse =>
-    parseMessagesOf(parse).some(held => deepEqual(held, message.message)),
-  );
+  return tracedMessages(events).get(key);
 }
 
 /**

@@ -310,6 +310,52 @@ describe('the parse a component came from', () => {
     assert.equal(parseOfMessage(events, message.key)?.spanId, 'a5e1b8d36f2c4807');
   });
 
+  it('traces the messages a stopped parse sent after its retry’s parse began to the stopped parse, by each parse’s order', () => {
+    // As in a replay, where a recorded reply comes back at once: the retry's parse opens 1 ms
+    // before the stopped parse's messages reach the wire, and its own reply sends the surface again.
+    const create = {version: 'v0.9', createSurface: {surfaceId: 's', catalogId: 'c'}};
+    const update = {
+      version: 'v0.9',
+      updateComponents: {surfaceId: 's', components: [{id: 'root'}]},
+    };
+    const remove = {version: 'v0.9', deleteSurface: {surfaceId: 's'}};
+    const replayed = byStart(
+      parse({
+        spanId: 'stopped',
+        start: 14,
+        end: 104,
+        input: BAD,
+        messages: [create, update],
+        errors: [FAILED],
+      }),
+      parse({
+        spanId: 'retry',
+        start: 105,
+        end: 173,
+        input: GOOD,
+        messages: [remove, create, update],
+      }),
+      a2uiDelivery('d1', 106, create),
+      a2uiDelivery('d2', 107, update),
+      a2uiDelivery('d3', 108, remove),
+      a2uiDelivery('d4', 109, create),
+      a2uiDelivery('d5', 110, update),
+    );
+    assert.deepEqual(
+      agentMessages(replayed).map(message => parseOfMessage(replayed, message.key)?.spanId),
+      ['stopped', 'stopped', 'retry', 'retry', 'retry'],
+    );
+  });
+
+  it('traces no wire message to a parse that started after it was sent', () => {
+    const create = {version: 'v0.9', createSurface: {surfaceId: 's', catalogId: 'c'}};
+    const late = byStart(
+      a2uiDelivery('d1', 50, create),
+      parse({spanId: 'later', start: 100, input: GOOD, messages: [create]}),
+    );
+    assert.equal(parseOfMessage(late, agentMessages(late)[0].key), undefined);
+  });
+
   it('gives a tree component its range in that parse', () => {
     const traced = parseOfComponent(events, 'restaurant-card-surface', 'bookButton');
     assert.equal(traced?.parse.spanId, 'a5e1b8d36f2c4807');
