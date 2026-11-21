@@ -1,15 +1,22 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/spectra-mark-dark.svg">
-  <img alt="Spectra's mark" src="docs/images/spectra-mark.svg" width="64">
-</picture>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/spectra-mark-dark.svg">
+    <img alt="Spectra's mark" src="docs/images/spectra-mark.svg" width="72">
+  </picture>
+</p>
 
-# Spectra for A2UI
+<h1 align="center">Spectra for A2UI</h1>
 
-A debugging and observation tool for the developer of an [A2UI](https://github.com/a2ui-project/a2ui) agent: attach to the running agent, see every turn, check and preview it, record and replay it.
+<p align="center">
+  A debugging and observation tool for the developer of an <a href="https://github.com/a2ui-project/a2ui">A2UI</a> agent:<br>
+  attach to the running agent, see every turn, check and preview it, record and replay it.
+</p>
 
-> **Status:** not released yet. Spectra runs from source; see [`tools/spectra/`](tools/spectra/README.md).
+<p align="center"><b>Status:</b> not released yet. Spectra runs from source; see <a href="tools/spectra/README.md"><code>tools/spectra/</code></a>.</p>
 
-[Install](#install) · [First run](#first-run) · [OpenTelemetry](#opentelemetry-instrumentation) · [Coding agents](#with-a-coding-agent) · [How it works](#how-it-works) · [Design docs](#how-each-part-works)
+<p align="center">
+  <a href="#install">Install</a> · <a href="#first-run">First run</a> · <a href="#opentelemetry-instrumentation">OpenTelemetry</a> · <a href="#with-a-coding-agent">Coding agents</a> · <a href="#how-it-works">How it works</a> · <a href="#how-each-part-works">Design docs</a>
+</p>
 
 ![A message sent to upstream's Python restaurant finder from Spectra's viewer: the model call, the tool call and the A2UI messages arrive as steps while the surface draws itself in the preview](docs/images/turn.gif)
 
