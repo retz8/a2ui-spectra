@@ -54,7 +54,7 @@ export function SwitchOnHint({mode}: {mode: 'run' | 'attach' | undefined}) {
                   className="inline-flex min-h-6 items-center gap-1 self-start text-xs font-medium text-brand hover:underline"
                 >
                   {readme.text}
-                  <Icon kind="open" size={12} />
+                  <Icon kind="external" size={12} />
                 </a>
               </div>
             );

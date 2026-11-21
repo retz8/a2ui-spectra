@@ -52,7 +52,7 @@ The message box is an A2A client inside Spectra. It sends through the wire proxy
 
 ## One turn, end to end
 
-The restaurant finder runs as its roster entry ran it, `uv run . --port 10012`. Upstream's Angular sample client reads its agent's card from `http://localhost:10002`, so Spectra's wire proxy takes that port: `a2ui-spectra attach http://localhost:10012 --proxy-port 10002`. The client is not changed. The pair was recorded once, with a recording proxy in the wire proxy's place on 10002, in [`conformance/test_data/a2a_capture/v0_1/angular_client/python_restaurant_finder_booking.har`](../../conformance/test_data/a2a_capture/v0_1/angular_client/python_restaurant_finder_booking.har), and the A2A capture suite replays the recording through the wire proxy and holds what it captures to the expected record beside it, [`python_restaurant_finder_booking.json`](../../conformance/test_data/a2a_capture/v0_1/angular_client/python_restaurant_finder_booking.json). The trace ids, span ids and times in that record are the suite's stand-ins; the rest is what the proxy writes.
+The restaurant finder runs as its roster entry ran it, `uv run . --port 10012`. Upstream's Angular sample client reads its agent's card from `http://localhost:10002`, so Spectra's wire proxy takes that port: `a2ui-spectra attach http://localhost:10012 --proxy-port 10002`. The client is not changed. The pair was recorded once, with a recording proxy in the wire proxy's place on 10002, in [`conformance/test_data/a2a_capture/v0_1/angular_client/python_restaurant_finder_booking.har`](../../conformance/test_data/a2a_capture/v0_1/angular_client/python_restaurant_finder_booking.har), and the A2A capture suite replays the recording through the wire proxy and holds what it captures to the expected record beside it, [`python_restaurant_finder_booking.json`](../../conformance/test_data/a2a_capture/v0_1/angular_client/python_restaurant_finder_booking.json). The trace ids, span ids and times in that record, and the writer's version, `0.0.0`, are stand-ins the suite does not compare; the rest is what the proxy writes.
 
 1. **The host reads the card.** The client fetches `/.well-known/agent-card.json` from the proxy. The proxy forwards the fetch and rewrites the card's `url`, `http://localhost:10012`, to its own origin, so the client's next request comes back through it.
 2. **The host sends.** The client posts a `message/stream` with the user's text and its A2UI capabilities in the message's metadata, and the `X-A2A-Extensions` header naming A2UI v0.9:
@@ -82,7 +82,7 @@ The restaurant finder runs as its roster entry ran it, `uv run . --port 10012`. 
    }
    ```
 
-3. **The turn opens.** The proxy reads the whole body, sees a turn request and opens a turn: a new trace id and the turn event's span id, the start time, and the `wire_input`. The capabilities leave the metadata for an attribute of their own:
+3. **The turn opens.** The proxy reads the whole body, sees a turn request and opens a turn: a new trace id and the turn event's span id, the start time, and the `wire_input`. The live stream says `turn_opened`, and the viewer shows the turn as open. The capabilities leave the metadata for an attribute of their own:
 
    ```json
    {
@@ -99,7 +99,7 @@ The restaurant finder runs as its roster entry ran it, `uv run . --port 10012`. 
    }
    ```
 
-4. **The request goes on.** The proxy forwards it to the agent with `Host` set to the agent's and a `traceparent` naming the turn. The live stream says `turn_opened`, and the viewer shows the turn as open.
+4. **The request goes on.** The proxy forwards it to the agent with `Host` set to the agent's and a `traceparent` naming the turn.
 5. **The deliveries come back.** The agent answers `text/event-stream`. The proxy passes the stream to the client as it arrives and reads a copy: each event is one delivery, and each delivery is one `wire_output`. The first, a task in `submitted` whose history holds only the client's own message, is an empty `wire_output`. Then come the status updates, two of text and then the A2UI messages, each in its own data part marked with the older MIME type:
 
    ```json
@@ -177,7 +177,7 @@ A request body in `gzip`, `x-gzip`, `deflate` or `br` is decoded to read it, and
 Every request is forwarded to the agent's origin at the path and query the host sent, with its body as received and its headers as received, credentials included, but three:
 
 - `Host` is set to the agent's host.
-- The headers that belong to one connection are not passed on, as for any proxy: `Connection`, `Keep-Alive`, `Proxy-Authenticate`, `Proxy-Authorization`, `Proxy-Connection`, `TE`, `Trailer`, `Transfer-Encoding`, `Upgrade`, and any the `Connection` header names. `Content-Length` is set to the body's length.
+- The headers that belong to one connection are not passed on, as for any proxy: `Connection`, `Keep-Alive`, `Proxy-Authenticate`, `Proxy-Authorization`, `Proxy-Connection`, `TE`, `Trailer`, `Transfer-Encoding`, `Upgrade`, and any the `Connection` header names. `Content-Length` is set to the body's length whenever the request has a body or names a length.
 - A turn request gets the turn's `traceparent`, as [The trace context](#the-trace-context) says.
 
 No `X-Forwarded-*` header is added. The reply comes back with its status, its headers, less those of one connection, and its body as the agent sent them: a stream chunk by chunk, a compressed body still compressed. A reply that breaks off breaks off for the host too, and a host that closes its connection ends the proxy's request to the agent.
@@ -390,7 +390,7 @@ A send the box refuses for anything else answers with one of these, cut from the
 | `422`  | Any send while the box cannot send               | The line above                                                                                                        |
 | `502`  | One whose request could not reach the wire proxy | `The message box could not reach the wire proxy: …`                                                                   |
 
-The `409` lines and the `502` line are the box's own words in [`message_box.ts`](../../tools/spectra/src/message_box.ts); [`api.md`](api.md) has the route.
+Every line in the table is the box's own words, in [`message_box.ts`](../../tools/spectra/src/message_box.ts); [`api.md`](api.md) has the route, with its own checks of the request's body.
 
 #### What the viewer sends through the box
 
@@ -412,7 +412,7 @@ The composer and a press in the preview are the viewer's, and [`viewer.md`](view
 6. **Checks the card's transports**, as [The card](#the-card) says. A card with no JSON-RPC interface, or no interface, stops it, exit code 1.
 7. **Starts the wire proxy** on `--proxy-port`, with the card's name as the agent's, and opens the message box on the card. When the box cannot send, it says why.
 8. **Starts the viewer** on `--port`, and prints the addresses: the viewer, the wire proxy, each tool server's proxy, the receiver, the store's turns folder and the fixtures folder; then the variables to set in the agent's shell, which [`model-and-tool-calls.md`](model-and-tool-calls.md) explains.
-9. **Opens the browser** at the viewer, unless `--no-open`, and runs until Ctrl-C.
+9. **Opens the browser** at the viewer, unless `--no-open`, and runs until it is stopped, by Ctrl-C or a stop signal.
 
 Since the wire proxy and the viewer start only once the card has answered, a port of theirs that is taken shows only then. This line is cut from a run with `--proxy-port 9901` held by another server, printed after the stub agent's card had answered, exit code 1:
 
@@ -457,7 +457,7 @@ The config file's general rules, where it is found, that it is read strictly and
 
 **`agent.headers`** are headers the message box adds to every request it makes to the agent, the card fetch at start included. The wire proxy forwards them like any host's.
 
-- A `${VAR}` in a value is replaced from Spectra's environment when the box sends, so the file holds variable names, never values. Only the bare form is read, a name of letters, digits and underscores not starting with a digit; `$VAR`, `${a-b}` and `${}` are left as written, and substitution runs on header values only. A variable set to an empty value counts as set.
+- A `${VAR}` in a value is replaced from Spectra's environment once, at start, so the file holds variable names, never values. Only the bare form is read, a name of letters, digits and underscores not starting with a digit; `$VAR`, `${a-b}` and `${}` are left as written, and substitution runs on header values only. A variable set to an empty value counts as set.
 - A variable that is not set is reported at start. The header naming it is not sent, the card fetch goes ahead with the headers that resolved, and the box refuses to send, naming the variable, until Spectra is started with it set. These two lines are cut from a run with the example's header and `SPECTRA_AGENT_TOKEN` unset, the first on stderr:
 
   ```

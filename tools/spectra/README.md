@@ -23,7 +23,7 @@ Run it through PyPI, with [uv](https://docs.astral.sh/uv/):
 uvx a2ui-spectra
 ```
 
-Install it on macOS or Linux, into `~/.local/bin`, from the GitHub release, its checksum verified:
+Install it on macOS or Linux, into `$XDG_BIN_HOME`, else `~/.local/bin`, from the GitHub release, its checksum verified:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/retz8/a2ui-spectra/main/scripts/public/install.sh | sh

@@ -134,27 +134,27 @@ a2ui-spectra: The OpenTelemetry receiver is at http://127.0.0.1:9923
 
 That line is cut from a run of the built binary with `--receiver-port 9923`.
 
-| Request                                                    | Answer                                                                                                     |
-| ---------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `POST /v1/traces` or `POST /v1/logs`, read                 | `200` with an empty export response in the request's own encoding: no bytes in protobuf, `{}` in OTLP/JSON |
-| `POST /v1/metrics`                                         | `200`, and the metrics are dropped                                                                         |
-| A body that does not decode as its signal's export request | `400`, with the reason, such as `resourceSpans[0].scopeSpans[0].spans[0].traceId is not 16 bytes of hex.`  |
-| A content type other than protobuf or OTLP/JSON            | `415`, `Send application/x-protobuf or application/json.`                                                  |
-| Another method on one of the three paths                   | `405`, such as `GET is not allowed here.`                                                                  |
-| Another path                                               | `404`, `a2ui-spectra's OpenTelemetry receiver takes POST /v1/traces, /v1/logs and /v1/metrics.`            |
+| Request                                                                       | Answer                                                                                                     |
+| ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `POST /v1/traces` or `POST /v1/logs`, read                                    | `200` with an empty export response in the request's own encoding: no bytes in protobuf, `{}` in OTLP/JSON |
+| `POST /v1/metrics`                                                            | `200`, and the metrics are dropped                                                                         |
+| A body that does not unzip, or does not decode as its signal's export request | `400`, with the reason, such as `resourceSpans[0].scopeSpans[0].spans[0].traceId is not 16 bytes of hex.`  |
+| A content type other than protobuf or OTLP/JSON                               | `415`, `Send application/x-protobuf or application/json.`                                                  |
+| Another method on one of the three paths                                      | `405`, such as `GET is not allowed here.`                                                                  |
+| Another path                                                                  | `404`, `a2ui-spectra's OpenTelemetry receiver takes POST /v1/traces, /v1/logs and /v1/metrics.`            |
 
 The answers' texts are cut from requests sent to that run's receiver with `curl`.
 
-- **Two encodings.** Protobuf is `application/x-protobuf` or `application/protobuf`; OTLP/JSON is `application/json`. A content type's parameters are ignored, and a body whose `Content-Encoding` names gzip is unzipped first. The protobuf messages are decoded with code generated from OTLP's `.proto` files, copied from `open-telemetry/opentelemetry-proto` at v1.11.1. Both encodings are read into OTLP/JSON's shape: trace and span ids as lowercase hex, times as decimal strings, enums as integers.
-- **Read leniently where OTLP/JSON allows two forms, strictly where the shape is wrong.** A 64-bit integer may be a string or a number; an id in either case of hex is lowercased. A span whose trace id is not 16 bytes or whose span id is not 8 bytes refuses the whole export request, `400`, and so does a link without them in OTLP/JSON; in protobuf such a link is dropped.
+- **Two encodings.** Protobuf is `application/x-protobuf` or `application/protobuf`; OTLP/JSON is `application/json`. A content type is read in any case and its parameters are ignored, and a body whose `Content-Encoding` names gzip is unzipped first; one that does not unzip is answered `400`, `The body is not gzip: …`. The protobuf messages are decoded with code generated from OTLP's `.proto` files, copied from `open-telemetry/opentelemetry-proto` at v1.11.1. Both encodings are read into OTLP/JSON's shape: trace and span ids as lowercase hex, times as decimal strings, enums as integers.
+- **Read leniently where OTLP/JSON allows two forms, strictly where the shape is wrong.** A 64-bit integer may be a string or a number; an id in either case of hex is lowercased. A span whose trace id is not 16 bytes or whose span id is not 8 bytes refuses the whole export request, `400`. In OTLP/JSON, so does a link without them, or a parent span id that is not 8 bytes; in protobuf such a link is dropped, and such a parent is no parent.
 - **No partial reading.** An export request is read whole, or answered `400` and nothing of it is taken.
-- **What is never recorded of an export request:** its headers, and the resource it carries, such as `service.name` and the SDK's version.
+- **What is never recorded of an export request:** its headers; the resource it carries, such as `service.name` and the SDK's version; an instrumentation scope's own attributes and the schema URLs; and a span's or a link's trace state and flags.
 - **Nothing is passed on.** Exports go to the receiver alone; Spectra forwards them to no collector.
 - **At Spectra's stop,** an export in flight is answered, and a connection held open past a second is cut.
 
 ### The agent's variables
 
-`a2ui-spectra run` sets four variables in the agent's environment, and `a2ui-spectra attach` prints the same four at start to set in the agent's shell before restarting it; under `attach` the viewer's first screen shows them too, as [The viewer](viewer.md) has it. These lines are cut from `attach` run against the repository's stub agent with `--receiver-port 9923`:
+`a2ui-spectra run` sets four variables in the agent's environment, as `replay` and `test` do when they start the agent's command, and `a2ui-spectra attach` prints the same four at start to set in the agent's shell before restarting it; under `attach` the viewer's first screen shows them too, as [The viewer](viewer.md) has it. These lines are cut from `attach` run against the repository's stub agent with `--receiver-port 9923`:
 
 ```
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://127.0.0.1:9923  # for Spectra's OpenTelemetry receiver
@@ -174,7 +174,7 @@ export OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true  # for Spectra's 
 
 - **The protocol variable moves Python onto HTTP.** Python's auto-configuration, `opentelemetry-instrument`, exports over gRPC unless the protocol variable says otherwise, and the receiver reads OTLP over HTTP alone.
 - **The content capture switches** let an instrumentation record the messages, which the GenAI conventions leave off by default. The conventions name the variable only as an example and give it no values, so producers read it differently: ADK reads `true` as content in log records, not on the span ([OpenTelemetry finding 21](../../_dev/otel-findings.md#21-the-content-capture-variable-is-named-only-as-an-example-with-no-values)). The receiver reads content from both places.
-- **A replaced variable is said once,** at start, under `run`, with any credentials in a URL removed. This line is cut from a run of the built binary started with `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` and `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces` in its environment:
+- **A replaced variable is said once,** at start, under `run`, and under `replay` and `test` when they start the agent's command, with any credentials in a URL removed. This line is cut from a run of the built binary started with `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` and `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://localhost:4318/v1/traces` in its environment:
 
   ```
   a2ui-spectra: In the agent's environment, Spectra replaced OTEL_EXPORTER_OTLP_PROTOCOL from grpc and OTEL_EXPORTER_OTLP_TRACES_ENDPOINT from http://localhost:4318/v1/traces, so that its exports reach Spectra's OpenTelemetry receiver. They are not passed on.
@@ -210,9 +210,9 @@ OTEL_PYTHON_DISABLED_INSTRUMENTATIONS=click \
 
 Every span placed in a turn becomes one event of the turn record, shaped as the turn record's [events](../../specification/turn_record/v0_1/docs/turn_record.md#events) are:
 
-- **As received:** its trace and span ids, its parent, its name, its OTLP span kind, its start and end, its status, and its own span events and links. A parent id of zeros is no parent; a span kind outside OTLP's six values is `0`; a status code other than `1` or `2` is `0`.
+- **As received:** its trace and span ids, its parent, its name, its OTLP span kind, its start and end, its status, and its own span events and links. A parent id of zeros is no parent; a span kind outside OTLP's six values is `0`; a status code other than `1` or `2` is `0`. Two span events are fitted to the names the record types, as the turn record's [A2UI step's span events](../../specification/turn_record/v0_1/docs/turn_record.md#the-a2ui-steps-span-events) gives them: on an `exception` event, a value of `exception.type`, `exception.message`, `exception.stacktrace`, `a2ui.parse.block.start`, `a2ui.parse.block.end` or `a2ui.parse.error.details` without the record's type is left out, and an `a2ui.parse.chunk` event keeps its `a2ui.parse.chunk.end` alone, or is left out when that does not fit.
 - **Its attributes:** `a2ui.event.kind`; `otel.scope.name`, the instrumentation scope, and `otel.scope.version` when the producer gave one; `a2ui.received.dialect`, when it has one; the names translated from its dialect; and `a2ui.received.attributes`, every attribute as received. A translated name never takes the place of one of the receiver's own.
-- **Attribute values** become plain values: a key-value list an object, an array a list, an integer beyond what JSON numbers hold exactly a decimal string, bytes as base64. Of two attributes with one key, the later is kept.
+- **Attribute values** become plain values: a key-value list an object, an array a list, an integer beyond what JSON numbers hold exactly a decimal string, a double that is not finite its text, such as `NaN`, bytes as base64, and a value left empty `null`. Of two attributes with one key, the later is kept.
 - **Its kind** is `model_call`, `tool_call` or `framework_span`, by its dialect. A span of the A2UI step is read by its own `a2ui.event.kind` before any dialect, as [What Spectra does with the spans](a2ui-step.md#what-spectra-does-with-the-spans) has it.
 - **A stated retry.** A `model_call` span of any dialect carrying `a2ui.retry.attempt`, an integer of 1 or more, has it copied onto the event, beside its links as received.
 
@@ -232,7 +232,7 @@ The rows are tried in this order, so an OpenInference span that also carries `ge
 
 - On every span, the names the pinned conventions define are copied as written. `gcp.vertex.agent.session_id` is the conversation, `gen_ai.conversation.id`, unless the span names one. `gen_ai.system` `gemini` and `vertex_ai` are read as the provider `gcp.gemini` and `gcp.vertex_ai`; the literal `gcp.vertex.agent` on `call_llm` names no provider ([OpenTelemetry finding 22](../../_dev/otel-findings.md#22-adk-writes-the-literal-gcpvertexagent-as-gen_aisystem-and-the-deprecated-name-only)).
 - `call_llm`: its `gcp.vertex.agent.llm_request`, ADK's model, config and contents, is read as a Gemini API request by the model proxy's Gemini reader, for the settings, the system instructions, the input messages and the tool definitions; its `gcp.vertex.agent.llm_response` for the output messages and the finish reason. The request's operation, model, provider and streaming are not taken from it.
-- `generate_content`: the conventions' names, content parsed when it arrives as a JSON string; then the content of its per-message log records, `gen_ai.system.message`, `gen_ai.user.message`, `gen_ai.assistant.message`, `gen_ai.tool.message` and `gen_ai.choice`; then, under `OTEL_SEMCONV_STABILITY_OPT_IN=gen_ai_latest_experimental`, its `gen_ai.client.inference.operation.details` log record, whose content names win.
+- `generate_content`: the conventions' names, content parsed when it arrives as a JSON string; then the content of its per-message log records, `gen_ai.system.message`, `gen_ai.user.message`, `gen_ai.assistant.message`, `gen_ai.tool.message` and `gen_ai.choice`; then, under `OTEL_SEMCONV_STABILITY_OPT_IN=gen_ai_latest_experimental`, its `gen_ai.client.inference.operation.details` log record, the last one when there are several, whose conventions' names win. A per-message log record whose content is `<elided>`, content that was not captured, adds no message.
 - `execute_tool`: `gcp.vertex.agent.tool_call_args` as the arguments and `gcp.vertex.agent.tool_response` as the result, each kept when it is an object.
 
 **OpenInference,** as tested with its LiteLLM instrumentation at 0.1.52:
@@ -272,18 +272,18 @@ An excerpt of the OpenInference span from the custom-components example, `sample
 ### What every dialect shares
 
 - **The cache write count.** `gen_ai.usage.cache_creation.input_tokens`, which the Python conventions package, OpenLLMetry and LiteLLM write, is read as the pinned conventions' `gen_ai.usage.cache_write.input_tokens` when the span carries no such name ([OpenTelemetry finding 20](../../_dev/otel-findings.md#20-the-python-conventions-package-names-the-cache-write-cache_creation-where-the-conventions-name-it-cache_write)).
-- **Finish reasons** are normalised as the model proxy's readers normalise them, in `gen_ai.response.finish_reasons` and in each output message. A value the conventions' output messages schema allows, `stop`, `length`, `content_filter`, `tool_call`, `compaction` or `error`, stays. A provider's own value is read through that provider's map, Gemini's for `gcp.gemini`, `gcp.vertex_ai` and `gcp.gen_ai`, OpenAI's for `openai` and every `azure.` provider, Anthropic's for `anthropic`; with any other provider, through OpenAI's, Anthropic's and Gemini's maps in turn, Gemini's compared in lowercase. Any other value is `error`. An empty reason, which ADK writes for a response with none, is dropped.
+- **Finish reasons** are normalised as the model proxy's readers normalise them, in `gen_ai.response.finish_reasons` and in each output message. A value the conventions' output messages schema allows, `stop`, `length`, `content_filter`, `tool_call`, `compaction` or `error`, stays. A provider's own value is read through that provider's map, Gemini's for `gcp.gemini`, `gcp.vertex_ai` and `gcp.gen_ai`, OpenAI's for `openai` and every `azure.` provider, Anthropic's for `anthropic`; with any other provider, through OpenAI's, Anthropic's and Gemini's maps in turn. Each map is matched without regard to case, so Gemini's `STOP` and `stop` read alike. Any other value is `error`. An empty reason, which ADK writes for a response with none, is dropped.
 - **Each translated name is fitted to the record.** The four content names, `gen_ai.system_instructions`, `gen_ai.input.messages`, `gen_ai.output.messages` and `gen_ai.tool.definitions`, are kept when they fit the GenAI schemas the turn record copies, its [copied schemas](../../specification/turn_record/v0_1/docs/turn_record.md#copied-schemas). The names the record types on [`model_call`](../../specification/turn_record/v0_1/docs/turn_record.md#model_call) and [`tool_call`](../../specification/turn_record/v0_1/docs/turn_record.md#tool_call) are kept when they have its type, the tool call's arguments and result when they are objects, read from their JSON text. Every other name is kept as it is. A value left out stays in `a2ui.received.attributes`.
 
 ### Log records
 
 A log record carrying span context is kept as one of its span's span events:
 
-| Of the span event | From the log record                                                                                                                        |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Its time          | The log's time, else the time it was observed                                                                                              |
-| Its name          | The log's event name, from its own field or its `event.name` attribute, else its severity text                                             |
-| Its attributes    | The log's attributes as received, with `a2ui.received.log.body`, `a2ui.received.log.severity_number` and `a2ui.received.log.severity_text` |
+| Of the span event | From the log record                                                                                                                                                                                       |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Its time          | The log's time, else the time it was observed                                                                                                                                                             |
+| Its name          | The log's event name, from its own field or its `event.name` attribute, else its severity text, else empty                                                                                                |
+| Its attributes    | The log's attributes as received, with `a2ui.received.log.body`, `a2ui.received.log.severity_number` and `a2ui.received.log.severity_text`, each when the log has it, a severity number of `0` being none |
 
 - A span's own events and its log records are kept in time order, log records of the same time in their arrival order.
 - The span is read again with each log record that joins it, so content a producer writes in log records reaches the translated names, as ADK's `generate_content` shows.
@@ -307,11 +307,12 @@ flowchart TD
 ```
 
 - **By trace id.** A span carrying a turn's trace id belongs to that turn, whether the turn is open, waiting for its calls or written.
-- **By time.** Any other span belongs to the turn of this run whose time range holds its start, when exactly one does. A turn's range runs from its start to the agent's last reply; an open turn's runs to the present.
+- **By time.** Any other span belongs to the turn of this run whose time range holds its start, when exactly one does. A turn's range runs from its start to the agent's last reply, both included; an open turn's runs to the present.
+- **One clock.** Spectra stamps a turn's start and end, and each proxy's call, with the wall clock, the clock an agent stamps its spans with, read finer than its milliseconds through the monotonic clock, so a span's times and Spectra's compare on one clock. Each reading is later than the one before, unless the wall clock itself steps back by more than two milliseconds, which the readings follow.
 - **Only this run's turns.** A turn an earlier run left in the store is never a span's turn, whatever trace id the span carries.
-- **Its parent.** A span keeps its own parent. In a tree carrying the turn's trace id, a span whose parent is neither the turn event nor a span placed in the turn, the tree's root, takes the turn event as its parent.
+- **Its parent.** A span keeps its own parent. In a tree carrying the turn's trace id, a span with no parent, or whose parent is neither the turn event nor a span placed in the turn, is the tree's root and takes the turn event as its parent.
 - **Its place in the turn.** The received spans follow the turn's own events, the turn event, the wire events and the proxies' calls, in order of their start, and come before the check events, so placing a span moves no event a check's finding points at.
-- **The capture paths.** `otel_receiver` joins the turn's `a2ui.turn.capture_paths`, and `a2ui_step` beside it once a span of the A2UI step is placed.
+- **The capture paths.** `otel_receiver` joins the turn's `a2ui.turn.capture_paths` once a span is placed in it, and `a2ui_step` beside it once a `prompt_generation` or `parse` event is among its spans; a span of the A2UI step written as a framework span does not add it.
 - **A span already in its turn,** by its trace id and span id, is ignored.
 
 A `prompt_generation` span that falls in no turn is the one exception to placing by time: it is kept for the run and placed by its text, as [What Spectra does with the spans](a2ui-step.md#what-spectra-does-with-the-spans) has it. The turn record's [placement](../../specification/turn_record/v0_1/docs/turn_record.md#placement) is the contract.
@@ -340,7 +341,7 @@ An exchange is a call a proxy recorded as a client: a model proxy's or a tool pr
 flowchart TD
     X["A proxy's exchange"] --> C{"Its traceparent names<br/>a span of the turn?"}
     C -->|yes| K{"A span of the exchange's kind<br/>at or above the named span?"}
-    K -->|yes| L["The nearest one, every one above it,<br/>and one nested in the nearest<br/>that holds the exchange's start"]
+    K -->|yes| L["The nearest one, every one above it,<br/>and those nested in the nearest<br/>that hold the exchange's start"]
     K -->|"no: the context is stale"| H
     C -->|no| H{"The spans of its kind holding<br/>the exchange's start are one chain?"}
     H -->|yes| L2["Each of them"]
@@ -478,6 +479,7 @@ How the live cases were recorded, with which versions, is in [`conformance/READM
 | A turn with its spans: parents, order, capture paths, the links to the proxies' exchanges | [`tools/spectra/src/receiver/assemble.ts`](../../tools/spectra/src/receiver/assemble.ts)                                                                                                                                                                                                   |
 | The variables `run` sets and `attach` prints, and the replaced line                       | [`tools/spectra/src/receiver/variables.ts`](../../tools/spectra/src/receiver/variables.ts)                                                                                                                                                                                                 |
 | The turns of a run and their time ranges                                                  | [`tools/spectra/src/placement.ts`](../../tools/spectra/src/placement.ts)                                                                                                                                                                                                                   |
+| The clock Spectra stamps turns and calls with                                             | [`tools/spectra/src/clock.ts`](../../tools/spectra/src/clock.ts)                                                                                                                                                                                                                           |
 | Amending a written turn's files                                                           | [`tools/spectra/src/store/store.ts`](../../tools/spectra/src/store/store.ts)                                                                                                                                                                                                               |
 | The viewer's calls and chains, read from the spans                                        | [`tools/spectra_viewer/src/model/call_rows.ts`](../../tools/spectra_viewer/src/model/call_rows.ts)                                                                                                                                                                                         |
 | The receiver capture suite: its cases, its data and its harness                           | [`conformance/receiver_capture/`](../../conformance/receiver_capture), [`conformance/test_data/receiver_capture/`](../../conformance/test_data/receiver_capture), [`tools/spectra/src/receiver/capture.conformance.test.ts`](../../tools/spectra/src/receiver/capture.conformance.test.ts) |
