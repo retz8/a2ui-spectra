@@ -734,6 +734,12 @@ describe('the API', () => {
     assert.equal(unreadable.status, 422);
     assert.match((unreadable.body as {error: string}).error, /^The file is not JSON: /);
     assert.equal((await getJson(`${base}/api/fixtures/../x`)).status, 404);
+    assert.deepEqual(await getJson(`${base}/api/fixtures/bad%E0%A4%A`), {
+      status: 400,
+      body: {
+        error: "The fixture's name in the path does not decode: its percent-encoding is not valid.",
+      },
+    });
     rmSync(path.join(dir, 'a2ui-spectra-fixtures'), {recursive: true});
     assert.deepEqual((await getJson(`${base}/api/fixtures`)).body, {
       folder: 'a2ui-spectra-fixtures',

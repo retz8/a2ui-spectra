@@ -221,7 +221,16 @@ async function answer(
   } else if (route === 'GET /api/fixtures') {
     sendJson(response, 200, await listFixtures(api));
   } else if (fixture !== null) {
-    await sendFixture(api, decodeURIComponent(fixture[1]), response);
+    let name: string;
+    try {
+      name = decodeURIComponent(fixture[1]);
+    } catch {
+      sendJson(response, 400, {
+        error: "The fixture's name in the path does not decode: its percent-encoding is not valid.",
+      });
+      return;
+    }
+    await sendFixture(api, name, response);
   } else if (route === 'POST /api/fixtures') {
     await saveFixture(api, request, response);
   } else if (route === 'POST /api/replays') {
