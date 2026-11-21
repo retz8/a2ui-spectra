@@ -32,8 +32,6 @@ import {fileURLToPath} from 'node:url';
 import {fromStandIn, githubStandIn, readmeInstallCommands} from './install_check.mjs';
 import {BuildError, readVersion, runMain} from './packages.mjs';
 
-const windows = process.platform === 'win32';
-
 async function serve(dir, files) {
   const commands = readmeInstallCommands();
   const standIn = await githubStandIn({
@@ -59,10 +57,11 @@ async function start(dir, files) {
   const origin = path.join(dir, 'origin');
   if (existsSync(origin)) throw new BuildError(`A stand-in for GitHub was started in ${dir}.`);
   const out = openSync(path.join(dir, 'log.txt'), 'a');
+  // Detached on Windows too, with no console of its own, so that it outlives the step's console.
   const child = spawn(
     process.execPath,
     [fileURLToPath(import.meta.url), 'serve', dir, '--files', files],
-    {detached: !windows, stdio: ['ignore', out, out], windowsHide: true},
+    {detached: true, stdio: ['ignore', out, out], windowsHide: true},
   );
   child.unref();
   writeFileSync(path.join(dir, 'pid'), String(child.pid));

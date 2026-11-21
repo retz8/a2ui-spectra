@@ -144,6 +144,7 @@ jobs:
             Write-Output 'What attach printed:'
             Get-Content "$out\attach.out.txt", "$out\attach.err.txt"
           }
+          exit 0
       - if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -198,12 +199,18 @@ jobs:
             echo "$output"
             echo "Exit: $code"
             echo "::endgroup::"
-            if [ "$code" -eq 0 ]; then echo "Not refused: $2"; failed=1; fi
+            if [ "$code" -eq 0 ] || ! printf '%s' "$output" | grep -qF "$4"; then
+              echo "Not refused with \"$4\": $2"
+              failed=1
+            fi
             printf -- '- `%s` in Alpine: exit %s, printing:\n\n```\n%s\n```\n\n' "$2" "$code" "$output" >> /summary.md
           }
-          refused 'npx' 'npx a2ui-spectra' "npm_config_registry=$STAND_IN_NPM npx a2ui-spectra"
-          refused 'uvx' 'uvx a2ui-spectra' "UV_DEFAULT_INDEX=$STAND_IN_PYPI_INDEX uvx a2ui-spectra"
-          refused 'The install script' "$STAND_IN_SH" "$STAND_IN_SH"
+          refused 'npx' 'npx a2ui-spectra' "npm_config_registry=$STAND_IN_NPM npx a2ui-spectra" \
+            'Linux with musl is not supported.'
+          refused 'uvx' 'uvx a2ui-spectra' "UV_DEFAULT_INDEX=$STAND_IN_PYPI_INDEX uvx a2ui-spectra" \
+            'has no wheels with a matching platform tag'
+          refused 'The install script' "$STAND_IN_SH" "$STAND_IN_SH" \
+            'musl-based Linux (e.g. Alpine) is not supported'
           installed=$(find / -xdev \( -name 'a2ui-spectra' -o -name 'a2ui-spectra.exe' \) -type f -size +1M 2>/dev/null)
           if [ -n "$installed" ]; then echo "A binary was installed: $installed"; failed=1; else echo 'No binary was installed.'; fi
           exit "$failed"
@@ -269,17 +276,18 @@ jobs:
           $fence = '```'
           $pwshX64 = Join-Path $env:RUNNER_TEMP 'pwsh-x64\pwsh.exe'
           $architecture = '[Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString() + '' process, PROCESSOR_ARCHITECTURE '' + $env:PROCESSOR_ARCHITECTURE + '', PROCESSOR_ARCHITEW6432 '' + $env:PROCESSOR_ARCHITEW6432'
+          $unsupported = 'Unsupported Windows architecture'
           $installs = @(
-            @{label = 'npx a2ui-spectra'; run = { $env:npm_config_registry = $env:A2UI_SPECTRA_STAND_IN_NPM; npx a2ui-spectra 2>&1; Remove-Item Env:npm_config_registry } },
-            @{label = 'uvx a2ui-spectra'; run = { $env:UV_DEFAULT_INDEX = $env:A2UI_SPECTRA_STAND_IN_PYPI_INDEX; uvx a2ui-spectra 2>&1; Remove-Item Env:UV_DEFAULT_INDEX } },
-            @{label = "$env:A2UI_SPECTRA_STAND_IN_PS1, under powershell.exe"; run = {
+            @{label = 'npx a2ui-spectra'; expect = 'This platform, win32 arm64, is not supported.'; run = { $env:npm_config_registry = $env:A2UI_SPECTRA_STAND_IN_NPM; npx a2ui-spectra 2>&1; Remove-Item Env:npm_config_registry } },
+            @{label = 'uvx a2ui-spectra'; expect = 'has no wheels with a matching platform tag'; run = { $env:UV_DEFAULT_INDEX = $env:A2UI_SPECTRA_STAND_IN_PYPI_INDEX; uvx a2ui-spectra 2>&1; Remove-Item Env:UV_DEFAULT_INDEX } },
+            @{label = "$env:A2UI_SPECTRA_STAND_IN_PS1, under powershell.exe"; expect = $unsupported; run = {
               $saved = $env:PSModulePath
               Remove-Item Env:PSModulePath
               powershell.exe -NoProfile -NonInteractive -Command "$architecture; $env:A2UI_SPECTRA_STAND_IN_PS1" 2>&1
               $env:PSModulePath = $saved
             } },
-            @{label = "$env:A2UI_SPECTRA_STAND_IN_PS1, under pwsh.exe"; run = { pwsh.exe -NoProfile -NonInteractive -Command "$architecture; $env:A2UI_SPECTRA_STAND_IN_PS1" 2>&1 } },
-            @{label = "$env:A2UI_SPECTRA_STAND_IN_PS1, under PowerShell 7 for x64, emulated"; run = { & $pwshX64 -NoProfile -NonInteractive -Command "$architecture; $env:A2UI_SPECTRA_STAND_IN_PS1" 2>&1 } }
+            @{label = "$env:A2UI_SPECTRA_STAND_IN_PS1, under pwsh.exe"; expect = $unsupported; run = { pwsh.exe -NoProfile -NonInteractive -Command "$architecture; $env:A2UI_SPECTRA_STAND_IN_PS1" 2>&1 } },
+            @{label = "$env:A2UI_SPECTRA_STAND_IN_PS1, under PowerShell 7 for x64, emulated"; expect = $unsupported; run = { & $pwshX64 -NoProfile -NonInteractive -Command "$architecture; $env:A2UI_SPECTRA_STAND_IN_PS1" 2>&1 } }
           )
           foreach ($install in $installs) {
             $dir = (New-Item -ItemType Directory (Join-Path $env:RUNNER_TEMP ([IO.Path]::GetRandomFileName()))).FullName
@@ -292,13 +300,16 @@ jobs:
             Write-Output $output
             Write-Output "Exit: $code"
             Write-Output '::endgroup::'
-            if ($code -eq 0) { Write-Output "Not refused: $($install.label)"; $failed = $true }
+            if ($code -eq 0 -or -not $output.Contains($install.expect)) {
+              Write-Output "Not refused with `"$($install.expect)`": $($install.label)"
+              $failed = $true
+            }
             [IO.File]::AppendAllText($env:GITHUB_STEP_SUMMARY, "- $($install.label), on Windows arm64: exit $code, printing:`n`n$fence`n$output`n$fence`n`n")
           }
           $binaries = @(Get-ChildItem -Recurse -Force -File -Filter 'a2ui-spectra.exe' -ErrorAction SilentlyContinue $env:LOCALAPPDATA, $env:APPDATA, $env:RUNNER_TEMP)
           if ($binaries.Count -gt 0) { Write-Output "A binary was installed: $($binaries.FullName -join ', ')"; $failed = $true }
           else { Write-Output 'No binary was installed.' }
-          if ($failed) { exit 1 }
+          exit $(if ($failed) { 1 } else { 0 })
       - if: always()
         name: Stop the stand-ins
         run: |
