@@ -1,0 +1,306 @@
+name: The README on runners
+
+# The root README's and the command's README's lines that a Mac cannot run, and the platforms
+# Spectra does not run on, on the files of one release workflow dry run, named by its run id: its
+# archives with checksums.txt, and the stores its publishing steps left in the stand-ins. On
+# Windows x64, under Windows PowerShell and PowerShell 7: the install command from a stand-in for
+# GitHub, its origin changed alone; the root README's lines for a binary downloaded by hand, the
+# archive marked as a browser marks a download; each command's --help; and attach's first screen
+# against the stub agent, taken in light and dark. In an Alpine container and on a Windows arm64
+# runner: the README's install commands, npx, uvx and the platform's install script, from the
+# stand-ins, each refused with nothing installed. Started by hand; it publishes nothing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: The run id of the release workflow's dry run whose files are used
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+env:
+  # PowerShell 7.6.10 for x64, run under emulation on Windows arm64.
+  PWSH_X64_URL: https://github.com/PowerShell/PowerShell/releases/download/v7.6.10/PowerShell-7.6.10-win-x64.zip
+  PWSH_X64_SHA256: 7d871531806eb1646264e4bbabd9f0c30c23355591bc756bb9909448c29ae166
+
+jobs:
+  windows-x64:
+    name: The Windows lines (windows-x64, ${{ matrix.shell }})
+    runs-on: windows-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        shell: [powershell, pwsh]
+    defaults:
+      run:
+        shell: ${{ matrix.shell }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+      - name: Build the stub agent
+        run: yarn workspace a2ui-spectra-conformance build
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: github-release
+          path: ${{ runner.temp }}\release
+          run-id: ${{ inputs.dry-run }}
+          github-token: ${{ github.token }}
+      - name: The stand-in for GitHub
+        run: node tools/spectra/scripts/github_stand_in.mjs start "${{ runner.temp }}\github" --files "${{ runner.temp }}\release"
+      - name: The install command, from the stand-in for GitHub
+        run: |
+          Write-Output "> $env:A2UI_SPECTRA_STAND_IN_PS1"
+          Invoke-Expression $env:A2UI_SPECTRA_STAND_IN_PS1
+          $dir = Join-Path $env:LOCALAPPDATA 'Programs\a2ui-spectra\bin'
+          $exe = Join-Path $dir 'a2ui-spectra.exe'
+          if (-not (Test-Path -LiteralPath $exe)) { throw "The install command left no $exe." }
+          $userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+          $entries = @($userPath -split ';' | ForEach-Object { $_.TrimEnd('\') })
+          if ($entries -notcontains $dir) { throw "The user's PATH does not hold $dir." }
+          Write-Output "The user's PATH holds $dir."
+          # A new terminal's PATH: the machine's, then the user's.
+          $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' + $userPath
+          Write-Output "In a new terminal, a2ui-spectra is $((Get-Command a2ui-spectra).Source)."
+          Write-Output '> a2ui-spectra --version'
+          a2ui-spectra --version
+          if ($LASTEXITCODE -ne 0) { throw "a2ui-spectra --version exited with $LASTEXITCODE." }
+      - name: The root README's lines for a binary downloaded by hand
+        run: |
+          $readme = Get-Content -Raw README.md
+          $blocks = [regex]::Matches($readme, '(?ms)^```powershell\r?\n(.*?)^```')
+          $lines = @($blocks | ForEach-Object { $_.Groups[1].Value -split '\r?\n' } | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
+          $byHand = @($lines | Where-Object { $_ -notmatch '^irm ' })
+          Write-Output "The root README's PowerShell lines for a binary downloaded by hand:"
+          $byHand | ForEach-Object { Write-Output "  $_" }
+          if ($byHand.Count -ne 5) { throw "The root README holds $($byHand.Count) such lines, not 5." }
+          $hand = (New-Item -ItemType Directory (Join-Path $env:RUNNER_TEMP 'by-hand')).FullName
+          Copy-Item (Join-Path $env:RUNNER_TEMP 'release\*') $hand
+          Set-Location $hand
+          $zip = (Get-ChildItem a2ui-spectra-v*-windows-x64.zip).Name
+          Set-Content -LiteralPath $zip -Stream Zone.Identifier -Value "[ZoneTransfer]`r`nZoneId=3"
+          Write-Output "Marked $zip with Zone.Identifier, as a browser marks a download."
+          foreach ($line in $byHand) {
+            Write-Output "> $line"
+            if ($line -match '^gh attestation verify ') {
+              Write-Output 'Not run: a dry run attests nothing.'
+              continue
+            }
+            $result = Invoke-Expression $line
+            if ($null -ne $result) { Write-Output $result }
+            if ($line -match '^\(Get-FileHash ' -and $result -ne $true) { throw 'The checksum line did not print True.' }
+          }
+          $binary = Join-Path $hand "$([IO.Path]::GetFileNameWithoutExtension($zip))\a2ui-spectra.exe"
+          $left = Get-Item -LiteralPath $binary -Stream * | Where-Object Stream -eq 'Zone.Identifier'
+          if ($left) { throw 'The binary still carries the Zone.Identifier stream.' }
+          Write-Output "The binary carries no Zone.Identifier stream. > $binary --version"
+          & $binary --version
+          if ($LASTEXITCODE -ne 0) { throw "The binary exited with $LASTEXITCODE." }
+      - name: Each command's --help
+        run: |
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\a2ui-spectra\bin\a2ui-spectra.exe'
+          foreach ($command in 'attach', 'run', 'replay', 'test') {
+            Write-Output "> a2ui-spectra $command --help"
+            $help = (& $exe $command --help) -join "`n"
+            if ($LASTEXITCODE -ne 0) { throw "a2ui-spectra $command --help exited with $LASTEXITCODE." }
+            Write-Output $help
+            $both = $help.Contains('In PowerShell:') -and $help.Contains('In cmd:')
+            $line = "- ``a2ui-spectra $command --help`` under ${{ matrix.shell }}: $(if ($both) { 'examples for PowerShell and for cmd' } else { 'no examples for PowerShell and for cmd' })`n"
+            [IO.File]::AppendAllText($env:GITHUB_STEP_SUMMARY, $line)
+            if ($command -eq 'run' -and -not $both) { throw 'run --help has no examples for PowerShell and for cmd.' }
+          }
+      - name: attach's first screen, in light and dark
+        run: |
+          $exe = Join-Path $env:LOCALAPPDATA 'Programs\a2ui-spectra\bin\a2ui-spectra.exe'
+          $out = (New-Item -ItemType Directory -Force (Join-Path $env:RUNNER_TEMP 'out')).FullName
+          $stub = Start-Process node -ArgumentList 'conformance\dist\stub_agent\stub_agent.js', '--port', '10013', '--canned-a2ui' -PassThru -RedirectStandardOutput "$out\stub.out.txt" -RedirectStandardError "$out\stub.err.txt"
+          $spectra = Start-Process $exe -ArgumentList 'attach', 'http://localhost:10013', '--no-open' -PassThru -RedirectStandardOutput "$out\attach.out.txt" -RedirectStandardError "$out\attach.err.txt"
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 90 -and -not $ready; $i++) {
+              try {
+                Invoke-WebRequest -UseBasicParsing http://localhost:9820/api/context | Out-Null
+                $ready = $true
+              } catch {
+                Start-Sleep -Seconds 1
+              }
+            }
+            if (-not $ready) { throw 'The viewer did not answer within 90 seconds.' }
+            npx --yes playwright@1.58.1 install chromium
+            foreach ($scheme in 'light', 'dark') {
+              npx --yes playwright@1.58.1 screenshot --color-scheme $scheme --viewport-size '1440,900' --wait-for-timeout 5000 http://localhost:9820/ "$out\attach-first-screen-$scheme.png"
+              if ($LASTEXITCODE -ne 0) { throw "The $scheme screenshot failed." }
+            }
+          } finally {
+            taskkill.exe /pid $spectra.Id /t /f | Out-Null
+            taskkill.exe /pid $stub.Id /t /f | Out-Null
+            Start-Sleep -Seconds 2
+            Write-Output 'What attach printed:'
+            Get-Content "$out\attach.out.txt", "$out\attach.err.txt"
+          }
+      - if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-x64-${{ matrix.shell }}
+          path: ${{ runner.temp }}\out
+          if-no-files-found: warn
+      - if: always()
+        name: Stop the stand-in for GitHub
+        run: node tools/spectra/scripts/github_stand_in.mjs stop "${{ runner.temp }}\github"
+
+  alpine:
+    name: The install commands on Linux on musl (Alpine, linux-x64)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+        with:
+          install: false
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: stand-in-stores
+          path: ${{ runner.temp }}/stand-ins
+          run-id: ${{ inputs.dry-run }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: github-release
+          path: ${{ runner.temp }}/release
+          run-id: ${{ inputs.dry-run }}
+          github-token: ${{ github.token }}
+      - name: The stand-ins, on the dry run's stores
+        run: node tools/spectra/scripts/stand_ins.mjs serve "$RUNNER_TEMP/stand-ins"
+      - name: The stand-in for GitHub
+        run: node tools/spectra/scripts/github_stand_in.mjs start "$RUNNER_TEMP/github" --files "$RUNNER_TEMP/release"
+      - name: npx, uvx and the install script, in Alpine 3.22
+        run: |
+          cat > "$RUNNER_TEMP/alpine.sh" <<'EOF'
+          set -u
+          apk add --no-cache nodejs npm curl uv > /dev/null || exit 1
+          echo "Alpine $(cat /etc/alpine-release) on $(uname -m), Node $(node --version), npm $(npm --version), $(uv --version)"
+          failed=0
+          refused() {
+            echo "::group::$1"
+            echo "> $2"
+            dir=$(mktemp -d)
+            output=$(cd "$dir" && sh -c "$3" 2>&1)
+            code=$?
+            echo "$output"
+            echo "Exit: $code"
+            echo "::endgroup::"
+            if [ "$code" -eq 0 ]; then echo "Not refused: $2"; failed=1; fi
+            printf -- '- `%s` in Alpine: exit %s, printing:\n\n```\n%s\n```\n\n' "$2" "$code" "$output" >> /summary.md
+          }
+          refused 'npx' 'npx a2ui-spectra' "npm_config_registry=$STAND_IN_NPM npx a2ui-spectra"
+          refused 'uvx' 'uvx a2ui-spectra' "UV_DEFAULT_INDEX=$STAND_IN_PYPI_INDEX uvx a2ui-spectra"
+          refused 'The install script' "$STAND_IN_SH" "$STAND_IN_SH"
+          installed=$(find / -xdev \( -name 'a2ui-spectra' -o -name 'a2ui-spectra.exe' \) -type f -size +1M 2>/dev/null)
+          if [ -n "$installed" ]; then echo "A binary was installed: $installed"; failed=1; else echo 'No binary was installed.'; fi
+          exit "$failed"
+          EOF
+          touch "$RUNNER_TEMP/summary.md"
+          code=0
+          docker run --rm --network host \
+            -e STAND_IN_NPM="$A2UI_SPECTRA_STAND_IN_NPM" \
+            -e STAND_IN_PYPI_INDEX="$A2UI_SPECTRA_STAND_IN_PYPI_INDEX" \
+            -e STAND_IN_SH="$A2UI_SPECTRA_STAND_IN_SH" \
+            -e A2UI_SPECTRA_GITHUB_URL -e A2UI_SPECTRA_GITHUB_API_URL \
+            -v "$RUNNER_TEMP/alpine.sh:/alpine.sh:ro" \
+            -v "$RUNNER_TEMP/summary.md:/summary.md" \
+            alpine:3.22 sh /alpine.sh || code=$?
+          cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY"
+          exit $code
+      - if: always()
+        name: Stop the stand-ins
+        run: |
+          node tools/spectra/scripts/github_stand_in.mjs stop "$RUNNER_TEMP/github"
+          node tools/spectra/scripts/stand_ins.mjs stop "$RUNNER_TEMP/stand-ins"
+
+  windows-arm64:
+    name: The install commands on Windows arm64
+    runs-on: windows-11-arm
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup-node
+        with:
+          install: false
+      - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: stand-in-stores
+          path: ${{ runner.temp }}\stand-ins
+          run-id: ${{ inputs.dry-run }}
+          github-token: ${{ github.token }}
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: github-release
+          path: ${{ runner.temp }}\release
+          run-id: ${{ inputs.dry-run }}
+          github-token: ${{ github.token }}
+      - name: The stand-ins, on the dry run's stores
+        run: node tools/spectra/scripts/stand_ins.mjs serve "${{ runner.temp }}\stand-ins"
+      - name: The stand-in for GitHub
+        run: node tools/spectra/scripts/github_stand_in.mjs start "${{ runner.temp }}\github" --files "${{ runner.temp }}\release"
+      - name: PowerShell 7 for x64, under emulation
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'pwsh-x64.zip'
+          Invoke-WebRequest -UseBasicParsing $env:PWSH_X64_URL -OutFile $zip
+          if ((Get-FileHash $zip).Hash -ne $env:PWSH_X64_SHA256) { throw 'The PowerShell 7 zip does not have its checksum.' }
+          Expand-Archive $zip (Join-Path $env:RUNNER_TEMP 'pwsh-x64')
+      - name: npx, uvx and the install script, each refused
+        run: |
+          $failed = $false
+          $fence = '```'
+          $pwshX64 = Join-Path $env:RUNNER_TEMP 'pwsh-x64\pwsh.exe'
+          $architecture = '[Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString() + '' process, PROCESSOR_ARCHITECTURE '' + $env:PROCESSOR_ARCHITECTURE + '', PROCESSOR_ARCHITEW6432 '' + $env:PROCESSOR_ARCHITEW6432'
+          $installs = @(
+            @{label = 'npx a2ui-spectra'; run = { $env:npm_config_registry = $env:A2UI_SPECTRA_STAND_IN_NPM; npx a2ui-spectra 2>&1; Remove-Item Env:npm_config_registry } },
+            @{label = 'uvx a2ui-spectra'; run = { $env:UV_DEFAULT_INDEX = $env:A2UI_SPECTRA_STAND_IN_PYPI_INDEX; uvx a2ui-spectra 2>&1; Remove-Item Env:UV_DEFAULT_INDEX } },
+            @{label = "$env:A2UI_SPECTRA_STAND_IN_PS1, under powershell.exe"; run = {
+              $saved = $env:PSModulePath
+              Remove-Item Env:PSModulePath
+              powershell.exe -NoProfile -NonInteractive -Command "$architecture; $env:A2UI_SPECTRA_STAND_IN_PS1" 2>&1
+              $env:PSModulePath = $saved
+            } },
+            @{label = "$env:A2UI_SPECTRA_STAND_IN_PS1, under pwsh.exe"; run = { pwsh.exe -NoProfile -NonInteractive -Command "$architecture; $env:A2UI_SPECTRA_STAND_IN_PS1" 2>&1 } },
+            @{label = "$env:A2UI_SPECTRA_STAND_IN_PS1, under PowerShell 7 for x64, emulated"; run = { & $pwshX64 -NoProfile -NonInteractive -Command "$architecture; $env:A2UI_SPECTRA_STAND_IN_PS1" 2>&1 } }
+          )
+          foreach ($install in $installs) {
+            $dir = (New-Item -ItemType Directory (Join-Path $env:RUNNER_TEMP ([IO.Path]::GetRandomFileName()))).FullName
+            Push-Location $dir
+            Write-Output "::group::$($install.label)"
+            Write-Output "> $($install.label)"
+            $output = (& $install.run | Out-String).Trim()
+            $code = $LASTEXITCODE
+            Pop-Location
+            Write-Output $output
+            Write-Output "Exit: $code"
+            Write-Output '::endgroup::'
+            if ($code -eq 0) { Write-Output "Not refused: $($install.label)"; $failed = $true }
+            [IO.File]::AppendAllText($env:GITHUB_STEP_SUMMARY, "- $($install.label), on Windows arm64: exit $code, printing:`n`n$fence`n$output`n$fence`n`n")
+          }
+          $binaries = @(Get-ChildItem -Recurse -Force -File -Filter 'a2ui-spectra.exe' -ErrorAction SilentlyContinue $env:LOCALAPPDATA, $env:APPDATA, $env:RUNNER_TEMP)
+          if ($binaries.Count -gt 0) { Write-Output "A binary was installed: $($binaries.FullName -join ', ')"; $failed = $true }
+          else { Write-Output 'No binary was installed.' }
+          if ($failed) { exit 1 }
+      - if: always()
+        name: Stop the stand-ins
+        run: |
+          node tools/spectra/scripts/github_stand_in.mjs stop "${{ runner.temp }}\github"
+          node tools/spectra/scripts/stand_ins.mjs stop "${{ runner.temp }}\stand-ins"
