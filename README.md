@@ -15,7 +15,7 @@
 <p align="center"><b>Status:</b> not released yet. Spectra runs from source; see <a href="tools/spectra/README.md"><code>tools/spectra/</code></a>.</p>
 
 <p align="center">
-  <a href="#install">Install</a> · <a href="#first-run">First run</a> · <a href="#opentelemetry-instrumentation">OpenTelemetry</a> · <a href="#with-a-coding-agent">Coding agents</a> · <a href="#how-it-works">How it works</a> · <a href="#how-each-part-works">Design docs</a>
+  <a href="#install">Install</a> · <a href="#first-run">First run</a> · <a href="#preview-your-own-catalog">Preview</a> · <a href="#opentelemetry-instrumentation">OpenTelemetry</a> · <a href="#with-a-coding-agent">Coding agents</a> · <a href="#how-it-works">How it works</a> · <a href="#how-each-part-works">Design docs</a>
 </p>
 
 ![A message sent to upstream's Python restaurant finder from Spectra's viewer: the model call, the tool call and the A2UI messages arrive as steps while the surface draws itself in the preview](docs/images/turn.gif)
@@ -142,6 +142,29 @@ a2ui-spectra attach http://localhost:10002
 
 Every command, option and config setting is in [`tools/spectra/`](tools/spectra/README.md).
 
+## Preview your own catalog
+
+Out of the box, the preview draws the basic catalogs. Add a small page to your catalog's dev server, and Spectra draws your agent's surfaces with your own components and renderer, and shows the exact action a press sends your agent.
+
+1. Install the adapter for your renderer in your catalog's app:
+
+   ```sh
+   npm install --save-dev a2ui-spectra-preview-react   # or -lit, or -angular
+   ```
+
+2. Add a page holding the adapter with your catalogs, a few lines given in the [React](typescript/preview/react/README.md#set-it-up), [Lit](typescript/preview/lit/README.md#set-it-up) or [Angular](typescript/preview/angular/README.md#set-it-up) adapter's README.
+
+3. Name the page, and your catalog, in `a2ui-spectra.json`, in the folder you start Spectra from:
+
+   ```json
+   {
+     "catalogs": ["./catalog.json"],
+     "preview": ["http://localhost:9831/"]
+   }
+   ```
+
+The [sample catalog apps](samples/preview/react/README.md) are full examples, one per renderer.
+
 ## OpenTelemetry instrumentation
 
 Out of the box, Spectra sees what goes in and out of your agent. Add the wrapper to see inside the agent SDK, where the model's text becomes your UI:
@@ -194,7 +217,7 @@ Add more as you need it:
 | Nothing                                                                                    | Turns, checks, the basic catalog's preview, model calls with tokens and cost, replay |
 | A [config file](tools/spectra/README.md#the-config-file)                                   | Your own catalog's checks, and your tool calls recorded                              |
 | The [wrapper](#opentelemetry-instrumentation) for upstream's agent SDKs, and OpenTelemetry | The A2UI step: raw text to components, retries, parse errors; your framework's spans |
-| A [preview adapter](typescript/preview/core/README.md) on your catalog's dev server        | Your own components, drawn by your own renderer                                      |
+| A [preview adapter](#preview-your-own-catalog) on your catalog's dev server                | Your own components, drawn by your own renderer                                      |
 
 ## What Spectra supports
 
