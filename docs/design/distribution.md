@@ -5,8 +5,8 @@ This doc explains how `a2ui-spectra` reaches your machine: the one binary built 
 How the binary is built, packaged and released is this doc's subject, so the commands that do it are here too. The commands and options of `a2ui-spectra` itself are in the [command's README](../../tools/spectra/README.md).
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="diagrams/distribution-dark.svg">
-  <img alt="The release workflow, started by hand, builds the five binaries once, packs them, publishes the packages into stand-in registries first and runs the install check on five platforms from them. Once the install check has passed, the same files are published to npm, PyPI and a GitHub release. On an adopter's machine, npx installs from npm, uvx from PyPI and the install script from the GitHub release, each leaving the binary with no download mark; a download by hand from the GitHub release is checked against its checksum and attestation, and its mark is cleared." src="diagrams/distribution.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/distribution-dark.png">
+  <img alt="The release workflow compiles the five binaries with Bun and packs them. It publishes the packages into stand-in registries, Verdaccio and pypiserver, and the install check installs them from there on five platforms. Once the install check has passed, the same files are published to a GitHub release, npm and PyPI. On your machine, the install script, npx and uvx each leave the a2ui-spectra binary with no download mark. A download by hand through a browser is checked against its checksum and attestation, and once its mark is cleared it is the same binary." src="diagrams/distribution.png">
 </picture>
 
 ## Problem it solves
