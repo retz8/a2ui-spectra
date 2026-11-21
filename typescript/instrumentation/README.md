@@ -16,10 +16,10 @@ It needs Node 22.12 or later. `@a2ui/agent` and `@opentelemetry/api` are peer de
 
 ## Switch it on
 
-Launch your agent through Node's `--import`, through `a2ui-spectra run`:
+Launch your agent through Node's `--import`, through `a2ui-spectra run`, with the URL your agent serves A2A on:
 
 ```sh
-a2ui-spectra run -- node --import a2ui-spectra-instrumentation/register agent.js
+a2ui-spectra run --agent-url http://localhost:10002 -- node --import a2ui-spectra-instrumentation/register agent.js
 ```
 
 For a command that starts Node itself, such as `npm run dev`, set `NODE_OPTIONS="--import a2ui-spectra-instrumentation/register"` for it instead.

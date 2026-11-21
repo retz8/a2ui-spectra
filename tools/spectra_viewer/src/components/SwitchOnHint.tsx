@@ -8,7 +8,7 @@
  */
 import {useState} from 'react';
 
-import {readmeLink, SWITCH_ON_LINES} from '@/model/switch_on.ts';
+import {launchFor, readmeLink, SWITCH_ON_LINES} from '@/model/switch_on.ts';
 import {useSpectra} from '@/state/spectra.ts';
 
 import {CopyButton} from './CopyButton.tsx';
@@ -29,22 +29,12 @@ export function SwitchOnHint({mode}: {mode: 'run' | 'attach' | undefined}) {
         <div className="grid gap-4 pl-0.5 md:grid-cols-2">
           {SWITCH_ON_LINES.map(lines => {
             const readme = readmeLink(lines.readme, version);
+            const launch = launchFor(lines, attach);
             return (
               <div key={lines.language} className="flex min-w-0 flex-col gap-2">
                 <span className="text-xs font-semibold">{lines.language}</span>
                 <Code label="Install" code={lines.install} />
-                <Code
-                  label={
-                    attach
-                      ? `${lines.launch.label}, with the variables on the first screen set in the agent’s shell`
-                      : lines.launch.label
-                  }
-                  code={
-                    attach
-                      ? lines.launch.code.replace(/^a2ui-spectra run -- /, '')
-                      : lines.launch.code
-                  }
-                />
+                <Code label={launch.label} code={launch.code} />
                 <Code label={lines.line.label} code={lines.line.code} />
                 <a
                   href={readme.href}

@@ -20,7 +20,7 @@ export const SWITCH_ON_LINES: readonly SwitchOnLines[] = [
     install: 'uv add --dev a2ui-spectra-instrumentation',
     launch: {
       label: 'Launch under opentelemetry-instrument',
-      code: 'a2ui-spectra run -- opentelemetry-instrument python agent.py',
+      code: 'a2ui-spectra run --agent-url http://localhost:10002 -- uv run opentelemetry-instrument python agent.py',
     },
     line: {
       label: 'Or one line, before the agent parses or generates a prompt',
@@ -33,7 +33,7 @@ export const SWITCH_ON_LINES: readonly SwitchOnLines[] = [
     install: 'npm install --save-dev a2ui-spectra-instrumentation',
     launch: {
       label: "Launch through Node's --import",
-      code: 'a2ui-spectra run -- node --import a2ui-spectra-instrumentation/register agent.js',
+      code: 'a2ui-spectra run --agent-url http://localhost:10002 -- node --import a2ui-spectra-instrumentation/register agent.js',
     },
     line: {
       label: 'Or one line, before the agent parses or generates a prompt',
@@ -41,6 +41,19 @@ export const SWITCH_ON_LINES: readonly SwitchOnLines[] = [
     },
   },
 ];
+
+/**
+ * A wrapper's launch line for the mode Spectra runs in. Under `attach`, the agent is started as
+ * its own command, with the variables on the first screen set in its shell: the line is the
+ * agent's command alone, what follows `a2ui-spectra run`'s `--`, and its caption says so.
+ */
+export function launchFor(lines: SwitchOnLines, attach: boolean): {label: string; code: string} {
+  if (!attach) return lines.launch;
+  return {
+    label: `${lines.launch.label}, with the variables on the first screen set in the agent’s shell`,
+    code: lines.launch.code.replace(/^a2ui-spectra run .*? -- /, ''),
+  };
+}
 
 /** The repository's pages on GitHub. */
 const REPOSITORY = 'https://github.com/retz8/a2ui-spectra';

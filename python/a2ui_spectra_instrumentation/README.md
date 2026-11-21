@@ -22,11 +22,13 @@ pip install a2ui-spectra-instrumentation
 
 ## Switch it on
 
-Launch your agent under `opentelemetry-instrument`, which the package installs, through `a2ui-spectra run`:
+Launch your agent under `opentelemetry-instrument`, which the package installs, through `a2ui-spectra run`, with the URL your agent serves A2A on:
 
 ```sh
-a2ui-spectra run -- opentelemetry-instrument python agent.py
+a2ui-spectra run --agent-url http://localhost:10002 -- uv run opentelemetry-instrument python agent.py
 ```
+
+Installed with pip, launch it from the environment you installed it into, without `uv run`.
 
 Or add one line to your agent, before it parses or generates a prompt, and launch it as you do today:
 

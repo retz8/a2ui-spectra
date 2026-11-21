@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {describe, it} from 'node:test';
 
-import {readmeLink, SWITCH_ON_LINES} from './switch_on.ts';
+import {launchFor, readmeLink, SWITCH_ON_LINES} from './switch_on.ts';
 
 const REPO = new URL('../../../../', import.meta.url);
 
@@ -28,6 +28,23 @@ describe('the hint for switching on a wrapper', () => {
       });
     }
   }
+
+  it('launches the agent under run with its URL, and under attach as its own command', () => {
+    const [python, typescript] = SWITCH_ON_LINES;
+    assert.equal(
+      launchFor(python, false).code,
+      'a2ui-spectra run --agent-url http://localhost:10002 -- uv run opentelemetry-instrument python agent.py',
+    );
+    assert.deepEqual(launchFor(python, true), {
+      label:
+        'Launch under opentelemetry-instrument, with the variables on the first screen set in the agent’s shell',
+      code: 'uv run opentelemetry-instrument python agent.py',
+    });
+    assert.equal(
+      launchFor(typescript, true).code,
+      'node --import a2ui-spectra-instrumentation/register agent.js',
+    );
+  });
 
   it('links each README at this Spectra’s version tag, or on main without a version', () => {
     assert.deepEqual(readmeLink('typescript/instrumentation/README.md', '0.1.0'), {

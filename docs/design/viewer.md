@@ -437,7 +437,7 @@ The title line holds the model id, the API and where the call was seen, the mode
 7. **The exchange**, "Exchange", folded: its headers, a removed credential as "Removed by Spectra", its URL parameters, its bodies and its chunks, each with its offset, "N so far" while in flight.
 8. **The agent's spans**, last; see [From the agent's spans](#from-the-agents-spans).
 
-**The hint**, "How to switch it on", folds the two wrappers' install, launch and one-line forms, Python's and TypeScript's side by side, each with Copy and a link to its wrapper's README at this Spectra's version. Under `attach`, each launch line's caption adds "with the variables on the first screen set in the agent’s shell", and the launch is the agent's own, without `a2ui-spectra run --`. It closes again on every call. The forms themselves are in [the A2UI step](a2ui-step.md#switching-it-on).
+**The hint**, "How to switch it on", folds the two wrappers' install, launch and one-line forms, Python's and TypeScript's side by side, each with Copy and a link to its wrapper's README at this Spectra's version. Under `attach`, each launch line's caption adds "with the variables on the first screen set in the agent’s shell", and the launch is the agent's own command, what follows `a2ui-spectra run`'s `--`. It closes again on every call. The forms themselves are in [the A2UI step](a2ui-step.md#switching-it-on).
 
 **Empty parts.** In the messages and the response, a part with nothing in it, text or reasoning that is empty, has no block, and a message of such parts alone is its label line with "empty text" or "empty reasoning".
 
