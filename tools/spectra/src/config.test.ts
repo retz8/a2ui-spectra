@@ -65,9 +65,13 @@ describe('loadConfig', () => {
   it('watches nothing when watch is false or an empty list', async () => {
     const cwd = freshDir();
     write(cwd, CONFIG_FILE, {watch: false});
-    assert.deepEqual((await loadConfig({cwd})).watch, {paths: [], excluded: []});
+    const off = await loadConfig({cwd});
+    assert.deepEqual(off.watch, {paths: [], excluded: []});
+    assert.equal(off.watchSetting, false);
     write(cwd, CONFIG_FILE, {watch: []});
-    assert.deepEqual((await loadConfig({cwd})).watch, {paths: [], excluded: []});
+    const empty = await loadConfig({cwd});
+    assert.deepEqual(empty.watch, {paths: [], excluded: []});
+    assert.deepEqual(empty.watchSetting, []);
   });
 
   it("reads a watch list relative to the config file's directory, an entry starting with ! excluded", async () => {

@@ -310,10 +310,12 @@ Under `run` Spectra watches the working directory and restarts the agent on a sa
 
 Spectra says which at start, before the command starts:
 
-| The line                                                                                                            | When                                                                                 |
-| ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `A save in /path/to/agent restarts the agent. Set watch to false in the config file when the agent reloads itself.` | Something is watched; several listed paths are joined with `,` and `or`              |
-| `Restart on save is off: watch is false in /path/to/a2ui-spectra.json.`                                             | Nothing is watched: `watch` is `false`, an empty list, or a list of exclusions alone |
+| The line                                                                                                            | When                                                                    |
+| ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `A save in /path/to/agent restarts the agent. Set watch to false in the config file when the agent reloads itself.` | Something is watched; several listed paths are joined with `,` and `or` |
+| `Restart on save is off: watch is false in /path/to/a2ui-spectra.json.`                                             | Nothing is watched: `watch` is `false`                                  |
+| `Restart on save is off: watch is an empty list in /path/to/a2ui-spectra.json.`                                     | Nothing is watched: `watch` is an empty list                            |
+| `Restart on save is off: watch lists exclusions alone in /path/to/a2ui-spectra.json.`                               | Nothing is watched: `watch` is a list of exclusions alone               |
 
 #### What a save is
 

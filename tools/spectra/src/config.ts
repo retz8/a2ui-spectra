@@ -57,6 +57,8 @@ export interface SpectraConfig {
    * an empty list.
    */
   watch: WatchPaths;
+  /** The `watch` setting as the file writes it, when it writes one. */
+  watchSetting?: boolean | string[];
 }
 
 /** The fixtures folder's name when the config file names none. */
@@ -152,6 +154,7 @@ export async function loadConfig({cwd, path: given}: LoadOptions): Promise<Spect
     prices: {...(json.prices ?? {})},
     fixtures: path.resolve(dir, json.fixtures ?? DEFAULT_FIXTURES_FOLDER),
     watch: readWatch(json.watch, dir, cwd, file),
+    ...(json.watch !== undefined && {watchSetting: json.watch}),
   };
 }
 

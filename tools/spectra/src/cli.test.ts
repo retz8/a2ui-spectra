@@ -2835,6 +2835,29 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
       );
 
       it(
+        'says which watch list leaves restart on save off: an empty one, or exclusions alone',
+        {timeout: TIMEOUT},
+        async () => {
+          for (const [watch, off] of [
+            [[], 'watch is an empty list'],
+            [['!sessions.db'], 'watch lists exclusions alone'],
+          ] as const) {
+            const cwd = workingDir();
+            writeFileSync(path.join(cwd, 'a2ui-spectra.json'), JSON.stringify({watch}));
+            const {spectra} = await launch([], undefined, cwd);
+            await spectra.waitFor(/Starting the agent/);
+            assert.ok(
+              spectra.output.includes(
+                `a2ui-spectra: Restart on save is off: ${off} in ${path.join(realpathSync(cwd), 'a2ui-spectra.json')}.\n`,
+              ),
+              spectra.output,
+            );
+            await stopped(spectra);
+          }
+        },
+      );
+
+      it(
         'restarts nothing on a save of the config file, and says to stop and start Spectra',
         {timeout: TIMEOUT},
         async () => {

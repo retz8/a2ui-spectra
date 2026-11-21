@@ -452,7 +452,13 @@ export async function runSession(
       /** The catalog files the save watcher's watch tells, which need no watch of their own. */
       let told: string[] = [];
       if (watch.paths.length === 0) {
-        out.info(`Restart on save is off: watch is false in ${options.config.file}.`);
+        const off =
+          options.config.watchSetting === false
+            ? 'watch is false'
+            : watch.excluded.length > 0
+              ? 'watch lists exclusions alone'
+              : 'watch is an empty list';
+        out.info(`Restart on save is off: ${off} in ${options.config.file}.`);
       } else {
         out.info(
           `A save in ${orList(watch.paths)} restarts the agent. ` +
