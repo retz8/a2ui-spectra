@@ -2522,7 +2522,8 @@ and on a catalog loaded with `Catalog.fromJson`, and passes the Python core's.
 Both then draw the wrong value: the literal object in place of the bound one.
 Found at the pin `0888f88b2` (2026-11-13).
 
-**Upstream:** issue #4346, PR #4347.
+**Upstream:** issue #4346, PR #4347; the `Catalog.fromJson` half in PR #4349
+(finding 65), stacked on PR #4347.
 
 Checked at `5ff1b05f0` (2026-11-20): run against web core built there, on its
 built-in v1.0 basic catalog and on `catalogs/basic/v1/catalog.json` loaded with
@@ -2535,8 +2536,10 @@ and `@a2ui/catalog-mcp` among them: the generator emits `DataBinding`,
 `FunctionCommon` and `IndexSystemFunction` from the v1.0 common types as
 written, so a `DataBinding` also takes no other key, and `DynamicValue`'s
 literal branch excludes only `@path` and `@call`. `Catalog.fromJson` catalogs,
-which go through finding 65's superset, and the Python core are left open in
-#4346.
+which go through finding 65's superset, are fixed by finding 65's PR #4349,
+stacked on PR #4347: run on its branch, a v1.0 catalog loaded with
+`Catalog.fromJson` refuses `{"path"}` and `{"call"}` and resolves `@path`. The
+Python core is left open in #4346.
 
 **Standing:** holds. Run against web core built at the pin, Spectra's
 `vendor/a2ui/a2ui-web_core-0.15.0.tgz`.
@@ -3315,17 +3318,46 @@ With `MSG` = `{"version":"1.0","deleteSurface":{"surfaceId":"s"}}`:
 Find the blocks in the helper with Direct JSON's own block finding, and widen
 `blocks.py:31-32` to `[a-zA-Z0-9_-]`.
 
-## 65. Web core checks a v1.0 catalog's check rules against the v0.9 and v1.0 superset, accepting a boolean condition and extra keys
+## 65. Web core checks a v1.0 catalog loaded with `Catalog.fromJson` against the v0.9 and v1.0 superset, accepting a check rule's boolean condition and extra keys
 
-**Component:** `typescript/core/web_core/src/catalog/schema_loader.ts`;
+**Component:** `typescript/core/web_core/src/catalog/schema_loader.ts`
+(`resolveProtocolRef`, `componentCommonMixinProperties`);
 `typescript/core/web_core/src/types/common-types.ts`;
-`typescript/core/web_core/scripts/generate-superset-common-types.mjs`.
+`typescript/core/web_core/scripts/generate-superset-common-types.mjs`;
+`typescript/core/web_core/src/v1_0/scripts/generate-schemas.mjs`, which writes
+the v1.0 `FunctionCall` in `src/v1_0/schema/common-types.ts`.
 
 **Severity:** a v1.0 component whose check rule has a literal boolean
-`condition`, or a key the rule does not define, passes web core's validation, and
-so `@a2ui/agent`'s `validatePayload`, while the v1.0 common types and the Python
-core refuse it. Found while reproducing finding 60, at the pin `0888f88b2`
-(2026-11-13).
+`condition`, or a key the rule does not define, passes web core's validation on a
+catalog loaded with `Catalog.fromJson`, and so `@a2ui/agent`'s `validatePayload`,
+which loads every catalog that way, while web core's built-in v1.0 basic catalog,
+the v1.0 common types and the Python agent SDK refuse it. Found while reproducing
+finding 60, at the pin `0888f88b2` (2026-11-13).
+
+**Upstream:** issue #4348, PR #4349 (stacked on PR #4347).
+
+Checked at `5ff1b05f0` (2026-11-20): run against web core and `@a2ui/agent`
+built there, on the built-in v1.0 basic catalog and on
+`catalogs/basic/v1/catalog.json` loaded with `Catalog.fromJson`, and against the
+Python agent SDK's `validate_payload`, with a valid rule and v0.9's boolean
+condition as the counter-cases. No upstream issue or PR covered it. The loader
+took the superset in #3329, which replaced its own copy of the common types table
+to remove the duplicate. Resolving a v1.0 catalog's references in the v1.0 common
+types exposed a second gap: web core's v1.0 `FunctionCall` takes any key, since
+the generator drops the `unevaluatedProperties: false` that closes `FunctionCommon`
+and the catalog function, so the built-in catalog accepts a function call with an
+extra key, which a `Catalog.fromJson` catalog refused only through the superset's
+strict `FunctionCall` (`test_v10_published_basic_catalog_rejects_function_call_extra_key`).
+PR #4349 resolves a v1.0 catalog's references, and its components'
+`ComponentCommon`, in `v1_0/schema/common-types.ts`, and has the v1.0 generator
+refuse any key of a function call other than `@call`, `catalogId` and `args`,
+read from `FunctionCommon` and `catalog_definition.json`'s
+`FunctionCallValidationSchema`, by a `superRefine` that keeps the `FunctionCall`
+type. On top of #4347 it also has a `Catalog.fromJson` v1.0 catalog refuse finding
+49's bare `path` and `call`. A v0.9 catalog loaded with `Catalog.fromJson` keeps
+the superset, which is looser than v0.9 too: it accepts a check rule without
+`message`, with an extra key, or with an `@path` condition, which the built-in
+v0.9 catalog refuses. That is left open.
 
 **Standing:** holds. Run against both SDKs at the pin.
 
@@ -3339,17 +3371,20 @@ The v1.0 common types' `CheckRule.condition` is one of `DataBinding` or
 resolves a catalog's `common_types.json#/$defs/…` reference, as the v1.0 basic
 catalog's `Checkable` (`catalogs/basic/v1/catalog.json:390`, and at `:423`,
 `:461`, `:490`, `:554`, `:596`), through `resolveProtocolRef`
-(`schema_loader.ts:92-97`, used at `:214` and `:862-872`), which looks the name up
-in `types/common-types.ts`'s `CommonSchemas` whatever the catalog's version
-(`schema_loader.ts:23`). That file is "the runtime superset of the modern protocol
-lineage (v0.9 and above)" (`types/common-types.ts:28-30`), generated by
+(`schema_loader.ts:92-97`, used at `:214` and `:870-884` at `5ff1b05f0`), which
+looks the name up in `types/common-types.ts`'s `CommonSchemas` whatever the
+catalog's version (`schema_loader.ts:23`); `componentCommonMixinProperties`
+(`:806-816`) takes that file's `ComponentCommon` too. That file is "the runtime
+superset of the modern protocol lineage (v0.9 and above)"
+(`types/common-types.ts:28-30`), generated by
 `generate-superset-common-types.mjs`, whose `mergeObjectSchemas` (`:118-131`)
 unions each property's schemas across versions and writes no
 `additionalProperties`. Its `CheckRuleSchema`'s `condition` is
 `z.union([DynamicBooleanSchema, DataBindingSchema, FunctionCallSchema])`, with no
 `.strict()` (`types/common-types.ts:222-233`). The version's own, strict schema,
-`v1_0/schema/common-types.ts:211-220`, is not used by the loader. The Python core's
-v1.0 `CheckRule` takes `DataBinding | FunctionCall`
+`v1_0/schema/common-types.ts:211-223`, which the built-in v1.0 basic catalog
+uses, is not used by the loader. The Python core's v1.0 `CheckRule` takes
+`DataBinding | FunctionCall`
 (`python/a2ui_core/src/a2ui/core/schema/v1_0/common_types.py:304-317`).
 
 ### Reproduction
@@ -3358,16 +3393,22 @@ On the v1.0 basic catalog, validate `[{"version": "1.0", "createSurface":
 {"surfaceId": "main", "catalogId":
 "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json", "components":
 [{"id": "root", "component": "TextField", "label": "Name", "value": "v",
-"@checks": [{"condition": true}]}]}}]`. `@a2ui/agent`'s `validatePayload` accepts
-it; the Python core's `validate_payload` raises `A2uiValidationError: Validation
-failed for component 'TextField': components.root.@checks.0.condition…: Expected
-dictionary or instance of DataBinding, received boolean`. With the rule
-`{"condition": {"@path": "/ok"}, "foo": 1}`, TypeScript accepts and Python raises
-`components.root.@checks.0.foo: Additional properties are not allowed`. With
-`{"condition": {"@path": "/ok"}}` both accept.
+"@checks": [{"condition": true}]}]}}]`. `@a2ui/agent`'s `validatePayload`, with
+the catalog loaded with `Catalog.fromJson`, accepts it; the Python agent SDK's
+`validate_payload` raises `A2uiValidationError: Validation failed for component
+'TextField': components.root.@checks.0.condition…: Expected dictionary or
+instance of DataBinding, received boolean`; web core's built-in v1.0 basic
+catalog refuses it with `@checks.0.condition: Expected object, received boolean`.
+With the rule `{"condition": {"@path": "/ok"}, "foo": 1}`, the `Catalog.fromJson`
+catalog accepts, and the Python agent SDK and the built-in catalog refuse it
+(`components.root.@checks.0.foo: Additional properties are not allowed`;
+`@checks.0: Unrecognized key(s) in object: 'foo'`). With `{"condition":
+{"@path": "/ok"}}` all accept.
 
 ### Fix
 
 Resolve a catalog's common type references in the common types of the catalog's
 own protocol version, `v1_0/schema/common-types.ts`'s `CommonSchemas` for a v1.0
-catalog.
+catalog. PR #4349 does so, and has the v1.0 `FunctionCall` refuse keys other than
+`@call`, `catalogId` and `args`, which the superset's strict `FunctionCall` had
+refused for `Catalog.fromJson` catalogs.
