@@ -504,6 +504,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
             ),
             receiverLine('OTEL_EXPORTER_OTLP_ENDPOINT', `http://127.0.0.1:${receiverPort}`),
             receiverLine('OTEL_EXPORTER_OTLP_PROTOCOL', 'http/protobuf'),
+            receiverLine('OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT', 'SPAN_ONLY'),
             receiverLine('OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT', 'true'),
           ];
           assert.match(
@@ -529,6 +530,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           {name: 'FLOOR_PLAN_SERVER_URL', value: `http://127.0.0.1:${toolProxyPort}/sse`},
           {name: 'OTEL_EXPORTER_OTLP_ENDPOINT', value: `http://127.0.0.1:${receiverPort}`},
           {name: 'OTEL_EXPORTER_OTLP_PROTOCOL', value: 'http/protobuf'},
+          {name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT', value: 'SPAN_ONLY'},
           {name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT', value: 'true'},
         ]);
         spectra.requestStop();
@@ -830,6 +832,13 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         assert.match(
           notRecord.stderr,
           /a2ui-spectra: notes\.txt does not read as a turn record: The file is not JSON/,
+        );
+        writeFileSync(path.join(cwd, 'later.json'), JSON.stringify({version: 'v0.2', turns: []}));
+        const newer = await finished(['replay', 'later.json'], cwd);
+        assert.equal(newer.code, 2, newer.output);
+        assert.match(
+          newer.stderr,
+          /a2ui-spectra: later\.json does not read as a turn record: The file is a turn record v0\.2, newer than this Spectra reads: it reads v0\.1\. Upgrade a2ui-spectra to read it\./,
         );
       },
     );
@@ -1450,6 +1459,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
           assert.deepEqual(server.attributes['a2ui.received.attributes'], {
             'otlp.protocol': 'http/protobuf',
             'otlp.capture': 'true',
+            'otlp.capture_content': 'SPAN_ONLY',
           });
           assert.deepEqual(server.events, [
             {
@@ -1685,6 +1695,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
             assert.equal((await boxOf(base)).unavailable, "Can't send · the agent is starting");
             const before = (await getJson<SessionContext>(`${base}/api/context`)).body;
             assert.deepEqual(before, {
+              version: VERSION,
               agentUrl: `http://localhost:${agentPort}/`,
               mode: 'run',
               proxyAddress: `http://127.0.0.1:${proxyPort}/`,

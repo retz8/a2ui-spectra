@@ -1,4 +1,5 @@
 import {randomUUID} from 'node:crypto';
+import path from 'node:path';
 
 import {
   type BoxInput,
@@ -535,7 +536,8 @@ export class MessageBox {
         headers: this.#headers,
       });
       this.#provenance.set(messageId, {
-        'a2ui.replay.source': source.path,
+        // Written with forward slashes on every platform; the terminal's lines keep the platform's.
+        'a2ui.replay.source': source.path.split(path.sep).join('/'),
         'a2ui.replay.turn': recorded.traceId,
         'a2ui.replay.mode': mode,
       });
@@ -744,5 +746,6 @@ function briefLine(input: InputBrief | undefined): string {
   if (input === undefined) return 'a message with no parts';
   if ('text' in input) return `“${input.text}”`;
   if ('action' in input) return `the action “${input.action}”`;
-  return `a ${input.partType} part`;
+  // A data part that is not A2UI is named as A2A names it.
+  return `a ${input.partType === 'a2ui.data' ? 'data' : input.partType} part`;
 }

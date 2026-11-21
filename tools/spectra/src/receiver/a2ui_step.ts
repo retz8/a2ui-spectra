@@ -1,13 +1,17 @@
 /**
  * The A2UI step's spans, read by `a2ui.event.kind` before any dialect, from
  * whoever sent them: the wrapper, a native hook in an A2UI SDK, or an agent
- * reporting its own step. The record's names for the kind are copied, each
- * parsed from its JSON text where the record holds an array or an object,
- * and left out when the value does not fit the record's shape. A span
- * missing a required attribute of its kind is written as a framework span.
+ * reporting its own step. The turn record version the span follows,
+ * `a2ui.record.version`, is read first: a span of a version this Spectra
+ * does not read has nothing translated. Otherwise the record's names for the
+ * kind are copied, an array or an object read from its JSON text or as the
+ * structured value, and left out when the value does not fit the record's
+ * shape. A span missing a required attribute of its kind, its version
+ * included, is written as a framework span.
  */
 import {isRecord} from '../model_proxy/genai.js';
 import type {SpanEvent} from '../record/turn_record.js';
+import {readVersion} from '../record/versions.js';
 import {parsedJson} from './genai.js';
 import type {ReceivedSpan} from './otlp.js';
 
@@ -29,7 +33,7 @@ function oneOf(values: ReadonlySet<string>): Fit {
   return value => (typeof value === 'string' && values.has(value) ? value : undefined);
 }
 
-/** A value the record holds as an array or an object, parsed from its JSON text. */
+/** A value the record holds as an array or an object, read from its JSON text or as the structured value. */
 function json(fits: (parsed: unknown) => boolean): Fit {
   return value => {
     const parsed = parsedJson(value);
@@ -122,30 +126,56 @@ function requiredNames(kind: A2uiStepKind, span: ReceivedSpan): string[] {
   ];
 }
 
+/** The attribute naming the turn record version a span of the step follows. */
+export const RECORD_VERSION_NAME = 'a2ui.record.version';
+
 /** A span of the A2UI step read into its kind's names, with the required ones it lacks. */
 export interface A2uiStepReading {
   kind: A2uiStepKind;
   names: Record<string, unknown>;
   missing: string[];
+  /**
+   * The turn record version the span states, when it is one this Spectra
+   * does not read, and whether it is newer than every one it reads: the span
+   * has nothing translated.
+   */
+  unread?: {version: string; newer: boolean};
 }
 
 /** Reads a span of the A2UI step, or nothing for any other span. */
 export function readA2uiStep(span: ReceivedSpan): A2uiStepReading | undefined {
   const kind = a2uiStepKindOf(span);
   if (kind === undefined) return undefined;
+  const version = readVersion(span.attributes[RECORD_VERSION_NAME]);
+  if (version.kind === 'newer' || version.kind === 'unknown') {
+    return {
+      kind,
+      names: {},
+      missing: [],
+      unread: {version: version.version, newer: version.kind === 'newer'},
+    };
+  }
   const names: Record<string, unknown> = {};
   for (const [name, fit] of Object.entries(NAMES[kind])) {
     const value = fit(span.attributes[name]);
     if (value !== undefined) names[name] = value;
   }
-  const missing = requiredNames(kind, span).filter(name => !(name in names));
+  const missing = [
+    ...(version.kind === 'read' ? [] : [RECORD_VERSION_NAME]),
+    ...requiredNames(kind, span).filter(name => !(name in names)),
+  ];
   return {kind, names, missing};
+}
+
+/** Whether a span of the step is written as its kind: of a version this Spectra reads, with every required name. */
+export function isWellFormed(reading: A2uiStepReading): boolean {
+  return reading.unread === undefined && reading.missing.length === 0;
 }
 
 /** The section text of a well-formed prompt generation, which places it by text; nothing for any other span. */
 export function sectionTextOf(span: ReceivedSpan): string | undefined {
   const reading = readA2uiStep(span);
-  if (reading?.kind !== 'prompt_generation' || reading.missing.length > 0) return undefined;
+  if (reading?.kind !== 'prompt_generation' || !isWellFormed(reading)) return undefined;
   const section = reading.names['a2ui.prompt.ui_section'];
   return typeof section === 'string' && section !== '' ? section : undefined;
 }

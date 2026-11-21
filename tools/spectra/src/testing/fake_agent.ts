@@ -228,6 +228,10 @@ function otlpSpan(traceId: string, spanId: string, parentSpanId: string, name: s
                     key: 'otlp.capture',
                     value: string(process.env.OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT),
                   },
+                  {
+                    key: 'otlp.capture_content',
+                    value: string(process.env.OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT),
+                  },
                 ],
               },
             ],

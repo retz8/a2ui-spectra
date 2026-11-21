@@ -16,7 +16,7 @@
             "a2ui.turn.outcome": "completed",
             "a2ui.turn.capture_paths": [
               "otel_receiver",
-              "wrapper"
+              "a2ui_step"
             ],
             "a2ui.turn.writer.name": "a2ui-spectra",
             "a2ui.turn.writer.version": "0.0.0"

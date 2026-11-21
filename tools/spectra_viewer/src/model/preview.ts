@@ -164,16 +164,18 @@ export type ReadyStep =
  */
 export function readyOf(
   answering: Answering,
-  ready: {protocol: number; claims: Claim[]},
+  ready: {protocol: number; claims?: Claim[]},
   speaks: number,
 ): ReadyStep {
+  // The number alone is judged: a page of another version may carry nothing else this version knows.
   if (ready.protocol !== speaks) {
     return {kind: 'mismatch', answering: {load: answering.load, answered: answering.answered}};
   }
-  const next = {...answering, claims: ready.claims};
+  const claims = Array.isArray(ready.claims) ? ready.claims : [];
+  const next = {...answering, claims};
   return owesAnswer(answering)
     ? {kind: 'ask', answering: next}
-    : {kind: 'ready', answering: next, claims: ready.claims};
+    : {kind: 'ready', answering: next, claims};
 }
 
 /**
@@ -288,10 +290,21 @@ export function routeOf<P extends PreviewPageState>(
   };
 }
 
-/** Why a page draws nothing, as the "No preview" state names it. */
-export function unansweredLine(page: PreviewPageState, speaks: number): string {
+/**
+ * Why a page draws nothing, as the "No preview" state names it. A page of
+ * another protocol has its line name the two numbers and the side to
+ * upgrade: the page's preview packages, to this Spectra's version, when the
+ * page speaks the lower number; Spectra when it speaks the higher.
+ */
+export function unansweredLine(
+  page: PreviewPageState,
+  speaks: number,
+  version: string | undefined,
+): string {
   if (page.status === 'mismatch') {
-    return `${page.label}: preview page speaks protocol ${page.protocol}, this Spectra speaks ${speaks}`;
+    const numbers = `${page.label}: preview page speaks protocol ${page.protocol}, this Spectra speaks ${speaks}`;
+    if ((page.protocol ?? 0) > speaks) return `${numbers} · upgrade a2ui-spectra`;
+    return `${numbers} · upgrade the page's a2ui-spectra-preview and its adapter${version === undefined ? '' : ` to ${version}`}`;
   }
   return page.status === 'loading'
     ? `${page.label} is still loading`

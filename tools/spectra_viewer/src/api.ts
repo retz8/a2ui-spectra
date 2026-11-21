@@ -40,6 +40,12 @@ export interface ListedTurn {
   renderErrors?: number;
   /** Set on a turn whose record was not written to the store: it is held in memory, with no file to replay. */
   unwritten?: true;
+  /**
+   * On a stored turn whose record is of a turn record version newer than
+   * this Spectra reads: that version. The turn has no other fields of its
+   * record, and is not opened, saved as a fixture or replayed.
+   */
+  newer?: string;
 }
 
 /** An A2UI extension the agent's card advertises. */
@@ -71,6 +77,8 @@ export interface SessionContext {
   examples?: string[];
   /** The fixtures folder's path as shown. */
   fixturesFolder: string;
+  /** This Spectra's version. */
+  version?: string;
 }
 
 /** A conversation the message box started. */

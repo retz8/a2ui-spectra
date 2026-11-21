@@ -22,6 +22,7 @@ import {
   toolCallResponsePart,
   uriPart,
 } from '../genai.js';
+import {geminiCarriesOutput} from './output_chunks.js';
 import type {ApiReader, ReadRequest, StreamChunk} from './reader.js';
 
 /** `/{version}/models/{model}:{method}`, or LiteLLM's `/models/{model}:{method}` under its own prefix. */
@@ -192,6 +193,7 @@ function responseAttributes(
 }
 
 export const geminiReader: ApiReader = {
+  carriesOutput: geminiCarriesOutput,
   api: 'gemini',
 
   request({pathname, body}: ReadRequest) {

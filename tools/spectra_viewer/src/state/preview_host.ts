@@ -28,6 +28,7 @@
  */
 import {
   isPageMessage,
+  isReadyMessage,
   type PageMessage,
   type PingMessage,
   PREVIEW_PROTOCOL,
@@ -341,6 +342,8 @@ class PreviewHost {
     if (page === undefined || event.origin !== page.origin || !isPageMessage(event.data)) return;
     const message: PageMessage = event.data;
     if (message.type === 'a2ui-spectra-preview/ready') {
+      // A ready message whose protocol is not a number is not one.
+      if (!isReadyMessage(message)) return;
       const step = readyOf(page.answering, message, PREVIEW_PROTOCOL);
       page.answering = step.answering;
       if (step.kind === 'mismatch') {

@@ -55,6 +55,12 @@
                       }
                     },
                     {
+                      "key": "a2ui.record.version",
+                      "value": {
+                        "stringValue": "v0.1"
+                      }
+                    },
+                    {
                       "key": "a2ui.prompt.ui_section",
                       "value": {
                         "stringValue": "## Workflow Description:\n# A2UI Express DSL Output Contract\n\nYou must output the user interface using A2UI Express.\n\nWrap each block in <a2ui-express> and </a2ui-express> tags."

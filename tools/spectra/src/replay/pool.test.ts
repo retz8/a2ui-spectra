@@ -297,7 +297,7 @@ describe('the replay pool', () => {
   it("leaves out what is never served: the server's own operations, a client's notification and response", () => {
     const pool = new ReplayPool(
       record([
-        mcpCall('0000000000000001', 10, 'sampling/createMessage', {messages: []}, {kind: 4}),
+        mcpCall('0000000000000001', 10, 'sampling/createMessage', {messages: []}, {kind: 2}),
         toolCall('0000000000000002', 20, 'notifications/initialized', {
           'mcp.method.name': 'notifications/initialized',
           'http.request.method': 'POST',

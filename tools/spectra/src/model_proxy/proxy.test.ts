@@ -12,6 +12,7 @@ import {gzipSync} from 'node:zlib';
 
 import type {CallToPlace, PlacedCall} from '../placement.js';
 import type {ModelCallEvent} from '../record/turn_record.js';
+import {seconds} from './genai.js';
 import {type CallNotification, type ModelProxy, startModelProxy} from './proxy.js';
 import {type Redirection, redirections} from './redirection.js';
 import {freePort} from '../testing/free_port.js';
@@ -336,7 +337,11 @@ describe('the model proxy', () => {
       'a2ui.http.response.chunk.event': 'message_start',
     });
     assert.equal(event.attributes['a2ui.http.response.body'], undefined);
-    assert.equal(typeof event.attributes['gen_ai.response.time_to_first_chunk'], 'number');
+    // The first chunk carrying output is the text delta, after the empty start events.
+    assert.equal(
+      event.attributes['gen_ai.response.time_to_first_chunk'],
+      seconds(BigInt(event.events?.[2].timeUnixNano ?? '0') - BigInt(event.startTimeUnixNano)),
+    );
     assert.equal(event.attributes['gen_ai.request.stream'], true);
     assert.deepEqual(event.attributes['gen_ai.output.messages'], [
       {role: 'assistant', parts: [{type: 'text', content: 'Hello.'}], finish_reason: 'stop'},
@@ -414,6 +419,42 @@ describe('the model proxy', () => {
     assert.deepEqual(event.attributes['a2ui.http.response.body'], {totalTokens: 12});
     assert.equal(event.attributes['gen_ai.provider.name'], undefined);
     assert.equal(event.attributes['gen_ai.operation.name'], undefined);
+  });
+
+  it('leaves out a content attribute that does not fit its GenAI schema, the exchange body keeping it', async () => {
+    const {proxy, ended} = await setUp((_request, _body, response) => {
+      response.writeHead(200, {'content-type': 'application/json'});
+      response.end(JSON.stringify(anthropicReply));
+    });
+    // A tool's input schema that is not JSON Schema draft-07: its type is no JSON Schema type.
+    const tools = [{name: 'search', input_schema: {type: 'OBJECT'}}];
+    await send(proxy, {
+      path: '/ANTHROPIC_BASE_URL/v1/messages',
+      headers: {'content-type': 'application/json'},
+      body: JSON.stringify({...anthropicRequest, tools}),
+    });
+    await eventually(() => ended.length === 1, 'the call ended');
+    const [event] = ended;
+    assert.equal(event.attributes['gen_ai.operation.name'], 'chat');
+    assert.equal(event.attributes['gen_ai.tool.definitions'], undefined);
+    assert.deepEqual((event.attributes['a2ui.http.request.body'] as {tools: unknown}).tools, tools);
+    assert.ok(Array.isArray(event.attributes['gen_ai.input.messages']));
+  });
+
+  it('writes no time to the first chunk on a stream recorded raw', async () => {
+    const {proxy, ended} = await setUp((_request, _body, response) => {
+      response.writeHead(200, {'content-type': 'text/event-stream'});
+      response.end('data: {"text": "Hi"}\n\n');
+    });
+    await send(proxy, {
+      path: '/GOOGLE_GEMINI_BASE_URL/v1beta/models/gemini-2.5-flash:countTokens',
+      headers: {'content-type': 'application/json'},
+      body: '{"contents": []}',
+    });
+    await eventually(() => ended.length === 1, 'the call ended');
+    const [event] = ended;
+    assert.equal(event.events?.length, 1);
+    assert.equal(event.attributes['gen_ai.response.time_to_first_chunk'], undefined);
   });
 
   it('records a call to a host that is not a provider raw, even on a provider path', async () => {

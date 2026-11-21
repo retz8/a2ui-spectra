@@ -173,7 +173,7 @@ describe('a served reply', () => {
     assert.ok(!brokeOff(failed('aborted')));
     assert.ok(!brokeOff(failed('cancelled')));
     assert.ok(!brokeOff(failed('overloaded_error'), 'overloaded_error'), 'the stream states it');
-    assert.ok(!brokeOff(failed('-32602', {'rpc.response.status_code': '-32602'})));
+    assert.ok(!brokeOff(failed('-32602', {'rpc.status_code': '-32602'})));
     assert.ok(!brokeOff(failed('404', {'http.response.status_code': 404})));
     assert.ok(!brokeOff(call({'http.response.status_code': 200})), 'a call that did not fail');
   });

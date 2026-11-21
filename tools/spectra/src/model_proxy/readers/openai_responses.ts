@@ -19,6 +19,7 @@ import {
   toolCallResponsePart,
 } from '../genai.js';
 import {dataOrUri, openAiUsage, outputTypeOf} from './openai_chat.js';
+import {openAiResponsesCarriesOutput} from './output_chunks.js';
 import type {ApiReader, ReadRequest, StreamChunk} from './reader.js';
 
 /** A message item's content: a string, or the typed content parts of the Responses API. */
@@ -169,6 +170,7 @@ function responseAttributes(response: Record<string, unknown>): Record<string, u
 }
 
 export const openAiResponsesReader: ApiReader = {
+  carriesOutput: openAiResponsesCarriesOutput,
   api: 'openai_responses',
 
   request({body}: ReadRequest) {

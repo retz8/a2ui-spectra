@@ -19,8 +19,11 @@ import toolDefinitions from './genai_schemas/gen-ai-tool-definitions.json' with 
 
 /**
  * The attribute names the pinned conventions define, from `model/*\/registry.yaml`
- * of `open-telemetry/semantic-conventions-genai` at 8538971bd11dba723fdd33c804b5a32121827ff7,
- * and the core conventions' `error.type`. The genai dialect copies these as written.
+ * of `open-telemetry/semantic-conventions-genai` at its release `v0.1.0`,
+ * d0e74ba6c48bcc4ded473b1828a8212f06b23753, the A2A conventions' `a2a.` names
+ * left out as transport-specific; the names the release removed, which a
+ * producer on older conventions still sends; and the core conventions'
+ * `error.type`. The genai dialect copies these as written.
  */
 export const CONVENTION_NAMES: ReadonlySet<string> = new Set([
   'gen_ai.provider.name',
@@ -75,6 +78,7 @@ export const CONVENTION_NAMES: ReadonlySet<string> = new Set([
   'gen_ai.tool.call.arguments',
   'gen_ai.tool.call.result',
   'gen_ai.tool.definitions',
+  'gen_ai.tool.definitions_ref',
   'gen_ai.data_source.id',
   'gen_ai.operation.name',
   'gen_ai.output.type',
@@ -88,14 +92,22 @@ export const CONVENTION_NAMES: ReadonlySet<string> = new Set([
   'gen_ai.memory.query.text',
   'gen_ai.memory.records',
   'gen_ai.system_instructions',
+  'gen_ai.system_instructions_ref',
   'gen_ai.input.messages',
+  'gen_ai.input.messages_ref',
   'gen_ai.output.messages',
+  'gen_ai.output.messages_ref',
   'gen_ai.evaluation.name',
   'gen_ai.evaluation.score.value',
   'gen_ai.evaluation.score.label',
   'gen_ai.evaluation.explanation',
   'gen_ai.prompt.name',
   'gen_ai.prompt.version',
+  'gen_ai.prompt.variables',
+  'gen_ai.realtime_session.id',
+  'gen_ai.transfer.mode',
+  'gen_ai.transfer.target.name',
+  // Removed by the release, read as a producer on older conventions sends it.
   'gen_ai.workflow.name',
   'gen_ai.skill.name',
   'gen_ai.skill.description',
@@ -112,7 +124,10 @@ export const CONVENTION_NAMES: ReadonlySet<string> = new Set([
   'error.type',
 ]);
 
-/** Whether a name is one the pinned conventions define, `gen_ai.prompt.variable.<key>` included. */
+/**
+ * Whether a name is one the pinned conventions define, or `gen_ai.prompt.variable.<key>`,
+ * which the release replaced with `gen_ai.prompt.variables` and an older producer still sends.
+ */
 export function isConventionName(name: string): boolean {
   return CONVENTION_NAMES.has(name) || name.startsWith('gen_ai.prompt.variable.');
 }
@@ -195,6 +210,24 @@ function validatorFor(name: string): ValidateFunction | undefined {
 /** Whether a name is one of the content attributes the copied schemas define. */
 export function isContentName(name: string): boolean {
   return name in CONTENT_SCHEMAS;
+}
+
+/**
+ * Names read from a request or a response with each content attribute fitted
+ * to its copied GenAI schema: a value that does not fit is left out, and
+ * stays in the exchange body.
+ */
+export function withContentFitted(names: Record<string, unknown>): Record<string, unknown> {
+  const fitted: Record<string, unknown> = {};
+  for (const [name, value] of Object.entries(names)) {
+    if (!isContentName(name)) {
+      fitted[name] = value;
+      continue;
+    }
+    const fit = fittedValue(name, value);
+    if (fit !== undefined) fitted[name] = fit;
+  }
+  return fitted;
 }
 
 /** A value parsed when it arrives as a JSON string, as content attributes may on spans. */

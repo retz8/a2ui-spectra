@@ -161,7 +161,8 @@ model proxy, which forwards each call to the address the variable had before,
 or to the provider; the variable of each tool server in the config file's
 tools, pointing at the tool proxy, which forwards to the server's URL; and
 OTEL_EXPORTER_OTLP_ENDPOINT, pointing at its OpenTelemetry receiver, with
-OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf and, unless it is set,
+OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf and, each unless it is set,
+OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT=SPAN_ONLY and
 OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true. {examples}
 
 When the command exits, Spectra keeps running: the viewer shows the agent

@@ -19,7 +19,12 @@ export interface Claim {
   protocolVersion: string;
 }
 
-/** The page is ready: the protocol it speaks and the catalogs it renders. */
+/**
+ * The page is ready: the protocol it speaks and the catalogs it renders. In
+ * every version of the protocol a page announces itself with a message of
+ * this type carrying its `protocol` number; everything else may change with
+ * the number.
+ */
 export interface ReadyMessage {
   type: 'a2ui-spectra-preview/ready';
   protocol: number;
@@ -151,6 +156,19 @@ const PAGE_TYPES: ReadonlySet<string> = new Set([
 export function isPageMessage(value: unknown): value is PageMessage {
   const type = (value as {type?: unknown} | null)?.type;
   return typeof type === 'string' && PAGE_TYPES.has(type);
+}
+
+/**
+ * Whether a value is a ready message by the part that holds in every
+ * version: its type and its `protocol` number. Its other fields are this
+ * version's only when the number is this version's.
+ */
+export function isReadyMessage(
+  value: unknown,
+): value is Pick<ReadyMessage, 'type' | 'protocol'> & Partial<ReadyMessage> {
+  if (typeof value !== 'object' || value === null) return false;
+  const {type, protocol} = value as Partial<ReadyMessage>;
+  return type === 'a2ui-spectra-preview/ready' && typeof protocol === 'number';
 }
 
 /** Whether a value is a render, with the fields a page reads from it. */

@@ -135,7 +135,7 @@ Capture works at three depths. Each depth adds to the view, and each works witho
 
 - `a2ui-spectra run` launches the agent with environment variables set:
   - the model providers' base-URL variables, each pointing at its own prefix on the model proxy: `GOOGLE_GEMINI_BASE_URL` (Google's Python and JavaScript SDKs, and ADK through them), `OPENAI_BASE_URL`, `ANTHROPIC_BASE_URL`, and LiteLLM's `GEMINI_API_BASE` and `ANTHROPIC_API_BASE`. Each prefix forwards to what the variable's client would have resolved from the values in Spectra's own environment, else to the provider's own API. Vertex AI is not redirected.
-  - `OTEL_EXPORTER_OTLP_ENDPOINT`, pointing at the OpenTelemetry receiver, `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf`, and the GenAI conventions' content capture switch, `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true`, unless Spectra's own environment sets it.
+  - `OTEL_EXPORTER_OTLP_ENDPOINT`, pointing at the OpenTelemetry receiver, `OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf`, and the GenAI conventions' content capture switches, each unless Spectra's own environment sets it: `OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT=SPAN_ONLY`, the name the pinned conventions give it, and `OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true`, the older name the instrumentations in use read.
 - `a2ui-spectra attach` prints the same variables and values at start, to set in the agent's shell before restarting it, and the viewer's first screen shows them with one copy button; on Windows, as a PowerShell block and a cmd block, each with its own copy button.
 - The wire proxy adds a W3C `traceparent` carrying the turn's trace id to each A2A turn request, the message box's included; a host's own is kept, and the turn adopts its trace id, unless another turn has it. A model call, a tool call or a received span carrying a turn's trace id belongs to that turn; without trace context, or with a trace id that names no turn, one that starts while exactly one turn is open belongs to that turn. A call that cannot be placed is not recorded, and the terminal says why.
 - An agent that hardcodes its model endpoint needs a line of config.
@@ -179,8 +179,9 @@ catalog ──▶ prompt generator ──▶ prompt ──▶ model ──▶ ra
 ## Turn record
 
 - The turn record is the contract: a versioned schema that belongs to no language. A fixture is a turn record.
-- A version of the record is a draft until a release ships it, and closed from then on. Every release reads and replays the records of every closed version, and reads the spans of a producer following any closed version. A record of a version newer than the release knows is refused, with a line saying it is newer.
-- Model-call fields use the names of OpenTelemetry's GenAI semantic conventions wherever one exists, pinned to a dated snapshot. Since semantic-conventions v1.42.0 those conventions live in `open-telemetry/semantic-conventions-genai`, all at Development level, with no release yet.
+- A version of the record is a draft until a release ships it, and closed from then on. Every release reads and replays the records of every closed version, and reads the spans of a producer following any closed version. A release refuses a record of any version it does not know, one that differs in its third part alone included; a record of a newer version is refused with a line naming the version met, the versions the release reads and Spectra as the side to upgrade.
+- Every span of the A2UI step states the turn record version it follows. A span of a version the release does not know is kept as a framework span, and the terminal and the viewer say it was reported under a newer turn record.
+- Model-call fields use the names of OpenTelemetry's GenAI semantic conventions wherever one exists, pinned to a release. Since semantic-conventions v1.42.0 those conventions live in `open-telemetry/semantic-conventions-genai`, all at Development level; their first release, `v0.1.0`, came on 2026-11-21.
 - The A2UI parts (messages, surfaces, actions, checks, the wrapper's spans) are Spectra's own. The hook proposal carries them upstream as the shared convention.
 - Every event carries a timestamp.
 - Nothing in the record is transport-specific. Its shape is checked against AG-UI's (activity snapshots, streamed tool-call arguments) as well as A2A's.
@@ -208,7 +209,7 @@ catalog ──▶ prompt generator ──▶ prompt ──▶ model ──▶ ra
 - The preview adapter is a framework-free core holding the preview protocol, with thin adapters for React, Lit and Angular in v1. The Flutter and SwiftUI adapters follow in Dart and Swift, running in a simulator or on a device and connecting back over a socket.
 - The basic catalog is built into Spectra, with its own renderer, so it previews with no setup.
 - Without the adapter, a custom catalog has no preview and its controls cannot be pressed from the preview. Everything else works.
-- The viewer and a preview page speak one preview protocol version. A page announcing another has no preview, everything else works, and the viewer names which side to upgrade.
+- The viewer and a preview page speak one preview protocol version. A page announcing another has no preview, everything else works, and the viewer names which side to upgrade: the page's preview packages, to the running Spectra's version, when the page is older, and Spectra when it is newer. In every version a page announces itself with a ready message carrying its protocol number.
 - The same adapter becomes the renderer-side tap inside a real host app.
 
 ## Adopter path

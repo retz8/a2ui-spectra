@@ -9,15 +9,16 @@ import {
   FixtureClashError,
   FixtureNameError,
   FixtureNotFoundError,
-  FixtureReadError,
   type FixturesFolder,
 } from './fixtures/fixtures.js';
 import {type ListingFields, listingFieldsOf} from './listing.js';
 import {type MessageBox, MessageBoxError, type ReplaySource} from './message_box.js';
 import {pricesAnswer} from './prices.js';
+import {NewerRecordError, RecordReadError} from './record/read_record.js';
 import {isEventOfKind, type ReplayMode, type Turn, type TurnRecord} from './record/turn_record.js';
 import type {StoredTurn, TurnStore} from './store/store.js';
 import type {HubEvent, TurnHub} from './turn_hub.js';
+import {VERSION} from './version.js';
 import type {Shell} from './paste.js';
 
 /**
@@ -77,6 +78,12 @@ export interface ListedTurn extends Partial<ListingFields> {
   open?: true;
   /** Set on a turn whose record was not written to the store and is kept in memory, with no file to replay. */
   unwritten?: true;
+  /**
+   * On a stored turn whose record is of a version newer than this Spectra
+   * reads: that version. Such a turn has no other listing fields, and is not
+   * opened, saved as a fixture or replayed.
+   */
+  newer?: string;
 }
 
 /** One fixture of the folder, as the fixtures listing gives it. */
@@ -126,8 +133,8 @@ const HEARTBEAT_MS = 2000;
  * Answers a request under `/api/`. Returns false for any other path, which
  * the caller serves.
  *
- * - `GET /api/context`: the session: the agent's name and URL, the mode, the wire proxy's address,
- *   the configured preview pages, and what the agent's latest card states.
+ * - `GET /api/context`: the session: this Spectra's version, the agent's name and URL, the mode,
+ *   the wire proxy's address, the configured preview pages, and what the agent's latest card states.
  * - `GET /api/agent`: under `run`, the agent's command as launched, its process's state and the
  *   session's restarts and exits.
  * - `POST /api/agent/restart`: under `run`, restarts the agent's process; answers at once.
@@ -174,7 +181,7 @@ async function answer(
   const turn = /^GET \/api\/turns\/([0-9a-f]{32})$/.exec(route);
   const fixture = /^GET \/api\/fixtures\/(.+)$/.exec(route);
   if (route === 'GET /api/context') {
-    sendJson(response, 200, api.context);
+    sendJson(response, 200, {version: VERSION, ...api.context});
   } else if (route === 'GET /api/agent') {
     if (api.agent === undefined) {
       sendJson(response, 404, {
@@ -290,7 +297,7 @@ async function sendFixture(api: Api, name: string, response: ServerResponse): Pr
   } catch (error) {
     if (error instanceof FixtureNotFoundError || error instanceof FixtureNameError) {
       sendJson(response, 404, {error: `No fixture is named ${name}.`});
-    } else if (error instanceof FixtureReadError) {
+    } else if (error instanceof RecordReadError) {
       sendJson(response, 422, {error: error.message});
     } else {
       throw error;
@@ -313,7 +320,23 @@ async function storedRecord(
     sendJson(response, 404, {error: 'No turn has this trace id.'});
     return undefined;
   }
-  return {record: await api.store.read(stored.file), stored};
+  const record = await readStored(api, stored.file, response);
+  return record === undefined ? undefined : {record, stored};
+}
+
+/** A stored turn's record, or nothing once the answer says it is of a newer version. */
+async function readStored(
+  api: Api,
+  file: string,
+  response: ServerResponse,
+): Promise<TurnRecord | undefined> {
+  try {
+    return await api.store.read(file);
+  } catch (error) {
+    if (!(error instanceof NewerRecordError)) throw error;
+    sendJson(response, 422, {error: error.message});
+    return undefined;
+  }
 }
 
 async function saveFixture(
@@ -376,7 +399,7 @@ async function startReplay(
     } catch (error) {
       if (error instanceof FixtureNotFoundError || error instanceof FixtureNameError) {
         sendJson(response, 404, {error: `No fixture is named ${fixtureName}.`});
-      } else if (error instanceof FixtureReadError) {
+      } else if (error instanceof RecordReadError) {
         sendJson(response, 422, {error: error.message});
       } else {
         throw error;
@@ -457,7 +480,7 @@ async function listTurns(api: Api): Promise<ListedTurn[]> {
 async function storedFields(
   {store, catalogs}: Api,
   file: string,
-): Promise<ListingFields | undefined> {
+): Promise<ListingFields | {newer: string} | undefined> {
   let cache = listingCache.get(store);
   if (cache === undefined) {
     cache = new Map();
@@ -474,8 +497,9 @@ async function storedFields(
     const fields = listingFieldsOf(turns[turns.length - 1], turns.slice(0, -1), catalogs);
     cache.set(file, {revision, catalogs: definitions, fields});
     return fields;
-  } catch {
-    return undefined;
+  } catch (error) {
+    // A record of a newer version lists with that version in place of its fields.
+    return error instanceof NewerRecordError ? {newer: error.version} : undefined;
   }
 }
 
@@ -489,7 +513,8 @@ async function sendRecord(api: Api, traceId: string, response: ServerResponse): 
     sendJson(response, 404, {error: 'No turn has this trace id.'});
     return;
   }
-  sendJson(response, 200, await api.store.read(stored.file));
+  const record = await readStored(api, stored.file, response);
+  if (record !== undefined) sendJson(response, 200, record);
 }
 
 /** The live stream: open turns caught up first, then every event as it comes, and a heartbeat. */

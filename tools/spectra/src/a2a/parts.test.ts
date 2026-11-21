@@ -91,7 +91,7 @@ describe('wirePart, A2A 0.3', () => {
 
   it('keeps a data part without an A2UI MIME type as a data part, whatever it holds', () => {
     assert.deepEqual(wirePart({kind: 'data', data: surface}, '0.3'), {
-      type: 'data',
+      type: 'a2ui.data',
       content: surface,
     });
     assert.deepEqual(
@@ -104,7 +104,7 @@ describe('wirePart, A2A 0.3', () => {
         '0.3',
       ),
       {
-        type: 'data',
+        type: 'a2ui.data',
         content: {id: 'call-1', name: 'get_restaurants', args: {cuisine: 'Chinese'}},
         metadata: {adk_type: 'function_call'},
       },
@@ -171,7 +171,7 @@ describe('wirePart, A2A 1.0', () => {
 
   it('keeps other data as a data part, with its media type', () => {
     assert.deepEqual(wirePart({data: {total: 3}, mediaType: 'application/json'}, '1.0'), {
-      type: 'data',
+      type: 'a2ui.data',
       content: {total: 3},
       mime_type: 'application/json',
     });

@@ -16,7 +16,7 @@
             "a2ui.turn.outcome": "completed",
             "a2ui.turn.capture_paths": [
               "otel_receiver",
-              "wrapper"
+              "a2ui_step"
             ],
             "a2ui.turn.writer.name": "a2ui-spectra",
             "a2ui.turn.writer.version": "0.0.0"
@@ -48,14 +48,15 @@
               }
             ],
             "a2ui.sdk.name": "@a2ui/agent",
-            "a2ui.sdk.version": "0.0.2",
+            "a2ui.sdk.version": "0.1.0",
             "error.type": "A2uiCatalogError",
             "a2ui.received.attributes": {
               "a2ui.event.kind": "prompt_generation",
+              "a2ui.record.version": "v0.1",
               "a2ui.prompt.inference_format": "direct_json",
               "a2ui.prompt.catalogs": "[{\"catalogId\":\"https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json\",\"protocolVersion\":\"v0.9\"},{\"catalogId\":\"https://github.com/retz8/a2uiverse-apps/blob/main/circleci/circleci-catalog/catalogs/v0.9.1/catalog.json\",\"protocolVersion\":\"v0.9.1\"}]",
               "a2ui.sdk.name": "@a2ui/agent",
-              "a2ui.sdk.version": "0.0.2",
+              "a2ui.sdk.version": "0.1.0",
               "error.type": "A2uiCatalogError"
             }
           },

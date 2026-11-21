@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import path from 'node:path';
 import {describe, it} from 'node:test';
 
 import {capabilitiesFor} from './a2a/client.js';
@@ -576,9 +577,16 @@ describe('the message box replaying a record', () => {
       }),
     );
 
-    const started = await box.replay({path: SOURCE, record}, 'model_live');
+    // A path with the platform's separators is written with forward slashes.
+    const platformPath = path.join(...SOURCE.split('/'));
+    const started = await box.replay({path: platformPath, record}, 'model_live');
     assert.deepEqual(started, {traceId: proxy.sent[0].traceId, turns: 2});
-    assert.deepEqual(box.state().replay, {source: SOURCE, mode: 'model_live', turn: 1, turns: 2});
+    assert.deepEqual(box.state().replay, {
+      source: platformPath,
+      mode: 'model_live',
+      turn: 1,
+      turns: 2,
+    });
     const end = await ended(events);
 
     assert.equal(proxy.sent.length, 2);
@@ -636,14 +644,14 @@ describe('the message box replaying a record', () => {
       [second.traceId, {'a2ui.replay.verdict': 'passed'}],
     ]);
     assert.deepEqual(replayEvents(events), [
-      {type: 'replay_started', source: SOURCE, mode: 'model_live', turns: 2},
+      {type: 'replay_started', source: platformPath, mode: 'model_live', turns: 2},
       {type: 'replay_turn', traceId: first.traceId, recordedTurn: RECORDED[0], turn: 1, turns: 2},
       {type: 'replay_turn', traceId: second.traceId, recordedTurn: RECORDED[1], turn: 2, turns: 2},
       end,
     ]);
     assert.deepEqual(end, {
       type: 'replay_ended',
-      source: SOURCE,
+      source: platformPath,
       mode: 'model_live',
       verdict: 'passed',
       turns: [

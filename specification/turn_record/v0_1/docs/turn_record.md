@@ -8,17 +8,17 @@ The normative definition is [`../json/turn_record.json`](../json/turn_record.jso
 
 ## Pinned conventions
 
-| Convention                      | Pin                                                                                                                                |
-| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| OpenTelemetry GenAI conventions | `open-telemetry/semantic-conventions-genai` at `8538971bd11dba723fdd33c804b5a32121827ff7`, 2026-10-21, schema version `1.42.0-dev` |
-| OpenTelemetry core conventions  | `v1.44.0`, the version the GenAI conventions pin in `model/manifest.yaml`                                                          |
-| GenAI conventions stability     | Development, for every GenAI name used here                                                                                        |
+| Convention                      | Pin                                                                                                                         |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| OpenTelemetry GenAI conventions | `open-telemetry/semantic-conventions-genai` at its release `v0.1.0`, `d0e74ba6c48bcc4ded473b1828a8212f06b23753`, 2026-11-21 |
+| OpenTelemetry core conventions  | `v1.45.0`, the version the GenAI conventions' release pins in `model/manifest.yaml`                                         |
+| GenAI conventions stability     | Development, for every GenAI and MCP name used here                                                                         |
 
 Moving a pin is an amendment, as [Versions](#versions) has it.
 
 ### Copied schemas
 
-These eight files are copied unchanged from `model/gen-ai/` at the GenAI commit above, under that repository's Apache 2.0 licence:
+These eight files are copied unchanged from `model/gen-ai/` at the GenAI release above, under that repository's Apache 2.0 licence:
 
 - `gen-ai-input-messages.json`
 - `gen-ai-output-messages.json`
@@ -40,7 +40,8 @@ These eight files are copied unchanged from `model/gen-ai/` at the GenAI commit 
 - A draft is amended in place. An amendment to a closed version goes into the next version, which is a draft from its first amendment until the release that first ships it. One draft is open at a time.
 - An amendment is a change to what a valid record is or to what a field means, in the schema or in this document. Moving a pin is one. A corrected typo, a clearer sentence, a corrected example and new shared test data are not amendments, and land in a closed version in place.
 - A compatible version, one under which every record valid in the version before it is still valid and means the same, moves the third part: `v0.1.1` after `v0.1`. A breaking version moves the second part: `v0.2` after `v0.1`.
-- The spans of [Producers of the A2UI step](#producers-of-the-a2ui-step) are under the same version as the file.
+- A release of Spectra reads the versions it knows and refuses a record of any other version, one that differs in its third part alone included. A record of a version newer than every one the release reads is refused with a line naming the version met, the versions the release reads, and Spectra as the side to upgrade. The line rests on the top-level `version` alone. A record whose `version` is missing, or is not of the form above, is not a turn record, and is not called newer.
+- Each span of [Producers of the A2UI step](#producers-of-the-a2ui-step) states the version it follows in `a2ui.record.version`, which the receiver reads as a reader reads a record's `version`.
 - The schema's `$id` is the raw GitHub address of `turn_record.json` under its version directory.
 
 ## The file
@@ -128,14 +129,14 @@ A `parse` made by a tool call is tied to that call by its parent, not by a link:
 | ---------------------------- | ---------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `a2ui.event.kind`            | string           | yes      | `"turn"`.                                                                                                                                                                                                            |
 | `gen_ai.operation.name`      | string           | yes      | `"invoke_agent"`.                                                                                                                                                                                                    |
-| `gen_ai.agent.name`          | string           | no       | The agent's name, from its card.                                                                                                                                                                                     |
+| `gen_ai.agent.name`          | string           | no       | The agent's name.                                                                                                                                                                                                    |
 | `gen_ai.conversation.id`     | string           | no       | The conversation the turn belongs to: A2A's `contextId`, AG-UI's `threadId`.                                                                                                                                         |
 | `a2ui.turn.outcome`          | string           | yes      | `completed`, `failed`, `cancelled` or `waiting_for_input`.                                                                                                                                                           |
 | `a2ui.turn.protocol_version` | string           | no       | The A2UI protocol version the turn used, in the record's form, such as `"v0.9.1"` or `"v1.0"`.                                                                                                                       |
-| `a2ui.turn.capture_paths`    | array of string  | yes      | The capture paths active for the turn: `wire`, `model_proxy`, `tool_proxy`, `otel_receiver`, `wrapper`.                                                                                                              |
+| `a2ui.turn.capture_paths`    | array of string  | yes      | The capture paths active for the turn: `wire`, `model_proxy`, `tool_proxy`, `otel_receiver`, `a2ui_step`.                                                                                                            |
 | `a2ui.turn.writer.name`      | string           | yes      | The program that wrote the record.                                                                                                                                                                                   |
 | `a2ui.turn.writer.version`   | string           | yes      | Its version.                                                                                                                                                                                                         |
-| `a2ui.replay.source`         | string           | no       | On a replayed turn: the path of the record file replayed, relative to the working directory when under it.                                                                                                           |
+| `a2ui.replay.source`         | string           | no       | On a replayed turn: the path of the record file replayed, relative to the working directory when under it, with forward slashes on every platform.                                                                   |
 | `a2ui.replay.turn`           | string           | no       | On a replayed turn: the trace id of the recorded turn this one stands for.                                                                                                                                           |
 | `a2ui.replay.mode`           | string           | no       | On a replayed turn: `recorded`, everything served from the record; `model_live`, a model call that matches nothing going to the provider; or `live`, nothing served from the record, every model and tool call live. |
 | `a2ui.replay.verdict`        | string           | no       | On a turn replayed in the `recorded` or `model_live` mode, once it closed: `passed` or `failed`, its verdict against the recorded turn.                                                                              |
@@ -149,9 +150,9 @@ A turn with no `model_call` event and `model_proxy` in its capture paths had no 
 
 ### `wire_input` and `wire_output`
 
-Each wire event is one delivery from the transport, at the time it was sent or arrived, in delivery order. Wire events have no end time.
+Each wire event is one delivery from the transport, at the time it was sent or arrived, in delivery order. Wire events have no end time. A turn may hold several wire inputs and several wire outputs.
 
-`a2ui.wire.message` holds the delivery in GenAI's message and part shape, as defined by `ChatMessage` in `gen-ai-input-messages.json`: a `role` and a list of `parts`. The host's input has the role `user`. The agent's output has the role `assistant`. Text, files and other data use GenAI's part types. A2UI messages use the A2UI part:
+`a2ui.wire.message` holds the delivery in GenAI's message and part shape, as defined by `ChatMessage` in `gen-ai-input-messages.json`: a `role` and a list of `parts`. The event's kind, `wire_input` or `wire_output`, is the delivery's direction. `role` is the role the delivery states; where the transport states none, or states a direction alone, as A2A does, it is `user` on a host's input and `assistant` on an agent's output. Text, files and other data use GenAI's part types. A2UI messages use the A2UI part:
 
 ```json
 {
@@ -162,7 +163,11 @@ Each wire event is one delivery from the transport, at the time it was sent or a
 
 `content` is one A2UI message, or an array of them, as the transport delivered it. It is not validated against any A2UI schema.
 
-A data part that is not A2UI is a generic part of type `data`, its `content` the data.
+A data part that is not A2UI is a part of type `a2ui.data`, its `content` the data:
+
+```json
+{"type": "a2ui.data", "content": {"total": 3}}
+```
 
 | Attribute                | Type   | Required | On           | Meaning                                                    |
 | ------------------------ | ------ | -------- | ------------ | ---------------------------------------------------------- |
@@ -199,19 +204,20 @@ The model proxy reads four APIs in full, into the GenAI names below, on the prov
 
 A model call event may also carry the exchange attributes and the received-span attributes below, and other GenAI attributes the schema does not list.
 
+- **The time to the first chunk.** `gen_ai.response.time_to_first_chunk` has the pinned conventions' meaning. On a streamed call read in full, it is the seconds from the request to the first server-sent event that carries output: text, a refusal, reasoning, audio, an image, or a tool call's name or arguments. A call recorded as the raw exchange does not carry it.
 - **A failed call** is status `code` `2`, with `error.type` naming the failure and its message as the status message. A provider's answer of 400 or above has the status as a string, such as `"429"`, its message read from the body on a call read in full. An error inside a 2xx stream, such as Anthropic's `overloaded_error`, has the error's own type, with the chunks so far. A provider that could not be reached has the error's code, such as `ECONNREFUSED`, and no response attributes; a stream that broke partway has the code of its break, with the chunks before it. An agent that closed the connection before the response ended, or Spectra's stop, is `aborted`, with the chunks before it. A request the model proxy answers in a replay with nothing in the record matching it is a miss: `error.type` `replay_miss`, the proxy's line as the status message, and the request's exchange with no response attributes, as nothing answered it.
 - **A call served in a replay.** A call the model proxy served from a record carries `a2ui.replay.served_from`, the span id of the recorded event it was served from; a live call carries none.
 
 ### `tool_call`
 
-A tool call event lasts from the request to the response, whichever side asks. A proxy's event has the turn event as parent and `kind` `3`; an event for an operation the server initiated has `kind` `4`, the client's view of a server-initiated operation in the pinned MCP conventions.
+A tool call event lasts from the request to the response, whichever side asks. A proxy's event has the turn event as parent and `kind` `3`; an event for an operation the server initiated has `kind` `2`, server, as the pinned MCP conventions have the client's view of it.
 
 | Attribute                                                                                                                                                                              | Type                              |
 | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
 | `gen_ai.operation.name`, `gen_ai.tool.name`, `gen_ai.tool.call.id`, `gen_ai.tool.type`, `gen_ai.tool.description`, `gen_ai.prompt.name`, `gen_ai.agent.name`, `gen_ai.conversation.id` | string                            |
 | `gen_ai.tool.call.arguments`                                                                                                                                                           | `gen-ai-tool-call-arguments.json` |
 | `gen_ai.tool.call.result`                                                                                                                                                              | `gen-ai-tool-call-result.json`    |
-| `mcp.method.name`, `mcp.session.id`, `mcp.protocol.version`, `mcp.resource.uri`, `jsonrpc.request.id`, `rpc.response.status_code`                                                      | string                            |
+| `mcp.method.name`, `mcp.session.id`, `mcp.protocol.version`, `mcp.resource.uri`, `jsonrpc.request.id`, `rpc.status_code`, `a2ui.mcp.stream.url`                                        | string                            |
 | `a2ui.replay.served_from`                                                                                                                                                              | string, a span id                 |
 | `error.type`                                                                                                                                                                           | string                            |
 
@@ -224,7 +230,7 @@ The tool proxy writes one event per MCP message:
 - **A client's request or notification** is its POST's exchange. Under streamable HTTP, the reply is on the POST: a JSON body is the response body, and a stream is the event's chunks. Under HTTP+SSE, the exchange is the POST with its `202 Accepted`, and the reply, arriving on the session's `GET` stream, is a chunk on the event. The session's `initialize` event starts when its `GET` stream opens, and the stream's `endpoint` event is its first chunk.
 - **A message the server sends on its own,** on a `GET` stream: a JSON-RPC response is a chunk on the event of the request with that id in its session; a `notifications/progress` whose `progressToken` is a pending request's `_meta.progressToken` is a chunk on that request's event; any other notification is an event of its own, starting and ending at its arrival, with the message as its one chunk and no exchange; a request is an event of its own, from its arrival, with the message as a chunk, to the arrival of the client's POST carrying the response with that id, that POST's exchange recorded on it. A message inside a POST's own streamed reply is a chunk on that POST's event, whatever its method. A response no pending request is waiting for is an event of its own named `response`, with no `mcp.method.name`; so is a client's POST carrying a response that answers no server request event.
 - **The session's end,** a `DELETE` carrying `Mcp-Session-Id`, is a housekeeping event named `DELETE`, with `mcp.session.id` and the exchange and no `mcp.method.name`.
-- **A failed call.** A JSON-RPC error is status `code` `2`, the error's code as a string in both `error.type` and `rpc.response.status_code`, and its `message` as the status message. A `tools/call` result with `isError` is `error.type` `tool_error` with status `code` `1`, and carries no `gen_ai.tool.call.result`. A request the client cancels with `notifications/cancelled` ends at the notification with `error.type` `cancelled`; one whose `GET` stream closes before its reply ends then with `error.type` `aborted`. A request the tool proxy answers in a replay with nothing in the record matching it is a miss: status `code` `2` with the proxy's line as the status message, `error.type` `replay_miss`, and the request's exchange with no response attributes, as nothing answered it.
+- **A failed call.** A JSON-RPC error is status `code` `2`, the error's code as a string in both `error.type` and `rpc.status_code`, and its `message` as the status message. A `tools/call` result with `isError` is `error.type` `tool_error` with status `code` `1`, and carries no `gen_ai.tool.call.result`. A request the client cancels with `notifications/cancelled` ends at the notification with `error.type` `cancelled`; one whose `GET` stream closes before its reply ends then with `error.type` `aborted`. A request the tool proxy answers in a replay with nothing in the record matching it is a miss: status `code` `2` with the proxy's line as the status message, `error.type` `replay_miss`, and the request's exchange with no response attributes, as nothing answered it.
 - **A call served in a replay** carries `a2ui.replay.served_from`, the span id of the recorded event the tool proxy served it from. An answer the protocol fixes, a notification's or a client's response's `202 Accepted` or a `ping`'s empty result, and a live call carry none.
 
 A request to a tool server that is not an MCP message is an HTTP tool request: a `tool_call` event with the exchange only, named `{method} {path}`, the path without its query.
@@ -256,7 +262,7 @@ A streamed response is recorded as span events in `events`, one per server-sent 
 | `a2ui.http.response.chunk.event` | string | no       | The server-sent event's `event` field.                                 |
 | `a2ui.http.response.chunk.id`    | string | no       | The server-sent event's `id` field.                                    |
 
-The first chunk's time gives the time to the first token.
+The first chunk that carries output gives the time to the first token, as `gen_ai.response.time_to_first_chunk` has it.
 
 ### `prompt_generation`
 
@@ -467,7 +473,7 @@ A producer of the A2UI step is any program that sends the receiver spans for the
 
 ### What a span carries
 
-- A span of the step carries `a2ui.event.kind`, `prompt_generation` or `parse`, and the attributes of that kind under the record's names, as [`prompt_generation`](#prompt_generation) and [`parse`](#parse) have them.
+- A span of the step carries `a2ui.event.kind`, `prompt_generation` or `parse`; `a2ui.record.version`, the turn record version it follows, `"v0.1"`, which is required; and the attributes of that kind under the record's names, as [`prompt_generation`](#prompt_generation) and [`parse`](#parse) have them.
 - Its name is the kind, `prompt_generation` or `parse`, and its span kind is internal, `1`.
 - Its status is unset, `code` `0`, on success; on failure, `code` `2` with the first error's message.
 - Its span events are the step's own, as [The A2UI step's span events](#the-a2ui-steps-span-events) has them: an `exception` event for each error, and an `a2ui.parse.chunk` event for each chunk a stream is fed.
@@ -475,19 +481,22 @@ A producer of the A2UI step is any program that sends the receiver spans for the
 
 ### The wire forms
 
-OTLP attribute values are strings, booleans, integers, doubles and arrays of them. An attribute the record holds as a string, a boolean or an integer is sent as that OTLP value. An attribute the record holds as an array or an object is sent as a string holding its JSON text:
+OTLP attribute values are strings, booleans, integers, doubles, byte arrays, arrays and key-value lists. An attribute the record holds as a string, a boolean or an integer is sent as that OTLP value. An attribute the record holds as an array or an object is sent either as a string holding its JSON text or as the structured value, an OTLP array or key-value list; the receiver reads both:
 
 - `a2ui.prompt.catalogs` and `a2ui.parse.catalogs`;
 - `a2ui.parse.messages` and `a2ui.parse.components`;
 - `gen_ai.tool.call.result`;
 - `a2ui.parse.error.details`, on an `exception` span event.
 
+The wrappers send JSON text.
+
 ### How the receiver reads a span
 
 - `a2ui.event.kind` is read before any dialect. A received span whose `a2ui.event.kind` is `prompt_generation` or `parse` is an event of that kind, with no `a2ui.received.dialect`. Any other value is not honoured: the span is read by its dialect, and the attribute stays in `a2ui.received.attributes`.
-- The translated names are the record's own, copied: the `a2ui.prompt.`, `a2ui.parse.` and `a2ui.sdk.` names, `gen_ai.tool.name`, `gen_ai.tool.call.id`, `gen_ai.tool.call.result` and `error.type`, each where the kind defines it. A name the record holds as an array or an object is parsed from its JSON text. A value that does not fit the record's shape is left out. A name the kind does not define stays in `a2ui.received.attributes` only.
-- The span's events pass as received, `a2ui.parse.error.details` on an `exception` event parsed the same way.
-- **A half-formed span.** A span of the step missing a required attribute of its kind, after the values that do not fit are left out, is written as a `framework_span`, with nothing translated.
+- `a2ui.record.version` is read before the kind's attributes, as [Versions](#versions) has a reader read a version. A span of a version the receiver does not read is written as a `framework_span`, with nothing translated, and Spectra says so, naming the version met, the versions it reads and Spectra as the side to upgrade when the version is newer. A span whose `a2ui.record.version` is missing, or is not of a version's form, lacks a required attribute.
+- The translated names are the record's own, copied: the `a2ui.prompt.`, `a2ui.parse.` and `a2ui.sdk.` names, `gen_ai.tool.name`, `gen_ai.tool.call.id`, `gen_ai.tool.call.result` and `error.type`, each where the kind defines it. `a2ui.record.version` is not copied: the file states its version. A name the record holds as an array or an object is read from its JSON text or as the structured value. A value that does not fit the record's shape is left out. A name the kind does not define stays in `a2ui.received.attributes` only.
+- The span's events pass as received, `a2ui.parse.error.details` on an `exception` event read the same way.
+- **A half-formed span.** A span of the step missing a required attribute of its kind, its `a2ui.record.version` included, after the values that do not fit are left out, is written as a `framework_span`, with nothing translated.
 - `a2ui.retry.attempt` on a received `model_call` span of any dialect is copied onto the event, and the span's own links are kept as they are.
 - `a2ui.received.attributes` keeps every attribute as received, beside the translated names.
 
@@ -502,7 +511,7 @@ A `prompt_generation` that falls in no turn is kept for the run and placed by it
 - **Once per turn.** A turn that already holds a `prompt_generation` with an equal section text takes no other, and a text found in several of a turn's model calls places the event once.
 - The event is written as received, with its own `traceId` and parent, into each turn it is placed in.
 
-`wrapper` joins a turn's `a2ui.turn.capture_paths` when a `prompt_generation` or `parse` event is placed in it, beside `otel_receiver`.
+`a2ui_step` joins a turn's `a2ui.turn.capture_paths` when a `prompt_generation` or `parse` event is placed in it, beside `otel_receiver`: the A2UI step was reported, by any producer.
 
 ## Rules worked out when shown
 
@@ -532,6 +541,8 @@ Every attribute the record defines itself is in the `a2ui.` namespace, named `a2
 | `a2ui.http.response.chunk.body`     | any                          | `a2ui.http.response.chunk` span events |
 | `a2ui.http.response.chunk.event`    | string                       | `a2ui.http.response.chunk` span events |
 | `a2ui.http.response.chunk.id`       | string                       | `a2ui.http.response.chunk` span events |
+| `a2ui.mcp.stream.url`               | string                       | `tool_call`                            |
+| `a2ui.record.version`               | string                       | spans of the A2UI step, as sent        |
 | `a2ui.prompt.ui_section`            | string                       | `prompt_generation`                    |
 | `a2ui.prompt.inference_format`      | string                       | `prompt_generation`                    |
 | `a2ui.prompt.catalogs`              | array of catalogs            | `prompt_generation`                    |

@@ -215,6 +215,63 @@ export type ModelCallEvent = EventFields<{
   [name: string]: unknown;
 }>;
 
+/** The turn record versions this Spectra reads, oldest first, as the tool's `READ_VERSIONS` holds them. */
+export const READ_RECORD_VERSIONS: readonly string[] = ['v0.1'];
+
+/** A turn record version's three parts, a missing third read as 0; nothing when it is not of the record's form. */
+function versionParts(version: string): [number, number, number] | undefined {
+  const match = /^v([0-9]+)\.([0-9]+)(?:\.([0-9]+))?$/.exec(version);
+  return match === null ? undefined : [Number(match[1]), Number(match[2]), Number(match[3] ?? '0')];
+}
+
+/** Whether a value is a turn record version newer than every one this Spectra reads. */
+export function isNewerRecordVersion(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const parts = versionParts(value);
+  if (parts === undefined) return false;
+  return READ_RECORD_VERSIONS.every(known => {
+    const read = versionParts(known)!;
+    const at = parts.findIndex((part, index) => part !== read[index]);
+    return at !== -1 && parts[at] > read[at];
+  });
+}
+
+/** The versions this Spectra reads, as a line names them: `v0.1`, or `v0.1 and v0.2`. */
+export function readRecordVersionsText(): string {
+  return READ_RECORD_VERSIONS.length === 1
+    ? READ_RECORD_VERSIONS[0]
+    : `${READ_RECORD_VERSIONS.slice(0, -1).join(', ')} and ${READ_RECORD_VERSIONS[READ_RECORD_VERSIONS.length - 1]}`;
+}
+
+/**
+ * The newest turn record version newer than this Spectra reads that a span
+ * of the A2UI step in the turn follows: the receiver kept such a span as a
+ * framework span, with its attributes as received. Nothing when there is none.
+ */
+export function newerStepVersionOf(events: readonly TurnRecordEvent[]): string | undefined {
+  let newest: string | undefined;
+  for (const event of events) {
+    if (event.attributes['a2ui.event.kind'] !== 'framework_span') continue;
+    const received = event.attributes['a2ui.received.attributes'];
+    if (typeof received !== 'object' || received === null) continue;
+    const {'a2ui.event.kind': kind, 'a2ui.record.version': version} = received as Record<
+      string,
+      unknown
+    >;
+    if (kind !== 'prompt_generation' && kind !== 'parse') continue;
+    if (!isNewerRecordVersion(version)) continue;
+    if (newest === undefined || isLater(version, newest)) newest = version;
+  }
+  return newest;
+}
+
+function isLater(a: string, b: string): boolean {
+  const x = versionParts(a)!;
+  const y = versionParts(b)!;
+  const at = x.findIndex((part, index) => part !== y[index]);
+  return at !== -1 && x[at] > y[at];
+}
+
 /**
  * The record's form of a version as A2UI sends it: v1.0's bare `1.0` as
  * `v1.0`; a version already in the record's form, such as `v0.9`, unchanged.

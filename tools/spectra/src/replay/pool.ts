@@ -141,7 +141,7 @@ export class ReplayPool {
       return;
     }
     // An operation the server initiated is never re-sent.
-    if (event.kind === 4) return;
+    if (event.kind === 2) return;
     if (typeof attributes['mcp.method.name'] === 'string') {
       // A client's notification is answered as the protocol fixes; a request is served.
       if (attributes['jsonrpc.request.id'] !== undefined) {

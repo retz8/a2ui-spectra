@@ -100,7 +100,7 @@ export interface EventFields<Attributes> {
 
 export type TurnOutcome = 'completed' | 'failed' | 'cancelled' | 'waiting_for_input';
 
-export type CapturePath = 'wire' | 'model_proxy' | 'tool_proxy' | 'otel_receiver' | 'wrapper';
+export type CapturePath = 'wire' | 'model_proxy' | 'tool_proxy' | 'otel_receiver' | 'a2ui_step';
 
 /**
  * `recorded`, everything served from the record; `model_live`, a model call
@@ -357,7 +357,7 @@ export interface ToolCallAttributes {
   'mcp.protocol.version'?: string;
   'mcp.resource.uri'?: string;
   'jsonrpc.request.id'?: string;
-  'rpc.response.status_code'?: string;
+  'rpc.status_code'?: string;
   'http.request.method'?: string;
   'url.full'?: string;
   'http.response.status_code'?: number;
@@ -373,7 +373,7 @@ export interface ToolCallAttributes {
 
 /**
  * A tool call. The tool proxy's is a client span under the turn event, or a
- * producer span for an operation the server initiated, lasting from the
+ * server span for an operation the server initiated, lasting from the
  * request to the response.
  */
 export type ToolCallEvent = EventFields<ToolCallAttributes>;

@@ -5,7 +5,7 @@
  * A2UI step is read by its own `a2ui.event.kind`, before any dialect.
  */
 import type {EventKind, SpanEvent, TurnRecordEvent} from '../record/turn_record.js';
-import {fittedSpanEvents, readA2uiStep} from './a2ui_step.js';
+import {fittedSpanEvents, isWellFormed, readA2uiStep} from './a2ui_step.js';
 import {readSpan} from './dialects.js';
 import {fittedValue, withFinishReasonsNormalised} from './genai.js';
 import type {ReceivedLog, ReceivedSpan} from './otlp.js';
@@ -94,8 +94,8 @@ function readReceived(
 ): {kind: EventKind; dialect?: string; translated: Record<string, unknown>} {
   const step = readA2uiStep(span);
   if (step !== undefined) {
-    // A half-formed span of the step is a framework span, with nothing translated.
-    return step.missing.length === 0
+    // A half-formed span of the step, or one of a version this Spectra does not read, is a framework span, with nothing translated.
+    return isWellFormed(step)
       ? {kind: step.kind, translated: step.names}
       : {kind: 'framework_span', translated: {}};
   }

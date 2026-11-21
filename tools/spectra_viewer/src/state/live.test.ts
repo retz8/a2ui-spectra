@@ -232,7 +232,7 @@ describe("a tool call's live events", () => {
     );
     const notification = {
       ...toolCall({spanId: 'n'.repeat(16), start: 70, end: 70, method: 'notifications/message'}),
-      kind: 4,
+      kind: 2,
     } as OtherEvent;
     state = callChanged(state, TRACE, notification.spanId, () => notification);
     state = callChanged(state, TRACE, notification.spanId, () => notification);

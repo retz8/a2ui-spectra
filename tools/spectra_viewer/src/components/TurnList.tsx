@@ -18,7 +18,7 @@ import {groupItemId, type ListKey, listItemsOf, moveInList, turnItemId} from '@/
 import {listedProblemCount} from '@/model/problems.ts';
 import type {RestartDivider} from '@/model/restarts.ts';
 import {plural} from '@/model/steps.ts';
-import {briefText, searchGroups, type TurnGroup} from '@/model/turn_groups.ts';
+import {briefText, rowTextOf, searchGroups, type TurnGroup} from '@/model/turn_groups.ts';
 
 import {
   formatClock,
@@ -265,8 +265,13 @@ function lineOfConversation(group: TurnGroup<ListedTurn>): GroupLine {
     title: briefText(group.title) || 'A turn',
     time: formatClock(newest.startTime),
     meta: [group.agentName, plural(group.turns.length, 'turn')].filter(Boolean).join(' · '),
-    icon: STATUS_ICONS[statusOf(newest)],
+    icon: iconOf(newest),
   };
+}
+
+/** A turn's status icon; a file for a stored turn whose record this Spectra does not read. */
+function iconOf(turn: ListedTurn): IconKind {
+  return turn.newer !== undefined ? 'file' : STATUS_ICONS[statusOf(turn)];
 }
 
 /**
@@ -529,7 +534,7 @@ function Row({
   active: boolean;
   onSelect: (traceId: string) => void;
 }) {
-  const icon = STATUS_ICONS[statusOf(turn)];
+  const icon = iconOf(turn);
   return (
     <button
       id={domIdOf(turnItemId(turn.traceId))}
@@ -548,8 +553,14 @@ function Row({
     >
       <Icon kind={icon} size={14} className={toneOf(icon)} />
       <span className="shrink-0 text-xs text-muted-foreground">{formatTime(turn.startTime)}</span>
-      <span className={cn('min-w-0 flex-1 truncate', selected && 'font-semibold')}>
-        {briefText(turn.input) || 'Waiting for its input'}
+      <span
+        className={cn(
+          'min-w-0 flex-1 truncate',
+          selected && 'font-semibold',
+          turn.newer !== undefined && 'text-muted-foreground',
+        )}
+      >
+        {rowTextOf(turn)}
       </span>
       {turn.durationMs !== undefined && (
         <span className="shrink-0 text-xs text-muted-foreground">

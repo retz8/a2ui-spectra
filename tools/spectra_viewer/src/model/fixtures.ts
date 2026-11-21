@@ -73,7 +73,7 @@ export function savedTurnsLine(turns: number): string {
 /** Whether a tool call event is one the pool would answer with, as the server's pool reads it. */
 function isServableTool(event: OtherEvent): boolean {
   if (event.attributes['http.request.method'] === undefined) return false;
-  if (event.kind === 4) return false;
+  if (event.kind === 2) return false;
   if (typeof event.attributes['mcp.method.name'] === 'string') {
     return event.attributes['jsonrpc.request.id'] !== undefined;
   }

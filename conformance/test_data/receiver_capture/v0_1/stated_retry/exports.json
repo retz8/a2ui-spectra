@@ -55,6 +55,12 @@
                       }
                     },
                     {
+                      "key": "a2ui.record.version",
+                      "value": {
+                        "stringValue": "v0.1"
+                      }
+                    },
+                    {
                       "key": "a2ui.parse.input",
                       "value": {
                         "stringValue": "Here is the card.\n<a2ui-express>\nroot = Card(child=title)\ntitle = Txt(\"Xi'an Famous Foods\")\n</a2ui-express>\n"
@@ -206,6 +212,12 @@
                       "key": "a2ui.event.kind",
                       "value": {
                         "stringValue": "parse"
+                      }
+                    },
+                    {
+                      "key": "a2ui.record.version",
+                      "value": {
+                        "stringValue": "v0.1"
                       }
                     },
                     {

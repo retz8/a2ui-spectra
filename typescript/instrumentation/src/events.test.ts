@@ -39,6 +39,7 @@ describe('one event per outermost call', () => {
     const span = capture.only();
     assert.equal(span.name, 'parse');
     assert.equal(span.attributes['a2ui.event.kind'], 'parse');
+    assert.equal(span.attributes['a2ui.record.version'], 'v0.1');
     assert.equal(span.attributes['a2ui.parse.entry_point'], 'parse_response');
     assert.equal(span.attributes['a2ui.parse.input'], text);
     assert.equal(span.attributes['a2ui.parse.inference_format'], 'direct_json');
@@ -114,6 +115,7 @@ describe('one event per outermost call', () => {
 
     const span = capture.only();
     assert.equal(span.name, 'prompt_generation');
+    assert.equal(span.attributes['a2ui.record.version'], 'v0.1');
     assert.equal(span.attributes['a2ui.prompt.ui_section'], section);
     assert.equal(span.attributes['a2ui.prompt.inference_format'], 'express');
     assert.deepEqual(JSON.parse(span.attributes['a2ui.prompt.catalogs'] as string), [

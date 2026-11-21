@@ -1,7 +1,7 @@
 /**
  * A turn with its received spans: each span's event, its parent in the turn,
  * the same-call links between the proxies' events and the received spans,
- * and `otel_receiver` among the turn's capture paths, with `wrapper` beside
+ * and `otel_receiver` among the turn's capture paths, with `a2ui_step` beside
  * it when a span of the A2UI step is among them.
  *
  * The received events follow the turn's own events, the turn event, the wire
@@ -232,7 +232,7 @@ export function assembleTurn(turn: Turn, placed: readonly PlacedSpan[]): Turn {
   const ownEvents = own.map(event => {
     if (isEventOfKind(event, 'turn')) {
       const withReceiver = withCapturePath(event, 'otel_receiver');
-      return step ? withCapturePath(withReceiver, 'wrapper') : withReceiver;
+      return step ? withCapturePath(withReceiver, 'a2ui_step') : withReceiver;
     }
     if (!isExchange(event)) return event;
     // A link naming a received span is the receiver's, rebuilt each time; any other stays.

@@ -24,7 +24,8 @@ function stepSpan(
     kind: 1,
     startTimeUnixNano: '1000',
     endTimeUnixNano: '2000',
-    attributes,
+    // Every span of the step states the turn record version it follows.
+    attributes: {'a2ui.record.version': 'v0.1', ...attributes},
     events,
     links: [],
     status,
@@ -64,6 +65,77 @@ describe('the A2UI step reader', () => {
       },
       missing: [],
     });
+  });
+
+  it('reads an array or an object sent as the structured value as it reads its JSON text', () => {
+    const reading = readA2uiStep(
+      stepSpan({
+        'a2ui.event.kind': 'parse',
+        'a2ui.parse.input': 'text',
+        'a2ui.parse.entry_point': 'parse_response',
+        'a2ui.parse.catalogs': CATALOGS,
+        'a2ui.parse.messages': [{version: 'v1.0'}],
+        'a2ui.parse.components': [{surfaceId: 'main', componentId: 'root', start: 0, end: 4}],
+        'gen_ai.tool.call.result': {error: 'x'},
+      }),
+    );
+    assert.deepEqual(reading?.names, {
+      'a2ui.parse.input': 'text',
+      'a2ui.parse.entry_point': 'parse_response',
+      'a2ui.parse.catalogs': CATALOGS,
+      'a2ui.parse.messages': [{version: 'v1.0'}],
+      'a2ui.parse.components': [{surfaceId: 'main', componentId: 'root', start: 0, end: 4}],
+      'gen_ai.tool.call.result': {error: 'x'},
+    });
+    const generation = readA2uiStep(
+      stepSpan({
+        'a2ui.event.kind': 'prompt_generation',
+        'a2ui.prompt.ui_section': 'section',
+        'a2ui.prompt.inference_format': 'direct_json',
+        'a2ui.prompt.catalogs': CATALOGS,
+      }),
+    );
+    assert.deepEqual(generation?.missing, []);
+    assert.deepEqual(
+      fittedSpanEvents([
+        {
+          timeUnixNano: '1500',
+          name: 'exception',
+          attributes: {
+            'exception.type': 'A2uiValidationError',
+            'a2ui.parse.error.details': [{path: '/0', code: 'X', message: 'Bad.'}],
+          },
+        },
+      ])[0].attributes?.['a2ui.parse.error.details'],
+      [{path: '/0', code: 'X', message: 'Bad.'}],
+    );
+  });
+
+  it('reads the turn record version first, and translates nothing from a span of a version it does not read', () => {
+    const parse = {
+      'a2ui.event.kind': 'parse',
+      'a2ui.parse.input': 'text',
+      'a2ui.parse.entry_point': 'parse_response',
+    };
+    assert.deepEqual(readA2uiStep(stepSpan({...parse, 'a2ui.record.version': 'v0.2'})), {
+      kind: 'parse',
+      names: {},
+      missing: [],
+      unread: {version: 'v0.2', newer: true},
+    });
+    assert.deepEqual(readA2uiStep(stepSpan({...parse, 'a2ui.record.version': 'v0.0'}))?.unread, {
+      version: 'v0.0',
+      newer: false,
+    });
+    for (const version of [undefined, 'latest', 1]) {
+      assert.deepEqual(
+        readA2uiStep(stepSpan({...parse, 'a2ui.record.version': version}))?.missing,
+        ['a2ui.record.version'],
+      );
+    }
+    const event = receivedEvent(stepSpan({...parse, 'a2ui.record.version': 'v0.2'}), [], undefined);
+    assert.equal(event.attributes['a2ui.event.kind'], 'framework_span');
+    assert.equal(event.attributes['a2ui.parse.input'], undefined);
   });
 
   it('names what a half-formed span lacks, a failed generation not needing its section', () => {
@@ -151,7 +223,7 @@ describe('the A2UI step reader', () => {
       'otel.scope.version': SCOPE.version,
       'a2ui.parse.input': 'text',
       'a2ui.parse.entry_point': 'compile',
-      'a2ui.received.attributes': attributes,
+      'a2ui.received.attributes': {'a2ui.record.version': 'v0.1', ...attributes},
     });
     const halfFormed = receivedEvent(
       stepSpan({'a2ui.event.kind': 'parse', 'a2ui.parse.input': 'text'}),
@@ -162,7 +234,11 @@ describe('the A2UI step reader', () => {
       'a2ui.event.kind': 'framework_span',
       'otel.scope.name': SCOPE.name,
       'otel.scope.version': SCOPE.version,
-      'a2ui.received.attributes': {'a2ui.event.kind': 'parse', 'a2ui.parse.input': 'text'},
+      'a2ui.received.attributes': {
+        'a2ui.record.version': 'v0.1',
+        'a2ui.event.kind': 'parse',
+        'a2ui.parse.input': 'text',
+      },
     });
   });
 

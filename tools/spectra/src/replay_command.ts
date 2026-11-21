@@ -12,14 +12,10 @@ import path from 'node:path';
 
 import {UsageError} from './args.js';
 import type {SpectraConfig} from './config.js';
-import {
-  FixtureReadError,
-  type FixtureListing,
-  FixturesFolder,
-  readRecord,
-} from './fixtures/fixtures.js';
+import {type FixtureListing, FixturesFolder} from './fixtures/fixtures.js';
 import {MessageBoxError, NOTHING_TO_SERVE, type ReplaySource} from './message_box.js';
 import type {Output} from './output.js';
+import {readRecord, RecordReadError} from './record/read_record.js';
 import {
   isEventOfKind,
   type ReplayMode,
@@ -83,7 +79,7 @@ export async function prepareReplay(
   try {
     record = readRecord(text);
   } catch (error) {
-    if (error instanceof FixtureReadError) {
+    if (error instanceof RecordReadError) {
       throw new UsageError(`${source} does not read as a turn record: ${error.message}`, 'replay');
     }
     throw error;

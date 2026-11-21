@@ -12,6 +12,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {after, describe, it} from 'node:test';
 
+import {NewerRecordError} from '../record/read_record.js';
 import type {Turn, TurnEvent, TurnRecord} from '../record/turn_record.js';
 import {turnRecordErrors} from '../testing/turn_record_schema.js';
 import {folderOf, STORE_DIR, StoreError, StoreWriteError, TurnStore} from './store.js';
@@ -144,6 +145,27 @@ describe('the store', () => {
     );
     const {record} = await store.write(turnOf('2', T0 + 2000, 'ctx-1'));
     assert.deepEqual(traceIds(record), ['1', '2']);
+  });
+
+  it('passes over a record of a newer version for the one before it, and refuses to read it', async () => {
+    const store = await TurnStore.open(workingDir());
+    await store.write(turnOf('1', T0, 'ctx-1'));
+    const newer = `ctx-1/2026-10-24T15-30-13.000Z_${'9'.repeat(32)}.json`;
+    writeFileSync(
+      path.join(store.turnsDir, ...newer.split('/')),
+      JSON.stringify({version: 'v0.2', turns: [turnOf('9', T0 + 1000, 'ctx-1')]}),
+    );
+    const {record} = await store.write(turnOf('2', T0 + 2000, 'ctx-1'));
+    assert.deepEqual(traceIds(record), ['1', '2']);
+    await assert.rejects(store.read(newer), (error: unknown) => {
+      assert.ok(error instanceof NewerRecordError);
+      assert.equal(error.version, 'v0.2');
+      assert.equal(
+        error.message,
+        'The file is a turn record v0.2, newer than this Spectra reads: it reads v0.1. Upgrade a2ui-spectra to read it.',
+      );
+      return true;
+    });
   });
 
   it('writes a turn with no conversation on its own, beside the conversations', async () => {

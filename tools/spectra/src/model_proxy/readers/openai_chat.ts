@@ -21,6 +21,7 @@ import {
   toolCallPart,
   toolCallResponsePart,
 } from '../genai.js';
+import {openAiChatCarriesOutput} from './output_chunks.js';
 import type {ApiReader, ReadRequest, StreamChunk} from './reader.js';
 
 export const FINISH_REASONS: Record<string, FinishReason> = {
@@ -167,6 +168,7 @@ function responseAttributes(
 }
 
 export const openAiChatReader: ApiReader = {
+  carriesOutput: openAiChatCarriesOutput,
   api: 'openai_chat_completions',
 
   request({body}: ReadRequest) {

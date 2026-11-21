@@ -25,6 +25,7 @@ import {
   type TurnRecordEvent,
 } from '../record/turn_record.js';
 import type {RunTurn} from '../placement.js';
+import {newerText, readVersionsText} from '../record/versions.js';
 import {a2uiStepKindOf, readA2uiStep, sectionTextOf} from './a2ui_step.js';
 import {assembleTurn, type PlacedSpan, spanKey} from './assemble.js';
 import type {ReceivedLog, ReceivedSpan, Scope} from './otlp.js';
@@ -123,6 +124,7 @@ export class SpanReceiver {
   takeSpans(spans: readonly ReceivedSpan[]): void {
     const dropped = new Map<Reason, Tally>();
     const halfFormed = new Map<string, Tally>();
+    const unread = new Map<string, Tally>();
     const touched = new Set<string>();
     const arrived: Kept[] = [];
     for (const span of spans) {
@@ -152,9 +154,16 @@ export class SpanReceiver {
       list.push(entry);
       this.#byTurn.set(placed, list);
       touched.add(placed);
-      const missing = readA2uiStep(span)?.missing ?? [];
-      if (missing.length > 0) {
-        tallyOf(halfFormed, `${a2uiStepKindOf(span)}\u0000${missing.join('\u0000')}`).add(
+      const step = readA2uiStep(span);
+      if (step?.unread !== undefined) {
+        const {version, newer} = step.unread;
+        tallyOf(unread, `${step.kind}\u0000${version}\u0000${newer ? 'newer' : ''}`).add(
+          'span',
+          span.scope,
+          span.startTimeUnixNano,
+        );
+      } else if (step !== undefined && step.missing.length > 0) {
+        tallyOf(halfFormed, `${step.kind}\u0000${step.missing.join('\u0000')}`).add(
           'span',
           span.scope,
           span.startTimeUnixNano,
@@ -163,6 +172,7 @@ export class SpanReceiver {
     }
     this.#report(dropped);
     this.#reportHalfFormed(halfFormed);
+    this.#reportUnread(unread);
     for (const turn of this.#options.turns.allTurns()) {
       if (this.#placeKept(turn.traceId, arrived)) touched.add(turn.traceId);
     }
@@ -396,6 +406,27 @@ export class SpanReceiver {
         `The receiver wrote ${tally.spans} span${one ? '' : 's'} from ${listed([...tally.scopes])}, ` +
           `which started ${when(tally)}, as ${one ? 'a framework_span' : 'framework_span events'}: ` +
           `${one ? 'it carries' : 'they carry'} a2ui.event.kind ${kind} without ${listed(missing)}.`,
+      );
+    }
+  }
+
+  /**
+   * One line per kind and version for the spans of the A2UI step one export
+   * wrote as framework spans for following a turn record version this
+   * Spectra does not read, in the half-formed line's form.
+   */
+  #reportUnread(tallies: Map<string, Tally>): void {
+    for (const [reason, tally] of tallies) {
+      const [kind, version, newer] = reason.split('\u0000');
+      const one = tally.spans === 1;
+      const under =
+        newer === 'newer'
+          ? newerText(version)
+          : `turn record ${version}, which this Spectra does not read: it reads ${readVersionsText()}.`;
+      this.#options.log(
+        `The receiver wrote ${tally.spans} span${one ? '' : 's'} from ${listed([...tally.scopes])}, ` +
+          `which started ${when(tally)}, as ${one ? 'a framework_span' : 'framework_span events'}: ` +
+          `${one ? 'it carries' : 'they carry'} a2ui.event.kind ${kind} under ${under}`,
       );
     }
   }

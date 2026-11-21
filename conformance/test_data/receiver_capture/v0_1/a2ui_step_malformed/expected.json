@@ -42,6 +42,7 @@
             "otel.scope.version": "0.0.1",
             "a2ui.received.attributes": {
               "a2ui.event.kind": "parse",
+              "a2ui.record.version": "v0.1",
               "a2ui.parse.entry_point": "parse_response",
               "a2ui.parse.inference_format": "express",
               "a2ui.sdk.name": "a2ui-agent-sdk",

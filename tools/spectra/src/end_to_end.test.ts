@@ -38,6 +38,7 @@ import {startStub} from './testing/stub_agent.js';
 import {turnRecordErrors} from './testing/turn_record_schema.js';
 import {freePort} from './testing/free_port.js';
 import {shellsOf} from './paste.js';
+import {VERSION} from './version.js';
 
 const customCatalog = fileURLToPath(
   new URL('../../../conformance/test_data/catalogs/custom_catalog_v1_0.json', import.meta.url),
@@ -162,6 +163,7 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
           await spectra.waitFor(/The viewer is at /);
           const context = await getJson<SessionContext>(`${base}/api/context`);
           assert.deepEqual(context.body, {
+            version: VERSION,
             agentName: 'Spectra stub agent',
             agentUrl: `http://127.0.0.1:${agentPort}/`,
             mode: 'attach',
@@ -176,6 +178,7 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
               })),
               {name: 'OTEL_EXPORTER_OTLP_ENDPOINT', value: `http://127.0.0.1:${receiverPort}`},
               {name: 'OTEL_EXPORTER_OTLP_PROTOCOL', value: 'http/protobuf'},
+              {name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT', value: 'SPAN_ONLY'},
               {name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT', value: 'true'},
             ],
             a2aVersions: a2a === '1.0' ? ['1.0', '0.3'] : ['0.3', '1.0'],

@@ -3,8 +3,9 @@
  * prints: the exporters' endpoint, at the receiver's origin, to which they
  * append the signal paths themselves; the protocol, `http/protobuf`, which
  * also moves Python's auto-configuration off its gRPC default; and the GenAI
- * conventions' content capture switch, `true` unless Spectra's own
- * environment sets it. An endpoint or protocol variable Spectra's
+ * conventions' content capture switches, each unless Spectra's own
+ * environment sets it: the pinned conventions' `SPAN_ONLY`, and the older
+ * variable the instrumentations in use still read, `true`. An endpoint or protocol variable Spectra's
  * environment sets to another value, the generic one or a signal-specific
  * one, is replaced in the agent's; a signal-specific one it does not set
  * stays unset.
@@ -14,7 +15,10 @@ import {pasteLine, type Shell} from '../paste.js';
 
 export const ENDPOINT = 'OTEL_EXPORTER_OTLP_ENDPOINT';
 export const PROTOCOL = 'OTEL_EXPORTER_OTLP_PROTOCOL';
-export const CONTENT_CAPTURE = 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT';
+/** The content capture switch the pinned GenAI conventions name. */
+export const CONTENT_CAPTURE = 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT';
+/** The older content capture switch, which the instrumentations in use read. */
+export const MESSAGE_CONTENT_CAPTURE = 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT';
 
 const HTTP_PROTOBUF = 'http/protobuf';
 
@@ -32,9 +36,9 @@ const SIGNAL_PROTOCOLS = [
 ];
 
 export interface ReceiverVariables {
-  /** The three variables, in the order they are printed. */
+  /** The four variables, in the order they are printed. */
   printed: Array<{name: string; value: string}>;
-  /** Every variable `run` sets in the agent's environment: the three, and the signal-specific ones replaced. */
+  /** Every variable `run` sets in the agent's environment: the four, and the signal-specific ones replaced. */
   environment: Record<string, string>;
   /** The variables Spectra's environment set to another value, with that value, in the order checked. */
   replaced: Array<{name: string; from: string}>;
@@ -51,11 +55,11 @@ function sameUrl(a: string, b: string): boolean {
 
 /** The receiver's variables for the receiver at `origin`, from Spectra's own environment. */
 export function receiverVariables(env: NodeJS.ProcessEnv, origin: string): ReceiverVariables {
-  const capture = setIn(env, CONTENT_CAPTURE) ?? 'true';
   const printed = [
     {name: ENDPOINT, value: origin},
     {name: PROTOCOL, value: HTTP_PROTOBUF},
-    {name: CONTENT_CAPTURE, value: capture},
+    {name: CONTENT_CAPTURE, value: setIn(env, CONTENT_CAPTURE) ?? 'SPAN_ONLY'},
+    {name: MESSAGE_CONTENT_CAPTURE, value: setIn(env, MESSAGE_CONTENT_CAPTURE) ?? 'true'},
   ];
   const environment: Record<string, string> = Object.fromEntries(
     printed.map(({name, value}) => [name, value]),

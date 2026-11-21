@@ -182,7 +182,7 @@ Each live case was run with Spectra's binary under `run`, the agent's command st
 
   `express_positional_at_keys` runs in Python only: TypeScript's agent SDK refuses a catalog whose component declares an `@`-named property. The shapes upstream's fixture catalogs lack are in two catalogs of Spectra's own, `test_data/catalogs/reader_catalog_v1_0.json` and `reader_at_keys_catalog_v1_0.json`; `envelope_catalog_v1_0.json` beside them is Spectra's own too, and the others are copied from upstream, as `test_data/catalogs/README.md` lists them. The viewer's tests read every case's parse with the catalogs it names in `a2ui.parse.catalogs`, from the basic catalogs and the definitions under `test_data/catalogs/`.
 
-The expected records were written by the record-writer and checked by hand; `SPECTRA_WRITE_WRAPPER_CAPTURE=1` makes the harness write each from what it captures instead, for the drivers' sub-tasks.
+The expected records were written by the record-writer and checked by hand; `SPECTRA_WRITE_WRAPPER_CAPTURE=1` makes the harness write each from what it captures instead, for the drivers' sub-tasks. Sub-task 10.8 wrote them again with the record-writer from what the amended wrappers send, against `a2ui-agent-sdk` 0.12.0 in the repository's environment and `@a2ui/agent` 0.1.0 built in the `a2ui-upstream` worktree, each span of the step carrying `a2ui.record.version` and each record stating those versions as `a2ui.sdk.version`, which the comparison skips; the rest of the test data took turn record v0.1's amendments from [`_dev/tools/turn_record_amendments.mjs`](../_dev/tools/turn_record_amendments.mjs), whose `check` holds that the test data's whole diff from a commit is those edits.
 
 #### The recordings
 

@@ -20,6 +20,8 @@ export interface GroupedTurn {
   findings?: number;
   rejections?: number;
   replayDifferences?: number;
+  /** A stored turn's turn record version, when it is newer than this Spectra reads. */
+  newer?: string;
 }
 
 export interface TurnGroup<T extends GroupedTurn = GroupedTurn> {
@@ -70,7 +72,7 @@ export function stripOf<T extends GroupedTurn>(
   return groups.flatMap(group =>
     group.turns.map(turn => {
       const problems = listedProblemCount(turn);
-      const input = briefText(turn.input) || 'Waiting for its input';
+      const input = rowTextOf(turn);
       return {
         turn,
         problems,
@@ -80,12 +82,19 @@ export function stripOf<T extends GroupedTurn>(
   );
 }
 
+/** A turn's row as the list reads it: its input in brief, or the newer line for a record it cannot open. */
+export function rowTextOf(turn: GroupedTurn): string {
+  if (turn.newer !== undefined) return `Turn record ${turn.newer} · newer than this Spectra reads`;
+  return briefText(turn.input) || 'Waiting for its input';
+}
+
 /** An input in brief as the list reads it. */
 export function briefText(input: InputBrief | undefined): string {
   if (input === undefined) return '';
   if ('text' in input) return input.text;
   if ('action' in input) return `Action “${input.action}”`;
-  return `${input.partType} part`;
+  // A data part that is not A2UI reads as a data part.
+  return `${input.partType === 'a2ui.data' ? 'data' : input.partType} part`;
 }
 
 /**

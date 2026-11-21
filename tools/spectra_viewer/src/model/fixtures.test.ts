@@ -128,7 +128,7 @@ describe('a record with nothing to serve', () => {
       hasNothingToServe([turnOf(tool({'mcp.method.name': 'notifications/initialized'}))]),
       false === hasNothingToServe([turnOf(tool(request))]),
     );
-    assert.equal(hasNothingToServe([turnOf(tool(request, 'tools/call', 4))]), true);
+    assert.equal(hasNothingToServe([turnOf(tool(request, 'tools/call', 2))]), true);
   });
 });
 

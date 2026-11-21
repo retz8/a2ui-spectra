@@ -71,7 +71,7 @@ Each way, the agent needs the `OTEL_EXPORTER_OTLP_*` variables that point at Spe
 
 ## What the spans carry
 
-The spans are the turn record's [producers of the A2UI step](../../specification/turn_record/v0_1/docs/turn_record.md#producers-of-the-a2ui-step), under the instrumentation scope `a2ui-spectra-instrumentation`.
+The spans are the turn record's [producers of the A2UI step](../../specification/turn_record/v0_1/docs/turn_record.md#producers-of-the-a2ui-step), under the instrumentation scope `a2ui-spectra-instrumentation`. Each carries `a2ui.record.version`, `v0.1`, the turn record version it follows, by which Spectra's receiver judges it: a receiver that does not read the version keeps the span as a framework span and says so. An array or an object is sent as its JSON text.
 
 - **One event per outermost call.** Every hooked call is synchronous, so a stack holds the open event; a hooked call made while another is running opens no event of its own.
   - `prompt_generation`: a prompt generator's `generate`, with the section it returned, the inference format of the generator's class and its catalogs. A `generate` that throws gives the failed form: no section, and the error.

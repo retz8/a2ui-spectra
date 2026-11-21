@@ -182,7 +182,8 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
         assert.equal(records.length, 2);
         for (const [index, record] of records.entries()) {
           const attributes = turnEventOf(record.turns.at(-1)!).attributes;
-          assert.equal(attributes['a2ui.replay.source'], path.join('fixtures', 'greet-ada.json'));
+          // Forward slashes on every platform.
+          assert.equal(attributes['a2ui.replay.source'], 'fixtures/greet-ada.json');
           assert.equal(attributes['a2ui.replay.turn'], [recorded.first, recorded.second][index]);
           assert.equal(attributes['a2ui.replay.mode'], 'model_live');
           assert.equal(attributes['a2ui.replay.verdict'], 'passed');
@@ -210,7 +211,8 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
         assert.equal(liveRecords.length, 2);
         for (const record of liveRecords) {
           const attributes = turnEventOf(record.turns.at(-1)!).attributes;
-          assert.equal(attributes['a2ui.replay.source'], path.join('fixtures', 'greet-ada.json'));
+          // Forward slashes on every platform.
+          assert.equal(attributes['a2ui.replay.source'], 'fixtures/greet-ada.json');
           assert.equal(attributes['a2ui.replay.mode'], 'live');
           assert.equal(attributes['a2ui.replay.verdict'], undefined);
         }
@@ -540,6 +542,10 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
         stubs.push(running);
         mkdirSync(path.join(cwd, 'fixtures', 'nested'));
         writeFileSync(path.join(cwd, 'fixtures', 'notes.json'), 'not json');
+        writeFileSync(
+          path.join(cwd, 'fixtures', 'later.json'),
+          JSON.stringify({...recorded, version: 'v0.2'}),
+        );
         const noCalls = structuredClone(recorded);
         for (const turn of noCalls.turns) {
           turn.events = turn.events.filter(
@@ -572,10 +578,11 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
         assert.match(
           testedRunning.stdout,
           new RegExp(
-            `^nested/no-calls: failed \\(${escapeRegExp(NOTHING_TO_SERVE)}\\)\n` +
+            '^later: failed \\(The file is a turn record v0\\.2, newer than this Spectra reads: it reads v0\\.1\\. Upgrade a2ui-spectra to read it\\.\\)\n' +
+              `nested/no-calls: failed \\(${escapeRegExp(NOTHING_TO_SERVE)}\\)\n` +
               'notes: failed \\(The file is not JSON: .+\\)\n' +
               'restaurants: passed\n' +
-              '3 fixtures: 1 passed, 2 failed\n$',
+              '4 fixtures: 1 passed, 3 failed\n$',
           ),
         );
 

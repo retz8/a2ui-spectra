@@ -82,7 +82,7 @@
               "role": "assistant",
               "parts": [
                 {
-                  "type": "data",
+                  "type": "a2ui.data",
                   "content": {
                     "paintMeta": {
                       "surfaceId": "circleci-1",
@@ -3902,7 +3902,7 @@
                   "content": "More access is needed: Rerun and cancel your workflows."
                 },
                 {
-                  "type": "data",
+                  "type": "a2ui.data",
                   "content": {
                     "security": [
                       {

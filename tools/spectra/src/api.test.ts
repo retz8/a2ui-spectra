@@ -17,6 +17,7 @@ import {startViewerServer, type ViewerServer} from './server.js';
 import {TurnStore} from './store/store.js';
 import {TurnHub} from './turn_hub.js';
 import {freePort} from './testing/free_port.js';
+import {VERSION} from './version.js';
 
 const dirs: string[] = [];
 const servers: ViewerServer[] = [];
@@ -288,6 +289,37 @@ describe('the API', () => {
     assert.equal(missing.status, 404);
   });
 
+  it('lists a stored turn of a newer record version with that version alone, and does not open, save or replay it', async () => {
+    const {store, base} = await serve(60_000, undefined, {replay: true});
+    await store.write(closedTurn(1, 'ctx-1'));
+    mkdirSync(path.join(store.turnsDir, 'ctx-2'));
+    writeFileSync(
+      path.join(store.turnsDir, 'ctx-2', `2026-10-21T10-00-02.000Z_${trace(2)}.json`),
+      JSON.stringify({version: 'v0.2', turns: [closedTurn(2, 'ctx-2')]}),
+    );
+    const listed = await getJson(`${base}/api/turns`);
+    assert.deepEqual((listed.body as {turns: ListedTurn[]}).turns[0], {
+      traceId: trace(2),
+      conversationId: 'ctx-2',
+      startTime: '2026-10-21T10:00:02.000Z',
+      newer: 'v0.2',
+    });
+    const line =
+      'The file is a turn record v0.2, newer than this Spectra reads: it reads v0.1. Upgrade a2ui-spectra to read it.';
+    const record = await getJson(`${base}/api/turns/${trace(2)}`);
+    assert.equal(record.status, 422);
+    assert.deepEqual(record.body, {error: line});
+    const saved = await post(`${base}/api/fixtures`, {traceId: trace(2), name: 'newer'});
+    assert.equal(saved.status, 422);
+    assert.deepEqual(await saved.json(), {error: line});
+    const replayed = await post(`${base}/api/replays`, {
+      source: {traceId: trace(2)},
+      mode: 'model_live',
+    });
+    assert.equal(replayed.status, 422);
+    assert.deepEqual(await replayed.json(), {error: line});
+  });
+
   it('returns a turn kept in memory after its write failed, and marks it in the listing', async () => {
     const {store, base} = await serve();
     await store.write(closedTurn(2, 'ctx-2'));
@@ -362,7 +394,7 @@ describe('the API', () => {
     const {base} = await serve();
     const {status, body} = await getJson(`${base}/api/context`);
     assert.equal(status, 200);
-    assert.deepEqual(body, CONTEXT);
+    assert.deepEqual(body, {version: VERSION, ...CONTEXT});
   });
 
   it("serves the message box's conversations and its routes", async () => {

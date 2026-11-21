@@ -110,7 +110,7 @@ function dataPart(
     const rest = isA2uiMimeType(metadata?.mimeType) ? withoutKey(metadata, 'mimeType') : metadata;
     return withExtras({type: 'a2ui', content: data}, {metadata: rest, name});
   }
-  return withExtras({type: 'data', content: data}, {metadata, mimeType: partMimeType, name});
+  return withExtras({type: 'a2ui.data', content: data}, {metadata, mimeType: partMimeType, name});
 }
 
 /** GenAI's modality for a MIME type: its top level when a medium, else a document. */
@@ -184,7 +184,7 @@ export function a2aPart(part: WirePart, version: A2aVersion): unknown {
             ...(name && {filename: name}),
             ...(metadata && {metadata}),
           };
-    case 'data':
+    case 'a2ui.data':
       return version === '0.3'
         ? {
             kind: 'data',

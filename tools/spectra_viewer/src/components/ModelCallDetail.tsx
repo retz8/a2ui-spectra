@@ -32,7 +32,12 @@ import {catalogName} from '@/model/agent_card.ts';
 import type {KnownCatalog} from '@/model/catalogs.ts';
 import {type Marker, partName, partText, type PrefixBreak} from '@/model/prefix.ts';
 import {type CallReplay, isMissCall, type RecordedCall} from '@/model/provenance.ts';
-import {type ModelCallEvent, type TurnRecordEvent, unixMillis} from '@/model/record.ts';
+import {
+  type ModelCallEvent,
+  readRecordVersionsText,
+  type TurnRecordEvent,
+  unixMillis,
+} from '@/model/record.ts';
 import {plural} from '@/model/steps.ts';
 import {useBlockFold} from '@/state/block_folds.ts';
 
@@ -124,6 +129,8 @@ export interface StepOnCall {
   sections: readonly UiSection[];
   /** The hint to switch the wrapper on, on a turn with no A2UI step events: under `run` or `attach`. */
   hint?: 'run' | 'attach';
+  /** In the hint's place, on a turn whose A2UI step was reported under a newer turn record: that version. */
+  newerStep?: string;
   catalogs: readonly KnownCatalog[];
   /** Selects a parse by its span id. */
   onParse: (parseSpanId: string) => void;
@@ -170,7 +177,14 @@ export function ModelCallBlocks({
           <DetailLink onClick={() => step.onParse(line.parseSpanId)}>{line.text}</DetailLink>
         </div>
       ))}
-      {step.hint !== undefined && <SwitchOnHint mode={step.hint} />}
+      {step.newerStep !== undefined ? (
+        <p className="text-muted-foreground">
+          A2UI step reported under turn record {step.newerStep} · this Spectra reads{' '}
+          {readRecordVersionsText()} · upgrade a2ui-spectra to see which text became which component
+        </p>
+      ) : (
+        step.hint !== undefined && <SwitchOnHint mode={step.hint} />
+      )}
     </>
   );
   const sectionLabel = (section: UiSection) => {

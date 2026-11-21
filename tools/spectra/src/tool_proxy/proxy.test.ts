@@ -328,7 +328,7 @@ describe('the tool proxy over streamable HTTP', () => {
     const [missing, fail] = setup.ended;
     assert.deepEqual(missing.status, {code: 2, message: 'Tool missing not found'});
     assert.equal(missing.attributes['error.type'], '-32602');
-    assert.equal(missing.attributes['rpc.response.status_code'], '-32602');
+    assert.equal(missing.attributes['rpc.status_code'], '-32602');
     assert.deepEqual(fail.status, {code: 1});
     assert.equal(fail.attributes['error.type'], 'tool_error');
     assert.equal(fail.attributes['gen_ai.tool.call.result'], undefined);
@@ -395,7 +395,7 @@ describe('the tool proxy over streamable HTTP', () => {
     assert.equal(setup.released, 1, 'the GET was released as no call');
     const [message] = setup.ended;
     assert.equal(message.name, 'notifications/message');
-    assert.equal(message.kind, 4);
+    assert.equal(message.kind, 2);
     assert.equal(message.startTimeUnixNano, message.endTimeUnixNano);
     assert.equal(message.attributes['mcp.session.id'], 'S9');
     assert.equal(message.attributes['http.request.method'], undefined);
@@ -617,7 +617,7 @@ describe('the tool proxy over HTTP+SSE', () => {
     await until(() => setup.ended.length === 1, 'the notification');
     const [notification] = setup.ended;
     assert.equal(notification.name, 'notifications/message');
-    assert.equal(notification.kind, 4);
+    assert.equal(notification.kind, 2);
 
     await until(() => asked !== undefined && stream.events.length === 4, 'the server request');
     await send(setup.origin, {
@@ -627,7 +627,7 @@ describe('the tool proxy over HTTP+SSE', () => {
     await until(() => setup.ended.length === 2, 'the server request');
     const request = setup.ended[1];
     assert.equal(request.name, 'sampling/createMessage');
-    assert.equal(request.kind, 4);
+    assert.equal(request.kind, 2);
     assert.equal(request.attributes['jsonrpc.request.id'], '5');
     assert.equal(request.attributes['http.request.method'], 'POST');
     assert.equal(request.attributes['http.response.status_code'], 202);

@@ -48,7 +48,7 @@ Either way, the agent needs the `OTEL_EXPORTER_OTLP_*` variables that point at S
 
 ## What the spans carry
 
-The spans are the turn record's [producers of the A2UI step](../../specification/turn_record/v0_1/docs/turn_record.md#producers-of-the-a2ui-step), under the instrumentation scope `a2ui-spectra-instrumentation`.
+The spans are the turn record's [producers of the A2UI step](../../specification/turn_record/v0_1/docs/turn_record.md#producers-of-the-a2ui-step), under the instrumentation scope `a2ui-spectra-instrumentation`. Each carries `a2ui.record.version`, `v0.1`, the turn record version it follows, by which Spectra's receiver judges it: a receiver that does not read the version keeps the span as a framework span and says so. An array or an object is sent as its JSON text.
 
 - **One event per outermost call.** A hooked call made while another is running opens no event of its own.
   - `prompt_generation`: `PromptGenerator.generate`, the one `generate()` every format's prompt generator has from the base class, with the section it wrote, the inference format, read from the generator's class, and the catalogs; a generator of none of the four formats' classes gives none, and neither does a prompt assembled without `generate()`, `assemble_instructions` called on its own or the skill generator; and the text the toolset's tool appends to the instructions in its `process_llm_request`, carrying `gen_ai.tool.name`.

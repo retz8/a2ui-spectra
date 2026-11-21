@@ -315,7 +315,7 @@ async function runCase(c: ReplayToolCase, transport: Transport, expectFile: stri
       }
     }
     // An operation the server initiated is not replayed.
-    const wanted = toolCalls(expected.turns[0]).filter(event => event.kind !== 4);
+    const wanted = toolCalls(expected.turns[0]).filter(event => event.kind !== 2);
     assert.deepEqual(
       comparable(captured.map(comparedForm)),
       comparable(wanted.map(comparedForm)),

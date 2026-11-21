@@ -55,6 +55,12 @@
                       }
                     },
                     {
+                      "key": "a2ui.record.version",
+                      "value": {
+                        "stringValue": "v0.1"
+                      }
+                    },
+                    {
                       "key": "a2ui.parse.entry_point",
                       "value": {
                         "stringValue": "parse_response"

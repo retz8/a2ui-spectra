@@ -423,7 +423,7 @@
               }
             },
             "error.type": "-32602",
-            "rpc.response.status_code": "-32602"
+            "rpc.status_code": "-32602"
           },
           "status": {
             "code": 2,

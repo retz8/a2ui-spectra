@@ -33,6 +33,8 @@ MS = 1_000_000
 BASE = 1_792_800_000_000_000_000
 USER_MESSAGE = "Show a card for one restaurant."
 STACKTRACE = "(the stack trace, which the comparison checks is present)"
+# The turn record version every span of the step states.
+RECORD_VERSION = "v0.1"
 
 
 def stand_in(case: str, role: str, length: int) -> str:
@@ -141,7 +143,11 @@ def step_event(case: str, job: dict, facts: dict, text: str | None, start: int) 
             end = start + 2 * MS
     if errors:
         names["error.type"] = errors[0]["type"]
-    received = {"a2ui.event.kind": kind, **{name: wire(value) for name, value in names.items()}}
+    received = {
+        "a2ui.event.kind": kind,
+        "a2ui.record.version": RECORD_VERSION,
+        **{name: wire(value) for name, value in names.items()},
+    }
     event = {
         "traceId": stand_in(case, "driver trace", 32),
         "spanId": stand_in(case, "step span", 16),
@@ -177,7 +183,7 @@ def record_of(case: str, job: dict, facts: dict, text: str | None) -> dict:
     step_start = BASE + (0 if before else 10 * MS)
     step = step_event(case, job, facts, text, step_start)
     turn_end = max(int(step["endTimeUnixNano"]), turn_start) + 10 * MS
-    paths = ["otel_receiver", "wrapper"]
+    paths = ["otel_receiver", "a2ui_step"]
     events = []
     if before:
         paths = ["model_proxy", *paths]

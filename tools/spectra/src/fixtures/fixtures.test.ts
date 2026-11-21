@@ -4,13 +4,13 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {after, describe, it} from 'node:test';
 
+import {RecordReadError} from '../record/read_record.js';
 import type {TurnRecord} from '../record/turn_record.js';
 import {testTurn} from '../testing/turns.js';
 import {
   FixtureClashError,
   FixtureNameError,
   FixtureNotFoundError,
-  FixtureReadError,
   FixturesFolder,
   isFixtureName,
   slugOf,
@@ -161,7 +161,10 @@ describe('the fixtures folder', () => {
     assert.equal(broken.record, undefined);
     assert.match(broken.error ?? '', /^The file is not JSON: /);
     assert.equal(other.record, undefined);
-    assert.equal(other.error, 'The file is not a turn record v0.1: its version is v0.2.');
+    assert.equal(
+      other.error,
+      'The file is a turn record v0.2, newer than this Spectra reads: it reads v0.1. Upgrade a2ui-spectra to read it.',
+    );
   });
 
   it('reads a fixture by its name, and says when there is none or it does not read as a record', async () => {
@@ -179,7 +182,7 @@ describe('the fixtures folder', () => {
     });
     writeFileSync(path.join(folder.dir, 'bad.json'), '[]');
     await assert.rejects(folder.read('bad'), (error: unknown) => {
-      assert.ok(error instanceof FixtureReadError);
+      assert.ok(error instanceof RecordReadError);
       assert.equal(error.message, 'The file is not a turn record v0.1: it is not an object.');
       return true;
     });

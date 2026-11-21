@@ -12,7 +12,8 @@ import path from 'node:path';
 
 import type {InputBrief} from '../listing.js';
 import {quietSpell} from '../quiet_spell.js';
-import {isEventOfKind, type TurnRecord} from '../record/turn_record.js';
+import {readRecord} from '../record/read_record.js';
+import type {TurnRecord} from '../record/turn_record.js';
 import {isReservedDeviceName, RESERVED_NAMES_PHRASE} from '../windows/names.js';
 
 /** A fixture's typed name: ASCII letters, digits, `-`, `_` and `.`, not starting with a dot. */
@@ -52,14 +53,6 @@ export class FixtureNotFoundError extends Error {
   constructor(name: string) {
     super(`No fixture is named ${name}.`);
     this.name = 'FixtureNotFoundError';
-  }
-}
-
-/** A file that does not read as a turn record. */
-export class FixtureReadError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'FixtureReadError';
   }
 }
 
@@ -106,52 +99,6 @@ export function slugOf(input: InputBrief | undefined): string {
     slug = (cut > 0 ? slug.slice(0, cut) : slug.slice(0, SLUG_LENGTH)).replace(/-+$/, '');
   }
   return slug === '' ? 'turn' : slug;
-}
-
-/** Reads a file's text as a turn record v0.1, or throws with the reason. */
-export function readRecord(text: string): TurnRecord {
-  let json: unknown;
-  try {
-    json = JSON.parse(text);
-  } catch (error) {
-    throw new FixtureReadError(
-      `The file is not JSON: ${error instanceof Error ? error.message : String(error)}.`,
-    );
-  }
-  const reason = notARecord(json);
-  if (reason !== undefined) {
-    throw new FixtureReadError(`The file is not a turn record v0.1: ${reason}.`);
-  }
-  return json as TurnRecord;
-}
-
-/** Why a value is not a turn record v0.1, or nothing when it may be one. */
-function notARecord(json: unknown): string | undefined {
-  if (typeof json !== 'object' || json === null || Array.isArray(json)) {
-    return 'it is not an object';
-  }
-  const record = json as Record<string, unknown>;
-  if (record.version !== 'v0.1') {
-    return `its version is ${typeof record.version === 'string' ? record.version : 'missing'}`;
-  }
-  if (!Array.isArray(record.turns) || record.turns.length === 0) {
-    return 'it has no turns';
-  }
-  for (const [index, turn] of record.turns.entries()) {
-    const events = (turn as {events?: unknown})?.events;
-    if (!Array.isArray(events)) return `turn ${index + 1} has no events`;
-    if (!events.some(event => isTurnEvent(event))) return `turn ${index + 1} has no turn event`;
-  }
-  return undefined;
-}
-
-function isTurnEvent(event: unknown): boolean {
-  return (
-    typeof event === 'object' &&
-    event !== null &&
-    typeof (event as {attributes?: unknown}).attributes === 'object' &&
-    isEventOfKind(event as TurnRecord['turns'][number]['events'][number], 'turn')
-  );
 }
 
 /**

@@ -430,7 +430,7 @@ class ToolCapture {
     placed: PlacedCall,
     init: {
       start: bigint;
-      kind: 3 | 4;
+      kind: 2 | 3;
       name: string;
       attributes: Record<string, unknown>;
       method?: string;
@@ -1520,7 +1520,7 @@ function serverEvent(
   if (placed === undefined) return undefined;
   const capture = new ToolCapture(shared, placed, {
     start: at,
-    kind: 4,
+    kind: 2,
     name,
     attributes: {...attributes, ...sessionAttributes(session), ...serverAttributes(listener)},
   });

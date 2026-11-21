@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import type {ListedTurn, MessageBoxState} from '../api.ts';
-import {agentNameOf, composerOf, liveStatusOf, refusalInputOf} from './selectors.ts';
+import {agentNameOf, composerOf, liveStatusOf, refusalInputOf, turnViewOf} from './selectors.ts';
 import {NO_FIXTURES} from './fixtures.ts';
 import type {SpectraState} from './spectra.ts';
 
@@ -320,5 +320,17 @@ describe('what Re-run and the Replay rows are judged by', () => {
       replaying: true,
       turnOpen: true,
     });
+  });
+});
+
+describe('turnViewOf', () => {
+  it('does not open a stored turn whose record is of a newer turn record version, nor ask for its record', () => {
+    const state = {
+      ...stateOf({conversations: []}),
+      turns: [{traceId: 'e', startTime: '2026-11-21T09:00:00.000Z', newer: 'v0.2'}],
+    };
+    const needs: string[] = [];
+    assert.deepEqual(turnViewOf(state, 'e', needs), {status: 'newer', version: 'v0.2'});
+    assert.deepEqual(needs, []);
   });
 });

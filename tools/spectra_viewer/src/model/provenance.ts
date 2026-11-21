@@ -93,7 +93,9 @@ export function resolveSource(
   recordedTurn: string,
   {fixtures, turns}: {fixtures: readonly ListedFixture[]; turns: readonly ListedTurn[]},
 ): ResolvedSource {
-  const fixture = fixtures.find(listed => listed.path === source);
+  // The record writes the source with forward slashes; a listed path has the platform's separators.
+  const slashed = (path: string) => path.split('\\').join('/');
+  const fixture = fixtures.find(listed => slashed(listed.path) === slashed(source));
   if (fixture !== undefined) {
     return {kind: 'fixture', name: fixture.name, path: fixture.path, file: baseNameOf(source)};
   }

@@ -20,6 +20,7 @@ import {
   toolCallResponsePart,
   uriPart,
 } from '../genai.js';
+import {anthropicCarriesOutput} from './output_chunks.js';
 import type {ApiReader, ReadRequest, StreamChunk} from './reader.js';
 
 export const STOP_REASONS: Record<string, FinishReason> = {
@@ -119,6 +120,7 @@ function responseAttributes(message: Record<string, unknown>): Record<string, un
 }
 
 export const anthropicReader: ApiReader = {
+  carriesOutput: anthropicCarriesOutput,
   api: 'anthropic_messages',
 
   request({body}: ReadRequest) {

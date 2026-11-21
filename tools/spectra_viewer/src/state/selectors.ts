@@ -52,6 +52,8 @@ export type TurnView =
   | {status: 'none'}
   | {status: 'loading'}
   | {status: 'error'; message: string}
+  /** A stored turn whose record is of a turn record version newer than this Spectra reads: not opened. */
+  | {status: 'newer'; version: string}
   | {status: 'open'; live: LiveTurn; earlier: EarlierTurns}
   | {status: 'closed'; turn: Turn; earlier: EarlierTurns};
 
@@ -96,6 +98,7 @@ export function turnViewOf(state: SpectraState, traceId: string, needs: string[]
   if (record !== undefined && 'error' in record) return {status: 'error', message: record.error};
   const row = state.turns.find(turn => turn.traceId === traceId);
   if (row === undefined) return state.loaded ? {status: 'none'} : {status: 'loading'};
+  if (row.newer !== undefined) return {status: 'newer', version: row.newer};
   needs.push(traceId);
   // A turn that just closed shows its own events until its record has been read.
   const closed = state.closed.get(traceId);

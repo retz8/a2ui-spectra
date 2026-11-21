@@ -118,7 +118,7 @@ function replyOf(event: OtherEvent): Record<string, unknown> | undefined {
 
 /** Whether the server sent this message itself: a request or notification it initiated. */
 export function isServerInitiated(event: OtherEvent): boolean {
-  return event.kind === 4;
+  return event.kind === 2;
 }
 
 /** The message a server initiated: its request or notification, the first chunk carrying a method. */

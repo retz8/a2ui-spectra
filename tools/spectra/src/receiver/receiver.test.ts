@@ -99,6 +99,7 @@ function generation(
 ): ReceivedSpan {
   return stepSpan(traceId, spanId, start, {
     'a2ui.event.kind': 'prompt_generation',
+    'a2ui.record.version': 'v0.1',
     'a2ui.prompt.ui_section': section,
     'a2ui.prompt.inference_format': 'express',
     'a2ui.prompt.catalogs': '[{"catalogId":"basic","protocolVersion":"v1.0"}]',
@@ -319,12 +320,13 @@ describe('the span receiver', () => {
     assert.match(h.lines[2], /^The receiver did not record 1 log record .*no turn's time range\.$/);
   });
 
-  it("reads a span of the A2UI step by its kind, and adds wrapper to the turn's capture paths", async () => {
+  it("reads a span of the A2UI step by its kind, and adds a2ui_step to the turn's capture paths", async () => {
     const h = await harness();
     h.open(A, S(1), BASE);
     h.receiver.takeSpans([
       stepSpan(FOREIGN, S(10), BASE + SECOND, {
         'a2ui.event.kind': 'parse',
+        'a2ui.record.version': 'v0.1',
         'a2ui.parse.input': 'root = Text("Hi")',
         'a2ui.parse.entry_point': 'parse_response',
         'a2ui.parse.messages': '[]',
@@ -338,7 +340,7 @@ describe('the span receiver', () => {
     assert.deepEqual((h.handedOn[0].events[0] as TurnEvent).attributes['a2ui.turn.capture_paths'], [
       'wire',
       'otel_receiver',
-      'wrapper',
+      'a2ui_step',
     ]);
     assert.deepEqual(h.lines, []);
   });
@@ -349,6 +351,7 @@ describe('the span receiver', () => {
     const halfFormed = (spanId: string) =>
       stepSpan(A, spanId, BASE + SECOND, {
         'a2ui.event.kind': 'parse',
+        'a2ui.record.version': 'v0.1',
         'a2ui.parse.entry_point': 'compile',
       });
     h.receiver.takeSpans([halfFormed(S(10)), halfFormed(S(11))]);
@@ -365,6 +368,43 @@ describe('the span receiver', () => {
       'wire',
       'otel_receiver',
     ]);
+  });
+
+  it('reads the turn record version first: a span of a version it does not read is a framework span with nothing translated, a span without one half-formed', async () => {
+    const h = await harness();
+    h.open(A, S(1), BASE);
+    const parse = (spanId: string, version: unknown) =>
+      stepSpan(A, spanId, BASE + SECOND, {
+        'a2ui.event.kind': 'parse',
+        ...(version !== undefined && {'a2ui.record.version': version}),
+        'a2ui.parse.input': 'root = Text("Hi")',
+        'a2ui.parse.entry_point': 'parse_response',
+      });
+    h.receiver.takeSpans([parse(S(10), 'v0.2'), parse(S(11), 'v0.1.1')]);
+    h.receiver.takeSpans([parse(S(12), 'v0.0'), parse(S(13), undefined), parse(S(14), 2)]);
+    assert.deepEqual(h.lines, [
+      'The receiver wrote 1 span from a2ui-spectra-instrumentation, which started at 2026-10-26T07:33:21.000Z, ' +
+        'as a framework_span: it carries a2ui.event.kind parse under turn record v0.2, newer than this Spectra reads: it reads v0.1. Upgrade a2ui-spectra to read it.',
+      'The receiver wrote 1 span from a2ui-spectra-instrumentation, which started at 2026-10-26T07:33:21.000Z, ' +
+        'as a framework_span: it carries a2ui.event.kind parse under turn record v0.1.1, newer than this Spectra reads: it reads v0.1. Upgrade a2ui-spectra to read it.',
+      'The receiver wrote 2 spans from a2ui-spectra-instrumentation, which started at 2026-10-26T07:33:21.000Z, ' +
+        'as framework_span events: they carry a2ui.event.kind parse without a2ui.record.version.',
+      'The receiver wrote 1 span from a2ui-spectra-instrumentation, which started at 2026-10-26T07:33:21.000Z, ' +
+        'as a framework_span: it carries a2ui.event.kind parse under turn record v0.0, which this Spectra does not read: it reads v0.1.',
+    ]);
+    h.close(A, S(1), BASE, BASE + 10n * SECOND);
+    const events = h.handedOn[0].events.slice(1);
+    assert.deepEqual(
+      events.map(event => event.attributes['a2ui.event.kind']),
+      Array(5).fill('framework_span'),
+    );
+    // Nothing translated: the kind's names stay in the attributes as received alone.
+    const attributes = events[0].attributes as Record<string, unknown>;
+    assert.equal(attributes['a2ui.parse.input'], undefined);
+    assert.equal(
+      (attributes['a2ui.received.attributes'] as Record<string, unknown>)['a2ui.record.version'],
+      'v0.2',
+    );
   });
 
   it('keeps a prompt generation that falls in no turn and places it by its text when a model call holding it joins a turn', async () => {
@@ -393,7 +433,7 @@ describe('the span receiver', () => {
       'wire',
       'model_proxy',
       'otel_receiver',
-      'wrapper',
+      'a2ui_step',
     ]);
   });
 

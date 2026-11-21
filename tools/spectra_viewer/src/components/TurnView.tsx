@@ -50,6 +50,8 @@ import {
   isWireInput,
   isWireOutput,
   type ModelCallEvent,
+  newerStepVersionOf,
+  readRecordVersionsText,
   type Turn,
   type TurnRecord,
   type TurnRecordEvent,
@@ -93,6 +95,7 @@ import {
   SaveAsFixture,
 } from './FixtureControls.tsx';
 import {FirstScreen} from './FirstScreen.tsx';
+import {Icon} from './icons.tsx';
 import {formatDuration, formatOffset, formatStart} from './format.ts';
 import type {StepOnCall} from './ModelCallDetail.tsx';
 import {ResultPane} from './ResultPane.tsx';
@@ -225,6 +228,8 @@ export function TurnView({
     body = <Empty>Reading the turn…</Empty>;
   } else if (view.status === 'error') {
     body = <Empty>{view.message}</Empty>;
+  } else if (view.status === 'newer') {
+    body = <NewerRecord version={view.version} />;
   } else if (view.status === 'none') {
     body = <Empty>No turn has this trace id.</Empty>;
   } else {
@@ -270,6 +275,22 @@ export function TurnView({
         />
       </div>
     </main>
+  );
+}
+
+/** A stored turn whose record is of a turn record version newer than this Spectra reads, in place of the turn. */
+function NewerRecord({version}: {version: string}) {
+  return (
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-2.5 p-8 text-center">
+      <Icon kind="file" size={32} className="text-muted-foreground" />
+      <h2 className="text-base leading-tight font-semibold">
+        Turn record {version}, newer than this Spectra reads
+      </h2>
+      <p className="max-w-130 text-muted-foreground">
+        This Spectra reads {readRecordVersionsText()}. Upgrade a2ui-spectra to open, save or replay
+        this turn.
+      </p>
+    </div>
   );
 }
 
@@ -358,6 +379,8 @@ export function TurnBody({
     () => events.some(event => isParse(event) || isPromptGeneration(event)),
     [events],
   );
+  // A step reported under a newer turn record, which the receiver kept as framework spans.
+  const newerStep = useMemo(() => newerStepVersionOf(events), [events]);
   // The surfaces are rebuilt only when the wire changes, not as a call's chunks arrive.
   const wireEvents = useWireEvents(events);
   const catalogs = useMemo(() => catalogsOf(state.catalogs), [state.catalogs]);
@@ -592,7 +615,10 @@ export function TurnBody({
           }),
           readBy: readByLinesOf(events, selectedRow.id, startMs),
           sections: uiSectionsOf(events, modelReadingOf(selectedRow).event),
-          ...(!hasStep && sentA2ui && {hint: state.context?.mode ?? 'run'}),
+          ...(!hasStep &&
+            (newerStep !== undefined
+              ? {newerStep}
+              : sentA2ui && {hint: state.context?.mode ?? 'run'})),
           catalogs: state.catalogs ?? [],
           onParse: parseSpanId => {
             requestTimelineFocus();

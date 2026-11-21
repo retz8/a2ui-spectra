@@ -6,26 +6,30 @@ import {receiverExportLines, receiverVariables, replacedLine} from './variables.
 const ORIGIN = 'http://127.0.0.1:9823';
 
 describe("the receiver's variables", () => {
-  it("sets the endpoint, the protocol and the content capture switch, true unless Spectra's environment sets it", () => {
+  it("sets the endpoint, the protocol and both content capture switches, SPAN_ONLY and true, each unless Spectra's environment sets it", () => {
     const variables = receiverVariables({}, ORIGIN);
     assert.deepEqual(variables.printed, [
       {name: 'OTEL_EXPORTER_OTLP_ENDPOINT', value: ORIGIN},
       {name: 'OTEL_EXPORTER_OTLP_PROTOCOL', value: 'http/protobuf'},
+      {name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT', value: 'SPAN_ONLY'},
       {name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT', value: 'true'},
     ]);
     assert.deepEqual(variables.environment, {
       OTEL_EXPORTER_OTLP_ENDPOINT: ORIGIN,
       OTEL_EXPORTER_OTLP_PROTOCOL: 'http/protobuf',
+      OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT: 'SPAN_ONLY',
       OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT: 'true',
     });
     assert.equal(replacedLine(variables), undefined);
-    assert.equal(
-      receiverVariables(
-        {OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT: 'SPAN_AND_EVENT'},
-        ORIGIN,
-      ).environment.OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT,
-      'SPAN_AND_EVENT',
-    );
+    const own = receiverVariables(
+      {
+        OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT: 'SPAN_AND_EVENT',
+        OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT: 'false',
+      },
+      ORIGIN,
+    ).environment;
+    assert.equal(own.OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT, 'SPAN_AND_EVENT');
+    assert.equal(own.OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT, 'false');
   });
 
   it("replaces an endpoint or protocol Spectra's environment sets to another value, a signal's own included, and says so once", () => {
@@ -58,6 +62,7 @@ describe("the receiver's variables", () => {
     assert.deepEqual(receiverExportLines(receiverVariables({}, ORIGIN)), [
       `export OTEL_EXPORTER_OTLP_ENDPOINT=${ORIGIN}  # for Spectra's OpenTelemetry receiver`,
       "export OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf  # for Spectra's OpenTelemetry receiver",
+      "export OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT=SPAN_ONLY  # for Spectra's OpenTelemetry receiver",
       "export OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT=true  # for Spectra's OpenTelemetry receiver",
     ]);
   });

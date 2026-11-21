@@ -21,6 +21,7 @@ import type {Duplex} from 'node:stream';
 
 import {SseParser} from '../a2a/sse.js';
 import type {CallToPlace, PlacedCall} from '../placement.js';
+import {withContentFitted} from '../receiver/genai.js';
 import type {CallEvent, ModelCallEvent, SpanEvent} from '../record/turn_record.js';
 import {exchangeKey, type PoolAnswer, type ReplayPool} from '../replay/pool.js';
 import {
@@ -206,6 +207,7 @@ class Capture {
   readonly #placed: PlacedCall;
   readonly #reader: ApiReader | undefined;
   #ended = false;
+  /** When the first chunk carrying output arrived, on a call read in full. */
   #firstChunkAt: bigint | undefined;
   /** When the agent closed its connection before the call ended, and the chunks it had by then. */
   #closedAt: bigint | undefined;
@@ -279,11 +281,15 @@ class Capture {
   chunk(chunk: {event?: string; id?: string; data: string}): void {
     if (this.#ended) return;
     const at = this.#state.now();
-    this.#firstChunkAt ??= at;
     const spanEvent = chunkEvent(at.toString(), chunk);
     this.spanEvents.push(spanEvent);
     const body = spanEvent.attributes?.['a2ui.http.response.chunk.body'];
-    this.chunks.push({...(chunk.event !== undefined && {event: chunk.event}), data: body});
+    const read: StreamChunk = {...(chunk.event !== undefined && {event: chunk.event}), data: body};
+    this.chunks.push(read);
+    // The first chunk is the first that carries output, on a call read in full.
+    if (this.#firstChunkAt === undefined && this.#reader?.carriesOutput(read) === true) {
+      this.#firstChunkAt = at;
+    }
     this.#state.options.onCall?.({
       type: 'call_chunk',
       traceId: this.#placed.traceId,
@@ -319,7 +325,7 @@ class Capture {
       type: 'call_progress',
       traceId: this.#placed.traceId,
       spanId: this.event.spanId,
-      attributes: this.#reader.stream(this.chunks).attributes,
+      attributes: withContentFitted(this.#reader.stream(this.chunks).attributes),
     });
   }
 
@@ -364,10 +370,10 @@ class Capture {
           failure ??= {type: String(status), ...(message !== undefined && {message})};
         } else if (streamed) {
           const read = this.#reader.stream(this.chunks);
-          Object.assign(attributes, read.attributes);
+          Object.assign(attributes, withContentFitted(read.attributes));
           failure ??= read.error;
         } else if (body !== undefined) {
-          Object.assign(attributes, this.#reader.response(bodyJson(body)));
+          Object.assign(attributes, withContentFitted(this.#reader.response(bodyJson(body))));
         }
       } else if (status >= 400) {
         failure ??= {type: String(status)};
@@ -447,11 +453,13 @@ async function forward(
     if (placed !== undefined) {
       const bodyJsonValue = text === undefined ? undefined : bodyJson(text);
       capture = new Capture(state, placed, reader, start, {
-        ...reader?.request({
-          pathname: target.pathname,
-          search: target.searchParams,
-          body: bodyJsonValue,
-        }),
+        ...withContentFitted(
+          reader?.request({
+            pathname: target.pathname,
+            search: target.searchParams,
+            body: bodyJsonValue,
+          }) ?? {},
+        ),
         ...exchange,
         ...(answer?.type === 'served' && {'a2ui.replay.served_from': answer.event.spanId}),
       });

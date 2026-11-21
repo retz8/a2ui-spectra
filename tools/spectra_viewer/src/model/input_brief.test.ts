@@ -55,8 +55,8 @@ describe('inputBrief', () => {
   });
 
   it("is the first part's type when no part is text or an action", () => {
-    assert.deepEqual(inputBrief(input({type: 'data', content: {a: 1}}, {type: 'uri'})), {
-      partType: 'data',
+    assert.deepEqual(inputBrief(input({type: 'a2ui.data', content: {a: 1}}, {type: 'uri'})), {
+      partType: 'a2ui.data',
     });
   });
 

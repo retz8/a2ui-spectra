@@ -254,7 +254,7 @@
           "spanId": "0000000000000004",
           "parentSpanId": "dddddddddddddddd",
           "name": "notifications/message",
-          "kind": 4,
+          "kind": 2,
           "attributes": {
             "a2ui.event.kind": "tool_call",
             "mcp.method.name": "notifications/message",

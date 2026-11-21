@@ -70,6 +70,7 @@ def test_the_processors_parse_response_is_one_parse(spans: Any, processor: Any) 
     assert span.name == "parse"
     attributes = spans.attributes(span)
     assert attributes["a2ui.event.kind"] == "parse"
+    assert attributes["a2ui.record.version"] == "v0.1"
     assert attributes["a2ui.parse.entry_point"] == "parse_response"
     assert attributes["a2ui.parse.input"] == CARD_TEXT
     assert attributes["a2ui.parse.inference_format"] == "express"
@@ -120,6 +121,7 @@ def test_the_processors_prompt_is_one_prompt_generation(
     span = spans.one()
     assert span.name == "prompt_generation"
     attributes = spans.attributes(span)
+    assert attributes["a2ui.record.version"] == "v0.1"
     assert attributes["a2ui.prompt.ui_section"] == section
     assert attributes["a2ui.prompt.inference_format"] == "express"
     assert "gen_ai.tool.name" not in attributes

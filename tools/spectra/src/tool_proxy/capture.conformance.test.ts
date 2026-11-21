@@ -94,7 +94,7 @@ function expectedRecord(events: ToolCallEvent[]): TurnRecord {
           ...calls.map((call, index) => {
             const start = 1792577000100000000n + BigInt(index) * 10_000_000n;
             // A notification the server sent starts and ends at its arrival.
-            const instant = call.kind === 4 && call.attributes['jsonrpc.request.id'] === undefined;
+            const instant = call.kind === 2 && call.attributes['jsonrpc.request.id'] === undefined;
             return {
               traceId: TRACE_ID,
               spanId: (index + 1).toString(16).padStart(16, '0'),

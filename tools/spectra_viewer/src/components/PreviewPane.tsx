@@ -4,6 +4,7 @@ import {useLayoutEffect, useRef} from 'react';
 import {cn} from '@/lib/utils';
 import {type Route, unansweredLine} from '@/model/preview.ts';
 import {previewHost} from '@/state/preview_host.ts';
+import {useSpectra} from '@/state/spectra.ts';
 import {setViewSetting, type ViewSettings} from '@/state/view_settings.ts';
 
 import {Icon} from './icons.tsx';
@@ -26,6 +27,8 @@ export function PreviewPane({
   lines: readonly string[];
   width: ViewSettings['width'];
 }) {
+  // This Spectra's version, which a page of an older protocol is told to move its preview packages to.
+  const version = useSpectra().context?.version;
   if (route.kind === 'waiting') {
     return <Quiet>Loading the preview pages…</Quiet>;
   }
@@ -47,7 +50,7 @@ export function PreviewPane({
         </p>
         {route.unanswered.map(page => (
           <p key={page.id} className="max-w-110 text-xs text-muted-foreground wrap-anywhere">
-            {unansweredLine(page, PREVIEW_PROTOCOL)}
+            {unansweredLine(page, PREVIEW_PROTOCOL, version)}
           </p>
         ))}
       </div>

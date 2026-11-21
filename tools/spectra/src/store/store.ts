@@ -10,7 +10,9 @@ import {randomBytes} from 'node:crypto';
 import {mkdir, readdir, readFile, rename, rm, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 
+import {readRecord} from '../record/read_record.js';
 import {isEventOfKind, type Turn, type TurnEvent, type TurnRecord} from '../record/turn_record.js';
+import {WRITTEN_VERSION} from '../record/versions.js';
 import {NAME} from '../version.js';
 import {isReservedDeviceName, windowsCanHold} from '../windows/names.js';
 
@@ -283,13 +285,17 @@ export class TurnStore {
     return turns.sort(newestFirst);
   }
 
-  /** The record of a stored turn, by its file. */
+  /**
+   * The record of a stored turn, by its file. A file that does not read as
+   * a record of a version this release reads is refused, as `readRecord`
+   * refuses it, one of a newer version with the newer line.
+   */
   async read(file: string): Promise<TurnRecord> {
     const unwritten = this.#unwritten.get(file);
     if (unwritten !== undefined) {
       return unwritten;
     }
-    return JSON.parse(await readFile(this.#pathOf(file), 'utf8')) as TurnRecord;
+    return readRecord(await readFile(this.#pathOf(file), 'utf8'));
   }
 
   async #write(
@@ -301,7 +307,7 @@ export class TurnStore {
       stored.conversationId === undefined ? [] : await this.#latestTurns(folder);
     const turn = finish(earlier);
     const turns: Turn[] = [...earlier, turn];
-    const record: TurnRecord = {version: 'v0.1', turns: turns as TurnRecord['turns']};
+    const record: TurnRecord = {version: WRITTEN_VERSION, turns: turns as TurnRecord['turns']};
     await this.#writeFile(stored.file, record);
     return {stored, record};
   }
@@ -323,12 +329,9 @@ export class TurnStore {
       .concat([...this.#unwritten.keys()].filter(file => path.posix.dirname(file) === folder));
     for (const file of [...new Set(files)].sort().reverse()) {
       try {
-        const record = await this.read(file);
-        if (Array.isArray(record.turns)) {
-          return record.turns;
-        }
+        return (await this.read(file)).turns;
       } catch {
-        // A file that does not read as a record is passed over for the one before it.
+        // A file that does not read as a record, one of a newer version included, is passed over for the one before it.
       }
     }
     return [];

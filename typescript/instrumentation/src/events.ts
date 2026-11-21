@@ -35,6 +35,9 @@ export interface RecordCatalog {
   protocolVersion: string;
 }
 
+/** The turn record version every span of the step follows, as `a2ui.record.version`. */
+export const RECORD_VERSION = 'v0.1';
+
 const stack: Event[] = [];
 
 /** The open event, if a hooked call is running. */
@@ -304,7 +307,10 @@ export class PromptEvent extends Event {
       );
       return undefined;
     }
-    const attributes: Attributes = {'a2ui.event.kind': this.kind};
+    const attributes: Attributes = {
+      'a2ui.event.kind': this.kind,
+      'a2ui.record.version': RECORD_VERSION,
+    };
     if (this.errors.length === 0 && this.uiSection !== undefined) {
       attributes['a2ui.prompt.ui_section'] = this.uiSection;
     }
@@ -511,6 +517,7 @@ export class ParseEvent extends Event {
     this.stateBlocksWhole();
     const attributes: Attributes = {
       'a2ui.event.kind': this.kind,
+      'a2ui.record.version': RECORD_VERSION,
       'a2ui.parse.input': this.text(),
       'a2ui.parse.entry_point': this.entryPoint,
     };

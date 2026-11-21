@@ -136,7 +136,7 @@ export interface ReplyReading {
 
 /**
  * Reads a JSON-RPC response to a request of `method`: a JSON-RPC error is a
- * failed call, its code as `error.type` and `rpc.response.status_code`; a
+ * failed call, its code as `error.type` and `rpc.status_code`; a
  * `tools/call` result with `isError` is `error.type` `tool_error` with the
  * status kept; any other `tools/call` result is `gen_ai.tool.call.result`.
  */
@@ -146,7 +146,7 @@ export function readReply(method: string | undefined, reply: JsonRpcMessage): Re
     const {code, message} = error as {code?: unknown; message?: unknown};
     const type = typeof code === 'number' || typeof code === 'string' ? String(code) : 'error';
     return {
-      attributes: {'error.type': type, 'rpc.response.status_code': type},
+      attributes: {'error.type': type, 'rpc.status_code': type},
       error: {type, ...(typeof message === 'string' && {message})},
     };
   }

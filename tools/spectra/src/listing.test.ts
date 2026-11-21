@@ -125,7 +125,9 @@ describe('inputBriefOf', () => {
   });
 
   it("is the first part's type otherwise, and nothing with no parts", () => {
-    assert.deepEqual(inputBriefOf(input({type: 'data', content: {}})), {partType: 'data'});
+    assert.deepEqual(inputBriefOf(input({type: 'a2ui.data', content: {}})), {
+      partType: 'a2ui.data',
+    });
     assert.equal(inputBriefOf(input()), undefined);
   });
 });

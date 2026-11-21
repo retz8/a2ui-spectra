@@ -104,7 +104,7 @@ export function brokeOff(event: CallEvent, stated?: string): boolean {
     type !== String(status) &&
     type !== 'aborted' &&
     type !== 'cancelled' &&
-    type !== attributes['rpc.response.status_code'] &&
+    type !== attributes['rpc.status_code'] &&
     type !== stated
   );
 }

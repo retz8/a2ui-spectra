@@ -30,6 +30,9 @@ from .state import Active
 # A block's range in the input: start inclusive, end exclusive, in UTF-16 code units.
 Block = tuple[int, int]
 
+# The turn record version every span of the step follows, as `a2ui.record.version`.
+RECORD_VERSION = "v0.1"
+
 # The toolset's tool, by its name.
 TOOL_NAME = "send_a2ui_json_to_client"
 # The key of the toolset's result that holds the messages it validated.
@@ -315,7 +318,10 @@ class PromptEvent(Event):
         if self.first_error is None and self.ui_section is None:
             self.abandon_reason("it produced no section")
             return None
-        attributes: dict[str, AttributeValue] = {"a2ui.event.kind": self.kind}
+        attributes: dict[str, AttributeValue] = {
+            "a2ui.event.kind": self.kind,
+            "a2ui.record.version": RECORD_VERSION,
+        }
         if self.first_error is None and self.ui_section is not None:
             attributes["a2ui.prompt.ui_section"] = self.ui_section
         attributes["a2ui.prompt.inference_format"] = self.format
@@ -541,6 +547,7 @@ class ParseEvent(Event):
         self._state_blocks_whole()
         attributes: dict[str, AttributeValue] = {
             "a2ui.event.kind": self.kind,
+            "a2ui.record.version": RECORD_VERSION,
             "a2ui.parse.input": self.text(),
             "a2ui.parse.entry_point": self.entry_point,
         }

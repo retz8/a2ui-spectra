@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import type {Report} from 'a2ui-spectra-preview';
+import {isReadyMessage, type Report} from 'a2ui-spectra-preview';
 
 import {readRecording} from '../testing/recordings.ts';
 import {
@@ -239,6 +239,15 @@ describe("a page's load and its document's answer", () => {
     });
   });
 
+  it('reports a mismatch for a ready message carrying its type and its protocol number alone', () => {
+    const bare = {type: 'a2ui-spectra-preview/ready', protocol: 1} as const;
+    assert.ok(isReadyMessage(bare));
+    for (const answering of [NOT_LOADED, {load: 1, answered: 0}, {load: 1, answered: 1, claims}]) {
+      assert.equal(readyOf(answering, bare, SPEAKS).kind, 'mismatch');
+    }
+    assert.equal(isReadyMessage({type: 'a2ui-spectra-preview/ready', protocol: '1'}), false);
+  });
+
   it("takes a second ready of an answered document as the page ready again, React's development mode mounting twice", () => {
     const answered: Answering = {load: 1, answered: 1, claims};
     assert.deepEqual(readyOf(answered, ready, SPEAKS), {
@@ -321,11 +330,23 @@ describe('a page whose iframe has not loaded', () => {
       protocolVersion: 'v0.9',
     });
     assert.deepEqual(route, {kind: 'none', catalogId: CUSTOM, unanswered: [loading, silent, old]});
-    assert.equal(unansweredLine(loading, 2), `${url} is still loading`);
-    assert.equal(unansweredLine(silent, 2), 'http://localhost:5175/preview has not answered');
+    assert.equal(unansweredLine(loading, 2, '0.1.0'), `${url} is still loading`);
     assert.equal(
-      unansweredLine(old, 2),
-      'http://localhost:5176/preview: preview page speaks protocol 1, this Spectra speaks 2',
+      unansweredLine(silent, 2, '0.1.0'),
+      'http://localhost:5175/preview has not answered',
+    );
+  });
+
+  it("names the side to upgrade for a page of another protocol: the page's preview packages, to this Spectra's version, or Spectra", () => {
+    const older = page('http://localhost:5176/preview', {status: 'mismatch', protocol: 1});
+    const newer = page('http://localhost:5177/preview', {status: 'mismatch', protocol: 3});
+    assert.equal(
+      unansweredLine(older, 2, '0.1.0'),
+      "http://localhost:5176/preview: preview page speaks protocol 1, this Spectra speaks 2 · upgrade the page's a2ui-spectra-preview and its adapter to 0.1.0",
+    );
+    assert.equal(
+      unansweredLine(newer, 2, '0.1.0'),
+      'http://localhost:5177/preview: preview page speaks protocol 3, this Spectra speaks 2 · upgrade a2ui-spectra',
     );
   });
 

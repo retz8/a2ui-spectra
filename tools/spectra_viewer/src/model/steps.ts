@@ -502,7 +502,7 @@ function stepsOfEvent(event: WireEvent, eventIndex: number): Step[] {
         id,
         kind: 'data',
         icon: 'data',
-        label: part.type === 'data' ? 'Data' : part.type,
+        label: part.type === 'a2ui.data' ? 'Data' : part.type,
         target: dataTarget(part.content),
         position,
         part,
@@ -515,7 +515,8 @@ function inputTarget(event: WireInputEvent): string {
   const brief = inputBrief(event);
   if (brief === undefined) return '';
   if ('text' in brief) return brief.text;
-  if ('partType' in brief) return `${brief.partType} part`;
+  if ('partType' in brief)
+    return `${brief.partType === 'a2ui.data' ? 'data' : brief.partType} part`;
   const surfaceId = actionSurfaceOf(event.attributes['a2ui.wire.message'].parts);
   return surfaceId === undefined
     ? `Action “${brief.action}”`

@@ -30,4 +30,6 @@ export interface ApiReader {
   stream(chunks: StreamChunk[]): {attributes: Record<string, unknown>; error?: StreamError};
   /** The provider's error message in a reply of 400 or above. */
   errorMessage(body: unknown): string | undefined;
+  /** Whether a server-sent event of a stream carries output, as the time to the first chunk counts one. */
+  carriesOutput(chunk: StreamChunk): boolean;
 }

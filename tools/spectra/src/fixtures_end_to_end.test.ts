@@ -209,7 +209,8 @@ describe(`fixtures and replay against the stub agent, ${binary ? 'the binary' : 
           const record = await recordWithVerdict(base, turn.traceId);
           assert.deepEqual(turnRecordErrors(record), []);
           const attributes = turnEventOf(record.turns.at(-1)!).attributes;
-          assert.equal(attributes['a2ui.replay.source'], path.join('fixtures', 'greet-ada.json'));
+          // Forward slashes on every platform.
+          assert.equal(attributes['a2ui.replay.source'], 'fixtures/greet-ada.json');
           assert.equal(attributes['a2ui.replay.turn'], [first.traceId, second.traceId][index]);
           assert.equal(attributes['a2ui.replay.mode'], 'model_live');
           assert.equal(attributes['a2ui.replay.verdict'], 'passed');
@@ -444,7 +445,8 @@ describe(`fixtures and replay against the stub agent, ${binary ? 'the binary' : 
             assert.equal(record.turns.length, index + 1, 'One new conversation.');
             const turn = record.turns.at(-1)!;
             const attributes = turnEventOf(turn).attributes;
-            assert.equal(attributes['a2ui.replay.source'], path);
+            // The record's source has forward slashes; the event's, the platform's.
+            assert.equal(attributes['a2ui.replay.source'], path.replaceAll('\\', '/'));
             assert.equal(attributes['a2ui.replay.turn'], recordedTurns[index]);
             assert.equal(attributes['a2ui.replay.mode'], 'live');
             assert.equal(attributes['a2ui.replay.verdict'], undefined);
