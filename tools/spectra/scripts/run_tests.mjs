@@ -1,7 +1,8 @@
 // The tool's test target, `yarn test`: Node's test runner over the compiled tests in `dist/`,
 // from `tools/spectra/`. `SPECTRA_TEST_PART` runs one part of them: `wrapper-capture`, the
-// wrapper capture suite alone, or `others`, every other file; unset or empty, every file. CI runs
-// the macOS x64 binary test run as the two parts, on two runners.
+// wrapper capture suite alone; `command-line`, the tests that run Spectra as a process from a
+// terminal, the install scripts and the npm launcher; or `others`, every other file; unset or
+// empty, every file. CI runs the macOS x64 binary test run as the three parts, on three runners.
 
 import {spawnSync} from 'node:child_process';
 import {readdirSync} from 'node:fs';
@@ -10,6 +11,12 @@ const DIST = 'dist';
 /** The named parts, each as its files under `dist/`; `others` is every file in none of them. */
 const PARTS = {
   'wrapper-capture': ['receiver/wrapper_capture.conformance.test.js'],
+  'command-line': [
+    'cli.test.js',
+    'install_scripts.test.js',
+    'npm/launcher.test.js',
+    'process_tree_end_to_end.test.js',
+  ],
 };
 
 const all = readdirSync(DIST, {recursive: true})

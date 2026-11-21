@@ -128,13 +128,16 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The macOS x64 runner, the slowest, runs the tool's test target as two parts, on two runners.
+        # The macOS x64 runner, the slowest, runs the tool's test target as three parts, on three runners.
         include:
           - platform: darwin-arm64
             runner: macos-latest
           - platform: darwin-x64
             runner: macos-15-intel
             part: wrapper-capture
+          - platform: darwin-x64
+            runner: macos-15-intel
+            part: command-line
           - platform: darwin-x64
             runner: macos-15-intel
             part: others
