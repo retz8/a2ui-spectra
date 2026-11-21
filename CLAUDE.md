@@ -27,4 +27,5 @@ The dev workflow (phases → sub-tasks, dispatch, branching, wrap-up) lives in t
 - **Work directly on `main`.** No branches or worktrees, and no separate planning step.
 - **`_dev/` lives on `main`.** `_dev/TODO.md` and everything under `_dev/docs/` is edited and committed on `main` only — never on a branch, such as a nightly routine's PR branch.
 - **Nightly routine.** A scheduled Claude cloud Routine drains `autonomous-ready` issues into labelled PRs per the harness's autonomous contract; triage with `daily-work-harness:review-nightly`. Labels must be provisioned on the repo.
+- **Push in batches.** CI cancels a run when a newer push lands on the same branch, and a run takes over ten minutes. Commit locally as the work goes, and push once a step of a sub-task is whole, not after each commit; before pushing, check that no CI run on `main` is in progress whose result is still wanted.
 - **Commit convention:** conventional commits — `<type>(phase-<N>): …` for phase/sub-task work, bare `<type>: …` off-phase.
