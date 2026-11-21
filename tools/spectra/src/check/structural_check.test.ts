@@ -106,7 +106,7 @@ describe('the structural check', () => {
     ]);
   });
 
-  it('reports a surface with no root as a finding of the whole surface, saying when web core emptied it', () => {
+  it('reports a surface with no root as a finding of the whole surface, saying when web core refused the message carrying it', () => {
     const plain = run(
       testTurn({
         messages: [
@@ -145,6 +145,18 @@ describe('the structural check', () => {
           "The surface 's' has no component with the id 'root': web core refused the updateComponents that carried one.",
       },
     ]);
+    const refusedWithoutRoot = run(
+      testTurn({
+        messages: [
+          createSurface('s'),
+          updateComponents('s', [{id: 'b', component: 'Text', text: 'B', colour: 'red'}]),
+        ],
+      }),
+    );
+    assert.deepEqual(
+      refusedWithoutRoot.findings.map(({code, message}) => [code, message]),
+      [['ROOT_MISSING', "The surface 's' has no component with the id 'root'."]],
+    );
   });
 
   it("turns web core's refusal of a cycle and of a duplicate id into findings on the message", () => {

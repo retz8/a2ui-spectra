@@ -14,7 +14,7 @@
  */
 import type {Finding} from '../record/turn_record.js';
 import type {CheckResult} from './check_event.js';
-import type {Conversation, Rejection} from './conversation.js';
+import {type Conversation, isObject, type Rejection} from './conversation.js';
 import {propertyPathPointer} from './pointers.js';
 import {SkippedList, skippedSurface} from './skipped.js';
 
@@ -55,7 +55,8 @@ export function checkStructural(conversation: Conversation): CheckResult {
         message =>
           message.surfaceId === surfaceId &&
           message.type === 'updateComponents' &&
-          message.rejection !== undefined,
+          message.rejection !== undefined &&
+          carriesComponent(message.message, message.type, rootId),
       );
       findings.push({
         code: 'ROOT_MISSING',
@@ -110,6 +111,16 @@ export function checkStructural(conversation: Conversation): CheckResult {
     });
   }
   return {findings, skipped: skipped.list};
+}
+
+/** Whether a message's body under its type carries a component with the id. */
+function carriesComponent(message: unknown, type: string, id: string): boolean {
+  const body = isObject(message) ? message[type] : undefined;
+  const components = isObject(body) ? body.components : undefined;
+  return (
+    Array.isArray(components) &&
+    components.some(component => isObject(component) && component.id === id)
+  );
 }
 
 /** The structural code of what web core threw, when it threw for the surface's structure. */
