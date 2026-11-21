@@ -47,8 +47,13 @@
         Join-Path $env:LOCALAPPDATA "Programs\a2ui-spectra\bin"
     }
 
-    # The release has a windows-x64 binary alone, and Windows on ARM64 is not supported
+    # The release has a windows-x64 binary alone, and Windows on ARM64 is not supported. An x64
+    # process under emulation on ARM64 reads AMD64, with no PROCESSOR_ARCHITEW6432; the
+    # processor's identifier, which it inherits, still names an ARM processor
     $NativeArch = if ($env:PROCESSOR_ARCHITEW6432) { $env:PROCESSOR_ARCHITEW6432 } else { $env:PROCESSOR_ARCHITECTURE }
+    if ($NativeArch -eq "AMD64" -and $env:PROCESSOR_IDENTIFIER -like "ARM*") {
+        $NativeArch = "ARM64"
+    }
     if ($NativeArch -ne "AMD64") {
         throw "Unsupported Windows architecture: $NativeArch. The a2ui-spectra binary requires an x64 host."
     }

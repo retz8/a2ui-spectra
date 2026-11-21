@@ -712,12 +712,16 @@ const CASES: Case[] = [
     },
   },
   {
-    name: 'refuses Windows on arm64, from a 64-bit process or a 32-bit one',
+    name: 'refuses Windows on arm64, from a 64-bit process, a 32-bit one or an x64 one under emulation',
     scripts: [PS1],
     async run(interpreter, form) {
+      // An x64 process under emulation reads AMD64 and no PROCESSOR_ARCHITEW6432, and inherits
+      // the processor's identifier, as PowerShell 7 for x64 read them on a Windows arm64 runner.
+      const arm = 'ARMv8 (64-bit) Family 8 Model D49 Revision   0, MICROSOFT CORPORATION';
       for (const env of [
         {PROCESSOR_ARCHITECTURE: 'ARM64'},
         {PROCESSOR_ARCHITECTURE: 'x86', PROCESSOR_ARCHITEW6432: 'ARM64'},
+        {PROCESSOR_ARCHITECTURE: 'AMD64', PROCESSOR_IDENTIFIER: arm},
       ]) {
         const run = await install(interpreter, form, {env});
         assertRefused(
