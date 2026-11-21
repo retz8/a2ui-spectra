@@ -181,6 +181,15 @@ export class AgentSupervisor {
   }
 
   /**
+   * Whether anything of the command's process group may still run: its own
+   * process, or what is left of the group after it exited, until the group's
+   * stop has ended.
+   */
+  get groupRunning(): boolean {
+    return this.#launch !== undefined && !this.#launch.ended;
+  }
+
+  /**
    * Asks for a restart, and returns at once. Running, it is the cut, the
    * stop, the spawn and the wait for the card; down, the spawn and the wait;
    * during a card wait, the starting process stopped and the command spawned
@@ -213,7 +222,7 @@ export class AgentSupervisor {
     });
   }
 
-  /** Force-kills the command and everything it started, at once. */
+  /** Force-kills the command and everything it started, at once, what is left of it after the command exited included. */
   kill(): void {
     this.#launch?.process.kill();
   }

@@ -255,6 +255,8 @@ export async function runSession(
   /** The agent's process under the headless commands, which end when it does. */
   let agent: AgentProcess | undefined;
   let agentExit: AgentExit | undefined;
+  /** Whether the stop of the headless commands' agent process group has ended. */
+  let agentStopped = false;
   /** The agent's process under `run`, which Spectra outlives. */
   let supervisor: AgentSupervisor | undefined;
   /** Stops the watch that restarts the agent on a save, under `run`. */
@@ -282,7 +284,7 @@ export async function runSession(
       stop.abort();
     } else if (underNpmLauncher && signal === stoppedBy && PASSED_ON.has(signal)) {
       // The stop's own signal again, passed on by the launcher after reaching Spectra directly.
-    } else if (agentAlive()) {
+    } else if (agentGroupRunning()) {
       out.info("Forcing the agent's process to stop.");
       agent?.kill();
       supervisor?.kill();
@@ -633,6 +635,7 @@ export async function runSession(
     await recorder.idle();
     if (agent !== undefined) {
       const stopped = await agent.stop();
+      agentStopped = true;
       if (stopped.forceKilled) out.info(forceKilledLine());
       agentExit = await agent.exited;
     }
@@ -664,6 +667,15 @@ export async function runSession(
   /** Whether the agent's own process is running, under `run` and the headless commands. */
   function agentAlive(): boolean {
     return supervisor?.alive ?? (agent !== undefined && agentExit === undefined);
+  }
+
+  /**
+   * Whether anything of the agent's process group may still run, under `run`
+   * and the headless commands: its own process, or what is left of the group
+   * after it exited, until the group's stop has ended.
+   */
+  function agentGroupRunning(): boolean {
+    return supervisor?.groupRunning ?? (agent !== undefined && !agentStopped);
   }
 }
 

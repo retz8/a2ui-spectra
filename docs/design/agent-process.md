@@ -366,7 +366,7 @@ Every line Spectra says about the agent's process, as the code writes it:
 | `The agent's process exited with code 1. Restart it from the viewer.`         | An exit the agent took on its own, with ` before its card answered` when it never answered                                                                          |
 | `The agent's process did not stop within 10 seconds, so it was force-killed.` | Whenever the grace runs out, in a restart, after an exit or in Spectra's stop                                                                                       |
 | `Stopping the agent's process. Press Ctrl-C again to force it.`               | Spectra's stop begins while the command's own process runs; `Stopping.` otherwise                                                                                   |
-| `Forcing the agent's process to stop.`                                        | A second stop while the command's own process still runs                                                                                                            |
+| `Forcing the agent's process to stop.`                                        | A second stop while anything of the agent's process group runs, the command's own process or what is left after it exited                                           |
 | `Spectra failed while handling the agent's process: <message>`                | An error inside Spectra while it started, restarted or stopped the process                                                                                          |
 
 The restart on save lines are in [Restart on save](#restart-on-save), and the line for a batch file's argument in [On Windows](#on-windows).
@@ -380,7 +380,7 @@ Ctrl-C, SIGTERM and SIGHUP stop Spectra on macOS and Linux; on Windows, Ctrl-C, 
 3. **Stops the agent's process group**, in whatever state the agent is: SIGTERM to the group, then the force-kill after 10 seconds. On Windows the stop signal is a console Ctrl-Break and the group the agent's Job Object.
 4. **Closes the OpenTelemetry receiver last**, once the agent has gone, for the spans its exporter flushes as it stops.
 
-A second stop while the command's own process still runs forces it at once: `Forcing the agent's process to stop.`, and the group is killed. Spectra exits with 128 plus the number of the signal that began the stop: 130 after Ctrl-C, 143 after SIGTERM, 129 after SIGHUP.
+A second stop while anything of the agent's process group runs forces it at once, the command's own process or what is left of the group after it exited: `Forcing the agent's process to stop.`, and the group is killed. Spectra exits with 128 plus the number of the signal that began the stop: 130 after Ctrl-C, 143 after SIGTERM, 129 after SIGHUP.
 
 #### Under the npm launcher
 

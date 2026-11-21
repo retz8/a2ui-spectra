@@ -1251,6 +1251,54 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
     });
 
     it(
+      "forces what is left of the agent's process group on a second stop signal, after the command exited on its own",
+      {timeout: TIMEOUT, skip: !posix},
+      async () => {
+        const dir = mkdtempSync(path.join(tmpdir(), 'spectra-test-'));
+        try {
+          const pidFile = path.join(dir, 'grandchild.pid');
+          const parentFile = path.join(dir, 'parent.pid');
+          const args = await runArgs([]);
+          const command = args.indexOf('--');
+          // The command starts a child that ignores the stop signal, and exits once the child is ready.
+          const spectra = new SpectraProcess([
+            ...args.slice(0, command + 1),
+            process.execPath,
+            '-e',
+            [
+              "const {spawn} = require('node:child_process');",
+              "const {existsSync, writeFileSync} = require('node:fs');",
+              'writeFileSync(process.argv[2], String(process.pid));',
+              'spawn(process.execPath, ["-e", "process.on(\'SIGTERM\', () => {}); require(\'node:fs\').writeFileSync(process.argv[1], String(process.pid)); setInterval(() => {}, 1000)", process.argv[1]], {stdio: "ignore"});',
+              'setInterval(() => { if (existsSync(process.argv[1])) process.exit(3); }, 20);',
+            ].join(' '),
+            pidFile,
+            parentFile,
+          ]);
+          assert.ok(await eventually(() => existsSync(pidFile) && existsSync(parentFile)));
+          const parent = Number(readFileSync(parentFile, 'utf8'));
+          assert.ok(await eventually(() => !isAlive(parent)), "The agent's command did not exit.");
+          const grandchild = Number(readFileSync(pidFile, 'utf8'));
+          await new Promise(resolve => setTimeout(resolve, 200));
+          spectra.requestStop();
+          await spectra.waitFor(/: Stopping\.$/m);
+          const forcedAt = Date.now();
+          spectra.signal('SIGINT');
+          const exit = await spectra.exited;
+          assert.equal(exit.code, STOPPED_CODE, spectra.output);
+          assert.match(spectra.output, /Forcing the agent's process to stop\./);
+          assert.ok(Date.now() - forcedAt < 5000, 'The group went at once, not after the grace.');
+          assert.ok(
+            await eventually(() => !isAlive(grandchild)),
+            "The agent's grandchild outlived Spectra.",
+          );
+        } finally {
+          rmSync(dir, {recursive: true, force: true});
+        }
+      },
+    );
+
+    it(
       'does not load a .env file from its working directory',
       {
         timeout: TIMEOUT,
