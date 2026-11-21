@@ -10,7 +10,7 @@ The Agent Skills format is as its specification states it, https://agentskills.i
 
 In scope:
 
-- The skill, `skills/a2ui-spectra/SKILL.md`.
+- The skill, `skills/a2ui-spectra/`: `SKILL.md` and its Windows file, `references/windows.md`.
 - A test in the tool's test target holding the skill's statements to the built binary and the stub agent, and its frontmatter to the Agent Skills format.
 - The root README's lines on getting the skill, for each agent product the trial passed on.
 - The trial of the skill by hand, on three agent products.
@@ -19,7 +19,7 @@ In scope:
 
 Out of scope:
 
-- A helper script bundled with the skill, and a `references/` folder.
+- A helper script bundled with the skill.
 - A new subcommand on the binary, for sending a turn, reading one, or printing or installing the skill.
 - The skill carried in the binary's packages or in any release artifact.
 - A plugin marketplace entry.
@@ -37,13 +37,13 @@ One skill covers both. The debugging loop is its body; setup is a short section 
 
 The command has no subcommand that sends a message or prints a turn's record. The skill teaches the routes under `/api/` that `docs/design/api.md` describes, called with `curl`: the send, which answers with the turn's trace id, and the turn's record, asked for until the turn has closed.
 
-### 3. The skill lives at `skills/a2ui-spectra/SKILL.md`
+### 3. The skill lives at `skills/a2ui-spectra/`
 
 In this repository, at its root, as upstream has `skills/a2ui/`. The adopter copies the folder into their agent's skills folder, and the root README says how. The skill is read from `main` and is tied to no installed version.
 
-### 4. One self-contained file
+### 4. `SKILL.md`, and one reference file for Windows
 
-`SKILL.md` holds the whole loop and the short setup section. What it does not hold, the wrapper, the preview page and the config file's tool servers among them, it reaches by GitHub URLs on `main` to the documents of sub-task 10.9. The Agent Skills specification advises keeping `SKILL.md` under 500 lines.
+`SKILL.md` holds the whole loop and the short setup section. The commands PowerShell writes differently are in `references/windows.md`, which `SKILL.md` links and a coding agent reads on Windows alone. What the skill does not hold, the wrapper, the preview page and the config file's tool servers among them, it reaches by GitHub URLs on `main` to the documents of sub-task 10.9. The Agent Skills specification advises keeping `SKILL.md` under 500 lines.
 
 ### 5. What the loop covers
 
@@ -78,7 +78,7 @@ The trial runs on Claude Code, Codex CLI and Gemini CLI, each a fresh session wi
 
 ### 10. Windows
 
-The skill's body is written for a POSIX shell. One short Windows section holds what differs alone: `curl.exe`, the background start, and the JSON body's quoting. The test of decision 7 runs the POSIX commands on the POSIX platforms and the Windows section's commands on the Windows runner. No coding agent is tried on Windows.
+`SKILL.md` is written for a POSIX shell. The Windows file holds what differs alone: `curl.exe`, the JSON body's quoting, the background start and stop, and the two waits. The test of decision 7 runs the POSIX commands on the POSIX platforms and the Windows file's commands on the Windows runner. No coding agent is tried on Windows.
 
 ### 11. What the trial proves before anything is published
 
