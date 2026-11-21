@@ -5,8 +5,8 @@ This doc explains the routes Spectra's server answers under `/api/` and its live
 The running example is Spectra's own stub agent, [`conformance/stub_agent`](../../conformance/README.md#the-stub-agent), a small agent serving A2A, the Agent2Agent protocol, in its canned A2UI conversation. It answers without a model, so every request and answer below is cut from a real run: its first reply is a form asking for a name, and when the form's Greet button sends its action back, it greets the name.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="diagrams/api-dark.svg">
-  <img alt="The viewer and a script call the same server on 127.0.0.1. Every request passes the host check, which answers localhost, 127.0.0.1, [::1] and the names given with --allow-host. The read routes answer from the store; the change routes take JSON only, and a send goes through the message box to the agent; the live stream carries the events of each turn as it happens, from the wire proxy, the model and tool proxies and the receiver." src="diagrams/api.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="diagrams/api-dark.png">
+  <img alt="The viewer, in a browser, and a script, such as curl or a coding agent, are callers alike of Spectra on 127.0.0.1. A send goes from a caller to the routes, which hand its text or action to the message box. The box sends it over A2A through the wire proxy, which opens the turn, to the agent. The routes answer the send with the turn's trace id. The turn's events go out on the live stream, GET /api/stream, to the callers. Once the turn is checked, it is written to the store, .a2ui-spectra/turns in the working directory, and the routes answer with its record." src="diagrams/api.png">
 </picture>
 
 ## Problem it solves
