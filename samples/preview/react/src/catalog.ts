@@ -4,7 +4,7 @@
  * `samples/preview/catalog.json`, carries. Beside it, the v1.0 basic catalog,
  * which the React renderer draws through web core's own elements.
  */
-import type {ReactCatalogComponent} from '@a2ui/react/v0_9';
+import type {ReactCatalogComponent} from '@a2ui/react';
 import {basicCatalog as basicCatalogV10} from '@a2ui/web_core/catalogs/basic/v1';
 import {Catalog} from '@a2ui/web_core/v0_9';
 import {basicCatalog} from '@a2ui/web_core/v0_9/basic_catalog';

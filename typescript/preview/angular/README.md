@@ -19,7 +19,7 @@ npm install --save-dev a2ui-spectra-preview-angular
 1. Add a small page to your catalog's dev server, an application bootstrapped with the same `provideA2Ui` config your real host's app config has, and `provideMarkdownRenderer` when your host uses one, whose root component holds `<a2ui-spectra-preview />`:
 
    ```ts
-   import {provideA2Ui, provideMarkdownRenderer} from '@a2ui/angular/v0_9';
+   import {provideA2Ui, provideMarkdownRenderer} from '@a2ui/angular';
    import {renderMarkdown} from '@a2ui/markdown-it';
    import {Component, provideZonelessChangeDetection} from '@angular/core';
    import {bootstrapApplication} from '@angular/platform-browser';
@@ -43,7 +43,7 @@ npm install --save-dev a2ui-spectra-preview-angular
    });
    ```
 
-   The component takes no inputs: it reads the page's renderer config. The config's catalogs are the page's claims: Spectra sends the page every surface whose catalog one of them carries.
+   Import from the renderer's package root, `@a2ui/angular`: it draws every version Spectra reads, v0.9, v0.9.1 and v1.0. The component takes no inputs: it reads the page's renderer config. The config's catalogs are the page's claims: Spectra sends the page every surface whose catalog one of them carries.
 
 2. Name the page's URL in Spectra's config file, `a2ui-spectra.json`, under `preview`, beside your catalog's definition under `catalogs`. The sample's config file:
 

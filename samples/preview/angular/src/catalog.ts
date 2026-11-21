@@ -4,8 +4,7 @@
  * `samples/preview/catalog.json`, carries. Beside it, the Angular renderer's
  * own v1.0 basic catalog, whose components are web core's own elements.
  */
-import {BasicCatalogBase} from '@a2ui/angular';
-import {AngularCatalog, BASIC_COMPONENTS, BASIC_FUNCTIONS} from '@a2ui/angular/v0_9';
+import {AngularCatalog, BASIC_COMPONENTS, BASIC_FUNCTIONS, BasicCatalogBase} from '@a2ui/angular';
 import {BasicCatalogThemeSchema} from '@a2ui/web_core/v0_9/basic_catalog';
 
 import {customSlider} from './custom_slider.component';

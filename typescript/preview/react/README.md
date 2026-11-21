@@ -19,7 +19,7 @@ npm install --save-dev a2ui-spectra-preview-react
 1. Add a small page to your catalog's dev server, with `SpectraPreview` inside the providers your real host wraps its surfaces in, and the catalogs your host passes to its message processor:
 
    ```tsx
-   import {MarkdownContext} from '@a2ui/react/v0_9';
+   import {MarkdownContext} from '@a2ui/react';
    import {renderMarkdown} from '@a2ui/markdown-it';
    import {SpectraPreview} from 'a2ui-spectra-preview-react';
    import {createRoot} from 'react-dom/client';
@@ -33,7 +33,7 @@ npm install --save-dev a2ui-spectra-preview-react
    );
    ```
 
-   The catalogs are the page's claims: Spectra sends the page every surface whose catalog one of them carries.
+   Import from the renderer's package root, `@a2ui/react`: it draws every version Spectra reads, v0.9, v0.9.1 and v1.0. The catalogs are the page's claims: Spectra sends the page every surface whose catalog one of them carries.
 
 2. Name the page's URL in Spectra's config file, `a2ui-spectra.json`, under `preview`, beside your catalog's definition under `catalogs`. The sample's config file:
 

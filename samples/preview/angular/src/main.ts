@@ -5,7 +5,7 @@
  * config: universal components on, which the v1.0 basic catalog's
  * components need.
  */
-import {provideA2Ui, provideMarkdownRenderer} from '@a2ui/angular/v0_9';
+import {provideA2Ui, provideMarkdownRenderer} from '@a2ui/angular';
 import {renderMarkdown} from '@a2ui/markdown-it';
 import {Component, provideZonelessChangeDetection} from '@angular/core';
 import {bootstrapApplication} from '@angular/platform-browser';

@@ -4,7 +4,7 @@
  * upstream's Lit and Angular explorers have it. Its API and its binding to
  * the catalog are here; its markup is `SliderBody.tsx`.
  */
-import {createComponentImplementation} from '@a2ui/react/v0_9';
+import {createComponentImplementation} from '@a2ui/react';
 import {type ComponentApi, DynamicNumberSchema, DynamicStringSchema} from '@a2ui/web_core/v0_9';
 import {z} from 'zod';
 

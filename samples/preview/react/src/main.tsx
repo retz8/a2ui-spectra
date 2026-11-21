@@ -4,7 +4,7 @@
  * host using them wraps its surfaces in.
  */
 import {renderMarkdown} from '@a2ui/markdown-it';
-import {MarkdownContext} from '@a2ui/react/v0_9';
+import {MarkdownContext} from '@a2ui/react';
 import {SpectraPreview} from 'a2ui-spectra-preview-react';
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';

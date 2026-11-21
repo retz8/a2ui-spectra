@@ -3,7 +3,7 @@
  * number and writes it back to the data model as it is dragged, as
  * upstream's Angular explorer has it.
  */
-import {CatalogComponent, createComponentImplementation} from '@a2ui/angular/v0_9';
+import {CatalogComponent, createComponentImplementation} from '@a2ui/angular';
 import {type ComponentApi, DynamicNumberSchema, DynamicStringSchema} from '@a2ui/web_core/v0_9';
 import {ChangeDetectionStrategy, Component} from '@angular/core';
 import {z} from 'zod';
