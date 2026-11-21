@@ -17,6 +17,7 @@ In scope:
 - The licence material a release carries.
 - The root README's install steps, the packages' READMEs as a DX product, the design docs in `docs/design/`, and a stable public URL for the config file's schema.
 - A skill for a coding agent using Spectra.
+- The viewer's accent colour following A2UI's documentation site, now blue on a2ui.org.
 - An `AGENTS.md` file, and the `CLAUDE.md` file turned into a local file.
 - SPEC.md's roadmap, distribution, preview and open list, and `_dev/TODO.md`'s phases, brought in line with this spec.
 
@@ -156,8 +157,9 @@ The npm packages that hold the binary, one per platform, are named with the `a2u
 | 10.12 The agent instructions | An `AGENTS.md` file; the `CLAUDE.md` file turned into a local file | At once |
 | 10.13 The wrappers' OpenTelemetry versions | Which OpenTelemetry releases the TypeScript and Python wrappers support, and the ranges their manifests state | At once |
 | 10.14 The published Python releases | The local patches of `a2ui-core`, `a2ui-agent-sdk` and `a2ui-a2a` giving way to PyPI's releases; the smoke check on the published agent SDKs; the documents' statements about those releases | At once; before 10.10 |
+| 10.15 The accent colour | The viewer's accent following the primary colour of A2UI's documentation site, now blue on a2ui.org, in place of its teal: the design canvas, the viewer, and the documents' screenshots | At once; before 10.10 |
 
-Sub-tasks 10.1, 10.4, 10.8, 10.12, 10.13 and 10.14, and the design docs of 10.9, run in parallel.
+Sub-tasks 10.1, 10.4, 10.8, 10.12, 10.13, 10.14 and 10.15, and the design docs of 10.9, run in parallel.
 
 ### 20. Phase 11, the release
 
