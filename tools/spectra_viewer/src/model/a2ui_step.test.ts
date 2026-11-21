@@ -16,6 +16,7 @@ import {
   a2uiStepErrorsOf,
   formatNameOf,
   generationProblemOf,
+  generationTitleOf,
   parseOfComponent,
   parseOfMessage,
   parseProblemsOf,
@@ -533,6 +534,21 @@ describe('what the A2UI step says in the detail', () => {
     delete bare.attributes['otel.scope.name'];
     delete bare.attributes['otel.scope.version'];
     assert.equal(sourceLineOfStep(bare), 'A2UI step spans');
+  });
+
+  it('titles a failed prompt generation with its format and its scope, or its scope alone', () => {
+    const failure = {type: 'ValueError', message: 'No catalog.'};
+    const titleOf = (format?: string) => {
+      const generation = promptGeneration({spanId: 'g', start: 5, failure});
+      const attributes: Record<string, unknown> = generation.attributes;
+      if (format === undefined) delete attributes['a2ui.prompt.inference_format'];
+      const step = timelineOf([...events, generation], startMs).find(
+        (row): row is Step => row.row === 'step' && row.generation?.spanId === 'g',
+      )!;
+      return generationTitleOf(step).target;
+    };
+    assert.equal(titleOf('direct_json'), 'Direct JSON · a2ui-spectra-instrumentation 0.1.0');
+    assert.equal(titleOf(), 'a2ui-spectra-instrumentation 0.1.0');
   });
 
   it('names the model call a parse read, as a link, or that it is tied to none', () => {

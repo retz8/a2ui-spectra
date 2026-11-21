@@ -491,6 +491,16 @@ export function parseTitleOf(step: Step, startMs: number): {target: string; time
   };
 }
 
+/** A failed prompt generation's title line: its format, when it names one, with its source, then its offset. */
+export function generationTitleOf(step: Step): {target: string; times: string} {
+  return {
+    target: [step.target, sourceLineOfStep(step.generation!)]
+      .filter(part => part !== '')
+      .join(' · '),
+    times: formatOffset(step.offsetMs ?? 0),
+  };
+}
+
 function rowOffsetOf(
   events: readonly TurnRecordEvent[],
   rowId: string,

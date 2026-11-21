@@ -1,7 +1,7 @@
 import {useState} from 'react';
 
 import {cn} from '@/lib/utils';
-import {parseTitleOf, sourceLineOfStep} from '@/model/a2ui_step.ts';
+import {generationTitleOf, parseTitleOf} from '@/model/a2ui_step.ts';
 import type {NodeRef} from '@/model/address.ts';
 import type {Prices} from '@/model/cost.ts';
 import {legacyLinesOf, type StepLegacy} from '@/model/legacy_form.ts';
@@ -98,10 +98,7 @@ export function StepDetail({
       : row.parse !== undefined
         ? parseTitleOf(row, startMs)
         : row.generation !== undefined
-          ? {
-              target: `${row.target} · ${sourceLineOfStep(row.generation)}`,
-              times: formatOffset(row.offsetMs ?? 0),
-            }
+          ? generationTitleOf(row)
           : call === undefined
             ? undefined
             : callTitleOf(call, row.target, startMs);
