@@ -169,8 +169,8 @@ a2ui-spectra test -- uv run .
 Spectra is one local process at the edges every agent stack already has: the wire, the model and tool calls, and OpenTelemetry. So it works with any A2UI agent, in any language and on any framework.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/design/diagrams/spectra-dark.svg">
-  <img alt="Spectra at the edges of an agent: the host's turn passes through Spectra's wire proxy to your agent; the agent's model calls, tool calls and OpenTelemetry spans pass through the model proxy, the tool proxy and the receiver; each of the four feeds the viewer in your browser" src="docs/design/diagrams/spectra.svg">
+  <source media="(prefers-color-scheme: dark)" srcset="docs/design/diagrams/spectra-dark.png">
+  <img alt="Spectra at the edges of an agent. The viewer's message box sends a turn over A2A to Spectra's wire proxy, which opens the turn and passes it on to your agent. The agent's model calls go through the model proxy to Gemini, OpenAI or Anthropic, and its tool calls through the tool proxy to MCP servers and HTTP tools; each proxy records the call and passes it on as sent. The agent's OpenTelemetry spans go to the receiver over OTLP, and Spectra streams each turn live to the viewer." src="docs/design/diagrams/spectra.png">
 </picture>
 
 **Your keys stay yours.** Spectra runs on your machine and nothing is deployed. API keys and other credentials are removed from everything it records, before it shows or saves anything.
