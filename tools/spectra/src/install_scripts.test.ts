@@ -687,6 +687,9 @@ const CASES: Case[] = [
         '0.9..9',
         'not-a-version',
         '1.2',
+        '1.2.3.4',
+        '1.2.3-beta.1',
+        '01.2.3',
         '0.9.9;rm',
         `cli-v${VERSION}`,
       ]) {

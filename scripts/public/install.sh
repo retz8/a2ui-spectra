@@ -15,8 +15,9 @@
 #
 # Changed for a2ui-spectra: taken from scripts/public/install_cli.sh in
 # a2ui-project/a2ui at commit 0888f88b2835c44abdc871505f3f395e5ee0177d, and
-# changed in its names, its release tags, the two origins it reads and its
-# message on musl.
+# changed in its names, its release tags, the two origins it reads, its
+# message on musl and its version check, which takes three plain numbers alone,
+# as a release's version is.
 
 # Standalone, user-space installer for a2ui-spectra.
 #
@@ -125,13 +126,11 @@ case "$RAW_VERSION" in
     exit 1
     ;;
 esac
-case "$RAW_VERSION" in
-  [0-9]*.[0-9]*.[0-9]*) ;;
-  *)
-    echo "Error: Invalid semantic version format '$RAW_VERSION'." >&2
-    exit 1
-    ;;
-esac
+# A release's version is three plain numbers
+if ! printf '%s\n' "$RAW_VERSION" | grep -Eq '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$'; then
+  echo "Error: Invalid semantic version format '$RAW_VERSION'." >&2
+  exit 1
+fi
 
 ARCHIVE_NAME="a2ui-spectra-v${RAW_VERSION}-${TARGET}.tar.gz"
 DOWNLOAD_URL="${SERVER_URL}/${REPO}/releases/download/${TAG}/${ARCHIVE_NAME}"

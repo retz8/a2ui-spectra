@@ -14,8 +14,9 @@
 #
 # Changed for a2ui-spectra: taken from scripts/public/install_cli.ps1 in
 # a2ui-project/a2ui at commit 0888f88b2835c44abdc871505f3f395e5ee0177d, and
-# changed in its names, its release tags, the two origins it reads and its
-# refusal of Windows on arm64.
+# changed in its names, its release tags, the two origins it reads, its
+# refusal of Windows on arm64 and its version check, which takes three plain
+# numbers alone, as a release's version is.
 
 # Standalone, user-space installer for a2ui-spectra on Windows.
 #
@@ -88,7 +89,7 @@
     }
 
     $RawVersion = $Tag -replace "^v", ""
-    if ($RawVersion -notmatch '\A[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?\z' -or $RawVersion -match '\.\.') {
+    if ($RawVersion -notmatch '\A(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\z' -or $RawVersion -match '\.\.') {
         throw "Invalid a2ui-spectra version '$RawVersion'."
     }
     $Tag = "v$RawVersion"
