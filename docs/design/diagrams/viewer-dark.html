@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The viewer · Architecture</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --color-paper: #0e0f11;
+  --color-ink: #ecedef;
+  --color-muted: #aeb2b9;
+  --font-sans: 'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+}
+body { font-family: var(--font-sans); background: var(--color-paper); color: var(--color-ink); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 3rem 2rem; }
+.frame { max-width: 1200px; width: 100%; }
+.diagram-container { width: 100%; overflow-x: auto; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.66rem; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase; color: var(--color-muted); margin-bottom: 0.5rem; }
+h1 { font-family: var(--font-sans); font-size: clamp(1.5rem, 2.4vw + 0.75rem, 2rem); font-weight: 600; letter-spacing: -0.02em; line-height: 1.15; margin-bottom: 1.5rem; }
+svg { width: 100%; min-width: 960px; display: block; }
+@media print { .diagram-container { overflow-x: visible; } svg { min-width: 0; } }
+</style>
+</head>
+<body>
+<div class="frame">
+<p class="eyebrow">Architecture · Spectra for A2UI</p>
+<h1>The viewer&#8217;s page and where its data comes from</h1>
+<div class="diagram-container">
+<svg viewBox="0 0 960 640" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="viewer-dark-title viewer-dark-desc">
+<title id="viewer-dark-title">The viewer&#8217;s page and where its data comes from</title>
+<desc id="viewer-dark-desc">Spectra&#8217;s routes under /api/, read at connect, and its live stream feed the page; each area of the page, the rail, the context bar, the turn list, the turn view with its header, timeline, Preview, Structure, step&#8217;s detail and composer, and the logs drawer, is drawn from them, the preview by another page in an iframe.</desc>
+<defs>
+<marker id="arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#aeb2b9"/></marker>
+<marker id="arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#26a69a"/></marker>
+</defs>
+<rect width="100%" height="100%" fill="#0e0f11"/>
+<rect x="32" y="32" width="896" height="112" rx="8" fill="rgba(236,237,239,0.02)" stroke="rgba(236,237,239,0.1)" stroke-width="0.8"/>
+<rect x="48" y="36" width="48" height="12" rx="2" fill="#0e0f11"/>
+<text x="72" y="45" fill="#9a9ea6" font-size="7" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle" letter-spacing="0.14em">SPECTRA</text>
+<rect x="32" y="192" width="896" height="384" rx="8" fill="rgba(236,237,239,0.02)" stroke="rgba(236,237,239,0.1)" stroke-width="0.8"/>
+<rect x="48" y="196" width="136" height="12" rx="2" fill="#0e0f11"/>
+<text x="116" y="205" fill="#9a9ea6" font-size="7" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle" letter-spacing="0.14em">THE PAGE, IN THE BROWSER</text>
+<line x1="252" y1="120" x2="252" y2="190" stroke="#26a69a" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+<line x1="324" y1="192" x2="324" y2="122" stroke="#aeb2b9" stroke-width="1.2" marker-end="url(#arrow)"/>
+<line x1="672" y1="120" x2="672" y2="190" stroke="#26a69a" stroke-width="1.4" marker-end="url(#arrow-accent)"/>
+<rect x="180" y="156" width="64" height="12" rx="2" fill="#0e0f11"/>
+<text x="212" y="165" fill="#26a69a" font-size="8" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle" letter-spacing="0.06em">AT CONNECT</text>
+<rect x="332" y="156" width="48" height="12" rx="2" fill="#0e0f11"/>
+<text x="356" y="165" fill="#aeb2b9" font-size="8" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle" letter-spacing="0.06em">ACTIONS</text>
+<rect x="680" y="156" width="72" height="12" rx="2" fill="#0e0f11"/>
+<text x="716" y="165" fill="#26a69a" font-size="8" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle" letter-spacing="0.06em">LIVE EVENTS</text>
+<rect x="176" y="56" width="224" height="64" rx="6" fill="#0e0f11"/>
+<rect x="176" y="56" width="224" height="64" rx="6" fill="#17181b" stroke="#ecedef" stroke-width="1"/>
+<text x="288" y="86" fill="#ecedef" font-size="12" font-weight="600" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" text-anchor="middle">Routes under /api/</text>
+<text x="288" y="102" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle">GET to read · POST to act</text>
+<rect x="560" y="56" width="224" height="64" rx="6" fill="#0e0f11"/>
+<rect x="560" y="56" width="224" height="64" rx="6" fill="#17181b" stroke="#ecedef" stroke-width="1"/>
+<text x="672" y="86" fill="#ecedef" font-size="12" font-weight="600" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" text-anchor="middle">The live stream</text>
+<text x="672" y="102" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle">GET /api/stream</text>
+<rect x="48" y="216" width="72" height="344" rx="6" fill="#17181b" stroke="#aeb2b9" stroke-width="0.8"/>
+<text x="60" y="234" fill="#ecedef" font-size="11" font-weight="600" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">Rail</text>
+<text x="60" y="250" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">Turns</text>
+<text x="60" y="264" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">Fixtures</text>
+<text x="60" y="530" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">Keys</text>
+<text x="60" y="544" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">Theme</text>
+<rect x="128" y="216" width="784" height="44" rx="6" fill="#17181b" stroke="#aeb2b9" stroke-width="0.8"/>
+<text x="140" y="234" fill="#ecedef" font-size="11" font-weight="600" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">Context bar</text>
+<text x="140" y="250" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">GET /api/context · GET /api/agent under run · the stream&#8217;s state</text>
+<rect x="128" y="268" width="176" height="236" rx="6" fill="#17181b" stroke="#aeb2b9" stroke-width="0.8"/>
+<text x="140" y="286" fill="#ecedef" font-size="11" font-weight="600" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">Turn list</text>
+<text x="140" y="302" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">GET /api/turns</text>
+<text x="140" y="316" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">turn_opened · turn_closed</text>
+<text x="140" y="330" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace"></text>
+<text x="140" y="344" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">Fixtures:</text>
+<text x="140" y="358" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">GET /api/fixtures</text>
+<rect x="312" y="268" width="600" height="236" rx="8" fill="rgba(236,237,239,0.02)" stroke="rgba(236,237,239,0.1)" stroke-width="0.8"/>
+<rect x="328" y="272" width="160" height="12" rx="2" fill="#0e0f11"/>
+<text x="408" y="281" fill="#9a9ea6" font-size="7" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle" letter-spacing="0.14em">TURN VIEW · THE TURN&#8217;S RECORD</text>
+<rect x="324" y="292" width="576" height="32" rx="6" fill="#17181b" stroke="#aeb2b9" stroke-width="0.8"/>
+<text x="336" y="312" fill="#ecedef" font-size="11" font-weight="600" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">Header</text>
+<text x="396" y="312" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">the record, summed in the page · prices from GET /api/prices</text>
+<rect x="324" y="332" width="168" height="120" rx="6" fill="#17181b" stroke="#aeb2b9" stroke-width="0.8"/>
+<text x="336" y="350" fill="#ecedef" font-size="11" font-weight="600" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">Timeline</text>
+<text x="336" y="366" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">the record&#8217;s events,</text>
+<text x="336" y="380" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">worked out in the page</text>
+<rect x="500" y="332" width="196" height="72" rx="6" fill="#17181b" stroke="#aeb2b9" stroke-width="0.8"/>
+<text x="512" y="350" fill="#ecedef" font-size="11" font-weight="600" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">Preview</text>
+<rect x="512" y="356" width="172" height="36" rx="4" fill="rgba(236,237,239,0.03)" stroke="rgba(236,237,239,0.3)" stroke-width="1"/>
+<text x="598" y="377" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle">a preview page, in an iframe</text>
+<rect x="704" y="332" width="196" height="72" rx="6" fill="#17181b" stroke="#aeb2b9" stroke-width="0.8"/>
+<text x="716" y="350" fill="#ecedef" font-size="11" font-weight="600" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">Structure</text>
+<text x="716" y="366" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">web core&#8217;s message</text>
+<text x="716" y="380" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">processor, in the page</text>
+<rect x="500" y="412" width="400" height="40" rx="6" fill="#17181b" stroke="#aeb2b9" stroke-width="0.8"/>
+<text x="512" y="436" fill="#ecedef" font-size="11" font-weight="600" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">Step&#8217;s detail</text>
+<text x="608" y="436" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">the step&#8217;s events and spans</text>
+<rect x="324" y="460" width="576" height="36" rx="6" fill="#17181b" stroke="#aeb2b9" stroke-width="0.8"/>
+<text x="336" y="482" fill="#ecedef" font-size="11" font-weight="600" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">Composer</text>
+<text x="412" y="482" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">POST /api/message-box/messages · a press lands here</text>
+<rect x="128" y="512" width="784" height="48" rx="6" fill="#17181b" stroke="#aeb2b9" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="140" y="530" fill="#ecedef" font-size="11" font-weight="600" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">Logs drawer</text>
+<text x="140" y="546" fill="#9a9ea6" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace">GET /api/agent/logs · agent_log events · under run, over the panels</text>
+<line x1="32" y1="596" x2="928" y2="596" stroke="rgba(236,237,239,0.1)" stroke-width="0.8"/>
+<text x="32" y="616" fill="#aeb2b9" font-size="8" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" letter-spacing="0.14em">LEGEND</text>
+<line x1="112" y1="613" x2="140" y2="613" stroke="#26a69a" stroke-width="1.4"/>
+<text x="148" y="616" fill="#ecedef" font-size="10" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">What the page reads</text>
+<line x1="292" y1="613" x2="320" y2="613" stroke="#aeb2b9" stroke-width="1.2"/>
+<text x="328" y="616" fill="#ecedef" font-size="10" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">What it asks Spectra to do</text>
+<rect x="508" y="607" width="28" height="12" rx="2" fill="rgba(236,237,239,0.03)" stroke="rgba(236,237,239,0.3)" stroke-width="1"/>
+<text x="544" y="616" fill="#ecedef" font-size="10" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">Another page, in an iframe</text>
+<rect x="732" y="607" width="28" height="12" rx="2" fill="#17181b" stroke="#aeb2b9" stroke-width="0.8" stroke-dasharray="4,3"/>
+<text x="768" y="616" fill="#ecedef" font-size="10" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">Under run alone</text>
+</svg>
+</div>
+</div>
+</body>
+</html>

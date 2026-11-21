@@ -2,24 +2,9 @@
 
 The Angular sample catalog app of Spectra for A2UI: the sample catalog's Angular implementation and its preview page, built with the Angular preview adapter, `a2ui-spectra-preview-angular` in [`typescript/preview/angular/`](../../../typescript/preview/angular). It is the worked example of the adopter's side of the preview: a catalog with a custom component, its implementation, and the page Spectra draws its surfaces with.
 
-## The sample catalog
+## Run it with Spectra
 
-[`../catalog.json`](../catalog.json), shared by the React, Lit and Angular samples, is a v0.9 catalog definition: the A2UI v0.9 basic catalog's components and functions, copied, and one custom component, `CustomSlider`, under the id `https://github.com/retz8/a2ui-spectra/blob/main/samples/preview/catalog.json`. It names no protocol version, so it serves v0.9 and v0.9.1 surfaces. A `CustomSlider` has a label, a value, a minimum and a maximum; it binds a number and writes it back to the data model as it is dragged, as upstream's React, Lit and Angular explorers have it.
-
-The page also claims the A2UI v1.0 basic catalog, `https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json`, which Spectra knows built in, so a v1.0 surface on it is drawn here rather than on Spectra's built-in page, with its renderer's own reading of the v1.0 component envelope keys. The sample catalog itself stays a v0.9 catalog.
-
-## Files
-
-- `src/custom_slider.component.ts`: the custom component's Angular implementation, a standalone component.
-- `src/catalog.ts`: the sample catalog: the Angular renderer's native v0.9 basic components and functions and the custom slider, under the definition's id; and the Angular renderer's own v1.0 basic catalog, `BasicCatalogBase` from `@a2ui/angular`, whose components are web core's own elements.
-- `src/main.ts`: the preview page: an application bootstrapped with the renderer config a host using the catalog has, `provideA2Ui` with the sample catalog and the v1.0 basic catalog and with universal components on, which the v1.0 basic catalog's components need, and `provideMarkdownRenderer`, its root component holding `<a2ui-spectra-preview />`.
-- `src/index.html`: the page, kept light with upstream's `a2ui-light` class, as a host's page is.
-- `angular.json`: the application and its dev server, on the port the config file names, which must be free.
-- `a2ui-spectra.json`: Spectra's config file: the catalog definition, for the checks and the message box's offer, and the preview page.
-
-## Running it with Spectra
-
-After `yarn build:all` from the repository root:
+With the repository built, `yarn build:all` from its root:
 
 1. From `samples/preview/angular/`, `yarn dev` serves the preview page at http://localhost:9833/ on the Angular CLI.
 2. From `conformance/`, `node dist/stub_agent/stub_agent.js --canned-a2ui` starts the stub agent at `http://127.0.0.1:10013`. Offered the sample catalog, its canned conversation answers in it: a surface asking how loud, with a `CustomSlider` bound to the volume and a Button whose action carries it.
@@ -28,11 +13,32 @@ After `yarn build:all` from the repository root:
 
 The browser end-to-end test, `tools/spectra/src/samples_end_to_end.test.ts`, runs the same with this folder's `a2ui-spectra.json` as written, and draws the stub agent's v1.0 booking form, `--v1-booking`, on this page in its `@` form and its bare form. The smoke check on the published renderers, `_dev/tools/smoke_published_renderers.mjs`, builds this page in a scratch project on npm's latest of its renderer and of web core.
 
-## Commands
+## What to copy
 
-From `samples/preview/angular/`:
+To preview your own catalog, copy the page and its config into your catalog's app, with your catalog in place of the sample's; the [preview adapter's README](../../../typescript/preview/angular/README.md) has the smallest form of the same page.
 
-- `yarn dev`: serves the preview page at http://localhost:9833/.
-- `yarn build`: builds the Angular preview adapter, then type-checks and builds the app into `dist/`.
-- `yarn lint` and `yarn lint:fix`: ESLint with the root ESLint preset.
-- `yarn format` and `yarn format:check`: Prettier, with the root `.prettierignore`.
+- `src/custom_slider.component.ts`: the custom component's Angular implementation, a standalone component.
+- `src/catalog.ts`: the sample catalog: the Angular renderer's native v0.9 basic components and functions and the custom slider, under the definition's id; and the Angular renderer's own v1.0 basic catalog, `BasicCatalogBase` from `@a2ui/angular`, whose components are web core's own elements.
+- `src/main.ts`: the preview page: an application bootstrapped with the renderer config a host using the catalog has, `provideA2Ui` with the sample catalog and the v1.0 basic catalog and with universal components on, which the v1.0 basic catalog's components need, and `provideMarkdownRenderer`, its root component holding `<a2ui-spectra-preview />`.
+- `src/index.html`: the page, kept light with upstream's `a2ui-light` class, as a host's page is.
+- `angular.json`: the application and its dev server, on the port the config file names, which must be free.
+- `a2ui-spectra.json`: Spectra's config file: the catalog definition, for the checks and the message box's offer, and the preview page.
+
+## The sample catalog
+
+[`../catalog.json`](../catalog.json), shared by the React, Lit and Angular samples, is a v0.9 catalog definition: the A2UI v0.9 basic catalog's components and functions, copied, and one custom component, `CustomSlider`, under the id `https://github.com/retz8/a2ui-spectra/blob/main/samples/preview/catalog.json`. It names no protocol version, so it serves v0.9 and v0.9.1 surfaces. A `CustomSlider` has a label, a value, a minimum and a maximum; it binds a number and writes it back to the data model as it is dragged, as upstream's React, Lit and Angular explorers have it.
+
+The page also claims the A2UI v1.0 basic catalog, `https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json`, which Spectra knows built in, so a v1.0 surface on it is drawn here rather than on Spectra's built-in page, with its renderer's own reading of the v1.0 component envelope keys. The sample catalog itself stays a v0.9 catalog.
+
+## Development
+
+From `samples/preview/angular/`, after `yarn build:all` from the repository root:
+
+```sh
+yarn dev
+yarn build
+yarn lint
+yarn format:check
+```
+
+`yarn dev` serves the page on the port its config file names; `yarn build` builds the Angular preview adapter first.

@@ -2,13 +2,20 @@
 
 The React sample catalog app of Spectra for A2UI: the sample catalog's React implementation and its preview page, built with the React preview adapter, `a2ui-spectra-preview-react` in [`typescript/preview/react/`](../../../typescript/preview/react). It is the worked example of the adopter's side of the preview: a catalog with a custom component, its implementation, and the page Spectra draws its surfaces with.
 
-## The sample catalog
+## Run it with Spectra
 
-[`../catalog.json`](../catalog.json), shared by the React, Lit and Angular samples, is a v0.9 catalog definition: the A2UI v0.9 basic catalog's components and functions, copied, and one custom component, `CustomSlider`, under the id `https://github.com/retz8/a2ui-spectra/blob/main/samples/preview/catalog.json`. It names no protocol version, so it serves v0.9 and v0.9.1 surfaces. A `CustomSlider` has a label, a value, a minimum and a maximum; it binds a number and writes it back to the data model as it is dragged, as upstream's React, Lit and Angular explorers have it.
+With the repository built, `yarn build:all` from its root:
 
-The page also claims the A2UI v1.0 basic catalog, `https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json`, which Spectra knows built in, so a v1.0 surface on it is drawn here rather than on Spectra's built-in page, with its renderer's own reading of the v1.0 component envelope keys. The sample catalog itself stays a v0.9 catalog.
+1. From `samples/preview/react/`, `yarn dev` serves the preview page at http://localhost:9831/ on Vite.
+2. From `conformance/`, `node dist/stub_agent/stub_agent.js --canned-a2ui` starts the stub agent at `http://127.0.0.1:10013`. Offered the sample catalog, its canned conversation answers in it: a surface asking how loud, with a `CustomSlider` bound to the volume and a Button whose action carries it.
+3. From `samples/preview/react/`, `node ../../../tools/spectra/dist/cli.js attach http://127.0.0.1:10013` starts Spectra with this folder's `a2ui-spectra.json`, and its store in `.a2ui-spectra/`, which git ignores.
+4. In the viewer, send a message from the composer. The surface is drawn in the Preview pane from this page, its URL named in the pane's header. Moving the slider and pressing the Button lands the action in the composer; sending it, the stub answers with the volume.
 
-## Files
+The browser end-to-end test, `tools/spectra/src/samples_end_to_end.test.ts`, runs the same with this folder's `a2ui-spectra.json` as written, and draws the stub agent's v1.0 booking form, `--v1-booking`, on this page in its `@` form and its bare form. The smoke check on the published renderers, `_dev/tools/smoke_published_renderers.mjs`, builds this page in a scratch project on npm's latest of its renderer and of web core.
+
+## What to copy
+
+To preview your own catalog, copy the page and its config into your catalog's app, with your catalog in place of the sample's; the [preview adapter's README](../../../typescript/preview/react/README.md) has the smallest form of the same page.
 
 - `src/CustomSlider.tsx`: the custom component's React implementation: its API and its binding to the catalog.
 - `src/SliderBody.tsx`: the custom component's markup, the module's only export, so that Vite swaps a saved edit into the page in place; a save of `src/CustomSlider.tsx`, which exports the API beside the component, reloads the page.
@@ -18,22 +25,21 @@ The page also claims the A2UI v1.0 basic catalog, `https://a2ui.org/specificatio
 - `vite.config.ts`: the dev server, on the port the config file names, which must be free.
 - `a2ui-spectra.json`: Spectra's config file: the catalog definition, for the checks and the message box's offer, and the preview page.
 
-## Running it with Spectra
+## The sample catalog
 
-After `yarn build:all` from the repository root:
+[`../catalog.json`](../catalog.json), shared by the React, Lit and Angular samples, is a v0.9 catalog definition: the A2UI v0.9 basic catalog's components and functions, copied, and one custom component, `CustomSlider`, under the id `https://github.com/retz8/a2ui-spectra/blob/main/samples/preview/catalog.json`. It names no protocol version, so it serves v0.9 and v0.9.1 surfaces. A `CustomSlider` has a label, a value, a minimum and a maximum; it binds a number and writes it back to the data model as it is dragged, as upstream's React, Lit and Angular explorers have it.
 
-1. From `samples/preview/react/`, `yarn dev` serves the preview page at http://localhost:9831/ on Vite.
-2. From `conformance/`, `node dist/stub_agent/stub_agent.js --canned-a2ui` starts the stub agent at `http://127.0.0.1:10013`. Offered the sample catalog, its canned conversation answers in it: a surface asking how loud, with a `CustomSlider` bound to the volume and a Button whose action carries it.
-3. From `samples/preview/react/`, `node ../../../tools/spectra/dist/cli.js attach http://127.0.0.1:10013` starts Spectra with this folder's `a2ui-spectra.json`, and its store in `.a2ui-spectra/`, which git ignores.
-4. In the viewer, send a message from the composer. The surface is drawn in the Preview pane from this page, its URL named in the pane's header. Moving the slider and pressing the Button lands the action in the composer; sending it, the stub answers with the volume.
+The page also claims the A2UI v1.0 basic catalog, `https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json`, which Spectra knows built in, so a v1.0 surface on it is drawn here rather than on Spectra's built-in page, with its renderer's own reading of the v1.0 component envelope keys. The sample catalog itself stays a v0.9 catalog.
 
-The browser end-to-end test, `tools/spectra/src/samples_end_to_end.test.ts`, runs the same with this folder's `a2ui-spectra.json` as written, and draws the stub agent's v1.0 booking form, `--v1-booking`, on this page in its `@` form and its bare form. The smoke check on the published renderers, `_dev/tools/smoke_published_renderers.mjs`, builds this page in a scratch project on npm's latest of its renderer and of web core.
+## Development
 
-## Commands
+From `samples/preview/react/`, after `yarn build:all` from the repository root:
 
-From `samples/preview/react/`:
+```sh
+yarn dev
+yarn build
+yarn lint
+yarn format:check
+```
 
-- `yarn dev`: serves the preview page at http://localhost:9831/.
-- `yarn build`: builds the React preview adapter, then type-checks and builds the app into `dist/`.
-- `yarn lint` and `yarn lint:fix`: ESLint with the root ESLint preset.
-- `yarn format` and `yarn format:check`: Prettier, with the root `.prettierignore`.
+`yarn dev` serves the page on the port its config file names; `yarn build` builds the React preview adapter first.

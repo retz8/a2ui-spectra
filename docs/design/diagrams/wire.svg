@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 960 424" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="wire-title wire-desc" id="wire-root">
+<title id="wire-title">The wire proxy, between a host and the agent</title>
+<desc id="wire-desc">A host, Spectra's message box or the developer's own, sends its A2A request to the wire proxy, which forwards it to the agent with a traceparent added and passes the reply back as received; each send or stream is one turn, written as wire events, then checked, stored and shown once the reply ends.</desc>
+<defs>
+      <style>#wire-root { --color-paper: #eff0f3;
+  --color-ink: #16171a;
+  --color-muted: #55595f;
+  --font-sans: 'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace; }
+      #wire-root { font-family: var(--font-sans); color: var(--color-ink); }
+      #wire-root .diagram-container { width: 100%; overflow-x: auto; }
+      @media print {
+#wire-root .diagram-container { overflow-x: visible; }
+}</style>
+<marker id="wire-arrow" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#55595f"/></marker>
+<marker id="wire-arrow-accent" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#00796b"/></marker>
+</defs>
+<rect width="100%" height="100%" fill="#eff0f3"/>
+<rect x="208" y="32" width="576" height="320" rx="8" fill="#16171a" stroke="#16171a" stroke-width="0.8" fill-opacity="0.02" stroke-opacity="0.1"/>
+<rect x="224" y="36" width="48" height="12" rx="2" fill="#eff0f3"/>
+<text x="248" y="45" fill="#696d75" font-size="7" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle" letter-spacing="0.14em">SPECTRA</text>
+<line x1="176" y1="92" x2="344" y2="92" stroke="#55595f" stroke-width="1.2" marker-end="url(#wire-arrow)"/>
+<line x1="344" y1="116" x2="176" y2="116" stroke="#55595f" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#wire-arrow)"/>
+<line x1="552" y1="92" x2="816" y2="92" stroke="#00796b" stroke-width="1.4" marker-end="url(#wire-arrow-accent)"/>
+<line x1="816" y1="116" x2="552" y2="116" stroke="#55595f" stroke-width="1" stroke-dasharray="5,4" marker-end="url(#wire-arrow)"/>
+<path d="M 376,232 H 404 Q 412,232 412,224 V 136" fill="none" stroke="#55595f" stroke-width="1.2" marker-end="url(#wire-arrow)"/>
+<line x1="484" y1="136" x2="484" y2="264" stroke="#55595f" stroke-width="1.2" marker-end="url(#wire-arrow)"/>
+<line x1="572" y1="296" x2="612" y2="296" stroke="#55595f" stroke-width="1.2" marker-end="url(#wire-arrow)"/>
+<rect x="216" y="72" width="84" height="12" rx="2" fill="#eff0f3"/>
+<text x="258" y="81" fill="#55595f" font-size="8" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle" letter-spacing="0.06em">SEND · STREAM</text>
+<rect x="642" y="72" width="84" height="12" rx="2" fill="#eff0f3"/>
+<text x="684" y="81" fill="#00796b" font-size="8" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle" letter-spacing="0.06em">+ TRACEPARENT</text>
+<rect x="642" y="124" width="84" height="12" rx="2" fill="#eff0f3"/>
+<text x="684" y="133" fill="#55595f" font-size="8" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle" letter-spacing="0.06em">REPLY · STREAM</text>
+<rect x="492" y="192" width="56" height="12" rx="2" fill="#eff0f3"/>
+<text x="496" y="201" fill="#55595f" font-size="8" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="start" letter-spacing="0.06em">ONE TURN</text>
+<rect x="32" y="72" width="144" height="64" rx="6" fill="#eff0f3"/>
+<rect x="32" y="72" width="144" height="64" rx="6" fill="#16171a" stroke="#16171a" stroke-width="1" fill-opacity="0.03" stroke-opacity="0.3"/>
+<text x="104" y="102" fill="#16171a" font-size="12" font-weight="600" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" text-anchor="middle">Your host app</text>
+<text x="104" y="118" fill="#696d75" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle">its own A2A client</text>
+<rect x="344" y="72" width="208" height="64" rx="6" fill="#eff0f3"/>
+<rect x="344" y="72" width="208" height="64" rx="6" fill="#e0f2f1" stroke="#00796b" stroke-width="1"/>
+<text x="448" y="102" fill="#16171a" font-size="12" font-weight="600" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" text-anchor="middle">Wire proxy</text>
+<text x="448" y="118" fill="#696d75" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle">127.0.0.1:9821</text>
+<rect x="816" y="72" width="112" height="64" rx="6" fill="#eff0f3"/>
+<rect x="816" y="72" width="112" height="64" rx="6" fill="#16171a" stroke="#16171a" stroke-width="1" fill-opacity="0.03" stroke-opacity="0.3"/>
+<text x="872" y="102" fill="#16171a" font-size="12" font-weight="600" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" text-anchor="middle">The agent</text>
+<text x="872" y="118" fill="#696d75" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle">A2A JSON-RPC</text>
+<rect x="232" y="200" width="144" height="64" rx="6" fill="#eff0f3"/>
+<rect x="232" y="200" width="144" height="64" rx="6" fill="#ffffff" stroke="#16171a" stroke-width="1"/>
+<text x="304" y="230" fill="#16171a" font-size="12" font-weight="600" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" text-anchor="middle">Message box</text>
+<text x="304" y="246" fill="#696d75" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle">Spectra’s own host</text>
+<rect x="396" y="264" width="176" height="64" rx="6" fill="#eff0f3"/>
+<rect x="396" y="264" width="176" height="64" rx="6" fill="#16171a" stroke="#55595f" stroke-width="1" fill-opacity="0.05"/>
+<text x="484" y="294" fill="#16171a" font-size="12" font-weight="600" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" text-anchor="middle">The turn</text>
+<text x="484" y="310" fill="#696d75" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle">wire_input · wire_outputs</text>
+<rect x="612" y="264" width="148" height="64" rx="6" fill="#eff0f3"/>
+<rect x="612" y="264" width="148" height="64" rx="6" fill="#ffffff" stroke="#16171a" stroke-width="1"/>
+<text x="686" y="294" fill="#16171a" font-size="12" font-weight="600" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" text-anchor="middle">Checks · store</text>
+<text x="686" y="310" fill="#696d75" font-size="9" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" text-anchor="middle">turn_closed → viewer</text>
+<line x1="32" y1="376" x2="928" y2="376" stroke="#16171a" stroke-width="0.8" stroke-opacity="0.1"/>
+<text x="32" y="396" fill="#55595f" font-size="8" font-family="ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" letter-spacing="0.14em">LEGEND</text>
+<line x1="112" y1="393" x2="140" y2="393" stroke="#00796b" stroke-width="1.4"/>
+<text x="148" y="396" fill="#16171a" font-size="10" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">A turn request, with Spectra’s trace context added</text>
+<line x1="480" y1="393" x2="508" y2="393" stroke="#55595f" stroke-width="1" stroke-dasharray="5,4"/>
+<text x="516" y="396" fill="#16171a" font-size="10" font-family="'Inter', 'Inter Variable', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">The agent’s reply, passed back as received</text>
+</svg>

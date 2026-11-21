@@ -1,6 +1,8 @@
 # A2UI protocol schemas and catalogs
 
-The schemas the schema check validates the agent's A2UI messages against, and the catalog definitions the catalog registry knows, one folder per protocol version. They are copied unchanged from `a2ui-project/a2ui` at the pin that [`_dev/upstream-pin.json`](../../../../../_dev/upstream-pin.json) names, under that repository's Apache 2.0 licence.
+The schemas the schema check validates the agent's A2UI messages against, and the catalog definitions the catalog registry knows, one folder per protocol version. They are copied unchanged from `a2ui-project/a2ui` at the pin that [`_dev/upstream-pin.json`](../../../../../_dev/upstream-pin.json) names, under that repository's Apache 2.0 licence. How the checks use them is in [The checks](../../../../../docs/design/checks.md).
+
+## The files
 
 | File                               | Copied from                                       | Used by                                                                                   |
 | ---------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -13,6 +15,10 @@ The schemas the schema check validates the agent's A2UI messages against, and th
 | `v1_0/catalog_definition.json`     | `specification/v1_0/json/catalog_definition.json` | The registry: a configured definition naming protocol version 1.0 is validated against it |
 | `v1_0/catalogs/basic/catalog.json` | `catalogs/basic/v1/catalog.json`                  | The registry: the v1.0 basic catalog                                                      |
 
+## What is copied, and how it is bound
+
 Only the files the checks and the registry load are copied. Each version's reference to `catalog.json` in the schema check is bound to a stand-in that accepts any component, any function and any theme; the catalog check binds the surface's real catalog definition there.
+
+## Copying them again
 
 The pin file lists each copy. Moving the pin is [`_dev/re-pin-procedure.md`](../../../../../_dev/re-pin-procedure.md), whose move script copies these files again from the new commit.

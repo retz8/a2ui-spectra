@@ -2,6 +2,8 @@
 
 Catalog definitions the tool's tests configure, as an adopter would through `a2ui-spectra.json`, and that the wrapper capture suite's cases name. They are not cases of a suite. The two from `a2ui-project/a2ui` are copied at the pin that [`_dev/upstream-pin.json`](../../../_dev/upstream-pin.json) names, which lists each copy and its alterations.
 
+## The files
+
 | File                             | Copied from                                                                                                                              | Note                                                                                                                                                          |
 | -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `a2uiverse_circleci_v0_9_1.json` | A2UIVerse's `circleci/circleci-catalog/catalogs/v0.9.1/catalog.json`, in `a2uiverse-apps` at 2663991 (2026-09-27)                        | The catalog of the coverage roster's CircleCI recording, `a2a_capture/v0_1/a2uiverse_circleci/`, a 0.9 definition                                             |

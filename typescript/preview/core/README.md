@@ -1,50 +1,29 @@
 # a2ui-spectra-preview
 
-The preview protocol of Spectra for A2UI, and its framework-free core. A catalog's preview page runs the core through one of the adapters, `a2ui-spectra-preview-react` in [`../react/`](../react), `a2ui-spectra-preview-lit` in [`../lit/`](../lit) or `a2ui-spectra-preview-angular` in [`../angular/`](../angular), and Spectra's viewer loads the page in an iframe and speaks the protocol to it. An adopter installs an adapter, not this package.
+The preview protocol of [Spectra for A2UI](../../../README.md), and its framework-free core.
 
-## The protocol
+**To preview your own catalog in Spectra, install an adapter, not this package:** [`a2ui-spectra-preview-react`](../react/README.md), [`a2ui-spectra-preview-lit`](../lit/README.md) or [`a2ui-spectra-preview-angular`](../angular/README.md). Each brings this core with it.
 
-A message set that names no carrier: A2UI messages go in; render errors, the shown surface's data model and actions come out; and the viewer asks which document a page holds, which the document answers. The web adapters carry it over `postMessage` between the viewer and the page in an iframe.
+## For the author of an adapter
 
-| Message      | From   | What it carries                                                                                                                                                                                                                                                                        |
-| ------------ | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ready`      | page   | The protocol's version, `2`, and the page's claims: each catalog it renders, by its id and the protocol version its definition targets, taken from the catalog objects the page passes to its renderer.                                                                                |
-| `ping`       | viewer | The number of the page's load the viewer asks about: 1 for the page's first load, and one more at each later load.                                                                                                                                                                     |
-| `pong`       | page   | The number of the `ping` it answers.                                                                                                                                                                                                                                                   |
-| `render`     | viewer | A running number, a surface id, and every A2UI message that names the surface, the conversation's earlier turns' and the turn's own up to the step selected, in order.                                                                                                                 |
-| `report`     | page   | The number of the render it belongs to, and one report: a component that threw while drawing, with its id and type when the page knows them; an error web core reported on the surface, with its code; or a message the page's processor refused, with its index in the render's list. |
-| `data-model` | page   | The number of the render it belongs to, the shown surface's id, and its data model as the agent's messages and the user's typing left it: sent whenever it changes, and once more for each render that leaves it as it was.                                                            |
-| `action`     | page   | The number of the current render, web core's action payload, and the surface's data model at that moment.                                                                                                                                                                              |
+Spectra's viewer loads a catalog's preview page in an iframe and speaks the preview protocol to it over `postMessage`: A2UI messages go in; what the page renders, its errors, the surface's data model and the actions a press makes come out. Every page announces itself with a ready message carrying its protocol number, `2`, and the catalogs it draws.
 
-The screenshot's message type is reserved; no adapter produces it yet.
+The package has two entries:
 
-- **Across versions.** In every version of the protocol a page announces itself with a message of the type `a2ui-spectra-preview/ready` carrying its `protocol` number, and everything else may change with the number. A ready message whose `protocol` is not a number is not a ready message. The viewer judges a page by the number alone: a page announcing another has no preview, everything else works, and the viewer's line names the two numbers and the side to upgrade, the page's `a2ui-spectra-preview` and its adapter, to the running Spectra's version, when the page speaks the lower number, and `a2ui-spectra` when it speaks the higher.
+- `a2ui-spectra-preview`: the protocol's messages and `startPreviewPage`, which runs the page's side of the protocol. An adapter gives it four things: making a processor from the catalogs, feeding it one message, mounting a surface, and tearing down.
+- `a2ui-spectra-preview/web-core`: what every web adapter does with `@a2ui/web_core`'s message processor, whichever framework draws its surfaces: the action handler, watching each surface for its errors and its data model, and guarding web core's universal elements. It takes `@a2ui/web_core` `^0.15.0` as a peer dependency; the main entry does not import it.
 
-- **Loads and answers.** At each load of the page the viewer sends a `ping` with the load's number, and the document that is there answers with a `pong` carrying the same number. The core listens for `ping` before it sends `ready`, so a document that has said `ready` can always answer. A document whose adapter has not started does not hear the `ping`: the viewer asks again, with the same number, when that document's `ready` arrives. The viewer counts an answer only for the latest load's number, and a broken document never answers.
-- **The render difference.** Each render carries the full list. The core remembers the list it applied last: when the new list begins with it, for the same surface, only the tail is fed into the processor that holds the surface; otherwise the processor is recreated and the whole list fed. Messages are fed one at a time, and a throw is reported as a refused message.
-- **Reports and renders.** Every report is tagged with its render's number. With a render that extends the last, the surface's earlier reports are sent again under the new number, since they still describe what is drawn. A report is sent once per processor.
-- **Trust.** The viewer loads the page with its own origin in the `a2ui-spectra-viewer` query parameter. The page sends to that origin only, and takes messages only from its parent window at that origin. A page opened with no parameter shows one line saying it is a Spectra preview page and previews only inside Spectra.
-- **Errors outside a component.** The window's error events, an uncaught error and a promise rejected with no handler, are reported once a render has come, as a component failure with no id.
+[The preview](../../../docs/design/preview.md) is the protocol's full account: each message, the page's loads and answers, how a page is chosen for a surface, what a page reports, a press, and the version mismatch. The React, Lit and Angular adapters beside this folder are the worked examples.
 
-## The core
+## Development
 
-`startPreviewPage` runs the page's side of the protocol, answering each `ping` itself. An adapter gives it four things: making a processor from the catalogs, feeding it one message, mounting a surface, and tearing down. The processor's surfaces report actions, their data models as they change, web core's errors and component failures through the events the core hands to the processor it asks for. `windowTransport` and `windowErrors` are the web carrier. `guardElementUpdates` guards a custom element class's updates, for components drawn as web components, such as web core's universal elements, which an error boundary of the page's framework does not see.
+From the repository root, after `yarn install`, on Node 22:
 
-## The web core part
+```sh
+yarn workspace a2ui-spectra-preview build
+yarn workspace a2ui-spectra-preview test
+yarn workspace a2ui-spectra-preview lint
+yarn workspace a2ui-spectra-preview format:check
+```
 
-`a2ui-spectra-preview/web-core` is what every web adapter does with web core's message processor, whichever framework draws its surfaces. It takes `@a2ui/web_core` 0.15 as a peer dependency, `^0.15.0`; the main entry does not import it. The published latest, 0.15.0, reads a v1.0 component's envelope keys in the bare form only; see [What Spectra supports](../../../README.md#what-spectra-supports).
-
-- `actionHandlerFor` makes the action handler an adapter makes its processor with: each action is reported with its surface's data model at that moment.
-- `watchProcessor` watches a processor the adapter made: each surface it creates reports the errors web core sends through its error channel, and its data model as it appears and whenever the agent's messages or typing change it.
-- `guardUniversalElements` guards web core's universal elements at their updates, naming the component that threw. Both basic catalogs and every Lit component are drawn with them.
-
-Each adapter still makes its own processor, with the catalogs it is given, and hands it to the core's setup.
-
-## Commands
-
-From `typescript/preview/core/`:
-
-- `yarn build`: compiles `src/` into `dist/`.
-- `yarn test`: builds, then runs the unit tests under Node's test runner, the web core part's against a real web core processor.
-- `yarn lint` and `yarn lint:fix`: ESLint with the root ESLint preset.
-- `yarn format` and `yarn format:check`: Prettier, with the root `.prettierignore`.
+The tests run under Node's test runner, the web core part's against a real web core processor.

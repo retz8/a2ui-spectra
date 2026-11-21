@@ -1,11 +1,22 @@
 # a2ui-spectra-preview-angular
 
-The Angular preview adapter of Spectra for A2UI: one standalone component that lets Spectra's viewer draw your catalog's surfaces with your own implementation, on upstream's Angular renderer, at the versions your real host uses. It runs the preview protocol through the core in [`../core/`](../core).
+Your own catalog's surfaces in [Spectra for A2UI](../../../README.md)'s Preview pane, drawn by upstream's Angular renderer and your own components, at the versions your real host uses. It is one standalone component, `SpectraPreviewComponent`, that runs the preview protocol for your page.
 
-## Adding a preview page
+In Spectra's turn view, the Preview pane draws each surface on your catalog from your page, and its header names the page. Press a control there, and Spectra shows the exact action your agent would receive, with the data model, ready to send as the next turn.
 
-1. Add the adapter as a dev dependency. It takes `@a2ui/angular` 0.14, `@a2ui/web_core` 0.15 and Angular 21 as peer dependencies, `^0.14.0` and `^0.15.0` for the upstream packages, so the preview runs on yours. The published latest, `@a2ui/angular` 0.14.0 on `@a2ui/web_core` 0.15.0, reads a v1.0 component's envelope keys in the bare form only, and refuses a surface whose components carry the `@` keys; the page reports that refusal in the renderer's words. See [What Spectra supports](../../../README.md#what-spectra-supports).
-2. Add a small page to the catalog's dev server: an application bootstrapped with the same `provideA2Ui` config your real host's app config has, and `provideMarkdownRenderer` when your host uses one, whose root component holds `<a2ui-spectra-preview />`:
+## Install
+
+A dev dependency of your catalog's app:
+
+```sh
+npm install --save-dev a2ui-spectra-preview-angular
+```
+
+`@a2ui/angular`, `@a2ui/web_core` and Angular are peer dependencies: your app's own copies are the ones used.
+
+## Set it up
+
+1. Add a small page to your catalog's dev server, an application bootstrapped with the same `provideA2Ui` config your real host's app config has, and `provideMarkdownRenderer` when your host uses one, whose root component holds `<a2ui-spectra-preview />`:
 
    ```ts
    import {provideA2Ui, provideMarkdownRenderer} from '@a2ui/angular/v0_9';
@@ -32,26 +43,54 @@ The Angular preview adapter of Spectra for A2UI: one standalone component that l
    });
    ```
 
-3. Name the page's URL in Spectra's config file, under `preview`.
+   The component takes no inputs: it reads the page's renderer config. The config's catalogs are the page's claims: Spectra sends the page every surface whose catalog one of them carries.
 
-The component takes no inputs. It reads the page's renderer config, `useUniversalComponents` and `processorOptions` included, and for each processor it needs gives upstream's `<a2ui-v09-surface>` a fresh `A2uiRendererService` in a child injector, with Spectra's action handler in place of the config's. The config's catalogs are the page's claims: Spectra sends the page every surface whose catalog one of them carries, at a compatible protocol version. Opened on its own, outside Spectra, the page shows one line saying what it is.
+2. Name the page's URL in Spectra's config file, `a2ui-spectra.json`, under `preview`, beside your catalog's definition under `catalogs`. The sample's config file:
 
-The sample catalog app in [`../../../samples/preview/angular/`](../../../samples/preview/angular) is a worked example.
+   ```json
+   {
+     "$schema": "https://raw.githubusercontent.com/retz8/a2ui-spectra/main/tools/spectra/src/config.schema.json",
+     "catalogs": ["../catalog.json"],
+     "preview": ["http://localhost:9833/"]
+   }
+   ```
 
-## What it reports
+The sample catalog app in [`samples/preview/angular/`](../../../samples/preview/angular/README.md) is the full example: a catalog with a custom component, its Angular implementation and this page.
 
-- **A component that throws while drawing.** Angular has no error boundary: the error reaches the application's `ErrorHandler`, which is not told which component threw. The adapter wraps the page's handler, reports each error as "A component did not render." with the error's name and message, and hands it on to the page's own handler. A page that sets `useUniversalComponents` has its components drawn as web core's universal elements, guarded at their updates through the core's web core part, which names them.
-- **An error web core reports on the surface** through its error channel, such as an unknown component type.
-- **A message the page's processor refuses.**
-- **The surface's data model**, as it is created and whenever the agent's messages or typing in the page change it.
-- **An action**, with the surface's data model at that moment, when a control is pressed.
+## What it supports
 
-## Commands
+| Package                                        | Range     | Tested at                                  |
+| ---------------------------------------------- | --------- | ------------------------------------------ |
+| `@a2ui/angular`                                | `^0.14.0` | upstream's main at `0888f88b2`, and 0.14.0 |
+| `@a2ui/web_core`                               | `^0.15.0` | upstream's main at `0888f88b2`, and 0.15.0 |
+| `@angular/core` and the other Angular packages | `^21.2.5` | 21.2.25                                    |
 
-From `typescript/preview/angular/`:
+The published `@a2ui/angular` 0.14.0, on `@a2ui/web_core` 0.15.0, reads a v1.0 component's envelope keys in the bare form only, and refuses a surface whose components carry the `@` keys; the page reports that refusal in the renderer's words. See [What Spectra supports](../../../README.md#what-spectra-supports).
 
-- `yarn build`: builds the core, then the adapter with upstream's `ng-packagr` builder, compiled in partial mode into `dist/` in the Angular package format.
-- `yarn lint` and `yarn lint:fix`: ESLint with the root ESLint preset.
-- `yarn format` and `yarn format:check`: Prettier, with the root `.prettierignore`.
+## When nothing shows up
 
-The adapter has no unit tests of its own. What it shares with the other adapters is the core's web core part, unit-tested there; the browser end-to-end test, `tools/spectra/src/samples_end_to_end.test.ts`, covers the rest through the Angular sample catalog app.
+**"No preview for catalog", with "Add a page built with a Spectra preview adapter to the config's preview pages."** Spectra has no page claiming the surface's catalog. Name the page's URL under `preview` in Spectra's config file, and pass the page every catalog the surface names: a page has to claim them all to draw it.
+
+**"`<page>` has not answered".** The page loaded, but the adapter did not start, threw before it started, or the URL is not the preview page. A page that redirects to another origin is not heard either: name the address the page ends up at.
+
+**Two protocol numbers, and the side to upgrade.** The page's adapter and the running Spectra speak different versions of the preview protocol. Move the adapter to the running Spectra's version, or upgrade `a2ui-spectra`, as the line says.
+
+**"The preview page refused this message.", with the renderer's own error.** The renderer refused what the agent sent, such as a v1.0 surface in the `@` form on the published renderer.
+
+**"This is a Spectra preview page. It previews only inside Spectra."** The page was opened in a browser tab of its own. It draws only inside Spectra's Preview pane.
+
+## How it works
+
+[The preview](../../../docs/design/preview.md) explains the preview protocol, how Spectra picks the page that draws a surface, what a page reports, a press and the action it sends, and the version mismatch.
+
+## Development
+
+From the repository root, after `yarn install`, on Node 22:
+
+```sh
+yarn workspace a2ui-spectra-preview-angular build
+yarn workspace a2ui-spectra-preview-angular lint
+yarn workspace a2ui-spectra-preview-angular format:check
+```
+
+The adapter has no unit tests of its own: what the three adapters share is the preview core's, tested there, and the browser end-to-end test in the tool's test target, `yarn workspace a2ui-spectra test`, runs it through the Angular sample.
