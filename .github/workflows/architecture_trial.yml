@@ -1,0 +1,66 @@
+name: The architecture trial
+
+# What a PowerShell process on Windows arm64 reads as the machine's architecture, natively, as a
+# 32-bit x86 process and as an x64 process under emulation, through each reading install.ps1
+# could take: the PROCESSOR_* variables, .NET's RuntimeInformation, the system environment in the
+# registry, WMI's Win32_Processor and IsWow64Process2. Started by hand; it installs nothing.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PWSH_X64_URL: https://github.com/PowerShell/PowerShell/releases/download/v7.6.10/PowerShell-7.6.10-win-x64.zip
+  PWSH_X64_SHA256: 7d871531806eb1646264e4bbabd9f0c30c23355591bc756bb9909448c29ae166
+
+jobs:
+  arm64:
+    name: The architecture trial (Windows arm64)
+    runs-on: windows-11-arm
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Each PowerShell's readings
+        run: |
+          $zip = Join-Path $env:RUNNER_TEMP 'pwsh-x64.zip'
+          Invoke-WebRequest -UseBasicParsing $env:PWSH_X64_URL -OutFile $zip
+          if ((Get-FileHash $zip).Hash -ne $env:PWSH_X64_SHA256) { throw 'The PowerShell 7 zip does not have its checksum.' }
+          Expand-Archive $zip (Join-Path $env:RUNNER_TEMP 'pwsh-x64')
+          $readings = Join-Path $env:RUNNER_TEMP 'readings.ps1'
+          Set-Content -LiteralPath $readings -Value @'
+          $native = $null
+          try {
+            Add-Type -Namespace Trial -Name Wow -MemberDefinition '[DllImport("kernel32.dll")] public static extern bool IsWow64Process2(IntPtr process, out ushort processMachine, out ushort nativeMachine);'
+            $p = [uint16]0; $n = [uint16]0
+            [void][Trial.Wow]::IsWow64Process2([Diagnostics.Process]::GetCurrentProcess().Handle, [ref]$p, [ref]$n)
+            $native = 'process 0x{0:x4}, native 0x{1:x4}' -f $p, $n
+          } catch { $native = "failed: $($_.Exception.Message)" }
+          [ordered]@{
+            'PSVersion' = $PSVersionTable.PSVersion.ToString()
+            'PROCESSOR_ARCHITECTURE' = $env:PROCESSOR_ARCHITECTURE
+            'PROCESSOR_ARCHITEW6432' = $env:PROCESSOR_ARCHITEW6432
+            'PROCESSOR_IDENTIFIER' = $env:PROCESSOR_IDENTIFIER
+            'RuntimeInformation.ProcessArchitecture' = [Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString()
+            'RuntimeInformation.OSArchitecture' = [Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+            'Registry, Session Manager\Environment' = (Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Environment').PROCESSOR_ARCHITECTURE
+            'Win32_Processor.Architecture' = (Get-CimInstance Win32_Processor | Select-Object -First 1).Architecture
+            'IsWow64Process2' = $native
+          } | Format-Table -AutoSize -Wrap | Out-String -Width 200
+          '@
+          $shells = [ordered]@{
+            'powershell.exe, native' = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+            'powershell.exe, x86' = Join-Path $env:SystemRoot 'SysWOW64\WindowsPowerShell\v1.0\powershell.exe'
+            'pwsh.exe, native' = (Get-Command pwsh.exe).Source
+            'PowerShell 7.6.10 for x64, emulated' = Join-Path $env:RUNNER_TEMP 'pwsh-x64\pwsh.exe'
+          }
+          foreach ($name in $shells.Keys) {
+            Write-Output "== $name, $($shells[$name])"
+            $saved = $env:PSModulePath
+            if ($name -like 'powershell.exe*') { Remove-Item Env:PSModulePath }
+            & $shells[$name] -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $readings
+            $env:PSModulePath = $saved
+          }
+          exit 0
