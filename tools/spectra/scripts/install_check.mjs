@@ -31,9 +31,10 @@
 //   turn runs through the channel's own command, and after the script through the installed
 //   binary.
 // - The stop, as a user at a terminal stops it: a Ctrl-C to the foreground process group on
-//   macOS and Linux, and a console Ctrl-C on Windows, through the tests' console helper. The
-//   command exits within STOP_BOUND_MS, and the stub agent's process is gone within
-//   GONE_BOUND_MS after.
+//   macOS and Linux, and a console Ctrl-C on Windows, through the tests' console helper, which
+//   leaves what the command started running after it, as a terminal does. Spectra says it is
+//   stopping the agent; the command, and every process holding its output, exits within
+//   STOP_BOUND_MS; and the stub agent's process is gone within GONE_BOUND_MS after.
 //
 // Then, on macOS and Windows, every installed binary must carry no download mark,
 // `com.apple.quarantine` on macOS and the `Zone.Identifier` stream on Windows, after a mark
@@ -396,11 +397,12 @@ async function freePort() {
 /**
  * A command started as a user at a terminal starts it: on macOS and Linux leading a process
  * group of its own, which stands for the terminal's foreground group; on Windows in a console of
- * its own, through the tests' console helper.
+ * its own, through the tests' console helper, which leaves what the command started running
+ * after it, as a terminal does. The command's end waits for every process holding its output.
  */
 function started(argv, {cwd, env, python}) {
   const child = windows
-    ? spawn(python, [CONSOLE_HELPER, 'run', '--', ...argv], {
+    ? spawn(python, [CONSOLE_HELPER, 'run', '--leave-tree', '--', ...argv], {
         cwd,
         env,
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -458,7 +460,7 @@ function started(argv, {cwd, env, python}) {
   };
   run.kill = () => {
     try {
-      // On Windows the helper's Job Object ends whatever the command started.
+      // What the command started is ended by its command line, `turnAndStop`'s.
       if (windows) child.kill();
       else process.kill(-child.pid, 'SIGKILL');
     } catch {
@@ -506,11 +508,12 @@ async function turnAndStop(argv, options) {
     ],
     options,
   );
+  // The stub agent, and every process whose command line carries its command: Spectra's own.
+  const carrying = [STUB_AGENT, `--port ${agentPort} --canned-a2ui`];
   let stubs = [];
   try {
     await run.waitFor(/The agent's card answered: Spectra stub agent\./, START_BOUND_MS);
-    // The stub agent, and every process whose command line carries its command.
-    stubs = processesWith([STUB_AGENT, `--port ${agentPort} --canned-a2ui`]);
+    stubs = processesWith(carrying);
     if (stubs.length === 0) {
       throw new BuildError(`No process of the stub agent was found:\n${run.output.trim()}`);
     }
@@ -565,6 +568,10 @@ async function turnAndStop(argv, options) {
         `The stub agent's process is left ${GONE_BOUND_MS / 1000} s after the command exited: ${left.map(stub => `${stub.pid}, ${stub.line}`).join('; ')}\n${run.output.trim()}`,
       );
     }
+    // Spectra took the Ctrl-C itself, and stopped the agent: nothing else ended them.
+    if (!/Stopping the agent's process\./.test(run.output)) {
+      throw new BuildError(`Spectra did not say it was stopping the agent:\n${run.output.trim()}`);
+    }
     const forced = /Forcing the agent's process to stop/.test(run.output);
     console.log(
       `The Ctrl-C: the command exited with ${exit.code ?? exit.signal} after ${(exitedIn / 1000).toFixed(1)} s, and the stub agent's process is gone${forced ? ', forced' : ''}.`,
@@ -575,11 +582,8 @@ async function turnAndStop(argv, options) {
     console.error(run.output.trim());
     throw error;
   } finally {
-    if (!run.ended) {
-      run.kill();
-      await within(run.exited, 10_000);
-    }
-    for (const stub of stubs) {
+    if (!run.ended) run.kill();
+    for (const stub of [...stubs, ...processesWith(carrying)]) {
       if (isRunning(stub.pid)) {
         try {
           process.kill(stub.pid, 'SIGKILL');
@@ -588,6 +592,7 @@ async function turnAndStop(argv, options) {
         }
       }
     }
+    await within(run.exited, 10_000);
   }
 }
 

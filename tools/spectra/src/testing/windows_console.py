@@ -1,9 +1,12 @@
-"""The tests' console helper on Windows, which only the tests use.
+"""The tests' console helper on Windows, which only the tests and the install
+check use.
 
 `run -- <command>...` starts the command in a console of its own, its window
 hidden, with no input and this process's stdout and stderr, in a Job Object
 that ends it and everything it starts when this process ends; the command is
-created suspended and resumed once it is in the job. Each line written to this process's
+created suspended and resumed once it is in the job. Under `run --leave-tree --
+<command>...` there is no Job Object, and what the command started runs on
+after it, as after a command in a terminal. Each line written to this process's
 stdin, `ctrl-c`, `ctrl-break` or `close`, sends that console event to the
 command's console, or closes that console's window, without it reaching any
 other console. This process exits with the command's exit code.
@@ -137,29 +140,37 @@ def send(event: str, pid: int) -> int:
         kernel32.FreeConsole()
 
 
-def run(command: list[str]) -> int:
+def run(command: list[str], leave_tree: bool = False) -> int:
     """Runs the command in a console of its own, taking events on stdin."""
-    job = kernel32.CreateJobObjectW(None, None)
-    info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION()
-    info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
-    kernel32.SetInformationJobObject(
-        job,
-        JOB_OBJECT_EXTENDED_LIMIT_INFORMATION,
-        ctypes.byref(info),
-        ctypes.sizeof(info),
-    )
     startupinfo = subprocess.STARTUPINFO()
     startupinfo.dwFlags |= STARTF_USESHOWWINDOW
     startupinfo.wShowWindow = SW_HIDE
-    child = subprocess.Popen(
-        command,
-        stdin=subprocess.DEVNULL,
-        creationflags=CREATE_NEW_CONSOLE | CREATE_SUSPENDED,
-        startupinfo=startupinfo,
-    )
-    handle = int(child._handle)  # type: ignore[attr-defined]
-    kernel32.AssignProcessToJobObject(job, handle)
-    ntdll.NtResumeProcess(handle)
+    if leave_tree:
+        child = subprocess.Popen(
+            command,
+            stdin=subprocess.DEVNULL,
+            creationflags=CREATE_NEW_CONSOLE,
+            startupinfo=startupinfo,
+        )
+    else:
+        job = kernel32.CreateJobObjectW(None, None)
+        info = JOBOBJECT_EXTENDED_LIMIT_INFORMATION()
+        info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
+        kernel32.SetInformationJobObject(
+            job,
+            JOB_OBJECT_EXTENDED_LIMIT_INFORMATION,
+            ctypes.byref(info),
+            ctypes.sizeof(info),
+        )
+        child = subprocess.Popen(
+            command,
+            stdin=subprocess.DEVNULL,
+            creationflags=CREATE_NEW_CONSOLE | CREATE_SUSPENDED,
+            startupinfo=startupinfo,
+        )
+        handle = int(child._handle)  # type: ignore[attr-defined]
+        kernel32.AssignProcessToJobObject(job, handle)
+        ntdll.NtResumeProcess(handle)
 
     def take_events() -> None:
         for line in sys.stdin:
@@ -179,6 +190,8 @@ def main() -> None:
         code = send(args[1], int(args[2]))
     elif len(args) >= 3 and args[0] == "run" and args[1] == "--":
         code = run(args[2:])
+    elif len(args) >= 4 and args[0:3] == ["run", "--leave-tree", "--"]:
+        code = run(args[3:], leave_tree=True)
     else:
         print(__doc__, file=sys.stderr)
         code = 64

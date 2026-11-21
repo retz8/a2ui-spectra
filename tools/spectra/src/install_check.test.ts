@@ -205,10 +205,9 @@ describe('the install check', () => {
     assert.deepEqual(check.a2uiMessagesOf(turn), check.CANNED_SURFACE);
   });
 
-  it(
-    'finds each installed binary, and fails on one carrying the download mark',
-    {skip: !marked && 'Linux has no download mark the check asserts.'},
-    () => {
+  // On Linux the check asserts no download mark.
+  if (marked) {
+    it('finds each installed binary, and fails on one carrying the download mark', () => {
       const name = windows ? 'a2ui-spectra.exe' : 'a2ui-spectra';
       const header = windows ? Buffer.from('MZ', 'latin1') : Buffer.from('cffaedfe', 'hex');
       const root = freshDir();
@@ -245,6 +244,6 @@ describe('the install check', () => {
       assert.equal(mark.status, 0, mark.stderr);
       assert.throws(() => check.expectNoMark([binary]), /carries the download mark/);
       assert.throws(() => check.expectNoMark([]), /No installed binary was found/);
-    },
-  );
+    });
+  }
 });
