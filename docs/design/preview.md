@@ -414,7 +414,7 @@ A component failure always counts. A refused message or a web core error on a st
 
 ### A press and the action it sends
 
-A press is the page's `action` message. The viewer keeps the turn, the step and the surfaces as they stood for each of a page's renders numbered within 50 of its latest, the running number counting the renders of every page, so a press goes on as pressed in its own render even after a newer render went out; a press naming an older render is dropped.
+A press is the page's `action` message. The viewer keeps the turn, the step and the surfaces as they stood for each of a page's latest 50 renders, however their running numbers interleave with other pages', so a press goes on as pressed in its own render even after a newer render went out; a press naming an older render is dropped.
 
 From the press the viewer builds the pending action:
 

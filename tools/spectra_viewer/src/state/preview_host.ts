@@ -387,8 +387,10 @@ class PreviewHost {
     page.render = this.#renders;
     page.seen = new Set();
     if (wanted.context !== undefined) page.contexts.set(page.render, wanted.context);
+    // The page's own latest renders, oldest first in the map, whatever numbers other pages' took.
     for (const number of page.contexts.keys()) {
-      if (number <= page.render - KEPT_RENDERS) page.contexts.delete(number);
+      if (page.contexts.size <= KEPT_RENDERS) break;
+      page.contexts.delete(number);
     }
     const render: RenderMessage = {
       type: 'a2ui-spectra-preview/render',
