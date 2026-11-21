@@ -5,7 +5,8 @@
 //
 // For all five platforms, each npm package, wheel and archive holds exactly its files: the
 // binary with the built binary's SHA-256 and its executable bit, LICENSE, the build's
-// THIRD_PARTY_NOTICES.md, and the README where it belongs; each wheel's tag, every stated
+// THIRD_PARTY_NOTICES.md, and the README where it belongs, its links as GitHub URLs at the
+// version's tag, none relative and each naming what the repository holds; each wheel's tag, every stated
 // version, the repository and the issues page are right, and checksums.txt verifies. Then this Mac's own packages are installed as an
 // adopter installs them, each ending in `a2ui-spectra --version`: the launcher and this
 // platform's package by npm from the built packages, this platform's wheel by uv, and this
@@ -34,9 +35,11 @@ import {
   npmRepository,
   npmTarball,
   output,
+  packedReadme,
   PACKAGES_DIR,
   PLATFORMS,
   platformPackage,
+  readmeLinkProblems,
   readVersion,
   REPO_DIR,
   REPOSITORY,
@@ -58,7 +61,12 @@ import {
 function checkPackages(version, checks) {
   const license = readFileSync('../../LICENSE');
   const notices = readFileSync(NOTICES);
-  const readme = readFileSync('README.md');
+  // The tool's README, its relative links and images written as GitHub URLs at the version's tag,
+  // which no package may hold relative or naming what is not in the repository.
+  const readme = Buffer.from(packedReadme('tools/spectra/README.md', version));
+  for (const problem of readmeLinkProblems(readme.toString('utf8'), 'The packed README')) {
+    checks.that(false, problem);
+  }
   const common = {LICENSE: {bytes: license}, 'THIRD_PARTY_NOTICES.md': {bytes: notices}};
 
   // Nothing but the packages, the archives and the notices.

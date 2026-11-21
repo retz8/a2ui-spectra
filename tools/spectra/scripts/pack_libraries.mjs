@@ -9,7 +9,8 @@
 //
 // It takes no version: each library is packed at the version its manifest states, which must be
 // the version of `src/version.ts`, as `yarn check:version` holds. Each pack is made from a copy
-// outside the workspace holding its packed manifest, the root LICENSE and the library's README:
+// outside the workspace holding its packed manifest, the root LICENSE and the library's README,
+// its relative links and images written as GitHub URLs at the version's tag:
 //
 // - an npm library: the manifest without `private`, `scripts`, `wireit` and `devDependencies`,
 //   a `workspace:` dependency on another library stated at the release's exact version; its
@@ -48,7 +49,7 @@ import {
   pythonWheel,
   withoutDeclarationMap,
 } from './libraries.mjs';
-import {BuildError, readVersion, REPO_DIR, run, runMain} from './packages.mjs';
+import {BuildError, packedReadme, readVersion, REPO_DIR, run, runMain} from './packages.mjs';
 import {versionDifferences} from './version.mjs';
 
 function put(from, to) {
@@ -111,7 +112,7 @@ function npmLibrary(library, version, staging) {
     `${JSON.stringify(packedManifest(source, version, where), null, 2)}\n`,
   );
   put(LICENSE, path.join(staging, 'LICENSE'));
-  put(path.join(from, 'README.md'), path.join(staging, 'README.md'));
+  writeFileSync(path.join(staging, 'README.md'), packedReadme(`${library.dir}/README.md`, version));
   for (const file of built) {
     const to = path.join(staging, file);
     if (file.endsWith('.d.ts')) {
@@ -132,9 +133,13 @@ function npmLibrary(library, version, staging) {
 
 function pythonLibrary(version, staging) {
   const from = path.join(REPO_DIR, PYTHON_LIBRARY.dir);
-  for (const file of ['pyproject.toml', 'README.md', ...pythonSources()]) {
+  for (const file of ['pyproject.toml', ...pythonSources()]) {
     put(path.join(from, file), path.join(staging, file));
   }
+  writeFileSync(
+    path.join(staging, 'README.md'),
+    packedReadme(`${PYTHON_LIBRARY.dir}/README.md`, version),
+  );
   put(LICENSE, path.join(staging, 'LICENSE'));
   // The sdist, then the wheel built from it, into a folder of their own.
   const out = path.join(staging, '..', 'pypi-out');

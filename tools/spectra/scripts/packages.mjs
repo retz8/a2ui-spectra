@@ -10,6 +10,13 @@ import {readFileSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
+import {
+  packedReadme as rewriteReadme,
+  packedReadmeProblems,
+  trackedFiles,
+  trackedFolders,
+} from '../../../scripts/markdown.mjs';
+
 export const NAME = 'a2ui-spectra';
 export const REPOSITORY = 'https://github.com/retz8/a2ui-spectra';
 /** The issues page every released package names. */
@@ -164,6 +171,48 @@ export function expectVersion(binary, version, options = {}) {
   if (printed !== version) {
     throw new BuildError(`${binary} --version printed ${printed}, not ${version}.`);
   }
+}
+
+let repoFiles;
+
+/** The repository's tracked files and folders, and a reader of a tracked file's text. */
+function tracked() {
+  if (repoFiles === undefined) {
+    const files = trackedFiles(REPO_DIR);
+    repoFiles = {
+      files,
+      folders: trackedFolders(files),
+      read: file => readFileSync(path.join(REPO_DIR, file), 'utf8'),
+    };
+  }
+  return repoFiles;
+}
+
+/**
+ * A README as its package carries it, from the README's path in the repository: each relative
+ * link and image written as a GitHub URL at the version's tag, by `scripts/markdown.mjs`. A
+ * relative link that does not resolve stops the command.
+ */
+export function packedReadme(readme, version) {
+  const {text, problems} = rewriteReadme(readFileSync(path.join(REPO_DIR, readme), 'utf8'), {
+    readme,
+    version,
+    ...tracked(),
+  });
+  if (problems.length > 0) {
+    throw new BuildError(
+      `${readme}'s links do not all resolve:\n${problems.map(line => `- ${line}`).join('\n')}`,
+    );
+  }
+  return text;
+}
+
+/**
+ * What is wrong with a packed README's links: a relative link, or a URL into this repository
+ * naming a path that is not in it or an anchor that is not there.
+ */
+export function readmeLinkProblems(text, where) {
+  return packedReadmeProblems(text, {where, ...tracked()});
 }
 
 /** Runs a command's `main`, and ends it with one line when it fails. */

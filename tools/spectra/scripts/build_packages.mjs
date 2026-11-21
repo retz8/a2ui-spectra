@@ -43,6 +43,7 @@ import {
   NOTICES,
   NPM_BUGS,
   npmRepository,
+  packedReadme,
   npmTarball,
   PACKAGES_DIR,
   PLATFORMS,
@@ -54,7 +55,8 @@ import {
 } from './packages.mjs';
 
 const LICENSE = '../../LICENSE';
-const README = 'README.md';
+/** The tool's README, from the repository's root, which the packages carry as `packedReadme` writes it. */
+const README = 'tools/spectra/README.md';
 /** The launcher, as `build:tsc` compiles it. */
 const LAUNCHER = 'dist/npm/launcher.js';
 const WHEEL_PROJECT = 'wheel';
@@ -76,6 +78,12 @@ function writeJson(file, value) {
 }
 
 const repository = npmRepository('tools/spectra');
+
+/** The tool's README as the packages carry it, written into a package's folder. */
+function putReadme(to, version) {
+  writeFileSync(to, packedReadme(README, version));
+  chmodSync(to, 0o644);
+}
 
 /** The launcher's package: its script, LICENSE, the notices and the README. */
 function launcherPackage(dir, version, description) {
@@ -102,7 +110,7 @@ function launcherPackage(dir, version, description) {
   chmodSync(path.join(dir, 'bin', `${NAME}.js`), 0o755);
   put(LICENSE, path.join(dir, 'LICENSE'));
   put(NOTICES, path.join(dir, 'THIRD_PARTY_NOTICES.md'));
-  put(README, path.join(dir, 'README.md'));
+  putReadme(path.join(dir, 'README.md'), version);
 }
 
 /** A platform's npm package: the binary, LICENSE and the notices, and no README. */
@@ -151,7 +159,7 @@ function wheel(dir, platform, version) {
   put(builtBinary(platform), path.join(dir, binaryName(platform)), {executable: true});
   put(LICENSE, path.join(dir, 'LICENSE'));
   put(NOTICES, path.join(dir, 'THIRD_PARTY_NOTICES.md'));
-  put(README, path.join(dir, 'README.md'));
+  putReadme(path.join(dir, 'README.md'), version);
   const out = path.join(dir, 'out');
   run('uv', ['build', '--wheel', '--no-config', '--out-dir', out, dir], {
     cwd: dir,
@@ -175,7 +183,7 @@ function archive(dir, platform, version) {
   put(builtBinary(platform), path.join(dir, files[0]), {executable: true});
   put(LICENSE, path.join(dir, files[1]));
   put(NOTICES, path.join(dir, files[2]));
-  put(README, path.join(dir, files[3]));
+  putReadme(path.join(dir, files[3]), version);
   const file = path.resolve(archiveFile(platform, version));
   if (platform.exe === undefined) {
     // BSD tar, without macOS's metadata and with no owner of this machine's.

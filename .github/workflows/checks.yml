@@ -42,6 +42,8 @@ jobs:
         run: yarn lint:all
       - name: Format check
         run: yarn format:check:all
+      - name: Link check
+        run: node scripts/check_links.mjs
       - name: Python format check
         run: uv run pyink --check .
       - name: Python type check

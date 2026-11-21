@@ -53,6 +53,8 @@ import {
   NPM_BUGS,
   npmRepository,
   output,
+  packedReadme,
+  readmeLinkProblems,
   readVersion,
   REPO_DIR,
   REPOSITORY,
@@ -158,7 +160,7 @@ function checkNpmPack(library, version, license, checks) {
   const expected = {
     'package.json': {},
     LICENSE: {bytes: license},
-    'README.md': {bytes: readFileSync(path.join(from, 'README.md'))},
+    'README.md': {bytes: packedReadmeChecked(`${library.dir}/README.md`, version, where, checks)},
   };
   for (const name of builtFiles(library)) {
     const bytes = readFileSync(path.join(from, name));
@@ -277,6 +279,17 @@ function checkNpmPack(library, version, license, checks) {
   return {manifest, bare: checkImports(where, files, manifest, checks)};
 }
 
+/**
+ * A library's README as its pack must hold it, its relative links and images written as GitHub
+ * URLs at the version's tag; a link in it that is relative, or names what the repository does
+ * not hold, fails the check.
+ */
+function packedReadmeChecked(readme, version, where, checks) {
+  const text = packedReadme(readme, version);
+  for (const problem of readmeLinkProblems(text, `${where}'s README`)) checks.that(false, problem);
+  return Buffer.from(text);
+}
+
 /** A wheel's METADATA or an sdist's PKG-INFO. */
 function checkMetadata(where, text, version, readme, checks) {
   const {headers, body} = metadataOf(text);
@@ -301,7 +314,12 @@ function checkMetadata(where, text, version, readme, checks) {
 
 function checkPython(version, license, checks) {
   const from = path.join(REPO_DIR, PYTHON_LIBRARY.dir);
-  const readme = readFileSync(path.join(from, 'README.md'));
+  const readme = packedReadmeChecked(
+    `${PYTHON_LIBRARY.dir}/README.md`,
+    version,
+    shown(pythonWheel(version)),
+    checks,
+  );
   const sources = Object.fromEntries(
     pythonSources().map(file => [file, {bytes: readFileSync(path.join(from, file))}]),
   );

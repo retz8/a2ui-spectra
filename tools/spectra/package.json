@@ -116,7 +116,10 @@
         "wheel/**",
         "README.md",
         "../../LICENSE",
-        "src/prices/NOTICE"
+        "src/prices/NOTICE",
+        "../../scripts/markdown.mjs",
+        "../../docs/**/*.md",
+        "../../README.md"
       ],
       "output": [
         "dist/packages/**"
@@ -131,7 +134,11 @@
         "scripts/check_packages.mjs",
         "scripts/packages.mjs",
         "scripts/reading.mjs",
-        "../../scripts/public/install.sh"
+        "../../scripts/public/install.sh",
+        "../../scripts/markdown.mjs",
+        "../../docs/**/*.md",
+        "../../README.md",
+        "README.md"
       ],
       "output": []
     },
@@ -159,7 +166,10 @@
         "../../python/a2ui_spectra_instrumentation/pyproject.toml",
         "../../python/a2ui_spectra_instrumentation/README.md",
         "../../python/a2ui_spectra_instrumentation/src/**/*.py",
-        "../../python/a2ui_spectra_instrumentation/src/**/py.typed"
+        "../../python/a2ui_spectra_instrumentation/src/**/py.typed",
+        "../../scripts/markdown.mjs",
+        "../../docs/**/*.md",
+        "../../README.md"
       ],
       "output": [
         "dist/libraries/**"
@@ -174,7 +184,13 @@
         "scripts/check_libraries.mjs",
         "scripts/libraries.mjs",
         "scripts/packages.mjs",
-        "scripts/reading.mjs"
+        "scripts/reading.mjs",
+        "../../scripts/markdown.mjs",
+        "../../docs/**/*.md",
+        "../../README.md",
+        "../../typescript/preview/*/README.md",
+        "../../typescript/instrumentation/README.md",
+        "../../python/a2ui_spectra_instrumentation/README.md"
       ],
       "output": []
     },
@@ -246,7 +262,8 @@
         "scripts/packages.mjs",
         "scripts/libraries.mjs",
         "../../CHANGELOG.md",
-        "../../typescript/preview/core/src/protocol.ts"
+        "../../typescript/preview/core/src/protocol.ts",
+        "../../scripts/markdown.mjs"
       ],
       "output": []
     },
