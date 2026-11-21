@@ -579,6 +579,10 @@ describe('what the A2UI step says in the detail', () => {
       'No component ranges · the parse names no inference format',
     );
     assert.equal(
+      rangesSentenceOf({ranges: [{surfaceId: 's', componentId: 'c', start: 0, end: 1}]}, undefined),
+      undefined,
+    );
+    assert.equal(
       rangesSentenceOf({ranges: [], stoppedAt: 3}, 'express'),
       'No component ranges · the Express reader could not read this text',
     );

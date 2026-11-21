@@ -593,17 +593,18 @@ export function retriedByOf(
 
 /**
  * The grey sentence above a parse's raw text when its component ranges are
- * not all worked out: why there are none, or where the reader stopped.
+ * not all worked out: why there are none, or where the reader stopped. Ranges
+ * the producer states are all worked out, whatever format the parse names.
  */
 export function rangesSentenceOf(
   reading: Reading | undefined,
   format: string | undefined,
 ): string | undefined {
+  if (reading !== undefined && reading.stoppedAt === undefined) return undefined;
   const name = formatNameOf(format);
-  if (reading === undefined || name === undefined) {
+  if (reading?.stoppedAt === undefined || name === undefined) {
     return 'No component ranges · the parse names no inference format';
   }
-  if (reading.stoppedAt === undefined) return undefined;
   if (reading.ranges.length === 0) {
     return `No component ranges · the ${name} reader could not read this text`;
   }
