@@ -121,27 +121,29 @@ The commands, their options and the config file are in [`tools/spectra/`](tools/
 
 ## OpenTelemetry instrumentation
 
-With nothing added, Spectra sees a turn at the agent's edges: the wire, the model calls and the tool calls. To see inside the agent's process, it reads OpenTelemetry. Its receiver takes OTLP over HTTP; `run` points the agent's exporter at it, and `attach` prints the variables that do.
+Out of the box, Spectra sees what goes in and out of your agent. Add the wrapper to see inside the agent SDK, where the model's text becomes your UI:
 
-**The A2UI step, from the wrapper.** For an agent on upstream's agent SDK, the wrapper `a2ui-spectra-instrumentation` reports each prompt the SDK writes and each parse of the model's raw text. Each parse becomes a step of the turn: the raw text with each component's characters linked to the tree, the error that stopped a block, the model reply it read and the call that retried it. Install it as a dev dependency of the agent, and launch the agent under it.
+- **Which part of the reply became which component**, character by character.
+- **Why a block failed to parse**, and the retry it cost.
+- **The prompt the SDK wrote** from your catalog.
 
-A Python agent, on `a2ui-agent-sdk`:
+Install it beside your agent, and launch the agent under it. In Python, on `a2ui-agent-sdk`:
 
 ```sh
 uv add --dev a2ui-spectra-instrumentation
 a2ui-spectra run --agent-url http://localhost:10002 -- uv run opentelemetry-instrument python agent.py
 ```
 
-A TypeScript agent, on `@a2ui/agent`:
+In TypeScript, on `@a2ui/agent`:
 
 ```sh
 npm install --save-dev a2ui-spectra-instrumentation
 a2ui-spectra run --agent-url http://localhost:10002 -- node --import a2ui-spectra-instrumentation/register agent.js
 ```
 
-Or switch it on with one line in the agent's code, and launch the agent as you do today. The [Python wrapper's README](python/a2ui_spectra_instrumentation/README.md) and the [TypeScript wrapper's](typescript/instrumentation/README.md) have the line, and what each supports.
+Or switch it on with one line of code: see the [Python](python/a2ui_spectra_instrumentation/README.md) and [TypeScript](typescript/instrumentation/README.md) wrappers' READMEs.
 
-**Your framework's own spans.** The receiver also reads the spans your agent's framework exports, in ADK's, OpenInference's and OpenLLMetry's dialects: which step of the framework made each call, tools that never cross the network, and the framework's log records. Launch the agent with an OTLP exporter over HTTP. For a Python agent, [the recipe](docs/design/opentelemetry.md#the-recipe-for-a-python-agent) adds three things to its run and nothing to its code.
+Your framework's own spans, ADK's among them, join the same turn: which step made each call, and the tools that never cross the network. See [the recipe for a Python agent](docs/design/opentelemetry.md#the-recipe-for-a-python-agent).
 
 ## Record once, replay for free
 
