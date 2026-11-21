@@ -360,6 +360,35 @@ describe('the message box', () => {
     box.close();
   });
 
+  it('names what the card lacks when it lists JSON-RPC with no URL or with no version', () => {
+    const proxy = new FakeProxy();
+    const lines = [
+      {preferredTransport: 'JSONRPC'},
+      {supportedInterfaces: [{protocolBinding: 'JSONRPC', protocolVersion: '1.0'}]},
+      {supportedInterfaces: [{url: URL_1_0, protocolBinding: 'JSONRPC'}]},
+      {
+        supportedInterfaces: [
+          {url: URL_1_0, protocolBinding: 'JSONRPC'},
+          {url: URL_1_0, protocolBinding: 'JSONRPC', protocolVersion: '2.0'},
+        ],
+      },
+    ].map(card => {
+      const box = boxOn(proxy, card);
+      const unavailable = box.unavailable;
+      box.close();
+      return unavailable;
+    });
+    const unaffected = 'Hosts pointed at the wire proxy are not affected.';
+    assert.deepEqual(lines, [
+      `The message box cannot send to this agent: its card lists A2A JSON-RPC with no URL to send to. ${unaffected}`,
+      `The message box cannot send to this agent: its card lists A2A JSON-RPC with no URL to send to. ${unaffected}`,
+      'The message box cannot send to this agent: its card lists A2A JSON-RPC only with no protocolVersion, ' +
+        `and the box speaks A2A 0.3 and 1.0. ${unaffected}`,
+      'The message box cannot send to this agent: its card lists A2A JSON-RPC only at version 2.0 and with no protocolVersion, ' +
+        `and the box speaks A2A 0.3 and 1.0. ${unaffected}`,
+    ]);
+  });
+
   it('adds the configured headers to each request, its own transport headers winning', async () => {
     const proxy = new FakeProxy();
     const box = boxOn(proxy, CARD_1_0, {

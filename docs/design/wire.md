@@ -223,6 +223,9 @@ Entries of other transports are left as they are, and so is a URL that is not ab
 | Not listed; other transports are            | `The agent's card lists no A2A JSON-RPC interface, only GRPC. Spectra captures A2A over JSON-RPC only.`, as an error                                                                                        | `attach`, `replay` and `test` stop, exiting 1. `run` carries on, the agent left up and the message box refusing with the check's line, as [The refusals](#the-refusals) lists |
 | No interface at all                         | `The agent's card lists no interface to reach it at. A2A 1.0 requires the card's supportedInterfaces, and A2A 0.3 its url, so hosts that follow the card cannot reach the agent either.`, as an error       | As above                                                                                                                                                                      |
 | Only at A2A versions other than 0.3 and 1.0 | The message box's line, `The message box cannot send to this agent: its card lists A2A JSON-RPC only at version 2.0, and the box speaks A2A 0.3 and 1.0. Hosts pointed at the wire proxy are not affected.` | Goes on; the message box refuses                                                                                                                                              |
+| Listed with no URL                          | The message box's line, `The message box cannot send to this agent: its card lists A2A JSON-RPC with no URL to send to. Hosts pointed at the wire proxy are not affected.`                                  | Goes on; the message box refuses                                                                                                                                              |
+
+A JSON-RPC interface that states no version is named in the versions' line as `with no protocolVersion`: `… its card lists A2A JSON-RPC only at version 2.0 and with no protocolVersion, and the box speaks A2A 0.3 and 1.0. …`.
 
 The transport names in these lines are the card's own. The card's `name` names the agent on every turn captured from then on, `invoke_agent <name>` and `gen_ai.agent.name`; a card with no name leaves both out, and a turn captured under `run` before any card has answered carries none.
 
@@ -376,7 +379,7 @@ Spectra owns every line the box refuses a send or a replay with, and `GET /api/m
 
 1. By the state of the agent's process under `run`: `Can't send · the agent is starting`, `Can't send · waiting for the agent's card`, `Can't send · the agent is restarting` and `Can't send · the agent is down`. Under `attach` the box is not told the agent's state.
 2. For a card that fails the transport check under `run`: `Can't send · the agent's card lists no interface to reach it at`, and `Can't send · the agent's card lists no A2A JSON-RPC interface, only GRPC`, the transports the card does list in place of `GRPC`.
-3. For a card that lists JSON-RPC only at versions the box does not speak, the line in [The card](#the-card).
+3. For a card that lists JSON-RPC only at versions the box does not speak, or only with no version or no URL, the lines in [The card](#the-card).
 4. For a configured header's variable that is not set: `Can't send · SPECTRA_AGENT_TOKEN is not set in Spectra's environment`, naming each such variable.
 
 A send the box refuses for anything else answers with one of these, cut from the send route, `POST /api/message-box/messages`, in a run against the stub agent:

@@ -53,8 +53,12 @@ export interface BoxInterface {
 
 export type InterfaceChoice =
   | ({kind: 'found'} & BoxInterface)
-  /** The card lists JSON-RPC only at versions the box does not speak, named here. */
-  | {kind: 'none'; versions: string[]};
+  /**
+   * The card lists no JSON-RPC interface the box speaks: those with a URL are
+   * at the versions named here, `unversioned` when one states none, and with
+   * neither no JSON-RPC interface gives a URL.
+   */
+  | {kind: 'none'; versions: string[]; unversioned: boolean};
 
 /**
  * Chooses the interface the box speaks to. With `supportedInterfaces`, it is
@@ -67,6 +71,7 @@ export function chooseInterface(card: Record<string, unknown>): InterfaceChoice 
   const streaming = isRecord(card.capabilities) && card.capabilities.streaming === true;
   if (Array.isArray(card.supportedInterfaces)) {
     const versions: string[] = [];
+    let unversioned = false;
     for (const entry of card.supportedInterfaces) {
       if (!isRecord(entry) || entry.protocolBinding !== JSONRPC || typeof entry.url !== 'string') {
         continue;
@@ -83,9 +88,10 @@ export function chooseInterface(card: Record<string, unknown>): InterfaceChoice 
           streaming,
         };
       }
-      versions.push(declared === '' ? 'no version' : declared);
+      if (declared === '') unversioned = true;
+      else versions.push(declared);
     }
-    return {kind: 'none', versions: [...new Set(versions)]};
+    return {kind: 'none', versions: [...new Set(versions)], unversioned};
   }
   const preferred = typeof card.preferredTransport === 'string' ? card.preferredTransport : JSONRPC;
   if (preferred === JSONRPC && typeof card.url === 'string') {
@@ -97,7 +103,7 @@ export function chooseInterface(card: Record<string, unknown>): InterfaceChoice 
       return {kind: 'found', version: '0.3', url: entry.url, streaming};
     }
   }
-  return {kind: 'none', versions: []};
+  return {kind: 'none', versions: [], unversioned: false};
 }
 
 function majorMinor(version: string): string | undefined {

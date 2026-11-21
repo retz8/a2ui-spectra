@@ -187,10 +187,10 @@ With no turns, the turn view holds the first screen:
 
 The composer is focused. While the agent is running and the message box cannot send, the screen says what can still start a turn in place of "Send a message to start your first turn.":
 
-| The box's reason                                                                                                                   | The screen                                                                                                                                   |
-| ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Its own: a configured header's variable that is not set, or a card that lists JSON-RPC only at A2A versions the box does not speak | "To start your first turn, point your host app at", with the wire proxy's address and its copy button                                        |
-| The card lists no A2A JSON-RPC interface, the box's state carrying `noJsonRpc`                                                     | "No turn can start until the agent’s card lists an A2A JSON-RPC interface. The card is read again when the agent restarts.", with no address |
+| The box's reason                                                                                                                                                   | The screen                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Its own: a configured header's variable that is not set, or a card that lists JSON-RPC only at A2A versions the box does not speak, with no version or with no URL | "To start your first turn, point your host app at", with the wire proxy's address and its copy button                                        |
+| The card lists no A2A JSON-RPC interface, the box's state carrying `noJsonRpc`                                                                                     | "No turn can start until the agent’s card lists an A2A JSON-RPC interface. The card is read again when the agent restarts.", with no address |
 
 The line "or point your host app at" shows only while the box can send or the agent is not ready.
 

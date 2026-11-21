@@ -81,8 +81,31 @@ describe('chooseInterface', () => {
           {url: `${PROXY}/c`, protocolBinding: 'GRPC', protocolVersion: '1.0'},
         ],
       }),
-      {kind: 'none', versions: ['1.1', '2.0']},
+      {kind: 'none', versions: ['1.1', '2.0'], unversioned: false},
     );
+  });
+
+  it('says when a JSON-RPC interface states no version, and names none when no JSON-RPC interface gives a URL', () => {
+    assert.deepEqual(
+      chooseInterface({
+        supportedInterfaces: [
+          {url: `${PROXY}/a`, protocolBinding: 'JSONRPC'},
+          {url: `${PROXY}/b`, protocolBinding: 'JSONRPC', protocolVersion: '2.0'},
+        ],
+      }),
+      {kind: 'none', versions: ['2.0'], unversioned: true},
+    );
+    assert.deepEqual(
+      chooseInterface({
+        supportedInterfaces: [{protocolBinding: 'JSONRPC', protocolVersion: '1.0'}],
+      }),
+      {kind: 'none', versions: [], unversioned: false},
+    );
+    assert.deepEqual(chooseInterface({preferredTransport: 'JSONRPC'}), {
+      kind: 'none',
+      versions: [],
+      unversioned: false,
+    });
   });
 });
 

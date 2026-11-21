@@ -306,11 +306,20 @@ export class MessageBox {
       return `Can't send · the agent's card lists no A2A JSON-RPC interface, only ${transport.transports.join(', ')}`;
     }
     if (this.#target.kind !== 'found') {
-      const versions = this.#target.versions;
+      const {versions, unversioned} = this.#target;
+      const at = [
+        ...(versions.length > 0
+          ? [`at ${versions.length === 1 ? 'version' : 'versions'} ${versions.join(', ')}`]
+          : []),
+        ...(unversioned ? ['with no protocolVersion'] : []),
+      ];
+      const lacks =
+        at.length === 0
+          ? 'with no URL to send to'
+          : `only ${at.join(' and ')}, and the box speaks A2A 0.3 and 1.0`;
       return (
-        'The message box cannot send to this agent: its card lists A2A JSON-RPC only at ' +
-        `${versions.length === 1 ? 'version' : 'versions'} ${versions.join(', ')}, and the box ` +
-        'speaks A2A 0.3 and 1.0. Hosts pointed at the wire proxy are not affected.'
+        `The message box cannot send to this agent: its card lists A2A JSON-RPC ${lacks}. ` +
+        'Hosts pointed at the wire proxy are not affected.'
       );
     }
     return undefined;
