@@ -6,6 +6,7 @@ import {
   formatDurationCompact,
   formatOffset,
   formatOffsetCompact,
+  turnIconOf,
 } from './format.ts';
 
 describe('formatDurationCompact', () => {
@@ -26,5 +27,17 @@ describe('formatDurationCompact', () => {
     assert.equal(formatOffsetCompact(90_200), '+1m 30s');
     assert.equal(formatOffsetCompact(-5), '+0 ms');
     assert.equal(formatOffset(90_200), '+1 min 30 s');
+  });
+});
+
+describe('turnIconOf', () => {
+  it('draws a listed turn by its status, open while it has no outcome', () => {
+    assert.equal(turnIconOf({outcome: 'waiting_for_input'}), 'waiting');
+    assert.equal(turnIconOf({open: true}), 'open');
+    assert.equal(turnIconOf({}), 'open');
+  });
+
+  it('draws a stored turn of a newer turn record as a file, with no outcome to show', () => {
+    assert.equal(turnIconOf({newer: 'v0.2'}), 'file');
   });
 });

@@ -20,14 +20,7 @@ import type {RestartDivider} from '@/model/restarts.ts';
 import {plural} from '@/model/steps.ts';
 import {briefText, rowTextOf, searchGroups, type TurnGroup} from '@/model/turn_groups.ts';
 
-import {
-  formatClock,
-  formatDuration,
-  formatTime,
-  STATUS_ICONS,
-  type TurnStatus,
-  toneOf,
-} from './format.ts';
+import {formatClock, formatDuration, formatTime, toneOf, turnIconOf} from './format.ts';
 import {Icon, type IconKind} from './icons.tsx';
 
 /** The agent picker's choices, the agent shown and what picking one does. */
@@ -265,13 +258,8 @@ function lineOfConversation(group: TurnGroup<ListedTurn>): GroupLine {
     title: briefText(group.title) || 'A turn',
     time: formatClock(newest.startTime),
     meta: [group.agentName, plural(group.turns.length, 'turn')].filter(Boolean).join(' · '),
-    icon: iconOf(newest),
+    icon: turnIconOf(newest),
   };
-}
-
-/** A turn's status icon; a file for a stored turn whose record this Spectra does not read. */
-function iconOf(turn: ListedTurn): IconKind {
-  return turn.newer !== undefined ? 'file' : STATUS_ICONS[statusOf(turn)];
 }
 
 /**
@@ -419,10 +407,6 @@ function domIdOf(itemId: string): string {
 const ACTIVE =
   'group-focus-visible/tree:outline-2 group-focus-visible/tree:-outline-offset-2 group-focus-visible/tree:outline-brand';
 
-function statusOf(turn: ListedTurn): TurnStatus {
-  return turn.open ? 'open' : (turn.outcome ?? 'open');
-}
-
 /**
  * A restart divider: a slim rule row with centred muted text, where the agent
  * restarted or exited. The keys pass over it.
@@ -534,7 +518,7 @@ function Row({
   active: boolean;
   onSelect: (traceId: string) => void;
 }) {
-  const icon = iconOf(turn);
+  const icon = turnIconOf(turn);
   return (
     <button
       id={domIdOf(turnItemId(turn.traceId))}

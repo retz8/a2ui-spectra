@@ -1,3 +1,4 @@
+import type {ListedTurn} from '@/api.ts';
 import type {Brand} from '@/model/model_calls.ts';
 import type {TurnOutcome} from '@/model/record.ts';
 
@@ -20,6 +21,15 @@ export const STATUS_ICONS: Record<TurnStatus, IconKind> = {
   cancelled: 'cancelled',
   open: 'open',
 };
+
+/**
+ * A listed turn's status icon, in the turn list and the strip; a file for a
+ * stored turn whose record this Spectra does not read.
+ */
+export function turnIconOf(turn: Pick<ListedTurn, 'open' | 'outcome' | 'newer'>): IconKind {
+  if (turn.newer !== undefined) return 'file';
+  return STATUS_ICONS[turn.open ? 'open' : (turn.outcome ?? 'open')];
+}
 
 /** An icon's colour: grey for its shape alone, red for trouble, teal for what is live. */
 /**

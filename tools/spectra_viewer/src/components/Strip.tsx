@@ -6,7 +6,7 @@ import {cn} from '@/lib/utils';
 import type {RestartDivider} from '@/model/restarts.ts';
 import {stripOf, type TurnGroup} from '@/model/turn_groups.ts';
 
-import {STATUS_ICONS, toneOf} from './format.ts';
+import {toneOf, turnIconOf} from './format.ts';
 import {Icon} from './icons.tsx';
 
 /**
@@ -96,7 +96,7 @@ export function Strip<T extends ListedTurn>({
       >
         {strip.map(({turn, problems, title}) => {
           const isSelected = turn.traceId === selected;
-          const icon = STATUS_ICONS[turn.open ? 'open' : (turn.outcome ?? 'open')];
+          const icon = turnIconOf(turn);
           return (
             <Fragment key={turn.traceId}>
               {dividers
