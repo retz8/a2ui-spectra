@@ -170,7 +170,7 @@ async function forwardRead(
   raw: Buffer,
   response: ServerResponse,
 ): Promise<void> {
-  const target = new URL(request.url ?? '/', options.agentUrl);
+  const target = agentTarget(request.url ?? '/', options.agentUrl);
   const isCardGet = request.method === 'GET' && isCardPath(target.pathname);
   const text = await readBody(raw, request.headers['content-encoding']);
   const found = await classify(options, state, text, request.headers);
@@ -228,6 +228,21 @@ async function forwardRead(
   });
 
   upstream.end(raw);
+}
+
+/**
+ * Where a request goes: the agent's origin, with the request's path and
+ * query. A path starting with `//` stays a path, and of a full URL in the
+ * request line only its path and query are kept, so no request leaves the
+ * agent's origin.
+ */
+function agentTarget(requestUrl: string, agentUrl: URL): URL {
+  let pathAndQuery = requestUrl;
+  if (!requestUrl.startsWith('/')) {
+    const full = URL.parse(requestUrl);
+    pathAndQuery = full?.pathname.startsWith('/') ? full.pathname + full.search : '/';
+  }
+  return new URL(agentUrl.origin + pathAndQuery);
 }
 
 /**

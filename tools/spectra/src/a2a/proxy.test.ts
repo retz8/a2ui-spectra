@@ -333,6 +333,33 @@ describe('the wire proxy', () => {
     assert.deepEqual(notifications, []);
   });
 
+  it("forwards every request to the agent's origin, its path and query kept", async () => {
+    const paths: (string | undefined)[] = [];
+    const {proxy} = await setUp((request, _body, response) => {
+      paths.push(request.url);
+      response.writeHead(200).end();
+    });
+    for (const path of ['//other.example/x?y=1', 'http://other.example/p?q=2']) {
+      const answer = await send(proxy, {path});
+      assert.equal(answer.status, 200);
+    }
+    assert.deepEqual(paths, ['//other.example/x?y=1', '/p?q=2']);
+  });
+
+  it(
+    'answers 502 for a full URL of another scheme in the request line to an https agent',
+    {timeout: 5000},
+    async () => {
+      const proxy = await startWireProxy({
+        port: await freePort(),
+        agentUrl: new URL(`https://127.0.0.1:${await freePort()}`),
+      });
+      proxies.push(proxy);
+      const answer = await send(proxy, {path: 'http://other.example/'});
+      assert.equal(answer.status, 502);
+    },
+  );
+
   it("sets Host to the agent's, and forwards the other headers as sent", async () => {
     const {agentPort, proxy, received} = await setUp((_request, _body, response) => {
       response.writeHead(200).end();
