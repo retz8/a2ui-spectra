@@ -213,6 +213,17 @@ describe('checkLinesOf', () => {
     assert.deepEqual(line.result, [{text: 'Not checked'}, {text: ' · no definition for catalog'}]);
   });
 
+  it('says no check events were recorded when the turn names an A2UI version and holds none', () => {
+    assert.deepEqual(checkLinesOf({events: [a2uiOutput]}), [
+      {
+        name: 'Schema check',
+        version: '',
+        result: [{text: 'Not run: the record holds no check events'}],
+        notes: [],
+      },
+    ]);
+  });
+
   it('says the schema check did not run when there is none', () => {
     assert.deepEqual(checkLinesOf({events: []}), [
       {

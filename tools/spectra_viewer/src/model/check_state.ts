@@ -77,11 +77,20 @@ export function checkLinesOf(turn: Turn): CheckLine[] {
         ORDER.indexOf(b.attributes['a2ui.check.name']),
     );
   if (checks.length === 0) {
+    // A turn whose A2UI names a version had its checks run on it when it closed: a record holding
+    // none of their events comes from a run that wrote none, not from a turn with nothing to check.
+    const versioned = agentMessages(turn.events).some(({message}) => versionOf(message) !== '');
     return [
       {
         name: 'Schema check',
         version: '',
-        result: [{text: 'Not run: the turn names no A2UI version'}],
+        result: [
+          {
+            text: versioned
+              ? 'Not run: the record holds no check events'
+              : 'Not run: the turn names no A2UI version',
+          },
+        ],
         notes: [],
       },
     ];
@@ -172,4 +181,11 @@ function surfaceIdsOf(message: unknown): string[] {
 
 function capitalized(word: string): string {
   return word.charAt(0).toUpperCase() + word.slice(1);
+}
+
+/** A message's `version`, or `''` when it states none. */
+function versionOf(message: unknown): string {
+  if (typeof message !== 'object' || message === null) return '';
+  const {version} = message as {version?: unknown};
+  return typeof version === 'string' ? version : '';
 }
