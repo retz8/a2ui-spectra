@@ -334,7 +334,8 @@ class CatalogValidators {
   constructor(definition: Record<string, unknown>, family: Family) {
     this.#family = family;
     this.#definition = definition;
-    // Strict mode off and formats unchecked, as upstream's own schema tests run Ajv.
+    // Strict mode off, as upstream's own schema tests run Ajv. Formats go unchecked here,
+    // though upstream's tests load ajv-formats and check them.
     this.#ajv = new Ajv2020({strict: false, allErrors: true, validateFormats: false});
     const [envelope, common] = family === '1.0' ? [v1_0, v1_0Common] : [v0_9, v0_9Common];
     this.#ajv.addSchema(common as AnySchemaObject);
