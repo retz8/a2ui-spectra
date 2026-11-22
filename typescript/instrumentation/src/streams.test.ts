@@ -53,6 +53,37 @@ describe('a stream', () => {
     assert.equal(eventsOf(capture.only(), 'a2ui.parse.chunk').length, 1);
   });
 
+  it('fed more chunks than a span holds: keeps its first chunk and its errors', async () => {
+    // OpenTelemetry's span holds 128 events by default and drops the oldest
+    // past them; a reply streamed in small chunks, as Anthropic's are, feeds
+    // hundreds.
+    const processor = await processorOf('express');
+    const rejected = '<a2ui>\nsurface("b")\nroot = Heading("Hi")\n</a2ui>\n';
+    const filler = 'Some more text. '.repeat(20);
+    const last = '<a2ui>\nsurface("a")\nroot = Text("Hi")\n</a2ui>\n';
+    const stream = processor.openStream({afterRejectedBlock: 'continue'});
+    stream.feed(rejected);
+    for (const character of filler) stream.feed(character);
+    stream.feed(last);
+    stream.close();
+
+    const span = capture.only();
+    assert.ok(span.events.length <= 128);
+    assert.equal(eventsOf(span, 'exception').length, 1);
+    const ends = eventsOf(span, 'a2ui.parse.chunk').map(chunk => chunk['a2ui.parse.chunk.end']);
+    assert.equal(ends[0], rejected.length);
+    assert.equal(ends.at(-1), rejected.length + filler.length + last.length);
+    assert.deepEqual(
+      ends,
+      [...ends].sort((a, b) => Number(a) - Number(b)),
+    );
+    const times = span.events.map(event => event.time[0] * 1e9 + event.time[1]);
+    assert.deepEqual(
+      times,
+      [...times].sort((a, b) => a - b),
+    );
+  });
+
   it('a close after the end returns nothing and records nothing', async () => {
     const processor = await processorOf('express');
     const stream = processor.openStream();

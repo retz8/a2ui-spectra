@@ -56,6 +56,31 @@ def leave(token: contextvars.Token[Event | None]) -> None:
     _open.reset(token)
 
 
+SpanEvent = tuple[str, dict[str, AttributeValue], int]
+
+# OpenTelemetry's default limit on a span's events; past it the SDK drops the oldest.
+SPAN_EVENT_LIMIT = 128
+CHUNK = "a2ui.parse.chunk"
+
+
+def kept_span_events(events: list[SpanEvent]) -> list[SpanEvent]:
+    """The events a span is given, in order: a stream fed more chunks than fit
+    within the limit beside its other events keeps its first and last chunk and
+    evenly spaced ones between, so the SDK drops none of them."""
+    chunks = [index for index, event in enumerate(events) if event[0] == CHUNK]
+    room = max(2, SPAN_EVENT_LIMIT - (len(events) - len(chunks)))
+    if len(chunks) <= room:
+        return events
+    kept = {
+        chunks[round(step * (len(chunks) - 1) / (room - 1))] for step in range(room)
+    }
+    return [
+        event
+        for index, event in enumerate(events)
+        if event[0] != CHUNK or index in kept
+    ]
+
+
 def utf16_length(text: str) -> int:
     return len(text.encode("utf-16-le", errors="surrogatepass")) // 2
 
@@ -130,7 +155,7 @@ class Event:
         self.format: str | None = None
         self.catalogs: list[dict[str, str]] | None = None
         self.tool_name: str | None = None
-        self.span_events: list[tuple[str, dict[str, AttributeValue], int]] = []
+        self.span_events: list[SpanEvent] = []
         # The errors recorded as `exception` span events in the outermost call
         # that is running, in order; the blocks of every error recorded; and
         # the first one's type and message.
@@ -261,7 +286,7 @@ class Event:
             attributes=attributes,
             start_time=self.start,
         )
-        for name, event_attributes, at in self.span_events:
+        for name, event_attributes, at in kept_span_events(self.span_events):
             span.add_event(name, event_attributes, timestamp=at)
         if self.first_error is not None:
             span.set_status(Status(StatusCode.ERROR, self.first_error[1]))
@@ -506,9 +531,7 @@ class ParseEvent(Event):
             return
         self.chunks.append(chunk)
         self.fed += utf16_length(chunk)
-        self.span_events.append(
-            ("a2ui.parse.chunk", {"a2ui.parse.chunk.end": self.fed}, self.now())
-        )
+        self.span_events.append((CHUNK, {"a2ui.parse.chunk.end": self.fed}, self.now()))
 
     def text(self) -> str:
         return "".join(self.chunks) if self.streamed else self.input

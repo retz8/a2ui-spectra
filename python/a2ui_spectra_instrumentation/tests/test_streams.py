@@ -64,6 +64,32 @@ def test_a_stream_reading_past_a_rejected_block_records_it(
     assert len(spans.parsed(span, "a2ui.parse.messages")) == 1
 
 
+def test_a_stream_fed_more_chunks_than_a_span_holds_keeps_its_first_chunk_and_its_errors(
+    spans: Any, processor: Any
+) -> None:
+    # OpenTelemetry's span holds 128 events by default and drops the oldest
+    # past them; a reply streamed in small chunks, as Anthropic's are, feeds
+    # hundreds.
+    stream = processor().open_stream(after_rejected_block="continue")
+    stream.feed(REJECTED)
+    for character in "Some more text. " * 20:
+        stream.feed(character)
+    stream.feed(TEXT)
+    stream.close()
+
+    span = spans.one()
+    names = [event.name for event in span.events]
+    assert len(names) <= 128
+    assert names.count("exception") == 1
+    chunks = [event for event in span.events if event.name == "a2ui.parse.chunk"]
+    ends = [event.attributes["a2ui.parse.chunk.end"] for event in chunks]
+    assert ends[0] == len(REJECTED)
+    assert ends[-1] == len(REJECTED) + 320 + len(TEXT)
+    assert ends == sorted(ends)
+    times = [event.timestamp for event in span.events]
+    assert times == sorted(times)
+
+
 def test_an_abandoned_stream_is_never_exported(spans: Any, processor: Any) -> None:
     stream = processor().open_stream()
     stream.feed(TEXT)

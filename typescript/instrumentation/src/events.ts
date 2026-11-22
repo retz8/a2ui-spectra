@@ -134,6 +134,26 @@ interface SpanEventRecord {
   time: HrTime;
 }
 
+/** OpenTelemetry's default limit on a span's events; past it the SDK drops the oldest. */
+const SPAN_EVENT_LIMIT = 128;
+const CHUNK = 'a2ui.parse.chunk';
+
+/**
+ * The events a span is given, in order: a stream fed more chunks than fit
+ * within the limit beside its other events keeps its first and last chunk and
+ * evenly spaced ones between, so the SDK drops none of them.
+ */
+function keptSpanEvents(events: readonly SpanEventRecord[]): readonly SpanEventRecord[] {
+  const chunks = events.flatMap((event, index) => (event.name === CHUNK ? [index] : []));
+  const room = Math.max(2, SPAN_EVENT_LIMIT - (events.length - chunks.length));
+  if (chunks.length <= room) return events;
+  const kept = new Set<number>();
+  for (let step = 0; step < room; step++) {
+    kept.add(chunks[Math.round((step * (chunks.length - 1)) / (room - 1))]);
+  }
+  return events.filter((event, index) => event.name !== CHUNK || kept.has(index));
+}
+
 /** How an error reached the event: returned as an `ErrorPart`, or thrown. */
 export type Surfaced = 'returned' | 'thrown';
 
@@ -242,7 +262,7 @@ export abstract class Event {
         {kind: SpanKind.INTERNAL, attributes, startTime: this.start},
         this.parent,
       );
-    for (const {name, attributes: eventAttributes, time} of this.spanEvents) {
+    for (const {name, attributes: eventAttributes, time} of keptSpanEvents(this.spanEvents)) {
       span.addEvent(name, eventAttributes, time);
     }
     if (this.errors.length > 0) {
@@ -481,7 +501,7 @@ export class ParseEvent extends Event {
     this.chunks.push(chunk);
     this.fed += chunk.length;
     this.spanEvents.push({
-      name: 'a2ui.parse.chunk',
+      name: CHUNK,
       attributes: {'a2ui.parse.chunk.end': this.fed},
       time: now(),
     });
