@@ -66,7 +66,7 @@ a2ui-spectra-instrumentation left a2ui-agent-sdk 0.10.0 unpatched: it is below t
 
 Upgrade `a2ui-agent-sdk` to 0.11.0 or later.
 
-**The agent's output says the wrapper started no tracer provider.** The agent's environment names no OTLP endpoint, or names a protocol other than `http/protobuf`. Under `a2ui-spectra attach`, set the variables Spectra prints at start; under `a2ui-spectra run` they are set for you.
+**The wrapper started no tracer provider.** The agent's environment names no OTLP endpoint, or names a protocol other than `http/protobuf`. The wrapper says which at INFO, on its logger `a2ui_spectra_instrumentation`. Under `a2ui-spectra attach`, set the variables Spectra prints at start; under `a2ui-spectra run` they are set for you.
 
 **The step is there, but says it was reported under a newer turn record.** The wrapper is newer than the running Spectra. Upgrade `a2ui-spectra`.
 
