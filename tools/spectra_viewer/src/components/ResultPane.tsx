@@ -92,7 +92,7 @@ export function ResultPane({
       {reply !== '' && !folded && (
         <div className="mx-4 mt-3 flex shrink-0 items-start gap-2.5 rounded-lg bg-tint px-3 py-2.5">
           <Icon kind="text" size={14} className="mt-0.5 shrink-0 tone-muted" />
-          <p className="type-body min-w-0 flex-1">{reply}</p>
+          <p className="type-body min-w-0 flex-1 whitespace-pre-line">{reply}</p>
         </div>
       )}
       <div className="flex shrink-0 flex-col">

@@ -588,16 +588,31 @@ export function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? '' : 's'}`;
 }
 
-/** The agent's text parts up to a position, joined: the reply as it stood there. */
+/**
+ * The agent's text parts up to a position: the reply as it stood there.
+ * Text parts sent one after another are the pieces of one reply, as a
+ * stream sends it, and join as they are; a text part after a part of
+ * another kind, such as an A2UI message, starts the next reply, on a line
+ * of its own.
+ */
 export function replyThrough(events: readonly TurnRecordEvent[], through?: Position): string {
-  const texts: string[] = [];
+  const replies: string[][] = [];
+  let joining = false;
   events.forEach((event, eventIndex) => {
     if (!isWireOutput(event)) return;
     event.attributes['a2ui.wire.message'].parts.forEach((part, partIndex) => {
-      if (part.type !== 'text' || typeof part.content !== 'string') return;
       if (through !== undefined && !isThrough({eventIndex, partIndex}, through)) return;
-      texts.push(part.content);
+      if (part.type !== 'text' || typeof part.content !== 'string') {
+        joining = false;
+        return;
+      }
+      if (joining) replies[replies.length - 1].push(part.content);
+      else replies.push([part.content]);
+      joining = true;
     });
   });
-  return collapse(texts.join(''));
+  return replies
+    .map(pieces => collapse(pieces.join('')))
+    .filter(reply => reply !== '')
+    .join('\n');
 }

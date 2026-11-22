@@ -147,6 +147,35 @@ describe('replyThrough', () => {
     assert.equal(replyThrough(turn.events), 'Working until you cancel.Cancelled.');
     assert.equal(replyThrough(turn.events, {eventIndex: 1}), '');
   });
+
+  it('joins the pieces of a streamed reply as they are, and puts each reply after an A2UI message on a line of its own', () => {
+    const text = (spanId: string, ms: number, content: string) => {
+      const event = a2uiDelivery(spanId, ms);
+      event.attributes['a2ui.wire.message'] = {role: 'assistant', parts: [{type: 'text', content}]};
+      return event;
+    };
+    const events = [
+      text('1'.repeat(16), 8_000, 'Here are the top Italian restaurants in New York for'),
+      text('2'.repeat(16), 8_001, ' you:'),
+      a2uiDelivery('3'.repeat(16), 8_200),
+      text('4'.repeat(16), 15_700, 'Here are the top'),
+      text('5'.repeat(16), 15_701, ' 3 Italian restaurants in New York:'),
+      a2uiDelivery('6'.repeat(16), 15_900),
+      text('7'.repeat(16), 19_600, 'Here are the top 3 Italian restaurants in New York:'),
+    ];
+    assert.equal(
+      replyThrough(events),
+      [
+        'Here are the top Italian restaurants in New York for you:',
+        'Here are the top 3 Italian restaurants in New York:',
+        'Here are the top 3 Italian restaurants in New York:',
+      ].join('\n'),
+    );
+    assert.equal(
+      replyThrough(events, {eventIndex: 3, partIndex: 0}),
+      'Here are the top Italian restaurants in New York for you:\nHere are the top',
+    );
+  });
 });
 
 describe("the A2UI step's rows", () => {
