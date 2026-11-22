@@ -72,6 +72,7 @@ async function withViewer(
   browser: Browser,
   walk: (page: Page, base: string) => Promise<void>,
   turn = retriedTurn().turn,
+  viewport = {width: 1440, height: 900},
 ): Promise<void> {
   const cwd = workingDir();
   const store = await TurnStore.open(cwd);
@@ -94,10 +95,7 @@ async function withViewer(
     ],
     cwd,
   );
-  const page = await browser.newPage({
-    viewport: {width: 1440, height: 900},
-    reducedMotion: 'reduce',
-  });
+  const page = await browser.newPage({viewport, reducedMotion: 'reduce'});
   try {
     await spectra.waitFor(/The viewer is at /);
     await walk(page, `http://127.0.0.1:${port}`);
@@ -262,6 +260,69 @@ describe(`the viewer on the retried-parse record in Chromium, ${binary ? 'the bi
           await page.waitForURL(`${base}/#/turns/${traceId}/steps/${failed.spanId}`);
         },
         {...turn, events},
+      );
+    },
+  );
+
+  it(
+    'draws the preview at Wide never narrower than at Narrow, beside Structure, the detail docked below or beside the result',
+    {timeout: TIMEOUT},
+    async () => {
+      const {traceId} = retriedTurn();
+      await withViewer(
+        browser,
+        async (page, base) => {
+          await page.goto(`${base}/#/turns/${traceId}`);
+          await row(page, 'Completed').click();
+          const frame = page.locator('iframe[title="Spectra’s built-in preview"]');
+          await frame.waitFor();
+          const widthAt = async (option: RegExp): Promise<number> => {
+            await page.getByRole('radio', {name: option}).click();
+            await page.waitForTimeout(300);
+            const box = await frame.boundingBox();
+            assert.ok(box, 'The preview is not drawn.');
+            return box.width;
+          };
+          // Below, beside, then below again: the result narrows, then widens back, under Wide.
+          for (const [index, dock] of ['below', 'beside', 'below'].entries()) {
+            if (index > 0) {
+              const other = dock === 'beside' ? 'below' : 'beside';
+              await page
+                .getByRole('button', {name: `Dock the step’s detail ${dock} the result`})
+                .click();
+              await page
+                .getByRole('button', {name: `Dock the step’s detail ${other} the result`})
+                .waitFor();
+              await page.waitForTimeout(300);
+              const kept = (await frame.boundingBox())?.width ?? 0;
+              const narrowed = await widthAt(/^Narrow/);
+              assert.ok(
+                kept >= narrowed,
+                `Docked ${dock}, Wide kept from before is ${kept}px wide and Narrow ${narrowed}px.`,
+              );
+            }
+            const narrow = await widthAt(/^Narrow/);
+            const wide = await widthAt(/^Wide$/);
+            assert.ok(
+              wide >= narrow,
+              `Docked ${dock}, the preview is ${wide}px wide at Wide and ${narrow}px at Narrow.`,
+            );
+            // Structure gives way, down to its own minimum.
+            const tree = await page.getByText('Tree', {exact: true}).boundingBox();
+            const structure = await page
+              .locator('[data-panel]')
+              .filter({has: page.getByText('Tree', {exact: true})})
+              .last()
+              .boundingBox();
+            assert.ok(tree && structure, 'Structure is not drawn.');
+            assert.ok(
+              structure.width >= 239,
+              `Docked ${dock}, Structure is ${structure.width}px wide at Wide.`,
+            );
+          }
+        },
+        undefined,
+        {width: 1920, height: 1000},
       );
     },
   );

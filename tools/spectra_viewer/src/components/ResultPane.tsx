@@ -1,5 +1,5 @@
 import {Popover} from 'radix-ui';
-import {Fragment, useState} from 'react';
+import {Fragment, useEffect, useState} from 'react';
 import {usePanelRef} from 'react-resizable-panels';
 
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
@@ -237,6 +237,8 @@ function Panes({
   legacyKeys: ReadonlyMap<string, string[]>;
 }) {
   const previewPanel = usePanelRef();
+  const [group, setGroup] = useState<HTMLDivElement | null>(null);
+  const groupWidth = useWidthOf(group);
   const structure = (
     <Structure
       key={surface.surfaceId}
@@ -261,6 +263,7 @@ function Panes({
     <ResizablePanelGroup
       // A new width starts from its own divider position.
       key={width}
+      elementRef={setGroup}
       orientation="horizontal"
       className="min-h-0 flex-1"
       onLayoutChanged={(_, {isUserInteraction}) => {
@@ -271,15 +274,44 @@ function Panes({
       <ResizablePanel
         panelRef={previewPanel}
         defaultSize={rememberedSize(divider) ?? (width === 'narrow' ? PREVIEW_AT_NARROW : '50')}
-        minSize={240}
+        minSize={width === 'narrow' ? PANE_LEAST : wideLeast(groupWidth)}
         groupResizeBehavior="preserve-pixel-size"
       >
         <div className="flex h-full min-h-0">{drawing}</div>
       </ResizablePanel>
       <ResizableHandle />
-      <ResizablePanel minSize={240}>{structure}</ResizablePanel>
+      <ResizablePanel minSize={PANE_LEAST}>{structure}</ResizablePanel>
     </ResizablePanelGroup>
   );
+}
+
+/** Each pane's least width beside the other. */
+const PANE_LEAST = 240;
+
+/**
+ * The Preview pane's least width at Wide, beside Structure: Narrow's pane, so
+ * Wide is never the narrower, as far as Structure's least width and the
+ * divider leave room for it.
+ */
+function wideLeast(groupWidth: number | undefined): number {
+  if (groupWidth === undefined) return PANE_LEAST;
+  return Math.max(PANE_LEAST, Math.min(PREVIEW_AT_NARROW, groupWidth - PANE_LEAST - 1));
+}
+
+/** An element's width, kept up to date as it changes; none until it is drawn. */
+function useWidthOf(element: HTMLElement | null): number | undefined {
+  const [width, setWidth] = useState<number | undefined>();
+  useEffect(() => {
+    if (element === null) return;
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry !== undefined) setWidth(entry.contentRect.width);
+    });
+    observer.observe(element);
+    return () => {
+      observer.disconnect();
+    };
+  }, [element]);
+  return width;
 }
 
 function Centered({children, icon = false}: {children: string; icon?: boolean}) {
