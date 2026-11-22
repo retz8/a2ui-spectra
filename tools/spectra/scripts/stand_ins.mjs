@@ -23,6 +23,9 @@
 // none to be created, so that nothing can be published to them, waits until both answer, and
 // prints and adds the first two variables alone. The install check installs from them.
 //
+// `start` and `serve` refuse to start while another process listens on either port, 4873 for npm
+// or 8080 for Python, as it would answer in a stand-in's place.
+//
 // `stop` ends both.
 
 import {spawn, spawnSync} from 'node:child_process';
@@ -34,6 +37,7 @@ import {
   readFileSync,
   writeFileSync,
 } from 'node:fs';
+import {connect} from 'node:net';
 import path from 'node:path';
 
 import {BuildError, runMain} from './packages.mjs';
@@ -88,6 +92,18 @@ async function answers(url) {
   }
 }
 
+/** Whether a process listens on the port at loopback. */
+function held(port) {
+  return new Promise(resolve => {
+    const socket = connect({host: '127.0.0.1', port});
+    socket.once('connect', () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once('error', () => resolve(false));
+  });
+}
+
 async function waitFor(urls, logs) {
   // Each is fetched by npx and uvx first, slowest on Windows.
   for (let i = 0; i < 600; i++) {
@@ -127,6 +143,16 @@ async function launch(dir, serving) {
   } else {
     mkdirSync(npmDir, {recursive: true});
     mkdirSync(path.join(pypiDir, 'packages'), {recursive: true});
+  }
+  // A process already on a port would answer in the stand-in's place, its own store served.
+  const taken = [];
+  for (const port of [NPM_PORT, PYPI_PORT]) if (await held(port)) taken.push(port);
+  if (taken.length > 0) {
+    throw new BuildError(
+      `Another process listens on ${taken.join(' and ')}, the stand-ins' ` +
+        `${taken.length === 1 ? 'port' : 'ports'}. Stop it first: \`stop <dir>\` stops ` +
+        'the stand-ins it started from that folder.',
+    );
   }
   writeFileSync(path.join(npmDir, 'config.yaml'), verdaccioConfig(npmDir, serving));
   const npmLog = path.join(npmDir, 'log.txt');
