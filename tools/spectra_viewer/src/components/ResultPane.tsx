@@ -9,6 +9,7 @@ import {bindingOf} from '@/model/bindings.ts';
 import {legacyKeysOfNode} from '@/model/legacy_form.ts';
 import {pageNoteOf, type Route} from '@/model/preview.ts';
 import type {ComponentNode, Replay, SurfaceView, TreeNode} from '@/model/replay.ts';
+import type {Reply} from '@/model/steps.ts';
 import {rememberedSize, rememberSize} from '@/state/layout.ts';
 import {setViewSetting, useViewSettings} from '@/state/view_settings.ts';
 
@@ -33,10 +34,12 @@ export interface PreviewView {
  * The result: the agent's reply text in a strip, then the Preview and
  * Structure panes side by side, each shown or hidden by its toggle, with
  * the surface switcher, showing the surface picked as it stood after the
- * step selected.
+ * step selected. A reply a failed parse read is muted behind a tag that
+ * selects that parse.
  */
 export function ResultPane({
-  reply,
+  replies,
+  onReplyParse,
   asOf,
   replay,
   surface,
@@ -52,7 +55,10 @@ export function ResultPane({
   onSelectNode,
   legacyKeys = NO_LEGACY,
 }: {
-  reply: string;
+  /** The agent's replies up to the step, a line each. */
+  replies: readonly Reply[];
+  /** Selects the failed parse a reply's tag names, by its span id. */
+  onReplyParse: (parseSpanId: string) => void;
   asOf: string;
   /** None until the conversation's earlier turns have been read. */
   replay: Replay | undefined;
@@ -89,10 +95,32 @@ export function ResultPane({
   const note = drawn === undefined ? undefined : pageNoteOf(drawn);
   return (
     <section aria-label="Result" className="flex h-full min-h-0 flex-col">
-      {reply !== '' && !folded && (
+      {replies.length > 0 && !folded && (
         <div className="mx-4 mt-3 flex shrink-0 items-start gap-2.5 rounded-lg bg-tint px-3 py-2.5">
           <Icon kind="text" size={14} className="mt-0.5 shrink-0 tone-muted" />
-          <p className="type-body min-w-0 flex-1 whitespace-pre-line">{reply}</p>
+          <div className="flex min-w-0 flex-1 flex-col gap-1">
+            {replies.map(({text, failedParse}, index) => (
+              <p
+                // The replies only grow, each staying where it was.
+                key={index}
+                className={cn(
+                  'type-body flex items-start gap-2',
+                  failedParse !== undefined && 'tone-muted',
+                )}
+              >
+                {failedParse !== undefined && (
+                  <button
+                    type="button"
+                    onClick={() => onReplyParse(failedParse)}
+                    className="ease-quick type-meta inline-flex h-5 shrink-0 cursor-pointer items-center rounded-sm bg-panel px-1.5 whitespace-nowrap hover:tone-foreground"
+                  >
+                    Failed to parse
+                  </button>
+                )}
+                <span className="min-w-0">{text}</span>
+              </p>
+            ))}
+          </div>
         </div>
       )}
       <div className="flex shrink-0 flex-col">

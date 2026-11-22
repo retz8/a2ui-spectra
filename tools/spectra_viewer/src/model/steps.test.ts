@@ -9,7 +9,7 @@ import {insideLineOf} from './turn_calls.ts';
 import {
   deliveryLabel,
   isThrough,
-  replyThrough,
+  repliesThrough,
   type Step,
   type TimelineRow,
   timelineOf,
@@ -137,7 +137,21 @@ describe('isThrough', () => {
   });
 });
 
-describe('replyThrough', () => {
+/** A wire output holding one text part. */
+function textPart(spanId: string, ms: number, content: string) {
+  const event = a2uiDelivery(spanId, ms);
+  event.attributes['a2ui.wire.message'] = {role: 'assistant', parts: [{type: 'text', content}]};
+  return event;
+}
+
+/** The replies' texts, one per line, as the strip shows them. */
+function replyThrough(...args: Parameters<typeof repliesThrough>): string {
+  return repliesThrough(...args)
+    .map(reply => reply.text)
+    .join('\n');
+}
+
+describe('repliesThrough', () => {
   it("joins the agent's text parts up to a position", () => {
     const turn = lastTurn('stub_agent/cancel_a2a_1_0');
     assert.equal(
@@ -149,11 +163,7 @@ describe('replyThrough', () => {
   });
 
   it('joins the pieces of a streamed reply as they are, and puts each reply after an A2UI message on a line of its own', () => {
-    const text = (spanId: string, ms: number, content: string) => {
-      const event = a2uiDelivery(spanId, ms);
-      event.attributes['a2ui.wire.message'] = {role: 'assistant', parts: [{type: 'text', content}]};
-      return event;
-    };
+    const text = textPart;
     const events = [
       text('1'.repeat(16), 8_000, 'Here are the top Italian restaurants in New York for'),
       text('2'.repeat(16), 8_001, ' you:'),
@@ -175,6 +185,44 @@ describe('replyThrough', () => {
       replyThrough(events, {eventIndex: 3, partIndex: 0}),
       'Here are the top Italian restaurants in New York for you:\nHere are the top',
     );
+  });
+
+  it('names the failed parse that read a reply sent while it ran, and no parse for a reply it did not read or sent once it ended', () => {
+    const reply = 'Here are the top 3 Chinese restaurants in New York:';
+    const input = `${reply}\n\n<a2ui-json>\n[{"version": "v0.9", "createSurface": {"surfaceId": "default"}}]\n</a2ui-json>`;
+    const failed = 'f'.repeat(16);
+    const events = byStart(
+      parse({
+        spanId: failed,
+        start: 4_000,
+        end: 7_700,
+        input,
+        chunks: [{ms: 4_100, end: input.length}],
+        errors: [
+          {type: 'A2uiIntegrityError', message: 'Surface default already exists.', ms: 7_690},
+        ],
+      }),
+      textPart('1'.repeat(16), 4_300, reply),
+      a2uiDelivery('2'.repeat(16), 4_600),
+      // Sent while the parse ran, but not text it read.
+      textPart('3'.repeat(16), 5_000, 'One moment.'),
+      a2uiDelivery('4'.repeat(16), 5_100),
+      // The retry's reply, the same text, sent once the failed parse had ended; its own parse read it whole.
+      parse({spanId: 'e'.repeat(16), start: 15_000, end: 15_500, input}),
+      textPart('5'.repeat(16), 15_200, 'Here are the top 3 Chinese'),
+      textPart('6'.repeat(16), 15_201, ' restaurants in New York:'),
+      a2uiDelivery('7'.repeat(16), 15_400),
+    );
+    assert.deepEqual(repliesThrough(events), [
+      {text: reply, failedParse: failed},
+      {text: 'One moment.'},
+      {text: reply},
+    ]);
+    // Up to the first reply, it alone, naming its parse.
+    const firstText = events.findIndex(event => event.spanId === '1'.repeat(16));
+    assert.deepEqual(repliesThrough(events, {eventIndex: firstText, partIndex: 0}), [
+      {text: reply, failedParse: failed},
+    ]);
   });
 });
 

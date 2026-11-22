@@ -64,17 +64,18 @@ function retriedTurn() {
 }
 
 /**
- * Places the retried turn in a fresh store, attaches Spectra to the stub
- * agent on it, opens a page and runs the walk; then closes the page and
- * stops Spectra.
+ * Places the retried turn, or the turn given, in a fresh store, attaches
+ * Spectra to the stub agent on it, opens a page and runs the walk; then
+ * closes the page and stops Spectra.
  */
 async function withViewer(
   browser: Browser,
   walk: (page: Page, base: string) => Promise<void>,
+  turn = retriedTurn().turn,
 ): Promise<void> {
   const cwd = workingDir();
   const store = await TurnStore.open(cwd);
-  await store.write(retriedTurn().turn);
+  await store.write(turn);
   const [agentPort, port] = await Promise.all([freePort(), freePort()]);
   await startStub(agentPort, []);
   const spectra = new SpectraProcess(
@@ -207,6 +208,61 @@ describe(`the viewer on the retried-parse record in Chromium, ${binary ? 'the bi
         );
         assert.deepEqual(errors, [], 'The page threw while docking.');
       });
+    },
+  );
+
+  it(
+    'marks the failed attempt’s reply in the reply strip, sent while its parse ran, the tag selecting that parse',
+    {timeout: TIMEOUT},
+    async () => {
+      const {turn, traceId, failed} = retriedTurn();
+      // The failed attempt's reply and its message, sent to the client while its parse ran, as an
+      // agent that streams sends them.
+      const reply = 'Here is the restaurant card.';
+      assert.ok(isEventOfKind(failed, 'parse'));
+      assert.ok(failed.attributes['a2ui.parse.input'].startsWith(reply));
+      const output = turn.events.findIndex(event => isEventOfKind(event, 'wire_output'));
+      const sent = structuredClone(turn.events[output]);
+      assert.ok(isEventOfKind(sent, 'wire_output'));
+      sent.spanId = 'a1'.repeat(8);
+      sent.startTimeUnixNano = String(
+        (BigInt(failed.startTimeUnixNano) + BigInt(failed.endTimeUnixNano!)) / 2n,
+      );
+      const [message] = failed.attributes['a2ui.parse.messages'] ?? [];
+      assert.ok(message !== undefined);
+      sent.attributes['a2ui.wire.message'] = {
+        role: 'assistant',
+        parts: [
+          {type: 'text', content: reply},
+          {type: 'a2ui', content: message},
+        ],
+      };
+      const events = [...turn.events];
+      events.splice(output, 0, sent);
+      await withViewer(
+        browser,
+        async (page, base) => {
+          await page.goto(`${base}/#/turns/${traceId}`);
+          await row(page, 'Completed').click();
+          const strip = page.getByRole('region', {name: 'Result'}).locator('p');
+          const tag = page
+            .getByRole('region', {name: 'Result'})
+            .getByRole('button', {name: 'Failed to parse'});
+          await tag.waitFor();
+          assert.equal(await tag.count(), 1, 'More than the failed attempt’s reply is marked.');
+          assert.equal(
+            await strip
+              .filter({has: page.getByRole('button', {name: 'Failed to parse'})})
+              .textContent(),
+            `Failed to parse${reply}`,
+          );
+          // The retry's reply under it, unmarked.
+          await strip.filter({hasText: "for Xi'an Famous Foods"}).waitFor();
+          await tag.click();
+          await page.waitForURL(`${base}/#/turns/${traceId}/steps/${failed.spanId}`);
+        },
+        {...turn, events},
+      );
     },
   );
 

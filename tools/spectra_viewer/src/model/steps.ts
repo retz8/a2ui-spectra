@@ -18,7 +18,7 @@ import {
 } from './call_rows.ts';
 import {inputBrief} from './input_brief.ts';
 import {agentMessages, isThrough, messageKey, type Position} from './messages.ts';
-import {parseOfMessage, parseStartOf} from './a2ui_step.ts';
+import {isFailedParse, parseOfMessage, parsesOf, parseStartOf} from './a2ui_step.ts';
 
 export {isThrough, type Position};
 import {type Brand, brandOf, modelOf, providerOf, rowTextOf} from './model_calls.ts';
@@ -588,15 +588,23 @@ export function plural(count: number, word: string): string {
   return `${count} ${word}${count === 1 ? '' : 's'}`;
 }
 
+/** One of the agent's replies, a line of the strip. */
+export interface Reply {
+  text: string;
+  /** The span id of the failed parse that read the reply, when one did. */
+  failedParse?: string;
+}
+
 /**
- * The agent's text parts up to a position: the reply as it stood there.
+ * The agent's text parts up to a position: the replies as they stood there.
  * Text parts sent one after another are the pieces of one reply, as a
  * stream sends it, and join as they are; a text part after a part of
  * another kind, such as an A2UI message, starts the next reply, on a line
- * of its own.
+ * of its own. A reply whose first piece was sent while a parse ran that
+ * failed, and whose text that parse's input holds, names that parse.
  */
-export function replyThrough(events: readonly TurnRecordEvent[], through?: Position): string {
-  const replies: string[][] = [];
+export function repliesThrough(events: readonly TurnRecordEvent[], through?: Position): Reply[] {
+  const replies: Array<{pieces: string[]; sentAt: bigint}> = [];
   let joining = false;
   events.forEach((event, eventIndex) => {
     if (!isWireOutput(event)) return;
@@ -606,13 +614,25 @@ export function replyThrough(events: readonly TurnRecordEvent[], through?: Posit
         joining = false;
         return;
       }
-      if (joining) replies[replies.length - 1].push(part.content);
-      else replies.push([part.content]);
+      if (joining) replies[replies.length - 1].pieces.push(part.content);
+      else replies.push({pieces: [part.content], sentAt: BigInt(event.startTimeUnixNano)});
       joining = true;
     });
   });
+  // Latest started first, so a reply goes to the latest of two parses that ran at once.
+  const failed = parsesOf(events)
+    .filter(parse => isFailedParse(parse) && parse.endTimeUnixNano !== undefined)
+    .reverse();
   return replies
-    .map(pieces => collapse(pieces.join('')))
-    .filter(reply => reply !== '')
-    .join('\n');
+    .map(({pieces, sentAt}) => ({text: collapse(pieces.join('')), sentAt}))
+    .filter(reply => reply.text !== '')
+    .map(({text, sentAt}) => {
+      const parse = failed.find(
+        candidate =>
+          BigInt(candidate.startTimeUnixNano) <= sentAt &&
+          sentAt <= BigInt(candidate.endTimeUnixNano!) &&
+          collapse(candidate.attributes['a2ui.parse.input']).includes(text),
+      );
+      return parse === undefined ? {text} : {text, failedParse: parse.spanId};
+    });
 }

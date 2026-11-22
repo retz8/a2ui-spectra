@@ -58,7 +58,7 @@ import {
   unixMillis,
 } from '@/model/record.ts';
 import {replay, type SurfaceView, type TreeNode} from '@/model/replay.ts';
-import {type Position, replyThrough, type TimelineRow, timelineOf} from '@/model/steps.ts';
+import {type Position, repliesThrough, type TimelineRow, timelineOf} from '@/model/steps.ts';
 import {openFieldsOf, summaryOf} from '@/model/summary.ts';
 import {insideLineOf} from '@/model/turn_calls.ts';
 import {briefText} from '@/model/turn_groups.ts';
@@ -445,7 +445,7 @@ export function TurnBody({
           : replay(earlier, wireEvents, position, catalogs),
     [earlier, wireEvents, whole, position, catalogs],
   );
-  const reply = useMemo(() => replyThrough(wireEvents, position), [wireEvents, position]);
+  const replies = useMemo(() => repliesThrough(wireEvents, position), [wireEvents, position]);
 
   // The surface in view, and its preview: its list goes to the page it is routed to.
   const [pickedSurface, setPickedSurface] = useState<string | undefined>();
@@ -912,7 +912,11 @@ export function TurnBody({
                 collapsedSize={RESULT_TITLE}
               >
                 <ResultPane
-                  reply={reply}
+                  replies={replies}
+                  onReplyParse={parseSpanId => {
+                    requestTimelineFocus();
+                    setPicked(parseSpanId);
+                  }}
                   asOf={inView.following ? 'Live' : asOfLabel(selected, events, startMs)}
                   replay={pane}
                   surface={surface}
