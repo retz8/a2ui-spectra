@@ -103,12 +103,21 @@ export function startLines(servers: ToolServer[]): string[] {
 
 /** The lines `attach` prints after the model proxy's for a shell, in config order. */
 export function exportLines(servers: ToolServer[], shell: Shell = 'posix'): string[] {
-  return servers.map(server =>
-    pasteLine(server.variable, server.value, shell, `forwards to ${describeOriginal(server)}`),
-  );
+  return servers.map(server => pasteLine(server.variable, server.value, shell, noteOf(server)));
 }
 
-/** The variables and values the API serves under `attach`, after the model proxy's. */
-export function toolVariablesOf(servers: ToolServer[]): Array<{name: string; value: string}> {
-  return servers.map(({variable, value}) => ({name: variable, value}));
+/** The note `attach` prints beside a server's variable, and the API serves with it: where it forwards. */
+function noteOf(server: ToolServer): string {
+  return `forwards to ${describeOriginal(server)}`;
+}
+
+/** The variables, values and notes the API serves under `attach`, after the model proxy's. */
+export function toolVariablesOf(
+  servers: ToolServer[],
+): Array<{name: string; value: string; note: string}> {
+  return servers.map(server => ({
+    name: server.variable,
+    value: server.value,
+    note: noteOf(server),
+  }));
 }

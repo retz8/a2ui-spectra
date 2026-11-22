@@ -65,8 +65,12 @@ export interface SessionContext {
   proxyAddress: string;
   /** The config file's preview pages, in config order. */
   previewPages?: string[];
-  /** Under `attach`, the variables and values to set in the agent's shell, as `attach` prints them. */
-  variables?: Array<{name: string; value: string}>;
+  /**
+   * Under `attach`, the variables and values to set in the agent's shell, as
+   * `attach` prints them, each with the note it prints beside it: where the
+   * variable forwards, or what it is for.
+   */
+  variables?: Array<{name: string; value: string; note?: string}>;
   /** Under `attach`, the shells to write the variables for: POSIX, or on Windows PowerShell and cmd. */
   shells?: Array<'posix' | 'powershell' | 'cmd'>;
   /** The A2A versions the latest card states, in card order; none under `run` before any card has answered. */

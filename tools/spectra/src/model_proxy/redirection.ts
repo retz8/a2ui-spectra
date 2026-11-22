@@ -126,9 +126,7 @@ export function attachLines(
     intro: "To see model and tool calls, set these in the agent's shell and restart it:",
     exports: pasteBlocks(
       shell => [
-        ...list.map(({name, value, target}) =>
-          pasteLine(name, value, shell, `forwards to ${describeTarget(target)}`),
-        ),
+        ...list.map(({name, value, target}) => pasteLine(name, value, shell, noteOf(target))),
         ...otherLines(shell),
       ],
       platform,
@@ -139,9 +137,16 @@ export function attachLines(
   };
 }
 
-/** The variables and values the API serves under `attach`, for the first screen. */
-export function variablesOf(list: Redirection[]): Array<{name: string; value: string}> {
-  return list.map(({name, value}) => ({name, value}));
+/** The note `attach` prints beside a variable, and the API serves with it: where its prefix forwards. */
+function noteOf(target: Target): string {
+  return `forwards to ${describeTarget(target)}`;
+}
+
+/** The variables, values and notes the API serves under `attach`, for the first screen. */
+export function variablesOf(
+  list: Redirection[],
+): Array<{name: string; value: string; note: string}> {
+  return list.map(({name, value, target}) => ({name, value, note: noteOf(target)}));
 }
 
 /** The model as LiteLLM names it in a Gemini path, `models/{model}:{endpoint}`. */

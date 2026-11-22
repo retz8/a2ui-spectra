@@ -184,8 +184,11 @@ export function FirstScreen({
               </div>
               <div className="type-code overflow-x-auto rounded-lg bg-tint px-3 py-2.5 leading-relaxed">
                 {block.lines.map(line => (
-                  <div key={line} className="whitespace-pre">
-                    {line}
+                  <div
+                    key={line.text}
+                    className={line.comment ? 'type-code-muted whitespace-pre' : 'whitespace-pre'}
+                  >
+                    {line.text}
                   </div>
                 ))}
               </div>

@@ -24,9 +24,22 @@ describe('toolServers', () => {
     });
     assert.equal(servers[1].original.origin, 'https://mcp.circleci.com');
     assert.deepEqual(toolVariablesOf(servers), [
-      {name: 'FLOOR_PLAN_SERVER_URL', value: 'http://127.0.0.1:9823/sse'},
-      {name: 'CIRCLECI_MCP_URL', value: 'http://127.0.0.1:9824/v1/mcp?token=secret'},
+      {
+        name: 'FLOOR_PLAN_SERVER_URL',
+        value: 'http://127.0.0.1:9823/sse',
+        note: 'forwards to http://127.0.0.1:8000/sse',
+      },
+      {
+        name: 'CIRCLECI_MCP_URL',
+        value: 'http://127.0.0.1:9824/v1/mcp?token=secret',
+        note: 'forwards to https://mcp.circleci.com/v1/mcp?token=REMOVED',
+      },
     ]);
+    // The note is the one attach prints beside the line.
+    assert.deepEqual(
+      exportLines(servers),
+      toolVariablesOf(servers).map(({name, value, note}) => `export ${name}=${value}  # ${note}`),
+    );
   });
 
   it("takes the environment's value as the original, unless it is blank or the tool proxy itself", () => {

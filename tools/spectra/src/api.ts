@@ -38,8 +38,12 @@ export interface SessionContext extends Partial<CardDetails> {
   previewPages: string[];
   /** The fixtures folder's path as shown, relative to the working directory when under it. */
   fixturesFolder: string;
-  /** Under `attach`, the variables and values `attach` prints, to set in the agent's shell. */
-  variables?: Array<{name: string; value: string}>;
+  /**
+   * Under `attach`, the variables and values `attach` prints, to set in the
+   * agent's shell, each with the note it prints beside it: where the variable
+   * forwards, or what it is for.
+   */
+  variables?: Array<{name: string; value: string; note: string}>;
   /** Under `attach`, the shells the first screen writes the variables for, as `attach` prints them. */
   shells?: Shell[];
 }

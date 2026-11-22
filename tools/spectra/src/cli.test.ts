@@ -50,6 +50,16 @@ import {VERSION} from './version.js';
 import {freePort} from './testing/free_port.js';
 import {pasteLine, SHELL_LABELS, shellsOf} from './paste.js';
 
+/** The note `attach` prints beside each model variable, and the context serves, with none set in Spectra's environment. */
+const MODEL_NOTES: Record<string, string> = {
+  GOOGLE_GEMINI_BASE_URL: 'forwards to https://generativelanguage.googleapis.com',
+  OPENAI_BASE_URL: 'forwards to https://api.openai.com/v1',
+  ANTHROPIC_BASE_URL: 'forwards to https://api.anthropic.com',
+  ANTHROPIC_API_BASE: 'forwards to https://api.anthropic.com',
+  GEMINI_API_BASE:
+    'forwards to https://generativelanguage.googleapis.com/v1beta, or /v1alpha for a gemini-3 model',
+};
+const RECEIVER_NOTE = "for Spectra's OpenTelemetry receiver";
 const fakeAgentScript = fileURLToPath(new URL('./testing/fake_agent.js', import.meta.url));
 const posix = process.platform !== 'win32';
 /**
@@ -526,12 +536,36 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         };
         assert.equal(context.mode, 'attach');
         assert.deepEqual(context.variables, [
-          ...VARIABLES.map(name => ({name, value: `http://127.0.0.1:${modelProxyPort}/${name}`})),
-          {name: 'FLOOR_PLAN_SERVER_URL', value: `http://127.0.0.1:${toolProxyPort}/sse`},
-          {name: 'OTEL_EXPORTER_OTLP_ENDPOINT', value: `http://127.0.0.1:${receiverPort}`},
-          {name: 'OTEL_EXPORTER_OTLP_PROTOCOL', value: 'http/protobuf'},
-          {name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT', value: 'SPAN_ONLY'},
-          {name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT', value: 'true'},
+          // GEMINI_API_BASE, set in Spectra's environment, forwards there, its key removed.
+          ...VARIABLES.map(name => ({
+            name,
+            value: `http://127.0.0.1:${modelProxyPort}/${name}`,
+            note:
+              name === 'GEMINI_API_BASE'
+                ? 'forwards to https://litellm.example/v1beta?key=REMOVED'
+                : MODEL_NOTES[name],
+          })),
+          {
+            name: 'FLOOR_PLAN_SERVER_URL',
+            value: `http://127.0.0.1:${toolProxyPort}/sse`,
+            note: 'forwards to http://127.0.0.1:8000/sse',
+          },
+          {
+            name: 'OTEL_EXPORTER_OTLP_ENDPOINT',
+            value: `http://127.0.0.1:${receiverPort}`,
+            note: RECEIVER_NOTE,
+          },
+          {name: 'OTEL_EXPORTER_OTLP_PROTOCOL', value: 'http/protobuf', note: RECEIVER_NOTE},
+          {
+            name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT',
+            value: 'SPAN_ONLY',
+            note: RECEIVER_NOTE,
+          },
+          {
+            name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT',
+            value: 'true',
+            note: RECEIVER_NOTE,
+          },
         ]);
         spectra.requestStop();
         assert.equal((await spectra.exited).code, STOPPED_CODE);

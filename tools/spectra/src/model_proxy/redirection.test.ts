@@ -40,6 +40,41 @@ describe('redirection', () => {
     );
   });
 
+  it('serves each variable with the note attach prints beside it, where its prefix forwards', () => {
+    const list = redirections({}, ORIGIN);
+    assert.deepEqual(variablesOf(list), [
+      {
+        name: 'GOOGLE_GEMINI_BASE_URL',
+        value: `${ORIGIN}/GOOGLE_GEMINI_BASE_URL`,
+        note: 'forwards to https://generativelanguage.googleapis.com',
+      },
+      {
+        name: 'OPENAI_BASE_URL',
+        value: `${ORIGIN}/OPENAI_BASE_URL`,
+        note: 'forwards to https://api.openai.com/v1',
+      },
+      {
+        name: 'ANTHROPIC_BASE_URL',
+        value: `${ORIGIN}/ANTHROPIC_BASE_URL`,
+        note: 'forwards to https://api.anthropic.com',
+      },
+      {
+        name: 'ANTHROPIC_API_BASE',
+        value: `${ORIGIN}/ANTHROPIC_API_BASE`,
+        note: 'forwards to https://api.anthropic.com',
+      },
+      {
+        name: 'GEMINI_API_BASE',
+        value: `${ORIGIN}/GEMINI_API_BASE`,
+        note: 'forwards to https://generativelanguage.googleapis.com/v1beta, or /v1alpha for a gemini-3 model',
+      },
+    ]);
+    assert.deepEqual(
+      attachLines(list, () => [], 'linux').exports,
+      variablesOf(list).map(({name, value, note}) => `export ${name}=${value}  # ${note}`),
+    );
+  });
+
   it("forwards to the providers' own APIs when nothing is set", () => {
     assert.deepEqual(targetOf({}, 'GOOGLE_GEMINI_BASE_URL'), {
       kind: 'base',

@@ -35,9 +35,12 @@ const SIGNAL_PROTOCOLS = [
   'OTEL_EXPORTER_OTLP_METRICS_PROTOCOL',
 ];
 
+/** The note `attach` prints beside each of the four, and the API serves with them. */
+const NOTE = "for Spectra's OpenTelemetry receiver";
+
 export interface ReceiverVariables {
-  /** The four variables, in the order they are printed. */
-  printed: Array<{name: string; value: string}>;
+  /** The four variables, in the order they are printed, each with its note. */
+  printed: Array<{name: string; value: string; note: string}>;
   /** Every variable `run` sets in the agent's environment: the four, and the signal-specific ones replaced. */
   environment: Record<string, string>;
   /** The variables Spectra's environment set to another value, with that value, in the order checked. */
@@ -56,10 +59,14 @@ function sameUrl(a: string, b: string): boolean {
 /** The receiver's variables for the receiver at `origin`, from Spectra's own environment. */
 export function receiverVariables(env: NodeJS.ProcessEnv, origin: string): ReceiverVariables {
   const printed = [
-    {name: ENDPOINT, value: origin},
-    {name: PROTOCOL, value: HTTP_PROTOBUF},
-    {name: CONTENT_CAPTURE, value: setIn(env, CONTENT_CAPTURE) ?? 'SPAN_ONLY'},
-    {name: MESSAGE_CONTENT_CAPTURE, value: setIn(env, MESSAGE_CONTENT_CAPTURE) ?? 'true'},
+    {name: ENDPOINT, value: origin, note: NOTE},
+    {name: PROTOCOL, value: HTTP_PROTOBUF, note: NOTE},
+    {name: CONTENT_CAPTURE, value: setIn(env, CONTENT_CAPTURE) ?? 'SPAN_ONLY', note: NOTE},
+    {
+      name: MESSAGE_CONTENT_CAPTURE,
+      value: setIn(env, MESSAGE_CONTENT_CAPTURE) ?? 'true',
+      note: NOTE,
+    },
   ];
   const environment: Record<string, string> = Object.fromEntries(
     printed.map(({name, value}) => [name, value]),
@@ -107,7 +114,5 @@ export function receiverExportLines(
   variables: ReceiverVariables,
   shell: Shell = 'posix',
 ): string[] {
-  return variables.printed.map(({name, value}) =>
-    pasteLine(name, value, shell, "for Spectra's OpenTelemetry receiver"),
-  );
+  return variables.printed.map(({name, value, note}) => pasteLine(name, value, shell, note));
 }

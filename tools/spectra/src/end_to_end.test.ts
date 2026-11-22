@@ -40,6 +40,16 @@ import {freePort} from './testing/free_port.js';
 import {shellsOf} from './paste.js';
 import {VERSION} from './version.js';
 
+/** The note `attach` prints beside each model variable, and the context serves, with none set in Spectra's environment. */
+const MODEL_NOTES: Record<string, string> = {
+  GOOGLE_GEMINI_BASE_URL: 'forwards to https://generativelanguage.googleapis.com',
+  OPENAI_BASE_URL: 'forwards to https://api.openai.com/v1',
+  ANTHROPIC_BASE_URL: 'forwards to https://api.anthropic.com',
+  ANTHROPIC_API_BASE: 'forwards to https://api.anthropic.com',
+  GEMINI_API_BASE:
+    'forwards to https://generativelanguage.googleapis.com/v1beta, or /v1alpha for a gemini-3 model',
+};
+const RECEIVER_NOTE = "for Spectra's OpenTelemetry receiver";
 const customCatalog = fileURLToPath(
   new URL('../../../conformance/test_data/catalogs/custom_catalog_v1_0.json', import.meta.url),
 );
@@ -175,11 +185,24 @@ describe(`the message box against the stub agent, ${binary ? 'the binary' : 'und
               ...VARIABLES.map(name => ({
                 name,
                 value: `http://127.0.0.1:${modelProxyPort}/${name}`,
+                note: MODEL_NOTES[name],
               })),
-              {name: 'OTEL_EXPORTER_OTLP_ENDPOINT', value: `http://127.0.0.1:${receiverPort}`},
-              {name: 'OTEL_EXPORTER_OTLP_PROTOCOL', value: 'http/protobuf'},
-              {name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT', value: 'SPAN_ONLY'},
-              {name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT', value: 'true'},
+              {
+                name: 'OTEL_EXPORTER_OTLP_ENDPOINT',
+                value: `http://127.0.0.1:${receiverPort}`,
+                note: RECEIVER_NOTE,
+              },
+              {name: 'OTEL_EXPORTER_OTLP_PROTOCOL', value: 'http/protobuf', note: RECEIVER_NOTE},
+              {
+                name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT',
+                value: 'SPAN_ONLY',
+                note: RECEIVER_NOTE,
+              },
+              {
+                name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT',
+                value: 'true',
+                note: RECEIVER_NOTE,
+              },
             ],
             a2aVersions: a2a === '1.0' ? ['1.0', '0.3'] : ['0.3', '1.0'],
             a2uiExtensions: [],

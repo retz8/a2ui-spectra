@@ -8,12 +8,18 @@ const ORIGIN = 'http://127.0.0.1:9823';
 describe("the receiver's variables", () => {
   it("sets the endpoint, the protocol and both content capture switches, SPAN_ONLY and true, each unless Spectra's environment sets it", () => {
     const variables = receiverVariables({}, ORIGIN);
+    // Each with the note attach prints beside it, which the API serves too.
+    const note = "for Spectra's OpenTelemetry receiver";
     assert.deepEqual(variables.printed, [
-      {name: 'OTEL_EXPORTER_OTLP_ENDPOINT', value: ORIGIN},
-      {name: 'OTEL_EXPORTER_OTLP_PROTOCOL', value: 'http/protobuf'},
-      {name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT', value: 'SPAN_ONLY'},
-      {name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT', value: 'true'},
+      {name: 'OTEL_EXPORTER_OTLP_ENDPOINT', value: ORIGIN, note},
+      {name: 'OTEL_EXPORTER_OTLP_PROTOCOL', value: 'http/protobuf', note},
+      {name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT', value: 'SPAN_ONLY', note},
+      {name: 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT', value: 'true', note},
     ]);
+    assert.deepEqual(
+      receiverExportLines(variables),
+      variables.printed.map(({name, value}) => `export ${name}=${value}  # ${note}`),
+    );
     assert.deepEqual(variables.environment, {
       OTEL_EXPORTER_OTLP_ENDPOINT: ORIGIN,
       OTEL_EXPORTER_OTLP_PROTOCOL: 'http/protobuf',
