@@ -600,8 +600,10 @@ export interface Reply {
  * Text parts sent one after another are the pieces of one reply, as a
  * stream sends it, and join as they are; a text part after a part of
  * another kind, such as an A2UI message, starts the next reply, on a line
- * of its own. A reply whose first piece was sent while a parse ran that
- * failed, and whose text that parse's input holds, names that parse.
+ * of its own. A reply read by a parse that failed names that parse: the
+ * latest parse started before the reply's first piece was sent whose input
+ * holds its text. The wire sees a reply a moment after the agent sent it, so
+ * a short parse can end before then.
  */
 export function repliesThrough(events: readonly TurnRecordEvent[], through?: Position): Reply[] {
   const replies: Array<{pieces: string[]; sentAt: bigint}> = [];
@@ -619,20 +621,19 @@ export function repliesThrough(events: readonly TurnRecordEvent[], through?: Pos
       joining = true;
     });
   });
-  // Latest started first, so a reply goes to the latest of two parses that ran at once.
-  const failed = parsesOf(events)
-    .filter(parse => isFailedParse(parse) && parse.endTimeUnixNano !== undefined)
-    .reverse();
+  // Latest started first: a reply is read by the latest parse started before it that holds it.
+  const parses = parsesOf(events).reverse();
   return replies
     .map(({pieces, sentAt}) => ({text: collapse(pieces.join('')), sentAt}))
     .filter(reply => reply.text !== '')
     .map(({text, sentAt}) => {
-      const parse = failed.find(
+      const reader = parses.find(
         candidate =>
           BigInt(candidate.startTimeUnixNano) <= sentAt &&
-          sentAt <= BigInt(candidate.endTimeUnixNano!) &&
           collapse(candidate.attributes['a2ui.parse.input']).includes(text),
       );
-      return parse === undefined ? {text} : {text, failedParse: parse.spanId};
+      return reader !== undefined && reader.endTimeUnixNano !== undefined && isFailedParse(reader)
+        ? {text, failedParse: reader.spanId}
+        : {text};
     });
 }

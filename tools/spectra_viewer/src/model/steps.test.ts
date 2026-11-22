@@ -187,7 +187,7 @@ describe('repliesThrough', () => {
     );
   });
 
-  it('names the failed parse that read a reply sent while it ran, and no parse for a reply it did not read or sent once it ended', () => {
+  it('names the failed parse that read a reply, and no parse for a reply it did not read or a later parse read', () => {
     const reply = 'Here are the top 3 Chinese restaurants in New York:';
     const input = `${reply}\n\n<a2ui-json>\n[{"version": "v0.9", "createSurface": {"surfaceId": "default"}}]\n</a2ui-json>`;
     const failed = 'f'.repeat(16);
@@ -207,7 +207,7 @@ describe('repliesThrough', () => {
       // Sent while the parse ran, but not text it read.
       textPart('3'.repeat(16), 5_000, 'One moment.'),
       a2uiDelivery('4'.repeat(16), 5_100),
-      // The retry's reply, the same text, sent once the failed parse had ended; its own parse read it whole.
+      // The retry's reply, the same text; its own parse, started after the failed one, read it whole.
       parse({spanId: 'e'.repeat(16), start: 15_000, end: 15_500, input}),
       textPart('5'.repeat(16), 15_200, 'Here are the top 3 Chinese'),
       textPart('6'.repeat(16), 15_201, ' restaurants in New York:'),
@@ -223,6 +223,29 @@ describe('repliesThrough', () => {
     assert.deepEqual(repliesThrough(events, {eventIndex: firstText, partIndex: 0}), [
       {text: reply, failedParse: failed},
     ]);
+  });
+
+  it('names the failed parse for a reply the wire saw just after the parse ended, as a replay sends it', () => {
+    const reply = 'Here are the top 3 Chinese restaurants in New York:';
+    const input = `${reply}\n\n<a2ui-json>\n[{"version": "v0.9", "createSurface": {"surfaceId": "default"}}]\n</a2ui-json>`;
+    const failed = 'f'.repeat(16);
+    const events = byStart(
+      parse({
+        spanId: failed,
+        start: 100,
+        end: 122,
+        input,
+        chunks: [{ms: 101, end: input.length}],
+        errors: [{type: 'A2uiIntegrityError', message: 'Surface default already exists.', ms: 121}],
+      }),
+      // The agent sent it before the span ended; the wire proxy saw it a millisecond after.
+      textPart('1'.repeat(16), 123, reply),
+      a2uiDelivery('2'.repeat(16), 123),
+      parse({spanId: 'e'.repeat(16), start: 150, end: 180, input}),
+      textPart('3'.repeat(16), 177, reply),
+      a2uiDelivery('4'.repeat(16), 178),
+    );
+    assert.deepEqual(repliesThrough(events), [{text: reply, failedParse: failed}, {text: reply}]);
   });
 });
 
