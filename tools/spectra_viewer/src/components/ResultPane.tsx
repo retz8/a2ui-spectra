@@ -95,8 +95,14 @@ export function ResultPane({
           <p className="type-body min-w-0 flex-1">{reply}</p>
         </div>
       )}
-      <div className="flex shrink-0 flex-col border-b">
-        <div className="flex h-11 items-center gap-3 px-4">
+      <div className="flex shrink-0 flex-col">
+        {/* Folded, the divider under the pane is the tab row's line. */}
+        <div
+          className={cn(
+            'flex h-11 items-center gap-3 px-4',
+            !folded && 'shadow-[inset_0_-1px_0_var(--border)]',
+          )}
+        >
           <div role="group" aria-label="Result panes" className="flex gap-4 self-stretch">
             {toggles.map(toggle => (
               <button
@@ -128,7 +134,7 @@ export function ResultPane({
           )}
         </div>
         {(asOf !== '' || drawn !== undefined) && (
-          <div className="type-meta mt-1.5 flex min-w-0 items-center gap-1.5 overflow-hidden px-4 pb-2 whitespace-nowrap">
+          <div className="type-meta flex min-w-0 items-center gap-1.5 overflow-hidden border-b px-4 py-1.5 whitespace-nowrap">
             {asOf !== '' && <span className="min-w-0 truncate">{asOf}</span>}
             {drawn !== undefined && (
               <>

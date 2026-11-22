@@ -114,8 +114,8 @@ const NO_SURFACES: [] = [];
 /** The detail's height when collapsed to its title line, with no step in it, in pixels. */
 const DETAIL_TITLE = 41;
 
-/** The result pane's height when folded to its header line, while the detail is maximized, in pixels. */
-const RESULT_TITLE = 45;
+/** The result pane's height when folded to its tab row, while the detail is maximized, in pixels. */
+const RESULT_TITLE = 44;
 
 /** The detail's height when open with no size of its own yet, as a percentage of the pane. */
 const DETAIL_OPEN = '38';

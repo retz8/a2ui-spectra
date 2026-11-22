@@ -380,7 +380,7 @@ A component sent again later in the turn with the `@` key has no hourglass after
 
 The result sits on the right of the timeline, above the step's detail. A strip at its top holds the agent's reply text, the turn's text parts up to the step, and is left out when there are none. Under it, the Preview and Structure panes sit side by side, each shown or hidden by its toggle in the result's header, both on by default, with a divider between them; at least one always shows, so pressing the toggle of the only pane shown does nothing. The browser remembers the toggles.
 
-Both panes show the selected surface as it stood right after the step selected. A line under the result's tabs says when that is: "Live" while following, or "After the step at …", "After the delivery at …", "Right after the parse at …", "After the parse’s last message, …", "At the end of the call, …" or "Live · the call is in flight".
+Both panes show the selected surface as it stood right after the step selected. A line under the result's tabs, in a band of its own between two hairlines, says when that is: "Live" while following, or "After the step at …", "After the delivery at …", "Right after the parse at …", "After the parse’s last message, …", "At the end of the call, …" or "Live · the call is in flight".
 
 **The surface switcher**, "Surface" and the id, lists the surfaces the turn touched, "Touched in this turn", then those it did not change, "Not changed in this turn", each with its catalog id, or "No catalog named", and its problems, then the surfaces the turn deleted, "Deleted in this turn", which cannot be picked.
 
