@@ -817,4 +817,63 @@ describe(`the dev loop in the viewer on the fake agent under run, in Chromium, $
       }
     },
   );
+
+  it(
+    "keeps the first screen's top in reach when it is taller than its pane: under attach in a short window, the agent's name below the pane's top once the pane is scrolled up",
+    {timeout: TIMEOUT},
+    async () => {
+      const [agentPort, port] = await Promise.all([freePort(), freePort()]);
+      await startStub(agentPort, []);
+      const spectra = new SpectraProcess(
+        [
+          'attach',
+          `http://127.0.0.1:${agentPort}`,
+          '--port',
+          String(port),
+          '--proxy-port',
+          String(await freePort()),
+          '--model-proxy-port',
+          String(await freePort()),
+          '--receiver-port',
+          String(await freePort()),
+          '--no-open',
+        ],
+        workingDir(),
+      );
+      const page = await browser.newPage({
+        viewport: {width: 1440, height: 480},
+        reducedMotion: 'reduce',
+      });
+      try {
+        await spectra.waitFor(/The viewer is at /);
+        await page.goto(`http://127.0.0.1:${port}`);
+        const name = page
+          .getByRole('main')
+          .getByRole('heading', {level: 1, name: 'Spectra stub agent'});
+        await name.waitFor();
+        const placed = await name.evaluate(heading => {
+          const view = heading.ownerDocument.defaultView!;
+          let pane = heading.parentElement;
+          while (pane !== null && !/auto|scroll/.test(view.getComputedStyle(pane).overflowY)) {
+            pane = pane.parentElement;
+          }
+          if (pane === null) throw new Error('No scrolled pane holds the heading.');
+          pane.scrollTop = 0;
+          return {
+            overflows: pane.scrollHeight > pane.clientHeight,
+            offset: heading.getBoundingClientRect().top - pane.getBoundingClientRect().top,
+          };
+        });
+        assert.ok(placed.overflows, 'The first screen fits its pane: the case does not arise.');
+        assert.ok(
+          placed.offset >= 0,
+          `The agent's name sits ${-placed.offset}px above the pane's top, out of reach.`,
+        );
+      } finally {
+        await page.close();
+        spectra.requestStop();
+        await spectra.exited;
+      }
+    },
+  );
 });

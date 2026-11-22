@@ -59,7 +59,7 @@ export function FirstScreen({
   const blocks = pasteBlocksOf(variables, context?.shells);
   const tail = form === 'down' ? tailSinceStartOf(state.logs?.entries ?? []) : [];
   return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-3.5 overflow-y-auto p-8 text-center">
+    <div className="flex min-h-0 flex-1 flex-col items-center justify-center-safe gap-3.5 overflow-y-auto p-8 text-center">
       <Mark size={40} />
       <div className="flex flex-col items-center gap-1">
         <h1 className="type-view-title max-w-160 wrap-anywhere">{name.text}</h1>

@@ -225,7 +225,7 @@ With no turns, the turn view holds the first screen:
 - **The wire proxy's address**, to point a host app at, with its copy button.
 - **Under `attach`**, the variables to set in the agent's shell, under "To see model and tool calls, set these in the agent’s shell". On macOS and Linux they are `NAME=value` lines with one Copy button, "Copy the variables", that copies them as `export` lines. On Windows they are two blocks, "In PowerShell" and "In cmd", each with its own Copy. Which variables they are is in [model and tool calls](model-and-tool-calls.md).
 
-The composer is focused. While the agent is running and the message box cannot send, the screen says what can still start a turn in place of "Send a message to start your first turn.":
+The screen stands in the middle of the turn view while it fits, and from the view's top, scrolling, when it is taller, as Windows' two blocks are in a short window. The composer is focused. While the agent is running and the message box cannot send, the screen says what can still start a turn in place of "Send a message to start your first turn.":
 
 | The box's reason                                                                                                                                                   | The screen                                                                                                                                   |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
