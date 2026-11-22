@@ -197,7 +197,7 @@ Your framework's own spans, ADK's among them, join the same turn: which step mad
 
 Let your coding agent debug the A2UI agent with you. The skill in [`skills/a2ui-spectra/`](skills/a2ui-spectra/SKILL.md) teaches it Spectra's loop: start the agent under Spectra, send a message or an action, read the turn's calls, parse errors and checks, change the code and send again, then save the turn as a fixture that `a2ui-spectra test` replays. The preview stays yours to look at.
 
-Copy the folder into your coding agent's skills folder. It is in the [Agent Skills](https://agentskills.io/specification) format, and lives in this repository, not in Spectra's packages.
+Copy the folder into your coding agent's skills folder: for [Claude Code](https://code.claude.com/docs/en/skills), `.claude/skills/` in your project, or `~/.claude/skills/` for every project on the machine. It is in the [Agent Skills](https://agentskills.io/specification) format, and lives in this repository, not in Spectra's packages.
 
 ## How it works
 
