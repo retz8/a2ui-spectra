@@ -37,13 +37,13 @@ npm install --save-dev a2ui-spectra-preview-angular
    bootstrapApplication(PreviewPage, {
      providers: [
        provideZonelessChangeDetection(),
-       provideA2Ui({catalogs: [myCatalog]}),
+       provideA2Ui({catalogs: [myCatalog], useUniversalComponents: true}),
        provideMarkdownRenderer(renderMarkdown),
      ],
    });
    ```
 
-   Import from the renderer's package root, `@a2ui/angular`: it draws every version Spectra reads, v0.9, v0.9.1 and v1.0. The component takes no inputs: it reads the page's renderer config. The config's catalogs are the page's claims: Spectra sends the page every surface whose catalog one of them carries.
+   Import from the renderer's package root, `@a2ui/angular`: it draws every version Spectra reads, v0.9, v0.9.1 and v1.0. The basic catalog's components it exports are web core's own elements, which it draws only with `useUniversalComponents: true`; a catalog of Angular components alone draws without it. The component takes no inputs: it reads the page's renderer config. The config's catalogs are the page's claims: Spectra sends the page every surface whose catalog one of them carries.
 
 2. Name the page's URL in Spectra's config file, `a2ui-spectra.json`, under `preview`, beside your catalog's definition under `catalogs`. The sample's config file:
 
