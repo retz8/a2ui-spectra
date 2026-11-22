@@ -109,10 +109,12 @@ function linkTo(event: TurnRecordEvent): Link {
  * named span has no span of its kind at or above it, it is the same call as
  * the span of its kind whose time range holds the exchange's start,
  * when the spans that hold it are one chain, each the ancestor of the next;
- * two that are not leave it unlinked, unless those of the exchange's tool
- * name are one chain, as tool calls run side by side hold each other's
- * exchanges. A model proxy's call pairs with model
- * call spans, a tool proxy's with tool call spans.
+ * when they are not, those of the exchange's tool name, when they are one
+ * chain, as tool calls run side by side hold each other's exchanges, else
+ * those holding the whole exchange, when they are one chain, as a call's span
+ * can end after the next call began; otherwise it stays unlinked. A model
+ * proxy's call pairs with model call spans, a tool proxy's with tool call
+ * spans.
  */
 export function sameCallLinks(
   exchanges: readonly TurnRecordEvent[],
@@ -154,10 +156,18 @@ export function sameCallLinks(
     // Tool calls run side by side hold each other's exchanges: the spans of
     // the exchange's own tool name tell them apart.
     const toolName = attributesOf(exchange)['gen_ai.tool.name'];
+    // A call's span can end just after the next call's request was sent, as
+    // ADK's span of a model call through LiteLLM does: the spans holding the
+    // whole exchange tell the two apart.
+    const end = BigInt(exchange.endTimeUnixNano ?? exchange.startTimeUnixNano);
     const byTime = (): TurnRecordEvent[] => {
       if (isChain(holding)) return holding;
       const ofTool = holding.filter(event => attributesOf(event)['gen_ai.tool.name'] === toolName);
-      return toolName !== undefined && ofTool.length > 0 && isChain(ofTool) ? ofTool : [];
+      if (toolName !== undefined && ofTool.length > 0 && isChain(ofTool)) return ofTool;
+      const whole = holding.filter(
+        event => end <= BigInt(event.endTimeUnixNano ?? event.startTimeUnixNano),
+      );
+      return whole.length > 0 && isChain(whole) ? whole : [];
     };
     const context = parseTraceparent(traceparentOf(exchange));
     const named =

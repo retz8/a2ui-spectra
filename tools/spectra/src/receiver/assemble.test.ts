@@ -63,11 +63,15 @@ function check(): TurnRecordEvent {
   };
 }
 
-/** A proxy's exchange: a model call, or a tool call with `tool`, at a start, with a traceparent when given. */
+/** A proxy's exchange: a model call, or a tool call with `tool`, from a start to an end, 10 after it unless given, with a traceparent when given. */
 function exchange(
   spanId: string,
   start: number,
-  {tool = false, traceparent}: {tool?: boolean; traceparent?: string} = {},
+  {
+    tool = false,
+    traceparent,
+    end = start + 10,
+  }: {tool?: boolean; traceparent?: string; end?: number} = {},
 ): TurnRecordEvent {
   return {
     traceId: TURN,
@@ -76,7 +80,7 @@ function exchange(
     name: tool ? 'tools/call lookup' : 'generate_content m',
     kind: 3,
     startTimeUnixNano: String(start),
-    endTimeUnixNano: String(start + 10),
+    endTimeUnixNano: String(end),
     attributes: {
       'a2ui.event.kind': tool ? 'tool_call' : 'model_call',
       'http.request.method': 'POST',
@@ -235,6 +239,34 @@ describe('a turn with its received spans', () => {
     assert.deepEqual(linked(assembled, S(3)), [S(91)]);
     assert.deepEqual(linked(assembled, S(92)), []);
     assert.deepEqual(linked(assembled, S(1)), []);
+  });
+
+  it('links an exchange whose start two spans hold that are not one chain to the one holding the whole exchange', () => {
+    // ADK's span of a model call through LiteLLM ending after the next call's
+    // span began and its request was sent, as in a live Anthropic turn, in ms.
+    const assembled = assembleTurn(
+      {
+        events: [
+          turnEvent(),
+          exchange(S(91), 8_548, {end: 22_436}),
+          exchange(S(92), 22_466, {end: 40_921}),
+        ],
+      },
+      [
+        received(S(2), 'generate_content m', 8_532, 22_480, {parent: S(10)}),
+        received(S(3), 'generate_content m', 22_450, 41_032, {parent: S(11)}),
+      ],
+    );
+    assert.deepEqual(linked(assembled, S(91)), [S(2)]);
+    assert.deepEqual(linked(assembled, S(92)), [S(3)]);
+    assert.deepEqual(linked(assembled, S(2)), [S(91)]);
+    assert.deepEqual(linked(assembled, S(3)), [S(92)]);
+    // Two that each hold the whole exchange still leave it unlinked.
+    const both = assembleTurn({events: [turnEvent(), exchange(S(91), 20, {end: 30})]}, [
+      received(S(2), 'generate_content m', 10, 90, {parent: S(10)}),
+      received(S(3), 'generate_content m', 15, 40, {parent: S(11)}),
+    ]);
+    assert.deepEqual(linked(both, S(91)), []);
   });
 
   it("tells tool call spans run side by side apart by the exchange's tool name", () => {

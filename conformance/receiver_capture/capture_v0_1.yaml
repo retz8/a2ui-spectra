@@ -111,3 +111,9 @@
   action: capture_receiver
   exports: "test_data/receiver_capture/v0_1/prompt_generation_by_text/exports.json"
   expect: "test_data/receiver_capture/v0_1/prompt_generation_by_text/expected.json"
+
+- name: span_outlives_next_call
+  description: "Derived by hand, with the timings of a live turn of the custom-components example on Anthropic through LiteLLM, no trace context: the agent's retry after a failed parse runs as a second invoke_agent while the first one's last generate_content is still open, so the retry's exchange starts inside both spans, which are not one chain; the retry's span alone holds the whole exchange, and each of the three exchanges is linked to its own generate_content."
+  action: capture_receiver
+  exports: "test_data/receiver_capture/v0_1/span_outlives_next_call/exports.json"
+  expect: "test_data/receiver_capture/v0_1/span_outlives_next_call/expected.json"

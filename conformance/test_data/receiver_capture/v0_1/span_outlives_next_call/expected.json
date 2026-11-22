@@ -1,0 +1,522 @@
+{
+  "version": "v0.1",
+  "turns": [
+    {
+      "events": [
+        {
+          "traceId": "5c2e8a1f7b3d4c6e9a0b1c2d3e4f5a6b",
+          "spanId": "3a4b5c6d7e8f9012",
+          "name": "invoke_agent Contact Agent",
+          "kind": 3,
+          "startTimeUnixNano": "1793600000000000000",
+          "endTimeUnixNano": "1793600041100000000",
+          "attributes": {
+            "a2ui.event.kind": "turn",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.name": "Contact Agent",
+            "gen_ai.conversation.id": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b",
+            "a2ui.turn.outcome": "completed",
+            "a2ui.turn.protocol_version": "v0.9",
+            "a2ui.turn.capture_paths": [
+              "wire",
+              "model_proxy",
+              "otel_receiver"
+            ],
+            "a2ui.turn.writer.name": "a2ui-spectra",
+            "a2ui.turn.writer.version": "0.0.1"
+          },
+          "status": {
+            "code": 1
+          }
+        },
+        {
+          "traceId": "5c2e8a1f7b3d4c6e9a0b1c2d3e4f5a6b",
+          "spanId": "2b00000000000001",
+          "parentSpanId": "3a4b5c6d7e8f9012",
+          "name": "chat claude-sonnet-5-5",
+          "kind": 3,
+          "startTimeUnixNano": "1793600006313000000",
+          "endTimeUnixNano": "1793600008467400000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "chat",
+            "gen_ai.provider.name": "anthropic",
+            "gen_ai.request.model": "claude-sonnet-5-5",
+            "gen_ai.input.messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Who is Alex Jordan?"
+                  }
+                ]
+              }
+            ],
+            "gen_ai.output.messages": [
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Looking up the contact."
+                  }
+                ],
+                "finish_reason": "stop"
+              }
+            ],
+            "http.request.method": "POST",
+            "url.full": "https://api.anthropic.com/v1/messages",
+            "http.request.header.x-api-key": [
+              "REMOVED"
+            ],
+            "http.response.status_code": 200,
+            "server.address": "api.anthropic.com",
+            "server.port": 443,
+            "a2ui.http.request.body": {
+              "model": "claude-sonnet-5-5",
+              "max_tokens": 1024,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Who is Alex Jordan?"
+                    }
+                  ]
+                }
+              ]
+            },
+            "a2ui.http.response.body": {
+              "type": "message",
+              "role": "assistant",
+              "model": "claude-sonnet-5-5",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Looking up the contact."
+                }
+              ],
+              "stop_reason": "end_turn"
+            }
+          },
+          "links": [
+            {
+              "traceId": "8d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a",
+              "spanId": "1a00000000000001"
+            }
+          ]
+        },
+        {
+          "traceId": "5c2e8a1f7b3d4c6e9a0b1c2d3e4f5a6b",
+          "spanId": "2b00000000000002",
+          "parentSpanId": "3a4b5c6d7e8f9012",
+          "name": "chat claude-sonnet-5-5",
+          "kind": 3,
+          "startTimeUnixNano": "1793600008547900000",
+          "endTimeUnixNano": "1793600022436300000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "chat",
+            "gen_ai.provider.name": "anthropic",
+            "gen_ai.request.model": "claude-sonnet-5-5",
+            "gen_ai.input.messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Who is Alex Jordan?"
+                  }
+                ]
+              }
+            ],
+            "gen_ai.output.messages": [
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Here is the contact card."
+                  }
+                ],
+                "finish_reason": "stop"
+              }
+            ],
+            "http.request.method": "POST",
+            "url.full": "https://api.anthropic.com/v1/messages",
+            "http.request.header.x-api-key": [
+              "REMOVED"
+            ],
+            "http.response.status_code": 200,
+            "server.address": "api.anthropic.com",
+            "server.port": 443,
+            "a2ui.http.request.body": {
+              "model": "claude-sonnet-5-5",
+              "max_tokens": 1024,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Who is Alex Jordan?"
+                    }
+                  ]
+                }
+              ]
+            },
+            "a2ui.http.response.body": {
+              "type": "message",
+              "role": "assistant",
+              "model": "claude-sonnet-5-5",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Here is the contact card."
+                }
+              ],
+              "stop_reason": "end_turn"
+            }
+          },
+          "links": [
+            {
+              "traceId": "8d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a",
+              "spanId": "1a00000000000002"
+            }
+          ]
+        },
+        {
+          "traceId": "5c2e8a1f7b3d4c6e9a0b1c2d3e4f5a6b",
+          "spanId": "2b00000000000003",
+          "parentSpanId": "3a4b5c6d7e8f9012",
+          "name": "chat claude-sonnet-5-5",
+          "kind": 3,
+          "startTimeUnixNano": "1793600022465600000",
+          "endTimeUnixNano": "1793600040921200000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "gen_ai.operation.name": "chat",
+            "gen_ai.provider.name": "anthropic",
+            "gen_ai.request.model": "claude-sonnet-5-5",
+            "gen_ai.input.messages": [
+              {
+                "role": "user",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Who is Alex Jordan?"
+                  }
+                ]
+              }
+            ],
+            "gen_ai.output.messages": [
+              {
+                "role": "assistant",
+                "parts": [
+                  {
+                    "type": "text",
+                    "content": "Here is the contact card."
+                  }
+                ],
+                "finish_reason": "stop"
+              }
+            ],
+            "http.request.method": "POST",
+            "url.full": "https://api.anthropic.com/v1/messages",
+            "http.request.header.x-api-key": [
+              "REMOVED"
+            ],
+            "http.response.status_code": 200,
+            "server.address": "api.anthropic.com",
+            "server.port": 443,
+            "a2ui.http.request.body": {
+              "model": "claude-sonnet-5-5",
+              "max_tokens": 1024,
+              "messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Who is Alex Jordan?"
+                    }
+                  ]
+                }
+              ]
+            },
+            "a2ui.http.response.body": {
+              "type": "message",
+              "role": "assistant",
+              "model": "claude-sonnet-5-5",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Here is the contact card."
+                }
+              ],
+              "stop_reason": "end_turn"
+            }
+          },
+          "links": [
+            {
+              "traceId": "8d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a",
+              "spanId": "1a00000000000003"
+            }
+          ]
+        },
+        {
+          "traceId": "8d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a",
+          "spanId": "1a000000000000a1",
+          "name": "invoke_workflow contact_agent",
+          "kind": 1,
+          "startTimeUnixNano": "1793600000609200000",
+          "endTimeUnixNano": "1793600022485300000",
+          "attributes": {
+            "a2ui.event.kind": "framework_span",
+            "otel.scope.name": "gcp.vertex.agent",
+            "otel.scope.version": "2.9.1",
+            "a2ui.received.dialect": "adk",
+            "gen_ai.operation.name": "invoke_workflow",
+            "gen_ai.conversation.id": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b",
+            "gen_ai.workflow.name": "contact_agent",
+            "a2ui.received.attributes": {
+              "gen_ai.operation.name": "invoke_workflow",
+              "gen_ai.conversation.id": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b",
+              "gen_ai.workflow.name": "contact_agent"
+            }
+          },
+          "status": {
+            "code": 0
+          }
+        },
+        {
+          "traceId": "8d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a",
+          "spanId": "1a000000000000a2",
+          "parentSpanId": "1a000000000000a1",
+          "name": "invoke_agent contact_agent",
+          "kind": 1,
+          "startTimeUnixNano": "1793600000663700000",
+          "endTimeUnixNano": "1793600022483300000",
+          "attributes": {
+            "a2ui.event.kind": "framework_span",
+            "otel.scope.name": "gcp.vertex.agent",
+            "otel.scope.version": "2.9.1",
+            "a2ui.received.dialect": "adk",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.description": "An agent that finds colleague contact info.",
+            "gen_ai.agent.name": "contact_agent",
+            "gen_ai.conversation.id": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b",
+            "a2ui.received.attributes": {
+              "gen_ai.operation.name": "invoke_agent",
+              "gen_ai.agent.description": "An agent that finds colleague contact info.",
+              "gen_ai.agent.name": "contact_agent",
+              "gen_ai.conversation.id": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b"
+            }
+          },
+          "status": {
+            "code": 0
+          }
+        },
+        {
+          "traceId": "8d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a",
+          "spanId": "1a00000000000001",
+          "parentSpanId": "1a000000000000a2",
+          "name": "generate_content anthropic/claude-sonnet-5-5",
+          "kind": 1,
+          "startTimeUnixNano": "1793600000831100000",
+          "endTimeUnixNano": "1793600008503000000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "otel.scope.name": "gcp.vertex.agent",
+            "otel.scope.version": "2.9.1",
+            "a2ui.received.dialect": "adk",
+            "gen_ai.operation.name": "generate_content",
+            "gen_ai.request.model": "anthropic/claude-sonnet-5-5",
+            "gen_ai.agent.name": "contact_agent",
+            "gen_ai.conversation.id": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b",
+            "gen_ai.provider.name": "anthropic",
+            "gen_ai.response.finish_reasons": [
+              "stop"
+            ],
+            "gen_ai.response.model": "claude-sonnet-5-5",
+            "gen_ai.usage.input_tokens": 9000,
+            "gen_ai.usage.output_tokens": 300,
+            "a2ui.received.attributes": {
+              "gen_ai.operation.name": "generate_content",
+              "gen_ai.request.model": "anthropic/claude-sonnet-5-5",
+              "gen_ai.agent.name": "contact_agent",
+              "gen_ai.conversation.id": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b",
+              "gen_ai.provider.name": "anthropic",
+              "gen_ai.response.finish_reasons": [
+                "stop"
+              ],
+              "gen_ai.response.model": "claude-sonnet-5-5",
+              "gen_ai.usage.input_tokens": 9000,
+              "gen_ai.usage.output_tokens": 300
+            }
+          },
+          "status": {
+            "code": 0
+          },
+          "links": [
+            {
+              "traceId": "5c2e8a1f7b3d4c6e9a0b1c2d3e4f5a6b",
+              "spanId": "2b00000000000001"
+            }
+          ]
+        },
+        {
+          "traceId": "8d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a",
+          "spanId": "1a00000000000002",
+          "parentSpanId": "1a000000000000a2",
+          "name": "generate_content anthropic/claude-sonnet-5-5",
+          "kind": 1,
+          "startTimeUnixNano": "1793600008532300000",
+          "endTimeUnixNano": "1793600022480400000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "otel.scope.name": "gcp.vertex.agent",
+            "otel.scope.version": "2.9.1",
+            "a2ui.received.dialect": "adk",
+            "gen_ai.operation.name": "generate_content",
+            "gen_ai.request.model": "anthropic/claude-sonnet-5-5",
+            "gen_ai.agent.name": "contact_agent",
+            "gen_ai.conversation.id": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b",
+            "gen_ai.provider.name": "anthropic",
+            "gen_ai.response.finish_reasons": [
+              "stop"
+            ],
+            "gen_ai.response.model": "claude-sonnet-5-5",
+            "gen_ai.usage.input_tokens": 19000,
+            "gen_ai.usage.output_tokens": 4000,
+            "a2ui.received.attributes": {
+              "gen_ai.operation.name": "generate_content",
+              "gen_ai.request.model": "anthropic/claude-sonnet-5-5",
+              "gen_ai.agent.name": "contact_agent",
+              "gen_ai.conversation.id": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b",
+              "gen_ai.provider.name": "anthropic",
+              "gen_ai.response.finish_reasons": [
+                "stop"
+              ],
+              "gen_ai.response.model": "claude-sonnet-5-5",
+              "gen_ai.usage.input_tokens": 19000,
+              "gen_ai.usage.output_tokens": 4000
+            }
+          },
+          "status": {
+            "code": 0
+          },
+          "links": [
+            {
+              "traceId": "5c2e8a1f7b3d4c6e9a0b1c2d3e4f5a6b",
+              "spanId": "2b00000000000002"
+            }
+          ]
+        },
+        {
+          "traceId": "8d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a",
+          "spanId": "1a000000000000b1",
+          "name": "invoke_workflow contact_agent",
+          "kind": 1,
+          "startTimeUnixNano": "1793600022439700000",
+          "endTimeUnixNano": "1793600041081200000",
+          "attributes": {
+            "a2ui.event.kind": "framework_span",
+            "otel.scope.name": "gcp.vertex.agent",
+            "otel.scope.version": "2.9.1",
+            "a2ui.received.dialect": "adk",
+            "gen_ai.operation.name": "invoke_workflow",
+            "gen_ai.conversation.id": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b",
+            "gen_ai.workflow.name": "contact_agent",
+            "a2ui.received.attributes": {
+              "gen_ai.operation.name": "invoke_workflow",
+              "gen_ai.conversation.id": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b",
+              "gen_ai.workflow.name": "contact_agent"
+            }
+          },
+          "status": {
+            "code": 0
+          }
+        },
+        {
+          "traceId": "8d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a",
+          "spanId": "1a000000000000b2",
+          "parentSpanId": "1a000000000000b1",
+          "name": "invoke_agent contact_agent",
+          "kind": 1,
+          "startTimeUnixNano": "1793600022441800000",
+          "endTimeUnixNano": "1793600041079800000",
+          "attributes": {
+            "a2ui.event.kind": "framework_span",
+            "otel.scope.name": "gcp.vertex.agent",
+            "otel.scope.version": "2.9.1",
+            "a2ui.received.dialect": "adk",
+            "gen_ai.operation.name": "invoke_agent",
+            "gen_ai.agent.description": "An agent that finds colleague contact info.",
+            "gen_ai.agent.name": "contact_agent",
+            "gen_ai.conversation.id": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b",
+            "a2ui.received.attributes": {
+              "gen_ai.operation.name": "invoke_agent",
+              "gen_ai.agent.description": "An agent that finds colleague contact info.",
+              "gen_ai.agent.name": "contact_agent",
+              "gen_ai.conversation.id": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b"
+            }
+          },
+          "status": {
+            "code": 0
+          }
+        },
+        {
+          "traceId": "8d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a",
+          "spanId": "1a00000000000003",
+          "parentSpanId": "1a000000000000b2",
+          "name": "generate_content anthropic/claude-sonnet-5-5",
+          "kind": 1,
+          "startTimeUnixNano": "1793600022449600000",
+          "endTimeUnixNano": "1793600041031500000",
+          "attributes": {
+            "a2ui.event.kind": "model_call",
+            "otel.scope.name": "gcp.vertex.agent",
+            "otel.scope.version": "2.9.1",
+            "a2ui.received.dialect": "adk",
+            "gen_ai.operation.name": "generate_content",
+            "gen_ai.request.model": "anthropic/claude-sonnet-5-5",
+            "gen_ai.agent.name": "contact_agent",
+            "gen_ai.conversation.id": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b",
+            "gen_ai.provider.name": "anthropic",
+            "gen_ai.response.finish_reasons": [
+              "stop"
+            ],
+            "gen_ai.response.model": "claude-sonnet-5-5",
+            "gen_ai.usage.input_tokens": 28000,
+            "gen_ai.usage.output_tokens": 4000,
+            "a2ui.received.attributes": {
+              "gen_ai.operation.name": "generate_content",
+              "gen_ai.request.model": "anthropic/claude-sonnet-5-5",
+              "gen_ai.agent.name": "contact_agent",
+              "gen_ai.conversation.id": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b",
+              "gen_ai.provider.name": "anthropic",
+              "gen_ai.response.finish_reasons": [
+                "stop"
+              ],
+              "gen_ai.response.model": "claude-sonnet-5-5",
+              "gen_ai.usage.input_tokens": 28000,
+              "gen_ai.usage.output_tokens": 4000
+            }
+          },
+          "status": {
+            "code": 0
+          },
+          "links": [
+            {
+              "traceId": "5c2e8a1f7b3d4c6e9a0b1c2d3e4f5a6b",
+              "spanId": "2b00000000000003"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

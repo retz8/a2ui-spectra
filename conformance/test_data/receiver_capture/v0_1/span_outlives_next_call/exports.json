@@ -1,0 +1,444 @@
+[
+  {
+    "path": "/v1/traces",
+    "receivedTimeUnixNano": "1793600022490000000",
+    "body": {
+      "resourceSpans": [
+        {
+          "resource": {
+            "attributes": [
+              {
+                "key": "service.name",
+                "value": {
+                  "stringValue": "contact-agent"
+                }
+              },
+              {
+                "key": "telemetry.sdk.language",
+                "value": {
+                  "stringValue": "python"
+                }
+              },
+              {
+                "key": "telemetry.sdk.name",
+                "value": {
+                  "stringValue": "opentelemetry"
+                }
+              },
+              {
+                "key": "telemetry.sdk.version",
+                "value": {
+                  "stringValue": "1.42.1"
+                }
+              }
+            ]
+          },
+          "scopeSpans": [
+            {
+              "scope": {
+                "name": "gcp.vertex.agent",
+                "version": "2.9.1"
+              },
+              "spans": [
+                {
+                  "traceId": "8d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a",
+                  "spanId": "1a00000000000001",
+                  "parentSpanId": "1a000000000000a2",
+                  "name": "generate_content anthropic/claude-sonnet-5-5",
+                  "kind": 1,
+                  "startTimeUnixNano": "1793600000831100000",
+                  "endTimeUnixNano": "1793600008503000000",
+                  "attributes": [
+                    {
+                      "key": "gen_ai.operation.name",
+                      "value": {
+                        "stringValue": "generate_content"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.request.model",
+                      "value": {
+                        "stringValue": "anthropic/claude-sonnet-5-5"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.agent.name",
+                      "value": {
+                        "stringValue": "contact_agent"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.conversation.id",
+                      "value": {
+                        "stringValue": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.provider.name",
+                      "value": {
+                        "stringValue": "anthropic"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.response.finish_reasons",
+                      "value": {
+                        "arrayValue": {
+                          "values": [
+                            {
+                              "stringValue": "stop"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "key": "gen_ai.response.model",
+                      "value": {
+                        "stringValue": "claude-sonnet-5-5"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.usage.input_tokens",
+                      "value": {
+                        "intValue": "9000"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.usage.output_tokens",
+                      "value": {
+                        "intValue": "300"
+                      }
+                    }
+                  ],
+                  "status": {}
+                },
+                {
+                  "traceId": "8d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a",
+                  "spanId": "1a00000000000002",
+                  "parentSpanId": "1a000000000000a2",
+                  "name": "generate_content anthropic/claude-sonnet-5-5",
+                  "kind": 1,
+                  "startTimeUnixNano": "1793600008532300000",
+                  "endTimeUnixNano": "1793600022480400000",
+                  "attributes": [
+                    {
+                      "key": "gen_ai.operation.name",
+                      "value": {
+                        "stringValue": "generate_content"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.request.model",
+                      "value": {
+                        "stringValue": "anthropic/claude-sonnet-5-5"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.agent.name",
+                      "value": {
+                        "stringValue": "contact_agent"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.conversation.id",
+                      "value": {
+                        "stringValue": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.provider.name",
+                      "value": {
+                        "stringValue": "anthropic"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.response.finish_reasons",
+                      "value": {
+                        "arrayValue": {
+                          "values": [
+                            {
+                              "stringValue": "stop"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "key": "gen_ai.response.model",
+                      "value": {
+                        "stringValue": "claude-sonnet-5-5"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.usage.input_tokens",
+                      "value": {
+                        "intValue": "19000"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.usage.output_tokens",
+                      "value": {
+                        "intValue": "4000"
+                      }
+                    }
+                  ],
+                  "status": {}
+                },
+                {
+                  "traceId": "8d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a",
+                  "spanId": "1a000000000000a2",
+                  "parentSpanId": "1a000000000000a1",
+                  "name": "invoke_agent contact_agent",
+                  "kind": 1,
+                  "startTimeUnixNano": "1793600000663700000",
+                  "endTimeUnixNano": "1793600022483300000",
+                  "attributes": [
+                    {
+                      "key": "gen_ai.operation.name",
+                      "value": {
+                        "stringValue": "invoke_agent"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.agent.description",
+                      "value": {
+                        "stringValue": "An agent that finds colleague contact info."
+                      }
+                    },
+                    {
+                      "key": "gen_ai.agent.name",
+                      "value": {
+                        "stringValue": "contact_agent"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.conversation.id",
+                      "value": {
+                        "stringValue": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b"
+                      }
+                    }
+                  ],
+                  "status": {}
+                },
+                {
+                  "traceId": "8d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a",
+                  "spanId": "1a000000000000a1",
+                  "name": "invoke_workflow contact_agent",
+                  "kind": 1,
+                  "startTimeUnixNano": "1793600000609200000",
+                  "endTimeUnixNano": "1793600022485300000",
+                  "attributes": [
+                    {
+                      "key": "gen_ai.operation.name",
+                      "value": {
+                        "stringValue": "invoke_workflow"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.conversation.id",
+                      "value": {
+                        "stringValue": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.workflow.name",
+                      "value": {
+                        "stringValue": "contact_agent"
+                      }
+                    }
+                  ],
+                  "status": {}
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "path": "/v1/traces",
+    "receivedTimeUnixNano": "1793600041090000000",
+    "body": {
+      "resourceSpans": [
+        {
+          "resource": {
+            "attributes": [
+              {
+                "key": "service.name",
+                "value": {
+                  "stringValue": "contact-agent"
+                }
+              },
+              {
+                "key": "telemetry.sdk.language",
+                "value": {
+                  "stringValue": "python"
+                }
+              },
+              {
+                "key": "telemetry.sdk.name",
+                "value": {
+                  "stringValue": "opentelemetry"
+                }
+              },
+              {
+                "key": "telemetry.sdk.version",
+                "value": {
+                  "stringValue": "1.42.1"
+                }
+              }
+            ]
+          },
+          "scopeSpans": [
+            {
+              "scope": {
+                "name": "gcp.vertex.agent",
+                "version": "2.9.1"
+              },
+              "spans": [
+                {
+                  "traceId": "8d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a",
+                  "spanId": "1a00000000000003",
+                  "parentSpanId": "1a000000000000b2",
+                  "name": "generate_content anthropic/claude-sonnet-5-5",
+                  "kind": 1,
+                  "startTimeUnixNano": "1793600022449600000",
+                  "endTimeUnixNano": "1793600041031500000",
+                  "attributes": [
+                    {
+                      "key": "gen_ai.operation.name",
+                      "value": {
+                        "stringValue": "generate_content"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.request.model",
+                      "value": {
+                        "stringValue": "anthropic/claude-sonnet-5-5"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.agent.name",
+                      "value": {
+                        "stringValue": "contact_agent"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.conversation.id",
+                      "value": {
+                        "stringValue": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.provider.name",
+                      "value": {
+                        "stringValue": "anthropic"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.response.finish_reasons",
+                      "value": {
+                        "arrayValue": {
+                          "values": [
+                            {
+                              "stringValue": "stop"
+                            }
+                          ]
+                        }
+                      }
+                    },
+                    {
+                      "key": "gen_ai.response.model",
+                      "value": {
+                        "stringValue": "claude-sonnet-5-5"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.usage.input_tokens",
+                      "value": {
+                        "intValue": "28000"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.usage.output_tokens",
+                      "value": {
+                        "intValue": "4000"
+                      }
+                    }
+                  ],
+                  "status": {}
+                },
+                {
+                  "traceId": "8d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a",
+                  "spanId": "1a000000000000b2",
+                  "parentSpanId": "1a000000000000b1",
+                  "name": "invoke_agent contact_agent",
+                  "kind": 1,
+                  "startTimeUnixNano": "1793600022441800000",
+                  "endTimeUnixNano": "1793600041079800000",
+                  "attributes": [
+                    {
+                      "key": "gen_ai.operation.name",
+                      "value": {
+                        "stringValue": "invoke_agent"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.agent.description",
+                      "value": {
+                        "stringValue": "An agent that finds colleague contact info."
+                      }
+                    },
+                    {
+                      "key": "gen_ai.agent.name",
+                      "value": {
+                        "stringValue": "contact_agent"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.conversation.id",
+                      "value": {
+                        "stringValue": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b"
+                      }
+                    }
+                  ],
+                  "status": {}
+                },
+                {
+                  "traceId": "8d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a",
+                  "spanId": "1a000000000000b1",
+                  "name": "invoke_workflow contact_agent",
+                  "kind": 1,
+                  "startTimeUnixNano": "1793600022439700000",
+                  "endTimeUnixNano": "1793600041081200000",
+                  "attributes": [
+                    {
+                      "key": "gen_ai.operation.name",
+                      "value": {
+                        "stringValue": "invoke_workflow"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.conversation.id",
+                      "value": {
+                        "stringValue": "6e7f8a9b-0c1d-4e2f-8a3b-4c5d6e7f8a9b"
+                      }
+                    },
+                    {
+                      "key": "gen_ai.workflow.name",
+                      "value": {
+                        "stringValue": "contact_agent"
+                      }
+                    }
+                  ],
+                  "status": {}
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  }
+]
