@@ -109,7 +109,7 @@ export function check(): Plan | undefined {
   const formats = Object.entries(FORMAT_CLASSES) as Array<
     [InferenceFormat, (typeof FORMAT_CLASSES)[InferenceFormat]]
   >;
-  logger.debug(`a2ui-spectra-instrumentation: ${AGENT_SDK} ${version} passes the check`);
+  logger.debug(`${AGENT_SDK} ${version} passes the check`);
   return {
     sdkVersion: version,
     targets,

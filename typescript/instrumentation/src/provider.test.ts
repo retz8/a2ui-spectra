@@ -73,7 +73,10 @@ describe('the tracer provider', () => {
     instrument();
     assert.equal(hasGlobalProvider(), false);
     assert.equal(lines.length, 1);
-    assert.match(lines[0], /started no tracer provider: the environment names no OTLP endpoint/);
+    assert.match(
+      lines[0],
+      /^a2ui-spectra-instrumentation started no tracer provider: the environment names no OTLP endpoint/,
+    );
   });
 
   it('with none, and another protocol named: none started, and the line names it', () => {
@@ -84,7 +87,30 @@ describe('the tracer provider', () => {
     instrument();
     assert.equal(hasGlobalProvider(), false);
     assert.equal(lines.length, 1);
-    assert.match(lines[0], /names the OTLP protocol grpc/);
+    assert.match(
+      lines[0],
+      /^a2ui-spectra-instrumentation started no tracer provider: the environment names the OTLP protocol grpc/,
+    );
+  });
+
+  it('names the wrapper once, at the start, in each line its diag logger writes', () => {
+    const all: string[] = [];
+    const record = (...args: unknown[]) => all.push(args.join(' '));
+    diag.setLogger(
+      {error: record, warn: record, info: record, debug: record, verbose: record},
+      DiagLogLevel.ALL,
+    );
+    restore = otlpVariables({});
+    instrument();
+    uninstrument();
+    trace.setGlobalTracerProvider(capture.provider);
+    instrument();
+    const wrapper = all.filter(line => line.includes('a2ui-spectra-instrumentation'));
+    assert.ok(wrapper.length >= 3, `${wrapper.length} lines from the wrapper`);
+    for (const line of wrapper) {
+      assert.match(line, /^a2ui-spectra-instrumentation /);
+      assert.equal(line.split('a2ui-spectra-instrumentation').length, 2, line);
+    }
   });
 
   it("a provider passed in takes the spans, and the process's is left as it is", async () => {

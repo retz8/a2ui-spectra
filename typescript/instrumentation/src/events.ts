@@ -245,7 +245,7 @@ export abstract class Event {
   /** Ends the event without a span. */
   abandon(why?: string): void {
     this.ended = true;
-    if (why !== undefined) logger.debug(`a2ui-spectra-instrumentation: ${why}`);
+    if (why !== undefined) logger.debug(why);
   }
 
   /** Ends the event, writing it as one span. */
@@ -317,14 +317,12 @@ export class PromptEvent extends Event {
   protected attributes(): Attributes | undefined {
     if (this.format === undefined || this.catalogs === undefined) {
       logger.debug(
-        'a2ui-spectra-instrumentation: a prompt generation is not recorded: its inference format or catalogs are unknown',
+        'a prompt generation is not recorded: its inference format or catalogs are unknown',
       );
       return undefined;
     }
     if (this.errors.length === 0 && this.uiSection === undefined) {
-      logger.debug(
-        'a2ui-spectra-instrumentation: a prompt generation is not recorded: it produced no section',
-      );
+      logger.debug('a prompt generation is not recorded: it produced no section');
       return undefined;
     }
     const attributes: Attributes = {

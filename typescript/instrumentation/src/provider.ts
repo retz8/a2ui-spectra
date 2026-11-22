@@ -34,21 +34,21 @@ function hasProvider(): boolean {
  */
 export function startProvider(): void {
   if (hasProvider()) {
-    logger.debug('a2ui-spectra-instrumentation keeps the tracer provider the process has');
+    logger.debug('keeps the tracer provider the process has');
     return;
   }
   const endpoint = variable('OTEL_EXPORTER_OTLP_TRACES_ENDPOINT', 'OTEL_EXPORTER_OTLP_ENDPOINT');
   const protocol = variable('OTEL_EXPORTER_OTLP_TRACES_PROTOCOL', 'OTEL_EXPORTER_OTLP_PROTOCOL');
   if (endpoint === undefined) {
     logger.info(
-      'a2ui-spectra-instrumentation started no tracer provider: the environment names no OTLP ' +
+      'started no tracer provider: the environment names no OTLP ' +
         'endpoint (OTEL_EXPORTER_OTLP_ENDPOINT); the spans go to a provider the process sets',
     );
     return;
   }
   if (protocol !== undefined && protocol !== 'http/protobuf') {
     logger.info(
-      `a2ui-spectra-instrumentation started no tracer provider: the environment names the OTLP ` +
+      `started no tracer provider: the environment names the OTLP ` +
         `protocol ${protocol}, and the wrapper starts one only for http/protobuf, the protocol ` +
         'a2ui-spectra run sets; the spans go to a provider the process sets',
     );
@@ -60,9 +60,7 @@ export function startProvider(): void {
   provider.register();
   process.once('beforeExit', () => {
     provider.shutdown().catch((error: unknown) => {
-      logger.info(
-        `a2ui-spectra-instrumentation could not flush its tracer provider: ${messageOf(error)}`,
-      );
+      logger.info(`could not flush its tracer provider: ${messageOf(error)}`);
     });
   });
 }
