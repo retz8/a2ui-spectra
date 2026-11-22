@@ -848,6 +848,15 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
       assert.equal(test.code, 0);
       assert.match(test.output, /fixtures/);
       assert.doesNotMatch(test.output, /--model-live|--live/);
+      // The agent's address is required either way, with a command after '--' as without one.
+      for (const help of [replay, test]) {
+        assert.match(help.output, /agent\.url in the config file gives, one of which is required/);
+        assert.match(
+          help.output,
+          /--agent-url <url> {4}The agent's base address\. Takes precedence over the\s+config file's agent\.url; one of them is required\./,
+        );
+        assert.doesNotMatch(help.output, /when it is already running/);
+      }
     });
 
     it(

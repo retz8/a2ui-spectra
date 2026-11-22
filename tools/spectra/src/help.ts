@@ -29,8 +29,8 @@ const sharedOptions = `  --config <path>      The config file. Default: a2ui-spe
                        without a port, such as a tunnel's. Can be repeated.
   --help               Show this help.`;
 
-const headlessOptions = `  --agent-url <url>    The agent's base address, when it is already running.
-                       Takes precedence over the config file's agent.url.
+const headlessOptions = `  --agent-url <url>    The agent's base address. Takes precedence over the
+                       config file's agent.url; one of them is required.
   --config <path>      The config file. Default: a2ui-spectra.json in the
                        working directory, when there is one.
   -H, --header <header>
@@ -48,11 +48,13 @@ const headlessOptions = `  --agent-url <url>    The agent's base address, when i
                        Default: ${DEFAULT_TOOL_PROXY_PORT}.
   --help               Show this help.`;
 
-const headlessAgent = `The agent comes either way run and attach take it: a command after '--'
-is started with the redirection variables set, as run starts it; --agent-url,
-or agent.url in the config file, names an agent already running, whose shell
-the variables attach prints were set in. No viewer and no browser: the
-status lines go to stderr, and stdout carries the result lines alone.`;
+const headlessAgent = `The agent comes either way run and attach take it, at the address --agent-url
+or agent.url in the config file gives, one of which is required: a command
+after '--' is started with the redirection variables set, as run starts it,
+and reached at that address; with no command, the address names an agent
+already running, whose shell the variables attach prints were set in. No
+viewer and no browser: the status lines go to stderr, and stdout carries the
+result lines alone.`;
 
 const toolHelp = `${NAME} ${VERSION}: a debugging and observation tool for the developer of an A2UI agent.
 
