@@ -58,7 +58,7 @@ describe('timelineOf', () => {
     assert.deepEqual(outline(timeline(lastTurn('strathweb_booking_wizard/send_then_stream'))), [
       'Input | Action “next” · table_booking +1',
       'Text | “” +2',
-      'Delivery · 1 part, 3 messages +3',
+      'Delivery · 1 part · 3 messages +3',
       '  updateComponents | table_booking · 9 components',
       '  updateDataModel | table_booking · /step',
       '  updateDataModel | table_booking · /stepLabel',

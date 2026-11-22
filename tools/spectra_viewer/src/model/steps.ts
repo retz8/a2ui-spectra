@@ -407,7 +407,7 @@ function modelRowTextOf(call: CallRow): {label: string; target: string} {
 export function deliveryLabel(row: DeliveryRow): string {
   const parts = plural(row.parts, 'part');
   return row.messages > row.parts
-    ? `Delivery · ${parts}, ${plural(row.messages, 'message')}`
+    ? `Delivery · ${parts} · ${plural(row.messages, 'message')}`
     : `Delivery · ${parts}`;
 }
 
