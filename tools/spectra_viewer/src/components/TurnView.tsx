@@ -62,6 +62,7 @@ import {type Position, replyThrough, type TimelineRow, timelineOf} from '@/model
 import {openFieldsOf, summaryOf} from '@/model/summary.ts';
 import {insideLineOf} from '@/model/turn_calls.ts';
 import {briefText} from '@/model/turn_groups.ts';
+import {coveredRowsOf} from '@/model/covered.ts';
 import {detailOpenHeight, rememberedSize, rememberSize} from '@/state/layout.ts';
 import {setViewSetting, useViewSettings} from '@/state/view_settings.ts';
 import {previewHost, renderKeyOf, usePreviewPages} from '@/state/preview_host.ts';
@@ -699,6 +700,13 @@ export function TurnBody({
   // Maximized, the selected step's detail takes the result pane's height and the pane folds to its
   // header line. While a live turn is followed with no step selected, the split stays.
   const folding = maximized && inView.selected;
+
+  // A selected call or parse tints the rows that start inside it up to the moment its result shows.
+  const covered = useMemo(() => {
+    if (!inView.selected || selected === undefined) return undefined;
+    const until = resultMomentOf(selected, events, startMs);
+    return until === undefined ? undefined : coveredRowsOf(timeline, selected.id, until);
+  }, [inView.selected, selected, events, startMs, timeline]);
   useEffect(() => {
     // Beside, a maximized detail takes the result's place by drawing the result no longer.
     const pane = result.current;
@@ -855,6 +863,7 @@ export function TurnBody({
             legacy={legacyStepIds}
             live={open}
             following={inView.following}
+            {...(covered !== undefined && {covered})}
             {...(filtered && {
               filter: {
                 steps: timeline.filter(row => row.row === 'step').length,
@@ -1019,15 +1028,19 @@ function positionOf(row: TimelineRow | undefined): Position | undefined {
   return row.row === 'delivery' ? {eventIndex: row.eventIndex} : row.position;
 }
 
-function asOfLabel(
+/**
+ * The moment a call's or a parse's result shows, in milliseconds since the
+ * turn's start: a call's end, or the present while it is in flight; a
+ * parse's last wire message. None for any other row, or for a parse no
+ * message is traced to, whose result shows right after it.
+ */
+function resultMomentOf(
   row: TimelineRow | undefined,
   events: readonly TurnRecordEvent[],
   startMs: number,
-): string {
-  if (row === undefined) return '';
-  if (row.row === 'delivery') return `After the delivery at ${formatOffset(row.offsetMs)}`;
+): number | undefined {
+  if (row === undefined || row.row === 'delivery') return undefined;
   if (row.parse !== undefined) {
-    // The last wire message traced to the parse, when one is; else right after the parse.
     const {parse, position} = row;
     const traced =
       position !== undefined &&
@@ -1036,17 +1049,32 @@ function asOfLabel(
           message.eventIndex === position.eventIndex &&
           parseOfMessage(events, message.key)?.spanId === parse.spanId,
       );
-    if (traced) {
-      const at = unixMillis(events[position.eventIndex].startTimeUnixNano) - startMs;
-      return `After the parse’s last message, ${formatOffset(at)}`;
-    }
-    return `Right after the parse at ${formatOffset(row.offsetMs ?? 0)}`;
+    return traced ? unixMillis(events[position.eventIndex].startTimeUnixNano) - startMs : undefined;
   }
   if (row.call !== undefined) {
     const end = timedEventOf(row.call).endTimeUnixNano;
-    return end === undefined
+    return end === undefined ? Infinity : unixMillis(end) - startMs;
+  }
+  return undefined;
+}
+
+function asOfLabel(
+  row: TimelineRow | undefined,
+  events: readonly TurnRecordEvent[],
+  startMs: number,
+): string {
+  if (row === undefined) return '';
+  if (row.row === 'delivery') return `After the delivery at ${formatOffset(row.offsetMs)}`;
+  const moment = resultMomentOf(row, events, startMs);
+  if (row.parse !== undefined) {
+    return moment === undefined
+      ? `Right after the parse at ${formatOffset(row.offsetMs ?? 0)}`
+      : `After the parse’s last message, ${formatOffset(moment)}`;
+  }
+  if (row.call !== undefined) {
+    return moment === undefined || moment === Infinity
       ? 'Live · the call is in flight'
-      : `At the end of the call, ${formatOffset(unixMillis(end) - startMs)}`;
+      : `At the end of the call, ${formatOffset(moment)}`;
   }
   const offset =
     row.offsetMs ??

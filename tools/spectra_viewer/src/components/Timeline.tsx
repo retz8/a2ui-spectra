@@ -17,7 +17,8 @@ import {useNow} from './use_now.ts';
  * delivery. Every row ends in a narrow lane drawn against the length of the
  * whole turn, a call's bar or a step's dot, with a call's duration beside
  * it. A step whose message carried components in the legacy form carries
- * the hourglass after its problem mark. While the turn is open, the newest row is marked as followed, an
+ * the hourglass after its problem mark. A selected call or parse tints the
+ * rows it covers, lighter than its own. While the turn is open, the newest row is marked as followed, an
  * in-flight call's duration counts up and its bar grows, and a picked step
  * offers Jump to latest. Narrowed to the steps with problems, it counts them
  * out of all the turn's steps and offers Show all. It is one Tab stop: the
@@ -34,6 +35,7 @@ export function Timeline({
   legacy,
   live,
   following,
+  covered,
   filter,
   onSelect,
   onJump,
@@ -58,6 +60,8 @@ export function Timeline({
   live: boolean;
   /** Whether the view follows the newest step. */
   following: boolean;
+  /** The rows the selected call or parse covers, by their ids: the steps that built what its result shows. */
+  covered?: ReadonlySet<string>;
   /** While only the steps with problems are shown: how many steps the turn has, and turning it off. */
   filter?: {steps: number; onShowAll: () => void};
   onSelect: (id: string) => void;
@@ -131,7 +135,9 @@ export function Timeline({
             'ease-quick fade-in-quick flex w-full cursor-pointer items-center gap-2 rounded-lg text-left',
             isSelected
               ? 'bg-brand-soft shadow-mark-start group-focus-visible/steps:outline-2 group-focus-visible/steps:-outline-offset-2 group-focus-visible/steps:outline-brand'
-              : 'hover:bg-tint',
+              : covered?.has(row.id) === true
+                ? 'bg-brand-soft/55 shadow-mark-start-soft hover:bg-tint'
+                : 'hover:bg-tint',
           );
           // A row pressed is selected, with focus on the list.
           const press = {

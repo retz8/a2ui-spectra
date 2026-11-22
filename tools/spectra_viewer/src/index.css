@@ -24,6 +24,7 @@
   --shadow-overlay: var(--overlay-shadow);
   /* The selected row's mark at its start, and the selected tab's under it. */
   --shadow-mark-start: inset 2px 0 0 var(--brand);
+  --shadow-mark-start-soft: inset 2px 0 0 color-mix(in srgb, var(--brand) 30%, transparent);
   --shadow-mark-bottom: inset 0 -2px 0 var(--brand);
   /* A pairs grid's key column: 96px for short keys, 168px for names and headers, 208px for the longest attribute names. */
   --grid-template-columns-facts: calc(var(--spacing) * 24) minmax(0, 1fr);
