@@ -135,6 +135,18 @@ const PATHS = {
       <path d="M14 10l6-6M10 14l-6 6" />
     </>
   ),
+  dockBeside: (
+    <>
+      <rect x="3" y="4.5" width="18" height="15" rx="2.5" />
+      <path d="M14.5 4.5v15" />
+    </>
+  ),
+  dockBelow: (
+    <>
+      <rect x="3" y="4.5" width="18" height="15" rx="2.5" />
+      <path d="M3 13.5h18" />
+    </>
+  ),
   file: (
     <>
       <path d="M14 3H7.5A2.5 2.5 0 0 0 5 5.5v13A2.5 2.5 0 0 0 7.5 21h9a2.5 2.5 0 0 0 2.5-2.5V8z" />

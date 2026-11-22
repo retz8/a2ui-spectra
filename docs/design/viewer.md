@@ -105,16 +105,17 @@ A left rail runs the page's height. To its right, a context bar runs along the t
 
 Every divider can be dragged, and the browser remembers where, the same for every turn:
 
-| What                  | What the browser remembers                                                                                                                                        |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| The turn list         | Its width, and whether it is collapsed to the strip. It is at least 240px wide, and the turn view at least 640px                                                  |
-| The timeline          | Its width                                                                                                                                                         |
-| The step's detail     | Its height when open. It opens at the remembered height, at most half the height it shares with the result; as the window is resized, the result takes the change |
-| The Preview pane      | Its width beside Structure, at each preview width                                                                                                                 |
-| Preview and Structure | Whether each is shown                                                                                                                                             |
-| The preview's width   | Narrow or Wide                                                                                                                                                    |
-| The logs drawer       | Its height, and whether it is open                                                                                                                                |
-| The theme             | System, Light or Dark                                                                                                                                             |
+| What                  | What the browser remembers                                                                                                                                                                                                                                                  |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The turn list         | Its width, and whether it is collapsed to the strip. It is at least 240px wide, and the turn view at least 640px                                                                                                                                                            |
+| The timeline          | Its width                                                                                                                                                                                                                                                                   |
+| The step's detail     | Its height when open. It opens at the remembered height, at most half the height it shares with the result; as the window is resized, the result takes the change. Docked beside the result, its width, half the column until dragged, and at least 320px, as the result is |
+| The detail's dock     | Below the result or beside it                                                                                                                                                                                                                                               |
+| The Preview pane      | Its width beside Structure, at each preview width                                                                                                                                                                                                                           |
+| Preview and Structure | Whether each is shown                                                                                                                                                                                                                                                       |
+| The preview's width   | Narrow or Wide                                                                                                                                                                                                                                                              |
+| The logs drawer       | Its height, and whether it is open                                                                                                                                                                                                                                          |
+| The theme             | System, Light or Dark                                                                                                                                                                                                                                                       |
 
 The page is at least 740px wide, and scrolls sideways below that.
 
@@ -378,7 +379,7 @@ A component sent again later in the turn with the `@` key has no hourglass after
 
 ### The result
 
-The result sits on the right of the timeline, above the step's detail. A strip at its top holds the agent's reply text, the turn's text parts up to the step, and is left out when there are none. Under it, the Preview and Structure panes sit side by side, each shown or hidden by its toggle in the result's header, both on by default, with a divider between them; at least one always shows, so pressing the toggle of the only pane shown does nothing. The browser remembers the toggles.
+The result sits on the right of the timeline, above the step's detail, or on its left when the detail is docked beside it. A strip at its top holds the agent's reply text, the turn's text parts up to the step, and is left out when there are none. Under it, the Preview and Structure panes sit side by side, each shown or hidden by its toggle in the result's header, both on by default, with a divider between them; at least one always shows, so pressing the toggle of the only pane shown does nothing. The browser remembers the toggles.
 
 Both panes show the selected surface as it stood right after the step selected. A line under the result's tabs, in a band of its own between two hairlines, says when that is: "Live" while following, or "After the step at …", "After the delivery at …", "Right after the parse at …", "After the parse’s last message, …", "At the end of the call, …" or "Live · the call is in flight".
 
@@ -442,6 +443,8 @@ The turn's last step is its outcome once it has closed, and its latest step whil
 
 The step's detail sits in a split under the result that can be resized and collapsed. Collapsed, it keeps its head, and it is collapsed until a step is selected or the view lands on a problem.
 
+Docked beside the result, it sits on the result's right at the column's full height instead, so a node in Structure and its range in a parse's raw text show side by side. Beside, it is drawn while a step is selected and does not collapse; with none, while a live turn is followed, the result takes the whole width.
+
 - **The head** stays in view as the detail scrolls: the title line, with the step's icon, its name and its target; under it the facts line, the step's offset, its duration and, for a call, its time to the first token; and for a model call with tokens, its usage line.
 - **Under the head**, in this order: the step's problems; the lines folded under them; the legacy form's two lines; how the step connects to others; then what it holds.
 - **The connections** are one grid of keys and links: "Read from", "Retried by", "Read by" and "Prefix", each with the step it names as a link. A connection written as a sentence, a retry's or a served call's, runs across the grid and ends with a full stop.
@@ -472,7 +475,8 @@ Such a step ends with the delivery it arrived in, folded, under "Delivery" with 
 
 - **Folding.** Every labelled block of a detail, a text, a JSON block, keys and values, a list, folds on its label line. A block folded stays folded by its label on every step for the session, so a long system prompt folded once stays out of the way on every call; blocks with the same label fold together, and a block that starts folded stays open on every step once opened. Every JSON block folds its objects and arrays. A labelled JSON block, a text block, the raw text and a prompt have a copy button.
 - **JSON in a string.** A string that holds a JSON object or array shows parsed, as foldable JSON in place, its line noted "JSON in a string". The block's switch, "Parsed" or "As received", shows the string as it came, and Copy copies the value as it came.
-- **Maximize**, "Maximize the step’s detail · m" on every step's detail, and `m`, gives the detail the result pane's height, the pane folded to its header line. Selecting another step, or another turn, keeps it; maximizing while following a live turn selects its latest step. Maximized, the button reads "Restore the split · m"; dragging the divider, collapsing the detail or a reload brings the split back too.
+- **The dock**, "Dock the step’s detail beside the result", or "Dock the step’s detail below the result" when it is beside, moves the detail to the other side, the tab open staying open.
+- **Maximize**, "Maximize the step’s detail · m" on every step's detail, and `m`, gives the detail the result pane's height, the pane folded to its header line; docked beside, the detail takes the whole column and the result is not drawn. Selecting another step, or another turn, keeps it; maximizing while following a live turn selects its latest step. Maximized, the button reads "Restore the split · m"; dragging the divider, collapsing the detail or a reload brings the split back too.
 - **A link** in a step's detail that selects another step, a parse's, a retry's or a prefix break's, gives the timeline focus, so the keys go on from it.
 
 ### A model call's detail

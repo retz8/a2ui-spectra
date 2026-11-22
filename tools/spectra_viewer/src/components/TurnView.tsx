@@ -63,6 +63,7 @@ import {openFieldsOf, summaryOf} from '@/model/summary.ts';
 import {insideLineOf} from '@/model/turn_calls.ts';
 import {briefText} from '@/model/turn_groups.ts';
 import {detailOpenHeight, rememberedSize, rememberSize} from '@/state/layout.ts';
+import {setViewSetting, useViewSettings} from '@/state/view_settings.ts';
 import {previewHost, renderKeyOf, usePreviewPages} from '@/state/preview_host.ts';
 import {
   keepsPending,
@@ -119,6 +120,12 @@ const RESULT_TITLE = 44;
 
 /** The detail's height when open with no size of its own yet, as a percentage of the pane. */
 const DETAIL_OPEN = '38';
+
+/** The detail's width when docked beside the result with no size of its own yet, as a percentage of the pane. */
+const DETAIL_BESIDE = '50';
+
+/** The narrowest the result and the detail go when side by side, in pixels. */
+const SIDE_MOST = 320;
 
 /** The timeline's width until its divider is dragged, in pixels: on a wide window and below 1,280px. */
 const TIMELINE_WIDE = 420;
@@ -657,21 +664,27 @@ export function TurnBody({
 
   const detail = usePanelRef();
   const result = usePanelRef();
+  // Docked beside the result, the detail shows while a step is selected; with none, the result takes the whole width.
+  const {detailDock} = useViewSettings();
+  const beside = detailDock === 'beside';
   // Collapsed, the detail keeps its head: the title row and the facts lines under it.
   const head =
     selected === undefined ? DETAIL_TITLE : headHeightOf(selected, events, startMs, state.prices);
   const timelinePanel = usePanelRef();
   const [collapsed, setCollapsed] = useState(!inView.selected);
-  // The detail is collapsed to its title line until a step is selected.
+  // Below the result, the detail is collapsed to its title line until a step is selected; beside
+  // it, the detail is drawn only while one is.
   useEffect(() => {
+    if (beside) return;
     if (inView.selected) openDetail(detail.current);
     else detail.current?.collapse();
-  }, [inView.selected, detail]);
+  }, [inView.selected, detail, beside]);
   // A detail open as the turn opens takes its remembered height, at most half the pane. It is
   // worked out a frame later, once the panels are laid out: a remembered height the pane cannot
   // hold beside the result folds the result to its header line as they mount, until the effect
   // below opens it, and until then the panels' sizes disagree. Maximized, the detail stays whole.
   useEffect(() => {
+    if (beside) return;
     const frame = requestAnimationFrame(() => {
       const panel = detail.current;
       if (panel === null || panel.isCollapsed() || result.current?.isCollapsed() !== false) return;
@@ -681,21 +694,22 @@ export function TurnBody({
     return () => {
       cancelAnimationFrame(frame);
     };
-  }, [detail, result]);
+  }, [detail, result, beside]);
 
   // Maximized, the selected step's detail takes the result pane's height and the pane folds to its
   // header line. While a live turn is followed with no step selected, the split stays.
   const folding = maximized && inView.selected;
   useEffect(() => {
+    // Beside, a maximized detail takes the result's place by drawing the result no longer.
     const pane = result.current;
-    if (pane === null) return;
+    if (beside || pane === null) return;
     if (folding) {
       openDetail(detail.current);
       pane.collapse();
     } else if (pane.isCollapsed()) {
       pane.expand();
     }
-  }, [folding, result, detail, selected?.id]);
+  }, [folding, result, detail, selected?.id, beside]);
   const toggleMaximized = () => {
     if (folding) {
       onMaximized(false);
@@ -860,8 +874,10 @@ export function TurnBody({
         </ResizablePanel>
         <ResizableHandle />
         <ResizablePanel minSize={360}>
+          {/* Docking the detail on the other side lays the pane out anew. */}
           <ResizablePanelGroup
-            orientation="vertical"
+            key={detailDock}
+            orientation={beside ? 'horizontal' : 'vertical'}
             onLayoutChanged={(_, {isUserInteraction}) => {
               // Read once the change is complete: during it, the panel's sizes can disagree.
               const panel = detail.current;
@@ -873,83 +889,100 @@ export function TurnBody({
                 onMaximized(false);
               }
               if (isUserInteraction && !panel.isCollapsed()) {
-                rememberSize('detail', panel.getSize().inPixels);
+                rememberSize(beside ? 'detailBeside' : 'detail', panel.getSize().inPixels);
               }
             }}
           >
-            <ResizablePanel
-              panelRef={result}
-              minSize={160}
-              collapsible
-              collapsedSize={RESULT_TITLE}
-            >
-              <ResultPane
-                reply={reply}
-                asOf={inView.following ? 'Live' : asOfLabel(selected, events, startMs)}
-                replay={pane}
-                surface={surface}
-                onPick={setPickedSurface}
-                preview={route === undefined ? undefined : {route, lines: fromPreview?.lines ?? []}}
-                problemsBySurface={bySurface}
-                open={open}
-                sentA2ui={sentA2ui}
-                failed={summary?.outcome === 'failed'}
-                later={position !== undefined && (whole?.surfaces.length ?? 0) > 0}
-                folded={folding}
-                selectedNode={node}
-                onSelectNode={selectNode}
-                legacyKeys={legacyKeys}
-              />
-            </ResizablePanel>
-            <ResizableHandle />
-            <ResizablePanel
-              panelRef={detail}
-              defaultSize={inView.selected ? (rememberedSize('detail') ?? DETAIL_OPEN) : head}
-              minSize={120}
-              collapsible
-              groupResizeBehavior="preserve-pixel-size"
-              collapsedSize={head}
-            >
-              {selected !== undefined && (
-                <StepDetail
-                  key={selected.id}
-                  row={selected}
-                  events={events}
-                  startMs={startMs}
-                  problems={problems.filter(problem => problem.stepId === selected.id)}
-                  folded={folded
-                    .filter(rejection => rejection.stepId === selected.id)
-                    .map(
-                      rejection =>
-                        `${rejection.lead ?? 'A2UI web core also rejected this message'} · ${rejection.sentence}`,
-                    )}
-                  {...(legacySteps.has(selected.id) && {legacy: legacySteps.get(selected.id)})}
-                  collapsed={collapsed}
-                  onToggle={() => {
-                    if (collapsed) openDetail(detail.current);
-                    else {
-                      if (folding) onMaximized(false);
-                      detail.current?.collapse();
-                    }
-                  }}
-                  maximized={folding}
-                  onMaximize={toggleMaximized}
-                  prices={state.prices}
-                  prefix={prefix}
-                  onEarlier={onEarlier}
-                  catalogs={state.catalogs}
+            {/* Beside, a maximized detail takes the result's place whole. */}
+            {!(beside && folding) && (
+              <ResizablePanel
+                id="result"
+                panelRef={result}
+                minSize={beside ? SIDE_MOST : 160}
+                collapsible={!beside}
+                collapsedSize={RESULT_TITLE}
+              >
+                <ResultPane
+                  reply={reply}
+                  asOf={inView.following ? 'Live' : asOfLabel(selected, events, startMs)}
+                  replay={pane}
+                  surface={surface}
+                  onPick={setPickedSurface}
+                  preview={
+                    route === undefined ? undefined : {route, lines: fromPreview?.lines ?? []}
+                  }
+                  problemsBySurface={bySurface}
+                  open={open}
+                  sentA2ui={sentA2ui}
+                  failed={summary?.outcome === 'failed'}
+                  later={position !== undefined && (whole?.surfaces.length ?? 0) > 0}
+                  folded={folding}
                   selectedNode={node}
-                  onSelectNode={selectRange}
-                  onStep={id => {
-                    requestTimelineFocus();
-                    setPicked(id);
-                  }}
-                  stepOnCall={stepOnCall}
-                  callReplay={callReplay}
-                  onRecorded={onRecorded}
+                  onSelectNode={selectNode}
+                  legacyKeys={legacyKeys}
                 />
-              )}
-            </ResizablePanel>
+              </ResizablePanel>
+            )}
+            {!(beside && folding) && (!beside || inView.selected) && <ResizableHandle />}
+            {(!beside || inView.selected) && (
+              <ResizablePanel
+                id="detail"
+                panelRef={detail}
+                defaultSize={
+                  beside
+                    ? (rememberedSize('detailBeside') ?? DETAIL_BESIDE)
+                    : inView.selected
+                      ? (rememberedSize('detail') ?? DETAIL_OPEN)
+                      : head
+                }
+                minSize={beside ? SIDE_MOST : 120}
+                collapsible={!beside}
+                groupResizeBehavior="preserve-pixel-size"
+                collapsedSize={head}
+              >
+                {selected !== undefined && (
+                  <StepDetail
+                    key={selected.id}
+                    row={selected}
+                    events={events}
+                    startMs={startMs}
+                    problems={problems.filter(problem => problem.stepId === selected.id)}
+                    folded={folded
+                      .filter(rejection => rejection.stepId === selected.id)
+                      .map(
+                        rejection =>
+                          `${rejection.lead ?? 'A2UI web core also rejected this message'} · ${rejection.sentence}`,
+                      )}
+                    {...(legacySteps.has(selected.id) && {legacy: legacySteps.get(selected.id)})}
+                    collapsed={!beside && collapsed}
+                    onToggle={() => {
+                      if (collapsed) openDetail(detail.current);
+                      else {
+                        if (folding) onMaximized(false);
+                        detail.current?.collapse();
+                      }
+                    }}
+                    dock={detailDock}
+                    onDock={() => setViewSetting('detailDock', beside ? 'below' : 'beside')}
+                    maximized={folding}
+                    onMaximize={toggleMaximized}
+                    prices={state.prices}
+                    prefix={prefix}
+                    onEarlier={onEarlier}
+                    catalogs={state.catalogs}
+                    selectedNode={node}
+                    onSelectNode={selectRange}
+                    onStep={id => {
+                      requestTimelineFocus();
+                      setPicked(id);
+                    }}
+                    stepOnCall={stepOnCall}
+                    callReplay={callReplay}
+                    onRecorded={onRecorded}
+                  />
+                )}
+              </ResizablePanel>
+            )}
           </ResizablePanelGroup>
         </ResizablePanel>
       </ResizablePanelGroup>

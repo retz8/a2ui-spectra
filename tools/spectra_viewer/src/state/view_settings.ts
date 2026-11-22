@@ -1,7 +1,8 @@
 /**
  * What the viewer remembers of how it is laid out, besides the dividers'
  * positions: the result pane's Preview and Structure toggles, the preview's
- * width, the turn list collapsed to its strip, and the logs drawer open.
+ * width, the step's detail docked below the result or beside it, the turn
+ * list collapsed to its strip, and the logs drawer open.
  */
 import {useSyncExternalStore} from 'react';
 
@@ -11,6 +12,8 @@ export interface ViewSettings {
   /** Whether the Structure pane is shown. */
   structure: boolean;
   width: 'narrow' | 'wide';
+  /** Where the step's detail sits: under the result, or on its right at the column's full height. */
+  detailDock: 'below' | 'beside';
   /** Whether the turn list is collapsed to its strip on a wide window. */
   turnListCollapsed: boolean;
   /**
@@ -26,6 +29,7 @@ const DEFAULTS: ViewSettings = {
   preview: true,
   structure: true,
   width: 'wide',
+  detailDock: 'below',
   turnListCollapsed: false,
   logsOpen: false,
 };
@@ -34,12 +38,14 @@ function read(): ViewSettings {
   try {
     const stored: unknown = JSON.parse(window.localStorage.getItem(KEY) ?? '{}');
     if (typeof stored !== 'object' || stored === null) return DEFAULTS;
-    const {preview, structure, width, turnListCollapsed, logsOpen} =
+    const {preview, structure, width, detailDock, turnListCollapsed, logsOpen} =
       stored as Partial<ViewSettings>;
     return {
       preview: typeof preview === 'boolean' ? preview : DEFAULTS.preview,
       structure: typeof structure === 'boolean' ? structure : DEFAULTS.structure,
       width: width === 'narrow' || width === 'wide' ? width : DEFAULTS.width,
+      detailDock:
+        detailDock === 'below' || detailDock === 'beside' ? detailDock : DEFAULTS.detailDock,
       turnListCollapsed:
         typeof turnListCollapsed === 'boolean' ? turnListCollapsed : DEFAULTS.turnListCollapsed,
       logsOpen: typeof logsOpen === 'boolean' ? logsOpen : DEFAULTS.logsOpen,

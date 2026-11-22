@@ -169,6 +169,43 @@ describe(`the viewer on the retried-parse record in Chromium, ${binary ? 'the bi
         await range.waitFor();
         await page.waitForTimeout(300);
         assert.ok(await inPane(range), 'After a reload, the range is not in view.');
+
+        // 5. Docked beside the result, the detail sits on its right with the range in view; maximized
+        // and restored there, the split comes back; docked below again, it sits under the result.
+        const errors: string[] = [];
+        page.on('pageerror', error => errors.push(error.message));
+        const result = page.getByRole('region', {name: 'Result'});
+        const detail = page.getByRole('region', {name: "The step's detail"});
+        await page.getByRole('button', {name: 'Dock the step’s detail beside the result'}).click();
+        await page.getByRole('button', {name: 'Dock the step’s detail below the result'}).waitFor();
+        await range.waitFor();
+        const [left, right] = await Promise.all([result.boundingBox(), detail.boundingBox()]);
+        assert.ok(left && right, 'The result or the detail is not drawn.');
+        assert.ok(
+          right.x >= left.x + left.width - 1,
+          'Docked beside, the detail is not on the result’s right.',
+        );
+        assert.ok(
+          Math.abs(right.y - left.y) < 2,
+          'Docked beside, the detail does not start at the result’s top.',
+        );
+        await page.waitForTimeout(300);
+        assert.ok(await inPane(range), 'Docked beside, the range is not in view.');
+        await page.getByRole('button', {name: 'Maximize the step’s detail'}).click();
+        await result.waitFor({state: 'detached'});
+        await page.getByRole('button', {name: 'Restore the split'}).click();
+        await result.waitFor();
+        await page.getByRole('button', {name: 'Dock the step’s detail below the result'}).click();
+        await page
+          .getByRole('button', {name: 'Dock the step’s detail beside the result'})
+          .waitFor();
+        const [above, under] = await Promise.all([result.boundingBox(), detail.boundingBox()]);
+        assert.ok(above && under, 'The result or the detail is not drawn.');
+        assert.ok(
+          under.y >= above.y + above.height - 1,
+          'Docked below, the detail is not under the result.',
+        );
+        assert.deepEqual(errors, [], 'The page threw while docking.');
       });
     },
   );

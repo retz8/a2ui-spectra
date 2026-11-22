@@ -15,7 +15,7 @@ import {isWireInput, type TurnRecordEvent, unixMillis, type WireEvent} from '@/m
 import {deliveryLabel, plural, type Step, type TimelineRow} from '@/model/steps.ts';
 import {callUsageLineOf} from '@/model/turn_calls.ts';
 import {useBlockFold} from '@/state/block_folds.ts';
-import {clearDetailTabRequest, detailTabRequest} from '@/state/detail_tab.ts';
+import {clearDetailTabRequest, detailTabRequest, requestDetailTab} from '@/state/detail_tab.ts';
 
 import {Connections, DetailLink, Pairs, TextBlock} from './CallParts.tsx';
 import {brandIconOf, formatOffset, toneOf} from './format.ts';
@@ -100,7 +100,9 @@ export function headHeightOf(
  * selection opens Reply, Result or Raw text. Every other step holds one
  * column, ending with the delivery it arrived in, folded. A problem that
  * marks a line is pressed to bring the line into view, in the tab that holds
- * it. Maximize gives the detail the result pane's height.
+ * it. Docked below the result, it collapses to its head; docked beside it,
+ * it holds the column's full height and does not collapse. Maximize gives
+ * the detail the result's place.
  */
 export function StepDetail({
   row,
@@ -111,6 +113,8 @@ export function StepDetail({
   legacy,
   collapsed,
   onToggle,
+  dock,
+  onDock,
   maximized,
   onMaximize,
   prices,
@@ -134,7 +138,11 @@ export function StepDetail({
   legacy?: StepLegacy;
   collapsed: boolean;
   onToggle: () => void;
-  /** Whether the detail takes the result pane's height. */
+  /** Where the detail sits: under the result, or on its right. */
+  dock: 'below' | 'beside';
+  /** Docks the detail on the other side; the tab open stays open. */
+  onDock: () => void;
+  /** Whether the detail takes the result's place. */
   maximized: boolean;
   onMaximize: () => void;
   prices: Prices | undefined;
@@ -224,7 +232,11 @@ export function StepDetail({
         : names[0];
   const open = tabbed?.tabs.find(tab => tab.name === openName);
   return (
-    <section aria-label="The step's detail" className="flex h-full min-h-0 flex-col border-t">
+    <section
+      aria-label="The step's detail"
+      // Beside the result, the turn's header line is the detail's top edge.
+      className={cn('flex h-full min-h-0 flex-col', dock === 'below' && 'border-t')}
+    >
       <div className="flex shrink-0 flex-col pr-2.5 pl-4">
         <div className="flex h-10 items-center gap-2">
           {row.row === 'delivery' ? (
@@ -252,6 +264,27 @@ export function StepDetail({
           <div className="flex-1" />
           <button
             type="button"
+            aria-label={
+              dock === 'beside'
+                ? 'Dock the step’s detail below the result'
+                : 'Dock the step’s detail beside the result'
+            }
+            title={
+              dock === 'beside'
+                ? 'Dock the step’s detail below the result'
+                : 'Dock the step’s detail beside the result'
+            }
+            onClick={() => {
+              // Docking draws the detail again; the tab open is asked for so it stays open.
+              if (openName !== undefined) requestDetailTab(openName);
+              onDock();
+            }}
+            className="ease-quick flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md tone-muted hover:bg-tint hover:tone-foreground"
+          >
+            <Icon kind={dock === 'beside' ? 'dockBelow' : 'dockBeside'} size={14} />
+          </button>
+          <button
+            type="button"
             aria-label={maximized ? 'Restore the split' : 'Maximize the step’s detail'}
             aria-pressed={maximized}
             title={maximized ? 'Restore the split · m' : 'Maximize the step’s detail · m'}
@@ -265,15 +298,17 @@ export function StepDetail({
           >
             <Icon kind={maximized ? 'restore' : 'maximize'} size={14} />
           </button>
-          <button
-            type="button"
-            aria-label={collapsed ? 'Expand the step’s detail' : 'Collapse the step’s detail'}
-            aria-expanded={!collapsed}
-            onClick={onToggle}
-            className="ease-quick flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md tone-muted hover:bg-tint hover:tone-foreground"
-          >
-            <Icon kind={collapsed ? 'chevronRight' : 'chevronDown'} size={14} />
-          </button>
+          {dock === 'below' && (
+            <button
+              type="button"
+              aria-label={collapsed ? 'Expand the step’s detail' : 'Collapse the step’s detail'}
+              aria-expanded={!collapsed}
+              onClick={onToggle}
+              className="ease-quick flex size-6 shrink-0 cursor-pointer items-center justify-center rounded-md tone-muted hover:bg-tint hover:tone-foreground"
+            >
+              <Icon kind={collapsed ? 'chevronRight' : 'chevronDown'} size={14} />
+            </button>
+          )}
         </div>
         {facts !== undefined && (
           <div className="type-meta -mt-1 truncate pb-2.5 pl-5.5" title={facts}>

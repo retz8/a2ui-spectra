@@ -1,12 +1,14 @@
 /**
  * The dividers' positions, remembered in the browser: the turn list's width,
- * the timeline's width, the step's detail's height when open, the Preview
+ * the timeline's width, the step's detail's height when open below the
+ * result and its width when docked beside it, the Preview
  * pane's width beside Structure at each preview width, and the logs drawer's
  * height, in pixels, one each for every turn and both layouts. The detail opens at its
  * remembered height, at most half the pane it shares with the result.
  */
 
-export type Divider = 'turnList' | 'timeline' | 'detail' | 'previewNarrow' | 'previewWide' | 'logs';
+export type Divider =
+  'turnList' | 'timeline' | 'detail' | 'detailBeside' | 'previewNarrow' | 'previewWide' | 'logs';
 
 const KEY = 'a2ui-spectra.layout';
 
