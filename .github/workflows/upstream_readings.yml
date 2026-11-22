@@ -1,0 +1,34 @@
+name: Upstream since the pin
+
+# What happened upstream since the pin in `vendor/a2ui/upstream-pin.json`, as facts, daily and
+# when started by hand: the upstream packages a registry carries in a version newer than the one
+# Spectra uses, and those whose version upstream's source has moved past its registry's latest,
+# then the commits since the pin per area, the copied files, the packages, `versions.json`, the
+# wrappers' OpenTelemetry packages and the site's accent. It writes them to the run's summary and
+# the first part as a notice; it changes nothing and fails only when it cannot read. Each reading
+# is `scripts/upstream_readings.mjs`.
+
+on:
+  schedule:
+    - cron: "0 21 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  readings:
+    name: The readings
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
+        with:
+          node-version: "22"
+      - name: Clone upstream
+        run: git clone --quiet --filter=blob:none --no-checkout https://github.com/a2ui-project/a2ui.git "$RUNNER_TEMP/a2ui"
+      - name: Read
+        run: node scripts/upstream_readings.mjs --upstream "$RUNNER_TEMP/a2ui"
