@@ -37,7 +37,10 @@ export const OPENTELEMETRY = ((): string => {
 export const SDK_VERSION = ((): string => {
   const entry = createRequire(import.meta.url).resolve('@a2ui/agent');
   const folder = `${path.sep}@a2ui${path.sep}agent${path.sep}`;
-  const manifest = path.join(entry.slice(0, entry.lastIndexOf(folder) + folder.length), 'package.json');
+  const manifest = path.join(
+    entry.slice(0, entry.lastIndexOf(folder) + folder.length),
+    'package.json',
+  );
   return (JSON.parse(readFileSync(manifest, 'utf8')) as {version: string}).version;
 })();
 
