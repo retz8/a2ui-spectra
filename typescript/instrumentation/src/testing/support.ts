@@ -1,6 +1,7 @@
 /** What the wrapper's tests share: the SDK on a small catalog, a span capture, warnings, and subprocesses. */
 
 import {spawn} from 'node:child_process';
+import {readFileSync} from 'node:fs';
 import {createRequire} from 'node:module';
 import * as path from 'node:path';
 import {fileURLToPath} from 'node:url';
@@ -28,6 +29,22 @@ export const OPENTELEMETRY = ((): string => {
   const scope = `${path.sep}@opentelemetry${path.sep}`;
   return entry.slice(0, entry.lastIndexOf(scope) + scope.length - 1);
 })();
+
+/**
+ * The installed `@a2ui/agent`'s version, read from its own `package.json`,
+ * found by path, since the package's exports map does not export it.
+ */
+export const SDK_VERSION = ((): string => {
+  const entry = createRequire(import.meta.url).resolve('@a2ui/agent');
+  const folder = `${path.sep}@a2ui${path.sep}agent${path.sep}`;
+  const manifest = path.join(entry.slice(0, entry.lastIndexOf(folder) + folder.length), 'package.json');
+  return (JSON.parse(readFileSync(manifest, 'utf8')) as {version: string}).version;
+})();
+
+/** A version as a regular expression's text, its dots escaped. */
+export function versionPattern(version: string): string {
+  return version.replaceAll('.', '\\.');
+}
 
 export const CATALOG_ID = 'https://example.com/spectra/test_catalog.json';
 

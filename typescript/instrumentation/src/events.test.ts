@@ -13,6 +13,7 @@ import {
   processorOf,
   rangeOf,
   sdk,
+  SDK_VERSION,
 } from './testing/support.js';
 
 const capture = new Capture();
@@ -31,33 +32,27 @@ function blockOf(attributes: Record<string, unknown>): [unknown, unknown] | unde
 }
 
 describe('one event per outermost call', () => {
-  it(
-    'parseResponse over compile and the state is one parse',
-    {
-      todo: 'Sub-task 11.2, at the pin: the span names the installed @a2ui/agent, 0.2.1, and the case expects 0.1.0',
-    },
-    async () => {
-      const processor = await processorOf('direct_json');
-      const text = `Here it is.\n${goodBlock('a')}`;
-      const parts = processor.parseResponse(text);
+  it('parseResponse over compile and the state is one parse', async () => {
+    const processor = await processorOf('direct_json');
+    const text = `Here it is.\n${goodBlock('a')}`;
+    const parts = processor.parseResponse(text);
 
-      const span = capture.only();
-      assert.equal(span.name, 'parse');
-      assert.equal(span.attributes['a2ui.event.kind'], 'parse');
-      assert.equal(span.attributes['a2ui.record.version'], 'v0.1');
-      assert.equal(span.attributes['a2ui.parse.entry_point'], 'parse_response');
-      assert.equal(span.attributes['a2ui.parse.input'], text);
-      assert.equal(span.attributes['a2ui.parse.inference_format'], 'direct_json');
-      assert.deepEqual(JSON.parse(span.attributes['a2ui.parse.catalogs'] as string), [
-        {catalogId: CATALOG_ID, protocolVersion: 'v1.0'},
-      ]);
-      const messages = parts.flatMap(part => (part.type === 'a2ui' ? part.a2ui : []));
-      assert.deepEqual(JSON.parse(span.attributes['a2ui.parse.messages'] as string), messages);
-      assert.equal(span.attributes['a2ui.sdk.name'], '@a2ui/agent');
-      assert.equal(span.attributes['a2ui.sdk.version'], '0.1.0');
-      assert.equal(span.instrumentationScope.name, 'a2ui-spectra-instrumentation');
-    },
-  );
+    const span = capture.only();
+    assert.equal(span.name, 'parse');
+    assert.equal(span.attributes['a2ui.event.kind'], 'parse');
+    assert.equal(span.attributes['a2ui.record.version'], 'v0.1');
+    assert.equal(span.attributes['a2ui.parse.entry_point'], 'parse_response');
+    assert.equal(span.attributes['a2ui.parse.input'], text);
+    assert.equal(span.attributes['a2ui.parse.inference_format'], 'direct_json');
+    assert.deepEqual(JSON.parse(span.attributes['a2ui.parse.catalogs'] as string), [
+      {catalogId: CATALOG_ID, protocolVersion: 'v1.0'},
+    ]);
+    const messages = parts.flatMap(part => (part.type === 'a2ui' ? part.a2ui : []));
+    assert.deepEqual(JSON.parse(span.attributes['a2ui.parse.messages'] as string), messages);
+    assert.equal(span.attributes['a2ui.sdk.name'], '@a2ui/agent');
+    assert.equal(span.attributes['a2ui.sdk.version'], SDK_VERSION);
+    assert.equal(span.instrumentationScope.name, 'a2ui-spectra-instrumentation');
+  });
 
   it('a compile called on its own is one parse, its entry point compile', async () => {
     const processor = await processorOf('express');
