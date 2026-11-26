@@ -493,10 +493,7 @@ function checkInstalled({library, manifest, bare}, version, project, options, ch
  * runs, and npm's refusal is expected: an install that succeeds, or a refusal other than
  * `ERESOLVE`, fails the check.
  */
-const EXPECTED_REFUSALS = {
-  'a2ui-spectra-preview-angular':
-    "Sub-task 11.2, at the pin: @a2ui/angular 0.16.0 states Angular ^22.2.3 as its peer, and the adapter's pack states Angular ^21.2.5.",
-};
+const EXPECTED_REFUSALS = {};
 
 /** A marked project's npm installs, run in order; npm is expected to refuse one of them. */
 function expectRefusal(dir, installs, name, reason, env, checks) {
@@ -537,9 +534,7 @@ function install(version, npm, scratch, checks) {
   // the TypeScript wrapper together, npm installing their peers; and each adapter in a catalog
   // app's project of its own, holding the peers the adapter's pack states, the renderer among
   // them, before the core's and the adapter's packs are added, as an adopter adds the adapter to
-  // the catalog's app. The renderers of upstream's npm release of 2026-11-02 do not install in
-  // one npm project together, nor the Lit or Angular adapter with npm installing its peers:
-  // `@a2ui/markdown-it` 0.2.2 asks for web core `^0.14.0`.
+  // the catalog's app.
   const [core] = npm;
   const projects = [
     {name: 'core-and-wrapper', libraries: npm.filter(each => !each.library.adapter), first: []},
