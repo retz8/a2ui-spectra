@@ -36,7 +36,7 @@
     }
   },
   "dependencies": {
-    "@a2ui/agent": "0.1.0",
+    "@a2ui/agent": "0.2.1",
     "@opentelemetry/api": "1.9.1",
     "a2ui-spectra-instrumentation": "workspace:*"
   },

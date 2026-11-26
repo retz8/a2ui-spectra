@@ -1,7 +1,7 @@
 {
   "pin": {
-    "commit": "0888f88b2835c44abdc871505f3f395e5ee0177d",
-    "date": "2026-11-13"
+    "commit": "7a776e7a476b61215ec68c6511f3b8f1921d6e24",
+    "date": "2026-11-23"
   },
   "copies": [
     {
@@ -13,7 +13,7 @@
       "spectra": "tools/spectra/src/check/schemas/v0_9/common_types.json"
     },
     {
-      "upstream": "specification/v0_9/catalogs/basic/catalog.json",
+      "upstream": "catalogs/basic/v0_9/catalog.json",
       "spectra": "tools/spectra/src/check/schemas/v0_9/catalogs/basic/catalog.json"
     },
     {
@@ -37,7 +37,7 @@
       "spectra": "tools/spectra/src/check/schemas/v1_0/catalogs/basic/catalog.json"
     },
     {
-      "upstream": "specification/v0_9/catalogs/basic/catalog.json",
+      "upstream": "catalogs/basic/v0_9/catalog.json",
       "spectra": "conformance/wrapper_driver/typescript/catalogs/basic_v0_9.json"
     },
     {
@@ -70,55 +70,37 @@
       "registry": "npm",
       "name": "@a2ui/web_core",
       "upstreamPath": "typescript/core/web_core",
-      "patch": {
-        "source": "tarball",
-        "tarball": "vendor/a2ui/a2ui-web_core-0.15.0.tgz"
-      }
+      "patch": null
     },
     {
       "registry": "npm",
       "name": "@a2ui/markdown-it",
       "upstreamPath": "typescript/renderers/markdown-it",
-      "patch": {
-        "source": "tarball",
-        "tarball": "vendor/a2ui/a2ui-markdown-it-0.2.2.tgz"
-      }
+      "patch": null
     },
     {
       "registry": "npm",
       "name": "@a2ui/react",
       "upstreamPath": "typescript/renderers/react",
-      "patch": {
-        "source": "tarball",
-        "tarball": "vendor/a2ui/a2ui-react-0.15.0.tgz"
-      }
+      "patch": null
     },
     {
       "registry": "npm",
       "name": "@a2ui/lit",
       "upstreamPath": "typescript/renderers/lit",
-      "patch": {
-        "source": "tarball",
-        "tarball": "vendor/a2ui/a2ui-lit-0.15.0.tgz"
-      }
+      "patch": null
     },
     {
       "registry": "npm",
       "name": "@a2ui/angular",
       "upstreamPath": "typescript/renderers/angular",
-      "patch": {
-        "source": "tarball",
-        "tarball": "vendor/a2ui/a2ui-angular-0.14.0.tgz"
-      }
+      "patch": null
     },
     {
       "registry": "npm",
       "name": "@a2ui/agent",
       "upstreamPath": "typescript/agents/a2ui_agent",
-      "patch": {
-        "source": "tarball",
-        "tarball": "vendor/a2ui/a2ui-agent-0.1.0.tgz"
-      }
+      "patch": null
     },
     {
       "registry": "pypi",

@@ -8,7 +8,7 @@ The schemas the schema check validates the agent's A2UI messages against, and th
 | ---------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | `v0_9/server_to_client.json`       | `specification/v0_9/json/server_to_client.json`   | The schema check                                                                          |
 | `v0_9/common_types.json`           | `specification/v0_9/json/common_types.json`       | The catalog check: the v0.9 catalogs' component definitions reach into it                 |
-| `v0_9/catalogs/basic/catalog.json` | `specification/v0_9/catalogs/basic/catalog.json`  | The registry: the v0.9 basic catalog, also under the v0.9.1 URL                           |
+| `v0_9/catalogs/basic/catalog.json` | `catalogs/basic/v0_9/catalog.json`                | The registry: the v0.9 basic catalog, also under the v0.9.1 URL                           |
 | `v0_9_1/server_to_client.json`     | `specification/v0_9_1/json/server_to_client.json` | The schema check                                                                          |
 | `v1_0/agent_to_renderer.json`      | `specification/v1_0/json/agent_to_renderer.json`  | The schema check                                                                          |
 | `v1_0/common_types.json`           | `specification/v1_0/json/common_types.json`       | The schema check, and the catalog definition meta-schema                                  |

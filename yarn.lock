@@ -39,72 +39,72 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@a2ui/agent@file:./vendor/a2ui/a2ui-agent-0.1.0.tgz::locator=a2ui-spectra-workspace%40workspace%3A.":
-  version: 0.1.0
-  resolution: "@a2ui/agent@file:./vendor/a2ui/a2ui-agent-0.1.0.tgz#./vendor/a2ui/a2ui-agent-0.1.0.tgz::hash=b52572&locator=a2ui-spectra-workspace%40workspace%3A."
+"@a2ui/agent@npm:0.2.1":
+  version: 0.2.1
+  resolution: "@a2ui/agent@npm:0.2.1"
   dependencies:
-    "@a2ui/web_core": "npm:^0.15.0"
+    "@a2ui/web_core": "npm:^0.16.1"
     antlr4ng: "npm:3.0.16"
-  checksum: 10c0/f0ccd96d536e27d913cada1bd3fae62bfaa0e6e7187831ab6e16e1d659b75d8d89c900d1958bfa6fca96721c9255cd21b7efb4a544a3ee8016c881d241c365a2
+  checksum: 10c0/2378f1da7206d2b10239f618b57617884eeea9470bf34175b1d56e2f24463f143bab536d90417428fdbb89dff0d4f9f2a89a0662cdbd500b5aae386545f882fd
   languageName: node
   linkType: hard
 
-"@a2ui/angular@file:./vendor/a2ui/a2ui-angular-0.14.0.tgz::locator=a2ui-spectra-workspace%40workspace%3A.":
-  version: 0.14.0
-  resolution: "@a2ui/angular@file:./vendor/a2ui/a2ui-angular-0.14.0.tgz#./vendor/a2ui/a2ui-angular-0.14.0.tgz::hash=1b9699&locator=a2ui-spectra-workspace%40workspace%3A."
+"@a2ui/angular@npm:0.16.0":
+  version: 0.16.0
+  resolution: "@a2ui/angular@npm:0.16.0"
   dependencies:
-    "@a2ui/web_core": "npm:^0.15.0"
+    "@a2ui/web_core": "npm:^0.16.1"
     tslib: "npm:^2.8.1"
     zod: "npm:^3.25.76"
   peerDependencies:
-    "@a2ui/markdown-it": ^0.2.2
-    "@angular/common": ^21.2.5
-    "@angular/core": ^21.2.5
-    "@angular/platform-browser": ^21.2.5
+    "@a2ui/markdown-it": ^0.2.4
+    "@angular/common": ^22.2.3
+    "@angular/core": ^22.2.3
+    "@angular/platform-browser": ^22.2.3
   peerDependenciesMeta:
     "@a2ui/markdown-it":
       optional: true
-  checksum: 10c0/c43f369e5c8b69d2d8b6dee449dc09c2b6909fc29d80b9104530ddf7a0ccf49daed1360f443809ac7aff8f6a031269921884533df008be72f4fb2344c28feecc
+  checksum: 10c0/9d460c1464a75c848575439f06690cf64ea9914d7ded8b795cbcbab6c6069f77d2af56adf9fa6c2aaf9db5733fe30480dc2f38bbbe145473abebb5524808ebcb
   languageName: node
   linkType: hard
 
-"@a2ui/lit@file:./vendor/a2ui/a2ui-lit-0.15.0.tgz::locator=a2ui-spectra-workspace%40workspace%3A.":
-  version: 0.15.0
-  resolution: "@a2ui/lit@file:./vendor/a2ui/a2ui-lit-0.15.0.tgz#./vendor/a2ui/a2ui-lit-0.15.0.tgz::hash=75ab08&locator=a2ui-spectra-workspace%40workspace%3A."
+"@a2ui/lit@npm:0.16.0":
+  version: 0.16.0
+  resolution: "@a2ui/lit@npm:0.16.0"
   dependencies:
-    "@a2ui/web_core": "npm:^0.15.0"
+    "@a2ui/web_core": "npm:^0.16.0"
     "@lit-labs/signals": "npm:^0.3.0"
     "@lit/context": "npm:^1.1.6"
     lit: "npm:^3.3.3"
     signal-utils: "npm:^0.21.1"
     zod: "npm:^3.25.76"
   peerDependencies:
-    "@a2ui/markdown-it": ^0.2.2
+    "@a2ui/markdown-it": ^0.2.3
   peerDependenciesMeta:
     "@a2ui/markdown-it":
       optional: true
-  checksum: 10c0/0721374eed4324a9e6eed3ef1a1d13eb234616fcb3771169696f619c288bf8fad01adbae66917e9317caa12f5e190abbb1ace23c63c00a41408accb6c4dc4348
+  checksum: 10c0/4328b9275bbecc8da8d1c3e9d002f484494cd2bd60efa95e5170210d8570325b4e024f7c6aa0b67a658b74fab4a7b2862000088b2495b7fd6b525be500a06899
   languageName: node
   linkType: hard
 
-"@a2ui/markdown-it@file:./vendor/a2ui/a2ui-markdown-it-0.2.2.tgz::locator=a2ui-spectra-workspace%40workspace%3A.":
-  version: 0.2.2
-  resolution: "@a2ui/markdown-it@file:./vendor/a2ui/a2ui-markdown-it-0.2.2.tgz#./vendor/a2ui/a2ui-markdown-it-0.2.2.tgz::hash=517a14&locator=a2ui-spectra-workspace%40workspace%3A."
+"@a2ui/markdown-it@npm:^0.2.4":
+  version: 0.2.4
+  resolution: "@a2ui/markdown-it@npm:0.2.4"
   dependencies:
-    dompurify: "npm:3.4.11"
+    dompurify: "npm:^3.4.17"
     markdown-it: "npm:^14.2.0"
   peerDependencies:
-    "@a2ui/web_core": ^0.15.0
-  checksum: 10c0/34b6a4044aaca885296946be5f9ba88450a81be0d1fd55e1114470780e52c6b546eb0d6ff6e5a26eed21ef46d42bc288001cbef0fcad2cea5f2a66cf9d4decf2
+    "@a2ui/web_core": ^0.16.1
+  checksum: 10c0/6eaf13c05978a5eef7489066bb27f8056287615d94f0cf5afaef9dd25c24502f4b8afc368a1c5fb79039d5cf33bbdf24866699194c21c9bf196135d7614ed70e
   languageName: node
   linkType: hard
 
-"@a2ui/react@file:./vendor/a2ui/a2ui-react-0.15.0.tgz::locator=a2ui-spectra-workspace%40workspace%3A.":
-  version: 0.15.0
-  resolution: "@a2ui/react@file:./vendor/a2ui/a2ui-react-0.15.0.tgz#./vendor/a2ui/a2ui-react-0.15.0.tgz::hash=b3e9ae&locator=a2ui-spectra-workspace%40workspace%3A."
+"@a2ui/react@npm:0.16.1":
+  version: 0.16.1
+  resolution: "@a2ui/react@npm:0.16.1"
   dependencies:
-    "@a2ui/markdown-it": "npm:^0.2.2"
-    "@a2ui/web_core": "npm:^0.15.0"
+    "@a2ui/markdown-it": "npm:^0.2.4"
+    "@a2ui/web_core": "npm:^0.16.1"
     clsx: "npm:^2.1.1"
     markdown-it: "npm:^14.2.0"
     zod: "npm:^3.25.76"
@@ -112,13 +112,13 @@ __metadata:
     react: ^17.0.0 || ^18.0.0 || ^19.0.0
     react-dom: ^17.0.0 || ^18.0.0 || ^19.0.0
     zod: ^3.25.76
-  checksum: 10c0/2450891b10e155619081f0252fa81fdd876260da329005a595230894e13f7f8e023cc09f22cb7f178e035f56bd01bf520cd5d5c633a94a0de5ed3ea5f1b6d168
+  checksum: 10c0/7b4ed53572a5e06a23d916100ed582b6423a58e016550821a9accb6f7231221aafdd1b6939a07b0eca4466b0575b034cffd96dee7d40c2d357a0b03655af6e1a
   languageName: node
   linkType: hard
 
-"@a2ui/web_core@file:./vendor/a2ui/a2ui-web_core-0.15.0.tgz::locator=a2ui-spectra-workspace%40workspace%3A.":
-  version: 0.15.0
-  resolution: "@a2ui/web_core@file:./vendor/a2ui/a2ui-web_core-0.15.0.tgz#./vendor/a2ui/a2ui-web_core-0.15.0.tgz::hash=e3fa5d&locator=a2ui-spectra-workspace%40workspace%3A."
+"@a2ui/web_core@npm:0.16.1, @a2ui/web_core@npm:^0.16.0, @a2ui/web_core@npm:^0.16.1":
+  version: 0.16.1
+  resolution: "@a2ui/web_core@npm:0.16.1"
   dependencies:
     "@lit/context": "npm:^1.1.6"
     "@preact/signals-core": "npm:^1.14.2"
@@ -126,7 +126,7 @@ __metadata:
     validate-color: "npm:^2.2.4"
     zod: "npm:^3.25.76"
     zod-to-json-schema: "npm:^3.25.2"
-  checksum: 10c0/67032d58e5478338da0befe874f4ee6ac24e89a66592d8c93022dceeb1a0b8a27f93d895f7ac19a9586a8944d735c378cd40217ef555d96cc0ca5d3b6a9c4020
+  checksum: 10c0/32d10b91c29b866ee389ebf0a2cfba2e9894a6394157909cd4c9a94f93fb733466b53679d273fc573ea945b2277fa802a486bd78e568a17fc1a96d23809c9760
   languageName: node
   linkType: hard
 
@@ -5209,9 +5209,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-basic-preview@workspace:tools/spectra_basic_preview"
   dependencies:
-    "@a2ui/markdown-it": "npm:^0.2.2"
-    "@a2ui/react": "npm:0.15.0"
-    "@a2ui/web_core": "npm:0.15.0"
+    "@a2ui/markdown-it": "npm:^0.2.4"
+    "@a2ui/react": "npm:0.16.1"
+    "@a2ui/web_core": "npm:0.16.1"
     "@fontsource/material-icons": "npm:^5.3.0"
     "@types/react": "npm:^19.2.17"
     "@types/react-dom": "npm:^19.2.3"
@@ -5254,7 +5254,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-instrumentation@workspace:typescript/instrumentation"
   dependencies:
-    "@a2ui/agent": "npm:0.1.0"
+    "@a2ui/agent": "npm:0.2.1"
     "@opentelemetry/api": "npm:1.9.1"
     "@opentelemetry/exporter-trace-otlp-http": "npm:^0.223.0"
     "@opentelemetry/instrumentation": "npm:^0.223.0"
@@ -5275,8 +5275,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-preview-angular@workspace:typescript/preview/angular"
   dependencies:
-    "@a2ui/angular": "npm:0.14.0"
-    "@a2ui/web_core": "npm:0.15.0"
+    "@a2ui/angular": "npm:0.16.0"
+    "@a2ui/web_core": "npm:0.16.1"
     "@angular/build": "npm:^21.2.5"
     "@angular/cli": "npm:^21.2.5"
     "@angular/common": "npm:^21.2.5"
@@ -5294,8 +5294,8 @@ __metadata:
     typescript: "npm:5.9.3"
     wireit: "npm:^0.15.0-pre.2"
   peerDependencies:
-    "@a2ui/angular": ^0.14.0
-    "@a2ui/web_core": ^0.15.0
+    "@a2ui/angular": ^0.16.0
+    "@a2ui/web_core": ^0.16.1
     "@angular/common": ^21.2.5
     "@angular/core": ^21.2.5
     "@angular/platform-browser": ^21.2.5
@@ -5306,8 +5306,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-preview-lit@workspace:typescript/preview/lit"
   dependencies:
-    "@a2ui/lit": "npm:0.15.0"
-    "@a2ui/web_core": "npm:0.15.0"
+    "@a2ui/lit": "npm:0.16.0"
+    "@a2ui/web_core": "npm:0.16.1"
     a2ui-spectra-preview: "workspace:^"
     eslint: "npm:^10.4.1"
     gts: "npm:^7.0.0"
@@ -5316,8 +5316,8 @@ __metadata:
     typescript: "npm:5.9.3"
     wireit: "npm:^0.15.0-pre.2"
   peerDependencies:
-    "@a2ui/lit": ^0.15.0
-    "@a2ui/web_core": ^0.15.0
+    "@a2ui/lit": ^0.16.0
+    "@a2ui/web_core": ^0.16.1
     lit: ^3.3.3
   languageName: unknown
   linkType: soft
@@ -5326,8 +5326,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-preview-react@workspace:typescript/preview/react"
   dependencies:
-    "@a2ui/react": "npm:0.15.0"
-    "@a2ui/web_core": "npm:0.15.0"
+    "@a2ui/react": "npm:0.16.1"
+    "@a2ui/web_core": "npm:0.16.1"
     "@types/react": "npm:^19.2.17"
     "@types/react-dom": "npm:^19.2.3"
     a2ui-spectra-preview: "workspace:^"
@@ -5341,8 +5341,8 @@ __metadata:
     wireit: "npm:^0.15.0-pre.2"
     zod: "npm:^3.25.76"
   peerDependencies:
-    "@a2ui/react": ^0.15.0
-    "@a2ui/web_core": ^0.15.0
+    "@a2ui/react": ^0.16.1
+    "@a2ui/web_core": ^0.16.1
     react: ^18.0.0 || ^19.0.0
     react-dom: ^18.0.0 || ^19.0.0
   languageName: unknown
@@ -5352,7 +5352,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-preview@workspace:typescript/preview/core"
   dependencies:
-    "@a2ui/web_core": "npm:0.15.0"
+    "@a2ui/web_core": "npm:0.16.1"
     "@types/node": "npm:^25.9.3"
     eslint: "npm:^10.4.1"
     gts: "npm:^7.0.0"
@@ -5360,7 +5360,7 @@ __metadata:
     typescript: "npm:5.9.3"
     wireit: "npm:^0.15.0-pre.2"
   peerDependencies:
-    "@a2ui/web_core": ^0.15.0
+    "@a2ui/web_core": ^0.16.1
   languageName: unknown
   linkType: soft
 
@@ -5368,9 +5368,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-sample-preview-angular@workspace:samples/preview/angular"
   dependencies:
-    "@a2ui/angular": "npm:0.14.0"
-    "@a2ui/markdown-it": "npm:^0.2.2"
-    "@a2ui/web_core": "npm:0.15.0"
+    "@a2ui/angular": "npm:0.16.0"
+    "@a2ui/markdown-it": "npm:^0.2.4"
+    "@a2ui/web_core": "npm:0.16.1"
     "@angular/build": "npm:^21.2.5"
     "@angular/cli": "npm:^21.2.5"
     "@angular/common": "npm:^21.2.5"
@@ -5394,8 +5394,8 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-sample-preview-lit@workspace:samples/preview/lit"
   dependencies:
-    "@a2ui/lit": "npm:0.15.0"
-    "@a2ui/web_core": "npm:0.15.0"
+    "@a2ui/lit": "npm:0.16.0"
+    "@a2ui/web_core": "npm:0.16.1"
     a2ui-spectra-preview-lit: "workspace:^"
     eslint: "npm:^10.4.1"
     gts: "npm:^7.0.0"
@@ -5412,9 +5412,9 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-sample-preview-react@workspace:samples/preview/react"
   dependencies:
-    "@a2ui/markdown-it": "npm:^0.2.2"
-    "@a2ui/react": "npm:0.15.0"
-    "@a2ui/web_core": "npm:0.15.0"
+    "@a2ui/markdown-it": "npm:^0.2.4"
+    "@a2ui/react": "npm:0.16.1"
+    "@a2ui/web_core": "npm:0.16.1"
     "@types/react": "npm:^19.2.17"
     "@types/react-dom": "npm:^19.2.3"
     "@vitejs/plugin-react": "npm:^6.0.2"
@@ -5436,7 +5436,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-viewer@workspace:tools/spectra_viewer"
   dependencies:
-    "@a2ui/web_core": "npm:0.15.0"
+    "@a2ui/web_core": "npm:0.16.1"
     "@fontsource-variable/inter": "npm:^5.3.0"
     "@fontsource-variable/jetbrains-mono": "npm:^5.3.0"
     "@tailwindcss/vite": "npm:^4.3.3"
@@ -5482,7 +5482,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-wrapper-driver-typescript@workspace:conformance/wrapper_driver/typescript"
   dependencies:
-    "@a2ui/agent": "npm:0.1.0"
+    "@a2ui/agent": "npm:0.2.1"
     "@opentelemetry/api": "npm:1.9.1"
     "@types/node": "npm:^25.9.3"
     a2ui-spectra-instrumentation: "workspace:*"
@@ -5498,7 +5498,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "a2ui-spectra@workspace:tools/spectra"
   dependencies:
-    "@a2ui/web_core": "npm:0.15.0"
+    "@a2ui/web_core": "npm:0.16.1"
     "@bufbuild/buf": "npm:1.75.0"
     "@bufbuild/protobuf": "npm:2.16.0"
     "@bufbuild/protoc-gen-es": "npm:2.16.0"
@@ -6504,15 +6504,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"dompurify@npm:3.4.11":
-  version: 3.4.11
-  resolution: "dompurify@npm:3.4.11"
+"dompurify@npm:^3.4.17":
+  version: 3.5.0
+  resolution: "dompurify@npm:3.5.0"
   dependencies:
     "@types/trusted-types": "npm:^2.0.7"
   dependenciesMeta:
     "@types/trusted-types":
       optional: true
-  checksum: 10c0/31439481c7e8fc3805d40c376936fd66936620fb1b1a31a2ec097f6165412c37f2d868e082c9ceba62bb37661c1ea132a5db4d5213434317e30df68d4aca9cc9
+  checksum: 10c0/e01e1ee94c70f30da9ba923f34d07aa1e4135e57d0f6c5da5b7e0de6a5ff9bed15bb3af0996cf112786768b7e9aea3408fb5b5c776c42739ad4871c5216b8df5
   languageName: node
   linkType: hard
 

@@ -7,8 +7,8 @@ requires-python = ">=3.10"
 dependencies = [
   "a2ui-a2a==0.4.0",
   "a2ui-adk==0.3.0",
-  "a2ui-agent-sdk==0.12.0",
-  "a2ui-core==0.7.0",
+  "a2ui-agent-sdk==0.12.1",
+  "a2ui-core==0.7.1",
   "a2ui-spectra-instrumentation",
 ]
 

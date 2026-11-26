@@ -65,7 +65,7 @@ wheels = [
 
 [[package]]
 name = "a2ui-agent-sdk"
-version = "0.12.0"
+version = "0.12.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "a2ui-core" },
@@ -74,14 +74,14 @@ dependencies = [
     { name = "pydantic" },
     { name = "pyyaml" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/df/2b/5a011ee64fc398a6b784efa9119123ea7e7a919f82d33115d1b50b29ab0b/a2ui_agent_sdk-0.12.0.tar.gz", hash = "sha256:5616b30a509817bb452c4ac937f2574e4aef9090ab1808a20b9c1ab0250b0a83", size = 519388, upload-time = "2026-11-17T19:22:44.346Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/6c/db/166e4b178125a31c37713d81c4d3ac8085d0030ed21be903a3ef83c449b0/a2ui_agent_sdk-0.12.1.tar.gz", hash = "sha256:4cfc6450d06e87a7fbbe4419cd474c1fadb1006bc0f309067cbae8839db7d062", size = 519614, upload-time = "2026-11-23T18:52:54.949Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7d/6f/a66e9d900592890be3aa71b2fb514277791d1c41bef7c76ef60ce09b37ea/a2ui_agent_sdk-0.12.0-py3-none-any.whl", hash = "sha256:68ac55cafb166898436cb16df19554b7b186842fbfb7efb1140b3c40cf664eed", size = 367919, upload-time = "2026-11-17T19:22:40.337Z" },
+    { url = "https://files.pythonhosted.org/packages/8e/03/dcc29fde34103cc4607c4342f7ce977f214dda6daaec6cfa29e7712f833e/a2ui_agent_sdk-0.12.1-py3-none-any.whl", hash = "sha256:834a7b8491c6d39285f55cb6f5ffddaa37b45013f0fa667c672f8137dfd3f5e4", size = 367957, upload-time = "2026-11-23T18:52:51.918Z" },
 ]
 
 [[package]]
 name = "a2ui-core"
-version = "0.7.0"
+version = "0.7.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "babel" },
@@ -90,9 +90,9 @@ dependencies = [
     { name = "referencing" },
     { name = "regex" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6c/0b/1b796669e106078d351f7524f99c7b209855248b9d0310f64846e9d45c76/a2ui_core-0.7.0.tar.gz", hash = "sha256:fc414e1b961203e29cfd55d53d3d183b884fa40745c5b981fa7afa2ec0aeb396", size = 421014, upload-time = "2026-11-17T19:22:42.86Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/1c/f1/8faa8e814c6990616dd8b0706434fc95246ac07215951f7cc9ee07546715/a2ui_core-0.7.1.tar.gz", hash = "sha256:796b65007cb2ae7e45823503003216afca397beeb0a21aac5c5c82fe4f674a71", size = 423792, upload-time = "2026-11-23T18:52:56.1Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/af/f3/6673b80cf73d127b6f9caf970eee8e64721bbc455b5375d0f0370a976b1f/a2ui_core-0.7.0-py3-none-any.whl", hash = "sha256:c69d43dce8f6aea7b6dcc8b17248d6e003d68cfa1d6f772d7ab8e120efab35da", size = 324525, upload-time = "2026-11-17T19:22:38.694Z" },
+    { url = "https://files.pythonhosted.org/packages/2d/75/cd3ab128cdaeda54ab973a72126d93ad9756e287a31a19d35d5e5ea4f525/a2ui_core-0.7.1-py3-none-any.whl", hash = "sha256:ac7dab01d40f4a172ce8bec3b8695d06515fd4ea56511b38f83eb7291a30671e", size = 324967, upload-time = "2026-11-23T18:52:53.535Z" },
 ]
 
 [[package]]
@@ -164,8 +164,8 @@ dependencies = [
 requires-dist = [
     { name = "a2ui-a2a", specifier = "==0.4.0" },
     { name = "a2ui-adk", specifier = "==0.3.0" },
-    { name = "a2ui-agent-sdk", specifier = "==0.12.0" },
-    { name = "a2ui-core", specifier = "==0.7.0" },
+    { name = "a2ui-agent-sdk", specifier = "==0.12.1" },
+    { name = "a2ui-core", specifier = "==0.7.1" },
     { name = "a2ui-spectra-instrumentation", editable = "python/a2ui_spectra_instrumentation" },
 ]
 

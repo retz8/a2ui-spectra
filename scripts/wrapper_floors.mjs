@@ -53,6 +53,7 @@ function pythonFloors() {
 function hold() {
   const {dependencies, peers} = typescriptFloors();
   const root = readJson('package.json');
+  root.resolutions ??= {};
   for (const {name, range, floor} of dependencies) root.resolutions[`${name}@npm:${range}`] = floor;
   writeJson('package.json', root);
   for (const path of [WRAPPER, DRIVER]) {

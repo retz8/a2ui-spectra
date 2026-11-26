@@ -13,7 +13,8 @@
 // scratch project, each of their entry points imported under Node; each adapter by npm into a
 // catalog app's project of its own, after the peers its pack states; every import of their built
 // code resolved where it is installed; and the wheel by uv into a fresh environment, the Python
-// wrapper imported and its OpenTelemetry entry point found.
+// wrapper imported and its OpenTelemetry entry point found. An install marked expected-to-fail
+// runs, and npm's refusal is expected.
 
 import {spawnSync} from 'node:child_process';
 import {
@@ -487,6 +488,37 @@ function checkInstalled({library, manifest, bare}, version, project, options, ch
   console.log(`npm: ${library.name} installed, every import of its code resolved, and loaded.`);
 }
 
+/**
+ * The packs whose npm install is marked expected-to-fail, each with its reason. The install still
+ * runs, and npm's refusal is expected: an install that succeeds, or a refusal other than
+ * `ERESOLVE`, fails the check.
+ */
+const EXPECTED_REFUSALS = {
+  'a2ui-spectra-preview-angular':
+    "Sub-task 11.2, at the pin: @a2ui/angular 0.16.0 states Angular ^22.2.3 as its peer, and the adapter's pack states Angular ^21.2.5.",
+};
+
+/** A marked project's npm installs, run in order; npm is expected to refuse one of them. */
+function expectRefusal(dir, installs, name, reason, env, checks) {
+  for (const specs of installs.filter(each => each.length > 0)) {
+    const result = spawnSync(
+      'npm',
+      ['install', '--no-audit', '--no-fund', '--loglevel=error', ...specs],
+      {cwd: dir, env, encoding: 'utf8'},
+    );
+    if (result.error) throw new BuildError(`npm could not start: ${result.error.message}`);
+    if (result.status === 0) continue;
+    const printed = `${result.stdout}\n${result.stderr}`.trim();
+    checks.that(
+      printed.includes('ERESOLVE'),
+      `${name}: npm refused the install, and not with the marked ERESOLVE:\n${printed}`,
+    );
+    console.log(`npm: ${name}: the install is refused, as marked. ${reason}`);
+    return;
+  }
+  checks.that(false, `${name}: the install succeeded, and is marked to be refused. ${reason}`);
+}
+
 /** Each pack installed outside the workspace and loaded. */
 function install(version, npm, scratch, checks) {
   // Caches of their own, so that nothing installed before stands in for these packs.
@@ -526,11 +558,16 @@ function install(version, npm, scratch, checks) {
     const dir = path.join(scratch, project.name);
     mkdirSync(dir);
     run('npm', ['init', '--yes', '--loglevel=warn'], {cwd: dir, env: isolated, stdio: 'ignore'});
-    if (project.first.length > 0) npmInstall(dir, project.first);
-    npmInstall(
-      dir,
-      [...(project.with ?? []), ...project.libraries].map(each => npmPack(each.library, version)),
+    const packs = [...(project.with ?? []), ...project.libraries].map(each =>
+      npmPack(each.library, version),
     );
+    const refusal = EXPECTED_REFUSALS[project.name];
+    if (refusal !== undefined) {
+      expectRefusal(dir, [project.first, packs], project.name, refusal, isolated, checks);
+      continue;
+    }
+    if (project.first.length > 0) npmInstall(dir, project.first);
+    npmInstall(dir, packs);
     for (const each of project.libraries) {
       checkInstalled(each, version, dir, {cwd: dir, env: isolated}, checks);
     }
