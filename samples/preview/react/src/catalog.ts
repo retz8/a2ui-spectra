@@ -14,15 +14,13 @@ import {CustomSlider} from './CustomSlider.tsx';
 const SAMPLE_CATALOG_ID =
   'https://github.com/retz8/a2ui-spectra/blob/main/samples/preview/catalog.json';
 
-const basic = basicCatalog as unknown as Catalog<ReactCatalogComponent>;
-
 export const sampleCatalog = new Catalog<ReactCatalogComponent>(
   SAMPLE_CATALOG_ID,
-  basic.protocolVersion,
-  [...basic.components.values(), CustomSlider],
-  [...basic.functions.values()],
-  ...(basic.themeSchema === undefined ? [] : [basic.themeSchema]),
+  basicCatalog.protocolVersion,
+  [...basicCatalog.components.values(), CustomSlider],
+  [...basicCatalog.functions.values()],
+  ...(basicCatalog.themeSchema === undefined ? [] : [basicCatalog.themeSchema]),
 );
 
 /** The v1.0 basic catalog, under its own id. */
-export const basicV10 = basicCatalogV10 as unknown as Catalog<ReactCatalogComponent>;
+export const basicV10 = basicCatalogV10;

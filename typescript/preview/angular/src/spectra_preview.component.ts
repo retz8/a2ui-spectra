@@ -19,6 +19,7 @@ import {NgComponentOutlet} from '@angular/common';
 import {
   ChangeDetectionStrategy,
   Component,
+  type DestroyableInjector,
   DestroyRef,
   ErrorHandler,
   inject,
@@ -42,7 +43,7 @@ import {
 
 /** A processor the core made: its service, the injector holding it, and the way to stop watching it. */
 interface Held {
-  injector: Injector & {destroy(): void};
+  injector: DestroyableInjector;
   service: A2uiRendererService;
   generation: number;
   stopWatching: () => void;
@@ -127,7 +128,7 @@ export class SpectraPreviewComponent {
       createProcessor: (events: PageEvents) => {
         reportTo = events.componentFailed;
         guardUniversalElements(events.componentFailed);
-        const injector = Injector.create({
+        const injector: DestroyableInjector = Injector.create({
           providers: [
             {
               provide: A2UI_RENDERER_CONFIG,
@@ -139,7 +140,7 @@ export class SpectraPreviewComponent {
             {provide: A2uiRendererService},
           ],
           parent,
-        }) as Held['injector'];
+        });
         const service = injector.get(A2uiRendererService);
         made += 1;
         const held: Held = {

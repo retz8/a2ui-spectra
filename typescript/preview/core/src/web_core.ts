@@ -105,6 +105,8 @@ interface ElementLike {
  * drawn. Each call replaces the report the guard gives to.
  */
 export function guardUniversalElements(report: PageEvents['componentFailed']): void {
+  // A2uiLitElement is an UpdatingElementClass here, because Lit declares `performUpdate`
+  // protected, not missing: every instance has it.
   guardElementUpdates(A2uiLitElement as unknown as UpdatingElementClass, (element, error) => {
     const {node, context} = element as ElementLike;
     const identity =

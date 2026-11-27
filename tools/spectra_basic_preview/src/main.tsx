@@ -6,9 +6,9 @@
  */
 import {renderMarkdown} from '@a2ui/markdown-it';
 import {MarkdownContext, type ReactCatalogComponent} from '@a2ui/react/v0_9';
-import {basicCatalog as basicCatalogV10} from '@a2ui/web_core/catalogs/basic/v1';
+import {basicCatalog as basicV10} from '@a2ui/web_core/catalogs/basic/v1';
 import {Catalog} from '@a2ui/web_core/v0_9';
-import {basicCatalog as basicCatalogV09} from '@a2ui/web_core/v0_9/basic_catalog';
+import {basicCatalog as basicV09} from '@a2ui/web_core/v0_9/basic_catalog';
 import iconFontUrl from '@fontsource/material-icons/files/material-icons-latin-400-normal.woff2?url';
 import {SpectraPreview} from 'a2ui-spectra-preview-react';
 import {StrictMode} from 'react';
@@ -17,8 +17,6 @@ import {createRoot} from 'react-dom/client';
 /** The v0.9.1 basic catalog's URL: a second id of the v0.9 basic catalog. */
 const BASIC_V0_9_1 = 'https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json';
 
-const basicV09 = basicCatalogV09 as unknown as Catalog<ReactCatalogComponent>;
-const basicV10 = basicCatalogV10 as unknown as Catalog<ReactCatalogComponent>;
 const basicV091 = new Catalog<ReactCatalogComponent>(
   BASIC_V0_9_1,
   basicV09.protocolVersion,
