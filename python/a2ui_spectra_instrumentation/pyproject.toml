@@ -11,6 +11,7 @@ dependencies = [
   "opentelemetry-exporter-otlp-proto-http>=1.39.0,<2",
   "opentelemetry-instrumentation>=0.60b0",
   "opentelemetry-sdk>=1.39.0,<2",
+  "packaging>=18.0",
   "wrapt>=1.16.0,<3",
 ]
 
