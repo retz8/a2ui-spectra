@@ -166,7 +166,10 @@ function forward(
   request.on('data', (chunk: Buffer) => bodyChunks.push(chunk));
   request.once('error', () => response.destroy());
   request.once('end', () => {
-    void forwardRead(options, state, request, Buffer.concat(bodyChunks), response);
+    // A request that fails in the proxy ends its own connection, not Spectra.
+    forwardRead(options, state, request, Buffer.concat(bodyChunks), response).catch(() =>
+      response.destroy(),
+    );
   });
 }
 
@@ -270,7 +273,14 @@ async function classify(
     const own = parseTraceparent(headers.traceparent);
     let adopted: string | undefined;
     if (own !== undefined) {
-      if (await (options.traceIdTaken?.(own.traceId) ?? false)) {
+      let taken: boolean | undefined;
+      try {
+        taken = await (options.traceIdTaken?.(own.traceId) ?? false);
+      } catch {
+        // Whether it is taken cannot be told, as when the store cannot be listed: the turn takes Spectra's own.
+        taken = undefined;
+      }
+      if (taken === true) {
         if (!state.warnedReuse) {
           state.warnedReuse = true;
           options.warn?.(
@@ -278,7 +288,7 @@ async function classify(
               "so the wire proxy replaced it with Spectra's own.",
           );
         }
-      } else {
+      } else if (taken === false) {
         adopted = own.traceId;
       }
     }

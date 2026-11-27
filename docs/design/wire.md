@@ -324,7 +324,7 @@ return `00-${traceId}-${parentId}-01`;
 
 That line is `formatTraceparent` in [`trace_context.ts`](../../tools/spectra/src/a2a/trace_context.ts): version `00`, the turn's trace id, the turn event's span id as the parent id, and the flags `01`, sampled. An agent whose OpenTelemetry HTTP server instrumentation reads the header continues that trace, so its spans and the calls its clients make carry the turn's trace id, and a call or a span carrying a turn's trace id belongs to that turn. Whenever Spectra's own `traceparent` goes on a request, any `tracestate` the host sent is dropped.
 
-**A host's own trace.** A host that sends its own `traceparent` keeps it, with its `tracestate`, and the turn adopts its trace id, so the host's trace and the turn are one. The proxy then adds nothing. Spectra's own replaces the host's in two cases:
+**A host's own trace.** A host that sends its own `traceparent` keeps it, with its `tracestate`, and the turn adopts its trace id, so the host's trace and the turn are one. The proxy then adds nothing. Spectra's own replaces the host's in three cases:
 
 - The header does not parse. It parses when its four fields are lowercase hex of the right lengths, the version is not `ff`, the trace id and the parent id are not all zeros, and a version `00` header has nothing after the flags. A later version is read by its first four fields, as the standard asks.
 - A turn already has that trace id, open or in the store. The terminal then says so once per run. This line is cut from a run in which a host sent the same `traceparent` twice:
@@ -332,6 +332,8 @@ That line is `formatTraceparent` in [`trace_context.ts`](../../tools/spectra/src
   ```
   a2ui-spectra: The host reuses trace ids: a turn request's traceparent named a trace id another turn already has, so the wire proxy replaced it with Spectra's own.
   ```
+
+- Whether a turn has that trace id cannot be told, as when the store's folder was deleted while Spectra runs. The terminal says nothing.
 
 How a span carrying the trace id joins its turn is [`opentelemetry.md`](opentelemetry.md)'s subject, and how a model or tool call does is [`model-and-tool-calls.md`](model-and-tool-calls.md)'s.
 

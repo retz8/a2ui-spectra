@@ -611,6 +611,25 @@ describe('the wire proxy', () => {
       assert.equal(warnings.length, 1, warnings.join('\n'));
       assert.match(warnings[0], /reuses trace ids/);
     });
+
+    it("gives the turn Spectra's own trace id when whether the host's is taken cannot be told, and says nothing", async () => {
+      const warnings: string[] = [];
+      const {proxy, notifications, received} = await setUp(sendReply, '', {
+        traceIdTaken: () =>
+          Promise.reject(new Error("ENOENT: no such file or directory, scandir 'turns'")),
+        warn: line => warnings.push(line),
+      });
+      const answer = await send(proxy, {
+        method: 'POST',
+        headers: {traceparent: `00-${HOST_TRACE}-${HOST_PARENT}-01`},
+        body: jsonRpc('message/send', {message: userMessage}),
+      });
+      assert.equal(answer.status, 200);
+      const {turnEvent} = await closedTurn(notifications);
+      assert.notEqual(turnEvent.traceId, HOST_TRACE);
+      assert.equal(received[0].traceparent, `00-${turnEvent.traceId}-${turnEvent.spanId}-01`);
+      assert.deepEqual(warnings, []);
+    });
   });
 
   it('fails the turn for a reply that is not 2xx', async () => {
