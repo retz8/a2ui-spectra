@@ -16,14 +16,12 @@ import {
   type IncomingHttpHeaders,
   type IncomingMessage,
   type OutgoingHttpHeaders,
-  request as httpRequest,
   type Server,
   type ServerResponse,
 } from 'node:http';
-import {request as httpsRequest} from 'node:https';
 import type {Duplex} from 'node:stream';
 
-import {type SseEvent, SseParser} from '../proxying/sse.js';
+import type {SseEvent} from '../proxying/sse.js';
 import {removeFromUrl} from '../proxying/credentials.js';
 import {
   chunkEvent,
@@ -31,14 +29,17 @@ import {
   requestAttributes,
   responseAttributes,
 } from '../proxying/exchange.js';
-import {
-  bodyJson,
-  decoderFor,
-  isTokenRequest,
-  readBody,
-  tunnelUpgrade,
-} from '../proxying/forwarding.js';
+import {bodyJson, isTokenRequest, readBody, tunnelUpgrade} from '../proxying/forwarding.js';
 import type {CallListener} from '../proxying/calls.js';
+import {
+  AGENT_CLOSED,
+  DEFAULT_CLOSE_GRACE_MS,
+  type Failure,
+  type Forwarder,
+  forward,
+  type Relay,
+  STOPPED,
+} from '../proxying/relay.js';
 import type {CallToPlace, PlacedCall, Unplaced} from '../placement.js';
 import type {CallEvent, SpanEvent, ToolCallEvent} from '../record/turn_record.js';
 import {exchangeKey, type ReplayPool, requestMessage} from '../replay/pool.js';
@@ -49,9 +50,7 @@ import {
   recordedAnswer,
   redirectLine,
   recordedEvents,
-  type ReplyMessage,
   type ServedReply,
-  ServedUpstream,
   sseText,
   unreachedLine,
   type Upstream,
@@ -60,7 +59,6 @@ import {
 import {nowUnixNano} from '../clock.js';
 import {proxyRefusal, refuseRequest, refuseUpgrade} from '../host_check.js';
 import {listenError, LOOPBACK_ADDRESS} from '../server.js';
-import {NAME} from '../version.js';
 import {
   asJsonRpc,
   cancelReason,
@@ -113,15 +111,7 @@ export interface ToolProxy {
   close(): Promise<void>;
 }
 
-const DEFAULT_CLOSE_GRACE_MS = 5000;
-const AGENT_CLOSED = 'The agent closed the connection before the response ended.';
-const STOPPED = 'Spectra stopped before the response ended.';
 const CARRIER_CLOSED = 'The stream its reply was to come on closed.';
-
-interface Failure {
-  type: string;
-  message?: string;
-}
 
 interface Shared {
   options: ToolProxyOptions;
@@ -135,6 +125,8 @@ interface Shared {
   /** The carriers the armed proxy holds open itself, closed when it is disarmed. */
   held: Set<ServerResponse>;
   inFlight: Set<Upstream>;
+  /** What forwarding takes from the proxy, made once. */
+  forwarder?: Forwarder;
   sockets: Set<Duplex>;
   /** The calls not yet ended. */
   open: Set<ToolCapture>;
@@ -358,7 +350,7 @@ async function route(
     shared.options.log?.(
       `A token request, ${method} ${removeFromUrl(target.origin + target.pathname)}, was passed on unrecorded.`,
     );
-    forward(call, {end: () => {}, fail: () => {}});
+    forward(call, forwarderOf(call.listener.shared), {end: () => {}, fail: () => {}});
     return;
   }
   const message = text === undefined ? undefined : asJsonRpc(bodyJson(text));
@@ -571,157 +563,15 @@ class ToolCapture {
 }
 
 /** What a forwarded request's reply hands out as it arrives. */
-interface Relay {
-  /** The reply's status and headers, and whether it is a stream of server-sent events. */
-  head?(status: number, headers: IncomingHttpHeaders, streamed: boolean): void;
-  /** One server-sent event of a streamed reply, at its arrival. */
-  event?(event: SseEvent, at: bigint): void;
-  /** The reply ended complete, with its body when it was not streamed and could be read. */
-  end(at: bigint, body: string | undefined): void;
-  /** The reply broke before it ended, `reached` true, or the server could not be reached. */
-  fail(failure: Failure, at: bigint, reached: boolean): void;
-  /** The agent closed its side before the reply ended; `drop` drops the reply. Without it, the reply is dropped at once. */
-  agentClosed?(drop: () => void): void;
-}
-
-/**
- * Forwards the request as received, passes the reply back as received, and
- * hands a copy to the relay. With `served`, the served reply stands where the
- * forwarded one would, and nothing is forwarded.
- */
-function forward(call: Call, relay: Relay, served?: ServedReply): void {
-  const {listener, request, raw, target, response} = call;
-  const {shared} = listener;
-  const send = target.protocol === 'https:' ? httpsRequest : httpRequest;
-  const upstream: Upstream =
-    served === undefined
-      ? send(target, {method: request.method ?? 'GET', headers: call.headers})
-      : new ServedUpstream(served);
-  shared.inFlight.add(upstream);
-  upstream.once('close', () => shared.inFlight.delete(upstream));
-
-  let settled = false;
-  /** Set when the proxy itself ends the agent's side, as when the reply broke. */
-  let ourClose = false;
-  const settle = (done: () => void) => {
-    if (settled) return;
-    settled = true;
-    done();
-  };
-  const stopped = (): Failure => ({type: 'aborted', message: STOPPED});
-
-  response.once('close', () => {
-    if (response.writableFinished || ourClose || settled) return;
-    const drop = () => upstream.destroy(new Error(AGENT_CLOSED));
-    if (relay.agentClosed !== undefined) relay.agentClosed(drop);
-    else drop();
+/** What forwarding takes from the tool proxy. */
+function forwarderOf(shared: Shared): Forwarder {
+  return (shared.forwarder ??= {
+    inFlight: shared.inFlight,
+    closing: () => shared.closing,
+    now: shared.now,
+    proxy: 'tool proxy',
+    brokeOff: "The tool server's response broke before it ended.",
   });
-
-  upstream.once('response', (reply: ReplyMessage) => {
-    const status = reply.statusCode ?? 502;
-    const streamed = /^text\/event-stream\b/i.test(String(reply.headers['content-type'] ?? ''));
-    if (!response.destroyed) {
-      response.writeHead(status, reply.statusMessage, endToEndHeaders(reply.headers));
-      if (streamed) response.flushHeaders();
-      reply.pipe(response);
-      reply.once('close', () => {
-        if (!reply.complete) {
-          ourClose = true;
-          response.destroy();
-        }
-      });
-      // The pipe's end pauses the reply; the relay reads it on.
-      response.once('close', () => {
-        if (!reply.complete) reply.resume();
-      });
-    } else {
-      reply.resume();
-    }
-    relay.head?.(status, reply.headers, streamed);
-    const broke = (error?: Error) =>
-      settle(() =>
-        relay.fail(
-          shared.closing
-            ? stopped()
-            : {
-                type: (error as NodeJS.ErrnoException | undefined)?.code ?? 'ECONNRESET',
-                message: error?.message ?? "The tool server's response broke before it ended.",
-              },
-          shared.now(),
-          true,
-        ),
-      );
-    const decoder = decoderFor(reply.headers['content-encoding']);
-    if (decoder === undefined) {
-      reply.once('end', () => settle(() => relay.end(shared.now(), undefined)));
-      reply.once('error', error => broke(error));
-      reply.once('aborted', () => broke());
-      return;
-    }
-    const text = new TextDecoder();
-    const sse = new SseParser();
-    let body = '';
-    reply.on('data', (chunk: Buffer) => decoder.write(chunk));
-    reply.once('end', () => decoder.end());
-    reply.once('error', error => {
-      broke(error);
-      decoder.destroy();
-    });
-    reply.once('aborted', () => {
-      broke();
-      decoder.destroy();
-    });
-    decoder.on('data', (chunk: Buffer) => {
-      if (settled) return;
-      const decoded = text.decode(chunk, {stream: true});
-      if (streamed) {
-        for (const event of sse.push(decoded)) {
-          if (!settled) relay.event?.(event, shared.now());
-        }
-      } else {
-        body += decoded;
-      }
-    });
-    decoder.once('end', () => {
-      if (!reply.complete) {
-        broke();
-        return;
-      }
-      if (!streamed) body += text.decode();
-      settle(() => relay.end(shared.now(), streamed ? undefined : body));
-    });
-    decoder.once('error', error => broke(error));
-  });
-
-  upstream.once('error', error => {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (response.destroyed) {
-      // The agent is gone; nothing to answer.
-    } else if (!response.headersSent) {
-      response.writeHead(502, {'content-type': 'text/plain; charset=utf-8'});
-      response.end(`${NAME}'s tool proxy could not reach ${target.host}: ${error.message}\n`);
-      settle(() =>
-        relay.fail(
-          shared.closing ? stopped() : {type: code ?? 'error', message: error.message},
-          shared.now(),
-          false,
-        ),
-      );
-      return;
-    } else {
-      ourClose = true;
-      response.destroy(error);
-    }
-    settle(() =>
-      relay.fail(
-        shared.closing ? stopped() : {type: code ?? 'ECONNRESET', message: error.message},
-        shared.now(),
-        response.headersSent,
-      ),
-    );
-  });
-
-  upstream.end(raw);
 }
 
 /** The relay that records the exchange on a capture: chunks as they come, the response at the end. */
@@ -783,7 +633,7 @@ function httpTool(
           },
         });
   const relay = recording(capture);
-  if (armed === undefined) forward(call, relay);
+  if (armed === undefined) forward(call, forwarderOf(call.listener.shared), relay);
   else serve(call, relay, served);
 }
 
@@ -852,7 +702,12 @@ function serve(
     session === undefined || wasStreamed(event.attributes)
       ? []
       : recordedEvents(event, rewrite).filter(chunk => chunk.event !== 'endpoint');
-  forward(call, onCarrier(call.listener, relay, carried, session), recorded.reply);
+  forward(
+    call,
+    forwarderOf(call.listener.shared),
+    onCarrier(call.listener, relay, carried, session),
+    recorded.reply,
+  );
 }
 
 /** The relay that, once the POST's exchange ended, writes `events` on the session's carrier and reads them there as a forwarded carrier's are. */
@@ -941,13 +796,14 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
       // The response to a server request: the request's event ends at its arrival, with this exchange.
       session.serverRequests.delete(id);
       if (asked === null) {
-        forward(call, {end: () => {}, fail: () => {}}, accepted);
+        forward(call, forwarderOf(call.listener.shared), {end: () => {}, fail: () => {}}, accepted);
         return;
       }
       asked.set(exchangeRequest);
       const relay = recording(asked);
       forward(
         call,
+        forwarderOf(call.listener.shared),
         {
           ...relay,
           event: undefined,
@@ -978,7 +834,7 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
             name: 'response',
             attributes,
           });
-    forward(call, recording(capture), accepted);
+    forward(call, forwarderOf(call.listener.shared), recording(capture), accepted);
     return;
   }
 
@@ -1129,9 +985,9 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
     },
   };
   if (pool === undefined) {
-    forward(call, relay);
+    forward(call, forwarderOf(call.listener.shared), relay);
   } else if (!asking) {
-    forward(call, relay, ACCEPTED);
+    forward(call, forwarderOf(call.listener.shared), relay, ACCEPTED);
   } else if (mcpMethod === 'ping') {
     pong(call, relay, message, () => session);
   } else if (served === undefined && session.key.startsWith('endpoint:')) {
@@ -1170,12 +1026,13 @@ function pong(call: Call, relay: Relay, message: JsonRpcMessage, session: () => 
   if (session().key.startsWith('endpoint:')) {
     forward(
       call,
+      forwarderOf(call.listener.shared),
       onCarrier(call.listener, relay, [{event: 'message', data: body}], session),
       ACCEPTED,
     );
     return;
   }
-  forward(call, relay, {
+  forward(call, forwarderOf(call.listener.shared), relay, {
     status: 200,
     headers: {
       'content-type': 'application/json',
@@ -1265,8 +1122,9 @@ function sessionEnd(call: Call): void {
       listener.sessions.delete(session.key);
     },
   };
-  if (pool === undefined) forward(call, relay);
-  else if (served === undefined) forward(call, relay, NO_CONTENT);
+  if (pool === undefined) forward(call, forwarderOf(call.listener.shared), relay);
+  else if (served === undefined)
+    forward(call, forwarderOf(call.listener.shared), relay, NO_CONTENT);
   else serve(call, relay, served);
 }
 
@@ -1339,7 +1197,7 @@ function getRequest(call: Call): void {
 
   let status = 0;
   let headers: IncomingHttpHeaders = {};
-  forward(call, {
+  forward(call, forwarderOf(call.listener.shared), {
     head(replyStatus, replyHeaders, streamed) {
       status = replyStatus;
       headers = replyHeaders;
