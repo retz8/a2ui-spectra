@@ -398,10 +398,10 @@ function publishStatus(
 }
 
 class WaitForCancelExecutor implements AgentExecutor {
-  readonly #cancels = new Map<string, () => void>();
+  private readonly cancels = new Map<string, () => void>();
 
   cancelTask = async (taskId: string, _eventBus: ExecutionEventBus): Promise<void> => {
-    this.#cancels.get(taskId)?.();
+    this.cancels.get(taskId)?.();
   };
 
   async execute(context: RequestContext, eventBus: ExecutionEventBus): Promise<void> {
@@ -412,12 +412,12 @@ class WaitForCancelExecutor implements AgentExecutor {
 
     const cancelled = await new Promise<boolean>(resolve => {
       const timer = setTimeout(() => resolve(false), OPEN_FOR_MS);
-      this.#cancels.set(context.taskId, () => {
+      this.cancels.set(context.taskId, () => {
         clearTimeout(timer);
         resolve(true);
       });
     });
-    this.#cancels.delete(context.taskId);
+    this.cancels.delete(context.taskId);
 
     publishStatus(
       eventBus,
@@ -742,13 +742,13 @@ function unfilledSummary({version, catalogId}: A2uiVersion): Array<Record<string
 
 class FlawedBookingExecutor implements AgentExecutor {
   /** The conversations already sent the booking form, by context id. */
-  readonly #answered = new Set<string>();
+  private readonly answered = new Set<string>();
 
   cancelTask = async (_taskId: string, _eventBus: ExecutionEventBus): Promise<void> => {};
 
   async execute(context: RequestContext, eventBus: ExecutionEventBus): Promise<void> {
-    const later = this.#answered.has(context.contextId);
-    this.#answered.add(context.contextId);
+    const later = this.answered.has(context.contextId);
+    this.answered.add(context.contextId);
     const parts = later
       ? [
           textPart('Here is your booking summary.'),
@@ -977,12 +977,12 @@ function splitA2ui(reply: string): {text: string; messages: Array<Record<string,
 }
 
 class ModelCallingExecutor implements AgentExecutor {
-  readonly #prompt: string;
+  private readonly prompt: string;
   /** Each conversation's contents so far, by context id. */
-  readonly #histories = new Map<string, GeminiContent[]>();
+  private readonly histories = new Map<string, GeminiContent[]>();
 
   constructor(prompt: string) {
-    this.#prompt = prompt;
+    this.prompt = prompt;
   }
 
   cancelTask = async (_taskId: string, _eventBus: ExecutionEventBus): Promise<void> => {};
@@ -1007,11 +1007,11 @@ class ModelCallingExecutor implements AgentExecutor {
       .flatMap(part => (part.content?.$case === 'text' ? [part.content.value] : []))
       .join('\n');
     const history: GeminiContent[] = [
-      ...(this.#histories.get(context.contextId) ?? []),
+      ...(this.histories.get(context.contextId) ?? []),
       {role: 'user', parts: [{text}]},
     ];
     try {
-      let reply = await generate(this.#prompt, history);
+      let reply = await generate(this.prompt, history);
       for (let round = 0; round < 3; round++) {
         const call = reply.find(part => part.functionCall !== undefined)?.functionCall;
         if (call === undefined) break;
@@ -1029,10 +1029,10 @@ class ModelCallingExecutor implements AgentExecutor {
             },
           ],
         });
-        reply = await generate(this.#prompt, history);
+        reply = await generate(this.prompt, history);
       }
       history.push({role: 'model', parts: reply});
-      this.#histories.set(context.contextId, history);
+      this.histories.set(context.contextId, history);
       const answer = splitA2ui(reply.map(part => part.text ?? '').join(''));
       publishStatus(eventBus, context, TaskState.TASK_STATE_COMPLETED, [
         ...(answer.text === '' ? [] : [textPart(answer.text)]),
