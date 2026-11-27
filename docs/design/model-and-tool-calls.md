@@ -323,7 +323,7 @@ Each request is read for what it is, by its content, with nothing declared in th
 | A `GET` answered with `text/event-stream` whose first event is `endpoint`, or whose request carries `Mcp-Session-Id` | A carrier stream: not an event of its own; its messages attach to the events they answer |
 | Anything else, a JSON-RPC batch array included                                                                       | An HTTP tool request, recorded raw                                                       |
 
-One server may mix them, an MCP endpoint beside a `/health` route. A server that speaks JSON-RPC 2.0 but not MCP is read as MCP.
+One server may mix them, an MCP endpoint beside a `/health` route. A server that speaks JSON-RPC 2.0 but not MCP is read as MCP. A `GET` holds its turn open only until its reply shows what it is: one answered with `text/event-stream` that names no session lets its turn go on at once, since a stateless server's stream may show nothing for as long as it is open, and is placed again, at its own start, if its first event makes it an HTTP tool request.
 
 **MCP messages.** Each is one `tool_call` event under the turn event, `kind` `3`, or `kind` `2` for an operation the server initiated:
 

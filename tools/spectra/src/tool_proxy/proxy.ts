@@ -1262,23 +1262,33 @@ function sessionEnd(call: Call): void {
 function getRequest(call: Call): void {
   const {listener, request, target} = call;
   const {shared} = listener;
-  const tentative = placeOf(call, `a tool call to ${target.host}, GET ${target.pathname}`);
+  const what = `a tool call to ${target.host}, GET ${target.pathname}`;
+  /** The placement held while the GET has not shown what it is; none once released. */
+  let tentative: PlacedCall | Unplaced | undefined = placeOf(call, what);
   if (!('line' in tentative)) shared.tentative.add(tentative);
   let state: 'undecided' | 'tool' | 'carrier' | 'gone' = 'undecided';
   let capture: ToolCapture | undefined;
   /** The carrier's session; none for a carrier whose endpoint is absolute, which is not read. */
   let carried: Session | undefined;
   const settleTentative = () => {
-    if (!('line' in tentative)) shared.tentative.delete(tentative);
+    if (tentative !== undefined && !('line' in tentative)) shared.tentative.delete(tentative);
+  };
+  /** Lets the turn go on without the GET, which may stay open as long as its client does. */
+  const releaseTentative = () => {
+    settleTentative();
+    if (tentative !== undefined && !('line' in tentative)) tentative.release();
+    tentative = undefined;
   };
   const becomeTool = () => {
     state = 'tool';
     settleTentative();
-    if ('line' in tentative) {
-      shared.options.log?.(tentative.line);
+    // A stream released at its head is placed anew, at its own start.
+    const placed = tentative ?? placeOf(call, what);
+    if ('line' in placed) {
+      shared.options.log?.(placed.line);
       return;
     }
-    capture = new ToolCapture(shared, tentative, {
+    capture = new ToolCapture(shared, placed, {
       start: call.start,
       kind: 3,
       name: `GET ${target.pathname}`,
@@ -1287,8 +1297,7 @@ function getRequest(call: Call): void {
   };
   const becomeCarrier = (session: Session | undefined) => {
     state = 'carrier';
-    settleTentative();
-    if (!('line' in tentative)) tentative.release();
+    releaseTentative();
     carried = session;
     if (session !== undefined) session.carriers++;
   };
@@ -1324,6 +1333,9 @@ function getRequest(call: Call): void {
       }
       const id = header(request.headers, 'mcp-session-id');
       if (id !== undefined) becomeCarrier(sessionById(listener, id));
+      // A stream that names no session may show nothing for as long as it is open, as a
+      // stateless server's carrier does: the turn is not held for it.
+      else releaseTentative();
     },
     event(event, at) {
       if (state === 'undecided') {
@@ -1363,8 +1375,7 @@ function getRequest(call: Call): void {
       if (state === 'undecided') {
         // It never showed what it is.
         state = 'gone';
-        settleTentative();
-        if (!('line' in tentative)) tentative.release();
+        releaseTentative();
       }
       drop();
     },

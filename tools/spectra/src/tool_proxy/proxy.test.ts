@@ -1153,3 +1153,26 @@ describe('the tool proxy with a reply that holds no response', () => {
     );
   });
 });
+
+describe('the tool proxy with a GET stream that names no session', () => {
+  it('releases its turn once the reply is a stream, and places it anew as a tool call at its first event', async () => {
+    let stream: ServerResponse | undefined;
+    const setup = await setUp((_request, _body, response) => {
+      response.writeHead(200, {'content-type': 'text/event-stream'});
+      response.write(': keepalive\n\n');
+      stream = response;
+    });
+    const opened = await openStream(setup.origin, '/mcp');
+    await until(() => setup.released === 1, 'the turn released while the stream stays open');
+    assert.equal(setup.ended.length, 0);
+    sse(stream!, {data: '{"n": 1}'});
+    stream!.end();
+    await until(() => setup.ended.length === 1, 'the tool call');
+    const [call] = setup.ended;
+    assert.equal(call.name, 'GET /mcp');
+    assert.deepEqual(chunkBodies(call), [{n: 1}]);
+    assert.equal(setup.placements.length, 2, 'placed again at its first event');
+    assert.equal(call.startTimeUnixNano, setup.placements[0].startTimeUnixNano);
+    await opened.closed;
+  });
+});
