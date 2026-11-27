@@ -635,4 +635,105 @@ describe('the wire proxy', () => {
     const {turnEvent} = await closedTurn(notifications);
     assert.deepEqual(turnEvent.status, {code: 2, message: 'HTTP 503 Service Unavailable'});
   });
+
+  it('reads a compressed turn request to open the turn, and forwards it as it came', async () => {
+    const bodies: Buffer[] = [];
+    const agent = createServer((request, response) => {
+      const chunks: Buffer[] = [];
+      request.on('data', (chunk: Buffer) => chunks.push(chunk));
+      request.on('end', () => {
+        bodies.push(Buffer.concat(chunks));
+        response.writeHead(200, {'content-type': 'application/json'});
+        response.end(
+          JSON.stringify({
+            jsonrpc: '2.0',
+            id: 1,
+            result: {kind: 'message', messageId: 'r', role: 'agent', parts: []},
+          }),
+        );
+      });
+    });
+    servers.push(agent);
+    const agentPort = await listen(agent);
+    const notifications: TurnNotification[] = [];
+    const proxy = await startWireProxy({
+      port: await freePort(),
+      agentUrl: new URL(`http://127.0.0.1:${agentPort}`),
+      onTurn: notification => notifications.push(notification),
+    });
+    proxies.push(proxy);
+    const zipped = gzipSync(jsonRpc('message/send', {message: userMessage}));
+    const origin = new URL(proxy.origin);
+    await new Promise<void>((resolve, reject) => {
+      const request = httpRequest(
+        {
+          host: origin.hostname,
+          port: origin.port,
+          method: 'POST',
+          path: '/',
+          headers: {'content-type': 'application/json', 'content-encoding': 'gzip'},
+        },
+        response => {
+          response.resume();
+          response.on('end', resolve);
+          response.on('error', reject);
+        },
+      );
+      request.on('error', reject);
+      request.end(zipped);
+    });
+    const {turnEvent} = await closedTurn(notifications);
+    assert.equal(turnEvent.attributes['a2ui.turn.outcome'], 'completed');
+    assert.deepEqual(bodies, [zipped]);
+  });
+
+  it('fails the turn for a reply whose content encoding the proxy cannot read, and relays it as received', async () => {
+    const reply = Buffer.from('not zstd, but labelled so');
+    const {proxy, notifications} = await setUp((_request, _body, response) => {
+      response.writeHead(200, {'content-type': 'application/json', 'content-encoding': 'zstd'});
+      response.end(reply);
+    });
+    const answer = await send(proxy, {
+      method: 'POST',
+      body: jsonRpc('message/send', {message: userMessage}),
+    });
+    assert.equal(answer.headers['content-encoding'], 'zstd');
+    assert.deepEqual(answer.body, reply);
+    const {turnEvent, outputs} = await closedTurn(notifications);
+    assert.equal(outputs.length, 0);
+    assert.equal(turnEvent.attributes['a2ui.turn.outcome'], 'failed');
+    assert.deepEqual(turnEvent.status, {
+      code: 2,
+      message: "The reply's content encoding, zstd, cannot be read.",
+    });
+  });
+
+  it("ends the proxy's request to the agent and fails the turn when the host closes its connection mid-stream", async () => {
+    let agentRequestClosed: () => void = () => {};
+    const agentSawClose = new Promise<void>(resolve => (agentRequestClosed = resolve));
+    const {proxy, notifications} = await setUp((_request, _body, response) => {
+      response.once('close', () => agentRequestClosed());
+      response.writeHead(200, {'content-type': 'text/event-stream'});
+      response.write(
+        `data: ${JSON.stringify({jsonrpc: '2.0', id: 1, result: {kind: 'status-update', taskId: 't', contextId: 'c', status: {state: 'working'}, final: false}})}\n\n`,
+      );
+    });
+    const origin = new URL(proxy.origin);
+    const request = httpRequest({
+      host: origin.hostname,
+      port: origin.port,
+      method: 'POST',
+      path: '/',
+    });
+    request.on('error', () => {});
+    request.once('response', response => {
+      response.on('error', () => {});
+      response.once('data', () => request.destroy());
+    });
+    request.end(jsonRpc('message/stream', {message: userMessage}));
+    await agentSawClose;
+    const {turnEvent} = await closedTurn(notifications);
+    assert.equal(turnEvent.attributes['a2ui.turn.outcome'], 'failed');
+    assert.deepEqual(turnEvent.status, {code: 2, message: 'The host closed the connection.'});
+  });
 });
