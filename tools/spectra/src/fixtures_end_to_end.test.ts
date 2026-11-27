@@ -351,7 +351,7 @@ describe(`fixtures and replay against the stub agent, ${binary ? 'the binary' : 
           String(agentPort),
         ],
         cwd,
-        {GOOGLE_GEMINI_BASE_URL: standIn.origin, SPECTRA_PROVIDER_STAND_IN: standIn.origin},
+        {GOOGLE_GEMINI_BASE_URL: standIn.origin, A2UI_SPECTRA_PROVIDER_STAND_IN: standIn.origin},
       );
       const base = `http://127.0.0.1:${port}`;
       let live: LiveStream | undefined;

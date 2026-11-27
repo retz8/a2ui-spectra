@@ -109,7 +109,7 @@ const NODE_ON_WINDOWS_LINE =
  * Names the stand-in provider's origin, for the tests: a call forwarded there
  * is read as the own host of the API its path names.
  */
-const STAND_IN_VARIABLE = 'SPECTRA_PROVIDER_STAND_IN';
+const STAND_IN_VARIABLE = 'A2UI_SPECTRA_PROVIDER_STAND_IN';
 
 /**
  * Runs `attach`, or `run` when given the agent's command. `attach` opens the

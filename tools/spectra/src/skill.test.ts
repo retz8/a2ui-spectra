@@ -532,7 +532,7 @@ if (runsBlocks && !windows) {
         const loop = new Loop(
           await session({
             GOOGLE_GEMINI_BASE_URL: standIn.origin,
-            SPECTRA_PROVIDER_STAND_IN: standIn.origin,
+            A2UI_SPECTRA_PROVIDER_STAND_IN: standIn.origin,
           }),
         );
         writeFileSync(

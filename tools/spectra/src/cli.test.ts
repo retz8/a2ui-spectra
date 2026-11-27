@@ -1411,7 +1411,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
         const cwd = workingDir();
         const spectra = new SpectraProcess(await runArgs(['--model-call']), cwd, {
           ANTHROPIC_BASE_URL: `http://127.0.0.1:${providerPort}`,
-          SPECTRA_PROVIDER_STAND_IN: `http://127.0.0.1:${providerPort}`,
+          A2UI_SPECTRA_PROVIDER_STAND_IN: `http://127.0.0.1:${providerPort}`,
         });
         try {
           const [, shownPort] = await spectra.waitFor(viewerUrl);

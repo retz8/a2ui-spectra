@@ -316,7 +316,7 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
       const cwd = workingDir();
       const env = {
         GOOGLE_GEMINI_BASE_URL: standIn.origin,
-        SPECTRA_PROVIDER_STAND_IN: standIn.origin,
+        A2UI_SPECTRA_PROVIDER_STAND_IN: standIn.origin,
       };
       const writeConfig = (agentPort: number) =>
         writeFileSync(

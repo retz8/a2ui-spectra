@@ -111,7 +111,7 @@ a2ui-spectra --version
 | `--no-open`               | Do not open the browser.                                                                                                                         |                                                                 |
 | `--allow-host <name>`     | Also answer requests addressed to `<name>`, a host name without a port, such as a tunnel's, and at the wire proxy a page on it. Can be repeated. |                                                                 |
 
-A port that is taken is an error at start, and Spectra's ports must differ, each tool server's included. The viewer's server and the three proxies listen on loopback only and answer requests addressed to `localhost`, `127.0.0.1` and `[::1]`, plus the names given with `--allow-host`. The wire proxy answers a page on those names, and the model proxy and the tool proxy no page. Ports and allowed hosts are command-line only.
+The binary also reads `A2UI_SPECTRA_PROVIDER_STAND_IN`, which makes an origin read as the providers' own hosts for the conformance tests; it is test-only and unsupported. A port that is taken is an error at start, and Spectra's ports must differ, each tool server's included. The viewer's server and the three proxies listen on loopback only and answer requests addressed to `localhost`, `127.0.0.1` and `[::1]`, plus the names given with `--allow-host`. The wire proxy answers a page on those names, and the model proxy and the tool proxy no page. Ports and allowed hosts are command-line only.
 
 ## The config file
 
