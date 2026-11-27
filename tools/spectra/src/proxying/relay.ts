@@ -60,8 +60,13 @@ export interface Forwarder {
 
 /** What the proxy reads of the reply, through a copy of it. */
 export interface Relay {
-  /** The reply's status and headers, and whether it is a stream of server-sent events. */
-  head?(status: number, headers: IncomingHttpHeaders, streamed: boolean): void;
+  /** The reply's status and headers, whether it is a stream of server-sent events, and its status message. */
+  head?(
+    status: number,
+    headers: IncomingHttpHeaders,
+    streamed: boolean,
+    statusMessage?: string,
+  ): void;
   /** One server-sent event of a streamed reply, at its arrival. */
   event?(event: SseEvent, at: bigint): void;
   /** The reply ended complete, with its body when it was not streamed and could be read. */
@@ -116,86 +121,16 @@ export function forward(
     else drop();
   });
 
-  upstream.once('response', (reply: ReplyMessage) => {
-    const status = reply.statusCode ?? 502;
-    const streamed = /^text\/event-stream\b/i.test(String(reply.headers['content-type'] ?? ''));
-    if (!response.destroyed) {
-      response.writeHead(status, reply.statusMessage, endToEndHeaders(reply.headers));
-      if (streamed && (forwarder.flushes === 'every stream' || served !== undefined)) {
-        response.flushHeaders();
-      }
-      reply.pipe(response);
-      reply.once('close', () => {
-        if (!reply.complete) {
-          ourClose = true;
-          response.destroy();
-        }
-      });
-      // The pipe's end pauses the reply; the relay reads it on.
-      response.once('close', () => {
-        if (!reply.complete) reply.resume();
-      });
-    } else {
-      reply.resume();
-    }
-    relay.head?.(status, reply.headers, streamed);
-    const broke = (error?: Error) =>
-      settle(() =>
-        relay.fail(
-          shared.closing()
-            ? stopped()
-            : {
-                type: (error as NodeJS.ErrnoException | undefined)?.code ?? 'ECONNRESET',
-                message: error?.message ?? forwarder.brokeOff,
-              },
-          shared.now(),
-          true,
-        ),
-      );
-    const decoder = decoderFor(reply.headers['content-encoding']);
-    if (decoder === undefined) {
-      reply.once('end', () => settle(() => relay.end(shared.now(), undefined)));
-      reply.once('error', error => broke(error));
-      reply.once('aborted', () => broke());
-      return;
-    }
-    relay.decoding?.(done =>
-      decoder.flush === undefined ? process.nextTick(done) : decoder.flush(done),
-    );
-    const text = new TextDecoder();
-    const sse = new SseParser();
-    let body = '';
-    reply.on('data', (chunk: Buffer) => decoder.write(chunk));
-    reply.once('end', () => decoder.end());
-    reply.once('error', error => {
-      broke(error);
-      decoder.destroy();
-    });
-    reply.once('aborted', () => {
-      broke();
-      decoder.destroy();
-    });
-    decoder.on('data', (chunk: Buffer) => {
-      if (settled) return;
-      const decoded = text.decode(chunk, {stream: true});
-      if (streamed) {
-        for (const event of sse.push(decoded)) {
-          if (!settled) relay.event?.(event, shared.now());
-        }
-      } else {
-        body += decoded;
-      }
-    });
-    decoder.once('end', () => {
-      if (!reply.complete) {
-        broke();
-        return;
-      }
-      if (!streamed) body += text.decode();
-      settle(() => relay.end(shared.now(), streamed ? undefined : body));
-    });
-    decoder.once('error', error => broke(error));
-  });
+  upstream.once('response', (reply: ReplyMessage) =>
+    relayReply(reply, response, forwarder, relay, {
+      served: served !== undefined,
+      settle,
+      settled: () => settled,
+      ourClose: () => {
+        ourClose = true;
+      },
+    }),
+  );
 
   upstream.once('error', error => {
     const code = (error as NodeJS.ErrnoException).code;
@@ -228,4 +163,107 @@ export function forward(
   });
 
   upstream.end(raw);
+}
+
+/** How a reply is read beside the rest of its exchange: whether it is served, the one settle, and how the proxy marks its own close of the agent's side. */
+export interface Reading {
+  served: boolean;
+  /** Runs `done` unless the exchange has settled already. */
+  settle(done: () => void): void;
+  settled(): boolean;
+  ourClose(): void;
+}
+
+/**
+ * Passes the reply on as received and hands a decoded copy to the relay: its
+ * head, each server-sent event of a stream, and once its end or its break.
+ */
+export function relayReply(
+  reply: ReplyMessage,
+  response: ServerResponse,
+  forwarder: Forwarder,
+  relay: Relay,
+  reading: Reading,
+): void {
+  const shared = forwarder;
+  const {settle} = reading;
+  const stopped = (): Failure => ({type: 'aborted', message: STOPPED});
+  const status = reply.statusCode ?? 502;
+  const streamed = /^text\/event-stream\b/i.test(String(reply.headers['content-type'] ?? ''));
+  if (!response.destroyed) {
+    response.writeHead(status, reply.statusMessage, endToEndHeaders(reply.headers));
+    if (streamed && (forwarder.flushes === 'every stream' || reading.served)) {
+      response.flushHeaders();
+    }
+    reply.pipe(response);
+    reply.once('close', () => {
+      if (!reply.complete) {
+        reading.ourClose();
+        response.destroy();
+      }
+    });
+    // The pipe's end pauses the reply; the relay reads it on.
+    response.once('close', () => {
+      if (!reply.complete) reply.resume();
+    });
+  } else {
+    reply.resume();
+  }
+  relay.head?.(status, reply.headers, streamed, reply.statusMessage);
+  const broke = (error?: Error) =>
+    settle(() =>
+      relay.fail(
+        shared.closing()
+          ? stopped()
+          : {
+              type: (error as NodeJS.ErrnoException | undefined)?.code ?? 'ECONNRESET',
+              message: error?.message ?? forwarder.brokeOff,
+            },
+        shared.now(),
+        true,
+      ),
+    );
+  const decoder = decoderFor(reply.headers['content-encoding']);
+  if (decoder === undefined) {
+    reply.once('end', () => settle(() => relay.end(shared.now(), undefined)));
+    reply.once('error', error => broke(error));
+    reply.once('aborted', () => broke());
+    return;
+  }
+  relay.decoding?.(done =>
+    decoder.flush === undefined ? process.nextTick(done) : decoder.flush(done),
+  );
+  const text = new TextDecoder();
+  const sse = new SseParser();
+  let body = '';
+  reply.on('data', (chunk: Buffer) => decoder.write(chunk));
+  reply.once('end', () => decoder.end());
+  reply.once('error', error => {
+    broke(error);
+    decoder.destroy();
+  });
+  reply.once('aborted', () => {
+    broke();
+    decoder.destroy();
+  });
+  decoder.on('data', (chunk: Buffer) => {
+    if (reading.settled()) return;
+    const decoded = text.decode(chunk, {stream: true});
+    if (streamed) {
+      for (const event of sse.push(decoded)) {
+        if (!reading.settled()) relay.event?.(event, shared.now());
+      }
+    } else {
+      body += decoded;
+    }
+  });
+  decoder.once('end', () => {
+    if (!reply.complete) {
+      broke();
+      return;
+    }
+    if (!streamed) body += text.decode();
+    settle(() => relay.end(shared.now(), streamed ? undefined : body));
+  });
+  decoder.once('error', error => broke(error));
 }

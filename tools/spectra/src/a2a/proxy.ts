@@ -9,14 +9,15 @@ import {
 } from 'node:http';
 import {request as httpsRequest} from 'node:https';
 
+import {nowUnixNano} from '../clock.js';
 import {proxyRefusal, refuseRequest} from '../host_check.js';
 import {listenError, LOOPBACK_ADDRESS} from '../server.js';
 import {NAME, VERSION} from '../version.js';
 import {EXTENDED_CARD_METHODS, isCardPath, rewriteCard} from './card.js';
 import {isRecord, readTurnRequest} from './protocol.js';
 import {endToEndHeaders} from '../proxying/exchange.js';
-import {bodyJson, decoderFor, readBody} from '../proxying/forwarding.js';
-import {SseParser} from '../proxying/sse.js';
+import {bodyJson, readBody} from '../proxying/forwarding.js';
+import {type Forwarder, type Relay, relayReply} from '../proxying/relay.js';
 import {formatTraceparent, parseTraceparent} from '../proxying/trace_context.js';
 import {TurnCapture, type TurnListener} from './turn.js';
 
@@ -193,9 +194,25 @@ async function forwardRead(
   upstream.once('response', reply => {
     if (isCardGet || found.name === 'extended_card') {
       relayCard(reply, response, state.origin, isCardGet);
-    } else {
-      relay(reply, response, found.name === 'turn' ? found.capture : undefined);
+      return;
     }
+    let settled = false;
+    relayReply(
+      reply,
+      response,
+      WIRE,
+      found.name === 'turn' ? turnRelay(found.capture) : {end: () => {}, fail: () => {}},
+      {
+        served: false,
+        settle: done => {
+          if (settled) return;
+          settled = true;
+          done();
+        },
+        settled: () => settled,
+        ourClose: () => {},
+      },
+    );
   });
 
   upstream.once('error', error => {
@@ -282,77 +299,50 @@ async function classify(
   return {name: 'other'};
 }
 
-/** Passes the reply on as received, and reads a copy into the turn, if there is one. */
-function relay(reply: IncomingMessage, response: ServerResponse, capture?: TurnCapture): void {
-  response.writeHead(reply.statusCode ?? 502, reply.statusMessage, endToEndHeaders(reply.headers));
-  reply.pipe(response);
-  // A reply that breaks off breaks off for the host too.
-  reply.once('close', () => {
-    if (!reply.complete) {
-      response.destroy();
-    }
-  });
-  if (capture === undefined) {
-    reply.resume();
-    return;
-  }
-  const status = reply.statusCode ?? 0;
-  if (status < 200 || status > 299) {
-    capture.fail(`HTTP ${status}${reply.statusMessage ? ` ${reply.statusMessage}` : ''}`);
-  }
-  capture.replyExtensions(
-    header(reply.headers['x-a2a-extensions'] ?? reply.headers['a2a-extensions']),
-  );
+/** What reading a reply takes from the wire proxy: its words, and no stop of its own. */
+const WIRE: Forwarder = {
+  inFlight: new Set(),
+  closing: () => false,
+  now: nowUnixNano,
+  proxy: 'wire proxy',
+  brokeOff: 'The connection to the agent broke before the reply ended.',
+  flushes: 'served stream',
+};
 
-  const decoder = decoderFor(reply.headers['content-encoding']);
-  if (decoder === undefined) {
-    capture.fail(
-      `The reply's content encoding, ${reply.headers['content-encoding']}, cannot be read.`,
-    );
-    reply.once('end', () => capture.close());
-    reply.once('error', () => capture.close());
-    return;
-  }
-  reply.on('data', (chunk: Buffer) => decoder.write(chunk));
-  reply.once('end', () => decoder.end());
-  reply.once('error', error => {
-    capture.fail(error.message);
-    decoder.destroy();
-  });
-  reply.once('aborted', () => {
-    capture.fail('The connection to the agent broke before the reply ended.');
-    decoder.destroy();
-  });
-
-  const text = new TextDecoder();
-  const isStream = /^text\/event-stream\b/i.test(String(reply.headers['content-type'] ?? ''));
-  const sse = new SseParser();
-  let body = '';
-  decoder.on('data', (chunk: Buffer) => {
-    const decoded = text.decode(chunk, {stream: true});
-    if (isStream) {
-      for (const event of sse.push(decoded)) {
-        capture.delivery(bodyJson(event.data) ?? event.data);
+/**
+ * The relay that reads a turn's reply into its capture: the failure a status
+ * other than 2xx states, the A2UI versions the reply names, each delivery,
+ * and once the reply's end or its break, on which the turn closes.
+ */
+function turnRelay(capture: TurnCapture): Relay {
+  let encoding: string | string[] | undefined;
+  /** Whether the reply's content encoding can be read; one that cannot fails the turn. */
+  let decodable = false;
+  const unreadable = () => `The reply's content encoding, ${header(encoding)}, cannot be read.`;
+  return {
+    head(status, headers, _streamed, statusMessage) {
+      if (status < 200 || status > 299) {
+        capture.fail(`HTTP ${status}${statusMessage ? ` ${statusMessage}` : ''}`);
       }
-    } else {
-      body += decoded;
-    }
-  });
-  decoder.once('end', () => {
-    if (!isStream) {
-      body += text.decode();
-      capture.delivery(bodyJson(body) ?? body);
-    }
-    if (!reply.complete) {
-      capture.fail('The connection to the agent broke before the reply ended.');
-    }
-    capture.close();
-  });
-  decoder.once('error', error => {
-    capture.fail(error.message);
-    capture.close();
-  });
-  decoder.once('close', () => capture.close());
+      capture.replyExtensions(header(headers['x-a2a-extensions'] ?? headers['a2a-extensions']));
+      encoding = headers['content-encoding'];
+    },
+    decoding() {
+      decodable = true;
+    },
+    event(event) {
+      capture.delivery(bodyJson(event.data) ?? event.data);
+    },
+    end(_at, body) {
+      if (!decodable) capture.fail(unreadable());
+      else if (body !== undefined) capture.delivery(bodyJson(body) ?? body);
+      capture.close();
+    },
+    fail(failure) {
+      capture.fail(decodable ? (failure.message ?? failure.type) : unreadable());
+      capture.close();
+    },
+  };
 }
 
 /**
