@@ -39,10 +39,6 @@ export function asInteger(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isInteger(value) ? value : undefined;
 }
 
-export function asBoolean(value: unknown): boolean | undefined {
-  return typeof value === 'boolean' ? value : undefined;
-}
-
 export function asArray(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
@@ -76,7 +72,7 @@ export function toolCallResponsePart(id: string | undefined, response: unknown):
 }
 
 /** GenAI's modality for a media type: image, video, audio, else document. */
-export function modalityOf(mimeType: string | undefined): string {
+function modalityOf(mimeType: string | undefined): string {
   const top = mimeType?.split('/')[0].trim().toLowerCase();
   return top === 'image' || top === 'video' || top === 'audio' ? top : 'document';
 }

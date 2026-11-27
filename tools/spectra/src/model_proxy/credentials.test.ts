@@ -1,13 +1,17 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import {
-  isCredentialParameter,
-  isCredentialRequestHeader,
-  isCredentialResponseHeader,
-  removeFromHeaders,
-  removeFromUrl,
-} from './credentials.js';
+import {removeFromHeaders, removeFromUrl} from './credentials.js';
+
+/** Whether a header of this name has its value removed on this side. */
+function isRemovedHeader(name: string, side: 'request' | 'response'): boolean {
+  return removeFromHeaders({[name]: ['value']}, side)[name.toLowerCase()][0] === 'REMOVED';
+}
+
+/** Whether a URL parameter of this name has its value removed. */
+function isRemovedParameter(name: string): boolean {
+  return removeFromUrl(`https://example.com/?${name}=value`).endsWith(`${name}=REMOVED`);
+}
 
 describe('credentials', () => {
   it('names the request headers that carry one, by list and by pattern', () => {
@@ -23,25 +27,25 @@ describe('credentials', () => {
       'x-secret',
       'x-password',
     ]) {
-      assert.ok(isCredentialRequestHeader(name), name);
+      assert.ok(isRemovedHeader(name, 'request'), name);
     }
     for (const name of ['content-type', 'accept', 'user-agent', 'anthropic-version', 'host']) {
-      assert.equal(isCredentialRequestHeader(name), false, name);
+      assert.equal(isRemovedHeader(name, 'request'), false, name);
     }
   });
 
   it('names set-cookie as the one response header, the pattern not applying', () => {
-    assert.ok(isCredentialResponseHeader('Set-Cookie'));
-    assert.equal(isCredentialResponseHeader('www-authenticate'), false);
-    assert.equal(isCredentialResponseHeader('x-request-token'), false);
+    assert.ok(isRemovedHeader('Set-Cookie', 'response'));
+    assert.equal(isRemovedHeader('www-authenticate', 'response'), false);
+    assert.equal(isRemovedHeader('x-request-token', 'response'), false);
   });
 
   it('names the URL parameters that carry one', () => {
     for (const name of ['key', 'api_key', 'access_token', 'apiKey', 'auth', 'client_secret']) {
-      assert.ok(isCredentialParameter(name), name);
+      assert.ok(isRemovedParameter(name), name);
     }
-    assert.equal(isCredentialParameter('alt'), false);
-    assert.equal(isCredentialParameter('beta'), false);
+    assert.equal(isRemovedParameter('alt'), false);
+    assert.equal(isRemovedParameter('beta'), false);
   });
 
   it('replaces each credential value in headers, keeping the name', () => {

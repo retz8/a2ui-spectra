@@ -89,7 +89,7 @@ export function toolEnvironmentOf(servers: ToolServer[]): Record<string, string>
 }
 
 /** Where a server's listener forwards, in words, with credentials removed. */
-export function describeOriginal(server: ToolServer): string {
+function describeOriginal(server: ToolServer): string {
   return removeFromUrl(server.original.href);
 }
 

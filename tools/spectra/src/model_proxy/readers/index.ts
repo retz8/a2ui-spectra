@@ -10,18 +10,11 @@ import {openAiChatReader} from './openai_chat.js';
 import {openAiResponsesReader} from './openai_responses.js';
 import type {ApiReader} from './reader.js';
 
-export type {Api, ApiReader, ReadRequest, StreamChunk} from './reader.js';
+export type {ApiReader, StreamChunk} from './reader.js';
 
 const GEMINI_HOST = 'generativelanguage.googleapis.com';
 const OPENAI_HOST = 'api.openai.com';
 const ANTHROPIC_HOST = 'api.anthropic.com';
-
-/** The hosts the four APIs are read on. */
-export const PROVIDER_HOSTS: ReadonlySet<string> = new Set([
-  GEMINI_HOST,
-  OPENAI_HOST,
-  ANTHROPIC_HOST,
-]);
 
 /**
  * The reader for a POST to a host and path, or nothing for a call recorded

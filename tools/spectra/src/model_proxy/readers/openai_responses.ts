@@ -171,7 +171,6 @@ function responseAttributes(response: Record<string, unknown>): Record<string, u
 
 export const openAiResponsesReader: ApiReader = {
   carriesOutput: openAiResponsesCarriesOutput,
-  api: 'openai_responses',
 
   request({body}: ReadRequest) {
     const record = isRecord(body) ? body : {};

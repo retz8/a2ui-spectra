@@ -100,8 +100,6 @@ export interface ToolProxyOptions {
 }
 
 export interface ToolProxy {
-  /** Each listener's origin, in the servers' order. */
-  readonly origins: string[];
   /** Serves from the pool until disarmed, as the server: every request answered from the record, or as the protocol fixes, or a miss. */
   arm(pool: ReplayPool): void;
   /** Drops the pool and closes the carriers held open: every request is forwarded again. */
@@ -239,7 +237,6 @@ export async function startToolProxy(options: ToolProxyOptions): Promise<ToolPro
     throw error;
   }
   return {
-    origins: options.servers.map(server => server.proxyOrigin),
     arm: pool => {
       shared.pool = pool;
     },

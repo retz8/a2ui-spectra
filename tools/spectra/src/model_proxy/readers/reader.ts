@@ -4,8 +4,6 @@
  */
 import type {StreamError} from '../genai.js';
 
-export type Api = 'gemini' | 'openai_chat_completions' | 'openai_responses' | 'anthropic_messages';
-
 /** One server-sent event of a streamed response, its data parsed when JSON. */
 export interface StreamChunk {
   event?: string;
@@ -21,7 +19,6 @@ export interface ReadRequest {
 }
 
 export interface ApiReader {
-  readonly api: Api;
   /** The request's names: the operation, the provider, the model, the settings, the system prompt, the messages and the tools. */
   request(request: ReadRequest): Record<string, unknown>;
   /** The response's names from a body that was not streamed. */

@@ -194,7 +194,6 @@ function responseAttributes(
 
 export const geminiReader: ApiReader = {
   carriesOutput: geminiCarriesOutput,
-  api: 'gemini',
 
   request({pathname, body}: ReadRequest) {
     const match = GEMINI_PATH.exec(pathname);
@@ -245,10 +244,7 @@ export const geminiReader: ApiReader = {
 
   stream(chunks: StreamChunk[]) {
     const merged: Record<string, unknown> = {};
-    const candidates = new Map<
-      number,
-      {parts: GenAiPart[]; finishReason?: unknown; text?: string}
-    >();
+    const candidates = new Map<number, {parts: GenAiPart[]; finishReason?: unknown}>();
     let error: StreamError | undefined;
     for (const {data} of chunks) {
       if (!isRecord(data)) continue;

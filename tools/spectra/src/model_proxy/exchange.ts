@@ -37,7 +37,7 @@ export function endToEndHeaders(headers: IncomingHttpHeaders): OutgoingHttpHeade
 }
 
 /** Outgoing headers as a record of string arrays, names lowercased, for the record. */
-export function headerLists(headers: OutgoingHttpHeaders): Record<string, string[]> {
+function headerLists(headers: OutgoingHttpHeaders): Record<string, string[]> {
   const lists: Record<string, string[]> = {};
   for (const [name, value] of Object.entries(headers)) {
     if (value === undefined) continue;
@@ -47,7 +47,7 @@ export function headerLists(headers: OutgoingHttpHeaders): Record<string, string
 }
 
 /** Whether a body of this content type is kept in the exchange: JSON, text or form-encoded. */
-export function bodyKept(contentType: string | undefined): boolean {
+function bodyKept(contentType: string | undefined): boolean {
   const type = (contentType ?? '').split(';')[0].trim().toLowerCase();
   return (
     type === 'application/json' ||

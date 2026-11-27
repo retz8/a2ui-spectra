@@ -32,7 +32,7 @@ export const FINISH_REASONS: Record<string, FinishReason> = {
   function_call: 'tool_call',
 };
 
-export function openAiFinishReason(value: unknown): FinishReason | undefined {
+function openAiFinishReason(value: unknown): FinishReason | undefined {
   return typeof value === 'string' ? (FINISH_REASONS[value] ?? 'error') : undefined;
 }
 
@@ -169,7 +169,6 @@ function responseAttributes(
 
 export const openAiChatReader: ApiReader = {
   carriesOutput: openAiChatCarriesOutput,
-  api: 'openai_chat_completions',
 
   request({body}: ReadRequest) {
     const record = isRecord(body) ? body : {};

@@ -1,11 +1,23 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import {readerFor} from './index.js';
+import {anthropicReader} from './anthropic.js';
+import {geminiReader} from './gemini.js';
+import {readerFor, type ApiReader} from './index.js';
+import {openAiChatReader} from './openai_chat.js';
+import {openAiResponsesReader} from './openai_responses.js';
+
+const API_OF = new Map<ApiReader, string>([
+  [geminiReader, 'gemini'],
+  [openAiChatReader, 'openai_chat_completions'],
+  [openAiResponsesReader, 'openai_responses'],
+  [anthropicReader, 'anthropic_messages'],
+]);
 
 function api(method: string, host: string, path: string, standIn = false) {
   const [pathname, query = ''] = path.split('?');
-  return readerFor(method, host, pathname, new URLSearchParams(query), standIn)?.api;
+  const reader = readerFor(method, host, pathname, new URLSearchParams(query), standIn);
+  return reader === undefined ? undefined : API_OF.get(reader);
 }
 
 describe('readerFor', () => {

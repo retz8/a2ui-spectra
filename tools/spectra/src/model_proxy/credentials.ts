@@ -25,18 +25,18 @@ const URL_PARAMETERS = new Set(['key', 'api_key', 'access_token']);
 const NAME_PATTERN = /key|token|secret|auth|password|cookie/i;
 
 /** Whether a request header, by its name, carries a credential. */
-export function isCredentialRequestHeader(name: string): boolean {
+function isCredentialRequestHeader(name: string): boolean {
   const lower = name.toLowerCase();
   return REQUEST_HEADERS.has(lower) || NAME_PATTERN.test(lower);
 }
 
 /** Whether a response header, by its name, carries a credential. The name pattern does not apply. */
-export function isCredentialResponseHeader(name: string): boolean {
+function isCredentialResponseHeader(name: string): boolean {
   return RESPONSE_HEADERS.has(name.toLowerCase());
 }
 
 /** Whether a URL parameter, by its name, carries a credential. */
-export function isCredentialParameter(name: string): boolean {
+function isCredentialParameter(name: string): boolean {
   return URL_PARAMETERS.has(name.toLowerCase()) || NAME_PATTERN.test(name);
 }
 

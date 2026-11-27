@@ -102,7 +102,7 @@ export function environmentOf(list: Redirection[]): Record<string, string> {
 }
 
 /** Where a target forwards, in words, with credentials removed. */
-export function describeTarget(target: Target): string {
+function describeTarget(target: Target): string {
   if (target.kind === 'litellm_gemini') {
     return `${GEMINI_HOST}/v1beta, or /v1alpha for a gemini-3 model`;
   }
