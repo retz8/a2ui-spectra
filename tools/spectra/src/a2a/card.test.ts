@@ -5,6 +5,7 @@ import {describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
 
 import {type CardDetails, cardDetailsOf, checkTransport, isCardPath, rewriteCard} from './card.js';
+import {chooseInterface} from './client.js';
 
 const proxy = 'http://127.0.0.1:9821';
 
@@ -338,6 +339,100 @@ describe('cardDetailsOf', () => {
           {version: 'v0.9', catalogIds: [BASIC_V0_9]},
         ],
         examples: ['Book a table'],
+      },
+    );
+  });
+});
+
+describe("the card's interfaces, as each reader reads them", () => {
+  /** What the transport check, the message box's choice and the viewer's versions make of one card. */
+  function readings(card: Record<string, unknown>) {
+    return {
+      transport: checkTransport(card),
+      choice: chooseInterface(card),
+      versions: cardDetailsOf(card).a2aVersions,
+    };
+  }
+
+  it('takes an A2A 0.3 card that prefers JSON-RPC and gives no url as JSON-RPC first, with no interface to speak to', () => {
+    assert.deepEqual(readings({preferredTransport: 'JSONRPC', protocolVersion: '0.3'}), {
+      transport: {kind: 'jsonrpc_first'},
+      choice: {kind: 'none', versions: [], unversioned: false},
+      versions: ['0.3'],
+    });
+  });
+
+  it('takes an A2A 0.3 card with no url and no preference by its additional interfaces alone', () => {
+    assert.deepEqual(
+      readings({additionalInterfaces: [{transport: 'JSONRPC', url: `${proxy}/rpc`}]}),
+      {
+        transport: {kind: 'jsonrpc_first'},
+        choice: {kind: 'found', version: '0.3', url: `${proxy}/rpc`, streaming: false},
+        versions: [],
+      },
+    );
+  });
+
+  it('reads a preference that is not text as JSON-RPC, when the card gives a url', () => {
+    assert.deepEqual(readings({url: `${proxy}/`, preferredTransport: 7}), {
+      transport: {kind: 'jsonrpc_first'},
+      choice: {kind: 'found', version: '0.3', url: `${proxy}/`, streaming: false},
+      versions: [],
+    });
+  });
+
+  it('takes an empty supportedInterfaces as an A2A 1.0 card with no interface, whatever its 0.3 fields', () => {
+    assert.deepEqual(
+      readings({supportedInterfaces: [], url: `${proxy}/`, protocolVersion: '0.3'}),
+      {
+        transport: {kind: 'no_interface'},
+        choice: {kind: 'none', versions: [], unversioned: false},
+        versions: [],
+      },
+    );
+  });
+
+  it('takes an A2A 1.0 JSON-RPC entry without a url as JSON-RPC first, with no interface to speak to', () => {
+    assert.deepEqual(
+      readings({supportedInterfaces: [{protocolBinding: 'JSONRPC', protocolVersion: '1.0'}]}),
+      {
+        transport: {kind: 'jsonrpc_first'},
+        choice: {kind: 'none', versions: [], unversioned: false},
+        versions: ['1.0'],
+      },
+    );
+  });
+
+  it('names each A2A 1.0 binding once, in card order, and reads a padded version on major.minor', () => {
+    assert.deepEqual(
+      readings({
+        supportedInterfaces: [
+          {protocolBinding: 'GRPC', url: `${proxy}/grpc`, protocolVersion: '1.0'},
+          {protocolBinding: 'JSONRPC', url: `${proxy}/a2a`, protocolVersion: ' 1.0 ', tenant: ''},
+          {protocolBinding: 'GRPC', url: `${proxy}/grpc2`},
+          'not an entry',
+        ],
+      }),
+      {
+        transport: {kind: 'jsonrpc_later', preferred: 'GRPC'},
+        choice: {kind: 'found', version: '1.0', url: `${proxy}/a2a`, streaming: false},
+        versions: [' 1.0 '],
+      },
+    );
+  });
+
+  it("leaves a blank or missing version out of the viewer's versions, and names it unversioned to the message box", () => {
+    assert.deepEqual(
+      readings({
+        supportedInterfaces: [
+          {protocolBinding: 'JSONRPC', url: `${proxy}/a`, protocolVersion: ' '},
+          {protocolBinding: 'JSONRPC', url: `${proxy}/b`},
+        ],
+      }),
+      {
+        transport: {kind: 'jsonrpc_first'},
+        choice: {kind: 'none', versions: [' '], unversioned: true},
+        versions: [],
       },
     );
   });
