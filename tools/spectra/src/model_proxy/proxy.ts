@@ -75,8 +75,8 @@ export interface ModelProxyOptions {
   log?: (line: string) => void;
   /**
    * How long a reply is waited for after the agent closes its connection,
-   * in milliseconds; one that neither ends nor delivers by then ends the call
-   * as aborted. Five seconds unless set.
+   * in milliseconds; one that has not ended by then ends the call as aborted.
+   * Five seconds unless set.
    */
   closeGraceMs?: number;
   /** Nanoseconds since the Unix epoch. */
