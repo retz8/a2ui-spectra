@@ -1,5 +1,6 @@
 import type {TurnListener} from './a2a/turn.js';
 import type {AgentLiveEvent} from './agent_supervisor.js';
+import {isoTimeOf} from './clock.js';
 import {inputBriefOf, type InputBrief} from './listing.js';
 import type {CallListener, CallNotification} from './model_proxy/proxy.js';
 import {
@@ -139,7 +140,7 @@ export class TurnHub {
         ...(notification.conversationId !== undefined && {
           conversationId: notification.conversationId,
         }),
-        startTime: isoTime(notification.startTimeUnixNano),
+        startTime: isoTimeOf(notification.startTimeUnixNano),
         ...(notification.messageId !== undefined && {messageId: notification.messageId}),
       };
       this.#open.set(notification.traceId, {
@@ -284,8 +285,4 @@ export class TurnHub {
       listener(event);
     }
   }
-}
-
-function isoTime(unixNano: string): string {
-  return new Date(Number(BigInt(unixNano) / 1_000_000n)).toISOString();
 }

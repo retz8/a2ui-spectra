@@ -413,11 +413,12 @@ export class MessageBox {
         'A turn is still open in this conversation. Wait for it to close, or start a new conversation.',
       );
     }
+    const messageId = this.#newMessageId();
     const request = boxRequest(
       target,
       {
         ...content,
-        messageId: this.#newMessageId(),
+        messageId,
         ...(conversation.conversationId !== undefined && {
           contextId: conversation.conversationId,
         }),
@@ -429,7 +430,7 @@ export class MessageBox {
         headers: this.#headers,
       },
     );
-    const {traceId} = await this.#dispatch(conversation, target, request);
+    const {traceId} = await this.#dispatch(conversation, target, request, messageId);
     return {
       traceId,
       ...(conversation.conversationId !== undefined && {
@@ -658,7 +659,7 @@ export class MessageBox {
     conversation: Conversation,
     target: BoxInterface,
     request: BoxRequest,
-    messageId = messageIdOf(request),
+    messageId: string,
   ): Promise<{traceId: string; closed: Promise<Turn>}> {
     conversation.open = true;
     const opened = new Promise<string>(resolve => this.#opening.set(messageId, resolve));
@@ -733,12 +734,6 @@ export class MessageBox {
     conversation.open = undefined;
     return turn;
   }
-}
-
-/** The `messageId` of the message a request carries. */
-function messageIdOf(request: BoxRequest): string {
-  const body = JSON.parse(request.body) as {params?: {message?: {messageId?: string}}};
-  return body.params?.message?.messageId ?? '';
 }
 
 /** A recorded turn's trace id, from its turn event. */

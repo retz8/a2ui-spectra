@@ -4,6 +4,7 @@ import type {CardDetails} from './a2a/card.js';
 import type {LogSnapshot} from './agent_log.js';
 import type {AgentSnapshot, RestartCause} from './agent_supervisor.js';
 import type {CatalogRegistry} from './catalog/registry.js';
+import {isoTimeOf} from './clock.js';
 import {CONFIG_SCHEMA, type PriceOverride} from './config.js';
 import {
   FixtureClashError,
@@ -297,7 +298,7 @@ function listedTurnsOf(record: TurnRecord, catalogs: CatalogRegistry): ListedTur
     listed.push({
       traceId: turnEvent.traceId,
       ...(conversationId !== undefined && {conversationId}),
-      startTime: new Date(Number(BigInt(turnEvent.startTimeUnixNano) / 1_000_000n)).toISOString(),
+      startTime: isoTimeOf(turnEvent.startTimeUnixNano),
       ...listingFieldsOf(turn, record.turns.slice(0, index), catalogs),
     });
   });

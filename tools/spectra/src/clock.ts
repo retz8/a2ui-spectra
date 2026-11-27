@@ -33,3 +33,8 @@ export function nowUnixNano(): bigint {
   last = now;
   return now;
 }
+
+/** A time in nanoseconds since the Unix epoch, as an ISO 8601 date and time to the millisecond. */
+export function isoTimeOf(unixNano: string): string {
+  return new Date(Number(BigInt(unixNano) / 1_000_000n)).toISOString();
+}

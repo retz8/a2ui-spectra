@@ -10,6 +10,7 @@ import {randomBytes} from 'node:crypto';
 import {mkdir, readdir, readFile, rename, rm, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 
+import {isoTimeOf} from '../clock.js';
 import {readRecord} from '../record/read_record.js';
 import {isEventOfKind, type Turn, type TurnEvent, type TurnRecord} from '../record/turn_record.js';
 import {WRITTEN_VERSION} from '../record/versions.js';
@@ -363,9 +364,7 @@ function storedTurnOf(turn: Turn): StoredTurn {
   if (turnEvent === undefined) {
     throw new Error('A turn to store has no turn event.');
   }
-  const startTime = new Date(
-    Number(BigInt(turnEvent.startTimeUnixNano) / 1_000_000n),
-  ).toISOString();
+  const startTime = isoTimeOf(turnEvent.startTimeUnixNano);
   const name = `${startTime.replaceAll(':', '-')}_${turnEvent.traceId}.json`;
   const conversationId = turnEvent.attributes['gen_ai.conversation.id'] || undefined;
   return {

@@ -1,6 +1,6 @@
 import type {TurnListener, TurnNotification} from './a2a/turn.js';
 import {parseTraceparent} from './a2a/trace_context.js';
-import {nowUnixNano} from './clock.js';
+import {isoTimeOf, nowUnixNano} from './clock.js';
 import {
   type CallEvent,
   type CapturePath,
@@ -195,7 +195,7 @@ export class CallPlacer {
     }
     if (turn === undefined) {
       return {
-        line: `${capitalise(call.what)} at ${isoTime(call.startTimeUnixNano)} was not placed in a turn: ${reason}. It is not recorded.`,
+        line: `${capitalise(call.what)} at ${isoTimeOf(call.startTimeUnixNano)} was not placed in a turn: ${reason}. It is not recorded.`,
       };
     }
     const placed = turn;
@@ -277,8 +277,4 @@ function compareUnixNano(a: string, b: string): number {
 
 function capitalise(text: string): string {
   return text.charAt(0).toUpperCase() + text.slice(1);
-}
-
-function isoTime(unixNano: string): string {
-  return new Date(Number(BigInt(unixNano) / 1_000_000n)).toISOString();
 }

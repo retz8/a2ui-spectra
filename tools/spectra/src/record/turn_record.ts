@@ -441,25 +441,11 @@ export type ParseEvent = EventFields<ParseAttributes>;
 
 // The framework span.
 
-type OtherKind = Exclude<
-  EventKind,
-  | 'turn'
-  | 'wire_input'
-  | 'wire_output'
-  | 'check'
-  | 'model_call'
-  | 'tool_call'
-  | 'prompt_generation'
-  | 'parse'
->;
-
 /** A framework span, with open attributes. */
-export type OtherEvent = {
-  [Kind in OtherKind]: EventFields<{
-    'a2ui.event.kind': Kind;
-    [name: string]: unknown;
-  }>;
-}[OtherKind];
+export type FrameworkSpanEvent = EventFields<{
+  'a2ui.event.kind': 'framework_span';
+  [name: string]: unknown;
+}>;
 
 export type TurnRecordEvent =
   | TurnEvent
@@ -470,7 +456,7 @@ export type TurnRecordEvent =
   | ToolCallEvent
   | PromptGenerationEvent
   | ParseEvent
-  | OtherEvent;
+  | FrameworkSpanEvent;
 
 /** The event type for one kind. */
 export type EventOfKind<Kind extends EventKind> = Extract<
