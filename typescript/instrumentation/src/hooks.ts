@@ -250,5 +250,7 @@ export function hookFor(role: Role, original: Method): Method {
       return checkTopology(original);
     case 'mark_checked':
       return markChecked(original);
+    default:
+      throw new Error(`no hook for the role ${String(role satisfies never)}`);
   }
 }
