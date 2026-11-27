@@ -28,7 +28,7 @@ export function viewerDirFor(codeDir: string): string {
 }
 
 /** Where the built-in preview page sits in the viewer's files, and its address. */
-export const PREVIEW_DIR = 'preview';
+const PREVIEW_DIR = 'preview';
 
 export type ViewerFile =
   {kind: 'file'; path: string} | {kind: 'index'; path: string} | {kind: 'outside'};

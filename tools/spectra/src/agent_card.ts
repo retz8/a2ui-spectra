@@ -1,5 +1,5 @@
 /** Where A2A puts an agent's card, under the agent's base address. */
-export const AGENT_CARD_PATH = '.well-known/agent-card.json';
+const AGENT_CARD_PATH = '.well-known/agent-card.json';
 
 /** The agent card's address for an agent's base address. A path is kept. */
 export function agentCardUrl(agentUrl: URL): URL {

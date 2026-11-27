@@ -8,15 +8,12 @@
 /** The A2A protocol versions the adapter reads. */
 export type A2aVersion = '0.3' | '1.0';
 
-/** Whether a turn's request asks for one reply or a stream. */
-export type TurnMethod = 'send' | 'stream';
-
-/** The JSON-RPC methods that open a turn, with the version each belongs to. */
-const TURN_METHODS: Readonly<Record<string, {version: A2aVersion; method: TurnMethod}>> = {
-  'message/send': {version: '0.3', method: 'send'},
-  'message/stream': {version: '0.3', method: 'stream'},
-  SendMessage: {version: '1.0', method: 'send'},
-  SendStreamingMessage: {version: '1.0', method: 'stream'},
+/** The JSON-RPC methods that open a turn, each with the version it belongs to. */
+const TURN_METHODS: Readonly<Record<string, A2aVersion>> = {
+  'message/send': '0.3',
+  'message/stream': '0.3',
+  SendMessage: '1.0',
+  SendStreamingMessage: '1.0',
 };
 
 /** A2A's task states, in A2A 0.3's spelling. */
@@ -73,7 +70,6 @@ export interface A2aArtifact {
 /** A request that opens a turn. */
 export interface TurnRequest {
   version: A2aVersion;
-  method: TurnMethod;
   message: A2aMessage;
 }
 
@@ -113,14 +109,12 @@ export function readTurnRequest(body: unknown): TurnRequest | undefined {
   if (!isRecord(body) || body.jsonrpc !== '2.0' || typeof body.method !== 'string') {
     return undefined;
   }
-  const turnMethod = Object.hasOwn(TURN_METHODS, body.method)
-    ? TURN_METHODS[body.method]
-    : undefined;
-  if (turnMethod === undefined) {
+  const version = Object.hasOwn(TURN_METHODS, body.method) ? TURN_METHODS[body.method] : undefined;
+  if (version === undefined) {
     return undefined;
   }
   const params = isRecord(body.params) ? body.params : {};
-  return {...turnMethod, message: readMessage(params.message) ?? {parts: []}};
+  return {version, message: readMessage(params.message) ?? {parts: []}};
 }
 
 /** Reads one reply object, in its version's shape. */

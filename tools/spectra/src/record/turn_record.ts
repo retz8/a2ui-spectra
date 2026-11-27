@@ -403,14 +403,6 @@ export interface ComponentRange {
   end: number;
 }
 
-/** One structured detail of an error an A2UI SDK raised, as the SDK gives it. */
-export interface ErrorDetail {
-  path: string;
-  code: string;
-  message: string;
-  surfaceId?: string;
-}
-
 export interface PromptGenerationAttributes {
   'a2ui.event.kind': 'prompt_generation';
   /** The text the SDK generated; absent when generation failed. */

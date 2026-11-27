@@ -11,7 +11,7 @@ import {NAME} from '../version.js';
 import type {TurnRecordVersion} from './turn_record.js';
 
 /** The versions this release reads, oldest first. */
-export const READ_VERSIONS: readonly string[] = ['v0.1'];
+const READ_VERSIONS: readonly string[] = ['v0.1'];
 
 /** The version this release writes. */
 export const WRITTEN_VERSION: TurnRecordVersion = 'v0.1';

@@ -40,7 +40,7 @@ export function exchangeKey(attributes: Record<string, unknown>): ExchangeKey {
  * MCP's housekeeping requests: matched by method alone and not consumed, the
  * record's latest exchange of the method served as often as asked.
  */
-export const HOUSEKEEPING: ReadonlySet<string> = new Set([
+const HOUSEKEEPING: ReadonlySet<string> = new Set([
   'initialize',
   'tools/list',
   'resources/list',

@@ -7,8 +7,8 @@
 import {CatalogRegistry} from '../catalog/registry.js';
 import type {Turn, TurnEvent, TurnRecordEvent, WirePart} from '../record/turn_record.js';
 
-export const TRACE_ID = '0af7651916cd43dd8448eb211c80319c';
-export const TURN_SPAN = 'b7ad6b7169203331';
+const TRACE_ID = '0af7651916cd43dd8448eb211c80319c';
+const TURN_SPAN = 'b7ad6b7169203331';
 
 /** The v0.9 basic catalog's id, and its v0.9.1 URL. */
 export const BASIC_V0_9 = CatalogRegistry.builtIn().known[0].id;

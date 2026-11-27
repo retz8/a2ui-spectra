@@ -13,12 +13,12 @@
 import {removeFromUrl} from '../model_proxy/credentials.js';
 import {pasteLine, type Shell} from '../paste.js';
 
-export const ENDPOINT = 'OTEL_EXPORTER_OTLP_ENDPOINT';
-export const PROTOCOL = 'OTEL_EXPORTER_OTLP_PROTOCOL';
+const ENDPOINT = 'OTEL_EXPORTER_OTLP_ENDPOINT';
+const PROTOCOL = 'OTEL_EXPORTER_OTLP_PROTOCOL';
 /** The content capture switch the pinned GenAI conventions name. */
-export const CONTENT_CAPTURE = 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT';
+const CONTENT_CAPTURE = 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_CONTENT';
 /** The older content capture switch, which the instrumentations in use read. */
-export const MESSAGE_CONTENT_CAPTURE = 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT';
+const MESSAGE_CONTENT_CAPTURE = 'OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT';
 
 const HTTP_PROTOBUF = 'http/protobuf';
 

@@ -21,15 +21,11 @@ const v10Message = {
 
 describe('readTurnRequest', () => {
   it('reads the A2A 0.3 send and stream methods', () => {
-    for (const [method, kind] of [
-      ['message/send', 'send'],
-      ['message/stream', 'stream'],
-    ] as const) {
+    for (const method of ['message/send', 'message/stream']) {
       assert.deepEqual(
         readTurnRequest({jsonrpc: '2.0', id: 7, method, params: {message: v03Message}}),
         {
           version: '0.3',
-          method: kind,
           message: {
             messageId: 'm-1',
             role: 'user',
@@ -43,15 +39,11 @@ describe('readTurnRequest', () => {
   });
 
   it('reads the A2A 1.0 send and stream methods, with 1.0 role names', () => {
-    for (const [method, kind] of [
-      ['SendMessage', 'send'],
-      ['SendStreamingMessage', 'stream'],
-    ] as const) {
+    for (const method of ['SendMessage', 'SendStreamingMessage']) {
       assert.deepEqual(
         readTurnRequest({jsonrpc: '2.0', id: 'a', method, params: {message: v10Message}}),
         {
           version: '1.0',
-          method: kind,
           message: {messageId: 'm-1', role: 'user', parts: [{text: 'Hi'}], contextId: 'ctx-1'},
         },
       );
@@ -61,7 +53,6 @@ describe('readTurnRequest', () => {
   it('reads a send without a message as a turn with an empty message', () => {
     assert.deepEqual(readTurnRequest({jsonrpc: '2.0', id: 1, method: 'message/send'}), {
       version: '0.3',
-      method: 'send',
       message: {parts: []},
     });
   });

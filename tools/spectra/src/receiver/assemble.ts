@@ -58,7 +58,7 @@ function compareStart(a: TurnRecordEvent, b: TurnRecordEvent): number {
  * carrying the turn's trace id whose parent is in neither the turn nor its
  * received tree is the tree's root, under the turn event.
  */
-export function receivedEvents(
+function receivedEvents(
   turnEvent: Pick<TurnEvent, 'traceId' | 'spanId'>,
   placed: readonly PlacedSpan[],
 ): TurnRecordEvent[] {
@@ -116,7 +116,7 @@ function linkTo(event: TurnRecordEvent): Link {
  * proxy's call pairs with model call spans, a tool proxy's with tool call
  * spans.
  */
-export function sameCallLinks(
+function sameCallLinks(
   exchanges: readonly TurnRecordEvent[],
   received: readonly TurnRecordEvent[],
 ): Map<string, Link[]> {

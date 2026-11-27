@@ -13,7 +13,7 @@ interface BunFfi {
 }
 
 /** A call that failed, with the error Windows gave. */
-export class Win32Error extends Error {
+class Win32Error extends Error {
   constructor(
     readonly call: string,
     readonly code: number,

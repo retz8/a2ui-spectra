@@ -62,7 +62,7 @@ export interface SpectraConfig {
 }
 
 /** The fixtures folder's name when the config file names none. */
-export const DEFAULT_FIXTURES_FOLDER = 'a2ui-spectra-fixtures';
+const DEFAULT_FIXTURES_FOLDER = 'a2ui-spectra-fixtures';
 
 /** A model's price from the config file, in USD per million tokens. */
 export interface PriceOverride {

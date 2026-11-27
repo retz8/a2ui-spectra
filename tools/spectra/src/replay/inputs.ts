@@ -15,7 +15,7 @@ import {
 } from '../record/turn_record.js';
 
 /** The A2UI extension URI of a protocol version in the record's form. */
-export function extensionUriOf(version: string): string {
+function extensionUriOf(version: string): string {
   return `https://a2ui.org/a2a-extension/a2ui/${recordFormOf(version)}`;
 }
 

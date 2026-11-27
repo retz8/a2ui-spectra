@@ -37,7 +37,7 @@ export function readRecord(text: string): TurnRecord {
 }
 
 /** A parsed value as a turn record of a version this release reads, or throws with the reason. */
-export function recordOf(json: unknown): TurnRecord {
+function recordOf(json: unknown): TurnRecord {
   if (typeof json !== 'object' || json === null || Array.isArray(json)) {
     throw notARecord('it is not an object');
   }

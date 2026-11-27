@@ -48,7 +48,7 @@ function byTime(a: {timeUnixNano: string}, b: {timeUnixNano: string}): number {
 }
 
 /** The log records attached to a span, in time order, arrival order among equals. */
-export function inTimeOrder(logs: readonly ReceivedLog[]): ReceivedLog[] {
+function inTimeOrder(logs: readonly ReceivedLog[]): ReceivedLog[] {
   return [...logs].sort(byTime);
 }
 

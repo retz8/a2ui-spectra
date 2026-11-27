@@ -31,7 +31,7 @@ export const python = fileURLToPath(
 );
 
 /** How a test asks Spectra to stop, as a user does: SIGTERM, and on Windows a console Ctrl-C. */
-export const STOP_SIGNAL: NodeJS.Signals = windows ? 'SIGINT' : 'SIGTERM';
+const STOP_SIGNAL: NodeJS.Signals = windows ? 'SIGINT' : 'SIGTERM';
 
 /** The code Spectra exits with after that stop: 128 plus the stop's number. */
 export const STOPPED_CODE = 128 + (windows ? 2 : 15);

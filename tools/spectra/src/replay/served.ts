@@ -49,7 +49,7 @@ export function servedHeaders(attributes: Record<string, unknown>): IncomingHttp
 }
 
 /** A recorded body or chunk as text: a JSON value serialised, a text as itself. */
-export function bodyText(value: unknown): string {
+function bodyText(value: unknown): string {
   return typeof value === 'string' ? value : JSON.stringify(value);
 }
 

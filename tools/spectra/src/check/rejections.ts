@@ -9,8 +9,6 @@ import type {CatalogRegistry} from '../catalog/registry.js';
 import type {Finding, Turn} from '../record/turn_record.js';
 import {type Conversation, feedConversation} from './conversation.js';
 
-export {processorCatalogs} from './conversation.js';
-
 /** How many of a turn's own A2UI messages the processor rejects, after the conversation's earlier turns. */
 export function rejectionCount(
   turn: Turn,

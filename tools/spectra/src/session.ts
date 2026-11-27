@@ -93,7 +93,7 @@ const NPM_LAUNCHER_VARIABLE = 'A2UI_SPECTRA_NPM_LAUNCHER';
 const PASSED_ON: ReadonlySet<NodeJS.Signals> = new Set(['SIGTERM', 'SIGHUP']);
 
 /** What Spectra says under Node on Windows, where the agent's process tree is not handled. */
-export const NODE_ON_WINDOWS_LINE =
+const NODE_ON_WINDOWS_LINE =
   "Under Node on Windows, Spectra stops and restarts the agent's command alone, not the processes " +
   "it starts. The compiled binary handles the agent's whole process tree.";
 

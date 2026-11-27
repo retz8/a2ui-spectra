@@ -22,11 +22,11 @@ const NAME = /^[A-Za-z0-9_-][A-Za-z0-9_.-]*$/;
 /** How long a slug may be before it is cut at a `-`. */
 const SLUG_LENGTH = 40;
 
-export const NAME_RULE =
+const NAME_RULE =
   "A fixture's name uses letters, digits, '-', '_' and '.', and does not start with a dot.";
 
 /** Why a name Windows reserves for a device is refused, on every platform. */
-export const RESERVED_NAME_RULE =
+const RESERVED_NAME_RULE =
   `A fixture's name is not ${RESERVED_NAMES_PHRASE}, alone or before a dot: ` +
   'Windows reserves them for devices and cannot hold the file.';
 

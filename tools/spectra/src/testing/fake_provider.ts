@@ -8,7 +8,7 @@ import {createServer, type IncomingHttpHeaders, type Server} from 'node:http';
 /** The key the fake agent sends, which must never reach a record. */
 export const FAKE_PROVIDER_KEY = 'sk-ant-test-secret-key';
 
-export const FAKE_PROVIDER_REPLY = {
+const FAKE_PROVIDER_REPLY = {
   id: 'msg_fake_1',
   type: 'message',
   role: 'assistant',

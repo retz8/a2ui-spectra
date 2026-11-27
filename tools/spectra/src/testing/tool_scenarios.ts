@@ -235,7 +235,7 @@ export const SCENARIOS: Record<
 };
 
 /** A label for each distinct value, by order of first appearance. */
-export class Labels {
+class Labels {
   readonly #labels = new Map<string, string>();
   constructor(readonly prefix: string) {}
   of(value: string): string {
@@ -249,7 +249,7 @@ export class Labels {
 }
 
 /** Every JSON-RPC id, progress token and cancelled request id relabelled by order of first appearance. */
-export function relabelIds(value: unknown, ids: Labels): unknown {
+function relabelIds(value: unknown, ids: Labels): unknown {
   if (Array.isArray(value)) return value.map(item => relabelIds(item, ids));
   if (typeof value !== 'object' || value === null) return value;
   const object = value as Record<string, unknown>;

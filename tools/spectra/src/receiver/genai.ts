@@ -25,7 +25,7 @@ import toolDefinitions from './genai_schemas/gen-ai-tool-definitions.json' with 
  * producer on older conventions still sends; and the core conventions'
  * `error.type`. The genai dialect copies these as written.
  */
-export const CONVENTION_NAMES: ReadonlySet<string> = new Set([
+const CONVENTION_NAMES: ReadonlySet<string> = new Set([
   'gen_ai.provider.name',
   'gen_ai.request.model',
   'gen_ai.request.max_tokens',

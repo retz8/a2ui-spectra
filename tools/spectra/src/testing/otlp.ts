@@ -6,7 +6,7 @@
 import type {OtlpAnyValue, OtlpKeyValue} from '../receiver/otlp.js';
 
 /** A plain value as OTLP/JSON's AnyValue. */
-export function anyValue(value: unknown): OtlpAnyValue {
+function anyValue(value: unknown): OtlpAnyValue {
   if (typeof value === 'string') return {stringValue: value};
   if (typeof value === 'boolean') return {boolValue: value};
   if (typeof value === 'number') {
@@ -19,7 +19,7 @@ export function anyValue(value: unknown): OtlpAnyValue {
   return {};
 }
 
-export function keyValues(attributes: Record<string, unknown>): OtlpKeyValue[] {
+function keyValues(attributes: Record<string, unknown>): OtlpKeyValue[] {
   return Object.entries(attributes).map(([key, value]) => ({key, value: anyValue(value)}));
 }
 

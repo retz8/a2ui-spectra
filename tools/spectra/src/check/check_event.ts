@@ -20,7 +20,7 @@ export interface CheckResult {
 }
 
 /** The findings ordered by the message and the component they point at, those with no path last. */
-export function orderFindings(findings: Finding[]): Finding[] {
+function orderFindings(findings: Finding[]): Finding[] {
   return [...findings].sort((a, b) => comparePointers(a.path, b.path));
 }
 

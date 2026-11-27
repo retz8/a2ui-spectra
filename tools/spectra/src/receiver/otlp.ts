@@ -570,7 +570,7 @@ export interface ReceivedLog {
 }
 
 /** An OTLP/JSON value as a plain value: a kvlist as an object, an array as a list. */
-export function plainValue(value: OtlpAnyValue | undefined): unknown {
+function plainValue(value: OtlpAnyValue | undefined): unknown {
   if (value === undefined) return null;
   if (value.stringValue !== undefined) return value.stringValue;
   if (value.boolValue !== undefined) return value.boolValue;

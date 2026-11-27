@@ -14,7 +14,7 @@ import {isReceived} from './receiver/assemble.js';
 import type {TurnRecordEvent} from './record/turn_record.js';
 
 /** A row: the proxy's event, when one was written, and the received spans of its chain. */
-export interface CallRow {
+interface CallRow {
   proxy?: TurnRecordEvent;
   spans: TurnRecordEvent[];
 }
@@ -31,7 +31,7 @@ function keyOf(event: {traceId: string; spanId: string}): string {
 }
 
 /** The turn's call rows, the proxies' in their order, then each chain linked to none. */
-export function callRowsOf(events: readonly TurnRecordEvent[]): CallRow[] {
+function callRowsOf(events: readonly TurnRecordEvent[]): CallRow[] {
   const byKey = new Map(events.map(event => [keyOf(event), event]));
   const parentOf = (event: TurnRecordEvent): TurnRecordEvent | undefined =>
     event.parentSpanId === undefined
@@ -93,7 +93,7 @@ export function callRowsOf(events: readonly TurnRecordEvent[]): CallRow[] {
 }
 
 /** Whether a row failed: its proxy's event or any span of its chain ended with status 2. */
-export function isFailedRow(row: CallRow): boolean {
+function isFailedRow(row: CallRow): boolean {
   return [...(row.proxy === undefined ? [] : [row.proxy]), ...row.spans].some(
     event => event.status?.code === 2,
   );

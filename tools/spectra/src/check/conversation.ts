@@ -220,21 +220,6 @@ function inlineDefinitions(
   return inline;
 }
 
-/**
- * The catalogs for web core's processor on a conversation: every catalog the
- * registry knows, the catalogs its hosts sent inline, each id once, and a
- * stand-in under each other catalog id the messages name.
- */
-export function processorCatalogs(
-  registry: CatalogRegistry,
-  turns: readonly Turn[],
-  messages: readonly unknown[],
-): ProcessorCatalog[] {
-  const inline = inlineDefinitions(registry, turns);
-  const catalogs = [...registry.catalogs(), ...[...inline.values()].map(({catalog}) => catalog)];
-  return [...catalogs, ...standInCatalogs(messages, new Set(catalogs.map(catalog => catalog.id)))];
-}
-
 /** The message type, surface and version a message names, with its pointer. */
 function describe(message: unknown, path: string): FedMessage {
   const described: FedMessage = {path, message};

@@ -127,7 +127,7 @@ function requiredNames(kind: A2uiStepKind, span: ReceivedSpan): string[] {
 }
 
 /** The attribute naming the turn record version a span of the step follows. */
-export const RECORD_VERSION_NAME = 'a2ui.record.version';
+const RECORD_VERSION_NAME = 'a2ui.record.version';
 
 /** A span of the A2UI step read into its kind's names, with the required ones it lacks. */
 export interface A2uiStepReading {

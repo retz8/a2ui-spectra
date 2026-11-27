@@ -25,8 +25,7 @@ import {ConfigError} from '../config.js';
 import {recordFormOf} from '../record/turn_record.js';
 
 /** The v0.9.1 basic catalog URL, which upstream's v0.9.1 doc writes for the v0.9 basic catalog. */
-export const BASIC_CATALOG_V0_9_1 =
-  'https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json';
+const BASIC_CATALOG_V0_9_1 = 'https://a2ui.org/specification/v0_9_1/catalogs/basic/catalog.json';
 
 export type CatalogSource = 'built-in' | 'configured';
 

@@ -7,8 +7,6 @@ import {type CatalogOffer, CatalogRegistry} from '../catalog/registry.js';
 import {JSONRPC} from './card.js';
 import {dataModelKeyFor} from './metadata.js';
 import {A2UI_MIME_TYPE} from './parts.js';
-
-export {A2UI_MIME_TYPE};
 import {type A2aVersion, isRecord, readReply, type TaskState} from './protocol.js';
 import {SseParser} from './sse.js';
 
