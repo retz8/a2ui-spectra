@@ -145,6 +145,7 @@ The rules of an original value:
 
 - It is read from Spectra's own environment, trimmed, with its trailing slashes dropped. A blank value counts as unset.
 - A value that points at the model proxy itself, left over from an earlier `attach`, counts as unset: `http://` on `127.0.0.1`, `localhost` or `[::1]` at the model proxy's port.
+- A value that is read and is not a URL, or does not start with `http://` or `https://`, stops Spectra at start, as a tool server's does, naming the variable: `Spectra's environment sets OPENAI_BASE_URL to 'localhost:4000/v1'; a base URL must start with http:// or https://.` A value that is not a URL at all is `…, which is not a URL. Unset it, or set it to the provider's base URL.` A user and password in the value are not printed.
 - `OPENAI_API_BASE` is read as an original and never set. No Vertex AI variable is set: Vertex AI is not redirected.
 - On Windows a variable Spectra reads from its own environment is found in any case, and one it sets for the agent replaces the developer's of that name in any case.
 

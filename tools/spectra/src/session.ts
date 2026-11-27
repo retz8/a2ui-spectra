@@ -23,7 +23,14 @@ import {ownEnvironment, pythonVariables} from './environment.js';
 import {FixturesFolder} from './fixtures/fixtures.js';
 import {MessageBox, unsetVariablesClause} from './message_box.js';
 import {type ModelProxy, startModelProxy} from './model_proxy/proxy.js';
-import {attachLines, environmentOf, redirections, variablesOf} from './model_proxy/redirection.js';
+import {
+  attachLines,
+  environmentOf,
+  type Redirection,
+  RedirectionError,
+  redirections,
+  variablesOf,
+} from './model_proxy/redirection.js';
 import type {Output} from './output.js';
 import {shellsOf} from './paste.js';
 import {CallPlacer} from './placement.js';
@@ -181,6 +188,17 @@ export async function runSession(
     }
     throw error;
   }
+  const modelProxyOrigin = `http://${LOOPBACK_ADDRESS}:${options.modelProxyPort}`;
+  let redirected: Redirection[];
+  try {
+    redirected = redirections(own, modelProxyOrigin);
+  } catch (error) {
+    if (error instanceof RedirectionError) {
+      out.error(error.message);
+      return 1;
+    }
+    throw error;
+  }
   // Under `run` a listed watch path that does not exist stops Spectra, as a missing catalog file does.
   const watching = agentCommand !== undefined && headless === undefined;
   if (watching) {
@@ -246,8 +264,6 @@ export async function runSession(
   });
   const receiverOrigin = `http://${LOOPBACK_ADDRESS}:${options.receiverPort}`;
   const otel = receiverVariables(own, receiverOrigin);
-  const modelProxyOrigin = `http://${LOOPBACK_ADDRESS}:${options.modelProxyPort}`;
-  const redirected = redirections(own, modelProxyOrigin);
   const standIn = own[STAND_IN_VARIABLE]?.trim().replace(/\/+$/, '');
 
   const stop = new AbortController();

@@ -63,11 +63,37 @@ function isProxyItself(value: string, proxyOrigin: string): boolean {
   );
 }
 
-/** An original value from Spectra's environment: set, not blank, and not the proxy itself. */
+/** An environment value for a base-URL variable that is not a URL Spectra can forward to. */
+export class RedirectionError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'RedirectionError';
+  }
+}
+
+/**
+ * An original value from Spectra's environment: set, not blank, and not the
+ * proxy itself. A value that is not an `http` or `https` URL is refused, as a
+ * tool server's is.
+ */
 function original(env: NodeJS.ProcessEnv, name: string, proxyOrigin: string): string | undefined {
   const value = env[name]?.trim();
   if (value === undefined || value === '' || isProxyItself(value, proxyOrigin)) {
     return undefined;
+  }
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new RedirectionError(
+      `Spectra's environment sets ${name} to '${value}', which is not a URL. Unset it, or set it to the provider's base URL.`,
+    );
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    throw new RedirectionError(
+      `Spectra's environment sets ${name} to '${url.username === '' && url.password === '' ? value : removeFromUrl(value)}'; ` +
+        'a base URL must start with http:// or https://.',
+    );
   }
   return value.replace(/\/+$/, '');
 }

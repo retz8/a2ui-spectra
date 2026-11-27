@@ -5,6 +5,7 @@ import {
   attachLines,
   environmentOf,
   forwardTo,
+  RedirectionError,
   redirections,
   splitPrefix,
   type Target,
@@ -151,6 +152,35 @@ describe('redirection', () => {
       kind: 'base',
       base: 'http://localhost:9999/x',
     });
+  });
+
+  it('refuses an original value that is not a URL, or not one starting with http:// or https://, naming the variable', () => {
+    assert.throws(
+      () => redirections({OPENAI_BASE_URL: 'api.openai.com/v1'}, ORIGIN),
+      (error: unknown) =>
+        error instanceof RedirectionError &&
+        error.message ===
+          "Spectra's environment sets OPENAI_BASE_URL to 'api.openai.com/v1', which is not a URL. Unset it, or set it to the provider's base URL.",
+    );
+    assert.throws(
+      () => redirections({ANTHROPIC_BASE_URL: 'localhost:4000/v1'}, ORIGIN),
+      (error: unknown) =>
+        error instanceof RedirectionError &&
+        error.message ===
+          "Spectra's environment sets ANTHROPIC_BASE_URL to 'localhost:4000/v1'; a base URL must start with http:// or https://.",
+    );
+    assert.throws(
+      () => redirections({GEMINI_API_BASE: 'ftp://user:secret@gateway.example/v1'}, ORIGIN),
+      (error: unknown) => error instanceof RedirectionError && !error.message.includes('secret'),
+    );
+    // A fallback value is read only when the variable before it is unset.
+    assert.deepEqual(
+      targetOf(
+        {OPENAI_BASE_URL: 'http://localhost:4000/v1', OPENAI_API_BASE: 'nope'},
+        'OPENAI_BASE_URL',
+      ),
+      {kind: 'base', base: 'http://localhost:4000/v1'},
+    );
   });
 
   it("forwards a prefix's call to the target with the rest of its path", () => {
