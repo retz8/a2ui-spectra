@@ -145,8 +145,10 @@ interface Pending {
 
 /** An MCP session as the proxy follows it, from everything it forwards whether or not it records it. */
 interface Session {
-  /** `sid:<Mcp-Session-Id>` under streamable HTTP, `endpoint:<path and query>` under HTTP+SSE, or `` for messages with neither. */
+  /** The session's key in the listener's map: `sid:<Mcp-Session-Id>`, `endpoint:<path and query>`, or `` for messages with neither. */
   key: string;
+  /** The transport the session runs on, or none for the messages that name no session. */
+  transport: 'streamable HTTP' | 'HTTP+SSE' | 'none';
   /** `mcp.session.id`: the `Mcp-Session-Id`, or the HTTP+SSE endpoint's `session_id` or `sessionId`. */
   id?: string;
   /** The version the session's `initialize` result negotiated. */
@@ -246,7 +248,13 @@ export async function startToolProxy(options: ToolProxyOptions): Promise<ToolPro
 }
 
 function listen(shared: Shared, server: ToolServer): Promise<Server> {
-  const loose: Session = {key: '', pending: new Map(), serverRequests: new Map(), carriers: 0};
+  const loose: Session = {
+    key: '',
+    transport: 'none',
+    pending: new Map(),
+    serverRequests: new Map(),
+    carriers: 0,
+  };
   const listener: Listener = {
     shared,
     server,
@@ -728,7 +736,14 @@ function sessionById(listener: Listener, id: string): Session {
   const key = `sid:${id}`;
   let session = listener.sessions.get(key);
   if (session === undefined) {
-    session = {key, id, pending: new Map(), serverRequests: new Map(), carriers: 0};
+    session = {
+      key,
+      transport: 'streamable HTTP',
+      id,
+      pending: new Map(),
+      serverRequests: new Map(),
+      carriers: 0,
+    };
     listener.sessions.set(key, session);
   }
   return session;
@@ -906,7 +921,7 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
       headers = replyHeaders;
       streamed = replyStreamed;
       const assigned = header(replyHeaders, 'mcp-session-id');
-      if (assigned !== undefined && session.id === undefined && session.key === '') {
+      if (assigned !== undefined && session.id === undefined && session.transport === 'none') {
         // The server assigned the session in its reply to initialize.
         const assignedSession = sessionById(listener, assigned);
         if (pending !== undefined && id !== undefined) {
@@ -937,7 +952,7 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
         pending.repliedAt === undefined &&
         status < 400 &&
         !streamed &&
-        session.key.startsWith('endpoint:')
+        session.transport === 'HTTP+SSE'
       ) {
         // The reply is to come on a carrier: HTTP+SSE's 202.
         pending.exchangeEndedAt = at;
@@ -974,7 +989,7 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
     forward(call, forwarderOf(call.listener.shared), relay, ACCEPTED);
   } else if (mcpMethod === 'ping') {
     pong(call, relay, message, () => session);
-  } else if (served === undefined && session.key.startsWith('endpoint:')) {
+  } else if (served === undefined && session.transport === 'HTTP+SSE') {
     missOnCarrier(call, relay, message, session);
   } else {
     const recordedId = served === undefined ? undefined : recordedRequestId(served);
@@ -1007,7 +1022,7 @@ function missOnCarrier(call: Call, relay: Relay, message: JsonRpcMessage, sessio
 /** A `ping`'s empty result, the protocol's answer: in the POST's reply, or under HTTP+SSE on the carrier after a 202. */
 function pong(call: Call, relay: Relay, message: JsonRpcMessage, session: () => Session): void {
   const body = JSON.stringify({jsonrpc: '2.0', id: message.id, result: {}});
-  if (session().key.startsWith('endpoint:')) {
+  if (session().transport === 'HTTP+SSE') {
     forward(
       call,
       forwarderOf(call.listener.shared),
@@ -1272,6 +1287,7 @@ function openSseSession(
   const id = url.searchParams.get('session_id') ?? url.searchParams.get('sessionId') ?? undefined;
   const session: Session = {
     key,
+    transport: 'HTTP+SSE',
     ...(id !== undefined && {id}),
     pending: new Map(),
     serverRequests: new Map(),
@@ -1466,5 +1482,5 @@ function carrierClosed(listener: Listener, session: Session | undefined, at: big
     );
   }
   // An HTTP+SSE session lives as long as its one stream.
-  if (session.key.startsWith('endpoint:')) listener.sessions.delete(session.key);
+  if (session.transport === 'HTTP+SSE') listener.sessions.delete(session.key);
 }
