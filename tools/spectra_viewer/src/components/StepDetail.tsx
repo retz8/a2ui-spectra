@@ -34,8 +34,13 @@ import {toolCallDetailOf} from './ToolCallDetail.tsx';
 /** No paths, kept the same from render to render. */
 const NO_PATHS: readonly string[] = [];
 
-/** The head's title row with the detail's top rule, its facts line and its usage line, in pixels. */
-const TITLE_ROW = 41;
+/**
+ * The head's title row with the detail's top rule, in pixels: also the
+ * detail's height when collapsed with no step in it.
+ */
+export const TITLE_ROW = 41;
+
+/** The head's facts line and its usage line, in pixels. */
 const FACTS_LINE = 22;
 const USAGE_LINE = 18;
 

@@ -102,7 +102,7 @@ import {Icon} from './icons.tsx';
 import {formatDuration, formatOffset, formatStart} from './format.ts';
 import type {StepOnCall} from './ModelCallDetail.tsx';
 import {ResultPane} from './ResultPane.tsx';
-import {HEAD_MOST, headHeightOf, StepDetail} from './StepDetail.tsx';
+import {HEAD_MOST, headHeightOf, StepDetail, TITLE_ROW} from './StepDetail.tsx';
 import {Timeline} from './Timeline.tsx';
 import {TurnHeader} from './TurnHeader.tsx';
 import {useNow} from './use_now.ts';
@@ -112,9 +112,6 @@ const NO_REPORTS: [] = [];
 
 /** No surfaces, kept the same from render to render. */
 const NO_SURFACES: [] = [];
-
-/** The detail's height when collapsed to its title line, with no step in it, in pixels. */
-const DETAIL_TITLE = 41;
 
 /** The result pane's height when folded to its tab row, while the detail is maximized, in pixels. */
 const RESULT_TITLE = 44;
@@ -127,6 +124,18 @@ const DETAIL_BESIDE = '50';
 
 /** The narrowest the result and the detail go when side by side, in pixels. */
 const SIDE_MOST = 320;
+
+/** The narrowest the timeline goes, in pixels. */
+const TIMELINE_NARROWEST = 240;
+
+/** The narrowest the result and the detail go together, beside the timeline, in pixels. */
+const PANES_NARROWEST = 360;
+
+/** The shortest the result pane goes above the detail, in pixels. */
+const RESULT_SHORTEST = 160;
+
+/** The shortest the detail goes under the result pane, in pixels. */
+const DETAIL_SHORTEST = 120;
 
 /** The timeline's width until its divider is dragged, in pixels: on a wide window and below 1,280px. */
 const TIMELINE_WIDE = 420;
@@ -679,7 +688,7 @@ export function TurnBody({
   const beside = detailDock === 'beside';
   // Collapsed, the detail keeps its head: the title row and the facts lines under it.
   const head =
-    selected === undefined ? DETAIL_TITLE : headHeightOf(selected, events, startMs, state.prices);
+    selected === undefined ? TITLE_ROW : headHeightOf(selected, events, startMs, state.prices);
   const timelinePanel = usePanelRef();
   const [collapsed, setCollapsed] = useState(!inView.selected);
   // Below the result, the detail is collapsed to its title line until a step is selected; beside
@@ -858,7 +867,7 @@ export function TurnBody({
         <ResizablePanel
           panelRef={timelinePanel}
           defaultSize={rememberedSize('timeline') ?? (small ? TIMELINE_SMALL : TIMELINE_WIDE)}
-          minSize={240}
+          minSize={TIMELINE_NARROWEST}
           groupResizeBehavior="preserve-pixel-size"
         >
           <Timeline
@@ -891,7 +900,7 @@ export function TurnBody({
           />
         </ResizablePanel>
         <ResizableHandle />
-        <ResizablePanel minSize={360}>
+        <ResizablePanel minSize={PANES_NARROWEST}>
           {/* Docking the detail on the other side lays the pane out anew. */}
           <ResizablePanelGroup
             key={detailDock}
@@ -916,7 +925,7 @@ export function TurnBody({
               <ResizablePanel
                 id="result"
                 panelRef={result}
-                minSize={beside ? SIDE_MOST : 160}
+                minSize={beside ? SIDE_MOST : RESULT_SHORTEST}
                 collapsible={!beside}
                 collapsedSize={RESULT_TITLE}
               >
@@ -957,7 +966,7 @@ export function TurnBody({
                       ? (rememberedSize('detail') ?? DETAIL_OPEN)
                       : head
                 }
-                minSize={beside ? SIDE_MOST : 120}
+                minSize={beside ? SIDE_MOST : DETAIL_SHORTEST}
                 collapsible={!beside}
                 groupResizeBehavior="preserve-pixel-size"
                 collapsedSize={head}
