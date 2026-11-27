@@ -16,7 +16,7 @@ import type {ComponentRange, InferenceFormat} from './record.ts';
 
 export type {ComponentRange, InferenceFormat};
 
-export const FORMATS: readonly InferenceFormat[] = ['direct_json', 'express', 'elemental', 'atom'];
+const FORMATS: readonly InferenceFormat[] = ['direct_json', 'express', 'elemental', 'atom'];
 
 /** The inference formats by the names SPEC.md uses. */
 const FORMAT_NAMES: Record<InferenceFormat, string> = {

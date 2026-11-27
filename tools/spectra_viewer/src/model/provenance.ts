@@ -69,7 +69,7 @@ export function differencesOf(events: readonly TurnRecordEvent[]): number {
 }
 
 /** A path's last segment. */
-export function baseNameOf(path: string): string {
+function baseNameOf(path: string): string {
   const segments = path.split(/[\\/]/);
   return segments[segments.length - 1];
 }
@@ -176,7 +176,7 @@ export function numberIn(
 }
 
 /** A mode as the third line and the popover's rows name it. */
-export function modeWords(mode: ReplayMode): string {
+function modeWords(mode: ReplayMode): string {
   if (mode === 'live') return 'live';
   return mode === 'recorded' ? 'everything recorded' : 'tools recorded, model live';
 }
@@ -193,7 +193,7 @@ export function replayWhereOf(mode: ReplayMode, number: {turn: number; turns?: n
 }
 
 /** Whether a call was served from the record. */
-export function isServedCall(event: TurnRecordEvent): boolean {
+function isServedCall(event: TurnRecordEvent): boolean {
   return (
     typeof (event.attributes as Record<string, unknown>)['a2ui.replay.served_from'] === 'string'
   );

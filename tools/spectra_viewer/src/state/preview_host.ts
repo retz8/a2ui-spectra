@@ -56,7 +56,7 @@ import {
 import type {Press, RenderContext} from './press.ts';
 
 /** The built-in page's id and label. */
-export const BUILT_IN = 'built-in';
+const BUILT_IN = 'built-in';
 
 /** Where Spectra serves the built-in page. */
 const BUILT_IN_PATH = '/preview/';

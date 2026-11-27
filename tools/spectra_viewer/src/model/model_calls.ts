@@ -108,7 +108,7 @@ export function modelOf(call: ModelCallEvent): string | undefined {
 }
 
 /** The request's URL, as recorded with credentials removed. */
-export function urlOf(call: ModelCallEvent): URL | undefined {
+function urlOf(call: ModelCallEvent): URL | undefined {
   const url = text(call.attributes['url.full']);
   if (url === undefined) return undefined;
   try {
@@ -126,7 +126,7 @@ export function methodAndPath(call: ModelCallEvent): string {
 }
 
 /** The host a call went to. */
-export function hostOf(call: ModelCallEvent): string {
+function hostOf(call: ModelCallEvent): string {
   return urlOf(call)?.host ?? text(call.attributes['server.address']) ?? call.name;
 }
 
@@ -183,14 +183,6 @@ export function figuresOf(call: ModelCallEvent): Array<{name: string; value: num
     figures.push({name: 'Cache write', value: usage.cacheWrite ?? 0});
   }
   return figures;
-}
-
-/** A call's start and end in milliseconds since the Unix epoch; no end while it is in flight. */
-export function timesOf(call: ModelCallEvent): {startMs: number; endMs?: number} {
-  const startMs = Number(BigInt(call.startTimeUnixNano) / 1_000_000n);
-  return call.endTimeUnixNano === undefined
-    ? {startMs}
-    : {startMs, endMs: Number(BigInt(call.endTimeUnixNano) / 1_000_000n)};
 }
 
 /** When a call's first chunk came, in milliseconds since the Unix epoch, if it streamed. */

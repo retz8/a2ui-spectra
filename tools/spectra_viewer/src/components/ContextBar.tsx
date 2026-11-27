@@ -265,7 +265,7 @@ export function LiveStatus({
 }
 
 /** A status's lead, and after its first " · " the rest in Meta. */
-export function LeadAndRest({text}: {text: string}) {
+function LeadAndRest({text}: {text: string}) {
   const at = text.indexOf(' · ');
   if (at === -1) return text;
   return (

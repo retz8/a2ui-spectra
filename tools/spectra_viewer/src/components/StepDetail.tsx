@@ -207,7 +207,6 @@ export function StepDetail({
                 row: call,
                 events,
                 startMs,
-                prices,
                 prefix,
                 onEarlier,
                 step: stepOnCall,

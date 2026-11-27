@@ -72,7 +72,7 @@ const OUTCOME_WORDS: Record<TurnOutcome, string> = {
 };
 
 /** A turn as its opened marker names it, as the turn list does. */
-export function markerNameOf(input: InputBrief | undefined): string {
+function markerNameOf(input: InputBrief | undefined): string {
   return briefText(input) || 'A turn';
 }
 
@@ -158,7 +158,7 @@ export interface TailLine {
 }
 
 /** How many lines the first screen's down form shows. */
-export const TAIL_LINES = 12;
+const TAIL_LINES = 12;
 
 /**
  * The first screen's lines while the agent is down: the output lines written

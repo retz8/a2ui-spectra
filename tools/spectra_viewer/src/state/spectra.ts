@@ -73,7 +73,7 @@ import {
   wireEvent,
 } from './live.ts';
 
-export type {LiveTurn, RecordState};
+export type {LiveTurn};
 
 export interface SpectraState {
   /** Whether the live stream is open; unknown until it has opened or failed once. */

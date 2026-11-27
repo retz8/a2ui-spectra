@@ -214,5 +214,3 @@ export function GenerationBlocks({
     </Section>
   );
 }
-
-export type {ParseEvent};

@@ -11,7 +11,7 @@ import type {
 } from '../model/record.ts';
 import {at, TRACE} from './model_calls.ts';
 
-export const BASIC_V10: CatalogRef = {
+const BASIC_V10: CatalogRef = {
   catalogId: 'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json',
   protocolVersion: 'v1.0',
 };

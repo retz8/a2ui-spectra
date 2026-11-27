@@ -73,7 +73,7 @@ function searchFrom(
  * Markdown fence removed at each end, then the backticks at the edges, and
  * trimmed again. A body of nothing but backticks is empty.
  */
-export function cleanedRange(text: string, start: number, end: number): [number, number] {
+function cleanedRange(text: string, start: number, end: number): [number, number] {
   let s = start;
   let e = end;
   const trim = () => {

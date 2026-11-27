@@ -33,7 +33,7 @@ export interface PasteBlock {
 }
 
 /** A variable as a line for the shell, as `attach` writes it without its comment. */
-export function pasteLine(name: string, value: string, shell: Shell): string {
+function pasteLine(name: string, value: string, shell: Shell): string {
   switch (shell) {
     case 'posix':
       return `export ${name}=${value}`;

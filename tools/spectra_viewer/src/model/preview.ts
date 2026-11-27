@@ -24,7 +24,7 @@ import type {Turn, TurnRecordEvent} from './record.ts';
 import {isThrough, messageTypeOf, type Position, type TimelineRow} from './steps.ts';
 
 /** The third line of a render error's problem block. */
-export const PREVIEW_NOTE = 'Preview page · not recorded';
+const PREVIEW_NOTE = 'Preview page · not recorded';
 
 /** One message of a surface's list: the message, and its key when it is the turn's own. */
 export interface FeedMessage {
@@ -232,11 +232,7 @@ export type Route<P extends PreviewPageState = PreviewPageState> =
   {kind: 'page'; page: P} | {kind: 'waiting'} | {kind: 'none'; catalogId?: string; unanswered: P[]};
 
 /** Whether a claim covers a catalog at a surface's protocol version. */
-export function serves(
-  claim: Claim,
-  catalogId: string,
-  protocolVersion: string | undefined,
-): boolean {
+function serves(claim: Claim, catalogId: string, protocolVersion: string | undefined): boolean {
   return (
     claim.catalogId === catalogId &&
     (protocolVersion === undefined ||

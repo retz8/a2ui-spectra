@@ -35,7 +35,7 @@ function urlOf(event: OtherEvent): URL | undefined {
 }
 
 /** The tool server's host: from the request's URL, else the server address recorded. */
-export function toolHostOf(event: OtherEvent): string {
+function toolHostOf(event: OtherEvent): string {
   const host = urlOf(event)?.host;
   if (host !== undefined && host !== '') return host;
   const address = text(event.attributes['server.address']);
@@ -117,7 +117,7 @@ function replyOf(event: OtherEvent): Record<string, unknown> | undefined {
 }
 
 /** Whether the server sent this message itself: a request or notification it initiated. */
-export function isServerInitiated(event: OtherEvent): boolean {
+function isServerInitiated(event: OtherEvent): boolean {
   return event.kind === 2;
 }
 

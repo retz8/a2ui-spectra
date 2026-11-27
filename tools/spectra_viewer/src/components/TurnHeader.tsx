@@ -102,7 +102,7 @@ function ShortId({label, id}: {label: string; id: string}) {
   );
 }
 
-export function OutcomeBadge({status}: {status: TurnStatus}) {
+function OutcomeBadge({status}: {status: TurnStatus}) {
   const icon = STATUS_ICONS[status];
   return (
     <span

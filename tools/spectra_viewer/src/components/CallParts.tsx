@@ -134,7 +134,7 @@ export function Section({
 }
 
 /** A status in red with its icon, as a span's error. */
-export function ErrorMark({text}: {text: string}) {
+function ErrorMark({text}: {text: string}) {
   return (
     <span className="type-mark-problem inline-flex shrink-0 items-center gap-1">
       <Icon kind="failed" size={12} />
@@ -368,7 +368,7 @@ export function RowList({
 }
 
 /** A line as a machine wrote it, under a label, on a tinted block: an HTTP request's or response's line. */
-export function MonoLine({label, text}: {label: string; text: string}) {
+function MonoLine({label, text}: {label: string; text: string}) {
   const fold = useBlockFold(label);
   return (
     <div className="flex flex-col gap-1.5">
@@ -462,7 +462,7 @@ export function Exchange({call}: {call: OtherEvent | ModelCallEvent}) {
 }
 
 /** A body as recorded: JSON as a block with its objects and arrays folded below the top, text as text. */
-export function Body({value}: {value: unknown}) {
+function Body({value}: {value: unknown}) {
   if (typeof value === 'string') return <TextBlock label="Body" text={value} />;
   const folded =
     typeof value === 'object' && value !== null

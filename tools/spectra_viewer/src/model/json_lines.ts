@@ -18,7 +18,7 @@ export interface JsonLine {
 }
 
 /** The note on the line of a string's JSON shown parsed. */
-export const IN_A_STRING = 'JSON in a string';
+const IN_A_STRING = 'JSON in a string';
 
 /** A string's JSON object or array, parsed; none for any other string. */
 export function jsonInString(text: string): object | undefined {

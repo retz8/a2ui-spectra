@@ -16,7 +16,7 @@ import {
   sourcesOfRow,
   timedEventOf,
 } from '@/model/call_rows.ts';
-import {formatTokens, type Prices} from '@/model/cost.ts';
+import {formatTokens} from '@/model/cost.ts';
 import {apiOf, isReadInFull, methodAndPath, spanApiOf} from '@/model/model_calls.ts';
 import {emptyNoteOf, shownParts} from '@/model/empty_parts.ts';
 import type {UiSection} from '@/model/a2ui_step.ts';
@@ -32,7 +32,6 @@ import {
   unixMillis,
 } from '@/model/record.ts';
 import {plural} from '@/model/steps.ts';
-import {callUsageLineOf} from '@/model/turn_calls.ts';
 import {useBlockFold, useFoldUnless} from '@/state/block_folds.ts';
 
 import {AgentSpans, spansFactsOf} from './AgentSpans.tsx';
@@ -71,8 +70,6 @@ export interface TabbedDetail {
   tabs: DetailTab[];
   /** The tab a selection opens. */
   first: string;
-  /** A model call's usage, the head's second facts line. */
-  usage?: string;
 }
 
 /**
@@ -157,7 +154,6 @@ export function modelCallDetailOf({
   row,
   events,
   startMs,
-  prices,
   prefix,
   onEarlier,
   step,
@@ -167,7 +163,6 @@ export function modelCallDetailOf({
   row: CallRow;
   events: readonly TurnRecordEvent[];
   startMs: number;
-  prices: Prices | undefined;
   prefix: PrefixBreak | undefined;
   /** Selects the call the prefix break compared this one with. */
   onEarlier: (found: Exclude<PrefixBreak, {form: 'first'}>) => void;
@@ -253,11 +248,6 @@ export function modelCallDetailOf({
       first: 'HTTP',
     };
   }
-  const usage = callUsageLineOf(
-    call,
-    prices,
-    fromSpans ? sourceOfNames(row, ['gen_ai.usage.input_tokens']) : undefined,
-  );
   const marker = !fromSpans && prefix?.form === 'breaks' ? prefix.marker : undefined;
   const content = [...REQUEST_NAMES, ...RESPONSE_NAMES].some(
     name => call.attributes[name] !== undefined,
@@ -305,7 +295,6 @@ export function modelCallDetailOf({
     ...(lead !== undefined && {lead}),
     tabs,
     first: 'Reply',
-    ...(usage !== undefined && {usage}),
   };
 }
 

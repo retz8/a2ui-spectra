@@ -61,7 +61,7 @@ export type TurnView =
  * The turns of a conversation before a turn that started at `startTime`: the
  * conversation's latest closed record that started before it.
  */
-export function earlierTurnsOf(
+function earlierTurnsOf(
   state: SpectraState,
   conversationId: string | undefined,
   startTime: string,

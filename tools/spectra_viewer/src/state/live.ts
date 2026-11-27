@@ -276,7 +276,7 @@ export function closedRow(turn: Turn, row: ListedTurn | undefined): ListedTurn {
   };
 }
 
-export function upsertRow(turns: readonly ListedTurn[], row: ListedTurn): ListedTurn[] {
+function upsertRow(turns: readonly ListedTurn[], row: ListedTurn): ListedTurn[] {
   return sortRows([...turns.filter(turn => turn.traceId !== row.traceId), row]);
 }
 

@@ -38,7 +38,7 @@ function callKindOf(event: TurnRecordEvent): CallKind | undefined {
 }
 
 /** Whether an event came from the receiver. */
-export function isReceivedEvent(event: TurnRecordEvent): boolean {
+function isReceivedEvent(event: TurnRecordEvent): boolean {
   return 'a2ui.received.attributes' in event.attributes;
 }
 
@@ -164,7 +164,7 @@ export function idsOf(row: CallRow): string[] {
 }
 
 /** The innermost span of a row's chain. */
-export function innermostOf(row: CallRow): OtherEvent | undefined {
+function innermostOf(row: CallRow): OtherEvent | undefined {
   return row.spans[row.spans.length - 1];
 }
 
@@ -177,7 +177,7 @@ export function timedEventOf(row: CallRow): OtherEvent {
 }
 
 /** Whether a row failed: its proxy's event or any span of its chain ended with status 2. */
-export function isFailedRow(row: CallRow): boolean {
+function isFailedRow(row: CallRow): boolean {
   return [...(row.proxy === undefined ? [] : [row.proxy]), ...row.spans].some(
     event => event.status?.code === 2,
   );
@@ -205,7 +205,7 @@ const SPAN_NAMES = new Set([
  * that carries it, the token counts from the innermost span that has input
  * tokens.
  */
-export function mergedNamesOf(spans: readonly OtherEvent[]): Record<string, unknown> {
+function mergedNamesOf(spans: readonly OtherEvent[]): Record<string, unknown> {
   const merged: Record<string, unknown> = {};
   const innermostFirst = [...spans].reverse();
   for (const span of innermostFirst) {
@@ -224,7 +224,7 @@ export function mergedNamesOf(spans: readonly OtherEvent[]): Record<string, unkn
 }
 
 /** Whether a proxy read the call: a model call read in full, or an MCP request. */
-export function proxyReadIt(proxy: OtherEvent): boolean {
+function proxyReadIt(proxy: OtherEvent): boolean {
   if (isModelCall(proxy)) return typeof proxy.attributes['gen_ai.provider.name'] === 'string';
   return isMcpEvent(proxy);
 }
@@ -278,11 +278,6 @@ export function sourceOfSpan(span: TurnRecordEvent): string {
   return typeof dialect === 'string' ? (DIALECTS[dialect] ?? `${dialect} spans`) : 'Received spans';
 }
 
-/** The sources of a row's chain, innermost first, each once: the one a section read from spans names. */
-export function spanSourcesOf(row: CallRow): string[] {
-  return [...new Set([...row.spans].reverse().map(sourceOfSpan))];
-}
-
 /**
  * The source a section read from spans names: that of the innermost span
  * carrying one of `names`, else of the innermost span.
@@ -304,7 +299,7 @@ export function sourcesOfRow(row: CallRow): string[] {
 }
 
 /** A span's source line: its source, then its scope's name and version. */
-export function sourceLineOf(span: TurnRecordEvent): string {
+function sourceLineOf(span: TurnRecordEvent): string {
   const attributes = span.attributes as Record<string, unknown>;
   const scope = [attributes['otel.scope.name'], attributes['otel.scope.version']]
     .filter((part): part is string => typeof part === 'string' && part !== '')
