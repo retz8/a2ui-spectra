@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   binaries:
-    uses: ./.github/workflows/binaries.yml
+    uses: $/.github/workflows/binaries.yml
   windows:
     needs: binaries
-    uses: ./.github/workflows/windows_binary_test.yml
+    uses: $/.github/workflows/windows_binary_test.yml

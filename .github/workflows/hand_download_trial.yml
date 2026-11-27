@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   binaries:
-    uses: ./.github/workflows/binaries.yml
+    uses: $/.github/workflows/binaries.yml
     with:
       release-files: true
 

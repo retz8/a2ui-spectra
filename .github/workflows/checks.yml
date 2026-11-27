@@ -26,7 +26,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-node
+      - uses: $/.github/actions/setup-node
       - name: Version check
         run: yarn workspace a2ui-spectra check:version
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
@@ -85,7 +85,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-node
+      - uses: $/.github/actions/setup-node
         with:
           install: false
           cache: true
@@ -117,7 +117,7 @@ jobs:
           WIREIT_CACHE: none
 
   binaries:
-    uses: ./.github/workflows/binaries.yml
+    uses: $/.github/workflows/binaries.yml
     with:
       release-files: ${{ inputs.release-files }}
       refuse-local-patches: ${{ inputs.refuse-local-patches }}
@@ -150,7 +150,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-node
+      - uses: $/.github/actions/setup-node
       - uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
         with:
           enable-cache: true
@@ -178,4 +178,4 @@ jobs:
 
   windows:
     needs: binaries
-    uses: ./.github/workflows/windows_binary_test.yml
+    uses: $/.github/workflows/windows_binary_test.yml
