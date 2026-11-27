@@ -4,7 +4,7 @@
  */
 
 import {type CatalogOffer, CatalogRegistry} from '../catalog/registry.js';
-import {JSONRPC} from './card.js';
+import {type CardInterface, cardInterfaces, JSONRPC} from './card.js';
 import {dataModelKeyFor} from './metadata.js';
 import {A2UI_MIME_TYPE} from './parts.js';
 import {
@@ -74,41 +74,30 @@ export type InterfaceChoice =
  */
 export function chooseInterface(card: Record<string, unknown>): InterfaceChoice {
   const streaming = isRecord(card.capabilities) && card.capabilities.streaming === true;
-  if (Array.isArray(card.supportedInterfaces)) {
-    const versions: string[] = [];
-    let unversioned = false;
-    for (const entry of card.supportedInterfaces) {
-      if (!isRecord(entry) || entry.protocolBinding !== JSONRPC || typeof entry.url !== 'string') {
-        continue;
-      }
-      const declared = typeof entry.protocolVersion === 'string' ? entry.protocolVersion : '';
-      const version = majorMinor(declared);
-      if (version === '0.3' || version === '1.0') {
-        const tenant = typeof entry.tenant === 'string' && entry.tenant !== '' ? entry.tenant : '';
-        return {
-          kind: 'found',
-          version,
-          url: entry.url,
-          ...(tenant !== '' && {tenant}),
-          streaming,
-        };
-      }
-      if (declared === '') unversioned = true;
-      else versions.push(declared);
+  const {fields, interfaces} = cardInterfaces(card);
+  const spoken = interfaces.filter(
+    (entry): entry is CardInterface & {url: string} =>
+      entry.binding === JSONRPC && entry.url !== undefined,
+  );
+  if (fields === '0.3') {
+    const first = spoken[0];
+    return first === undefined
+      ? {kind: 'none', versions: [], unversioned: false}
+      : {kind: 'found', version: '0.3', url: first.url, streaming};
+  }
+  const versions: string[] = [];
+  let unversioned = false;
+  for (const entry of spoken) {
+    const declared = entry.version ?? '';
+    const version = majorMinor(declared);
+    if (version === '0.3' || version === '1.0') {
+      const tenant = entry.tenant ?? '';
+      return {kind: 'found', version, url: entry.url, ...(tenant !== '' && {tenant}), streaming};
     }
-    return {kind: 'none', versions: [...new Set(versions)], unversioned};
+    if (declared === '') unversioned = true;
+    else versions.push(declared);
   }
-  const preferred = typeof card.preferredTransport === 'string' ? card.preferredTransport : JSONRPC;
-  if (preferred === JSONRPC && typeof card.url === 'string') {
-    return {kind: 'found', version: '0.3', url: card.url, streaming};
-  }
-  const additional = Array.isArray(card.additionalInterfaces) ? card.additionalInterfaces : [];
-  for (const entry of additional) {
-    if (isRecord(entry) && entry.transport === JSONRPC && typeof entry.url === 'string') {
-      return {kind: 'found', version: '0.3', url: entry.url, streaming};
-    }
-  }
-  return {kind: 'none', versions: [], unversioned: false};
+  return {kind: 'none', versions: [...new Set(versions)], unversioned};
 }
 
 function majorMinor(version: string): string | undefined {

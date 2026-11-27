@@ -67,7 +67,7 @@ export type TransportCheck =
  * `supportedInterfaces` in order.
  */
 export function checkTransport(card: Record<string, unknown>): TransportCheck {
-  const transports = [...new Set(transportsOf(card))];
+  const transports = [...new Set(cardInterfaces(card).interfaces.map(entry => entry.binding))];
   if (transports.length === 0) {
     return {kind: 'no_interface'};
   }
@@ -107,11 +107,11 @@ export interface CardDetails {
 
 /** Reads what the viewer shows of the card. */
 export function cardDetailsOf(card: Record<string, unknown>): CardDetails {
-  const declared = Array.isArray(card.supportedInterfaces)
-    ? card.supportedInterfaces.flatMap(entry =>
-        isRecord(entry) && entry.protocolBinding === JSONRPC ? [entry.protocolVersion] : [],
-      )
-    : [card.protocolVersion];
+  const {fields, interfaces} = cardInterfaces(card);
+  const declared: unknown[] =
+    fields === '1.0'
+      ? interfaces.filter(entry => entry.binding === JSONRPC).map(entry => entry.version)
+      : [card.protocolVersion];
   const a2aVersions = [
     ...new Set(declared.filter((version): version is string => isText(version))),
   ];
@@ -146,22 +146,59 @@ function isText(value: unknown): value is string {
   return typeof value === 'string' && value.trim() !== '';
 }
 
-function transportsOf(card: Record<string, unknown>): string[] {
+/** One interface a card offers: its binding, and its URL, A2A version and tenant where it states them. */
+export interface CardInterface {
+  binding: string;
+  url?: string;
+  version?: string;
+  tenant?: string;
+}
+
+/**
+ * The card's interfaces in preference order, and which A2A version's fields
+ * name them. In A2A 1.0, `supportedInterfaces` in order. In A2A 0.3, the
+ * preferred transport at `url`, JSON-RPC when unstated and `url` is given,
+ * then `additionalInterfaces`; an A2A 0.3 card states its version once, for
+ * the card, not per interface.
+ */
+export function cardInterfaces(card: Record<string, unknown>): {
+  fields: '0.3' | '1.0';
+  interfaces: CardInterface[];
+} {
+  const text = (value: unknown) => (typeof value === 'string' ? value : undefined);
   if (Array.isArray(card.supportedInterfaces)) {
-    return card.supportedInterfaces.flatMap(entry =>
-      isRecord(entry) && typeof entry.protocolBinding === 'string' ? [entry.protocolBinding] : [],
-    );
+    return {
+      fields: '1.0',
+      interfaces: card.supportedInterfaces.flatMap((entry): CardInterface[] => {
+        if (!isRecord(entry) || typeof entry.protocolBinding !== 'string') return [];
+        const url = text(entry.url);
+        const version = text(entry.protocolVersion);
+        const tenant = text(entry.tenant);
+        return [
+          {
+            binding: entry.protocolBinding,
+            ...(url !== undefined && {url}),
+            ...(version !== undefined && {version}),
+            ...(tenant !== undefined && {tenant}),
+          },
+        ];
+      }),
+    };
   }
-  const preferred =
-    typeof card.preferredTransport === 'string'
-      ? card.preferredTransport
-      : typeof card.url === 'string'
-        ? JSONRPC
-        : undefined;
+  const url = text(card.url);
+  const preferred = text(card.preferredTransport) ?? (url === undefined ? undefined : JSONRPC);
   const additional = Array.isArray(card.additionalInterfaces)
-    ? card.additionalInterfaces.flatMap(entry =>
-        isRecord(entry) && typeof entry.transport === 'string' ? [entry.transport] : [],
-      )
+    ? card.additionalInterfaces.flatMap((entry): CardInterface[] => {
+        if (!isRecord(entry) || typeof entry.transport !== 'string') return [];
+        const entryUrl = text(entry.url);
+        return [{binding: entry.transport, ...(entryUrl !== undefined && {url: entryUrl})}];
+      })
     : [];
-  return preferred === undefined ? additional : [preferred, ...additional];
+  return {
+    fields: '0.3',
+    interfaces: [
+      ...(preferred === undefined ? [] : [{binding: preferred, ...(url !== undefined && {url})}]),
+      ...additional,
+    ],
+  };
 }
