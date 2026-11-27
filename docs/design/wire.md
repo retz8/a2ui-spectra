@@ -280,6 +280,7 @@ A failure of the reply makes the turn `failed` whatever states it carried, and t
 | The agent could not be reached                                           | `failed`            | `code` `2`, the connection's error                                      |
 | The connection broke before the reply ended                              | `failed`            | `code` `2`, `The connection to the agent broke before the reply ended.` |
 | A content encoding the proxy cannot read                                 | `failed`            | `code` `2`, `The reply's content encoding, <encoding>, cannot be read.` |
+| The host closed its connection before the reply ended                    | `failed`            | `code` `2`, `The host closed the connection.`                           |
 | The last task state any task or status update carried: `completed`       | `completed`         | `code` `1`                                                              |
 | `input-required` or `auth-required`                                      | `waiting_for_input` | `code` `1`                                                              |
 | `canceled`                                                               | `cancelled`         | `code` `1`                                                              |
