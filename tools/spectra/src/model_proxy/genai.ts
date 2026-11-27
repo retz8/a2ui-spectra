@@ -78,6 +78,24 @@ export function modalityOf(mimeType: string | undefined): Modality {
   return top === 'image' || top === 'video' || top === 'audio' ? top : 'document';
 }
 
+/** A provider's error message, in the `error.message` of its body. */
+export function errorMessage(body: unknown): string | undefined {
+  return isRecord(body) && isRecord(body.error) ? asString(body.error.message) : undefined;
+}
+
+/** A provider's finish reason in GenAI's terms, by the API's own map; one the map lacks is `error`. */
+export function finishReasonFrom(
+  map: Readonly<Record<string, FinishReason>>,
+  value: unknown,
+): FinishReason | undefined {
+  return typeof value === 'string' ? (map[value] ?? 'error') : undefined;
+}
+
+/** A part passed through under the provider's own type, `unknown` when it names none. */
+export function genericPart(type: string | undefined, content: unknown): GenAiPart {
+  return {type: type ?? 'unknown', content};
+}
+
 export function blobPart(mimeType: string | undefined, content: string): GenAiPart {
   return defined({type: 'blob', mime_type: mimeType, modality: modalityOf(mimeType), content});
 }

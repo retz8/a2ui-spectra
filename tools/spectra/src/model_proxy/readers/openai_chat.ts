@@ -10,9 +10,12 @@ import {
   asStringArray,
   blobPart,
   defined,
+  errorMessage,
   type FinishReason,
+  finishReasonFrom,
   type GenAiMessage,
   type GenAiPart,
+  genericPart,
   isRecord,
   parsedJson,
   reasoningPart,
@@ -33,7 +36,7 @@ export const FINISH_REASONS: Record<string, FinishReason> = {
 };
 
 function openAiFinishReason(value: unknown): FinishReason | undefined {
-  return typeof value === 'string' ? (FINISH_REASONS[value] ?? 'error') : undefined;
+  return finishReasonFrom(FINISH_REASONS, value);
 }
 
 /** Chat Completions' `response_format`, or Responses' `text.format`, as an output type. */
@@ -87,7 +90,7 @@ function contentParts(content: unknown): GenAiPart[] {
       case 'refusal':
         return [{type: 'refusal', content: part.refusal}];
       default:
-        return [{type: asString(part.type) ?? 'unknown', content: part}];
+        return [genericPart(asString(part.type), part)];
     }
   });
 }
@@ -301,7 +304,5 @@ export const openAiChatReader: ApiReader = {
     return {attributes: responseAttributes(merged, messages), ...(error && {error})};
   },
 
-  errorMessage(body: unknown) {
-    return isRecord(body) && isRecord(body.error) ? asString(body.error.message) : undefined;
-  },
+  errorMessage,
 };

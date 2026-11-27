@@ -10,9 +10,12 @@ import {
   asStringArray,
   blobPart,
   defined,
+  errorMessage,
   type FinishReason,
+  finishReasonFrom,
   type GenAiMessage,
   type GenAiPart,
+  genericPart,
   isRecord,
   reasoningPart,
   type StreamError,
@@ -47,7 +50,7 @@ export const FINISH_REASONS: Record<string, FinishReason> = {
 };
 
 function finishReason(value: unknown): FinishReason | undefined {
-  return typeof value === 'string' ? (FINISH_REASONS[value] ?? 'error') : undefined;
+  return finishReasonFrom(FINISH_REASONS, value);
 }
 
 /**
@@ -116,7 +119,7 @@ function parts(value: unknown, spelling: Spelling): GenAiPart[] {
       ];
     }
     const [key] = Object.keys(part).filter(name => !PART_FLAGS.has(name));
-    return [{type: key ?? 'unknown', content: part}];
+    return [genericPart(key, part)];
   });
 }
 
@@ -288,7 +291,5 @@ export const geminiReader: ApiReader = {
     return {attributes: responseAttributes(merged, messages), ...(error && {error})};
   },
 
-  errorMessage(body: unknown) {
-    return isRecord(body) && isRecord(body.error) ? asString(body.error.message) : undefined;
-  },
+  errorMessage,
 };

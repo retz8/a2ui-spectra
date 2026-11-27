@@ -7,9 +7,11 @@ import {
   asNumber,
   asString,
   defined,
+  errorMessage,
   type FinishReason,
   type GenAiMessage,
   type GenAiPart,
+  genericPart,
   isRecord,
   parsedJson,
   reasoningPart,
@@ -33,14 +35,12 @@ function contentParts(content: unknown): GenAiPart[] {
         return [textPart(asString(part.text) ?? '')];
       case 'input_image': {
         const url = asString(part.image_url);
-        return url === undefined
-          ? [{type: 'input_image', content: part}]
-          : [dataOrUri(url, 'image')];
+        return url === undefined ? [genericPart('input_image', part)] : [dataOrUri(url, 'image')];
       }
       case 'refusal':
         return [{type: 'refusal', content: part.refusal}];
       default:
-        return [{type: asString(part.type) ?? 'unknown', content: part}];
+        return [genericPart(asString(part.type), part)];
     }
   });
 }
@@ -76,7 +76,7 @@ function itemMessage(item: Record<string, unknown>): GenAiMessage | undefined {
     case undefined:
       return undefined;
     default:
-      return {role: 'assistant', parts: [{type, content: item}]};
+      return {role: 'assistant', parts: [genericPart(type, item)]};
   }
 }
 
@@ -123,7 +123,7 @@ function outputMessage(response: Record<string, unknown>): GenAiMessage | undefi
         parts.push(reasoningPart(summaryText(item)));
         break;
       default:
-        parts.push({type: asString(item.type) ?? 'unknown', content: item});
+        parts.push(genericPart(asString(item.type), item));
     }
   }
   const finish = finishReason(response, toolCall);
@@ -241,7 +241,5 @@ export const openAiResponsesReader: ApiReader = {
     return {attributes: responseAttributes(response), ...(error && {error})};
   },
 
-  errorMessage(body: unknown) {
-    return isRecord(body) && isRecord(body.error) ? asString(body.error.message) : undefined;
-  },
+  errorMessage,
 };

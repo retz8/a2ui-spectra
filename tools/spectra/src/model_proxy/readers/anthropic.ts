@@ -9,8 +9,11 @@ import {
   asStringArray,
   blobPart,
   defined,
+  errorMessage,
   type FinishReason,
+  finishReasonFrom,
   type GenAiPart,
+  genericPart,
   isRecord,
   parsedJson,
   reasoningPart,
@@ -35,7 +38,7 @@ export const STOP_REASONS: Record<string, FinishReason> = {
 };
 
 function finishReason(value: unknown): FinishReason | undefined {
-  return typeof value === 'string' ? (STOP_REASONS[value] ?? 'error') : undefined;
+  return finishReasonFrom(STOP_REASONS, value);
 }
 
 /** A message's content: a string, or content blocks. */
@@ -52,7 +55,7 @@ function blocks(content: unknown): GenAiPart[] {
         const mimeType = asString(source.media_type);
         if (source.type === 'base64') return [blobPart(mimeType, asString(source.data) ?? '')];
         if (source.type === 'url') return [uriPart(mimeType, asString(source.url) ?? '')];
-        return [{type: asString(block.type) ?? 'unknown', content: block}];
+        return [genericPart(asString(block.type), block)];
       }
       case 'tool_use':
       case 'server_tool_use':
@@ -62,9 +65,9 @@ function blocks(content: unknown): GenAiPart[] {
       case 'thinking':
         return [reasoningPart(asString(block.thinking) ?? '')];
       case 'redacted_thinking':
-        return [{type: 'redacted_thinking', content: block}];
+        return [genericPart('redacted_thinking', block)];
       default:
-        return [{type: asString(block.type) ?? 'unknown', content: block}];
+        return [genericPart(asString(block.type), block)];
     }
   });
 }
@@ -220,7 +223,5 @@ export const anthropicReader: ApiReader = {
     };
   },
 
-  errorMessage(body: unknown) {
-    return isRecord(body) && isRecord(body.error) ? asString(body.error.message) : undefined;
-  },
+  errorMessage,
 };
