@@ -103,12 +103,12 @@ function wrapErrorHandler(handler: ErrorHandler): void {
 export class SpectraPreviewComponent {
   protected readonly surfaceComponent = SurfaceComponent;
   protected readonly standaloneLine = STANDALONE_LINE;
-  readonly #origin = viewerOriginOf(window.location.search);
-  protected readonly standalone = this.#origin === undefined;
+  private readonly origin = viewerOriginOf(window.location.search);
+  protected readonly standalone = this.origin === undefined;
   protected readonly drawn = signal<Drawn | undefined>(undefined);
 
   constructor() {
-    const origin = this.#origin;
+    const origin = this.origin;
     if (origin === undefined) return;
     const config: RendererConfiguration = inject(A2UI_RENDERER_CONFIG);
     const parent = inject(Injector);

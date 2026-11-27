@@ -57,9 +57,9 @@ export class SpectraPreviewElement extends LitElement {
    */
   declare catalogs: ReadonlyArray<Catalog<LitComponentApi>> | undefined;
 
-  readonly #origin = viewerOriginOf(window.location.search);
-  #page: PreviewPage | undefined;
-  #drawn: Drawn | undefined;
+  private readonly origin = viewerOriginOf(window.location.search);
+  private page: PreviewPage | undefined;
+  private drawn: Drawn | undefined;
 
   override createRenderRoot(): this {
     return this;
@@ -67,22 +67,22 @@ export class SpectraPreviewElement extends LitElement {
 
   override connectedCallback(): void {
     super.connectedCallback();
-    this.#start();
+    this.start();
   }
 
   override disconnectedCallback(): void {
     super.disconnectedCallback();
-    this.#page?.stop();
-    this.#page = undefined;
+    this.page?.stop();
+    this.page = undefined;
   }
 
   protected override updated(changed: PropertyValues<this>): void {
-    if (changed.has('catalogs')) this.#start();
+    if (changed.has('catalogs')) this.start();
   }
 
-  #start(): void {
-    const origin = this.#origin;
-    if (this.#page !== undefined || !this.isConnected || origin === undefined) return;
+  private start(): void {
+    const origin = this.origin;
+    if (this.page !== undefined || !this.isConnected || origin === undefined) return;
     if (this.catalogs === undefined) return;
     const catalogs = [...this.catalogs];
     let made = 0;
@@ -91,9 +91,9 @@ export class SpectraPreviewElement extends LitElement {
       shown = held;
       const surface =
         held.surfaceId === undefined ? undefined : held.processor.getSurface(held.surfaceId);
-      const before = this.#drawn;
+      const before = this.drawn;
       if (before?.surface === surface && before?.generation === held.generation) return;
-      this.#drawn = surface === undefined ? undefined : {generation: held.generation, surface};
+      this.drawn = surface === undefined ? undefined : {generation: held.generation, surface};
       this.requestUpdate();
     };
     const adapter: PreviewAdapter<Held> = {
@@ -127,12 +127,12 @@ export class SpectraPreviewElement extends LitElement {
         held.processor.dispose();
         if (shown === held) {
           shown = undefined;
-          this.#drawn = undefined;
+          this.drawn = undefined;
           this.requestUpdate();
         }
       },
     };
-    this.#page = startPreviewPage({
+    this.page = startPreviewPage({
       catalogs,
       adapter,
       transport: windowTransport(origin),
@@ -143,12 +143,12 @@ export class SpectraPreviewElement extends LitElement {
   // Declared as LitElement declares it, so that the types name nothing from lit-html, which the
   // adapter reaches only through lit.
   override render(): unknown {
-    if (this.#origin === undefined) {
+    if (this.origin === undefined) {
       return html`<p style="margin: 16px; font: 14px/1.5 system-ui, sans-serif">
         ${STANDALONE_LINE}
       </p>`;
     }
-    const drawn = this.#drawn;
+    const drawn = this.drawn;
     return drawn === undefined
       ? nothing
       : keyed(
