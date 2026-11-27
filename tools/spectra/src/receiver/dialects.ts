@@ -5,10 +5,18 @@
  * span's attached log records are read with it. Every reader writes beside
  * the received attributes and never in place of them.
  */
-import {asArray, asInteger, asNumber, asString, defined, isRecord} from '../model_proxy/genai.js';
+import {
+  asArray,
+  asInteger,
+  asNumber,
+  asString,
+  defined,
+  isRecord,
+  parsedJson,
+} from '../model_proxy/genai.js';
 import {geminiReader} from '../model_proxy/readers/gemini.js';
 import {openAiChatReader} from '../model_proxy/readers/openai_chat.js';
-import {CACHE_CREATION_NAME, isConventionName, isContentName, parsedJson} from './genai.js';
+import {CACHE_CREATION_NAME, isConventionName, isContentName} from './genai.js';
 import type {ReceivedLog, ReceivedSpan} from './otlp.js';
 
 export type Dialect = 'adk' | 'openinference' | 'genai';

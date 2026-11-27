@@ -8,7 +8,7 @@
 import {Ajv2020, type AnySchemaObject, type ValidateFunction} from 'ajv/dist/2020.js';
 import draft07 from 'ajv/dist/refs/json-schema-draft-07.json' with {type: 'json'};
 
-import {type FinishReason, isRecord} from '../model_proxy/genai.js';
+import {type FinishReason, isRecord, parsedJson} from '../model_proxy/genai.js';
 import {STOP_REASONS as ANTHROPIC_REASONS} from '../model_proxy/readers/anthropic.js';
 import {FINISH_REASONS as GEMINI_REASONS} from '../model_proxy/readers/gemini.js';
 import {FINISH_REASONS as OPENAI_REASONS} from '../model_proxy/readers/openai_chat.js';
@@ -228,16 +228,6 @@ export function withContentFitted(names: Record<string, unknown>): Record<string
     if (fit !== undefined) fitted[name] = fit;
   }
   return fitted;
-}
-
-/** A value parsed when it arrives as a JSON string, as content attributes may on spans. */
-export function parsedJson(value: unknown): unknown {
-  if (typeof value !== 'string') return value;
-  try {
-    return JSON.parse(value) as unknown;
-  } catch {
-    return value;
-  }
 }
 
 function fitsKind(value: unknown, kind: Kind): boolean {

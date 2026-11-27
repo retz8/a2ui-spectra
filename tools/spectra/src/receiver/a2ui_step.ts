@@ -12,7 +12,7 @@
 import {isRecord} from '../model_proxy/genai.js';
 import type {SpanEvent} from '../record/turn_record.js';
 import {readVersion} from '../record/versions.js';
-import {parsedJson} from './genai.js';
+import {parsedJson} from '../model_proxy/genai.js';
 import type {ReceivedSpan} from './otlp.js';
 
 export type A2uiStepKind = 'prompt_generation' | 'parse';
