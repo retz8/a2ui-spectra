@@ -219,7 +219,7 @@ def _outermost(
 # The parsing entry points.
 
 
-def parse_response(
+def parse_response_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
     active = state.current()
@@ -252,8 +252,8 @@ def parse_response(
     return _outermost(event, wrapped, args, kwargs, where, returned)
 
 
-def compile_hook(fmt: str | None) -> Wrapper:
-    def compile(
+def compile_hook_for(inference_format: str | None) -> Wrapper:
+    def compile_hook(
         wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
     ) -> Any:
         active = state.current()
@@ -264,14 +264,14 @@ def compile_hook(fmt: str | None) -> Wrapper:
         if open_event is not None:
 
             def before() -> None:
-                open_event.adopt_parser(instance, fmt)
+                open_event.adopt_parser(instance, inference_format)
                 open_event.note_compile(_first(_arguments(wrapped, args, kwargs)))
 
             return _inner(open_event, wrapped, args, kwargs, where, before=before)
         try:
             text = _first(_arguments(wrapped, args, kwargs))
             event = events.ParseEvent(active, "compile", text)
-            event.adopt_parser(instance, fmt)
+            event.adopt_parser(instance, inference_format)
             event.note_compile(text)
         except Exception as fault:
             log.report_fault(where, fault)
@@ -283,7 +283,7 @@ def compile_hook(fmt: str | None) -> Wrapper:
 
         return _outermost(event, wrapped, args, kwargs, where, returned)
 
-    return compile
+    return compile_hook
 
 
 # A stream's event lives with its stream object.
@@ -299,8 +299,8 @@ def _stream_event(stream: Any) -> events.ParseEvent | None:
         return None
 
 
-def open_stream_hook(fmt: str | None) -> Wrapper:
-    def open_stream(
+def open_stream_hook_for(inference_format: str | None) -> Wrapper:
+    def open_stream_hook(
         wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
     ) -> Any:
         active = state.current()
@@ -316,7 +316,7 @@ def open_stream_hook(fmt: str | None) -> Wrapper:
             event.streamed = True
             event.stream_parser = instance
             event.wrapped = arguments.get("wrapped") is not False
-            event.adopt_parser(instance, fmt)
+            event.adopt_parser(instance, inference_format)
         except Exception as fault:
             log.report_fault(where, fault)
             return _unrecorded(wrapped, args, kwargs)
@@ -326,7 +326,7 @@ def open_stream_hook(fmt: str | None) -> Wrapper:
 
         return _outermost(event, wrapped, args, kwargs, where, returned)
 
-    return open_stream
+    return open_stream_hook
 
 
 def _stream_call(
@@ -371,7 +371,7 @@ def _stream_call(
         _leave(event, token)
 
 
-def feed(
+def feed_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
     def before(event: events.ParseEvent) -> None:
@@ -382,7 +382,7 @@ def feed(
     )
 
 
-def close(
+def close_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
     return _stream_call(
@@ -390,7 +390,7 @@ def close(
     )
 
 
-def whole_tree(
+def whole_tree_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
     """A whole-tree check: an error it raises belongs to no block."""
@@ -402,7 +402,7 @@ def whole_tree(
     )
 
 
-def apply(
+def apply_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
     """Messages applied to a renderer state: an error it raises is seen as it is raised."""
@@ -415,7 +415,7 @@ def apply(
 # The prompt generators.
 
 
-def generate(
+def generate_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
     """`PromptGenerator.generate`: one `prompt_generation` for a generator of a format's class."""
@@ -436,13 +436,13 @@ def generate(
             ),
         )
     try:
-        fmt = active.generator_format(instance)
-        if fmt is None:
+        inference_format = active.generator_format(instance)
+        if inference_format is None:
             # A generator of none of the format classes gives no event.
             event = None
         else:
             event = events.PromptEvent(active)
-            event.adopt_generator(instance, fmt)
+            event.adopt_generator(instance, inference_format)
     except Exception as fault:
         log.report_fault(where, fault)
         return _unrecorded(wrapped, args, kwargs)
@@ -458,7 +458,7 @@ _tools: weakref.WeakSet[Any] = weakref.WeakSet()
 _refused_tools: weakref.WeakSet[Any] = weakref.WeakSet()
 
 
-def get_tools(
+def get_tools_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
     awaitable = wrapped(*args, **kwargs)
@@ -494,8 +494,10 @@ def hook_tools(tools: Any) -> None:
                 missing,
             )
             continue
-        wrapt.wrap_function_wrapper(tool, "run_async", run_async)
-        wrapt.wrap_function_wrapper(tool, "process_llm_request", process_llm_request)
+        wrapt.wrap_function_wrapper(tool, "run_async", run_async_hook)
+        wrapt.wrap_function_wrapper(
+            tool, "process_llm_request", process_llm_request_hook
+        )
         _tools.add(tool)
 
 
@@ -533,7 +535,7 @@ def swallowed(error: BaseException | None) -> None:
         open_event.record(error, placed=False)
 
 
-def run_async(
+def run_async_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
     awaitable = wrapped(*args, **kwargs)
@@ -581,7 +583,7 @@ async def _run_tool(
         _leave(event, token)
 
 
-def process_llm_request(
+def process_llm_request_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
     awaitable = wrapped(*args, **kwargs)
@@ -665,21 +667,21 @@ async def _append_prompt(
 def wrapper_for(hook: Hook) -> Wrapper:
     """The hook a hooked name gets."""
     if hook.role == "parse_response":
-        return parse_response
+        return parse_response_hook
     if hook.role == "compile":
-        return compile_hook(hook.format)
+        return compile_hook_for(hook.format)
     if hook.role == "open_stream":
-        return open_stream_hook(hook.format)
+        return open_stream_hook_for(hook.format)
     if hook.role == "feed":
-        return feed
+        return feed_hook
     if hook.role == "close":
-        return close
+        return close_hook
     if hook.role == "generate":
-        return generate
+        return generate_hook
     if hook.role == "whole_tree":
-        return whole_tree
+        return whole_tree_hook
     if hook.role == "apply":
-        return apply
+        return apply_hook
     if hook.role == "get_tools":
-        return get_tools
+        return get_tools_hook
     raise ValueError(f"No hook for the role {hook.role}")

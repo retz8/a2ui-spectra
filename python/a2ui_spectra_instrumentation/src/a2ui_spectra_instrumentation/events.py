@@ -178,10 +178,10 @@ class Event:
     # What hooked calls nested in the event tell it. A prompt generation's
     # event takes only a generator's format and catalogs.
 
-    def adopt_parser(self, parser: object, fmt: str | None) -> None:
+    def adopt_parser(self, parser: object, inference_format: str | None) -> None:
         pass
 
-    def adopt_generator(self, generator: object, fmt: str | None) -> None:
+    def adopt_generator(self, generator: object, inference_format: str | None) -> None:
         pass
 
     def note_compile(self, text: object) -> None:
@@ -329,9 +329,9 @@ class PromptEvent(Event):
         super().__init__(active)
         self.ui_section: str | None = None
 
-    def adopt_generator(self, generator: object, fmt: str | None) -> None:
-        if self.format is None and fmt is not None:
-            self.format = fmt
+    def adopt_generator(self, generator: object, inference_format: str | None) -> None:
+        if self.format is None and inference_format is not None:
+            self.format = inference_format
             self.catalogs = catalogs_of(self.active, generator)
 
     def take_section(self, section: object) -> None:
@@ -395,9 +395,13 @@ class ParseEvent(Event):
         # when it surfaced.
         self.located: list[tuple[dict[str, AttributeValue], Block]] = []
 
-    def adopt_parser(self, parser: object, fmt: str | None) -> None:
+    def adopt_parser(self, parser: object, inference_format: str | None) -> None:
         if self.format is None:
-            self.format = fmt if fmt is not None else self.active.parser_format(parser)
+            self.format = (
+                inference_format
+                if inference_format is not None
+                else self.active.parser_format(parser)
+            )
         if self.catalogs is None:
             self.catalogs = catalogs_of(self.active, parser)
 

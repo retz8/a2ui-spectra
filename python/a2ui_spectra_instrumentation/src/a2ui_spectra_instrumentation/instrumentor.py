@@ -34,7 +34,9 @@ class A2uiInstrumentor(BaseInstrumentor):  # type: ignore[misc]
         plan = check.check()
         if plan is None:
             return
-        chosen_provider = provider.tracer_provider(kwargs.get("tracer_provider"))
+        chosen_provider = provider.start_provider_if_needed(
+            kwargs.get("tracer_provider")
+        )
         tracer = trace.get_tracer(
             package.SCOPE_NAME, version.__version__, tracer_provider=chosen_provider
         )

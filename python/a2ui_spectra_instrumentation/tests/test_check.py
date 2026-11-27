@@ -143,7 +143,7 @@ def test_a_missing_toolset_name_skips_the_toolset_naming_its_own_release(
     )
 
 
-def test_an_sdk_at_the_floor_is_refused(
+def test_an_sdk_below_the_floor_is_refused(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     provider: TracerProvider,

@@ -26,11 +26,23 @@ class Active:
     generators: tuple[tuple[type, str], ...]
 
     def parser_format(self, parser: object) -> str | None:
-        return next((fmt for cls, fmt in self.parsers if isinstance(parser, cls)), None)
+        return next(
+            (
+                inference_format
+                for cls, inference_format in self.parsers
+                if isinstance(parser, cls)
+            ),
+            None,
+        )
 
     def generator_format(self, generator: object) -> str | None:
         return next(
-            (fmt for cls, fmt in self.generators if isinstance(generator, cls)), None
+            (
+                inference_format
+                for cls, inference_format in self.generators
+                if isinstance(generator, cls)
+            ),
+            None,
         )
 
 

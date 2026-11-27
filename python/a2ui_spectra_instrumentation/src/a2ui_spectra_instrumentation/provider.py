@@ -21,7 +21,9 @@ def _variable(*names: str) -> str | None:
     return None
 
 
-def tracer_provider(given: trace.TracerProvider | None) -> trace.TracerProvider | None:
+def start_provider_if_needed(
+    given: trace.TracerProvider | None,
+) -> trace.TracerProvider | None:
     """The provider the wrapper's spans go to; None means the global one, set now or later.
 
     A provider passed in is used. A provider the process has set is kept. With

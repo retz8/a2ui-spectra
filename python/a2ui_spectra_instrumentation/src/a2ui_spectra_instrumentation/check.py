@@ -111,7 +111,7 @@ def _refuse(distribution: str, version: str | None, why: str) -> None:
     )
 
 
-def _above_floor(version: str) -> bool:
+def _at_or_above_floor(version: str) -> bool:
     try:
         return requirements.Requirement(package.FLOOR).specifier.contains(
             packaging_version.Version(version), prereleases=True
@@ -126,7 +126,7 @@ def check() -> Plan | None:
     if version is None:
         _refuse(package.AGENT_SDK, None, "it is not installed")
         return None
-    if not _above_floor(version):
+    if not _at_or_above_floor(version):
         _refuse(package.AGENT_SDK, version, "it is below the version floor")
         return None
     plan = Plan(sdk_version=version)
