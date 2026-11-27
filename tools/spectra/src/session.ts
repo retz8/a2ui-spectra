@@ -26,6 +26,7 @@ import {type ModelProxy, startModelProxy} from './model_proxy/proxy.js';
 import {
   attachLines,
   environmentOf,
+  prefixLines,
   type Redirection,
   RedirectionError,
   redirections,
@@ -464,6 +465,8 @@ export async function runSession(
       if (replaced !== undefined) out.info(replaced);
       out.info(`The viewer is at ${server.url}`);
       out.info(`Point a host at the wire proxy: ${wire.address}`);
+      // The agent's environment points every prefix at the model proxy: where each forwards.
+      for (const line of prefixLines(redirected)) out.info(line);
       for (const line of startLines(tools)) out.info(line);
       out.info(`The OpenTelemetry receiver is at ${receiverListener.origin}`);
       out.info(`Turns are saved in ${store.turnsDir}`);
@@ -562,6 +565,9 @@ export async function runSession(
         proxy = await openWireProxy(typeof card.name === 'string' ? card.name : undefined);
         box = openBox(rewriteCard(card, proxy.origin));
         if (headless !== undefined) {
+          if (agentCommand !== undefined) {
+            for (const line of prefixLines(redirected)) out.info(line);
+          }
           for (const line of startLines(tools)) out.info(line);
           out.info(`The OpenTelemetry receiver is at ${receiverListener.origin}`);
           out.info(`Turns are saved in ${store.turnsDir}`);

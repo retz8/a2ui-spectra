@@ -5,6 +5,7 @@ import {
   attachLines,
   environmentOf,
   forwardTo,
+  prefixLines,
   RedirectionError,
   redirections,
   splitPrefix,
@@ -180,6 +181,21 @@ describe('redirection', () => {
         'OPENAI_BASE_URL',
       ),
       {kind: 'base', base: 'http://localhost:4000/v1'},
+    );
+  });
+
+  it('prints a start line per variable: its prefix and where it forwards, credentials removed', () => {
+    assert.deepEqual(
+      prefixLines(
+        redirections({OPENAI_BASE_URL: 'https://user:secret@gateway.example/v1'}, ORIGIN),
+      ),
+      [
+        'The model proxy for GOOGLE_GEMINI_BASE_URL is at http://127.0.0.1:9822/GOOGLE_GEMINI_BASE_URL, forwarding to https://generativelanguage.googleapis.com',
+        'The model proxy for OPENAI_BASE_URL is at http://127.0.0.1:9822/OPENAI_BASE_URL, forwarding to https://REMOVED@gateway.example/v1',
+        'The model proxy for ANTHROPIC_BASE_URL is at http://127.0.0.1:9822/ANTHROPIC_BASE_URL, forwarding to https://api.anthropic.com',
+        'The model proxy for ANTHROPIC_API_BASE is at http://127.0.0.1:9822/ANTHROPIC_API_BASE, forwarding to https://api.anthropic.com',
+        'The model proxy for GEMINI_API_BASE is at http://127.0.0.1:9822/GEMINI_API_BASE, forwarding to https://generativelanguage.googleapis.com/v1beta, or /v1alpha for a gemini-3 model',
+      ],
     );
   });
 

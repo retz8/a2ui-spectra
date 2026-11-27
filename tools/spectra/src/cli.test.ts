@@ -1629,6 +1629,10 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
               `The tool proxy for FAKE_TOOL_URL is at http://127\\.0\\.0\\.1:${toolProxyPort}, forwarding to http://127\\.0\\.0\\.1:${toolPort}`,
             ),
           );
+          // Under run, where each model prefix forwards, as attach prints beside its lines.
+          await spectra.waitFor(
+            /The model proxy for ANTHROPIC_BASE_URL is at http:\/\/127\.0\.0\.1:\d+\/ANTHROPIC_BASE_URL, forwarding to \S+/,
+          );
           const answer = await send(Number(shownProxyPort), {
             method: 'POST',
             headers: {'content-type': 'application/json'},

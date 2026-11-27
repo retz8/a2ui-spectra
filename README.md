@@ -134,6 +134,8 @@ Through npm or PyPI, put `npx` or `uvx` in front: `npx a2ui-spectra run …`.
 
 The viewer opens in your browser. Send a message from its message box, and the turn arrives step by step. A save in the folder restarts the agent, and Ctrl-C stops both.
 
+A model base address your agent reads from its own `.env`, such as a gateway's, must also be set in the shell you start Spectra from: otherwise the model proxy forwards to the provider's own API, with the key the agent sends. Spectra prints at start where each prefix forwards.
+
 **An agent already running:** attach to it, then set the variables Spectra prints in the agent's shell and restart the agent.
 
 ```sh

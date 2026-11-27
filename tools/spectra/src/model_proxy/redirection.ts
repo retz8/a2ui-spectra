@@ -169,6 +169,14 @@ function noteOf(target: Target): string {
   return `forwards to ${describeTarget(target)}`;
 }
 
+/** The lines `run` prints at start, one per variable: its prefix on the model proxy and where it forwards. */
+export function prefixLines(list: Redirection[]): string[] {
+  return list.map(
+    ({name, value, target}) =>
+      `The model proxy for ${name} is at ${value}, forwarding to ${describeTarget(target)}`,
+  );
+}
+
 /** The variables, values and notes the API serves under `attach`, for the first screen. */
 export function variablesOf(
   list: Redirection[],

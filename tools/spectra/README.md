@@ -52,6 +52,11 @@ Spectra starts its listeners, then the agent, and opens the viewer in your brows
 ```text
 a2ui-spectra: The viewer is at http://localhost:9820/
 a2ui-spectra: Point a host at the wire proxy: http://127.0.0.1:9821/
+a2ui-spectra: The model proxy for GOOGLE_GEMINI_BASE_URL is at http://127.0.0.1:9822/GOOGLE_GEMINI_BASE_URL, forwarding to https://generativelanguage.googleapis.com
+a2ui-spectra: The model proxy for OPENAI_BASE_URL is at http://127.0.0.1:9822/OPENAI_BASE_URL, forwarding to https://api.openai.com/v1
+a2ui-spectra: The model proxy for ANTHROPIC_BASE_URL is at http://127.0.0.1:9822/ANTHROPIC_BASE_URL, forwarding to https://api.anthropic.com
+a2ui-spectra: The model proxy for ANTHROPIC_API_BASE is at http://127.0.0.1:9822/ANTHROPIC_API_BASE, forwarding to https://api.anthropic.com
+a2ui-spectra: The model proxy for GEMINI_API_BASE is at http://127.0.0.1:9822/GEMINI_API_BASE, forwarding to https://generativelanguage.googleapis.com/v1beta, or /v1alpha for a gemini-3 model
 a2ui-spectra: The OpenTelemetry receiver is at http://127.0.0.1:9823
 a2ui-spectra: Turns are saved in …/restaurant_finder/.a2ui-spectra/turns
 a2ui-spectra: Fixtures are saved in …/restaurant_finder/a2ui-spectra-fixtures
@@ -59,6 +64,8 @@ a2ui-spectra: A save in …/restaurant_finder restarts the agent. Set watch to f
 ```
 
 Send a message from the viewer's message box, and the turn arrives step by step. Saving a file in the folder restarts the agent. Ctrl-C stops Spectra and the agent.
+
+A model base address your agent reads from its own `.env`, such as a gateway's, must also be set in the shell you start Spectra from. Spectra points the variable at its model proxy, and the proxy forwards to the value in its own environment, else to the provider's own API, with the key the agent sends; the lines at start say where each prefix forwards.
 
 For an agent already running, attach to it instead, and set the variables Spectra prints in the agent's shell before restarting the agent:
 
