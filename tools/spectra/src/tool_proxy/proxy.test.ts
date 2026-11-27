@@ -785,3 +785,199 @@ describe('the tool proxy with a WebSocket upgrade', () => {
     upgrade.socket.destroy();
   });
 });
+
+/** Sends a request through the proxy and destroys it once `after` events of its streamed reply arrived. */
+function leave(
+  origin: string,
+  {
+    method = 'POST',
+    path = '/mcp',
+    headers = {},
+    body,
+  }: {method?: string; path?: string; headers?: Record<string, string>; body?: string},
+  after: number,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = httpRequest(
+      new URL(path, origin),
+      {
+        method,
+        headers: {...(body !== undefined && {'content-type': 'application/json'}), ...headers},
+      },
+      response => {
+        const parser = new SseParser();
+        let seen = 0;
+        response.setEncoding('utf8');
+        response.on('data', (chunk: string) => {
+          seen += parser.push(chunk).length;
+          if (seen >= after) {
+            request.destroy();
+            resolve();
+          }
+        });
+        response.once('error', () => {});
+      },
+    );
+    request.once('error', error => {
+      if (!request.destroyed) reject(error);
+    });
+    request.end(body);
+  });
+}
+
+describe('the tool proxy when the agent closes early', () => {
+  it('records an MCP request whose reply does not end within the grace as aborted, with the chunks before the close', async () => {
+    const setup = await setUp(
+      streamable((message, response) => {
+        if (message.method !== 'tools/call') return false;
+        response.writeHead(200, {'content-type': 'text/event-stream'});
+        sse(response, {
+          data: rpc({method: 'notifications/progress', params: {progressToken: 1, progress: 1}}),
+        });
+        setTimeout(() => {
+          if (!response.destroyed)
+            sse(response, {
+              data: rpc({
+                method: 'notifications/progress',
+                params: {progressToken: 1, progress: 2},
+              }),
+            });
+        }, 300);
+        return true;
+      }),
+      {closeGraceMs: 100},
+    );
+    await leave(
+      setup.origin,
+      {body: rpc({id: 1, method: 'tools/call', params: {name: 'ask', _meta: {progressToken: 1}}})},
+      1,
+    );
+    await until(() => setup.ended.length === 1, 'the tool call');
+    const [call] = setup.ended;
+    assert.equal(call.name, 'tools/call ask');
+    assert.equal(call.attributes['error.type'], 'aborted');
+    assert.match(call.status?.message ?? '', /closed the connection/);
+    assert.equal(call.events?.length, 1);
+  });
+
+  it('records an MCP request whose reply ends within the grace as complete', async () => {
+    const setup = await setUp(
+      streamable((message, response) => {
+        if (message.method !== 'tools/call') return false;
+        response.writeHead(200, {'content-type': 'text/event-stream'});
+        sse(response, {
+          data: rpc({method: 'notifications/progress', params: {progressToken: 1, progress: 1}}),
+        });
+        setTimeout(() => {
+          sse(response, {data: rpc({id: message.id, result: {content: []}})});
+          response.end();
+        }, 50);
+        return true;
+      }),
+      {closeGraceMs: 1000},
+    );
+    await leave(
+      setup.origin,
+      {body: rpc({id: 1, method: 'tools/call', params: {name: 'ask', _meta: {progressToken: 1}}})},
+      1,
+    );
+    await until(() => setup.ended.length === 1, 'the tool call');
+    const [call] = setup.ended;
+    assert.equal(call.attributes['error.type'], undefined);
+    assert.deepEqual(call.attributes['gen_ai.tool.call.result'], {content: []});
+    assert.equal(call.events?.length, 2);
+  });
+
+  it('records an HTTP tool request whose stream does not end within the grace as aborted', async () => {
+    const setup = await setUp(
+      (_request, _body, response) => {
+        response.writeHead(200, {'content-type': 'text/event-stream'});
+        sse(response, {data: 'one'});
+      },
+      {path: '/api', closeGraceMs: 100},
+    );
+    await leave(setup.origin, {path: '/api/stream', body: '{"x": 1}'}, 1);
+    await until(() => setup.ended.length === 1, 'the request');
+    const [call] = setup.ended;
+    assert.equal(call.name, 'POST /api/stream');
+    assert.equal(call.attributes['error.type'], 'aborted');
+    assert.deepEqual(chunkBodies(call), ['one']);
+  });
+
+  it('reads a GET tool stream on for the grace, and records it complete when it ends by then', async () => {
+    const setup = await setUp(
+      (_request, _body, response) => {
+        response.writeHead(200, {'content-type': 'text/event-stream'});
+        sse(response, {event: 'tick', data: '{"n": 1}'});
+        setTimeout(() => {
+          sse(response, {data: 'two'});
+          response.end();
+        }, 50);
+      },
+      {path: '/api', closeGraceMs: 1000},
+    );
+    await leave(setup.origin, {method: 'GET', path: '/api/events'}, 1);
+    await until(() => setup.ended.length === 1, 'the request');
+    const [call] = setup.ended;
+    assert.equal(call.name, 'GET /api/events');
+    assert.equal(call.attributes['error.type'], undefined);
+    assert.deepEqual(chunkBodies(call), [{n: 1}, 'two']);
+  });
+
+  it('releases a GET stream the agent closes before it showed what it is, and records nothing', async () => {
+    let upstreamClosed = false;
+    const setup = await setUp(
+      (_request, _body, response) => {
+        response.writeHead(200, {'content-type': 'text/event-stream'});
+        response.flushHeaders();
+        response.once('close', () => (upstreamClosed = true));
+      },
+      {closeGraceMs: 1000},
+    );
+    const stream = await openStream(setup.origin, '/mcp');
+    assert.equal(stream.status, 200);
+    stream.close();
+    await until(() => setup.released === 1, 'the GET released');
+    await until(() => upstreamClosed, "the server's stream dropped");
+    assert.deepEqual(setup.ended, []);
+  });
+});
+
+describe('the tool proxy with a reply stream that breaks', () => {
+  it('keeps a request whose stream broke after an event id open, and ends it at its reply on the resumed stream', async () => {
+    let carrier: ServerResponse | undefined;
+    const setup = await setUp((request, _body, response) => {
+      if (request.method === 'GET') {
+        response.writeHead(200, {'content-type': 'text/event-stream'});
+        response.flushHeaders();
+        carrier = response;
+        return;
+      }
+      response.writeHead(200, {'content-type': 'text/event-stream'});
+      sse(response, {
+        id: 'e1',
+        data: rpc({method: 'notifications/progress', params: {progressToken: 1, progress: 1}}),
+      });
+      setTimeout(() => response.socket?.destroy(), 30);
+    });
+    await send(setup.origin, {
+      headers: {'mcp-session-id': 'S1'},
+      body: rpc({id: 1, method: 'tools/call', params: {name: 'ask', _meta: {progressToken: 1}}}),
+    }).catch(() => undefined);
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.equal(setup.ended.length, 0, 'the request is still open after the break');
+
+    const stream = await openStream(setup.origin, '/mcp', {
+      'mcp-session-id': 'S1',
+      'last-event-id': 'e1',
+    });
+    await until(() => carrier !== undefined, 'the resumed stream');
+    sse(carrier!, {id: 'e2', data: rpc({id: 1, result: {content: []}})});
+    await until(() => setup.ended.length === 1, 'the tool call');
+    const [call] = setup.ended;
+    assert.equal(call.name, 'tools/call ask');
+    assert.equal(call.attributes['error.type'], undefined);
+    assert.deepEqual(call.attributes['gen_ai.tool.call.result'], {content: []});
+    stream.close();
+  });
+});

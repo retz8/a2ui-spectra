@@ -328,17 +328,21 @@ describe('the tool proxy in replay', () => {
   });
 
   it('misses housekeeping the record never saw, in either mode', async () => {
-    const setup = await setUp();
-    arm(setup, 'model_live');
-    const answer = await send(setup.origin, {body: {jsonrpc: '2.0', id: 1, method: 'tools/list'}});
-    const line =
-      "a2ui-spectra's tool proxy is replaying, and POST /mcp matched nothing in the record.";
-    assert.equal(answer.status, 502);
-    assert.equal(answer.body, `${line}\n`);
-    assert.deepEqual(setup.logs, [line]);
-    await eventually(() => setup.ended.length === 1, 'the miss ended');
-    assert.equal(setup.ended[0].attributes['error.type'], 'replay_miss');
-    assert.equal(setup.ended[0].attributes['mcp.method.name'], 'tools/list');
+    for (const mode of ['model_live', 'recorded'] as const) {
+      const setup = await setUp();
+      arm(setup, mode);
+      const answer = await send(setup.origin, {
+        body: {jsonrpc: '2.0', id: 1, method: 'tools/list'},
+      });
+      const line =
+        "a2ui-spectra's tool proxy is replaying, and POST /mcp matched nothing in the record.";
+      assert.equal(answer.status, 502, mode);
+      assert.equal(answer.body, `${line}\n`, mode);
+      assert.deepEqual(setup.logs, [line], mode);
+      await eventually(() => setup.ended.length === 1, `the miss ended, ${mode}`);
+      assert.equal(setup.ended[0].attributes['error.type'], 'replay_miss', mode);
+      assert.equal(setup.ended[0].attributes['mcp.method.name'], 'tools/list', mode);
+    }
   });
 
   it('answers a session end as recorded, or with 204 when the record has none', async () => {
