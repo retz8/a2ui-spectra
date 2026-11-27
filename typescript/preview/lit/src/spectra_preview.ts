@@ -42,6 +42,10 @@ interface Drawn {
   surface: SurfaceModel<LitComponentApi>;
 }
 
+/**
+ * The Lit preview adapter's element, `<a2ui-spectra-preview>`: draws the
+ * surfaces Spectra sends, with the page's catalogs.
+ */
 export class SpectraPreviewElement extends LitElement {
   static override properties = {catalogs: {attribute: false}};
 

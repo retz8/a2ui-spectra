@@ -78,6 +78,10 @@ function wrapErrorHandler(handler: ErrorHandler): void {
   };
 }
 
+/**
+ * The Angular preview adapter's component, `<a2ui-spectra-preview>`: draws the
+ * surfaces Spectra sends, with the page's `provideA2Ui` config.
+ */
 @Component({
   selector: 'a2ui-spectra-preview',
   imports: [NgComponentOutlet],

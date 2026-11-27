@@ -12,6 +12,7 @@ export interface Applied {
   keys: readonly string[];
 }
 
+/** What a page does with a render's list: feed its tail, or start over. */
 export type Difference =
   /** Feed the messages from this index on into the processor as it is. */
   | {kind: 'append'; from: number}
@@ -23,6 +24,7 @@ export function keysOf(messages: readonly unknown[]): string[] {
   return messages.map(message => JSON.stringify(message) ?? 'undefined');
 }
 
+/** What to do with the next list, given the list applied last. */
 export function differenceOf(
   applied: Applied | undefined,
   next: {surfaceId: string; keys: readonly string[]},

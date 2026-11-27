@@ -86,6 +86,7 @@ interface ModelLike {
   type?: unknown;
 }
 
+/** The component a failure names: a model's id and type, where they are strings. */
 export function identityOf(model: ModelLike | undefined): Identity {
   return {
     ...(typeof model?.id === 'string' && {componentId: model.id}),

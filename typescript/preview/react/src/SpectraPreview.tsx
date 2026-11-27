@@ -25,6 +25,7 @@ import {useEffect, useState} from 'react';
 
 import {guardCatalog, reportFailuresTo} from './boundaries.js';
 
+/** What the page gives the preview component. */
 export interface SpectraPreviewProps {
   /**
    * The catalogs the page renders, implementations and all, as the real host
@@ -49,6 +50,10 @@ interface Drawn {
   surface: SurfaceModel<ReactCatalogComponent>;
 }
 
+/**
+ * The React preview adapter's component: draws the surfaces Spectra sends,
+ * with the page's catalogs.
+ */
 export function SpectraPreview({catalogs}: SpectraPreviewProps) {
   const [origin] = useState(() => viewerOriginOf(window.location.search));
   const [pageCatalogs] = useState(() => [...catalogs]);

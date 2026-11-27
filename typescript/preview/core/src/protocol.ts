@@ -139,8 +139,10 @@ export interface ActionMessage {
  */
 export const SCREENSHOT_TYPE = 'a2ui-spectra-preview/screenshot';
 
+/** A message the viewer sends the page. */
 export type ViewerMessage = RenderMessage | PingMessage;
 
+/** A message the page sends the viewer. */
 export type PageMessage =
   ReadyMessage | PongMessage | ReportMessage | DataModelMessage | ActionMessage;
 

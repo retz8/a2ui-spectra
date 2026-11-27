@@ -22,6 +22,7 @@ type Report = PageEvents['componentFailed'];
 /** Where the boundaries report: the current processor's events, replaced as each is made. */
 let reportTo: Report | undefined;
 
+/** Sets where the boundaries report a component that throws. */
 export function reportFailuresTo(report: Report | undefined): void {
   reportTo = report;
 }

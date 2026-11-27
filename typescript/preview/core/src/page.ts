@@ -55,6 +55,10 @@ export interface PreviewAdapter<P> {
   teardown(processor: P): void;
 }
 
+/**
+ * What a preview page starts with: the page's catalogs, its adapter, and where
+ * messages and errors come from.
+ */
 export interface PreviewPageOptions<P> {
   catalogs: Iterable<ClaimedCatalog>;
   adapter: PreviewAdapter<P>;
