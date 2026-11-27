@@ -41,7 +41,7 @@ import {
   rewriteIds,
   serve,
   servedFrom,
-} from './proxy.js';
+} from './serving.js';
 
 export const CARRIER_CLOSED = 'The stream its reply was to come on closed.';
 
