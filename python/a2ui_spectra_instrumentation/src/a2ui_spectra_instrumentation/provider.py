@@ -51,11 +51,15 @@ def start_provider_if_needed(
     if protocol is not None and protocol != "http/protobuf":
         log.logger.info(
             "a2ui-spectra-instrumentation started no tracer provider: the"
-            " environment names the OTLP protocol %s, and the wrapper exports"
-            " only http/protobuf; the spans go to a provider the process sets",
+            " environment names the OTLP protocol %s, and the wrapper starts one"
+            " only for http/protobuf, the protocol a2ui-spectra run sets; the"
+            " spans go to a provider the process sets",
             protocol,
         )
         return None
+    # The flush on exit: the SDK provider's default, `shutdown_on_exit=True`,
+    # registers its shutdown with `atexit`, and shutting the batch span
+    # processor down exports the spans it still holds.
     provider = sdk_trace.TracerProvider()
     provider.add_span_processor(
         sdk_export.BatchSpanProcessor(trace_exporter.OTLPSpanExporter())
