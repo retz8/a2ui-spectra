@@ -13,13 +13,10 @@ import {
   type IncomingHttpHeaders,
   type IncomingMessage,
   type OutgoingHttpHeaders,
-  request as httpRequest,
   type ServerResponse,
 } from 'node:http';
-import {request as httpsRequest} from 'node:https';
 import type {Duplex} from 'node:stream';
 
-import {SseParser} from '../proxying/sse.js';
 import type {CallToPlace, PlacedCall} from '../placement.js';
 import {withContentFitted} from '../receiver/genai.js';
 import type {CallEvent, ModelCallEvent, SpanEvent} from '../record/turn_record.js';
@@ -30,8 +27,7 @@ import {
   missLine,
   recordedAnswer,
   redirectLine,
-  type ReplyMessage,
-  ServedUpstream,
+  type ServedReply,
   unreachedLine,
   type Upstream,
   wasStreamed,
@@ -46,14 +42,16 @@ import {
   requestAttributes,
   responseAttributes,
 } from '../proxying/exchange.js';
-import {
-  bodyJson,
-  decoderFor,
-  isTokenRequest,
-  readBody,
-  tunnelUpgrade,
-} from '../proxying/forwarding.js';
+import {bodyJson, isTokenRequest, readBody, tunnelUpgrade} from '../proxying/forwarding.js';
 import type {CallListener} from '../proxying/calls.js';
+import {
+  AGENT_CLOSED,
+  DEFAULT_CLOSE_GRACE_MS,
+  type Forwarder,
+  forward as forwardExchange,
+  type Relay,
+  STOPPED,
+} from '../proxying/relay.js';
 import {seconds} from './genai.js';
 import {type ApiReader, readerFor, type StreamChunk} from './readers/index.js';
 import {forwardTo, type Redirection, splitPrefix, VARIABLES} from './redirection.js';
@@ -83,12 +81,8 @@ export interface ModelProxyOptions {
   newSpanId?: () => string;
 }
 
-const DEFAULT_CLOSE_GRACE_MS = 5000;
-
 /** The least time between two of a call's progress notifications: at most ten a second. */
 const PROGRESS_MS = 100;
-const AGENT_CLOSED = 'The agent closed the connection before the response ended.';
-const STOPPED = 'Spectra stopped before the response ended.';
 
 export interface ModelProxy {
   readonly origin: string;
@@ -105,6 +99,8 @@ interface ProxyState {
   /** The replay's pool while armed. */
   pool: ReplayPool | undefined;
   inFlight: Set<Upstream>;
+  /** What forwarding takes from the proxy, made once. */
+  forwarder?: Forwarder;
   sockets: Set<Duplex>;
   /** Set when Spectra stops: a call cut off then ends as aborted. */
   closing: boolean;
@@ -477,7 +473,7 @@ async function forward(
     return;
   }
 
-  let upstream: Upstream;
+  let served: ServedReply | undefined;
   if (answer?.type === 'served') {
     const recorded = recordedAnswer(answer.event, {
       broke: brokeOff(answer.event, statedError(answer.event, reader)),
@@ -494,49 +490,14 @@ async function forward(
       capture?.end({failure: {type: 'replay_miss', message: line}});
       return;
     }
-    upstream = new ServedUpstream(recorded.reply);
-  } else {
-    const send = target.protocol === 'https:' ? httpsRequest : httpRequest;
-    upstream = send(target, {method, headers});
+    served = recorded.reply;
   }
-  state.inFlight.add(upstream);
-  upstream.once('close', () => state.inFlight.delete(upstream));
-
-  response.once('close', () => {
-    if (response.writableFinished) return;
-    if (capture === undefined) {
-      upstream.destroy(new Error(AGENT_CLOSED));
-      return;
-    }
-    // The reply is read on, for the agent that leaves once it has the content,
-    // before the stream's last event.
-    capture.agentClosed(() => upstream.destroy(new Error(AGENT_CLOSED)));
-  });
-
-  upstream.once('response', reply =>
-    relay(state, reply, response, capture, answer?.type === 'served'),
+  forwardExchange(
+    {request, raw, target, response, headers},
+    forwarderOf(state),
+    capture === undefined ? {end: () => {}, fail: () => {}} : capturing(capture),
+    served,
   );
-
-  upstream.once('error', error => {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (response.destroyed) {
-      // The agent is gone; nothing to answer.
-    } else if (!response.headersSent) {
-      answer502(
-        response,
-        unreachedLine('model proxy', target.host, {type: code ?? 'error', message: error.message}),
-      );
-    } else {
-      response.destroy(error);
-    }
-    capture?.end({
-      failure: state.closing
-        ? {type: 'aborted', message: STOPPED}
-        : {type: code ?? 'error', message: error.message},
-    });
-  });
-
-  upstream.end(raw);
 }
 
 /**
@@ -560,98 +521,56 @@ function streamChunkOf(spanEvent: SpanEvent): StreamChunk {
   };
 }
 
-/** Passes the reply on as received, and reads a copy into the capture, if there is one; `served` when the reply is from a replay's record. */
-function relay(
-  state: ProxyState,
-  reply: ReplyMessage,
-  response: ServerResponse,
-  capture: Capture | undefined,
-  served = false,
-): void {
-  const streamed = /^text\/event-stream\b/i.test(String(reply.headers['content-type'] ?? ''));
-  if (!response.destroyed) {
-    response.writeHead(
-      reply.statusCode ?? 502,
-      reply.statusMessage,
-      endToEndHeaders(reply.headers),
-    );
-    // A served stream's headers go out before its first chunk.
-    if (served && streamed) response.flushHeaders();
-    reply.pipe(response);
-    reply.once('close', () => {
-      if (!reply.complete) {
-        response.destroy();
-      }
-    });
-    response.once('close', () => {
-      // The pipe's end pauses the reply; the capture reads it on.
-      if (capture !== undefined && !reply.complete) reply.resume();
-    });
-  }
-  if (capture === undefined) {
-    reply.resume();
-    return;
-  }
-  const status = reply.statusCode ?? 0;
-  const decoder = decoderFor(reply.headers['content-encoding']);
-  const text = new TextDecoder();
-  const sse = new SseParser();
-  let body = '';
-  if (decoder !== undefined) {
-    // The agent's close counts once the decoder has given out what arrived before it.
-    capture.settleWith(done =>
-      decoder.flush === undefined ? process.nextTick(done) : decoder.flush(done),
-    );
-  }
-  const breakOff = (error?: Error) => {
-    capture.end({
-      response: {status, headers: reply.headers, streamed},
-      failure: state.closing
-        ? {type: 'aborted', message: STOPPED}
-        : {
-            type: (error as NodeJS.ErrnoException | undefined)?.code ?? 'ECONNRESET',
-            message: error?.message ?? "The provider's response broke before it ended.",
-          },
-    });
+/** The relay that records a model call's exchange on its capture: its chunks as they come, its response at the end. */
+function capturing(capture: Capture): Relay {
+  let status = 0;
+  let headers: IncomingHttpHeaders = {};
+  let streamed = false;
+  /** Whether the reply's content encoding can be read; one that cannot is recorded unread. */
+  let decodable = false;
+  return {
+    head(replyStatus, replyHeaders, replyStreamed) {
+      status = replyStatus;
+      headers = replyHeaders;
+      streamed = replyStreamed;
+    },
+    decoding(flush) {
+      decodable = true;
+      // The agent's close counts once the decoder has given out what arrived before it.
+      capture.settleWith(flush);
+    },
+    event(event) {
+      capture.chunk(event);
+    },
+    end(_at, body) {
+      capture.end({
+        response: {
+          status,
+          headers,
+          streamed: decodable && streamed,
+          ...(decodable && {body: body ?? ''}),
+        },
+      });
+    },
+    fail(failure, _at, reached) {
+      capture.end({...(reached && {response: {status, headers, streamed}}), failure});
+    },
+    agentClosed(drop) {
+      capture.agentClosed(drop);
+    },
   };
-  if (decoder === undefined) {
-    reply.once('end', () =>
-      capture.end({response: {status, headers: reply.headers, streamed: false}}),
-    );
-    reply.once('error', error => breakOff(error));
-    return;
-  }
-  reply.on('data', (chunk: Buffer) => decoder.write(chunk));
-  reply.once('end', () => decoder.end());
-  reply.once('error', error => {
-    breakOff(error);
-    decoder.destroy();
+}
+
+/** What forwarding takes from the model proxy. */
+function forwarderOf(state: ProxyState): Forwarder {
+  return (state.forwarder ??= {
+    inFlight: state.inFlight,
+    closing: () => state.closing,
+    now: state.now,
+    proxy: 'model proxy',
+    brokeOff: "The provider's response broke before it ended.",
+    flushes: 'served stream',
   });
-  reply.once('aborted', () => {
-    breakOff();
-    decoder.destroy();
-  });
-  decoder.on('data', (chunk: Buffer) => {
-    const decoded = text.decode(chunk, {stream: true});
-    if (streamed) {
-      for (const event of sse.push(decoded)) {
-        capture.chunk(event);
-      }
-    } else {
-      body += decoded;
-    }
-  });
-  decoder.once('end', () => {
-    if (!streamed) {
-      body += text.decode();
-    }
-    if (!reply.complete) {
-      breakOff();
-      return;
-    }
-    capture.end({response: {status, headers: reply.headers, body, streamed}});
-  });
-  decoder.once('error', error => breakOff(error));
 }
 
 /** Passes a WebSocket upgrade on to the target as a tunnel, unrecorded; armed, only in the live mode. */

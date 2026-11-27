@@ -54,6 +54,8 @@ export interface Forwarder {
   proxy: string;
   /** The status message of a reply that broke off with no error of its own. */
   brokeOff: string;
+  /** Which streamed replies have their headers sent before their first event: every one, or a served one alone. */
+  flushes: 'every stream' | 'served stream';
 }
 
 /** What the proxy reads of the reply, through a copy of it. */
@@ -68,6 +70,12 @@ export interface Relay {
   fail(failure: Failure, at: bigint, reached: boolean): void;
   /** The agent closed its side before the reply ended; `drop` drops the reply. Without it, the reply is dropped at once. */
   agentClosed?(drop: () => void): void;
+  /**
+   * The reply's content encoding can be read; `flush` calls back once the
+   * decoder has given out what arrived so far. Not called for an encoding
+   * that cannot be read.
+   */
+  decoding?(flush: (done: () => void) => void): void;
 }
 
 /**
@@ -113,7 +121,9 @@ export function forward(
     const streamed = /^text\/event-stream\b/i.test(String(reply.headers['content-type'] ?? ''));
     if (!response.destroyed) {
       response.writeHead(status, reply.statusMessage, endToEndHeaders(reply.headers));
-      if (streamed) response.flushHeaders();
+      if (streamed && (forwarder.flushes === 'every stream' || served !== undefined)) {
+        response.flushHeaders();
+      }
       reply.pipe(response);
       reply.once('close', () => {
         if (!reply.complete) {
@@ -149,6 +159,9 @@ export function forward(
       reply.once('aborted', () => broke());
       return;
     }
+    relay.decoding?.(done =>
+      decoder.flush === undefined ? process.nextTick(done) : decoder.flush(done),
+    );
     const text = new TextDecoder();
     const sse = new SseParser();
     let body = '';

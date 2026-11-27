@@ -571,6 +571,7 @@ function forwarderOf(shared: Shared): Forwarder {
     now: shared.now,
     proxy: 'tool proxy',
     brokeOff: "The tool server's response broke before it ended.",
+    flushes: 'every stream',
   });
 }
 
