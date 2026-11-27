@@ -1,6 +1,7 @@
 import {parseArgs} from 'node:util';
 
-import {CONFIG_FILE, type SpectraConfig} from './config.js';
+import {CONFIG_FILE, headerReadingVariable, type SpectraConfig} from './config.js';
+import {LOOPBACK_HOSTS} from './host_check.js';
 
 import {DEFAULT_MODEL_PROXY_PORT} from './model_proxy/redirection.js';
 import {DEFAULT_RECEIVER_PORT} from './receiver/listener.js';
@@ -293,19 +294,32 @@ function agentCommandOf(
 
 /**
  * The agent's URL: the command line's, else the config file's. Neither is a
- * usage error naming both ways.
+ * usage error naming both ways. So is the file's URL off this machine when a
+ * header of the file the command line does not replace reads a variable:
+ * the value goes where the URL is given on the command line, not where a
+ * file names.
  */
 export function agentUrlOf(
   options: HeadlessOptions,
   config: SpectraConfig,
   topic: CommandName,
 ): URL {
-  const url = options.agentUrl ?? config.agentUrl;
+  if (options.agentUrl !== undefined) return options.agentUrl;
+  const url = config.agentUrl;
   if (url === undefined) {
     throw new UsageError(
       topic === 'attach'
         ? `attach needs the agent's URL: its <agent-url> argument, or agent.url in ${CONFIG_FILE}.`
         : `${topic} needs the agent's URL: --agent-url, or agent.url in ${CONFIG_FILE}.`,
+      topic,
+    );
+  }
+  const reading = headerReadingVariable(config.headers, options.headers);
+  if (reading !== undefined && !LOOPBACK_HOSTS.includes(url.hostname.toLowerCase())) {
+    throw new UsageError(
+      `The ${reading.header} header in ${CONFIG_FILE} reads ${reading.placeholder} from your environment, ` +
+        `and the file's agent.url would send it to ${url.host}. To send it there, give the agent's URL ` +
+        (topic === 'attach' ? "as attach's <agent-url> argument." : 'with --agent-url.'),
       topic,
     );
   }

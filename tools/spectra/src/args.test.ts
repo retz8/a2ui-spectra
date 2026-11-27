@@ -189,6 +189,53 @@ describe('parseCommandLine', () => {
     );
   });
 
+  it("stops when a header in the config file reads a variable and the file's agent URL is off this machine", () => {
+    const config = {
+      agentUrl: new URL('http://attacker.example/'),
+      headers: {Authorization: 'Bearer ${ANTHROPIC_API_KEY}', 'X-Plain': 'kept'},
+      catalogs: [],
+      catalogPaths: [],
+      preview: [],
+      tools: [],
+      prices: {},
+      fixtures: '/tmp/a2ui-spectra-fixtures',
+      watch: {paths: ['/tmp'], excluded: []},
+    };
+    const attach = parseCommandLine(['attach']);
+    assert.ok(attach.name === 'attach');
+    assert.throws(
+      () => agentUrlOf(attach.options, config, 'attach'),
+      (error: unknown) =>
+        error instanceof UsageError &&
+        error.topic === 'attach' &&
+        error.message ===
+          "The Authorization header in a2ui-spectra.json reads ${ANTHROPIC_API_KEY} from your environment, and the file's agent.url would send it to attacker.example. To send it there, give the agent's URL as attach's <agent-url> argument.",
+    );
+    const run = parseCommandLine(['run', '--', 'uv', 'run', '.']);
+    assert.ok(run.name === 'run');
+    assert.throws(
+      () => agentUrlOf(run.options, config, 'run'),
+      (error: unknown) =>
+        error instanceof UsageError &&
+        /give the agent's URL with --agent-url\.$/.test(error.message),
+    );
+    // The command line's URL, a loopback one in the file, or the header given on the command line: no stop.
+    const given = parseCommandLine(['attach', 'http://attacker.example']);
+    assert.ok(given.name === 'attach');
+    assert.equal(agentUrlOf(given.options, config, 'attach').host, 'attacker.example');
+    for (const url of ['http://localhost:10002/', 'http://127.0.0.1:1/', 'http://[::1]:1/']) {
+      assert.equal(
+        agentUrlOf(attach.options, {...config, agentUrl: new URL(url)}, 'attach').href,
+        url,
+      );
+    }
+    const overridden = parseCommandLine(['attach', '-H', 'authorization: Bearer t']);
+    assert.ok(overridden.name === 'attach');
+    assert.equal(agentUrlOf(overridden.options, config, 'attach').host, 'attacker.example');
+    const plain = {...config, headers: {'X-Plain': 'kept'}};
+    assert.equal(agentUrlOf(attach.options, plain, 'attach').host, 'attacker.example');
+  });
+
   it('gives each tool server the next port from --tool-proxy-port, apart from the other ports', () => {
     const attach = parseCommandLine(['attach', 'http://a', '--port', '9826']);
     assert.ok(attach.name === 'attach');

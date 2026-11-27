@@ -222,6 +222,24 @@ function readTools(
 const VARIABLE = /\$\{([A-Za-z_][A-Za-z0-9_]*)\}/g;
 
 /**
+ * The first of the file's headers, by name, whose value reads a variable,
+ * with that variable as written, `${NAME}`; none when no header does. A
+ * header named in `given`, compared without regard to case, is not read.
+ */
+export function headerReadingVariable(
+  written: Readonly<Record<string, string>>,
+  given: Readonly<Record<string, string>>,
+): {header: string; placeholder: string} | undefined {
+  const givenNames = new Set(Object.keys(given).map(name => name.toLowerCase()));
+  for (const [header, value] of Object.entries(written)) {
+    if (givenNames.has(header.toLowerCase())) continue;
+    const placeholder = value.match(VARIABLE)?.[0];
+    if (placeholder !== undefined) return {header, placeholder};
+  }
+  return undefined;
+}
+
+/**
  * The headers with each `${VAR}` replaced from the environment. A header
  * naming a variable that is not set is left out, and the variable is named
  * in `unset`, once, in the order met.
