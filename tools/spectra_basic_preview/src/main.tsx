@@ -5,7 +5,7 @@
  * adopter's page draws its own catalog.
  */
 import {renderMarkdown} from '@a2ui/markdown-it';
-import {MarkdownContext, type ReactCatalogComponent} from '@a2ui/react/v0_9';
+import {MarkdownContext, type ReactCatalogComponent} from '@a2ui/react';
 import {basicCatalog as basicV10} from '@a2ui/web_core/catalogs/basic/v1';
 import {Catalog} from '@a2ui/web_core/v0_9';
 import {basicCatalog as basicV09} from '@a2ui/web_core/v0_9/basic_catalog';
