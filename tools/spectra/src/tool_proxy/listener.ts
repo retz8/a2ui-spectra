@@ -15,7 +15,8 @@ import type {PlacedCall} from '../placement.js';
 import type {ReplayPool} from '../replay/pool.js';
 import type {Upstream} from '../replay/served.js';
 import type {ToolCapture} from './capture.js';
-import type {Session, ToolProxyOptions} from './proxy.js';
+import type {ToolProxyOptions} from './proxy.js';
+import type {Session} from './sessions.js';
 import type {ToolServer} from './servers.js';
 
 export interface Shared {
