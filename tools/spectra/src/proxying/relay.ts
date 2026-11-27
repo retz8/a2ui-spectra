@@ -11,6 +11,7 @@ import type {
 } from 'node:http';
 import {request as httpRequest} from 'node:http';
 import {request as httpsRequest} from 'node:https';
+import type {Duplex} from 'node:stream';
 
 import {
   type ReplyMessage,
@@ -56,6 +57,34 @@ export interface Forwarder {
   brokeOff: string;
   /** Which streamed replies have their headers sent before their first event: every one, or a served one alone. */
   flushes: 'every stream' | 'served stream';
+}
+
+/**
+ * The headers a request is forwarded with: its end-to-end headers, `Host`
+ * set to the target's, and `Content-Length` set to the body read whenever
+ * the request has a body or names a length.
+ */
+export function forwardedHeaders(
+  request: IncomingMessage,
+  raw: Buffer,
+  host: string,
+): OutgoingHttpHeaders {
+  const headers: OutgoingHttpHeaders = {...endToEndHeaders(request.headers), host};
+  if (
+    raw.length > 0 ||
+    request.headers['content-length'] !== undefined ||
+    request.headers['transfer-encoding'] !== undefined
+  ) {
+    headers['content-length'] = raw.length;
+  }
+  return headers;
+}
+
+/** Answers a WebSocket upgrade a replay misses, 502 with the miss's line, and closes the socket. */
+export function missUpgrade(socket: Duplex, line: string): void {
+  socket.end(
+    `HTTP/1.1 502 Bad Gateway\r\ncontent-type: text/plain; charset=utf-8\r\nconnection: close\r\n\r\n${line}\n`,
+  );
 }
 
 /** What the proxy reads of the reply, through a copy of it. */

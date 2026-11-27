@@ -23,12 +23,7 @@ import type {Duplex} from 'node:stream';
 
 import type {SseEvent} from '../proxying/sse.js';
 import {removeFromUrl} from '../proxying/credentials.js';
-import {
-  chunkEvent,
-  endToEndHeaders,
-  requestAttributes,
-  responseAttributes,
-} from '../proxying/exchange.js';
+import {chunkEvent, requestAttributes, responseAttributes} from '../proxying/exchange.js';
 import {bodyJson, isTokenRequest, readBody, tunnelUpgrade} from '../proxying/forwarding.js';
 import type {CallListener} from '../proxying/calls.js';
 import {
@@ -37,6 +32,8 @@ import {
   type Failure,
   type Forwarder,
   forward,
+  forwardedHeaders,
+  missUpgrade,
   type Relay,
   STOPPED,
 } from '../proxying/relay.js';
@@ -269,9 +266,7 @@ function listen(shared: Shared, server: ToolServer): Promise<Server> {
     if (shared.pool !== undefined) {
       const line = missLine('tool proxy', request.method ?? 'GET', target);
       shared.options.log?.(line);
-      socket.end(
-        `HTTP/1.1 502 Bad Gateway\r\ncontent-type: text/plain; charset=utf-8\r\nconnection: close\r\n\r\n${line}\n`,
-      );
+      missUpgrade(socket, line);
       return;
     }
     shared.options.log?.(
@@ -336,7 +331,7 @@ async function route(
     target,
     response,
     start,
-    headers: forwardedHeaders(request, raw, target),
+    headers: forwardedHeaders(request, raw, target.host),
   };
   const pool = shared.pool;
   if (isTokenRequest(request.headers['content-type'], text)) {
@@ -385,18 +380,6 @@ interface Call {
   start: bigint;
   /** The headers as forwarded: end to end, with the target's `Host`. */
   headers: OutgoingHttpHeaders;
-}
-
-function forwardedHeaders(request: IncomingMessage, raw: Buffer, target: URL): OutgoingHttpHeaders {
-  const headers: OutgoingHttpHeaders = {...endToEndHeaders(request.headers), host: target.host};
-  if (
-    raw.length > 0 ||
-    request.headers['content-length'] !== undefined ||
-    request.headers['transfer-encoding'] !== undefined
-  ) {
-    headers['content-length'] = raw.length;
-  }
-  return headers;
 }
 
 function placeOf(call: Call, what: string, traceparent?: string): PlacedCall | Unplaced {

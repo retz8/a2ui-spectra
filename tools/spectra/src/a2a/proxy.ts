@@ -3,7 +3,6 @@ import {
   createServer,
   type IncomingHttpHeaders,
   type IncomingMessage,
-  type OutgoingHttpHeaders,
   request as httpRequest,
   type ServerResponse,
 } from 'node:http';
@@ -17,7 +16,7 @@ import {EXTENDED_CARD_METHODS, isCardPath, rewriteCard} from './card.js';
 import {isRecord, readTurnRequest} from './protocol.js';
 import {endToEndHeaders} from '../proxying/exchange.js';
 import {bodyJson, readBody} from '../proxying/forwarding.js';
-import {type Forwarder, type Relay, relayReply} from '../proxying/relay.js';
+import {forwardedHeaders, type Forwarder, type Relay, relayReply} from '../proxying/relay.js';
 import {formatTraceparent, parseTraceparent} from '../proxying/trace_context.js';
 import {TurnCapture, type TurnListener} from './turn.js';
 
@@ -160,17 +159,7 @@ async function forwardRead(
   const text = await readBody(raw, request.headers['content-encoding']);
   const found = await classify(options, state, text, request.headers);
 
-  const headers: OutgoingHttpHeaders = {
-    ...endToEndHeaders(request.headers),
-    host: options.agentUrl.host,
-  };
-  if (
-    raw.length > 0 ||
-    request.headers['content-length'] !== undefined ||
-    request.headers['transfer-encoding'] !== undefined
-  ) {
-    headers['content-length'] = raw.length;
-  }
+  const headers = forwardedHeaders(request, raw, options.agentUrl.host);
   if (found.name === 'turn' && !found.hostTraceContext) {
     headers.traceparent = formatTraceparent(found.capture.traceId, found.capture.spanId);
     delete headers.tracestate;

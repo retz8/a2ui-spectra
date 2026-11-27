@@ -12,7 +12,6 @@ import {
   createServer,
   type IncomingHttpHeaders,
   type IncomingMessage,
-  type OutgoingHttpHeaders,
   type ServerResponse,
 } from 'node:http';
 import type {Duplex} from 'node:stream';
@@ -36,12 +35,7 @@ import {nowUnixNano} from '../clock.js';
 import {proxyRefusal, refuseRequest, refuseUpgrade} from '../host_check.js';
 import {listenError, LOOPBACK_ADDRESS} from '../server.js';
 import {NAME} from '../version.js';
-import {
-  chunkEvent,
-  endToEndHeaders,
-  requestAttributes,
-  responseAttributes,
-} from '../proxying/exchange.js';
+import {chunkEvent, requestAttributes, responseAttributes} from '../proxying/exchange.js';
 import {bodyJson, isTokenRequest, readBody, tunnelUpgrade} from '../proxying/forwarding.js';
 import type {CallListener} from '../proxying/calls.js';
 import {
@@ -49,6 +43,8 @@ import {
   DEFAULT_CLOSE_GRACE_MS,
   type Forwarder,
   forward as forwardExchange,
+  forwardedHeaders,
+  missUpgrade,
   type Relay,
   STOPPED,
 } from '../proxying/relay.js';
@@ -409,14 +405,7 @@ async function forward(
 ): Promise<void> {
   const method = request.method ?? 'GET';
   const start = state.now();
-  const headers: OutgoingHttpHeaders = {...endToEndHeaders(request.headers), host: target.host};
-  if (
-    raw.length > 0 ||
-    request.headers['content-length'] !== undefined ||
-    request.headers['transfer-encoding'] !== undefined
-  ) {
-    headers['content-length'] = raw.length;
-  }
+  const headers = forwardedHeaders(request, raw, target.host);
 
   let capture: Capture | undefined;
   const text = await readBody(raw, request.headers['content-encoding']);
@@ -588,9 +577,7 @@ function upgrade(state: ProxyState, request: IncomingMessage, socket: Duplex, he
   if (state.pool !== undefined && state.pool.mode !== 'model_live') {
     const line = missLine('model proxy', request.method ?? 'GET', target);
     state.options.log?.(line);
-    socket.end(
-      `HTTP/1.1 502 Bad Gateway\r\ncontent-type: text/plain; charset=utf-8\r\nconnection: close\r\n\r\n${line}\n`,
-    );
+    missUpgrade(socket, line);
     return;
   }
   state.options.log?.(
