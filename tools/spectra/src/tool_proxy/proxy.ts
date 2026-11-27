@@ -1197,10 +1197,9 @@ function getRequest(call: Call): void {
   /** The placement held while the GET has not shown what it is; none once released. */
   let tentative: PlacedCall | Unplaced | undefined = placeOf(call, what);
   if (!('line' in tentative)) shared.tentative.add(tentative);
-  let state: 'undecided' | 'tool' | 'carrier' | 'gone' = 'undecided';
-  let capture: ToolCapture | undefined;
-  /** The carrier's session; none for a carrier whose endpoint is absolute, which is not read. */
-  let carried: Session | undefined;
+  /** What the GET turned out to be; none while it has not shown it. */
+  let phase: GetPhase | undefined;
+  const reply: ReplyHead = {status: 0, headers: {}};
   const settleTentative = () => {
     if (tentative !== undefined && !('line' in tentative)) shared.tentative.delete(tentative);
   };
@@ -1210,27 +1209,27 @@ function getRequest(call: Call): void {
     if (tentative !== undefined && !('line' in tentative)) tentative.release();
     tentative = undefined;
   };
-  const becomeTool = () => {
-    state = 'tool';
+  const becomeTool = (): GetPhase => {
     settleTentative();
     // A stream released at its head is placed anew, at its own start.
     const placed = tentative ?? placeOf(call, what);
+    let capture: ToolCapture | undefined;
     if ('line' in placed) {
       shared.options.log?.(placed.line);
-      return;
+    } else {
+      capture = new ToolCapture(shared, placed, {
+        start: call.start,
+        kind: 3,
+        name: `GET ${target.pathname}`,
+        attributes: requestAttributes('GET', target, call.headers, call.text),
+      });
     }
-    capture = new ToolCapture(shared, placed, {
-      start: call.start,
-      kind: 3,
-      name: `GET ${target.pathname}`,
-      attributes: requestAttributes('GET', target, call.headers, call.text),
-    });
+    return (phase = toolPhase(capture, reply));
   };
   const becomeCarrier = (session: Session | undefined) => {
-    state = 'carrier';
     releaseTentative();
-    carried = session;
     if (session !== undefined) session.carriers++;
+    phase = carrierPhase(listener, session);
   };
   const endpoint = (event: SseEvent, at: bigint) => {
     const data = event.data.trim();
@@ -1252,12 +1251,10 @@ function getRequest(call: Call): void {
     becomeCarrier(openSseSession(listener, call, read, event, at));
   };
 
-  let status = 0;
-  let headers: IncomingHttpHeaders = {};
-  forward(call, forwarderOf(call.listener.shared), {
+  forward(call, forwarderOf(shared), {
     head(replyStatus, replyHeaders, streamed) {
-      status = replyStatus;
-      headers = replyHeaders;
+      reply.status = replyStatus;
+      reply.headers = replyHeaders;
       if (!streamed) {
         becomeTool();
         return;
@@ -1269,49 +1266,87 @@ function getRequest(call: Call): void {
       else releaseTentative();
     },
     event(event, at) {
-      if (state === 'undecided') {
-        if (event.event === 'endpoint') {
-          endpoint(event, at);
-          return;
-        }
-        becomeTool();
-      }
-      if (state === 'tool') capture?.chunk(event, at);
-      else if (state === 'carrier' && carried !== undefined)
-        carrierMessage(listener, carried, event, at);
-    },
-    end(at, body) {
-      if (state === 'undecided') becomeTool();
-      if (state === 'tool') {
-        capture?.exchange(status, headers, body);
-        capture?.end(at);
-      } else if (state === 'carrier') {
-        carrierClosed(listener, carried, at);
-      }
-    },
-    fail(failure, at, reached) {
-      if (state === 'undecided') becomeTool();
-      if (state === 'tool') {
-        if (reached) capture?.exchange(status, headers);
-        capture?.end(at, failure);
-      } else if (state === 'carrier') {
-        carrierClosed(listener, carried, at);
-      }
-    },
-    agentClosed(drop) {
-      if (state === 'tool' && capture !== undefined) {
-        capture.agentClosed(drop);
+      if (phase === undefined && event.event === 'endpoint') {
+        endpoint(event, at);
         return;
       }
-      if (state === 'undecided') {
+      (phase ?? becomeTool()).event(event, at);
+    },
+    end(at, body) {
+      (phase ?? becomeTool()).end(at, body);
+    },
+    fail(failure, at, reached) {
+      (phase ?? becomeTool()).fail(failure, at, reached);
+    },
+    agentClosed(drop) {
+      if (phase === undefined) {
         // It never showed what it is.
-        state = 'gone';
         releaseTentative();
+        phase = GONE;
       }
-      drop();
+      phase.agentClosed(drop);
     },
   });
 }
+
+/** A reply's status and headers, as its head gave them. */
+interface ReplyHead {
+  status: number;
+  headers: IncomingHttpHeaders;
+}
+
+/** What a `GET` turned out to be, and how the rest of its reply is read. */
+interface GetPhase {
+  event(event: SseEvent, at: bigint): void;
+  end(at: bigint, body: string | undefined): void;
+  fail(failure: Failure, at: bigint, reached: boolean): void;
+  agentClosed(drop: () => void): void;
+}
+
+/** A `GET` that is an HTTP tool call: its exchange and its chunks recorded on its capture, if it was placed. */
+function toolPhase(capture: ToolCapture | undefined, reply: ReplyHead): GetPhase {
+  return {
+    event(event, at) {
+      capture?.chunk(event, at);
+    },
+    end(at, body) {
+      capture?.exchange(reply.status, reply.headers, body);
+      capture?.end(at);
+    },
+    fail(failure, at, reached) {
+      if (reached) capture?.exchange(reply.status, reply.headers);
+      capture?.end(at, failure);
+    },
+    agentClosed(drop) {
+      if (capture === undefined) drop();
+      else capture.agentClosed(drop);
+    },
+  };
+}
+
+/** A `GET` that is a carrier: its messages read into its session, none for one whose endpoint is not read. */
+function carrierPhase(listener: Listener, carried: Session | undefined): GetPhase {
+  return {
+    event(event, at) {
+      if (carried !== undefined) carrierMessage(listener, carried, event, at);
+    },
+    end(at) {
+      carrierClosed(listener, carried, at);
+    },
+    fail(_failure, at) {
+      carrierClosed(listener, carried, at);
+    },
+    agentClosed: drop => drop(),
+  };
+}
+
+/** A `GET` whose agent left before it showed what it is: nothing more is read. */
+const GONE: GetPhase = {
+  event: () => {},
+  end: () => {},
+  fail: () => {},
+  agentClosed: drop => drop(),
+};
 
 /**
  * A relative endpoint as the client resolves it, against the stream's URL on
