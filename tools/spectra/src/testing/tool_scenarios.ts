@@ -1,7 +1,7 @@
 /**
  * What the tool capture suite and the tool replay suite share: the client
  * scenarios run through the tool proxy, where each transport's server is,
- * and the comparison of tool call events with the expected record's, once
+ * the stand-in turn event the calls are placed in, and the comparison of tool call events with the expected record's, once
  * what varies from run to run is normalised.
  */
 import assert from 'node:assert/strict';
@@ -11,7 +11,33 @@ import {SSEClientTransport} from '@modelcontextprotocol/sdk/client/sse.js';
 import {StreamableHTTPClientTransport} from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import {CreateMessageRequestSchema} from '@modelcontextprotocol/sdk/types.js';
 
-import {isEventOfKind, type ToolCallEvent, type Turn} from '../record/turn_record.js';
+import {
+  isEventOfKind,
+  type ToolCallEvent,
+  type Turn,
+  type TurnEvent,
+} from '../record/turn_record.js';
+
+/** The turn event a suite places its calls in, standing in for the wire proxy's. */
+export function standInTurnEvent(traceId: string, spanId: string): TurnEvent {
+  return {
+    traceId,
+    spanId,
+    name: 'invoke_agent',
+    kind: 3,
+    startTimeUnixNano: '1792577000000000000',
+    endTimeUnixNano: '1792577001000000000',
+    attributes: {
+      'a2ui.event.kind': 'turn',
+      'gen_ai.operation.name': 'invoke_agent',
+      'a2ui.turn.outcome': 'completed',
+      'a2ui.turn.capture_paths': ['wire', 'tool_proxy'],
+      'a2ui.turn.writer.name': 'a2ui-spectra',
+      'a2ui.turn.writer.version': '0.0.0',
+    },
+    status: {code: 1},
+  };
+}
 
 export type Transport = 'streamable_http' | 'streamable_http_json' | 'http_sse' | 'http';
 

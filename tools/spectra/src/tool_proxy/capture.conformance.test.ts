@@ -15,16 +15,17 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {before, describe, it} from 'node:test';
-import {fileURLToPath} from 'node:url';
 
 import * as yaml from 'js-yaml';
 
 import {CallPlacer} from '../placement.js';
-import type {ToolCallEvent, Turn, TurnEvent, TurnRecord} from '../record/turn_record.js';
+import type {ToolCallEvent, Turn, TurnRecord} from '../record/turn_record.js';
+import {CONFORMANCE_DIR} from '../testing/model_traffic.js';
 import {
   comparable,
   PATHS,
   SCENARIOS,
+  standInTurnEvent,
   toolCalls,
   type Transport,
 } from '../testing/tool_scenarios.js';
@@ -42,45 +43,11 @@ interface CaptureToolCase {
   expect: Partial<Record<Transport, string>>;
 }
 
-/** Walks up from this file until it finds the shared conformance directory. */
-function findConformanceDir(): string {
-  let dir = path.dirname(fileURLToPath(import.meta.url));
-  while (dir !== path.parse(dir).root) {
-    const candidate = path.join(dir, 'conformance', 'conformance_schema.json');
-    if (fs.existsSync(candidate)) {
-      return path.dirname(candidate);
-    }
-    dir = path.dirname(dir);
-  }
-  throw new Error('Could not find conformance/conformance_schema.json');
-}
-
-const CONFORMANCE_DIR = findConformanceDir();
 const SUITE = path.join(CONFORMANCE_DIR, 'tool_capture/capture_v0_1.yaml');
 const WRITE = process.env.SPECTRA_WRITE_TOOL_CAPTURE === '1';
 
 const TRACE_ID = 'c'.repeat(32);
 const TURN_SPAN_ID = 'd'.repeat(16);
-
-function turnEvent(): TurnEvent {
-  return {
-    traceId: TRACE_ID,
-    spanId: TURN_SPAN_ID,
-    name: 'invoke_agent',
-    kind: 3,
-    startTimeUnixNano: '1792577000000000000',
-    endTimeUnixNano: '1792577001000000000',
-    attributes: {
-      'a2ui.event.kind': 'turn',
-      'gen_ai.operation.name': 'invoke_agent',
-      'a2ui.turn.outcome': 'completed',
-      'a2ui.turn.capture_paths': ['wire', 'tool_proxy'],
-      'a2ui.turn.writer.name': 'a2ui-spectra',
-      'a2ui.turn.writer.version': '0.0.0',
-    },
-    status: {code: 1},
-  };
-}
 
 /** The expected record a capture gives: the stand-in turn event and the normalised calls, with schema-valid stand-ins for what Spectra generates. */
 function expectedRecord(events: ToolCallEvent[]): TurnRecord {
@@ -90,7 +57,7 @@ function expectedRecord(events: ToolCallEvent[]): TurnRecord {
     turns: [
       {
         events: [
-          turnEvent(),
+          standInTurnEvent(TRACE_ID, TURN_SPAN_ID),
           ...calls.map((call, index) => {
             const start = 1792577000100000000n + BigInt(index) * 10_000_000n;
             // A notification the server sent starts and ends at its arrival.
@@ -157,7 +124,11 @@ async function runCase(
     const scenario = SCENARIOS[c.scenario];
     assert.ok(scenario !== undefined, `the scenario ${c.scenario} exists`);
     await scenario(new URL(server.value), transport);
-    placer.onTurn({type: 'turn_closed', traceId: TRACE_ID, turn: {events: [turnEvent()]}});
+    placer.onTurn({
+      type: 'turn_closed',
+      traceId: TRACE_ID,
+      turn: {events: [standInTurnEvent(TRACE_ID, TURN_SPAN_ID)]},
+    });
     const deadline = Date.now() + 5000;
     while (handedOn.length === 0) {
       assert.ok(

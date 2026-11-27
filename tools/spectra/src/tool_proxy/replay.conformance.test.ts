@@ -11,20 +11,21 @@ import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import {describe, it} from 'node:test';
-import {fileURLToPath} from 'node:url';
 
 import * as yaml from 'js-yaml';
 
 import {SseParser} from '../a2a/sse.js';
 import {CallPlacer} from '../placement.js';
-import type {ToolCallEvent, Turn, TurnEvent, TurnRecord} from '../record/turn_record.js';
+import type {ToolCallEvent, Turn, TurnRecord} from '../record/turn_record.js';
 import {ReplayPool} from '../replay/pool.js';
 import {recordedEvents} from '../replay/served.js';
+import {CONFORMANCE_DIR} from '../testing/model_traffic.js';
 import {
   comparable,
   type HttpReply,
   PATHS,
   SCENARIOS,
+  standInTurnEvent,
   toolCalls,
   type Transport,
   withClient,
@@ -42,46 +43,12 @@ interface ReplayToolCase {
   expect: Partial<Record<Transport, string>>;
 }
 
-/** Walks up from this file until it finds the shared conformance directory. */
-function findConformanceDir(): string {
-  let dir = path.dirname(fileURLToPath(import.meta.url));
-  while (dir !== path.parse(dir).root) {
-    const candidate = path.join(dir, 'conformance', 'conformance_schema.json');
-    if (fs.existsSync(candidate)) {
-      return path.dirname(candidate);
-    }
-    dir = path.dirname(dir);
-  }
-  throw new Error('Could not find conformance/conformance_schema.json');
-}
-
-const CONFORMANCE_DIR = findConformanceDir();
 const SUITE = path.join(CONFORMANCE_DIR, 'tool_replay/replay_v0_1.yaml');
 
 const TRACE_ID = 'c'.repeat(32);
 const TURN_SPAN_ID = 'd'.repeat(16);
 const MISS_TRACE_ID = 'e'.repeat(32);
 const MISS_SPAN_ID = 'f'.repeat(16);
-
-function turnEvent(traceId: string, spanId: string): TurnEvent {
-  return {
-    traceId,
-    spanId,
-    name: 'invoke_agent',
-    kind: 3,
-    startTimeUnixNano: '1792577000000000000',
-    endTimeUnixNano: '1792577001000000000',
-    attributes: {
-      'a2ui.event.kind': 'turn',
-      'gen_ai.operation.name': 'invoke_agent',
-      'a2ui.turn.outcome': 'completed',
-      'a2ui.turn.capture_paths': ['wire', 'tool_proxy'],
-      'a2ui.turn.writer.name': 'a2ui-spectra',
-      'a2ui.turn.writer.version': '0.0.0',
-    },
-    status: {code: 1},
-  };
-}
 
 /**
  * The record with its placeholders made concrete: `<origin>` the origin
@@ -285,7 +252,7 @@ async function runCase(c: ReplayToolCase, transport: Transport, expectFile: stri
     placer.onTurn({
       type: 'turn_closed',
       traceId: TRACE_ID,
-      turn: {events: [turnEvent(TRACE_ID, TURN_SPAN_ID)]},
+      turn: {events: [standInTurnEvent(TRACE_ID, TURN_SPAN_ID)]},
     });
     await handedOnBy(handedOn, 1, lines);
     assert.deepEqual(unplaced, [], 'every call was placed');
@@ -367,7 +334,7 @@ async function runCase(c: ReplayToolCase, transport: Transport, expectFile: stri
     placer.onTurn({
       type: 'turn_closed',
       traceId: MISS_TRACE_ID,
-      turn: {events: [turnEvent(MISS_TRACE_ID, MISS_SPAN_ID)]},
+      turn: {events: [standInTurnEvent(MISS_TRACE_ID, MISS_SPAN_ID)]},
     });
     await handedOnBy(handedOn, 2, lines);
     const missTurn = handedOn[1];
