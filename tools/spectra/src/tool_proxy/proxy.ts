@@ -365,14 +365,7 @@ async function route(
     if (pool === undefined) getRequest(call);
     else armedGet(call, pool);
   } else {
-    httpTool(
-      call,
-      logged(
-        listener,
-        placeOf(call, `a tool call to ${target.host}, ${method} ${target.pathname}`),
-      ),
-      pool === undefined ? undefined : {served: pool.httpTool(httpToolKey(call))},
-    );
+    httpTool(call, pool === undefined ? undefined : {served: pool.httpTool(httpToolKey(call))});
   }
 }
 
@@ -390,12 +383,43 @@ interface Call {
   headers: OutgoingHttpHeaders;
 }
 
-function placeOf(call: Call, what: string, traceparent?: string): PlacedCall | Unplaced {
-  return call.listener.shared.options.place({
+/** Where a call is placed from: what it is, its start, and the trace context it carries. */
+interface Placement {
+  what: string;
+  start: bigint;
+  traceparent: string | undefined;
+}
+
+/** A request's placement: at its start, by its `traceparent` header, else the trace context its message carries. */
+function placementOf(call: Call, what: string, traceparent?: string): Placement {
+  return {
     what,
-    startTimeUnixNano: call.start.toString(),
+    start: call.start,
     traceparent: header(call.request.headers, 'traceparent') ?? traceparent,
-  });
+  };
+}
+
+function placeOf(call: Call, what: string): PlacedCall | Unplaced {
+  return place(call.listener, placementOf(call, what));
+}
+
+function place(listener: Listener, {what, start, traceparent}: Placement): PlacedCall | Unplaced {
+  return listener.shared.options.place({what, startTimeUnixNano: start.toString(), traceparent});
+}
+
+/**
+ * Places a call in its turn and starts its capture at the placement's
+ * start; none, with the line saying why logged, when no turn takes it.
+ */
+function captured(
+  listener: Listener,
+  placement: Placement,
+  init: Omit<ConstructorParameters<typeof ToolCapture>[2], 'start'>,
+): ToolCapture | undefined {
+  const placed = logged(listener, place(listener, placement));
+  return placed === undefined
+    ? undefined
+    : new ToolCapture(listener.shared, placed, {start: placement.start, ...init});
 }
 
 /** The placed call, or nothing with the line saying why logged. */
@@ -605,25 +629,21 @@ function httpToolKey(call: Call) {
  * and its path without the query. Armed, it is served the event the pool
  * matched, or missed when none.
  */
-function httpTool(
-  call: Call,
-  placed: PlacedCall | undefined,
-  armed?: {served: CallEvent | undefined},
-): void {
+function httpTool(call: Call, armed?: {served: CallEvent | undefined}): void {
   const method = call.request.method ?? 'GET';
   const served = armed?.served;
-  const capture =
-    placed === undefined
-      ? undefined
-      : new ToolCapture(call.listener.shared, placed, {
-          start: call.start,
-          kind: 3,
-          name: `${method} ${call.target.pathname}`,
-          attributes: {
-            ...requestAttributes(method, call.target, call.headers, call.text),
-            ...servedFrom(served),
-          },
-        });
+  const capture = captured(
+    call.listener,
+    placementOf(call, `a tool call to ${call.target.host}, ${method} ${call.target.pathname}`),
+    {
+      kind: 3,
+      name: `${method} ${call.target.pathname}`,
+      attributes: {
+        ...requestAttributes(method, call.target, call.headers, call.text),
+        ...servedFrom(served),
+      },
+    },
+  );
   const relay = recording(capture);
   if (armed === undefined) forward(call, forwarderOf(call.listener.shared), relay);
   else serve(call, relay, served);
@@ -820,19 +840,15 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
       ...sessionAttributes(session, request),
       ...exchangeRequest,
     };
-    const placed = logged(
+    const capture = captured(
       listener,
-      placeOf(call, `an MCP response to ${target.host}, for request ${id}`, traceparentOf(message)),
+      placementOf(
+        call,
+        `an MCP response to ${target.host}, for request ${id}`,
+        traceparentOf(message),
+      ),
+      {kind: 3, name: 'response', attributes},
     );
-    const capture =
-      placed === undefined
-        ? undefined
-        : new ToolCapture(shared, placed, {
-            start: call.start,
-            kind: 3,
-            name: 'response',
-            attributes,
-          });
     forward(call, forwarderOf(call.listener.shared), recording(capture), accepted);
     return;
   }
@@ -869,24 +885,18 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
     pool !== undefined && asking && mcpMethod !== undefined && mcpMethod !== 'ping'
       ? pool.mcpRequest(mcpMethod, message.params, ownServer(listener))
       : undefined;
-  const placed = logged(
+  const capture = captured(
     listener,
-    shared.options.place({
-      what: `an MCP ${asking ? 'request' : 'message'} to ${target.host}, ${name}`,
-      startTimeUnixNano: start.toString(),
-      traceparent: header(request.headers, 'traceparent') ?? traceparentOf(message),
-    }),
+    {
+      ...placementOf(
+        call,
+        `an MCP ${asking ? 'request' : 'message'} to ${target.host}, ${name}`,
+        traceparentOf(message),
+      ),
+      start,
+    },
+    {kind: 3, name, attributes: {...attributes, ...servedFrom(served)}, method: mcpMethod},
   );
-  const capture =
-    placed === undefined
-      ? undefined
-      : new ToolCapture(shared, placed, {
-          start,
-          kind: 3,
-          name,
-          attributes: {...attributes, ...servedFrom(served)},
-          method: mcpMethod,
-        });
   if (opening !== undefined) capture?.chunk(opening.endpoint.event, opening.endpoint.at);
 
   let pending: Pending | undefined;
@@ -1098,20 +1108,19 @@ function sessionEnd(call: Call): void {
   const pool = listener.shared.pool;
   // Armed, the record's session end, else 204.
   const served = pool?.sessionEnd(ownServer(listener));
-  const placed = logged(listener, placeOf(call, `an MCP session end to ${target.host}, DELETE`));
-  const capture =
-    placed === undefined
-      ? undefined
-      : new ToolCapture(listener.shared, placed, {
-          start: call.start,
-          kind: 3,
-          name: 'DELETE',
-          attributes: {
-            ...sessionAttributes(session, request),
-            ...requestAttributes('DELETE', target, call.headers, call.text),
-            ...servedFrom(served),
-          },
-        });
+  const capture = captured(
+    listener,
+    placementOf(call, `an MCP session end to ${target.host}, DELETE`),
+    {
+      kind: 3,
+      name: 'DELETE',
+      attributes: {
+        ...sessionAttributes(session, request),
+        ...requestAttributes('DELETE', target, call.headers, call.text),
+        ...servedFrom(served),
+      },
+    },
+  );
   const recorded = recording(capture);
   const relay: Relay = {
     ...recorded,
@@ -1308,11 +1317,9 @@ function openSseSession(
  */
 function armedGet(call: Call, pool: ReplayPool): void {
   const {listener, request, target} = call;
-  const placeTool = () =>
-    logged(listener, placeOf(call, `a tool call to ${target.host}, GET ${target.pathname}`));
   const served = pool.httpTool(httpToolKey(call));
   if (served !== undefined) {
-    httpTool(call, placeTool(), {served});
+    httpTool(call, {served});
     return;
   }
   const id = header(request.headers, 'mcp-session-id');
@@ -1330,7 +1337,7 @@ function armedGet(call: Call, pool: ReplayPool): void {
       return;
     }
   }
-  httpTool(call, placeTool(), {served: undefined});
+  httpTool(call, {served: undefined});
 }
 
 /** Answers a `GET` as a carrier the proxy holds open, `200` `text/event-stream`, writing `first` when given, until the client closes it or the proxy is disarmed. */
@@ -1428,22 +1435,16 @@ function serverEvent(
     ends,
   }: {what: string; name: string; attributes: Record<string, unknown>; ends: boolean},
 ): ToolCapture | undefined {
-  const {shared} = listener;
-  const placed = logged(
+  const capture = captured(
     listener,
-    shared.options.place({
-      what,
-      startTimeUnixNano: at.toString(),
-      traceparent: traceparentOf(message),
-    }),
+    {what, start: at, traceparent: traceparentOf(message)},
+    {
+      kind: 2,
+      name,
+      attributes: {...attributes, ...sessionAttributes(session), ...serverAttributes(listener)},
+    },
   );
-  if (placed === undefined) return undefined;
-  const capture = new ToolCapture(shared, placed, {
-    start: at,
-    kind: 2,
-    name,
-    attributes: {...attributes, ...sessionAttributes(session), ...serverAttributes(listener)},
-  });
+  if (capture === undefined) return undefined;
   capture.chunk(event, at);
   if (ends) {
     if (isResponse(message)) capture.reply(message);
