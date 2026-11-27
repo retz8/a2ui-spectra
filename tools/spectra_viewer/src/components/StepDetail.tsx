@@ -192,6 +192,7 @@ export function StepDetail({
       : row.parse !== undefined
         ? parseDetailOf({
             step: row,
+            parse: row.parse,
             events,
             startMs,
             catalogs,
@@ -405,7 +406,7 @@ export function StepDetail({
           ) : row.row === 'delivery' ? (
             <DeliveryBlocks event={events[row.eventIndex] as WireEvent} />
           ) : row.generation !== undefined ? (
-            <GenerationBlocks step={row} events={events} startMs={startMs} />
+            <GenerationBlocks generation={row.generation} events={events} startMs={startMs} />
           ) : (
             <StepBlocks
               step={row}

@@ -101,8 +101,8 @@ export function toolCallDetailOf({
       ),
     });
   }
-  const missError = missed && proxy?.status?.message !== undefined;
-  if (result !== undefined || inFlight || missError) {
+  const missError = missed ? proxy?.status?.message : undefined;
+  if (result !== undefined || inFlight || missError !== undefined) {
     tabs.push({
       name: 'Result',
       content: (
@@ -112,7 +112,7 @@ export function toolCallDetailOf({
           ) : (
             inFlight && <p className="type-quiet">No result yet.</p>
           )}
-          {missError && <TextBlock label="Error" meta="HTTP 502" text={proxy!.status!.message!} />}
+          {missError !== undefined && <TextBlock label="Error" meta="HTTP 502" text={missError} />}
         </>
       ),
     });

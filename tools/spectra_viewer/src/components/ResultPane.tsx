@@ -152,9 +152,9 @@ export function ResultPane({
           </div>
           <div className="flex-1" />
           {drawn !== undefined && <WidthSwitch width={settings.width} />}
-          {surface !== undefined && (
+          {surface !== undefined && replay !== undefined && (
             <SurfaceSwitcher
-              replay={replay!}
+              replay={replay}
               current={surface}
               problemsBySurface={problemsBySurface}
               onPick={onPick}

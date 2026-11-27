@@ -26,6 +26,7 @@ import type {KnownCatalog} from '@/model/catalogs.ts';
 import {type Marker, partName, partText, type PrefixBreak} from '@/model/prefix.ts';
 import {type CallReplay, isMissCall, type RecordedCall} from '@/model/provenance.ts';
 import {
+  isModelCall,
   type ModelCallEvent,
   readRecordVersionsText,
   type TurnRecordEvent,
@@ -85,17 +86,15 @@ export function callTitleOf(
   startMs: number,
 ): {target: string; times: string} {
   const sources = sourcesOfRow(row);
+  const proxy = row.proxy !== undefined && isModelCall(row.proxy) ? row.proxy : undefined;
   let what: string[];
   if (row.kind === 'tool') {
     what = [target];
-  } else if (row.proxy !== undefined && isReadInFull(row.proxy as ModelCallEvent)) {
-    what = [apiOf(row.proxy as ModelCallEvent) ?? ''];
-  } else if (row.proxy !== undefined) {
-    const status = row.proxy.attributes['http.response.status_code'];
-    what = [
-      methodAndPath(row.proxy as ModelCallEvent),
-      ...(typeof status === 'number' ? [String(status)] : []),
-    ];
+  } else if (proxy !== undefined && isReadInFull(proxy)) {
+    what = [apiOf(proxy) ?? ''];
+  } else if (proxy !== undefined) {
+    const status = proxy.attributes['http.response.status_code'];
+    what = [methodAndPath(proxy), ...(typeof status === 'number' ? [String(status)] : [])];
   } else {
     const api = spanApiOf(modelReadingOf(row).event);
     what = api === undefined ? [] : [api];
@@ -707,7 +706,7 @@ function Reply({call, inFlight}: {call: ModelCallEvent; inFlight: boolean}) {
   const messages = asList(attributes['gen_ai.output.messages']);
   const status = attributes['http.response.status_code'];
   const errorBody = call.status?.code === 2 ? attributes['a2ui.http.response.body'] : undefined;
-  const missed = isMissCall(call) && call.status?.message !== undefined;
+  const missError = isMissCall(call) ? call.status?.message : undefined;
   return (
     <>
       {messages.map((message, index) => {
@@ -736,8 +735,8 @@ function Reply({call, inFlight}: {call: ModelCallEvent; inFlight: boolean}) {
           value={errorBody}
         />
       )}
-      {missed && <TextBlock label="Error" meta="HTTP 502" text={call.status!.message!} />}
-      {messages.length === 0 && errorBody === undefined && !missed && (
+      {missError !== undefined && <TextBlock label="Error" meta="HTTP 502" text={missError} />}
+      {messages.length === 0 && errorBody === undefined && missError === undefined && (
         <p className="type-quiet">
           {inFlight ? 'Nothing from the stream yet.' : 'The response holds no message.'}
         </p>

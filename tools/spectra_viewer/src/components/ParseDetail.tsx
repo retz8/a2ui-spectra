@@ -36,6 +36,7 @@ import {type RangeReveal, RawText} from './RawText.tsx';
 
 export function parseDetailOf({
   step,
+  parse,
   events,
   startMs,
   catalogs,
@@ -45,6 +46,8 @@ export function parseDetailOf({
   reveal,
 }: {
   step: Step;
+  /** The step's parse. */
+  parse: ParseEvent;
   events: readonly TurnRecordEvent[];
   startMs: number;
   /** The catalog definitions the viewer holds, which the parse's own catalogs are read from. */
@@ -56,7 +59,6 @@ export function parseDetailOf({
   onStep: (stepId: string) => void;
   reveal: RangeReveal | undefined;
 }): TabbedDetail {
-  const parse = step.parse!;
   const {attributes} = parse;
   const readFrom = readFromOf(events, parse, startMs);
   const retried = retriedByOf(events, parse, startMs);
@@ -198,15 +200,14 @@ function sourceLinesOfCall(call: CallRow): string[] {
 
 /** A failed prompt generation's span, in one column under its section. */
 export function GenerationBlocks({
-  step,
+  generation,
   events,
   startMs,
 }: {
-  step: Step;
+  generation: PromptGenerationEvent;
   events: readonly TurnRecordEvent[];
   startMs: number;
 }) {
-  const generation: PromptGenerationEvent = step.generation!;
   const row: CallRow = {kind: 'tool', id: generation.spanId, spans: [generation as OtherEvent]};
   return (
     <Section label="From the agent’s spans" meta={sourceLineOfStep(generation)} open>

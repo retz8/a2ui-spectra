@@ -44,12 +44,12 @@ import {
 import {type Problem, onlyProblems, turnProblemsOf} from '@/model/problems.ts';
 import {
   isCallEvent,
+  isModelCall,
   isParse,
   isPromptGeneration,
   isTurnEvent,
   isWireInput,
   isWireOutput,
-  type ModelCallEvent,
   newerStepVersionOf,
   readRecordVersionsText,
   type Turn,
@@ -579,11 +579,10 @@ export function TurnBody({
   );
   // Only a call the model proxy read in full is compared for the prefix break.
   const selectedRow = selected?.row === 'step' ? selected.call : undefined;
+  const selectedProxy = selectedRow?.kind === 'model' ? selectedRow.proxy : undefined;
   const selectedCall =
-    selectedRow?.kind === 'model' &&
-    selectedRow.proxy !== undefined &&
-    isReadInFull(selectedRow.proxy as ModelCallEvent)
-      ? (selectedRow.proxy as ModelCallEvent)
+    selectedProxy !== undefined && isModelCall(selectedProxy) && isReadInFull(selectedProxy)
+      ? selectedProxy
       : undefined;
   // A recorded call is named by the source as it reads for the turn the call is in.
   const resolvedSource = source?.resolved;
