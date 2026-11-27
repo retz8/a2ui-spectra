@@ -14,7 +14,8 @@ import type {Forwarder} from '../proxying/relay.js';
 import type {PlacedCall} from '../placement.js';
 import type {ReplayPool} from '../replay/pool.js';
 import type {Upstream} from '../replay/served.js';
-import type {Session, ToolCapture, ToolProxyOptions} from './proxy.js';
+import type {ToolCapture} from './capture.js';
+import type {Session, ToolProxyOptions} from './proxy.js';
 import type {ToolServer} from './servers.js';
 
 export interface Shared {
