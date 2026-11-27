@@ -11,9 +11,10 @@ import {
   type WireInputEvent,
 } from './turn_record.js';
 
-// The shared test data's minimal fixtures for the four kinds Phase 2 writes,
-// written here as typed values: each must compile against the types and equal
-// the fixture on disk, which the conformance suite validates against the schema.
+// The shared test data's minimal fixtures for the four kinds with closed
+// attribute sets, written here as typed values: each must compile against the
+// types and equal the fixture on disk, which the conformance suite validates
+// against the schema.
 
 const fixtures = new URL('../../../../conformance/test_data/turn_record/v0_1/', import.meta.url);
 

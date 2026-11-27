@@ -2,10 +2,10 @@
  * TypeScript types for turn record v0.1, as `specification/turn_record/v0_1/`
  * defines it. The JSON Schema there is normative; these types follow it.
  *
- * Every kind shares the span fields. The attributes are typed in full for the
- * kinds Phase 2 writes (turn, wire input, wire output and check); the
- * proxies' model and tool calls and the A2UI step's prompt generation and
- * parse name theirs; a framework span keeps an open attribute map.
+ * Every kind shares the span fields. The turn, wire input, wire output and
+ * check kinds have closed attribute sets, typed in full; the proxies' model
+ * and tool calls and the A2UI step's prompt generation and parse name their
+ * attributes and admit others; a framework span keeps an open attribute map.
  */
 
 /** The record version this module describes. */
