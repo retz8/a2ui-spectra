@@ -17,7 +17,7 @@ import {FORMAT_CLASSES, HOOKS, type Hook, type InferenceFormat} from './table.js
 const require = createRequire(import.meta.url);
 
 /** A hooked name, resolved: the prototype that holds it. */
-export interface Target {
+interface Target {
   readonly hook: Hook;
   readonly prototype: object;
 }

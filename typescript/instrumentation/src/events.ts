@@ -36,7 +36,7 @@ export interface RecordCatalog {
 }
 
 /** The turn record version every span of the step follows, as `a2ui.record.version`. */
-export const RECORD_VERSION = 'v0.1';
+const RECORD_VERSION = 'v0.1';
 
 const stack: Event[] = [];
 
@@ -74,7 +74,7 @@ let anchorMonotonic = performance.now();
 let last = 0n;
 
 /** Now. */
-export function now(): HrTime {
+function now(): HrTime {
   const monotonic = performance.now();
   const wall = Date.now();
   if (Math.abs(anchorWall + (monotonic - anchorMonotonic) - wall) > DRIFT_MS) {
@@ -89,12 +89,12 @@ export function now(): HrTime {
 }
 
 /** A protocol version in the record's form: `v0.9`, `v0.9.1`, `v1.0`. */
-export function recordVersion(version: string): string {
+function recordVersion(version: string): string {
   return version.startsWith('v') ? version : `v${version}`;
 }
 
 /** The catalogs a parser or a prompt generator holds, in the record's shape. */
-export function catalogsOf(owner: unknown): RecordCatalog[] | undefined {
+function catalogsOf(owner: unknown): RecordCatalog[] | undefined {
   const catalogs = (owner as {catalogs?: unknown} | null | undefined)?.catalogs;
   if (!Array.isArray(catalogs)) return undefined;
   const shaped: RecordCatalog[] = [];
