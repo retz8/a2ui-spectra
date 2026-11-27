@@ -186,10 +186,11 @@ export class ReplayPool {
    * out: housekeeping is the latest exchange of its method, as often as
    * asked; any other request the first exchange with its key not yet served.
    */
-  mcpRequest(method: string, params: unknown): CallEvent | undefined {
+  mcpRequest(method: string, params: unknown, server?: string): CallEvent | undefined {
     if (HOUSEKEEPING.has(method)) {
       const entry = this.mcpEntries.findLast(
-        item => item.event.attributes['mcp.method.name'] === method,
+        item =>
+          item.event.attributes['mcp.method.name'] === method && isOnServer(item.event, server),
       );
       if (entry !== undefined) entry.served = true;
       return entry?.event;
@@ -199,14 +200,15 @@ export class ReplayPool {
       const message = requestMessage(recorded);
       return (
         recorded.attributes['mcp.method.name'] === method &&
-        isDeepStrictEqual(paramsKey(message?.params), key)
+        isDeepStrictEqual(paramsKey(message?.params), key) &&
+        isOnServer(recorded, server)
       );
     });
   }
 
   /** The record's latest session end, served as often as asked. */
-  sessionEnd(): CallEvent | undefined {
-    return this.sessionEnds.at(-1);
+  sessionEnd(server?: string): CallEvent | undefined {
+    return this.sessionEnds.findLast(event => isOnServer(event, server));
   }
 
   /**
@@ -214,10 +216,14 @@ export class ReplayPool {
    * for: the latest whose `a2ui.mcp.stream.url` has the path and whose first
    * chunk is an `endpoint` event, with that event.
    */
-  sseOpening(pathname: string): {event: CallEvent; endpoint: SpanEvent} | undefined {
+  sseOpening(
+    pathname: string,
+    server?: string,
+  ): {event: CallEvent; endpoint: SpanEvent} | undefined {
     for (const entry of [...this.mcpEntries].reverse()) {
       const {event} = entry;
       if (event.attributes['mcp.method.name'] !== 'initialize') continue;
+      if (!isOnServer(event, server)) continue;
       const first = event.events?.[0];
       if (first?.attributes?.['a2ui.http.response.chunk.event'] !== 'endpoint') continue;
       const streamUrl = event.attributes['a2ui.mcp.stream.url'];
@@ -233,6 +239,16 @@ export class ReplayPool {
     }
     return undefined;
   }
+}
+
+/**
+ * Whether a recorded tool call was made to the server at `server`, an
+ * origin, by its `url.full`; any call is, with no server named.
+ */
+function isOnServer(event: CallEvent, server: string | undefined): boolean {
+  if (server === undefined) return true;
+  const url = event.attributes['url.full'];
+  return typeof url === 'string' && URL.canParse(url) && new URL(url).origin === server;
 }
 
 /** Whether a record holds nothing the proxies could serve: no model call and no tool call to answer with. */

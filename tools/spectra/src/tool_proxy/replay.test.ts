@@ -512,3 +512,94 @@ describe('the tool proxy in replay with a WebSocket upgrade', () => {
     assert.deepEqual(setup.logs, [line]);
   });
 });
+
+describe('the tool proxy in replay with two tool servers', () => {
+  /** Two listeners, each standing for its own original, where nothing listens. */
+  async function setUpTwo(): Promise<Setup & {second: {origin: string; original: string}}> {
+    const servers = await Promise.all(
+      ['A_URL', 'B_URL'].map(async variable => {
+        const port = await freePort();
+        const origin = `http://127.0.0.1:${port}`;
+        const original = `http://127.0.0.1:${await freePort()}`;
+        return {variable, port, origin, original};
+      }),
+    );
+    const ended: ToolCallEvent[] = [];
+    const logs: string[] = [];
+    const proxy = await startToolProxy({
+      servers: servers.map(({variable, port, origin, original}) => ({
+        variable,
+        port,
+        proxyOrigin: origin,
+        value: `${origin}/sse`,
+        original: new URL(`${original}/sse`),
+      })),
+      place: (): PlacedCall => ({
+        traceId: TRACE,
+        parentSpanId: TURN_SPAN,
+        ended: event => ended.push(event as ToolCallEvent),
+        release: () => {},
+      }),
+      log: line => logs.push(line),
+    });
+    proxies.push(proxy);
+    const [first, second] = servers;
+    return {proxy, origin: first.origin, original: first.original, ended, logs, second};
+  }
+
+  it("serves each listener its own server's recorded calls, housekeeping and session end included", async () => {
+    const setup = await setUpTwo();
+    const tools = (name: string) => ({tools: [{name, inputSchema: {type: 'object'}}]});
+    arm(
+      setup,
+      'recorded',
+      recordedRequest(
+        '00000000000000c1',
+        `${setup.original}/mcp`,
+        {method: 'tools/list', id: 1, params: {}},
+        {
+          'http.response.status_code': 200,
+          'http.response.header.content-type': ['application/json'],
+          'a2ui.http.response.body': {jsonrpc: '2.0', id: 1, result: tools('from-a')},
+        },
+      ),
+      recordedRequest(
+        '00000000000000c2',
+        `${setup.second.original}/mcp`,
+        {method: 'tools/list', id: 1, params: {}},
+        {
+          'http.response.status_code': 200,
+          'http.response.header.content-type': ['application/json'],
+          'a2ui.http.response.body': {jsonrpc: '2.0', id: 1, result: tools('from-b')},
+        },
+      ),
+      recordedRequest(
+        '00000000000000c3',
+        `${setup.second.original}/mcp`,
+        {method: 'tools/call', id: 2, params: {name: 'same', arguments: {}}},
+        {
+          'http.response.status_code': 200,
+          'http.response.header.content-type': ['application/json'],
+          'a2ui.http.response.body': {jsonrpc: '2.0', id: 2, result: {content: []}},
+        },
+      ),
+    );
+    for (const [origin, name] of [
+      [setup.origin, 'from-a'],
+      [setup.second.origin, 'from-b'],
+    ]) {
+      const answer = await send(origin, {body: {jsonrpc: '2.0', id: 1, method: 'tools/list'}});
+      assert.equal(answer.status, 200, name);
+      assert.deepEqual(JSON.parse(answer.body), {jsonrpc: '2.0', id: 1, result: tools(name)});
+    }
+    // The first server never recorded this call, which the second did.
+    const crossed = await send(setup.origin, {
+      body: {jsonrpc: '2.0', id: 2, method: 'tools/call', params: {name: 'same', arguments: {}}},
+    });
+    assert.equal(crossed.status, 502);
+    const own = await send(setup.second.origin, {
+      body: {jsonrpc: '2.0', id: 2, method: 'tools/call', params: {name: 'same', arguments: {}}},
+    });
+    assert.equal(own.status, 200);
+  });
+});

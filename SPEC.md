@@ -192,7 +192,7 @@ catalog ──▶ prompt generator ──▶ prompt ──▶ model ──▶ ra
 ## Replay and storage
 
 - **Model calls:** the model proxy records and replays them, keyed by the exact request content: the method, the URL as the proxy would forward it with credential parameters removed, and the body, compared by value when it is JSON. Headers and credentials are not part of the key.
-- **Tool calls:** the tool proxy does the same for MCP servers and HTTP tools. An MCP request keys by its method and params, its `id` and `params._meta` left out.
+- **Tool calls:** the tool proxy does the same for MCP servers and HTTP tools. An MCP request keys by its method and params, its `id` and `params._meta` left out, on the same server when the config names more than one.
 - **The order:** requests with the same key are served in recorded order, each once, from one pool holding every recorded turn's calls; one more is a miss.
 - **Replaying a fixture:** start the agent pointed at Spectra in replay mode, then send the recorded request over the wire, the conversation's earlier turns first.
 - **The verdict:** a replayed turn passes when every call was served from the record, its outcome is the recorded one, and its A2UI messages equal the recorded ones by value, in order. The checks run on it as on any turn and report beside the verdict without gating it. A record passes when every turn passes.

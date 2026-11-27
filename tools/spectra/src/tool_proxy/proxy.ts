@@ -787,6 +787,15 @@ function httpTool(
   else serve(call, relay, served);
 }
 
+/**
+ * The origin a listener's recorded MCP calls are matched on in a replay:
+ * its original's, when the config names more than one tool server; none,
+ * and every recorded call its own, with one.
+ */
+function ownServer(listener: Listener): string | undefined {
+  return listener.shared.options.servers.length > 1 ? listener.origin : undefined;
+}
+
 /** The attribute naming the recorded event a call was served from. */
 function servedFrom(event: CallEvent | undefined): Record<string, unknown> {
   return event === undefined ? {} : {'a2ui.replay.served_from': event.spanId};
@@ -1003,7 +1012,7 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
   // Armed, a request other than ping is served the event the pool matches, if any.
   const served =
     pool !== undefined && asking && mcpMethod !== undefined && mcpMethod !== 'ping'
-      ? pool.mcpRequest(mcpMethod, message.params)
+      ? pool.mcpRequest(mcpMethod, message.params, ownServer(listener))
       : undefined;
   const placed = logged(
     listener,
@@ -1232,7 +1241,7 @@ function sessionEnd(call: Call): void {
   const session = sessionById(listener, header(request.headers, 'mcp-session-id') ?? '');
   const pool = listener.shared.pool;
   // Armed, the record's session end, else 204.
-  const served = pool?.sessionEnd();
+  const served = pool?.sessionEnd(ownServer(listener));
   const placed = logged(listener, placeOf(call, `an MCP session end to ${target.host}, DELETE`));
   const capture =
     placed === undefined
@@ -1453,7 +1462,7 @@ function armedGet(call: Call, pool: ReplayPool): void {
     holdCarrier(listener, call, sessionById(listener, id));
     return;
   }
-  const opening = pool.sseOpening(target.pathname);
+  const opening = pool.sseOpening(target.pathname, ownServer(listener));
   if (opening !== undefined) {
     const [endpoint] = recordedEvents({...opening.event, events: [opening.endpoint]});
     const url = endpointUrl(call, endpoint.data.trim());

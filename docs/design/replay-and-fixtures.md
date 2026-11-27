@@ -252,6 +252,8 @@ Not every recorded call is in the pool. A call read from the agent's own spans h
 | `ping`                                                                                                                     | The empty result, whether or not the record holds it                                             |
 | A `DELETE` carrying `Mcp-Session-Id`, the session's end                                                                    | Serves the record's latest session end, or `204` when the record holds none                      |
 
+When the config file names more than one tool server, each listener is served only the recorded requests, HTTP+SSE openings and session ends made to its own server, by the origin of their `url.full`, so one server's client never gets another's answers; a server whose port moved since the recording then misses. With one tool server, every recorded tool call is its own.
+
 In a served reply, the response's `id` becomes the live request's, and each `notifications/progress` takes the live request's progress token when it asked for progress; nothing else is touched. `Mcp-Session-Id` is served as the recorded `initialize` answered it. An operation the server started is never re-sent: under MCP's older HTTP+SSE transport, a `tools/call` that asked the client something gets its recorded result directly, and under streamable HTTP a POST's stream is served as recorded, a server request inside it included.
 
 **A `GET` to a tool server** is read in four steps, the first that applies:
