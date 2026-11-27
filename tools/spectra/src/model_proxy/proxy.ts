@@ -411,16 +411,7 @@ async function forward(
   const text = await readBody(raw, request.headers['content-encoding']);
   const exchange = requestAttributes(method, target, headers, text);
   const token = isTokenRequest(request.headers['content-type'], text);
-  const pool = state.pool;
-  // Armed, the pool answers every call: a token request, which is never recorded, goes live only in the live mode.
-  const answer: PoolAnswer | undefined =
-    pool === undefined
-      ? undefined
-      : token
-        ? pool.mode === 'model_live'
-          ? {type: 'live'}
-          : {type: 'miss'}
-        : pool.model(exchangeKey(exchange));
+  const answer = poolAnswer(state.pool, token, exchange);
   const standIn =
     state.options.standInOrigin !== undefined && target.origin === state.options.standInOrigin;
   const reader = token
@@ -433,25 +424,7 @@ async function forward(
       );
     }
   } else {
-    const placed = state.options.place({
-      what: `a model call to ${target.host}, ${method} ${target.pathname}`,
-      startTimeUnixNano: start.toString(),
-      traceparent: request.headers.traceparent,
-    });
-    if (placed !== undefined) {
-      const bodyJsonValue = text === undefined ? undefined : bodyJson(text);
-      capture = new Capture(state, placed, reader, start, {
-        ...withContentFitted(
-          reader?.request({
-            pathname: target.pathname,
-            search: target.searchParams,
-            body: bodyJsonValue,
-          }) ?? {},
-        ),
-        ...exchange,
-        ...(answer?.type === 'served' && {'a2ui.replay.served_from': answer.event.spanId}),
-      });
-    }
+    capture = placeCall(state, {request, target, method, start, text, exchange, reader, answer});
   }
 
   if (answer?.type === 'miss') {
@@ -487,6 +460,48 @@ async function forward(
     capture === undefined ? {end: () => {}, fail: () => {}} : capturing(capture),
     served,
   );
+}
+
+/** What an armed pool answers a call with, none when unarmed: a token request, never recorded, goes live only in the live mode. */
+function poolAnswer(
+  pool: ReplayPool | undefined,
+  token: boolean,
+  exchange: Record<string, unknown>,
+): PoolAnswer | undefined {
+  if (pool === undefined) return undefined;
+  if (!token) return pool.model(exchangeKey(exchange));
+  return pool.mode === 'model_live' ? {type: 'live'} : {type: 'miss'};
+}
+
+/** Places a model call in its turn and starts its capture: its request read in full by its API's reader, and its exchange; none when it cannot be placed. */
+function placeCall(
+  state: ProxyState,
+  call: {
+    request: IncomingMessage;
+    target: URL;
+    method: string;
+    start: bigint;
+    text: string | undefined;
+    exchange: Record<string, unknown>;
+    reader: ApiReader | undefined;
+    answer: PoolAnswer | undefined;
+  },
+): Capture | undefined {
+  const {request, target, method, start, text, exchange, reader, answer} = call;
+  const placed = state.options.place({
+    what: `a model call to ${target.host}, ${method} ${target.pathname}`,
+    startTimeUnixNano: start.toString(),
+    traceparent: request.headers.traceparent,
+  });
+  if (placed === undefined) return undefined;
+  const body = text === undefined ? undefined : bodyJson(text);
+  return new Capture(state, placed, reader, start, {
+    ...withContentFitted(
+      reader?.request({pathname: target.pathname, search: target.searchParams, body}) ?? {},
+    ),
+    ...exchange,
+    ...(answer?.type === 'served' && {'a2ui.replay.served_from': answer.event.spanId}),
+  });
 }
 
 /**
