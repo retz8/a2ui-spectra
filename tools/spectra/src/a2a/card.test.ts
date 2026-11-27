@@ -312,6 +312,26 @@ describe('cardDetailsOf', () => {
     );
   });
 
+  it("reads an A2UI extension's version as the reply's extensions header does: either scheme, a trailing slash or none, and a version of `v` and numbers", () => {
+    assert.deepEqual(
+      cardDetailsOf({
+        protocolVersion: '0.3.0',
+        capabilities: {
+          extensions: [
+            {uri: 'http://a2ui.org/a2a-extension/a2ui/v0.9'},
+            {uri: 'https://a2ui.org/a2a-extension/a2ui/v1.0/'},
+            {uri: 'https://a2ui.org/a2a-extension/a2ui/latest'},
+            {uri: 'https://a2ui.org/a2a-extension/a2ui/v0.9.1/extra'},
+          ],
+        },
+      }).a2uiExtensions,
+      [
+        {version: 'v0.9', catalogIds: []},
+        {version: 'v1.0', catalogIds: []},
+      ],
+    );
+  });
+
   it('skips extensions that are not A2UI, catalog ids that are not text, and blank examples', () => {
     assert.deepEqual(
       cardDetailsOf({

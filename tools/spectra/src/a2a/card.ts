@@ -1,4 +1,4 @@
-import {A2UI_EXTENSION_PREFIX} from './extension_uri.js';
+import {a2uiExtensionVersion} from './extension_uri.js';
 import {isRecord} from './protocol.js';
 
 /** A2A's name for the JSON-RPC transport, in both versions' cards. */
@@ -120,11 +120,12 @@ export function cardDetailsOf(card: Record<string, unknown>): CardDetails {
       : [];
   const a2uiExtensions = extensions.flatMap((extension): A2uiExtension[] => {
     if (!isRecord(extension) || typeof extension.uri !== 'string') return [];
-    if (!extension.uri.startsWith(A2UI_EXTENSION_PREFIX)) return [];
+    const version = a2uiExtensionVersion(extension.uri);
+    if (version === undefined) return [];
     const ids = isRecord(extension.params) ? extension.params.supportedCatalogIds : undefined;
     return [
       {
-        version: extension.uri.slice(A2UI_EXTENSION_PREFIX.length),
+        version,
         catalogIds: Array.isArray(ids) ? ids.filter(isText) : [],
       },
     ];

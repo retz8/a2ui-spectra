@@ -5,7 +5,7 @@
  */
 
 /** The start of each A2UI extension's URI, followed by its version. */
-export const A2UI_EXTENSION_PREFIX = 'https://a2ui.org/a2a-extension/a2ui/';
+const A2UI_EXTENSION_PREFIX = 'https://a2ui.org/a2a-extension/a2ui/';
 
 /** An A2UI extension URI as read: `http` or `https`, the version, and a trailing slash or none. */
 const A2UI_EXTENSION_URI = /^https?:\/\/a2ui\.org\/a2a-extension\/a2ui\/(v\d+(?:\.\d+)*)\/?$/;
