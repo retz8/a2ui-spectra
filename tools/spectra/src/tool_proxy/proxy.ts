@@ -15,7 +15,6 @@ import {
   createServer,
   type IncomingHttpHeaders,
   type IncomingMessage,
-  type OutgoingHttpHeaders,
   type Server,
   type ServerResponse,
 } from 'node:http';
@@ -30,7 +29,6 @@ import {
   AGENT_CLOSED,
   DEFAULT_CLOSE_GRACE_MS,
   type Failure,
-  type Forwarder,
   forward,
   forwardedHeaders,
   missUpgrade,
@@ -50,7 +48,6 @@ import {
   type ServedReply,
   sseText,
   unreachedLine,
-  type Upstream,
   wasStreamed,
 } from '../replay/served.js';
 import {nowUnixNano} from '../clock.js';
@@ -74,6 +71,7 @@ import {
   sentProgressToken,
   traceparentOf,
 } from './mcp.js';
+import {type Call, forwarderOf, header, type Listener, type Shared} from './listener.js';
 import type {ToolServer} from './servers.js';
 
 export interface ToolProxyOptions {
@@ -110,27 +108,6 @@ export interface ToolProxy {
 
 const CARRIER_CLOSED = 'The stream its reply was to come on closed.';
 
-interface Shared {
-  options: ToolProxyOptions;
-  now: () => bigint;
-  newSpanId: () => string;
-  closeGraceMs: number;
-  /** Set when Spectra stops: a call cut off then ends as aborted. */
-  closing: boolean;
-  /** The replay's pool while armed. */
-  pool: ReplayPool | undefined;
-  /** The carriers the armed proxy holds open itself, closed when it is disarmed. */
-  held: Set<ServerResponse>;
-  inFlight: Set<Upstream>;
-  /** What forwarding takes from the proxy, made once. */
-  forwarder?: Forwarder;
-  sockets: Set<Duplex>;
-  /** The calls not yet ended. */
-  open: Set<ToolCapture>;
-  /** Requests placed before they showed what they are, a `GET` until its reply says. */
-  tentative: Set<PlacedCall>;
-}
-
 /** A request the client sent, waiting for its reply. */
 interface Pending {
   method: string;
@@ -146,7 +123,7 @@ interface Pending {
 }
 
 /** An MCP session as the proxy follows it, from everything it forwards whether or not it records it. */
-interface Session {
+export interface Session {
   /** The session's key in the listener's map: `sid:<Mcp-Session-Id>`, `endpoint:<path and query>`, or `` for messages with neither. */
   key: string;
   /** The transport the session runs on, or none for the messages that name no session. */
@@ -167,19 +144,6 @@ interface Session {
   streamUrl?: string;
   /** Armed, under HTTP+SSE: the carrier the proxy holds open, where a served reply is written. */
   outlet?: ServerResponse;
-}
-
-/** One listener, for one tool server. */
-interface Listener {
-  shared: Shared;
-  server: ToolServer;
-  /** The original's origin, where every request is forwarded. */
-  origin: string;
-  sessions: Map<string, Session>;
-  /** The session of messages that name none. */
-  loose: Session;
-  /** Whether the terminal was told the server announces an absolute endpoint. */
-  absoluteTold: boolean;
 }
 
 /** Starts one listener per tool server. A port that is taken is an error, and the ones started close. */
@@ -298,11 +262,6 @@ function targetOf(listener: Listener, request: IncomingMessage): URL {
   return new URL(`${listener.origin}${path}`);
 }
 
-function header(headers: IncomingHttpHeaders, name: string): string | undefined {
-  const value = headers[name];
-  return Array.isArray(value) ? value[0] : value;
-}
-
 function handle(listener: Listener, request: IncomingMessage, response: ServerResponse): void {
   const refusal = proxyRefusal(
     request.headers,
@@ -371,20 +330,6 @@ async function route(
   }
 }
 
-/** One request as the proxy handles it. */
-interface Call {
-  listener: Listener;
-  request: IncomingMessage;
-  raw: Buffer;
-  /** The body as text, its content encoding undone. */
-  text: string | undefined;
-  target: URL;
-  response: ServerResponse;
-  start: bigint;
-  /** The headers as forwarded: end to end, with the target's `Host`. */
-  headers: OutgoingHttpHeaders;
-}
-
 /** Where a call is placed from: what it is, its start, and the trace context it carries. */
 interface Placement {
   what: string;
@@ -434,7 +379,7 @@ function logged(listener: Listener, result: PlacedCall | Unplaced): PlacedCall |
 }
 
 /** What a tool call records, from its start to its end. */
-class ToolCapture {
+export class ToolCapture {
   readonly event: ToolCallEvent;
   readonly spanEvents: SpanEvent[] = [];
   private readonly shared: Shared;
@@ -577,19 +522,6 @@ class ToolCapture {
       event: complete,
     });
   }
-}
-
-/** What a forwarded request's reply hands out as it arrives. */
-/** What forwarding takes from the tool proxy. */
-function forwarderOf(shared: Shared): Forwarder {
-  return (shared.forwarder ??= {
-    inFlight: shared.inFlight,
-    closing: () => shared.closing,
-    now: shared.now,
-    proxy: 'tool proxy',
-    brokeOff: "The tool server's response broke before it ended.",
-    flushes: 'every stream',
-  });
 }
 
 /** The relay that records the exchange on a capture: chunks as they come, the response at the end. */
