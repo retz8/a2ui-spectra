@@ -3,6 +3,7 @@
  * copied schemas: messages with typed parts, tool definitions, and the
  * finish reasons of `gen-ai-output-messages.json`.
  */
+import type {Modality} from '../record/turn_record.js';
 
 /** The copied output-messages schema's finish reasons. */
 export type FinishReason =
@@ -72,7 +73,7 @@ export function toolCallResponsePart(id: string | undefined, response: unknown):
 }
 
 /** GenAI's modality for a media type: image, video, audio, else document. */
-function modalityOf(mimeType: string | undefined): string {
+export function modalityOf(mimeType: string | undefined): Modality {
   const top = mimeType?.split('/')[0].trim().toLowerCase();
   return top === 'image' || top === 'video' || top === 'audio' ? top : 'document';
 }

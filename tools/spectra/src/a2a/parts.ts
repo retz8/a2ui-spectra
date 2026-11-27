@@ -1,4 +1,5 @@
-import type {Modality, WirePart} from '../record/turn_record.js';
+import type {WirePart} from '../record/turn_record.js';
+import {modalityOf} from '../model_proxy/genai.js';
 import {type A2aVersion, isRecord} from './protocol.js';
 
 /** The MIME type of a data part that carries A2UI, as the extension specification gives it. */
@@ -111,12 +112,6 @@ function dataPart(
     return withExtras({type: 'a2ui', content: data}, {metadata: rest, name});
   }
   return withExtras({type: 'a2ui.data', content: data}, {metadata, mimeType: partMimeType, name});
-}
-
-/** GenAI's modality for a MIME type: its top level when a medium, else a document. */
-function modalityOf(mimeType: string | undefined): Modality {
-  const top = mimeType?.split('/')[0].trim().toLowerCase();
-  return top === 'image' || top === 'video' || top === 'audio' ? top : 'document';
 }
 
 interface Extras {

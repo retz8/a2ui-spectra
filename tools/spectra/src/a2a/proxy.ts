@@ -8,14 +8,14 @@ import {
   type ServerResponse,
 } from 'node:http';
 import {request as httpsRequest} from 'node:https';
-import {PassThrough, type Transform} from 'node:stream';
-import {createBrotliDecompress, createGunzip, createInflate} from 'node:zlib';
 
 import {proxyRefusal, refuseRequest} from '../host_check.js';
 import {listenError, LOOPBACK_ADDRESS} from '../server.js';
 import {NAME, VERSION} from '../version.js';
 import {EXTENDED_CARD_METHODS, isCardPath, rewriteCard} from './card.js';
 import {isRecord, readTurnRequest} from './protocol.js';
+import {endToEndHeaders} from '../proxying/exchange.js';
+import {bodyJson, decoderFor, readBody} from '../proxying/forwarding.js';
 import {SseParser} from '../proxying/sse.js';
 import {formatTraceparent, parseTraceparent} from '../proxying/trace_context.js';
 import {TurnCapture, type TurnListener} from './turn.js';
@@ -50,33 +50,6 @@ export interface WireProxy {
   /** Ends the open turns' connections to the agent, as a restart of its process does first. */
   cut(): void;
   close(): Promise<void>;
-}
-
-/**
- * Headers that belong to one connection, which a proxy does not pass on
- * (RFC 9110, section 7.6.1), with any the Connection header names.
- */
-const HOP_BY_HOP = new Set([
-  'connection',
-  'keep-alive',
-  'proxy-authenticate',
-  'proxy-authorization',
-  'proxy-connection',
-  'te',
-  'trailer',
-  'transfer-encoding',
-  'upgrade',
-]);
-
-function endToEndHeaders(headers: IncomingHttpHeaders): OutgoingHttpHeaders {
-  const named = new Set(
-    String(headers.connection ?? '')
-      .split(',')
-      .map(name => name.trim().toLowerCase()),
-  );
-  return Object.fromEntries(
-    Object.entries(headers).filter(([name]) => !HOP_BY_HOP.has(name) && !named.has(name)),
-  );
 }
 
 /** What the proxy keeps across requests. */
@@ -267,7 +240,7 @@ async function classify(
   text: string | undefined,
   headers: IncomingHttpHeaders,
 ): Promise<Kind> {
-  const body = parseJson(text);
+  const body = text === undefined ? undefined : bodyJson(text);
   const turnRequest = readTurnRequest(body);
   if (turnRequest !== undefined) {
     const own = parseTraceparent(headers.traceparent);
@@ -359,7 +332,7 @@ function relay(reply: IncomingMessage, response: ServerResponse, capture?: TurnC
     const decoded = text.decode(chunk, {stream: true});
     if (isStream) {
       for (const event of sse.push(decoded)) {
-        capture.delivery(parseJson(event.data) ?? event.data);
+        capture.delivery(bodyJson(event.data) ?? event.data);
       }
     } else {
       body += decoded;
@@ -368,7 +341,7 @@ function relay(reply: IncomingMessage, response: ServerResponse, capture?: TurnC
   decoder.once('end', () => {
     if (!isStream) {
       body += text.decode();
-      capture.delivery(parseJson(body) ?? body);
+      capture.delivery(bodyJson(body) ?? body);
     }
     if (!reply.complete) {
       capture.fail('The connection to the agent broke before the reply ended.');
@@ -400,7 +373,7 @@ function relayCard(
     const raw = Buffer.concat(chunks);
     void readBody(raw, reply.headers['content-encoding']).then(text => {
       const status = reply.statusCode ?? 502;
-      const body = parseJson(text);
+      const body = text === undefined ? undefined : bodyJson(text);
       let rewritten: unknown;
       if (status >= 200 && status <= 299 && isRecord(body)) {
         if (isCardGet) {
@@ -421,53 +394,6 @@ function relayCard(
       response.end(out);
     });
   });
-}
-
-/** A stream that undoes the content encoding, or nothing for an encoding it cannot read. */
-function decoderFor(encoding: string | string[] | undefined): Transform | undefined {
-  switch (header(encoding)?.trim().toLowerCase() ?? 'identity') {
-    case 'identity':
-    case '':
-      return new PassThrough();
-    case 'gzip':
-    case 'x-gzip':
-      return createGunzip();
-    case 'deflate':
-      return createInflate();
-    case 'br':
-      return createBrotliDecompress();
-    default:
-      return undefined;
-  }
-}
-
-/** A whole body as text, its content encoding undone; nothing when it cannot be read. */
-function readBody(
-  raw: Buffer,
-  encoding: string | string[] | undefined,
-): Promise<string | undefined> {
-  const decoder = decoderFor(encoding);
-  if (decoder === undefined) {
-    return Promise.resolve(undefined);
-  }
-  return new Promise(resolve => {
-    const chunks: Buffer[] = [];
-    decoder.on('data', (chunk: Buffer) => chunks.push(chunk));
-    decoder.once('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-    decoder.once('error', () => resolve(undefined));
-    decoder.end(raw);
-  });
-}
-
-function parseJson(text: string | undefined): unknown {
-  if (text === undefined) {
-    return undefined;
-  }
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    return undefined;
-  }
 }
 
 function header(value: string | string[] | undefined): string | undefined {

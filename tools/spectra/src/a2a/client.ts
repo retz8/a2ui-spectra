@@ -8,6 +8,7 @@ import {JSONRPC} from './card.js';
 import {dataModelKeyFor} from './metadata.js';
 import {A2UI_MIME_TYPE} from './parts.js';
 import {type A2aVersion, isRecord, readReply, type TaskState} from './protocol.js';
+import {bodyJson} from '../proxying/forwarding.js';
 import {SseParser} from '../proxying/sse.js';
 
 /** The A2UI extension URIs of every version Spectra supports, sent in the extensions header. */
@@ -314,22 +315,14 @@ export async function readReplySummary(
     const text = new TextDecoder();
     for await (const chunk of response.body ?? []) {
       for (const event of sse.push(text.decode(chunk as Uint8Array, {stream: true}))) {
-        take(parseJson(event.data));
+        take(bodyJson(event.data));
       }
     }
     for (const event of sse.push(text.decode())) {
-      take(parseJson(event.data));
+      take(bodyJson(event.data));
     }
   } else {
-    take(parseJson(await response.text()));
+    take(bodyJson(await response.text()));
   }
   return summary;
-}
-
-function parseJson(text: string): unknown {
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    return undefined;
-  }
 }
