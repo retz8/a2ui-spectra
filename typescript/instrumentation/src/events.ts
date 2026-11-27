@@ -341,17 +341,26 @@ export class PromptEvent extends Event {
 /** A `parse`: one outermost call to a public parsing entry point. */
 export class ParseEvent extends Event {
   readonly kind = 'parse';
+  /** A whole text's input; a stream's is its chunks. */
   readonly input: string;
-  wrapped = true;
-  /** A stream's chunks, its parser, and how far its input reaches. */
-  streamed = false;
+  /** Whether the call left `wrapped` on; when it is off, the whole input is one block. */
+  readonly wrapped: boolean;
+  /** Whether the event is a stream's, opened by `openStream`. */
+  readonly streamed: boolean;
+  /** The parser a stream was opened on, whose `unwrap` finds the blocks in its input. */
+  private readonly streamParser: unknown;
+  /** A stream's chunks, in the order fed. */
   private readonly chunks: string[] = [];
+  /** How far a stream's input reaches, in UTF-16 code units. */
   private fed = 0;
-  streamParser: unknown;
   /** Each message's JSON text, in order. */
   private readonly messages: string[] = [];
-  /** The block being compiled, and where the search for the next one starts. */
+  /** The block being compiled, for a whole text. */
   private currentBlock: Block | undefined;
+  /**
+   * Where the search for the next block starts: a whole text's next compiled
+   * block, or a stream's next rejected one.
+   */
   private cursor = 0;
   /** How many blocks a stream has finished: each a `checkTopology` that returned. */
   private finished = 0;
@@ -365,10 +374,17 @@ export class ParseEvent extends Event {
   constructor(
     active: Active,
     readonly entryPoint: 'parse_response' | 'open_stream' | 'compile',
-    input: unknown = '',
+    {
+      input,
+      wrapped = true,
+      streamParser,
+    }: {input?: unknown; wrapped?: boolean; streamParser?: unknown},
   ) {
     super(active);
     this.input = typeof input === 'string' ? input : '';
+    this.wrapped = wrapped;
+    this.streamed = entryPoint === 'open_stream';
+    this.streamParser = streamParser;
   }
 
   override adoptParser(parser: unknown): void {

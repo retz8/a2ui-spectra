@@ -82,8 +82,10 @@ function parseResponse(original: Method): Method {
     }
     let event: ParseEvent;
     try {
-      event = new ParseEvent(active, 'parse_response', args[0]);
-      event.wrapped = wrappedOf(args[1]);
+      event = new ParseEvent(active, 'parse_response', {
+        input: args[0],
+        wrapped: wrappedOf(args[1]),
+      });
       event.adoptParser(this);
     } catch (fault) {
       reportFault(where, fault);
@@ -110,7 +112,7 @@ function compile(original: Method): Method {
     }
     let event: ParseEvent;
     try {
-      event = new ParseEvent(active, 'compile', args[0]);
+      event = new ParseEvent(active, 'compile', {input: args[0]});
       event.adoptParser(this);
       event.noteCompile(args[0]);
     } catch (fault) {
@@ -133,10 +135,10 @@ function openStream(original: Method): Method {
     if (open !== undefined) return inner(original, this, args, where);
     let event: ParseEvent;
     try {
-      event = new ParseEvent(active, 'open_stream');
-      event.streamed = true;
-      event.streamParser = this;
-      event.wrapped = wrappedOf(args[0]);
+      event = new ParseEvent(active, 'open_stream', {
+        wrapped: wrappedOf(args[0]),
+        streamParser: this,
+      });
       event.adoptParser(this);
     } catch (fault) {
       reportFault(where, fault);
