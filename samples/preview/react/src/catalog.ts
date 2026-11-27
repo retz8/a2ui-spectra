@@ -11,7 +11,7 @@ import {basicCatalog} from '@a2ui/web_core/v0_9/basic_catalog';
 
 import {CustomSlider} from './CustomSlider.tsx';
 
-export const SAMPLE_CATALOG_ID =
+const SAMPLE_CATALOG_ID =
   'https://github.com/retz8/a2ui-spectra/blob/main/samples/preview/catalog.json';
 
 const basic = basicCatalog as unknown as Catalog<ReactCatalogComponent>;

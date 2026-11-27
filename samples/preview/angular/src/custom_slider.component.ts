@@ -55,7 +55,7 @@ const customSliderApi = {
     }
   `,
 })
-export class CustomSliderComponent extends CatalogComponent<typeof customSliderApi> {
+class CustomSliderComponent extends CatalogComponent<typeof customSliderApi> {
   protected onInput(event: Event): void {
     this.props()['value']?.onUpdate(Number((event.target as HTMLInputElement).value));
   }

@@ -10,7 +10,7 @@ import {z} from 'zod';
 
 import {SliderBody} from './SliderBody.tsx';
 
-export const CustomSliderApi = {
+const CustomSliderApi = {
   name: 'CustomSlider',
   schema: z.object({
     label: DynamicStringSchema.optional(),

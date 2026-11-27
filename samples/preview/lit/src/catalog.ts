@@ -10,7 +10,7 @@ import {Catalog} from '@a2ui/web_core/v0_9';
 
 import {customSlider} from './custom_slider.ts';
 
-export const SAMPLE_CATALOG_ID =
+const SAMPLE_CATALOG_ID =
   'https://github.com/retz8/a2ui-spectra/blob/main/samples/preview/catalog.json';
 
 export const sampleCatalog = new Catalog<LitComponentApi>(
