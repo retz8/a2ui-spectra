@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import logging
 import sys
-from typing import Any
+from typing import TYPE_CHECKING
 
 import pytest
 from a2ui.adk import SendA2uiToClientToolset, send_a2ui_to_client_toolset
@@ -24,17 +24,20 @@ from opentelemetry.sdk.trace import TracerProvider
 import a2ui_spectra_instrumentation
 from a2ui_spectra_instrumentation import check
 
-WRAPPER_LOGGER = "a2ui_spectra_instrumentation"
+# The fixtures' types, for the type check only: mypy names the tests by their
+# path from the repository root.
+if TYPE_CHECKING:
+    from python.a2ui_spectra_instrumentation.tests import conftest
 
 
 def test_a_missing_core_name_leaves_everything_unpatched(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     provider: TracerProvider,
-    support: Any,
+    support: conftest.Support,
 ) -> None:
     monkeypatch.delattr(RendererState, "check_topology")
-    with caplog.at_level(logging.DEBUG, logger=WRAPPER_LOGGER):
+    with caplog.at_level(logging.DEBUG, logger=support.logger):
         a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
 
     assert not support.hooked(Parser, "parse_response")
@@ -51,10 +54,10 @@ def test_a_missing_core_formats_generator_class_leaves_everything_unpatched(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     provider: TracerProvider,
-    support: Any,
+    support: conftest.Support,
 ) -> None:
     monkeypatch.delattr(express_prompt_generator, "ExpressPromptGenerator")
-    with caplog.at_level(logging.DEBUG, logger=WRAPPER_LOGGER):
+    with caplog.at_level(logging.DEBUG, logger=support.logger):
         a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
 
     assert not support.hooked(PromptGenerator, "generate")
@@ -73,10 +76,10 @@ def test_a_missing_experimental_format_is_skipped_and_the_rest_patched(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     provider: TracerProvider,
-    support: Any,
+    support: conftest.Support,
 ) -> None:
     monkeypatch.setitem(sys.modules, "a2ui.inference_formats.experimental.atom", None)
-    with caplog.at_level(logging.DEBUG, logger=WRAPPER_LOGGER):
+    with caplog.at_level(logging.DEBUG, logger=support.logger):
         a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
 
     assert not support.hooked(AtomParser, "compile")
@@ -93,10 +96,10 @@ def test_a_missing_experimental_generator_class_skips_its_format(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     provider: TracerProvider,
-    support: Any,
+    support: conftest.Support,
 ) -> None:
     monkeypatch.delattr(atom_prompt_generator, "AtomPromptGenerator")
-    with caplog.at_level(logging.DEBUG, logger=WRAPPER_LOGGER):
+    with caplog.at_level(logging.DEBUG, logger=support.logger):
         a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
 
     assert not support.hooked(AtomParser, "compile")
@@ -113,10 +116,10 @@ def test_an_unimportable_adk_extension_is_skipped_silently(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     provider: TracerProvider,
-    support: Any,
+    support: conftest.Support,
 ) -> None:
     monkeypatch.setitem(sys.modules, "a2ui.adk", None)
-    with caplog.at_level(logging.DEBUG, logger=WRAPPER_LOGGER):
+    with caplog.at_level(logging.DEBUG, logger=support.logger):
         a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
 
     assert support.hooked(Parser, "parse_response")
@@ -128,10 +131,10 @@ def test_a_missing_toolset_name_skips_the_toolset_naming_its_own_release(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     provider: TracerProvider,
-    support: Any,
+    support: conftest.Support,
 ) -> None:
     monkeypatch.delattr(send_a2ui_to_client_toolset, "validate_payload")
-    with caplog.at_level(logging.DEBUG, logger=WRAPPER_LOGGER):
+    with caplog.at_level(logging.DEBUG, logger=support.logger):
         a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
 
     assert support.hooked(Parser, "parse_response")
@@ -150,7 +153,7 @@ def test_an_sdk_below_the_floor_is_refused(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
     provider: TracerProvider,
-    support: Any,
+    support: conftest.Support,
 ) -> None:
     real = check.installed_version
     monkeypatch.setattr(
@@ -158,7 +161,7 @@ def test_an_sdk_below_the_floor_is_refused(
         "installed_version",
         lambda name: "0.10.0" if name == "a2ui-agent-sdk" else real(name),
     )
-    with caplog.at_level(logging.DEBUG, logger=WRAPPER_LOGGER):
+    with caplog.at_level(logging.DEBUG, logger=support.logger):
         a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
 
     assert not support.hooked(Parser, "parse_response")
@@ -171,9 +174,11 @@ def test_an_sdk_below_the_floor_is_refused(
 
 
 def test_the_pinned_sdk_passes_with_no_line(
-    caplog: pytest.LogCaptureFixture, provider: TracerProvider, support: Any
+    caplog: pytest.LogCaptureFixture,
+    provider: TracerProvider,
+    support: conftest.Support,
 ) -> None:
-    with caplog.at_level(logging.DEBUG, logger=WRAPPER_LOGGER):
+    with caplog.at_level(logging.DEBUG, logger=support.logger):
         a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
 
     assert support.hooked(Parser, "parse_response")

@@ -19,7 +19,7 @@ from a2ui.inference_formats import DirectJsonFormatFactory, ExpressFormatFactory
 from a2ui.processor import A2uiRequestProcessor
 from a2ui.utils import RendererState
 from opentelemetry import trace
-from opentelemetry.sdk.trace import ReadableSpan, TracerProvider
+from opentelemetry.sdk.trace import Event, ReadableSpan, TracerProvider
 from opentelemetry.sdk.trace.export import SimpleSpanProcessor
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 from opentelemetry.util._once import Once
@@ -53,18 +53,16 @@ class Recorded:
     def clear(self) -> None:
         self.exporter.clear()
 
-    @staticmethod
-    def attributes(span: ReadableSpan) -> dict[str, Any]:
+    def attributes(self, span: ReadableSpan | Event) -> dict[str, Any]:
+        """A span's or a span event's attributes."""
         return dict(span.attributes or {})
 
-    @staticmethod
-    def parsed(span: ReadableSpan, name: str) -> Any:
+    def parsed(self, span: ReadableSpan, name: str) -> Any:
         value = (span.attributes or {})[name]
         assert isinstance(value, str)
         return json.loads(value)
 
-    @staticmethod
-    def exceptions(span: ReadableSpan) -> list[dict[str, Any]]:
+    def exceptions(self, span: ReadableSpan) -> list[dict[str, Any]]:
         return [
             dict(event.attributes or {})
             for event in span.events
@@ -75,32 +73,31 @@ class Recorded:
 class Support:
     """Helpers for the tests, without spans."""
 
-    @staticmethod
-    def hooked(owner: object, name: str) -> bool:
+    # The wrapper's logger, by its name.
+    logger = LOGGER
+
+    def hooked(self, owner: object, name: str) -> bool:
         """Whether a class's or a module's own attribute is a hook."""
         return isinstance(
             vars(owner).get(name), getattr(wrapt, "BaseObjectProxy", wrapt.ObjectProxy)
         )
 
-    @staticmethod
-    def lines(caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
+    def lines(self, caplog: pytest.LogCaptureFixture) -> list[logging.LogRecord]:
         """The records the wrapper's logger wrote."""
         return [record for record in caplog.records if record.name == LOGGER]
 
-    @staticmethod
-    def utf16(text: str) -> int:
+    def utf16(self, text: str) -> int:
         return len(text.encode("utf-16-le")) // 2
 
-    @staticmethod
-    def block_range(text: str, block: str, start: int = 0) -> tuple[int, int]:
+    def block_range(self, text: str, block: str, start: int = 0) -> tuple[int, int]:
         """Where a block's text sits in the input, in UTF-16 code units."""
         found = text.index(block, start)
-        return Support.utf16(text[:found]), Support.utf16(text[: found + len(block)])
+        return self.utf16(text[:found]), self.utf16(text[: found + len(block)])
 
 
 @pytest.fixture
-def support() -> type[Support]:
-    return Support
+def support() -> Support:
+    return Support()
 
 
 @pytest.fixture(autouse=True)

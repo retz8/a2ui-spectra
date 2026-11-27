@@ -6,7 +6,7 @@ And only when the environment names an endpoint.
 from __future__ import annotations
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING
 
 import pytest
 from opentelemetry import trace
@@ -14,6 +14,11 @@ from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
 
 import a2ui_spectra_instrumentation
+
+# The fixtures' types, for the type check only: mypy names the tests by their
+# path from the repository root.
+if TYPE_CHECKING:
+    from python.a2ui_spectra_instrumentation.tests import conftest
 
 CARD = 'surface("card")\nroot = Text("Hi")'
 
@@ -37,7 +42,7 @@ def test_a_provider_already_set_is_kept(
     monkeypatch: pytest.MonkeyPatch,
     provider: TracerProvider,
     exporter: InMemorySpanExporter,
-    processor: Any,
+    processor: conftest.ProcessorFactory,
 ) -> None:
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:9")
     trace.set_tracer_provider(provider)
@@ -53,8 +58,8 @@ def test_no_endpoint_starts_none_and_a_provider_set_later_gets_the_spans(
     caplog: pytest.LogCaptureFixture,
     provider: TracerProvider,
     exporter: InMemorySpanExporter,
-    processor: Any,
-    support: Any,
+    processor: conftest.ProcessorFactory,
+    support: conftest.Support,
 ) -> None:
     with caplog.at_level(logging.INFO):
         a2ui_spectra_instrumentation.instrument()
@@ -69,7 +74,9 @@ def test_no_endpoint_starts_none_and_a_provider_set_later_gets_the_spans(
 
 @pytest.mark.usefixtures("no_global_provider", "no_otlp_variables")
 def test_another_protocol_starts_none(
-    monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture, support: Any
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    support: conftest.Support,
 ) -> None:
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:9")
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_PROTOCOL", "grpc")
@@ -86,7 +93,7 @@ def test_a_provider_passed_in_is_used_and_the_global_one_left_alone(
     monkeypatch: pytest.MonkeyPatch,
     provider: TracerProvider,
     exporter: InMemorySpanExporter,
-    processor: Any,
+    processor: conftest.ProcessorFactory,
 ) -> None:
     monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:9")
     a2ui_spectra_instrumentation.instrument(tracer_provider=provider)

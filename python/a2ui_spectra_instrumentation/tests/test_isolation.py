@@ -9,7 +9,7 @@ from __future__ import annotations
 import gc
 import logging
 import weakref
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from a2ui.core import A2uiError
@@ -18,6 +18,11 @@ from a2ui.parser import A2uiPart
 
 import a2ui_spectra_instrumentation
 from a2ui_spectra_instrumentation import events
+
+# The fixtures' types, for the type check only: mypy names the tests by their
+# path from the repository root.
+if TYPE_CHECKING:
+    from python.a2ui_spectra_instrumentation.tests import conftest
 
 CARD_TEXT = 'Here is the card.\n<a2ui>\nsurface("card")\nroot = Text("Hi")\n</a2ui>\n'
 REJECTED = 'Here is the card.\n<a2ui>\nsurface("card")\nroot = Heading("Hi")\n</a2ui>\n'
@@ -36,7 +41,7 @@ def messages(parts: list[Any]) -> list[Any]:
     ]
 
 
-def unhooked(processor: Any, text: str) -> Any:
+def unhooked(processor: conftest.ProcessorFactory, text: str) -> Any:
     """What the SDK does with the wrapper switched off."""
     a2ui_spectra_instrumentation.uninstrument()
     try:
@@ -58,9 +63,9 @@ def test_a_fault_leaves_the_return_as_it_is(
     where: tuple[type, str],
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
-    spans: Any,
-    processor: Any,
-    support: Any,
+    spans: conftest.Recorded,
+    processor: conftest.ProcessorFactory,
+    support: conftest.Support,
 ) -> None:
     monkeypatch.setattr(*where, fault)
     with caplog.at_level(logging.WARNING):
@@ -82,9 +87,9 @@ def test_a_fault_leaves_the_exception_as_it_is(
     where: tuple[type, str],
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
-    spans: Any,
-    processor: Any,
-    support: Any,
+    spans: conftest.Recorded,
+    processor: conftest.ProcessorFactory,
+    support: conftest.Support,
 ) -> None:
     monkeypatch.setattr(*where, fault)
     with caplog.at_level(logging.WARNING), pytest.raises(A2uiError) as raised:
@@ -109,7 +114,7 @@ class Held:
 
 
 def test_a_raising_feed_keeps_nothing_of_the_caller_alive(
-    spans: Any, processor: Any
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
 ) -> None:
     def caller(stream: Any) -> weakref.ref[Held]:
         held = Held()
@@ -128,7 +133,7 @@ def test_a_raising_feed_keeps_nothing_of_the_caller_alive(
 
 
 def test_a_block_read_past_keeps_nothing_of_the_caller_alive(
-    spans: Any, processor: Any
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
 ) -> None:
     def caller(stream: Any) -> weakref.ref[Held]:
         held = Held()
@@ -149,7 +154,7 @@ def test_a_block_read_past_keeps_nothing_of_the_caller_alive(
 
 
 def test_a_raising_parse_keeps_nothing_of_the_caller_alive(
-    spans: Any, processor: Any
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
 ) -> None:
     def caller() -> weakref.ref[Held]:
         held = Held()

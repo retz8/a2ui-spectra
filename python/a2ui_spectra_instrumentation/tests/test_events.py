@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import asyncio
 from types import SimpleNamespace
-from typing import Any
+from typing import TYPE_CHECKING, Any, Literal
 
 import pytest
 from a2ui.adk import SendA2uiToClientToolset
@@ -27,6 +27,11 @@ from google.adk.models.llm_request import LlmRequest
 from google.genai import types
 
 from a2ui_spectra_instrumentation.version import __version__
+
+# The fixtures' types, for the type check only: mypy names the tests by their
+# path from the repository root.
+if TYPE_CHECKING:
+    from python.a2ui_spectra_instrumentation.tests import conftest
 
 BASIC_V1_0 = "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json"
 # A stand-in for ADK's readonly context, of which the toolset reads nothing.
@@ -66,7 +71,9 @@ def run_tool(tool: Any, payload: str) -> Any:
 # One event per outermost call.
 
 
-def test_the_processors_parse_response_is_one_parse(spans: Any, processor: Any) -> None:
+def test_the_processors_parse_response_is_one_parse(
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
+) -> None:
     processor().parse_response(CARD_TEXT)
 
     span = spans.one()
@@ -93,14 +100,16 @@ def test_the_processors_parse_response_is_one_parse(spans: Any, processor: Any) 
 
 
 def test_the_a2a_path_calling_the_parser_directly_is_one_parse(
-    spans: Any, processor: Any
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
 ) -> None:
     processor().parser.parse_response(CARD_TEXT)
 
     assert spans.attributes(spans.one())["a2ui.parse.entry_point"] == "parse_response"
 
 
-def test_an_unwrapped_parse_says_so(spans: Any, processor: Any) -> None:
+def test_an_unwrapped_parse_says_so(
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
+) -> None:
     processor().parse_response(CARD, False)
 
     attributes = spans.attributes(spans.one())
@@ -108,7 +117,9 @@ def test_an_unwrapped_parse_says_so(spans: Any, processor: Any) -> None:
     assert attributes["a2ui.parse.input"] == CARD
 
 
-def test_compile_on_its_own_is_one_parse(spans: Any, processor: Any) -> None:
+def test_compile_on_its_own_is_one_parse(
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
+) -> None:
     processor().parser.compile(CARD)
 
     span = spans.one()
@@ -117,7 +128,7 @@ def test_compile_on_its_own_is_one_parse(spans: Any, processor: Any) -> None:
 
 
 def test_the_processors_prompt_is_one_prompt_generation(
-    spans: Any, processor: Any
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
 ) -> None:
     section = processor().prompt_snippet
 
@@ -140,7 +151,7 @@ def test_the_processors_prompt_is_one_prompt_generation(
     ],
 )
 def test_each_formats_generate_is_one_prompt_generation_naming_it(
-    spans: Any, factory: InferenceFormatFactory, fmt: str
+    spans: conftest.Recorded, factory: InferenceFormatFactory, fmt: str
 ) -> None:
     generator = factory.create_format([BasicCatalog("1.0")]).prompt_generator
     section = generator.generate()
@@ -168,13 +179,17 @@ class OwnGenerator(PromptGenerator):
         return "Write the UI."
 
 
-def test_a_generator_of_no_formats_class_gives_no_event(spans: Any) -> None:
+def test_a_generator_of_no_formats_class_gives_no_event(
+    spans: conftest.Recorded,
+) -> None:
     assert OwnGenerator([BasicCatalog("1.0")]).generate() == "Write the UI."
 
     assert spans.all() == []
 
 
-def test_a_prompt_assembled_without_generate_gives_no_event(spans: Any) -> None:
+def test_a_prompt_assembled_without_generate_gives_no_event(
+    spans: conftest.Recorded,
+) -> None:
     fmt = ExpressFormatFactory().create_format([BasicCatalog("1.0")])
     assemble_instructions(fmt.prompt_generator)
     SkillGenerator(fmt).generate_skill()
@@ -182,7 +197,9 @@ def test_a_prompt_assembled_without_generate_gives_no_event(spans: Any) -> None:
     assert spans.all() == []
 
 
-def test_a_stream_is_one_parse(spans: Any, processor: Any) -> None:
+def test_a_stream_is_one_parse(
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
+) -> None:
     stream = processor().open_stream()
     for chunk in (CARD_TEXT[:20], CARD_TEXT[20:]):
         stream.feed(chunk)
@@ -193,14 +210,16 @@ def test_a_stream_is_one_parse(spans: Any, processor: Any) -> None:
     assert attributes["a2ui.parse.entry_point"] == "open_stream"
     assert attributes["a2ui.parse.streamed"] is True
     assert attributes["a2ui.parse.input"] == CARD_TEXT
-    assert [event.attributes["a2ui.parse.chunk.end"] for event in span.events] == [
+    assert [
+        spans.attributes(event)["a2ui.parse.chunk.end"] for event in span.events
+    ] == [
         20,
         len(CARD_TEXT),
     ]
 
 
 def test_the_tool_call_with_a_bound_state_is_one_parse(
-    spans: Any, processor: Any
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
 ) -> None:
     result = run_tool(tool_of(processor(state=True)), CARD)
 
@@ -215,7 +234,7 @@ def test_the_tool_call_with_a_bound_state_is_one_parse(
 
 
 def test_the_tool_call_names_the_call_id_its_context_gives(
-    spans: Any, processor: Any
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
 ) -> None:
     tool = tool_of(processor())
     context: Any = SimpleNamespace(
@@ -227,7 +246,7 @@ def test_the_tool_call_names_the_call_id_its_context_gives(
 
 
 def test_the_toolsets_appended_prompt_is_one_prompt_generation(
-    spans: Any, processor: Any
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
 ) -> None:
     tool = tool_of(processor())
     request = LlmRequest(
@@ -252,7 +271,7 @@ def test_the_toolsets_appended_prompt_is_one_prompt_generation(
 
 
 def test_the_toolsets_prompt_without_instructions_reads_the_processors_format(
-    spans: Any, processor: Any
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
 ) -> None:
     tool = tool_of(processor("direct_json"))
     request = LlmRequest()
@@ -269,7 +288,9 @@ def test_the_toolsets_prompt_without_instructions_reads_the_processors_format(
 
 
 def test_a_rejected_block_is_the_block_being_compiled(
-    spans: Any, processor: Any, support: Any
+    spans: conftest.Recorded,
+    processor: conftest.ProcessorFactory,
+    support: conftest.Support,
 ) -> None:
     text = f"First.\n<a2ui>\n{CARD}\n</a2ui>\nSecond.\n<a2ui>\n{UNKNOWN}\n</a2ui>\n"
     with pytest.raises(A2uiError):
@@ -293,7 +314,9 @@ def test_a_rejected_block_is_the_block_being_compiled(
 
 
 def test_ranges_count_utf16_code_units(
-    spans: Any, processor: Any, support: Any
+    spans: conftest.Recorded,
+    processor: conftest.ProcessorFactory,
+    support: conftest.Support,
 ) -> None:
     text = f"Here 🍜 is the card.\n<a2ui>\n{UNKNOWN}\n</a2ui>\n"
     with pytest.raises(A2uiError):
@@ -309,7 +332,9 @@ def test_ranges_count_utf16_code_units(
 
 
 def test_an_error_applying_a_blocks_messages_is_that_blocks(
-    spans: Any, processor: Any, support: Any
+    spans: conftest.Recorded,
+    processor: conftest.ProcessorFactory,
+    support: conftest.Support,
 ) -> None:
     block = json_block("default")
     text = f"<a2ui-json>\n{block}\n</a2ui-json>\nAgain.\n<a2ui-json>\n{block}\n</a2ui-json>\n"
@@ -322,7 +347,7 @@ def test_an_error_applying_a_blocks_messages_is_that_blocks(
 
 
 def test_an_error_of_the_tree_check_belongs_to_no_block(
-    spans: Any, processor: Any
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
 ) -> None:
     block = json_block(
         "card", '{"id": "root", "component": "Column", "children": ["missing"]}'
@@ -336,7 +361,7 @@ def test_an_error_of_the_tree_check_belongs_to_no_block(
 
 
 def test_the_toolsets_whole_payload_check_belongs_to_no_block(
-    spans: Any, processor: Any
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
 ) -> None:
     payload = (
         '[{"version": "v0.9", "createSurface": {"surfaceId": "s", "catalogId":'
@@ -354,7 +379,9 @@ def test_the_toolsets_whole_payload_check_belongs_to_no_block(
 
 
 def test_the_toolsets_compile_error_is_its_block(
-    spans: Any, processor: Any, support: Any
+    spans: conftest.Recorded,
+    processor: conftest.ProcessorFactory,
+    support: conftest.Support,
 ) -> None:
     payload = f"<a2ui>\n{UNKNOWN}\n</a2ui>"
     run_tool(tool_of(processor()), payload)
@@ -367,7 +394,9 @@ def test_the_toolsets_compile_error_is_its_block(
 
 
 def test_a_streams_error_after_a_finished_block_is_its_own(
-    spans: Any, processor: Any, support: Any
+    spans: conftest.Recorded,
+    processor: conftest.ProcessorFactory,
+    support: conftest.Support,
 ) -> None:
     text = f"<a2ui>\n{CARD}\n</a2ui>\nThen.\n<a2ui>\n{UNKNOWN}\n</a2ui>\n"
     stream = processor().open_stream()
@@ -383,7 +412,10 @@ def test_a_streams_error_after_a_finished_block_is_its_own(
 
 @pytest.mark.parametrize("mode", ["end", "continue"])
 def test_a_streams_error_is_the_block_it_rejected_though_the_chunk_runs_on(
-    mode: str, spans: Any, processor: Any, support: Any
+    mode: Literal["end", "continue"],
+    spans: conftest.Recorded,
+    processor: conftest.ProcessorFactory,
+    support: conftest.Support,
 ) -> None:
     text = f"<a2ui>\n{UNKNOWN}\n</a2ui>\nThen.\n<a2ui>\n{CARD}\n</a2ui>\n"
     cut = text.index(CARD) + 5
@@ -403,7 +435,9 @@ def test_a_streams_error_is_the_block_it_rejected_though_the_chunk_runs_on(
 
 
 def test_a_direct_json_streams_error_is_counted_past_the_blocks_it_finished(
-    spans: Any, processor: Any, support: Any
+    spans: conftest.Recorded,
+    processor: conftest.ProcessorFactory,
+    support: conftest.Support,
 ) -> None:
     rejected = json_block("b", '{"id": "root", "component": "Heading", "text": "Hi"}')
     text = "".join(
@@ -435,7 +469,11 @@ def test_a_direct_json_streams_error_is_counted_past_the_blocks_it_finished(
     ids=["no messages", "no payload"],
 )
 def test_an_error_the_tool_raises_itself_is_recorded_with_no_block(
-    fmt: str, payload: str, error_type: str, spans: Any, processor: Any
+    fmt: str,
+    payload: str,
+    error_type: str,
+    spans: conftest.Recorded,
+    processor: conftest.ProcessorFactory,
 ) -> None:
     result = run_tool(tool_of(processor(fmt)), payload)
 
@@ -453,7 +491,9 @@ def test_an_error_the_tool_raises_itself_is_recorded_with_no_block(
 # Arguments passed by keyword.
 
 
-def test_arguments_by_keyword(spans: Any, processor: Any) -> None:
+def test_arguments_by_keyword(
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
+) -> None:
     parser = processor().parser
     parser.parse_response(content=CARD, wrapped=False)
     parser.compile(format_content=CARD, is_final=True)

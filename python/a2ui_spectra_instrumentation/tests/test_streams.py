@@ -6,10 +6,15 @@ Also a stream fed after its end.
 from __future__ import annotations
 
 import gc
-from typing import Any
+from typing import TYPE_CHECKING
 
 import pytest
 from a2ui.core import A2uiError
+
+# The fixtures' types, for the type check only: mypy names the tests by their
+# path from the repository root.
+if TYPE_CHECKING:
+    from python.a2ui_spectra_instrumentation.tests import conftest
 
 CARD = 'surface("card")\nroot = Text("Hi")'
 TEXT = f"Here is the card.\n<a2ui>\n{CARD}\n</a2ui>\n"
@@ -17,7 +22,7 @@ REJECTED = 'Here is the card.\n<a2ui>\nsurface("card")\nroot = Heading("Hi")\n</
 
 
 def test_a_closed_stream_is_one_span_from_open_to_close(
-    spans: Any, processor: Any
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
 ) -> None:
     stream = processor().open_stream()
     stream.feed(TEXT[:10])
@@ -35,7 +40,9 @@ def test_a_closed_stream_is_one_span_from_open_to_close(
     assert span.status.is_ok
 
 
-def test_a_raising_feed_ends_the_span(spans: Any, processor: Any) -> None:
+def test_a_raising_feed_ends_the_span(
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
+) -> None:
     stream = processor().open_stream()
     with pytest.raises(A2uiError):
         stream.feed(REJECTED)
@@ -50,7 +57,7 @@ def test_a_raising_feed_ends_the_span(spans: Any, processor: Any) -> None:
 
 
 def test_a_stream_reading_past_a_rejected_block_records_it(
-    spans: Any, processor: Any
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
 ) -> None:
     stream = processor().open_stream(after_rejected_block="continue")
     stream.feed(REJECTED)
@@ -68,7 +75,7 @@ def test_a_stream_reading_past_a_rejected_block_records_it(
 
 
 def test_a_stream_fed_more_chunks_than_a_span_holds_keeps_its_first_chunk_and_its_errors(
-    spans: Any, processor: Any
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
 ) -> None:
     # OpenTelemetry's span holds 128 events by default and drops the oldest
     # past them; a reply streamed in small chunks, as Anthropic's are, feeds
@@ -85,7 +92,7 @@ def test_a_stream_fed_more_chunks_than_a_span_holds_keeps_its_first_chunk_and_it
     assert len(names) <= 128
     assert names.count("exception") == 1
     chunks = [event for event in span.events if event.name == "a2ui.parse.chunk"]
-    ends = [event.attributes["a2ui.parse.chunk.end"] for event in chunks]
+    ends = [spans.attributes(event)["a2ui.parse.chunk.end"] for event in chunks]
     assert ends[0] == len(REJECTED)
     assert ends[-1] == len(REJECTED) + 320 + len(TEXT)
     assert ends == sorted(ends)
@@ -93,7 +100,9 @@ def test_a_stream_fed_more_chunks_than_a_span_holds_keeps_its_first_chunk_and_it
     assert times == sorted(times)
 
 
-def test_an_abandoned_stream_is_never_exported(spans: Any, processor: Any) -> None:
+def test_an_abandoned_stream_is_never_exported(
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
+) -> None:
     stream = processor().open_stream()
     stream.feed(TEXT)
     del stream
@@ -103,7 +112,7 @@ def test_an_abandoned_stream_is_never_exported(spans: Any, processor: Any) -> No
 
 
 def test_a_feed_after_the_end_passes_the_sdks_error_and_records_nothing(
-    spans: Any, processor: Any
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
 ) -> None:
     stream = processor().open_stream()
     stream.feed(TEXT)

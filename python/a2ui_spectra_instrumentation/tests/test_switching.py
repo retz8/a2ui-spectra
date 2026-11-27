@@ -10,7 +10,7 @@ import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from a2ui.adk import SendA2uiToClientToolset
 from a2ui.adk import send_a2ui_to_client_toolset
@@ -24,13 +24,20 @@ from a2ui.utils import RendererState
 import a2ui_spectra_instrumentation
 from a2ui_spectra_instrumentation.hooks import SwallowedErrors
 
+# The fixtures' types, for the type check only: mypy names the tests by their
+# path from the repository root.
+if TYPE_CHECKING:
+    from python.a2ui_spectra_instrumentation.tests import conftest
+
 # A stand-in for ADK's readonly context, of which the toolset reads nothing.
 STAND_IN: Any = SimpleNamespace()
 CARD = 'surface("card")\nroot = Text("Hi")'
 
 
 def test_uninstrument_removes_every_hook(
-    spans: Any, processor: Any, support: Any
+    spans: conftest.Recorded,
+    processor: conftest.ProcessorFactory,
+    support: conftest.Support,
 ) -> None:
     toolset = SendA2uiToClientToolset(a2ui_enabled=True, a2ui_processor=processor())
     [tool] = asyncio.run(toolset.get_tools(STAND_IN))
