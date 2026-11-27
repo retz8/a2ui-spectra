@@ -12,7 +12,8 @@ import {requestAttributes} from '../proxying/exchange.js';
 import {bodyJson} from '../proxying/forwarding.js';
 import {type Failure, forward, type Relay, STOPPED} from '../proxying/relay.js';
 import type {PlacedCall, Unplaced} from '../placement.js';
-import {captured, placementOf, placeOf, recording, ToolCapture} from './capture.js';
+import type {CallEvent} from '../record/turn_record.js';
+import {captured, placementOf, placeOf, recording, servedFrom, ToolCapture} from './capture.js';
 import {type Call, forwarderOf, header, type Listener} from './listener.js';
 import {
   asJsonRpc,
@@ -28,25 +29,36 @@ import {
   negotiatedVersion,
   progressTokenOf,
   reportedProgressToken,
-  sentProgressToken,
   traceparentOf,
 } from './mcp.js';
-import {
-  ACCEPTED,
-  missOnCarrier,
-  NO_CONTENT,
-  ownServer,
-  pong,
-  recordedRequestId,
-  rewriteIds,
-  serve,
-  servedFrom,
-} from './serving.js';
 
-export const CARRIER_CLOSED = 'The stream its reply was to come on closed.';
+const CARRIER_CLOSED = 'The stream its reply was to come on closed.';
+
+/**
+ * How the armed proxy answers what a session's client posts, in place of
+ * forwarding it; the proxy gives one while a replay's pool is armed.
+ */
+export interface McpServing {
+  /** The recorded event an MCP request other than `ping` is served from; none when the record matches nothing. */
+  recordedRequest(listener: Listener, method: string, params: unknown): CallEvent | undefined;
+  /** The record's session end; none when it has none. */
+  recordedSessionEnd(listener: Listener): CallEvent | undefined;
+  /** A request's answer: a `ping`'s empty result; else its recorded event, or a miss. */
+  answerRequest(
+    call: Call,
+    relay: Relay,
+    message: JsonRpcMessage,
+    served: CallEvent | undefined,
+    session: () => Session,
+  ): void;
+  /** The protocol's 202: a notification's answer, and that of the client's response to a server request. */
+  accept(call: Call, relay: Relay): void;
+  /** A session end's answer: the record's, else 204. */
+  endSession(call: Call, relay: Relay, served: CallEvent | undefined): void;
+}
 
 /** A request the client sent, waiting for its reply. */
-export interface Pending {
+interface Pending {
   method: string;
   /** Its event; none when it was not placed, whose reply is still matched so it is not taken for another. */
   capture: ToolCapture | undefined;
@@ -101,17 +113,14 @@ export function sessionById(listener: Listener, id: string): Session {
 }
 
 /** A request's session: by its `Mcp-Session-Id`, else by the HTTP+SSE endpoint it posts to. */
-export function sessionOf(listener: Listener, request: IncomingMessage, target: URL): Session {
+function sessionOf(listener: Listener, request: IncomingMessage, target: URL): Session {
   const id = header(request.headers, 'mcp-session-id');
   if (id !== undefined) return sessionById(listener, id);
   return listener.sessions.get(`endpoint:${target.pathname}${target.search}`) ?? listener.loose;
 }
 
 /** The session's attributes on an event: its id, its protocol version, else the request's header, and under HTTP+SSE its `GET` stream's URL. */
-export function sessionAttributes(
-  session: Session,
-  request?: IncomingMessage,
-): Record<string, unknown> {
+function sessionAttributes(session: Session, request?: IncomingMessage): Record<string, unknown> {
   const version =
     session.protocolVersion ??
     (request === undefined ? undefined : header(request.headers, 'mcp-protocol-version'));
@@ -122,7 +131,7 @@ export function sessionAttributes(
   };
 }
 
-export function serverAttributes(listener: Listener): Record<string, unknown> {
+function serverAttributes(listener: Listener): Record<string, unknown> {
   const original = listener.server.original;
   return {
     'server.address': original.hostname,
@@ -131,17 +140,20 @@ export function serverAttributes(listener: Listener): Record<string, unknown> {
 }
 
 /** A JSON-RPC message the client posted: a request, a notification, or its response to a server request. */
-export function mcpMessage(call: Call, message: JsonRpcMessage): void {
+export function mcpMessage(
+  call: Call,
+  message: JsonRpcMessage,
+  serving: McpServing | undefined,
+): void {
   const {listener, request, target} = call;
   const {shared} = listener;
   const method = request.method ?? 'POST';
   const session = sessionOf(listener, request, target);
   if (session.opening !== undefined) session.opening.posted = true;
   const exchangeRequest = requestAttributes(method, target, call.headers, call.text);
-  const pool = shared.pool;
 
   if (isResponse(message)) {
-    clientResponse(call, message, session, exchangeRequest);
+    clientResponse(call, message, session, exchangeRequest, serving);
     return;
   }
   if (isNotification(message) && message.method === 'notifications/cancelled') {
@@ -162,10 +174,10 @@ export function mcpMessage(call: Call, message: JsonRpcMessage): void {
     mcpMethod === 'initialize' && session.opening !== undefined ? session.opening : undefined;
   if (opening !== undefined) session.opening = undefined;
   const start = opening?.at ?? call.start;
-  // Armed, a request other than ping is served the event the pool matches, if any.
+  // Armed, a request other than ping is served the event the record matches, if any.
   const served =
-    pool !== undefined && asking && mcpMethod !== undefined && mcpMethod !== 'ping'
-      ? pool.mcpRequest(mcpMethod, message.params, ownServer(listener))
+    serving !== undefined && asking && mcpMethod !== undefined && mcpMethod !== 'ping'
+      ? serving.recordedRequest(listener, mcpMethod, message.params)
       : undefined;
   const capture = captured(
     listener,
@@ -193,25 +205,12 @@ export function mcpMessage(call: Call, message: JsonRpcMessage): void {
     session.pending.set(id, state.pending);
   }
   const relay = requestRelay(listener, state);
-  const forwarder = forwarderOf(shared);
-  if (pool === undefined) {
-    forward(call, forwarder, relay);
+  if (serving === undefined) {
+    forward(call, forwarderOf(shared), relay);
   } else if (!asking) {
-    forward(call, forwarder, relay, ACCEPTED);
-  } else if (mcpMethod === 'ping') {
-    pong(call, relay, message, () => state.session);
-  } else if (served === undefined && session.transport === 'HTTP+SSE') {
-    missOnCarrier(call, relay, message, session);
+    serving.accept(call, relay);
   } else {
-    const recordedId = served === undefined ? undefined : recordedRequestId(served);
-    const token = sentProgressToken(message);
-    serve(
-      call,
-      relay,
-      served,
-      body => rewriteIds(body, recordedId, message.id, token),
-      () => state.session,
-    );
+    serving.answerRequest(call, relay, message, served, () => state.session);
   }
 }
 
@@ -221,37 +220,35 @@ export function mcpMessage(call: Call, message: JsonRpcMessage): void {
  * event of its own, such as one inside a POST's own reply, it is an event of
  * its own. Armed, it gets the protocol's 202.
  */
-export function clientResponse(
+function clientResponse(
   call: Call,
   message: JsonRpcMessage,
   session: Session,
   exchangeRequest: Record<string, unknown>,
+  serving: McpServing | undefined,
 ): void {
   const {listener, request, target} = call;
-  const forwarder = forwarderOf(listener.shared);
-  const accepted = listener.shared.pool === undefined ? undefined : ACCEPTED;
+  const answer = (relay: Relay) => {
+    if (serving === undefined) forward(call, forwarderOf(listener.shared), relay);
+    else serving.accept(call, relay);
+  };
   const id = idKey(message.id) ?? '';
   const asked = session.serverRequests.get(id);
   if (asked !== undefined) {
     session.serverRequests.delete(id);
     if (asked === null) {
-      forward(call, forwarder, {end: () => {}, fail: () => {}}, accepted);
+      answer({end: () => {}, fail: () => {}});
       return;
     }
     asked.set(exchangeRequest);
     const relay = recording(asked);
-    forward(
-      call,
-      forwarder,
-      {
-        ...relay,
-        event: undefined,
-        end: (_at, body) => relay.end(call.start, body),
-        fail: (failure, _at, reached) => relay.fail(failure, call.start, reached),
-        agentClosed: drop => drop(),
-      },
-      accepted,
-    );
+    answer({
+      ...relay,
+      event: undefined,
+      end: (_at, body) => relay.end(call.start, body),
+      fail: (failure, _at, reached) => relay.fail(failure, call.start, reached),
+      agentClosed: drop => drop(),
+    });
     return;
   }
   const attributes = {
@@ -268,11 +265,11 @@ export function clientResponse(
     ),
     {kind: 3, name: 'response', attributes},
   );
-  forward(call, forwarder, recording(capture), accepted);
+  answer(recording(capture));
 }
 
 /** A `notifications/cancelled`: the request it names, still waiting, ends as cancelled at its arrival. */
-export function cancel(call: Call, message: JsonRpcMessage, session: Session): void {
+function cancel(call: Call, message: JsonRpcMessage, session: Session): void {
   const id = cancelledRequestId(message);
   const cancelled = id === undefined ? undefined : session.pending.get(id);
   if (id === undefined || cancelled === undefined) return;
@@ -285,7 +282,7 @@ export function cancel(call: Call, message: JsonRpcMessage, session: Session): v
 }
 
 /** A client's request or notification as its relay follows it. */
-export interface RequestState {
+interface RequestState {
   /** Its session, which the server's reply to `initialize` may assign. */
   session: Session;
   id: string | undefined;
@@ -296,7 +293,7 @@ export interface RequestState {
 }
 
 /** The relay that follows a client's request: its session as the server assigns it, its reply wherever it comes, and its end. */
-export function requestRelay(listener: Listener, state: RequestState): Relay {
+function requestRelay(listener: Listener, state: RequestState): Relay {
   const {shared} = listener;
   const {id, mcpMethod, capture} = state;
   /** Where a request with no entry of its own is looked for at its end: the session it was posted in. */
@@ -396,7 +393,7 @@ export function requestRelay(listener: Listener, state: RequestState): Relay {
 }
 
 /** Records the version an `initialize` reply negotiated, on the session and on the call's event. */
-export function noteNegotiated(
+function noteNegotiated(
   session: Session,
   capture: ToolCapture | undefined,
   reply: JsonRpcMessage,
@@ -408,12 +405,11 @@ export function noteNegotiated(
 }
 
 /** MCP's session end: a `DELETE` carrying `Mcp-Session-Id`, named `DELETE`, with the session and the exchange. */
-export function sessionEnd(call: Call): void {
+export function sessionEnd(call: Call, serving: McpServing | undefined): void {
   const {listener, request, target} = call;
   const session = sessionById(listener, header(request.headers, 'mcp-session-id') ?? '');
-  const pool = listener.shared.pool;
   // Armed, the record's session end, else 204.
-  const served = pool?.sessionEnd(ownServer(listener));
+  const served = serving?.recordedSessionEnd(listener);
   const capture = captured(
     listener,
     placementOf(call, `an MCP session end to ${target.host}, DELETE`),
@@ -436,10 +432,8 @@ export function sessionEnd(call: Call): void {
       listener.sessions.delete(session.key);
     },
   };
-  if (pool === undefined) forward(call, forwarderOf(call.listener.shared), relay);
-  else if (served === undefined)
-    forward(call, forwarderOf(call.listener.shared), relay, NO_CONTENT);
-  else serve(call, relay, served);
+  if (serving === undefined) forward(call, forwarderOf(call.listener.shared), relay);
+  else serving.endSession(call, relay, served);
 }
 
 /**
@@ -547,13 +541,13 @@ export function getRequest(call: Call): void {
 }
 
 /** A reply's status and headers, as its head gave them. */
-export interface ReplyHead {
+interface ReplyHead {
   status: number;
   headers: IncomingHttpHeaders;
 }
 
 /** What a `GET` turned out to be, and how the rest of its reply is read. */
-export interface GetPhase {
+interface GetPhase {
   event(event: SseEvent, at: bigint): void;
   end(at: bigint, body: string | undefined): void;
   fail(failure: Failure, at: bigint, reached: boolean): void;
@@ -561,7 +555,7 @@ export interface GetPhase {
 }
 
 /** A `GET` that is an HTTP tool call: its exchange and its chunks recorded on its capture, if it was placed. */
-export function toolPhase(capture: ToolCapture | undefined, reply: ReplyHead): GetPhase {
+function toolPhase(capture: ToolCapture | undefined, reply: ReplyHead): GetPhase {
   return {
     event(event, at) {
       capture?.chunk(event, at);
@@ -582,7 +576,7 @@ export function toolPhase(capture: ToolCapture | undefined, reply: ReplyHead): G
 }
 
 /** A `GET` that is a carrier: its messages read into its session, none for one whose endpoint is not read. */
-export function carrierPhase(listener: Listener, carried: Session | undefined): GetPhase {
+function carrierPhase(listener: Listener, carried: Session | undefined): GetPhase {
   return {
     event(event, at) {
       if (carried !== undefined) carrierMessage(listener, carried, event, at);
@@ -598,7 +592,7 @@ export function carrierPhase(listener: Listener, carried: Session | undefined): 
 }
 
 /** A `GET` whose agent left before it showed what it is: nothing more is read. */
-export const GONE: GetPhase = {
+const GONE: GetPhase = {
   event: () => {},
   end: () => {},
   fail: () => {},
@@ -719,7 +713,7 @@ export function carrierMessage(
  * context, else by the time window at its arrival: a notification starts and
  * ends at its arrival; a request ends when the client's response arrives.
  */
-export function serverEvent(
+function serverEvent(
   listener: Listener,
   session: Session,
   event: SseEvent,

@@ -8,12 +8,12 @@ import type {SseEvent} from '../proxying/sse.js';
 import {chunkEvent, responseAttributes} from '../proxying/exchange.js';
 import {AGENT_CLOSED, type Failure, type Relay} from '../proxying/relay.js';
 import type {PlacedCall, Unplaced} from '../placement.js';
-import type {SpanEvent, ToolCallEvent} from '../record/turn_record.js';
+import type {CallEvent, SpanEvent, ToolCallEvent} from '../record/turn_record.js';
 import {type Call, header, type Listener, type Shared} from './listener.js';
 import {type JsonRpcMessage, readReply} from './mcp.js';
 
 /** Where a call is placed from: what it is, its start, and the trace context it carries. */
-export interface Placement {
+interface Placement {
   what: string;
   start: bigint;
   traceparent: string | undefined;
@@ -32,10 +32,7 @@ export function placeOf(call: Call, what: string): PlacedCall | Unplaced {
   return place(call.listener, placementOf(call, what));
 }
 
-export function place(
-  listener: Listener,
-  {what, start, traceparent}: Placement,
-): PlacedCall | Unplaced {
+function place(listener: Listener, {what, start, traceparent}: Placement): PlacedCall | Unplaced {
   return listener.shared.options.place({what, startTimeUnixNano: start.toString(), traceparent});
 }
 
@@ -55,7 +52,7 @@ export function captured(
 }
 
 /** The placed call, or nothing with the line saying why logged. */
-export function logged(listener: Listener, result: PlacedCall | Unplaced): PlacedCall | undefined {
+function logged(listener: Listener, result: PlacedCall | Unplaced): PlacedCall | undefined {
   if ('line' in result) {
     listener.shared.options.log?.(result.line);
     return undefined;
@@ -234,4 +231,9 @@ export function recording(capture: ToolCapture | undefined): Relay {
       else capture.agentClosed(drop);
     },
   };
+}
+
+/** The attribute naming the recorded event a call was served from. */
+export function servedFrom(event: CallEvent | undefined): Record<string, unknown> {
+  return event === undefined ? {} : {'a2ui.replay.served_from': event.spanId};
 }

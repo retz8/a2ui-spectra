@@ -21,14 +21,22 @@ import {
   unreachedLine,
   wasStreamed,
 } from '../replay/served.js';
-import {captured, placementOf, recording} from './capture.js';
+import {captured, placementOf, recording, servedFrom} from './capture.js';
 import {type Call, forwarderOf, header, type Listener} from './listener.js';
-import {asJsonRpc, idKey, isNotification, isResponse, type JsonRpcMessage} from './mcp.js';
+import {
+  asJsonRpc,
+  idKey,
+  isNotification,
+  isResponse,
+  type JsonRpcMessage,
+  sentProgressToken,
+} from './mcp.js';
 import {
   carrierClosed,
   carrierMessage,
   endpointUrl,
   openSseSession,
+  type McpServing,
   type Session,
   sessionById,
 } from './sessions.js';
@@ -70,17 +78,12 @@ export function httpTool(call: Call, armed?: {served: CallEvent | undefined}): v
  * its original's, when the config names more than one tool server; none,
  * and every recorded call its own, with one.
  */
-export function ownServer(listener: Listener): string | undefined {
+function ownServer(listener: Listener): string | undefined {
   return listener.shared.options.servers.length > 1 ? listener.origin : undefined;
 }
 
-/** The attribute naming the recorded event a call was served from. */
-export function servedFrom(event: CallEvent | undefined): Record<string, unknown> {
-  return event === undefined ? {} : {'a2ui.replay.served_from': event.spanId};
-}
-
 /** Answers a request the record matched nothing for: the 502 line, the terminal's line, and the call failed with `replay_miss`. */
-export function miss(call: Call, relay: Relay): void {
+function miss(call: Call, relay: Relay): void {
   const {shared} = call.listener;
   const line = missLine('tool proxy', call.request.method ?? 'GET', call.target);
   shared.options.log?.(line);
@@ -95,7 +98,7 @@ export function miss(call: Call, relay: Relay): void {
  * chunks of a reply that came on a carrier written on the session's carrier
  * once the POST is answered.
  */
-export function serve(
+function serve(
   call: Call,
   relay: Relay,
   event: CallEvent | undefined,
@@ -139,7 +142,7 @@ export function serve(
 }
 
 /** The relay that, once the POST's exchange ended, writes `events` on the session's carrier and reads them there as a forwarded carrier's are. */
-export function onCarrier(
+function onCarrier(
   listener: Listener,
   relay: Relay,
   events: SseEvent[],
@@ -163,10 +166,10 @@ export function onCarrier(
 }
 
 /** `202 Accepted` with no body: the protocol's answer to a notification and to a response the client posts. */
-export const ACCEPTED: ServedReply = {status: 202, headers: {'content-length': '0'}};
+const ACCEPTED: ServedReply = {status: 202, headers: {'content-length': '0'}};
 
 /** `204 No Content`: a session end the record has none of. */
-export const NO_CONTENT: ServedReply = {status: 204, headers: {}};
+const NO_CONTENT: ServedReply = {status: 204, headers: {}};
 
 /**
  * A miss under HTTP+SSE: the 502 line on the POST, as for any miss, and the
@@ -174,12 +177,7 @@ export const NO_CONTENT: ServedReply = {status: 204, headers: {}};
  * for the reply, so the failed call reaches the agent's code as an MCP
  * error. The error is not recorded: the call is the failed `replay_miss`.
  */
-export function missOnCarrier(
-  call: Call,
-  relay: Relay,
-  message: JsonRpcMessage,
-  session: Session,
-): void {
+function missOnCarrier(call: Call, relay: Relay, message: JsonRpcMessage, session: Session): void {
   const line = missLine('tool proxy', call.request.method ?? 'GET', call.target);
   miss(call, relay);
   const outlet = session.outlet;
@@ -189,12 +187,7 @@ export function missOnCarrier(
 }
 
 /** A `ping`'s empty result, the protocol's answer: in the POST's reply, or under HTTP+SSE on the carrier after a 202. */
-export function pong(
-  call: Call,
-  relay: Relay,
-  message: JsonRpcMessage,
-  session: () => Session,
-): void {
+function pong(call: Call, relay: Relay, message: JsonRpcMessage, session: () => Session): void {
   const body = JSON.stringify({jsonrpc: '2.0', id: message.id, result: {}});
   if (session().transport === 'HTTP+SSE') {
     forward(
@@ -216,7 +209,7 @@ export function pong(
 }
 
 /** The JSON-RPC id of the request a recorded event is, as the key the proxy matches on. */
-export function recordedRequestId(event: CallEvent): string | undefined {
+function recordedRequestId(event: CallEvent): string | undefined {
   return idKey(requestMessage(event)?.id) ?? idKey(event.attributes['jsonrpc.request.id']);
 }
 
@@ -226,7 +219,7 @@ export function recordedRequestId(event: CallEvent): string | undefined {
  * `notifications/progress` the live progress token, when the live request
  * asked for progress. Nothing else is touched.
  */
-export function rewriteIds(
+function rewriteIds(
   value: unknown,
   recordedId: string | undefined,
   liveId: unknown,
@@ -286,12 +279,7 @@ export function armedGet(call: Call, pool: ReplayPool): void {
 }
 
 /** Answers a `GET` as a carrier the proxy holds open, `200` `text/event-stream`, writing `first` when given, until the client closes it or the proxy is disarmed. */
-export function holdCarrier(
-  listener: Listener,
-  call: Call,
-  session: Session,
-  first?: SseEvent,
-): void {
+function holdCarrier(listener: Listener, call: Call, session: Session, first?: SseEvent): void {
   const {shared} = listener;
   const {response} = call;
   response.writeHead(200, {'content-type': 'text/event-stream', 'cache-control': 'no-cache'});
@@ -305,4 +293,44 @@ export function holdCarrier(
     if (session.outlet === response) session.outlet = undefined;
     carrierClosed(listener, session, shared.now());
   });
+}
+
+/** The serving the sessions are given while `pool` is armed. */
+export function servingOf(pool: ReplayPool): McpServing {
+  return {
+    recordedRequest: (listener, method, params) =>
+      pool.mcpRequest(method, params, ownServer(listener)),
+    recordedSessionEnd: listener => pool.sessionEnd(ownServer(listener)),
+    answerRequest,
+    accept: (call, relay) => forward(call, forwarderOf(call.listener.shared), relay, ACCEPTED),
+    endSession: (call, relay, served) => {
+      if (served === undefined) forward(call, forwarderOf(call.listener.shared), relay, NO_CONTENT);
+      else serve(call, relay, served);
+    },
+  };
+}
+
+/**
+ * An armed request's answer: a `ping`'s empty result; a miss under HTTP+SSE
+ * with its error on the carrier; else the recorded event with the live
+ * request's identifiers, or a miss.
+ */
+function answerRequest(
+  call: Call,
+  relay: Relay,
+  message: JsonRpcMessage,
+  served: CallEvent | undefined,
+  session: () => Session,
+): void {
+  if (message.method === 'ping') {
+    pong(call, relay, message, session);
+    return;
+  }
+  if (served === undefined && session().transport === 'HTTP+SSE') {
+    missOnCarrier(call, relay, message, session());
+    return;
+  }
+  const recordedId = served === undefined ? undefined : recordedRequestId(served);
+  const token = sentProgressToken(message);
+  serve(call, relay, served, body => rewriteIds(body, recordedId, message.id, token), session);
 }

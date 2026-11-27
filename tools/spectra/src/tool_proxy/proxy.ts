@@ -33,7 +33,7 @@ import {listenError, LOOPBACK_ADDRESS} from '../server.js';
 import {asJsonRpc} from './mcp.js';
 import {type Call, forwarderOf, header, type Listener, type Shared} from './listener.js';
 import type {ToolServer} from './servers.js';
-import {armedGet, httpTool, httpToolKey} from './serving.js';
+import {armedGet, httpTool, httpToolKey, servingOf} from './serving.js';
 import {getRequest, mcpMessage, type Session, sessionEnd} from './sessions.js';
 
 export interface ToolProxyOptions {
@@ -240,10 +240,11 @@ async function route(
     return;
   }
   const message = text === undefined ? undefined : asJsonRpc(bodyJson(text));
+  const serving = pool === undefined ? undefined : servingOf(pool);
   if (message !== undefined) {
-    mcpMessage(call, message);
+    mcpMessage(call, message, serving);
   } else if (method === 'DELETE' && header(request.headers, 'mcp-session-id') !== undefined) {
-    sessionEnd(call);
+    sessionEnd(call, serving);
   } else if (method === 'GET') {
     if (pool === undefined) getRequest(call);
     else armedGet(call, pool);
