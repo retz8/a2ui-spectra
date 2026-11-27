@@ -123,7 +123,7 @@ const CHECK_MS = 5000;
 const SILENCE_MS = 7000;
 
 class Spectra {
-  #state: SpectraState = {
+  private state: SpectraState = {
     loaded: false,
     turns: [],
     live: new Map(),
@@ -134,27 +134,27 @@ class Spectra {
     fixtures: NO_FIXTURES,
     replayTurns: new Map(),
   };
-  readonly #listeners = new Set<() => void>();
-  #started = false;
-  #source: EventSource | undefined;
-  #retry: ReturnType<typeof setTimeout> | undefined;
-  #silence: ReturnType<typeof setTimeout> | undefined;
+  private readonly listeners = new Set<() => void>();
+  private started = false;
+  private source: EventSource | undefined;
+  private retry: ReturnType<typeof setTimeout> | undefined;
+  private silence: ReturnType<typeof setTimeout> | undefined;
   /** What the stream said of the agent's process since it opened, not yet in a route's answer. */
-  #agentSince: AgentHeard[] = [];
+  private agentSince: AgentHeard[] = [];
   /** The log entries the stream sent since it opened, until the logs route has answered. */
-  #logSince: Array<LiveEvents['agent_log']> = [];
+  private logSince: Array<LiveEvents['agent_log']> = [];
   /** Whether the agent route has answered since the stream opened: a later answer merges into it. */
-  #agentRead = false;
+  private agentRead = false;
   /** Whether the logs route has been asked, and has answered, since the stream opened. */
-  #logsRead: 'no' | 'asked' | 'yes' = 'no';
+  private logsRead: 'no' | 'asked' | 'yes' = 'no';
   /** Counts the stream's opens, so an answer asked for before the latest open is dropped. */
-  #opens = 0;
+  private opens = 0;
 
-  getState = (): SpectraState => this.#state;
+  getState = (): SpectraState => this.state;
 
   subscribe = (listener: () => void): (() => void) => {
-    this.#listeners.add(listener);
-    return () => this.#listeners.delete(listener);
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   };
 
   /**
@@ -163,27 +163,27 @@ class Spectra {
    * are read again.
    */
   start(): void {
-    if (this.#started) return;
-    this.#started = true;
-    void this.#reload();
-    this.#connect();
-    setInterval(() => void this.#check(), CHECK_MS);
+    if (this.started) return;
+    this.started = true;
+    void this.reload();
+    this.connect();
+    setInterval(() => void this.check(), CHECK_MS);
   }
 
   /** Reads a closed turn's record, once. A turn still open is asked for again later. */
   ensureRecord(traceId: string, {row = false}: {row?: boolean} = {}): void {
-    if (this.#state.records.has(traceId)) return;
-    this.#setRecord(traceId, {loading: true});
+    if (this.state.records.has(traceId)) return;
+    this.setRecord(traceId, {loading: true});
     getRecord(traceId).then(
       record => {
-        const read = recordRead(this.#state, traceId, record);
-        this.#replace(row ? rowFromRecord(read, traceId) : read);
+        const read = recordRead(this.state, traceId, record);
+        this.replace(row ? rowFromRecord(read, traceId) : read);
       },
       (error: unknown) => {
         if ((error as {status?: number}).status === 409) {
-          this.#setRecord(traceId, undefined);
+          this.setRecord(traceId, undefined);
         } else {
-          this.#setRecord(traceId, {error: error instanceof Error ? error.message : String(error)});
+          this.setRecord(traceId, {error: error instanceof Error ? error.message : String(error)});
         }
       },
     );
@@ -196,7 +196,7 @@ class Spectra {
    */
   async send(input: BoxInput, conversationId?: string): Promise<string> {
     const {traceId} = await sendMessage(input, conversationId);
-    await this.#refreshBox();
+    await this.refreshBox();
     return traceId;
   }
 
@@ -206,7 +206,7 @@ class Spectra {
    */
   async replay(source: ReplaySource, mode: ReplayMode): Promise<string> {
     const {traceId} = await startReplay(source, mode);
-    void this.#refreshBox();
+    void this.refreshBox();
     return traceId;
   }
 
@@ -226,24 +226,24 @@ class Spectra {
   /** Saves a stored turn's record as a fixture; the listing is read again at once. */
   async saveFixture(traceId: string, name: string): Promise<{name: string; path: string}> {
     const saved = await saveFixture(traceId, name);
-    void this.#readFixtures();
+    void this.readFixtures();
     return saved;
   }
 
   /** Reads a fixture the listing has not shown yet, as an address can name one. */
   ensureFixture(name: string): void {
-    if (this.#state.fixtures.records.has(name)) return;
-    this.#readFixture(name, undefined);
+    if (this.state.fixtures.records.has(name)) return;
+    this.readFixture(name, undefined);
   }
 
-  #readFixture(name: string, savedAt: string | undefined): void {
-    this.#set({fixtures: fixtureNotHeld(this.#state.fixtures, name)});
+  private readFixture(name: string, savedAt: string | undefined): void {
+    this.set({fixtures: fixtureNotHeld(this.state.fixtures, name)});
     getFixture(name).then(
-      record => this.#set({fixtures: fixtureRead(this.#state.fixtures, name, savedAt, record)}),
+      record => this.set({fixtures: fixtureRead(this.state.fixtures, name, savedAt, record)}),
       (error: unknown) =>
-        this.#set({
+        this.set({
           fixtures: fixtureFailed(
-            this.#state.fixtures,
+            this.state.fixtures,
             name,
             error instanceof Error ? error.message : String(error),
           ),
@@ -252,55 +252,55 @@ class Spectra {
   }
 
   /** Reads the listing, and each fixture's record that is new or whose saved time changed. */
-  async #readFixtures(): Promise<void> {
+  private async readFixtures(): Promise<void> {
     try {
-      const {fixtures, read} = fixturesListed(this.#state.fixtures, await listFixtures());
-      this.#set({fixtures});
-      for (const {name, savedAt} of read) this.#readFixture(name, savedAt);
+      const {fixtures, read} = fixturesListed(this.state.fixtures, await listFixtures());
+      this.set({fixtures});
+      for (const {name, savedAt} of read) this.readFixture(name, savedAt);
     } catch {
       // The check marks the page as not connected; the stream's next open reads again.
     }
   }
 
-  #connect(): void {
-    this.#retry = undefined;
-    this.#source?.close();
+  private connect(): void {
+    this.retry = undefined;
+    this.source?.close();
     const source = new EventSource(STREAM_PATH);
-    this.#source = source;
+    this.source = source;
     source.onopen = () => {
-      this.#heard(source);
+      this.heard(source);
       // The agent's routes are read again: what the stream says from here on is newer than their answers.
-      this.#opens += 1;
-      this.#agentSince = [];
-      this.#logSince = [];
-      this.#agentRead = false;
-      this.#logsRead = 'no';
+      this.opens += 1;
+      this.agentSince = [];
+      this.logSince = [];
+      this.agentRead = false;
+      this.logsRead = 'no';
       // The stream catches a new subscriber up on the open turns, so they start again from it.
-      this.#set({connected: true, live: new Map()});
-      void this.#reload();
+      this.set({connected: true, live: new Map()});
+      void this.reload();
     };
     source.onerror = () => {
-      this.#set({connected: false});
-      if (source.readyState === EventSource.CLOSED) this.#reconnect();
+      this.set({connected: false});
+      if (source.readyState === EventSource.CLOSED) this.reconnect();
     };
     const on = <Name extends keyof LiveEvents>(
       name: Name,
       handle: (data: LiveEvents[Name]) => void,
     ) =>
       source.addEventListener(name, event => {
-        this.#heard(source);
+        this.heard(source);
         handle(JSON.parse((event as MessageEvent<string>).data) as LiveEvents[Name]);
       });
-    const agent = () => this.#state.context?.agentName;
-    on('turn_opened', data => this.#replace(turnOpened(this.#state, data, agent())));
-    on('wire_event', data => this.#replace(wireEvent(this.#state, data, agent())));
+    const agent = () => this.state.context?.agentName;
+    on('turn_opened', data => this.replace(turnOpened(this.state, data, agent())));
+    on('wire_event', data => this.replace(wireEvent(this.state, data, agent())));
     on('call_started', ({traceId, event}) =>
-      this.#replace(callChanged(this.#state, traceId, event.spanId, () => event)),
+      this.replace(callChanged(this.state, traceId, event.spanId, () => event)),
     );
     on('call_chunk', ({traceId, spanId, chunk}) =>
-      this.#replace(
+      this.replace(
         callChanged(
-          this.#state,
+          this.state,
           traceId,
           spanId,
           call => call && {...call, events: [...(call.events ?? []), chunk]},
@@ -308,9 +308,9 @@ class Spectra {
       ),
     );
     on('call_progress', ({traceId, spanId, attributes}) =>
-      this.#replace(
+      this.replace(
         callChanged(
-          this.#state,
+          this.state,
           traceId,
           spanId,
           call => call && {...call, attributes: {...call.attributes, ...attributes}},
@@ -318,46 +318,46 @@ class Spectra {
       ),
     );
     on('call_ended', ({traceId, event}) =>
-      this.#replace(callChanged(this.#state, traceId, event.spanId, () => event)),
+      this.replace(callChanged(this.state, traceId, event.spanId, () => event)),
     );
-    on('turn_closed', data => this.#turnClosed(data));
+    on('turn_closed', data => this.turnClosed(data));
     on('turn_amended', data => {
-      const {state, fetch} = turnAmended(this.#state, data);
-      this.#replace(state);
+      const {state, fetch} = turnAmended(this.state, data);
+      this.replace(state);
       // A turn the page holds in no form: its record is read once, and its list row from it.
       if (fetch !== undefined) this.ensureRecord(fetch, {row: true});
     });
-    on('replay_started', data => this.#set(replayStarted(this.#state, data)));
+    on('replay_started', data => this.set(replayStarted(this.state, data)));
     on('replay_turn', data => {
-      this.#set(replayTurn(this.#state, data));
-      void this.#refreshBox();
+      this.set(replayTurn(this.state, data));
+      void this.refreshBox();
     });
     on('replay_ended', () => {
-      this.#set(replayEnded(this.#state));
-      void this.#refreshBox();
+      this.set(replayEnded(this.state));
+      void this.refreshBox();
     });
-    on('fixtures_changed', () => void this.#readFixtures());
-    on('agent_state', data => this.#agentHeard({state: data}));
+    on('fixtures_changed', () => void this.readFixtures());
+    on('agent_state', data => this.agentHeard({state: data}));
     on('agent_restarted', data =>
-      this.#agentHeard({event: sessionEventOf('agent_restarted', data)}),
+      this.agentHeard({event: sessionEventOf('agent_restarted', data)}),
     );
-    on('agent_exited', data => this.#agentHeard({event: sessionEventOf('agent_exited', data)}));
+    on('agent_exited', data => this.agentHeard({event: sessionEventOf('agent_exited', data)}));
     on('agent_log', data => {
-      const {logs} = this.#state;
-      if (this.#logsRead === 'yes' && logs !== undefined) this.#set({logs: logsHeard(logs, data)});
-      else this.#logSince.push(data);
+      const {logs} = this.state;
+      if (this.logsRead === 'yes' && logs !== undefined) this.set({logs: logsHeard(logs, data)});
+      else this.logSince.push(data);
     });
     // The agent's process changed state under run, or a catalog file was read again: the context and
     // the box follow the card and the state, and the list's counts and Structure the definitions.
-    for (const name of RELOAD_EVENTS) on(name, () => void this.#reload());
+    for (const name of RELOAD_EVENTS) on(name, () => void this.reload());
     on('heartbeat', () => {});
   }
 
   /** What the stream said of the agent's process: kept until a route's answer holds it, and applied at once. */
-  #agentHeard(heard: AgentHeard): void {
-    this.#agentSince.push(heard);
-    const {agent} = this.#state;
-    if (agent !== undefined) this.#replace({...this.#state, agent: agentHeard(agent, heard)});
+  private agentHeard(heard: AgentHeard): void {
+    this.agentSince.push(heard);
+    const {agent} = this.state;
+    if (agent !== undefined) this.replace({...this.state, agent: agentHeard(agent, heard)});
   }
 
   /**
@@ -365,16 +365,16 @@ class Spectra {
    * as the state takes it, or nothing when it is dropped; what the stream
    * said up to the answer is no longer kept.
    */
-  #agentAnswered(snapshot: AgentSnapshot, open: number): AgentProcess | undefined {
-    const current = open === this.#opens;
-    const agent = agentAnswered(this.#state.agent, snapshot, this.#agentSince, {
+  private agentAnswered(snapshot: AgentSnapshot, open: number): AgentProcess | undefined {
+    const current = open === this.opens;
+    const agent = agentAnswered(this.state.agent, snapshot, this.agentSince, {
       current,
-      first: !this.#agentRead,
+      first: !this.agentRead,
     });
     if (!current) return agent;
-    this.#agentRead = true;
+    this.agentRead = true;
     const last = lastSeqOf(snapshot);
-    this.#agentSince = this.#agentSince.filter(heard => seqOf(heard) > last);
+    this.agentSince = this.agentSince.filter(heard => seqOf(heard) > last);
     return agent;
   }
 
@@ -382,55 +382,55 @@ class Spectra {
    * Under `run`, reads the agent's output once per stream open; the buffer
    * the page held stays until the route's answer replaces it.
    */
-  async #readLogs(open: number): Promise<void> {
-    if (open !== this.#opens || this.#logsRead !== 'no') return;
-    this.#logsRead = 'asked';
+  private async readLogs(open: number): Promise<void> {
+    if (open !== this.opens || this.logsRead !== 'no') return;
+    this.logsRead = 'asked';
     try {
       const logs = await getAgentLogs();
-      if (open !== this.#opens) return;
-      this.#set({logs: logsRead(logs, this.#logSince)});
-      this.#logsRead = 'yes';
-      this.#logSince = [];
+      if (open !== this.opens) return;
+      this.set({logs: logsRead(logs, this.logSince)});
+      this.logsRead = 'yes';
+      this.logSince = [];
     } catch (error) {
-      if (open === this.#opens) this.#logsRead = 'no';
+      if (open === this.opens) this.logsRead = 'no';
       throw error;
     }
   }
 
   /** Opens the stream again when nothing, not even a heartbeat, comes on it for a while. */
-  #heard(source: EventSource): void {
-    clearTimeout(this.#silence);
-    this.#silence = setTimeout(() => {
-      if (this.#source !== source) return;
-      this.#set({connected: false});
-      this.#reconnect();
+  private heard(source: EventSource): void {
+    clearTimeout(this.silence);
+    this.silence = setTimeout(() => {
+      if (this.source !== source) return;
+      this.set({connected: false});
+      this.reconnect();
     }, SILENCE_MS);
   }
 
   /** Drops the stream and opens it again after a pause, once. */
-  #reconnect(): void {
-    clearTimeout(this.#silence);
-    this.#source?.close();
-    this.#source = undefined;
-    if (this.#retry === undefined) this.#retry = setTimeout(() => this.#connect(), RETRY_MS);
+  private reconnect(): void {
+    clearTimeout(this.silence);
+    this.source?.close();
+    this.source = undefined;
+    if (this.retry === undefined) this.retry = setTimeout(() => this.connect(), RETRY_MS);
   }
 
   /** Checks that the server answers, keeping the box's state current; drops the stream when it does not. */
-  async #check(): Promise<void> {
+  private async check(): Promise<void> {
     try {
       const box = await getMessageBox();
-      if (JSON.stringify(box) !== JSON.stringify(this.#state.box)) this.#set({box});
+      if (JSON.stringify(box) !== JSON.stringify(this.state.box)) this.set({box});
     } catch {
-      if (this.#source !== undefined) {
-        this.#set({connected: false});
-        this.#reconnect();
+      if (this.source !== undefined) {
+        this.set({connected: false});
+        this.reconnect();
       }
     }
   }
 
-  async #reload(): Promise<void> {
+  private async reload(): Promise<void> {
     try {
-      const open = this.#opens;
+      const open = this.opens;
       const contextRead = getContext();
       // Spectra owns the agent's process under `run` alone: under `attach` there is none to read.
       // It is asked for as soon as the context names the mode, so that the session and its agent
@@ -446,7 +446,7 @@ class Spectra {
         agentAsked,
       ]);
       // What the stream said while the listing was on its way is newer than the listing.
-      const {live, closed} = this.#state;
+      const {live, closed} = this.state;
       // An open turn's agent is the session's.
       const rows = new Map(
         turns.map(turn => [
@@ -461,11 +461,11 @@ class Spectra {
         rows.set(turn.traceId, {...rows.get(turn.traceId), ...openRow(turn, context.agentName)});
       }
       const known =
-        JSON.stringify(catalogs) === JSON.stringify(this.#state.catalogs)
-          ? this.#state.catalogs
+        JSON.stringify(catalogs) === JSON.stringify(this.state.catalogs)
+          ? this.state.catalogs
           : catalogs;
-      const agent = snapshot === undefined ? undefined : this.#agentAnswered(snapshot, open);
-      this.#set({
+      const agent = snapshot === undefined ? undefined : this.agentAnswered(snapshot, open);
+      this.set({
         loaded: true,
         turns: sortRows([...rows.values()]),
         box,
@@ -473,58 +473,58 @@ class Spectra {
         catalogs: known,
         ...(agent !== undefined && {agent}),
       });
-      if (this.#state.prices === undefined) void this.#readPrices();
-      void this.#readFixtures();
-      if (snapshot !== undefined) await this.#readLogs(open);
+      if (this.state.prices === undefined) void this.readPrices();
+      void this.readFixtures();
+      if (snapshot !== undefined) await this.readLogs(open);
     } catch {
       // The check marks the page as not connected; the stream's next open reads again.
     }
   }
 
-  async #readPrices(): Promise<void> {
+  private async readPrices(): Promise<void> {
     try {
-      this.#set({prices: await getPrices()});
+      this.set({prices: await getPrices()});
     } catch {
       // Read again with the listing; without it, no cost is shown.
     }
   }
 
-  async #refreshBox(): Promise<void> {
+  private async refreshBox(): Promise<void> {
     try {
-      this.#set({box: await getMessageBox()});
+      this.set({box: await getMessageBox()});
     } catch {
       // Left as it was; the next stream open reads it again.
     }
   }
 
-  #turnClosed(data: LiveEvents['turn_closed']): void {
+  private turnClosed(data: LiveEvents['turn_closed']): void {
     const {traceId, turn} = data;
-    this.#replace(turnClosed(this.#state, data));
+    this.replace(turnClosed(this.state, data));
     // The listing counts the turn's rejections after the conversation's earlier turns.
-    void this.#reload();
+    void this.reload();
     const conversationId = turn.events.find(isTurnEvent)?.attributes['gen_ai.conversation.id'];
-    const held = this.#state.box.conversations.some(
+    const held = this.state.box.conversations.some(
       conversation =>
         conversation.turns.includes(traceId) ||
         (conversationId !== undefined && conversation.conversationId === conversationId),
     );
-    if (held) void this.#refreshBox();
+    if (held) void this.refreshBox();
   }
 
-  #setRecord(traceId: string, state: RecordState | undefined): void {
-    const records = new Map(this.#state.records);
+  private setRecord(traceId: string, state: RecordState | undefined): void {
+    const records = new Map(this.state.records);
     if (state === undefined) records.delete(traceId);
     else records.set(traceId, state);
-    this.#set({records});
+    this.set({records});
   }
 
-  #replace(state: SpectraState): void {
-    if (state !== this.#state) this.#set(state);
+  private replace(state: SpectraState): void {
+    if (state !== this.state) this.set(state);
   }
 
-  #set(changes: Partial<SpectraState>): void {
-    this.#state = {...this.#state, ...changes};
-    for (const listener of this.#listeners) listener();
+  private set(changes: Partial<SpectraState>): void {
+    this.state = {...this.state, ...changes};
+    for (const listener of this.listeners) listener();
   }
 }
 

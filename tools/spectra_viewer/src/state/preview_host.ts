@@ -122,39 +122,39 @@ const HIDDEN: Partial<CSSStyleDeclaration> = {
 };
 
 class PreviewHost {
-  #pages: Page[] = [];
-  #configured: string | undefined;
-  #snapshot: readonly PageSnapshot[] = [];
-  #listeners = new Set<() => void>();
-  #container: HTMLDivElement | undefined;
-  #renders = 0;
-  #shown: string | undefined;
-  #started = false;
-  #presses = new Set<(press: Press) => void>();
+  private pages: Page[] = [];
+  private configured: string | undefined;
+  private snapshot: readonly PageSnapshot[] = [];
+  private listeners = new Set<() => void>();
+  private container: HTMLDivElement | undefined;
+  private renders = 0;
+  private shown: string | undefined;
+  private started = false;
+  private presses = new Set<(press: Press) => void>();
   /** The Preview pane's stop, which takes the shown page's place in the tab order. */
-  #entry: HTMLElement | undefined;
-  #after: HTMLElement | undefined;
+  private entry: HTMLElement | undefined;
+  private after: HTMLElement | undefined;
 
   subscribe = (listener: () => void): (() => void) => {
-    this.#listeners.add(listener);
-    return () => this.#listeners.delete(listener);
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   };
 
-  getSnapshot = (): readonly PageSnapshot[] => this.#snapshot;
+  getSnapshot = (): readonly PageSnapshot[] => this.snapshot;
 
   /** Calls back with each press a page reports, with the turn and step of its render. */
   onPress = (listener: (press: Press) => void): (() => void) => {
-    this.#presses.add(listener);
-    return () => this.#presses.delete(listener);
+    this.presses.add(listener);
+    return () => this.presses.delete(listener);
   };
 
   /** Loads the pages: the configured ones, in order, and the built-in one last. */
   configure(configured: readonly string[]): void {
     const key = JSON.stringify(configured);
-    if (key === this.#configured) return;
-    this.#configured = key;
-    this.#start();
-    for (const page of this.#pages) this.#remove(page);
+    if (key === this.configured) return;
+    this.configured = key;
+    this.start();
+    for (const page of this.pages) this.remove(page);
     const origin = window.location.origin;
     const pages: Array<{id: string; label: string; url: URL}> = [];
     for (const address of configured) {
@@ -165,7 +165,7 @@ class PreviewHost {
       }
     }
     pages.push({id: BUILT_IN, label: BUILT_IN, url: new URL(BUILT_IN_PATH, origin)});
-    this.#pages = pages.map(({id, label, url}) => {
+    this.pages = pages.map(({id, label, url}) => {
       url.searchParams.set(VIEWER_PARAMETER, origin);
       const iframe = document.createElement('iframe');
       iframe.title = id === BUILT_IN ? 'Spectra’s built-in preview' : `Preview page ${label}`;
@@ -186,13 +186,13 @@ class PreviewHost {
         contexts: new Map(),
         seen: new Set(),
       };
-      iframe.addEventListener('load', () => this.#loaded(page));
+      iframe.addEventListener('load', () => this.loaded(page));
       iframe.src = page.url;
-      this.#container!.insertBefore(iframe, this.#after!);
-      this.#hold(page);
+      this.container!.insertBefore(iframe, this.after!);
+      this.hold(page);
       return page;
     });
-    this.#publish();
+    this.publish();
   }
 
   /**
@@ -207,19 +207,19 @@ class PreviewHost {
     messages: readonly unknown[],
     context?: RenderContext,
   ): void {
-    const page = this.#pages.find(candidate => candidate.state.id === pageId);
+    const page = this.pages.find(candidate => candidate.state.id === pageId);
     if (page === undefined) return;
     const key = renderKeyOf(surfaceId, messages);
     page.wanted = {key, surfaceId, messages: [...messages], ...(context && {context})};
     if (page.state.status !== 'ready') return;
-    if (page.state.sentKey !== key) this.#send(page);
+    if (page.state.sentKey !== key) this.send(page);
     else if (context !== undefined) page.contexts.set(page.render, context);
   }
 
   /** Lays the iframe of a page over a place on the screen, hiding every other; none hides them all. */
   place(pageId: string | undefined, place?: Place): void {
-    this.#shown = place === undefined ? undefined : pageId;
-    for (const page of this.#pages) {
+    this.shown = place === undefined ? undefined : pageId;
+    for (const page of this.pages) {
       if (place !== undefined && page.state.id === pageId) {
         Object.assign(page.iframe.style, {
           visibility: 'visible',
@@ -234,34 +234,34 @@ class PreviewHost {
     }
   }
 
-  #start(): void {
-    if (this.#started) return;
-    this.#started = true;
+  private start(): void {
+    if (this.started) return;
+    this.started = true;
     const container = document.createElement('div');
     container.dataset.spectraPreviewFrames = '';
     Object.assign(container.style, {position: 'fixed', left: '0', top: '0', zIndex: '10'});
     document.body.append(container);
-    this.#container = container;
+    this.container = container;
     const sentinel = (side: Side) => {
       const element = document.createElement('span');
       element.tabIndex = 0;
       element.setAttribute('aria-hidden', 'true');
-      element.addEventListener('focus', event => this.#leave(side, event.relatedTarget));
+      element.addEventListener('focus', event => this.leave(side, event.relatedTarget));
       return element;
     };
-    this.#after = sentinel('after');
-    container.append(sentinel('before'), this.#after);
-    window.addEventListener('message', event => this.#receive(event));
+    this.after = sentinel('after');
+    container.append(sentinel('before'), this.after);
+    window.addEventListener('message', event => this.receive(event));
     // A divider dragged across a frame would lose the pointer to the page; frames ignore it until it is let go.
     const pass = (on: boolean) => {
-      for (const page of this.#pages) page.iframe.style.pointerEvents = on ? '' : 'none';
+      for (const page of this.pages) page.iframe.style.pointerEvents = on ? '' : 'none';
     };
     window.addEventListener('pointerdown', () => pass(false), true);
     window.addEventListener('pointerup', () => pass(true), true);
     window.addEventListener('pointercancel', () => pass(true), true);
   }
 
-  #remove(page: Page): void {
+  private remove(page: Page): void {
     if (page.timer !== undefined) clearTimeout(page.timer);
     if (page.holdTimer !== undefined) clearTimeout(page.holdTimer);
     if (page.noteTimer !== undefined) clearTimeout(page.noteTimer);
@@ -269,14 +269,14 @@ class PreviewHost {
   }
 
   /** A page whose iframe has not loaded when the wait ends is passed by, and goes on loading. */
-  #hold(page: Page): void {
+  private hold(page: Page): void {
     page.holdTimer = setTimeout(() => {
       page.holdTimer = undefined;
       if (page.answering.load > 0) return;
       const state = stillLoading(page.state);
       if (state === page.state) return;
       page.state = state;
-      this.#publish();
+      this.publish();
     }, HOLD_MS);
   }
 
@@ -285,60 +285,60 @@ class PreviewHost {
    * none in time, the page is unanswered and its address is set again. The
    * next wait starts at the next load.
    */
-  #arm(page: Page): void {
+  private arm(page: Page): void {
     if (page.timer !== undefined) clearTimeout(page.timer);
     page.timer = setTimeout(() => {
       page.timer = undefined;
       const state = timedOut(page.state);
       if (state !== page.state) {
         page.state = state;
-        this.#publish();
+        this.publish();
       }
       page.iframe.src = page.url;
     }, ANSWER_MS);
   }
 
-  #disarm(page: Page): void {
+  private disarm(page: Page): void {
     if (page.timer !== undefined) clearTimeout(page.timer);
     page.timer = undefined;
   }
 
   /** Asks the document in the page's iframe which load it answers for. */
-  #ask(page: Page): void {
+  private ask(page: Page): void {
     const ping: PingMessage = {type: 'a2ui-spectra-preview/ping', load: page.answering.load};
     page.iframe.contentWindow?.postMessage(ping, page.origin);
   }
 
   /** The page's iframe loaded: its document is asked, and has its time to answer; a ready page is reloading. */
-  #loaded(page: Page): void {
+  private loaded(page: Page): void {
     const {status, answering} = loadOf({status: page.state.status, answering: page.answering});
     page.answering = answering;
     if (page.holdTimer !== undefined) clearTimeout(page.holdTimer);
     page.holdTimer = undefined;
-    this.#ask(page);
-    this.#arm(page);
+    this.ask(page);
+    this.arm(page);
     if (status === page.state.status) return;
-    this.#update(page, {status, reloadingNoted: false});
+    this.update(page, {status, reloadingNoted: false});
     // The header says so only when the page is still reloading a moment later.
     if (page.noteTimer !== undefined) clearTimeout(page.noteTimer);
     page.noteTimer = setTimeout(() => {
       page.noteTimer = undefined;
-      if (page.state.status === 'reloading') this.#update(page, {reloadingNoted: true});
+      if (page.state.status === 'reloading') this.update(page, {reloadingNoted: true});
     }, RELOADING_NOTE_MS);
   }
 
   /** The page is ready with these claims: it holds nothing, so the render asked for last goes again. */
-  #ready(page: Page, claims: PreviewPageState['claims']): void {
-    this.#disarm(page);
+  private ready(page: Page, claims: PreviewPageState['claims']): void {
+    this.disarm(page);
     const {sentKey: _sent, protocol: _protocol, dataModel: _dataModel, ...rest} = page.state;
     page.state = {...rest, status: 'ready', claims, reports: []};
     page.seen = new Set();
-    if (page.wanted !== undefined) this.#send(page);
-    else this.#publish();
+    if (page.wanted !== undefined) this.send(page);
+    else this.publish();
   }
 
-  #receive(event: MessageEvent): void {
-    const page = this.#pages.find(candidate => candidate.iframe.contentWindow === event.source);
+  private receive(event: MessageEvent): void {
+    const page = this.pages.find(candidate => candidate.iframe.contentWindow === event.source);
     if (page === undefined || event.origin !== page.origin || !isPageMessage(event.data)) return;
     const message: PageMessage = event.data;
     if (message.type === 'a2ui-spectra-preview/ready') {
@@ -347,28 +347,28 @@ class PreviewHost {
       const step = readyOf(page.answering, message, PREVIEW_PROTOCOL);
       page.answering = step.answering;
       if (step.kind === 'mismatch') {
-        this.#update(page, {status: 'mismatch', protocol: message.protocol, claims: []});
+        this.update(page, {status: 'mismatch', protocol: message.protocol, claims: []});
         // A page on another version is reloaded, so that an upgraded page is picked up.
-        if (page.timer === undefined) this.#arm(page);
+        if (page.timer === undefined) this.arm(page);
       } else if (step.kind === 'ask') {
-        this.#ask(page);
+        this.ask(page);
       } else {
-        this.#ready(page, step.claims);
+        this.ready(page, step.claims);
       }
     } else if (message.type === 'a2ui-spectra-preview/pong') {
       const answer = pongOf(page.answering, message.load);
       if (answer === undefined) return;
       page.answering = answer.answering;
-      this.#ready(page, answer.claims);
+      this.ready(page, answer.claims);
     } else if (message.type === 'a2ui-spectra-preview/report') {
       if (message.render !== page.render) return;
       const key = JSON.stringify(message.report);
       if (page.seen.has(key)) return;
       page.seen.add(key);
-      this.#update(page, {reports: [...page.state.reports, message.report]});
+      this.update(page, {reports: [...page.state.reports, message.report]});
     } else if (message.type === 'a2ui-spectra-preview/data-model') {
       if (message.render !== page.render) return;
-      this.#update(page, {
+      this.update(page, {
         dataModel: {surfaceId: message.surfaceId, dataModel: message.dataModel},
       });
     } else {
@@ -376,15 +376,15 @@ class PreviewHost {
       const context = page.contexts.get(message.render);
       if (context === undefined) return;
       const press: Press = {action: message.action, dataModel: message.dataModel, context};
-      for (const listener of this.#presses) listener(press);
+      for (const listener of this.presses) listener(press);
     }
   }
 
-  #send(page: Page): void {
+  private send(page: Page): void {
     const wanted = page.wanted;
     if (wanted === undefined) return;
-    this.#renders += 1;
-    page.render = this.#renders;
+    this.renders += 1;
+    page.render = this.renders;
     page.seen = new Set();
     if (wanted.context !== undefined) page.contexts.set(page.render, wanted.context);
     // The page's own latest renders, oldest first in the map, whatever numbers other pages' took.
@@ -401,27 +401,27 @@ class PreviewHost {
     page.iframe.contentWindow?.postMessage(render, page.origin);
     const {dataModel: _dataModel, ...rest} = page.state;
     page.state = rest;
-    this.#update(page, {sentKey: wanted.key, reports: []});
+    this.update(page, {sentKey: wanted.key, reports: []});
   }
 
-  #update(page: Page, change: Partial<PageSnapshot>): void {
+  private update(page: Page, change: Partial<PageSnapshot>): void {
     page.state = {...page.state, ...change};
-    this.#publish();
+    this.publish();
   }
 
-  #publish(): void {
-    this.#snapshot = this.#pages.map(page => page.state);
-    for (const listener of this.#listeners) listener();
+  private publish(): void {
+    this.snapshot = this.pages.map(page => page.state);
+    for (const listener of this.listeners) listener();
   }
 
   /** Sets the Preview pane's stop, or clears it when the pane goes. */
   setEntry(element: HTMLElement | undefined): void {
-    this.#entry = element;
+    this.entry = element;
   }
 
   /** Gives focus to the shown page. */
   focusShown(): void {
-    this.#pages.find(page => page.state.id === this.#shown)?.iframe.focus();
+    this.pages.find(page => page.state.id === this.shown)?.iframe.focus();
   }
 
   /**
@@ -430,8 +430,8 @@ class PreviewHost {
    * viewer's, or from the page's iframe; focus from one of the viewer's own
    * elements came by Tab past its last stop.
    */
-  #leave(side: Side, from: EventTarget | null): void {
-    const container = this.#container!;
+  private leave(side: Side, from: EventTarget | null): void {
+    const container = this.container!;
     const stops = [...document.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
       element =>
         element.tabIndex >= 0 &&
@@ -439,13 +439,13 @@ class PreviewHost {
         element.getClientRects().length > 0,
     );
     const fromViewer = from instanceof Node && !container.contains(from);
-    const entry = this.#shown === undefined ? undefined : this.#entry;
+    const entry = this.shown === undefined ? undefined : this.entry;
     stopBeside(stops, entry, side, fromViewer)?.focus();
   }
 
   /** Whether a page's iframe is laid over the Preview pane now. */
   isShown(pageId: string): boolean {
-    return this.#shown === pageId;
+    return this.shown === pageId;
   }
 }
 
