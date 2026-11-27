@@ -210,7 +210,8 @@ export const anthropicReader: ApiReader = {
       .sort(([a], [b]) => a - b)
       .map(([, block]) => {
         const {partialJson, ...rest} = block;
-        if (partialJson !== undefined) rest.input = parsedJson(partialJson);
+        // A tool called with no input streams one empty delta: `content_block_start`'s input stands.
+        if (partialJson !== undefined && partialJson !== '') rest.input = parsedJson(partialJson);
         return rest;
       });
     return {

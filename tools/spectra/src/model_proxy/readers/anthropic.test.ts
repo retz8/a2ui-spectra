@@ -240,6 +240,47 @@ describe('the Anthropic Messages reader', () => {
     });
   });
 
+  it('keeps the empty input of a tool called with none, whose only input delta is empty', () => {
+    const {attributes} = anthropicReader.stream([
+      {
+        event: 'message_start',
+        data: {
+          type: 'message_start',
+          message: {id: 'msg_4', model: 'claude-sonnet-4-5', content: [], usage: {input_tokens: 5}},
+        },
+      },
+      {
+        event: 'content_block_start',
+        data: {
+          type: 'content_block_start',
+          index: 0,
+          content_block: {type: 'tool_use', id: 'toolu_4', name: 'list_rooms', input: {}},
+        },
+      },
+      {
+        event: 'content_block_delta',
+        data: {
+          type: 'content_block_delta',
+          index: 0,
+          delta: {type: 'input_json_delta', partial_json: ''},
+        },
+      },
+      {event: 'content_block_stop', data: {type: 'content_block_stop', index: 0}},
+      {
+        event: 'message_delta',
+        data: {type: 'message_delta', delta: {stop_reason: 'tool_use'}, usage: {output_tokens: 9}},
+      },
+      {event: 'message_stop', data: {type: 'message_stop'}},
+    ]);
+    assert.deepEqual(attributes['gen_ai.output.messages'], [
+      {
+        role: 'assistant',
+        parts: [{type: 'tool_call', id: 'toolu_4', name: 'list_rooms', arguments: {}}],
+        finish_reason: 'tool_call',
+      },
+    ]);
+  });
+
   it('reads an error event inside a stream, keeping what came before', () => {
     const {attributes, error} = anthropicReader.stream([
       {
