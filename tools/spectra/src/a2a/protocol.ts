@@ -117,6 +117,36 @@ export function readTurnRequest(body: unknown): TurnRequest | undefined {
   return {version, message: readMessage(params.message) ?? {parts: []}};
 }
 
+/**
+ * One delivery, read from its JSON-RPC response body: the error's message,
+ * or the result read as a reply, none when it does not read as one; nothing
+ * for a body that is neither.
+ */
+export type Delivery = {error: string} | {reply: Reply | undefined} | Record<string, never>;
+
+export function readDelivery(body: unknown, version: A2aVersion): Delivery {
+  if (!isRecord(body)) return {};
+  if (body.error !== undefined) {
+    const error = body.error;
+    return {
+      error:
+        isRecord(error) && typeof error.message === 'string' ? error.message : 'JSON-RPC error',
+    };
+  }
+  if ('result' in body) return {reply: readReply(body.result, version)};
+  return {};
+}
+
+/** The method a JSON-RPC body names; none for a body that names none. */
+export function requestMethod(body: unknown): string | undefined {
+  return isRecord(body) && typeof body.method === 'string' ? body.method : undefined;
+}
+
+/** A JSON-RPC 2.0 request's body. */
+export function jsonRpcRequest(id: number, method: string, params: unknown): string {
+  return JSON.stringify({jsonrpc: '2.0', id, method, params});
+}
+
 /** Reads one reply object, in its version's shape. */
 export function readReply(result: unknown, version: A2aVersion): Reply | undefined {
   if (!isRecord(result)) {

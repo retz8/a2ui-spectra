@@ -7,7 +7,13 @@ import {type CatalogOffer, CatalogRegistry} from '../catalog/registry.js';
 import {JSONRPC} from './card.js';
 import {dataModelKeyFor} from './metadata.js';
 import {A2UI_MIME_TYPE} from './parts.js';
-import {type A2aVersion, isRecord, readReply, type TaskState} from './protocol.js';
+import {
+  type A2aVersion,
+  isRecord,
+  jsonRpcRequest,
+  readDelivery,
+  type TaskState,
+} from './protocol.js';
 import {bodyJson} from '../proxying/forwarding.js';
 import {SseParser} from '../proxying/sse.js';
 
@@ -231,19 +237,14 @@ export function preparedRequest(
         accept,
         ...extensionsHeader('x-a2a-extensions'),
       },
-      body: JSON.stringify({
-        jsonrpc: '2.0',
-        id,
-        method: target.streaming ? 'message/stream' : 'message/send',
-        params: {
-          message: {
-            kind: 'message',
-            messageId: message.messageId,
-            role: 'user',
-            parts: message.parts,
-            ...conversation,
-            ...metadata,
-          },
+      body: jsonRpcRequest(id, target.streaming ? 'message/stream' : 'message/send', {
+        message: {
+          kind: 'message',
+          messageId: message.messageId,
+          role: 'user',
+          parts: message.parts,
+          ...conversation,
+          ...metadata,
         },
       }),
     };
@@ -256,19 +257,14 @@ export function preparedRequest(
       'a2a-version': '1.0',
       ...extensionsHeader('a2a-extensions'),
     },
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      id,
-      method: target.streaming ? 'SendStreamingMessage' : 'SendMessage',
-      params: {
-        ...(target.tenant !== undefined && {tenant: target.tenant}),
-        message: {
-          messageId: message.messageId,
-          role: 'ROLE_USER',
-          parts: message.parts,
-          ...conversation,
-          ...metadata,
-        },
+    body: jsonRpcRequest(id, target.streaming ? 'SendStreamingMessage' : 'SendMessage', {
+      ...(target.tenant !== undefined && {tenant: target.tenant}),
+      message: {
+        messageId: message.messageId,
+        role: 'ROLE_USER',
+        parts: message.parts,
+        ...conversation,
+        ...metadata,
       },
     }),
   };
@@ -293,10 +289,8 @@ export async function readReplySummary(
 ): Promise<ReplySummary> {
   const summary: ReplySummary = {};
   const take = (body: unknown) => {
-    if (!isRecord(body) || !('result' in body)) {
-      return;
-    }
-    const reply = readReply(body.result, version);
+    const delivered = readDelivery(body, version);
+    const reply = 'reply' in delivered ? delivered.reply : undefined;
     if (reply === undefined) {
       return;
     }

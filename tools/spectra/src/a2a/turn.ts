@@ -16,7 +16,7 @@ import {wirePart} from './parts.js';
 import {
   type A2aMessage,
   isRecord,
-  readReply,
+  readDelivery,
   type Reply,
   type TaskState,
   type TurnRequest,
@@ -168,17 +168,12 @@ export class TurnCapture {
    */
   delivery(response: unknown): void {
     let content: {parts: unknown[]; metadata?: Record<string, unknown>} = {parts: []};
-    if (isRecord(response) && response.error !== undefined) {
-      const error = response.error;
-      this.fail(
-        isRecord(error) && typeof error.message === 'string' ? error.message : 'JSON-RPC error',
-      );
-    } else if (isRecord(response) && 'result' in response) {
-      const reply = readReply(response.result, this.request.version);
-      if (reply !== undefined) {
-        this.follow(reply);
-        content = agentContent(reply, this.request.message.messageId);
-      }
+    const delivered = readDelivery(response, this.request.version);
+    if ('error' in delivered) {
+      this.fail(delivered.error);
+    } else if ('reply' in delivered && delivered.reply !== undefined) {
+      this.follow(delivered.reply);
+      content = agentContent(delivered.reply, this.request.message.messageId);
     }
     this.addWireEvent({
       ...this.pointEvent('wire_output'),

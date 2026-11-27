@@ -13,7 +13,7 @@ import {proxyRefusal, refuseRequest} from '../host_check.js';
 import {listenError, LOOPBACK_ADDRESS} from '../server.js';
 import {NAME, VERSION} from '../version.js';
 import {EXTENDED_CARD_METHODS, isCardPath, rewriteCard} from './card.js';
-import {isRecord, readTurnRequest} from './protocol.js';
+import {isRecord, readTurnRequest, requestMethod} from './protocol.js';
 import {endToEndHeaders} from '../proxying/exchange.js';
 import {bodyJson, readBody} from '../proxying/forwarding.js';
 import {forwardedHeaders, type Forwarder, type Relay, relayReply} from '../proxying/relay.js';
@@ -282,7 +282,8 @@ async function classify(
       hostTraceContext: adopted !== undefined,
     };
   }
-  if (isRecord(body) && typeof body.method === 'string' && EXTENDED_CARD_METHODS.has(body.method)) {
+  const method = requestMethod(body);
+  if (method !== undefined && EXTENDED_CARD_METHODS.has(method)) {
     return {name: 'extended_card'};
   }
   return {name: 'other'};
