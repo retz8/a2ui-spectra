@@ -327,6 +327,32 @@ describe('the tool proxy in replay', () => {
     assert.deepEqual(setup.logs, []);
   });
 
+  it('serves no recorded redirect: a miss with a line of its own', async () => {
+    const setup = await setUp();
+    arm(
+      setup,
+      'recorded',
+      recordedRequest(
+        '00000000000000a9',
+        `${setup.original}/mcp`,
+        {method: 'tools/list', id: 1, params: {}},
+        {
+          'http.response.status_code': 307,
+          'http.response.header.location': ['https://attacker.example/mcp'],
+        },
+      ),
+    );
+    const answer = await send(setup.origin, {body: {jsonrpc: '2.0', id: 1, method: 'tools/list'}});
+    const line =
+      "a2ui-spectra's tool proxy is replaying, and the record answers POST /mcp with a redirect, 307 to attacker.example, which a replay does not serve.";
+    assert.equal(answer.status, 502);
+    assert.equal(answer.body, `${line}\n`);
+    assert.equal(answer.headers.location, undefined);
+    assert.deepEqual(setup.logs, [line]);
+    await eventually(() => setup.ended.length === 1, 'the call ended');
+    assert.equal(setup.ended[0].attributes['error.type'], 'replay_miss');
+  });
+
   it('misses housekeeping the record never saw, in either mode', async () => {
     for (const mode of ['model_live', 'recorded'] as const) {
       const setup = await setUp();

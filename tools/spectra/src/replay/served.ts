@@ -26,10 +26,15 @@ export interface ServedReply {
   broken?: boolean;
 }
 
-/** What a recorded call is served as: a reply, or, with no response recorded, the proxy's 502 line. */
+/**
+ * What a recorded call is served as: a reply; with no response recorded, the
+ * proxy's 502 line; or, for a recorded redirect, which a replay does not
+ * serve, its status and location.
+ */
 export type RecordedAnswer =
   | {type: 'reply'; reply: ServedReply}
-  | {type: 'unreached'; failure: {type: string; message?: string}};
+  | {type: 'unreached'; failure: {type: string; message?: string}}
+  | {type: 'redirect'; status: number; location: string | undefined};
 
 const HEADER = 'http.response.header.';
 
@@ -136,6 +141,12 @@ export function recordedAnswer(
         ...(event.status?.message !== undefined && {message: event.status.message}),
       },
     };
+  }
+  // A redirect would send the agent's client, its credentials with it, where the record says.
+  if (status >= 300 && status < 400) {
+    const location = attributes['http.response.header.location'];
+    const first = Array.isArray(location) ? location[0] : location;
+    return {type: 'redirect', status, location: typeof first === 'string' ? first : undefined};
   }
   const headers = servedHeaders(attributes);
   if (wasStreamed(attributes)) {
@@ -287,6 +298,27 @@ export class ServedUpstream extends EventEmitter {
 export function missLine(proxy: string, method: string, target: URL): string {
   const url = new URL(removeFromUrl(target.href));
   return `${NAME}'s ${proxy} is replaying, and ${method} ${url.pathname}${url.search} matched nothing in the record.`;
+}
+
+/** The 502 line, and the terminal's, for a recorded redirect a replay does not serve: its status, and the host it pointed at. */
+export function redirectLine(
+  proxy: string,
+  method: string,
+  target: URL,
+  status: number,
+  location: string | undefined,
+): string {
+  const url = new URL(removeFromUrl(target.href));
+  let where = '';
+  if (location !== undefined) {
+    where = URL.canParse(location)
+      ? ` to ${new URL(location).host}`
+      : ' to a path on its own server';
+  }
+  return (
+    `${NAME}'s ${proxy} is replaying, and the record answers ${method} ${url.pathname}${url.search} ` +
+    `with a redirect, ${status}${where}, which a replay does not serve.`
+  );
 }
 
 /** The 502 line a recorded call with no response is served as: a recorded miss's own line, else the proxy's line for a target it could not reach. */

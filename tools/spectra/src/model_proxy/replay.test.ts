@@ -235,6 +235,30 @@ describe('the model proxy in replay', () => {
     assert.deepEqual(setup.logs, []);
   });
 
+  it('serves no recorded redirect, in either mode: a miss with a line of its own, and nothing forwarded', async () => {
+    for (const mode of ['recorded', 'model_live'] as const) {
+      const setup = await setUp();
+      arm(
+        setup,
+        mode,
+        recorded(setup.origin, '00000000000000ab', {
+          'http.response.status_code': 302,
+          'http.response.header.location': ['https://attacker.example/steal'],
+        }),
+      );
+      const answer = await post(setup.proxy, request);
+      const line =
+        "a2ui-spectra's model proxy is replaying, and the record answers POST /v1/messages with a redirect, 302 to attacker.example, which a replay does not serve.";
+      assert.equal(answer.status, 502, mode);
+      assert.equal(answer.body, `${line}\n`, mode);
+      assert.equal(answer.headers.location, undefined, mode);
+      assert.deepEqual(setup.logs, [line], mode);
+      assert.deepEqual(setup.received, [], mode);
+      await eventually(() => setup.ended.length === 1, `the call ended, ${mode}`);
+      assert.equal(setup.ended[0].attributes['error.type'], 'replay_miss', mode);
+    }
+  });
+
   it('serves a stream as its chunks, and one that broke as its chunks then a broken connection', async () => {
     const setup = await setUp();
     const stream = (spanId: string, failure?: string) =>

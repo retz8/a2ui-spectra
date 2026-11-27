@@ -47,6 +47,7 @@ import {
   brokeOff,
   missLine,
   recordedAnswer,
+  redirectLine,
   recordedEvents,
   type ReplyMessage,
   type ServedReply,
@@ -821,6 +822,19 @@ function serve(
   if (recorded.type === 'unreached') {
     answer502(call.response, unreachedLine('tool proxy', call.target.host, recorded.failure));
     relay.fail(recorded.failure, shared.now(), false);
+    return;
+  }
+  if (recorded.type === 'redirect') {
+    const line = redirectLine(
+      'tool proxy',
+      call.request.method ?? 'GET',
+      call.target,
+      recorded.status,
+      recorded.location,
+    );
+    shared.options.log?.(line);
+    answer502(call.response, line);
+    relay.fail({type: 'replay_miss', message: line}, shared.now(), false);
     return;
   }
   const carried =

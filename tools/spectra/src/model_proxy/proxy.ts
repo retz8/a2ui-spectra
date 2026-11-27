@@ -29,6 +29,7 @@ import {
   brokeOff,
   missLine,
   recordedAnswer,
+  redirectLine,
   type ReplyMessage,
   ServedUpstream,
   unreachedLine,
@@ -489,6 +490,13 @@ async function forward(
     if (recorded.type === 'unreached') {
       answer502(response, unreachedLine('model proxy', target.host, recorded.failure));
       capture?.end({failure: recorded.failure});
+      return;
+    }
+    if (recorded.type === 'redirect') {
+      const line = redirectLine('model proxy', method, target, recorded.status, recorded.location);
+      state.options.log?.(line);
+      answer502(response, line);
+      capture?.end({failure: {type: 'replay_miss', message: line}});
       return;
     }
     upstream = new ServedUpstream(recorded.reply);

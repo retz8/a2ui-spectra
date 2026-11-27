@@ -6,6 +6,7 @@ import {
   brokeOff,
   missLine,
   recordedAnswer,
+  redirectLine,
   ServedMessage,
   servedHeaders,
   sseText,
@@ -68,6 +69,43 @@ describe('a served reply', () => {
         'http.request.header.accept': ['*/*'],
       }),
       {'content-type': 'application/json', 'x-request-id': 'req_1', vary: 'accept, origin'},
+    );
+  });
+
+  it('serves no recorded redirect, naming its status and location instead', () => {
+    for (const status of [301, 302, 303, 307, 308, 300]) {
+      assert.deepEqual(
+        recordedAnswer(
+          call({
+            'http.response.status_code': status,
+            'http.response.header.location': ['https://attacker.example/steal'],
+          }),
+          {broke: false},
+        ),
+        {type: 'redirect', status, location: 'https://attacker.example/steal'},
+        String(status),
+      );
+    }
+    assert.deepEqual(recordedAnswer(call({'http.response.status_code': 304}), {broke: false}), {
+      type: 'redirect',
+      status: 304,
+      location: undefined,
+    });
+  });
+
+  it('says which recorded redirect was not served, and where it pointed', () => {
+    const target = new URL('https://api.anthropic.com/v1/messages?key=secret');
+    assert.equal(
+      redirectLine('model proxy', 'POST', target, 302, 'https://attacker.example/steal'),
+      "a2ui-spectra's model proxy is replaying, and the record answers POST /v1/messages?key=REMOVED with a redirect, 302 to attacker.example, which a replay does not serve.",
+    );
+    assert.equal(
+      redirectLine('tool proxy', 'GET', new URL('http://127.0.0.1:9/sse'), 307, '/elsewhere'),
+      "a2ui-spectra's tool proxy is replaying, and the record answers GET /sse with a redirect, 307 to a path on its own server, which a replay does not serve.",
+    );
+    assert.equal(
+      redirectLine('tool proxy', 'GET', new URL('http://127.0.0.1:9/sse'), 304, undefined),
+      "a2ui-spectra's tool proxy is replaying, and the record answers GET /sse with a redirect, 304, which a replay does not serve.",
     );
   });
 
