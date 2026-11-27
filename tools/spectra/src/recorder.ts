@@ -29,33 +29,33 @@ export interface TurnRecorderOptions {
  * for this run. Either way, the checked turn is then handed on.
  */
 export class TurnRecorder {
-  readonly #store: TurnStore;
-  readonly #out: Output;
-  readonly #catalogs: CatalogRegistry | undefined;
-  readonly #now: () => bigint;
-  readonly #newSpanId: () => string;
-  readonly #onRecorded: (turn: Turn) => void;
-  readonly #open = new Set<string>();
+  private readonly store: TurnStore;
+  private readonly out: Output;
+  private readonly catalogs: CatalogRegistry | undefined;
+  private readonly now: () => bigint;
+  private readonly newSpanId: () => string;
+  private readonly onRecorded: (turn: Turn) => void;
+  private readonly open = new Set<string>();
   /** Attributes to write onto a turn's turn event, by trace id, until the turn is recorded. */
-  readonly #annotations = new Map<string, Record<string, unknown>>();
-  readonly #writing = new Set<Promise<void>>();
-  #onIdle: Array<() => void> = [];
+  private readonly annotations = new Map<string, Record<string, unknown>>();
+  private readonly writing = new Set<Promise<void>>();
+  private onIdle: Array<() => void> = [];
 
   constructor(store: TurnStore, out: Output, options: TurnRecorderOptions = {}) {
-    this.#store = store;
-    this.#out = out;
-    this.#catalogs = options.catalogs;
-    this.#now = options.now ?? nowUnixNano;
-    this.#newSpanId = options.newSpanId ?? (() => randomBytes(8).toString('hex'));
-    this.#onRecorded = options.onRecorded ?? (() => {});
+    this.store = store;
+    this.out = out;
+    this.catalogs = options.catalogs;
+    this.now = options.now ?? nowUnixNano;
+    this.newSpanId = options.newSpanId ?? (() => randomBytes(8).toString('hex'));
+    this.onRecorded = options.onRecorded ?? (() => {});
   }
 
   readonly onTurn: TurnListener = (notification: TurnNotification) => {
     if (notification.type === 'turn_opened') {
-      this.#open.add(notification.traceId);
+      this.open.add(notification.traceId);
     } else if (notification.type === 'turn_closed') {
-      this.#open.delete(notification.traceId);
-      this.#record(notification.turn);
+      this.open.delete(notification.traceId);
+      this.record(notification.turn);
     }
   };
 
@@ -65,49 +65,49 @@ export class TurnRecorder {
    * provenance, which the capture path cannot see.
    */
   annotate(traceId: string, attributes: Record<string, unknown>): void {
-    this.#annotations.set(traceId, {...this.#annotations.get(traceId), ...attributes});
+    this.annotations.set(traceId, {...this.annotations.get(traceId), ...attributes});
   }
 
   /** Resolves once no turn is open and every write has finished. */
   idle(): Promise<void> {
     return new Promise(resolve => {
-      this.#onIdle.push(resolve);
-      this.#checkIdle();
+      this.onIdle.push(resolve);
+      this.checkIdle();
     });
   }
 
-  #record(closed: Turn): void {
-    const turn = this.#annotated(closed);
+  private record(closed: Turn): void {
+    const turn = this.annotated(closed);
     let checked = turn;
-    const writing: Promise<void> = this.#store
+    const writing: Promise<void> = this.store
       .write(turn, earlierTurns => {
-        checked = this.#check(turn, earlierTurns);
+        checked = this.check(turn, earlierTurns);
         return checked;
       })
       .then(
         () => {},
         (error: unknown) => {
-          this.#out.error(
+          this.out.error(
             `${error instanceof Error ? error.message : String(error)}. ` +
               'The turn is kept in memory until Spectra stops.',
           );
         },
       )
-      .then(() => this.#onRecorded(checked));
-    this.#writing.add(writing);
+      .then(() => this.onRecorded(checked));
+    this.writing.add(writing);
     void writing.then(() => {
-      this.#writing.delete(writing);
-      this.#checkIdle();
+      this.writing.delete(writing);
+      this.checkIdle();
     });
   }
 
   /** The turn with the attributes it was annotated with on its turn event; the turn as it came when there are none. */
-  #annotated(turn: Turn): Turn {
+  private annotated(turn: Turn): Turn {
     const turnEvent = turn.events.find((event): event is TurnEvent => isEventOfKind(event, 'turn'));
     if (turnEvent === undefined) return turn;
-    const attributes = this.#annotations.get(turnEvent.traceId);
+    const attributes = this.annotations.get(turnEvent.traceId);
     if (attributes === undefined) return turn;
-    this.#annotations.delete(turnEvent.traceId);
+    this.annotations.delete(turnEvent.traceId);
     return {
       events: turn.events.map(event =>
         event === turnEvent
@@ -118,19 +118,19 @@ export class TurnRecorder {
   }
 
   /** The turn with its check events; the turn as it came when it has no protocol version, or when the checks fail. */
-  #check(turn: Turn, earlierTurns: readonly Turn[]): Turn {
+  private check(turn: Turn, earlierTurns: readonly Turn[]): Turn {
     const turnEvent = turn.events.find((event): event is TurnEvent => isEventOfKind(event, 'turn'));
     if (turnEvent === undefined) return turn;
     try {
-      const checks = checkTurn(turn, earlierTurns, this.#catalogs);
+      const checks = checkTurn(turn, earlierTurns, this.catalogs);
       if (checks === undefined) return turn;
       const events = checkEvents(turnEvent, checks, () => ({
-        spanId: this.#newSpanId(),
-        timeUnixNano: this.#now(),
+        spanId: this.newSpanId(),
+        timeUnixNano: this.now(),
       }));
       return {events: [...turn.events, ...events]};
     } catch (error) {
-      this.#out.error(
+      this.out.error(
         `The checks failed on turn ${turnEvent.traceId}: ${error instanceof Error ? error.message : String(error)}. ` +
           'The turn is written unchecked.',
       );
@@ -138,10 +138,10 @@ export class TurnRecorder {
     }
   }
 
-  #checkIdle(): void {
-    if (this.#open.size === 0 && this.#writing.size === 0) {
-      const waiting = this.#onIdle;
-      this.#onIdle = [];
+  private checkIdle(): void {
+    if (this.open.size === 0 && this.writing.size === 0) {
+      const waiting = this.onIdle;
+      this.onIdle = [];
       for (const resolve of waiting) resolve();
     }
   }

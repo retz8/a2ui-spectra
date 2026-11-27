@@ -83,46 +83,46 @@ const A2UI_EXTENSION_URI = /^https?:\/\/a2ui\.org\/a2a-extension\/a2ui\/(v\d+(?:
  * notifies the listener as it goes.
  */
 export class TurnCapture {
-  readonly #request: TurnRequest;
-  readonly #options: TurnCaptureOptions;
-  readonly #now: () => bigint;
-  readonly #newSpanId: () => string;
-  readonly #traceId: string;
-  readonly #spanId: string;
-  readonly #start: bigint;
-  readonly #wireEvents: Array<WireInputEvent | WireOutputEvent> = [];
-  readonly #a2uiVersions: string[] = [];
-  readonly #offeredVersions: string[];
-  #conversationId: string | undefined;
-  #state: TaskState | undefined;
-  #sawMessage = false;
-  #error: string | undefined;
-  #headerVersions: string[] = [];
-  #closed = false;
+  private readonly request: TurnRequest;
+  private readonly options: TurnCaptureOptions;
+  private readonly now: () => bigint;
+  private readonly newSpanId: () => string;
+  private readonly turnTraceId: string;
+  private readonly turnSpanId: string;
+  private readonly start: bigint;
+  private readonly wireEvents: Array<WireInputEvent | WireOutputEvent> = [];
+  private readonly a2uiVersions: string[] = [];
+  private readonly offeredVersions: string[];
+  private conversationId: string | undefined;
+  private state: TaskState | undefined;
+  private sawMessage = false;
+  private error: string | undefined;
+  private headerVersions: string[] = [];
+  private closed = false;
 
   private constructor(request: TurnRequest, options: TurnCaptureOptions) {
-    this.#request = request;
-    this.#options = options;
-    this.#now = options.now ?? nowUnixNano;
-    this.#newSpanId = options.newSpanId ?? (() => randomBytes(8).toString('hex'));
-    this.#start = this.#now();
-    this.#traceId =
+    this.request = request;
+    this.options = options;
+    this.now = options.now ?? nowUnixNano;
+    this.newSpanId = options.newSpanId ?? (() => randomBytes(8).toString('hex'));
+    this.start = this.now();
+    this.turnTraceId =
       options.traceId ?? (options.newTraceId ?? (() => randomBytes(16).toString('hex')))();
-    this.#spanId = this.#newSpanId();
-    this.#conversationId = request.message.contextId;
+    this.turnSpanId = this.newSpanId();
+    this.conversationId = request.message.contextId;
 
-    this.#notify({
+    this.notify({
       type: 'turn_opened',
-      traceId: this.#traceId,
-      spanId: this.#spanId,
-      ...(this.#conversationId !== undefined && {conversationId: this.#conversationId}),
-      startTimeUnixNano: this.#start.toString(),
+      traceId: this.turnTraceId,
+      spanId: this.turnSpanId,
+      ...(this.conversationId !== undefined && {conversationId: this.conversationId}),
+      startTimeUnixNano: this.start.toString(),
       ...(request.message.messageId !== undefined && {messageId: request.message.messageId}),
     });
 
-    const parts = this.#parts(request.message.parts);
-    const split = splitInputMetadata(request.message.metadata, this.#a2uiVersions[0]);
-    this.#offeredVersions = Object.keys(split.capabilities ?? {});
+    const parts = this.parts(request.message.parts);
+    const split = splitInputMetadata(request.message.metadata, this.a2uiVersions[0]);
+    this.offeredVersions = Object.keys(split.capabilities ?? {});
     const attributes: WireInputAttributes = {
       'a2ui.event.kind': 'wire_input',
       'a2ui.wire.message': {role: 'user', parts},
@@ -130,7 +130,7 @@ export class TurnCapture {
       ...(split.capabilities && {'a2ui.wire.capabilities': split.capabilities}),
       ...(split.metadata && {'a2ui.wire.metadata': split.metadata}),
     };
-    this.#addWireEvent({...this.#pointEvent('wire_input'), attributes});
+    this.addWireEvent({...this.pointEvent('wire_input'), attributes});
   }
 
   /** Opens a turn for a host's request and notifies that it opened. */
@@ -140,12 +140,12 @@ export class TurnCapture {
 
   /** The turn's trace id. */
   get traceId(): string {
-    return this.#traceId;
+    return this.turnTraceId;
   }
 
   /** The turn event's span id: the parent of the turn's wire events, and of the calls placed in it. */
   get spanId(): string {
-    return this.#spanId;
+    return this.turnSpanId;
   }
 
   /**
@@ -158,7 +158,7 @@ export class TurnCapture {
       .split(',')
       .map(uri => uri.trim().match(A2UI_EXTENSION_URI)?.[1])
       .filter(version => version !== undefined);
-    this.#headerVersions = [...new Set(versions)];
+    this.headerVersions = [...new Set(versions)];
   }
 
   /**
@@ -174,17 +174,17 @@ export class TurnCapture {
         isRecord(error) && typeof error.message === 'string' ? error.message : 'JSON-RPC error',
       );
     } else if (isRecord(response) && 'result' in response) {
-      const reply = readReply(response.result, this.#request.version);
+      const reply = readReply(response.result, this.request.version);
       if (reply !== undefined) {
-        this.#follow(reply);
-        content = agentContent(reply, this.#request.message.messageId);
+        this.follow(reply);
+        content = agentContent(reply, this.request.message.messageId);
       }
     }
-    this.#addWireEvent({
-      ...this.#pointEvent('wire_output'),
+    this.addWireEvent({
+      ...this.pointEvent('wire_output'),
       attributes: {
         'a2ui.event.kind': 'wire_output',
-        'a2ui.wire.message': {role: 'assistant', parts: this.#parts(content.parts)},
+        'a2ui.wire.message': {role: 'assistant', parts: this.parts(content.parts)},
         ...(content.metadata && {'a2ui.wire.metadata': content.metadata}),
       },
     });
@@ -195,33 +195,32 @@ export class TurnCapture {
    * connection that broke. The first failure's message is the turn's.
    */
   fail(message: string): void {
-    this.#error ??= message;
+    this.error ??= message;
   }
 
   /** Closes the turn and notifies with the turn's events. Later calls do nothing. */
   close(): void {
-    if (this.#closed) {
+    if (this.closed) {
       return;
     }
-    this.#closed = true;
-    const outcome = this.#outcome();
-    const found =
-      this.#a2uiVersions[0] ?? only(this.#headerVersions) ?? only(this.#offeredVersions);
+    this.closed = true;
+    const outcome = this.outcome();
+    const found = this.a2uiVersions[0] ?? only(this.headerVersions) ?? only(this.offeredVersions);
     const version = found === undefined ? undefined : recordFormOf(found);
-    const {agentName, writer} = this.#options;
+    const {agentName, writer} = this.options;
     const turnEvent: TurnEvent = {
-      traceId: this.#traceId,
-      spanId: this.#spanId,
+      traceId: this.turnTraceId,
+      spanId: this.turnSpanId,
       name: agentName === undefined ? 'invoke_agent' : `invoke_agent ${agentName}`,
       kind: 3,
-      startTimeUnixNano: this.#start.toString(),
-      endTimeUnixNano: this.#now().toString(),
+      startTimeUnixNano: this.start.toString(),
+      endTimeUnixNano: this.now().toString(),
       attributes: {
         'a2ui.event.kind': 'turn',
         'gen_ai.operation.name': 'invoke_agent',
         ...(agentName !== undefined && {'gen_ai.agent.name': agentName}),
-        ...(this.#conversationId !== undefined && {
-          'gen_ai.conversation.id': this.#conversationId,
+        ...(this.conversationId !== undefined && {
+          'gen_ai.conversation.id': this.conversationId,
         }),
         'a2ui.turn.outcome': outcome,
         ...(version !== undefined && {'a2ui.turn.protocol_version': version}),
@@ -231,69 +230,69 @@ export class TurnCapture {
       },
       status:
         outcome === 'failed'
-          ? {code: 2, ...(this.#error !== undefined && {message: this.#error})}
+          ? {code: 2, ...(this.error !== undefined && {message: this.error})}
           : {code: 1},
     };
-    this.#notify({
+    this.notify({
       type: 'turn_closed',
-      traceId: this.#traceId,
-      turn: {events: [turnEvent, ...this.#wireEvents]},
+      traceId: this.turnTraceId,
+      turn: {events: [turnEvent, ...this.wireEvents]},
     });
   }
 
-  #outcome(): TurnOutcome {
-    if (this.#error !== undefined) {
+  private outcome(): TurnOutcome {
+    if (this.error !== undefined) {
       return 'failed';
     }
-    if (this.#state !== undefined) {
-      return OUTCOMES[this.#state];
+    if (this.state !== undefined) {
+      return OUTCOMES[this.state];
     }
-    return this.#sawMessage ? 'completed' : 'failed';
+    return this.sawMessage ? 'completed' : 'failed';
   }
 
-  #follow(reply: Reply): void {
+  private follow(reply: Reply): void {
     const contextId = reply.kind === 'message' ? reply.message.contextId : reply.contextId;
-    this.#conversationId ??= contextId;
+    this.conversationId ??= contextId;
     if (reply.kind === 'message') {
-      this.#sawMessage = true;
+      this.sawMessage = true;
     } else if ((reply.kind === 'task' || reply.kind === 'status-update') && reply.state) {
-      this.#state = reply.state;
+      this.state = reply.state;
     }
   }
 
-  #parts(parts: unknown[]): WirePart[] {
-    const mapped = parts.map(part => wirePart(part, this.#request.version));
+  private parts(parts: unknown[]): WirePart[] {
+    const mapped = parts.map(part => wirePart(part, this.request.version));
     for (const part of mapped) {
       if (part.type === 'a2ui') {
-        this.#a2uiVersions.push(...a2uiVersions(part.content));
+        this.a2uiVersions.push(...a2uiVersions(part.content));
       }
     }
     return mapped;
   }
 
-  #pointEvent<Name extends 'wire_input' | 'wire_output'>(name: Name) {
+  private pointEvent<Name extends 'wire_input' | 'wire_output'>(name: Name) {
     return {
-      traceId: this.#traceId,
-      spanId: this.#newSpanId(),
-      parentSpanId: this.#spanId,
+      traceId: this.turnTraceId,
+      spanId: this.newSpanId(),
+      parentSpanId: this.turnSpanId,
       name,
       kind: 1 as const,
-      startTimeUnixNano: this.#now().toString(),
+      startTimeUnixNano: this.now().toString(),
     };
   }
 
-  #addWireEvent(event: WireInputEvent | WireOutputEvent): void {
-    this.#wireEvents.push(event);
-    this.#notify({
+  private addWireEvent(event: WireInputEvent | WireOutputEvent): void {
+    this.wireEvents.push(event);
+    this.notify({
       type: 'wire_event',
-      traceId: this.#traceId,
-      ...(this.#conversationId !== undefined && {conversationId: this.#conversationId}),
+      traceId: this.turnTraceId,
+      ...(this.conversationId !== undefined && {conversationId: this.conversationId}),
       event,
     });
   }
 
-  #notify(notification: TurnNotification): void {
-    this.#options.listener(notification);
+  private notify(notification: TurnNotification): void {
+    this.options.listener(notification);
   }
 }
 

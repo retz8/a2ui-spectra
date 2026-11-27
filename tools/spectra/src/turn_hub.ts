@@ -128,8 +128,8 @@ interface Open {
  * comes.
  */
 export class TurnHub {
-  readonly #open = new Map<string, Open>();
-  readonly #listeners = new Set<HubListener>();
+  private readonly open = new Map<string, Open>();
+  private readonly listeners = new Set<HubListener>();
 
   /** Takes the adapter's turn notifications. */
   readonly onTurn: TurnListener = notification => {
@@ -143,13 +143,13 @@ export class TurnHub {
         startTime: isoTimeOf(notification.startTimeUnixNano),
         ...(notification.messageId !== undefined && {messageId: notification.messageId}),
       };
-      this.#open.set(notification.traceId, {
+      this.open.set(notification.traceId, {
         opened,
         wireEvents: [],
         calls: new Map(),
         amended: new Map(),
       });
-      this.#emit(opened);
+      this.emit(opened);
     } else if (notification.type === 'wire_event') {
       const event: Open['wireEvents'][number] = {
         type: 'wire_event',
@@ -159,7 +159,7 @@ export class TurnHub {
         }),
         event: notification.event,
       };
-      const open = this.#open.get(notification.traceId);
+      const open = this.open.get(notification.traceId);
       if (open !== undefined) {
         // A conversation a reply names after the turn opened is the open turn's from then on.
         if (open.opened.conversationId === undefined && notification.conversationId !== undefined) {
@@ -167,13 +167,13 @@ export class TurnHub {
         }
         open.wireEvents.push(event);
       }
-      this.#emit(event);
+      this.emit(event);
     }
   };
 
   /** Takes the proxies' call notifications. */
   readonly onCall: CallListener = (notification: CallNotification) => {
-    const open = this.#open.get(notification.traceId);
+    const open = this.open.get(notification.traceId);
     if (open !== undefined) {
       if (notification.type === 'call_started') {
         open.calls.set(notification.event.spanId, {started: notification, chunks: []});
@@ -187,17 +187,17 @@ export class TurnHub {
         if (call !== undefined) call.ended = notification;
       }
     }
-    this.#emit(notification);
+    this.emit(notification);
   };
 
   /** Takes the events one export to the receiver added to a turn or changed in it. */
   readonly onAmended = (traceId: string, events: TurnRecordEvent[]): void => {
     if (events.length === 0) return;
-    const open = this.#open.get(traceId);
+    const open = this.open.get(traceId);
     if (open !== undefined) {
       for (const event of events) open.amended.set(event.spanId, event);
     }
-    this.#emit({type: 'turn_amended', traceId, events});
+    this.emit({type: 'turn_amended', traceId, events});
   };
 
   /** Passes an event outside any turn, a replay's, the fixtures folder's, the catalog files' or the agent's process's, to the listeners. */
@@ -218,7 +218,7 @@ export class TurnHub {
       }
     >,
   ): void {
-    this.#emit(event);
+    this.emit(event);
   }
 
   /** Takes each turn the recorder has checked and finished writing, and closes it. */
@@ -227,13 +227,13 @@ export class TurnHub {
     if (turnEvent === undefined) {
       return;
     }
-    this.#open.delete(turnEvent.traceId);
-    this.#emit({type: 'turn_closed', traceId: turnEvent.traceId, turn});
+    this.open.delete(turnEvent.traceId);
+    this.emit({type: 'turn_closed', traceId: turnEvent.traceId, turn});
   };
 
   /** The turns open now, in the order they opened, each with its input in brief once its input has come. */
   openTurns(): Array<OpenTurn & {input?: InputBrief}> {
-    return [...this.#open.values()].map(({opened, wireEvents}) => {
+    return [...this.open.values()].map(({opened, wireEvents}) => {
       const wireInput = wireEvents.find(({event}) => isEventOfKind(event, 'wire_input'))?.event;
       const input =
         wireInput !== undefined && isEventOfKind(wireInput, 'wire_input')
@@ -249,7 +249,7 @@ export class TurnHub {
   }
 
   isOpen(traceId: string): boolean {
-    return this.#open.has(traceId);
+    return this.open.has(traceId);
   }
 
   /**
@@ -262,7 +262,7 @@ export class TurnHub {
    */
   subscribe(listener: HubListener, {catchUp = false}: {catchUp?: boolean} = {}): () => void {
     if (catchUp) {
-      for (const {opened, wireEvents, calls, amended} of this.#open.values()) {
+      for (const {opened, wireEvents, calls, amended} of this.open.values()) {
         listener(opened);
         for (const event of wireEvents) listener(event);
         for (const call of calls.values()) {
@@ -276,12 +276,12 @@ export class TurnHub {
         }
       }
     }
-    this.#listeners.add(listener);
-    return () => this.#listeners.delete(listener);
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
   }
 
-  #emit(event: HubEvent): void {
-    for (const listener of [...this.#listeners]) {
+  private emit(event: HubEvent): void {
+    for (const listener of [...this.listeners]) {
       listener(event);
     }
   }

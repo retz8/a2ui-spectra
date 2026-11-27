@@ -321,26 +321,26 @@ function validatorsFor(resolved: ResolvedCatalog): CatalogValidators {
  * on first use, one per component type and per function.
  */
 class CatalogValidators {
-  readonly #ajv: Ajv2020;
-  readonly #family: Family;
-  readonly #definition: Record<string, unknown>;
+  private readonly ajv: Ajv2020;
+  private readonly family: Family;
+  private readonly definition: Record<string, unknown>;
   /** The URL the definition is bound under. */
-  readonly #url: string;
-  readonly #commonUrl: string;
-  readonly #components = new Map<string, ValidateFunction | undefined>();
-  readonly #functions = new Map<string, ValidateFunction | undefined>();
-  #theme: ValidateFunction | null | undefined;
+  private readonly url: string;
+  private readonly commonUrl: string;
+  private readonly components = new Map<string, ValidateFunction | undefined>();
+  private readonly functions = new Map<string, ValidateFunction | undefined>();
+  private themeValidator: ValidateFunction | null | undefined;
 
   constructor(definition: Record<string, unknown>, family: Family) {
-    this.#family = family;
-    this.#definition = definition;
+    this.family = family;
+    this.definition = definition;
     // Strict mode off, as upstream's own schema tests run Ajv. Formats go unchecked here,
     // though upstream's tests load ajv-formats and check them.
-    this.#ajv = new Ajv2020({strict: false, allErrors: true, validateFormats: false});
+    this.ajv = new Ajv2020({strict: false, allErrors: true, validateFormats: false});
     const [envelope, common] = family === '1.0' ? [v1_0, v1_0Common] : [v0_9, v0_9Common];
-    this.#ajv.addSchema(common as AnySchemaObject);
-    this.#commonUrl = common.$id;
-    this.#url = new URL('catalog.json', envelope.$id).href;
+    this.ajv.addSchema(common as AnySchemaObject);
+    this.commonUrl = common.$id;
+    this.url = new URL('catalog.json', envelope.$id).href;
     const {$id: _id, ...rest} = definition;
     const bound = {
       ...rest,
@@ -349,24 +349,24 @@ class CatalogValidators {
         anyFunction: FUNCTION_STAND_IN[family],
       },
     };
-    this.#ajv.addSchema(bound as AnySchemaObject, this.#url);
+    this.ajv.addSchema(bound as AnySchemaObject, this.url);
   }
 
   /** The validator for a component of this type; nothing when the definition has no such component. */
   component(type: string): ValidateFunction | undefined {
-    if (!this.#components.has(type)) {
-      const components = this.#definition.components;
+    if (!this.components.has(type)) {
+      const components = this.definition.components;
       const known = isObject(components) && Object.hasOwn(components, type);
-      const branch = `${this.#url}#/components/${token(type)}`;
-      this.#components.set(
+      const branch = `${this.url}#/components/${token(type)}`;
+      this.components.set(
         type,
         !known
           ? undefined
-          : this.#compile(
-              this.#family === '1.0'
+          : this.compile(
+              this.family === '1.0'
                 ? {
                     allOf: [
-                      {$ref: `${this.#commonUrl}#/$defs/ComponentCommon`},
+                      {$ref: `${this.commonUrl}#/$defs/ComponentCommon`},
                       {$ref: branch},
                       {type: 'object', properties: {component: {not: {const: 'Surface'}}}},
                     ],
@@ -376,65 +376,63 @@ class CatalogValidators {
             ),
       );
     }
-    return this.#components.get(type);
+    return this.components.get(type);
   }
 
   /** The validator for a call of this function; nothing when the definition has no such function. */
   fn(name: string): ValidateFunction | undefined {
-    if (!this.#functions.has(name)) {
-      const branch = this.#functionBranch(name);
-      this.#functions.set(
+    if (!this.functions.has(name)) {
+      const branch = this.functionBranch(name);
+      this.functions.set(
         name,
         branch === undefined
           ? undefined
-          : this.#compile(
-              this.#family === '1.0'
+          : this.compile(
+              this.family === '1.0'
                 ? {
-                    allOf: [{$ref: `${this.#commonUrl}#/$defs/FunctionCommon`}, {$ref: branch}],
+                    allOf: [{$ref: `${this.commonUrl}#/$defs/FunctionCommon`}, {$ref: branch}],
                     unevaluatedProperties: false,
                   }
                 : {$ref: branch},
             ),
       );
     }
-    return this.#functions.get(name);
+    return this.functions.get(name);
   }
 
   /** The validator for a v0.9 surface's theme; nothing when the definition defines none. */
   theme(): ValidateFunction | undefined {
-    if (this.#theme === undefined) {
-      const defs = this.#definition.$defs;
-      this.#theme =
-        isObject(defs) && 'theme' in defs
-          ? this.#compile({$ref: `${this.#url}#/$defs/theme`})
-          : null;
+    if (this.themeValidator === undefined) {
+      const defs = this.definition.$defs;
+      this.themeValidator =
+        isObject(defs) && 'theme' in defs ? this.compile({$ref: `${this.url}#/$defs/theme`}) : null;
     }
-    return this.#theme ?? undefined;
+    return this.themeValidator ?? undefined;
   }
 
   /** The reference to a function's own schema: an entry of the `functions` map, or an item of the legacy list. */
-  #functionBranch(name: string): string | undefined {
-    if (this.#family === '1.0' && name === '@index') {
-      return `${this.#commonUrl}#/$defs/IndexSystemFunction`;
+  private functionBranch(name: string): string | undefined {
+    if (this.family === '1.0' && name === '@index') {
+      return `${this.commonUrl}#/$defs/IndexSystemFunction`;
     }
-    const functions = this.#definition.functions;
+    const functions = this.definition.functions;
     if (isObject(functions) && Object.hasOwn(functions, name)) {
-      return `${this.#url}#/functions/${token(name)}`;
+      return `${this.url}#/functions/${token(name)}`;
     }
     if (Array.isArray(functions)) {
       const index = functions.findIndex(entry => isObject(entry) && entry.name === name);
-      if (index >= 0) return `${this.#url}#/functions/${index}`;
+      if (index >= 0) return `${this.url}#/functions/${index}`;
     }
     return undefined;
   }
 
   /** Compiles a schema against the bound definition; a definition whose own schemas do not compile is an error of the checks. */
-  #compile(schema: AnySchemaObject): ValidateFunction {
+  private compile(schema: AnySchemaObject): ValidateFunction {
     try {
-      return this.#ajv.compile(schema);
+      return this.ajv.compile(schema);
     } catch (error) {
       const id =
-        typeof this.#definition.catalogId === 'string' ? this.#definition.catalogId : 'the catalog';
+        typeof this.definition.catalogId === 'string' ? this.definition.catalogId : 'the catalog';
       throw new Error(
         `The definition of ${id} does not compile: ${error instanceof Error ? error.message : String(error)}`,
       );

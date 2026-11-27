@@ -236,13 +236,13 @@ export const SCENARIOS: Record<
 
 /** A label for each distinct value, by order of first appearance. */
 class Labels {
-  readonly #labels = new Map<string, string>();
+  private readonly labels = new Map<string, string>();
   constructor(readonly prefix: string) {}
   of(value: string): string {
-    let label = this.#labels.get(value);
+    let label = this.labels.get(value);
     if (label === undefined) {
-      label = `<${this.prefix}-${this.#labels.size + 1}>`;
-      this.#labels.set(value, label);
+      label = `<${this.prefix}-${this.labels.size + 1}>`;
+      this.labels.set(value, label);
     }
     return label;
   }

@@ -184,87 +184,87 @@ export interface MessageBoxOptions {
  * process's state, by which it refuses.
  */
 export class MessageBox {
-  #card: Record<string, unknown> | undefined;
-  #target: InterfaceChoice | undefined;
-  #agentState: BoxAgentState = 'running';
+  private card: Record<string, unknown> | undefined;
+  private target: InterfaceChoice | undefined;
+  private agentState: BoxAgentState = 'running';
   /** Counts the ends of the agent's process, so a reply read across one carries no task on. */
-  #agentLaunch = 0;
+  private agentLaunch = 0;
   /** Stops the replay running, with the sentence its remaining turns are reported not sent with. */
-  #stopReplay: ((reason: string) => void) | undefined;
+  private stopReplay: ((reason: string) => void) | undefined;
   /** Whether the agent's process has ended and what is left of it is still being stopped. */
-  #agentStopping = false;
+  private agentStopping = false;
   /** Disarms the proxies of a replay that ended while the agent's process was being stopped. */
-  #disarmOnceStopped: (() => void) | undefined;
-  readonly #turns: TurnHub;
-  readonly #headers: Readonly<Record<string, string>>;
-  readonly #unsetVariables: readonly string[];
-  readonly #offer: (() => CatalogOffer) | undefined;
-  readonly #replayHooks: ReplayHooks | undefined;
-  readonly #fetch: typeof fetch;
-  readonly #newMessageId: () => string;
-  readonly #stop = new AbortController();
-  readonly #unsubscribe: () => void;
+  private disarmOnceStopped: (() => void) | undefined;
+  private readonly turns: TurnHub;
+  private readonly headers: Readonly<Record<string, string>>;
+  private readonly unsetVariables: readonly string[];
+  private readonly offer: (() => CatalogOffer) | undefined;
+  private readonly replayHooks: ReplayHooks | undefined;
+  private readonly fetch: typeof fetch;
+  private readonly newMessageId: () => string;
+  private readonly stop = new AbortController();
+  private readonly unsubscribe: () => void;
   /** Turns waited for: by the host message's id until they open, by trace id until they close. */
-  readonly #opening = new Map<string, (traceId: string) => void>();
-  readonly #closing = new Map<string, (turn: Turn) => void>();
+  private readonly opening = new Map<string, (traceId: string) => void>();
+  private readonly closing = new Map<string, (turn: Turn) => void>();
   /** The provenance to write on a replayed turn as it opens, by the host message's id. */
-  readonly #provenance = new Map<string, Record<string, unknown>>();
-  #requestId = 0;
+  private readonly provenance = new Map<string, Record<string, unknown>>();
+  private requestId = 0;
   /** Oldest first; a new conversation joins once its first turn opens. */
-  readonly #conversations: Conversation[] = [];
-  #replaying: ReplayState | undefined;
+  private readonly conversations: Conversation[] = [];
+  private replaying: ReplayState | undefined;
   /** Turns another host opened while the proxies replay, named on the terminal once their input comes. */
-  readonly #foreign = new Set<string>();
+  private readonly foreign = new Set<string>();
 
   constructor(options: MessageBoxOptions) {
     if (options.card !== undefined) this.setCard(options.card);
-    this.#turns = options.turns;
-    this.#headers = options.headers ?? {};
-    this.#unsetVariables = options.unsetVariables ?? [];
+    this.turns = options.turns;
+    this.headers = options.headers ?? {};
+    this.unsetVariables = options.unsetVariables ?? [];
     const offer = options.offer;
-    this.#offer = typeof offer === 'object' ? () => offer : offer;
-    this.#replayHooks = options.replay;
-    this.#fetch = options.fetch ?? fetch;
-    this.#newMessageId = options.newMessageId ?? randomUUID;
-    this.#unsubscribe = this.#turns.subscribe(event => {
+    this.offer = typeof offer === 'object' ? () => offer : offer;
+    this.replayHooks = options.replay;
+    this.fetch = options.fetch ?? fetch;
+    this.newMessageId = options.newMessageId ?? randomUUID;
+    this.unsubscribe = this.turns.subscribe(event => {
       if (event.type === 'turn_opened') {
         const provenance =
-          event.messageId === undefined ? undefined : this.#provenance.get(event.messageId);
+          event.messageId === undefined ? undefined : this.provenance.get(event.messageId);
         if (provenance !== undefined && event.messageId !== undefined) {
-          this.#provenance.delete(event.messageId);
-          this.#replayHooks?.annotate(event.traceId, provenance);
-        } else if (this.#replaying !== undefined && this.#replaying.mode !== 'live') {
+          this.provenance.delete(event.messageId);
+          this.replayHooks?.annotate(event.traceId, provenance);
+        } else if (this.replaying !== undefined && this.replaying.mode !== 'live') {
           // With no proxy armed, another host's turn is an ordinary turn.
-          this.#foreign.add(event.traceId);
+          this.foreign.add(event.traceId);
         }
-        if (event.messageId !== undefined) this.#opening.get(event.messageId)?.(event.traceId);
+        if (event.messageId !== undefined) this.opening.get(event.messageId)?.(event.traceId);
       } else if (
         event.type === 'wire_event' &&
-        this.#foreign.has(event.traceId) &&
+        this.foreign.has(event.traceId) &&
         isEventOfKind(event.event, 'wire_input')
       ) {
-        this.#foreign.delete(event.traceId);
-        const source = this.#replaying?.source ?? 'the record';
-        this.#replayHooks?.log(
+        this.foreign.delete(event.traceId);
+        const source = this.replaying?.source ?? 'the record';
+        this.replayHooks?.log(
           `A turn from another host opened while ${source} replays: ${briefLine(inputBriefOf(event.event))}, ` +
             `trace ${event.traceId}. Its model and tool calls meet the record the proxies are replaying.`,
         );
       } else if (event.type === 'turn_closed') {
-        this.#foreign.delete(event.traceId);
-        this.#closing.get(event.traceId)?.(event.turn);
+        this.foreign.delete(event.traceId);
+        this.closing.get(event.traceId)?.(event.turn);
       }
     });
   }
 
   /** Follows a card: the interface the box sends to, and its choice of send or stream, are this card's from now on. */
   setCard(card: Record<string, unknown>): void {
-    this.#card = card;
-    this.#target = chooseInterface(card);
+    this.card = card;
+    this.target = chooseInterface(card);
   }
 
   /** Follows the agent's process under `run`: the box refuses by its state until it is running. */
   setAgentState(state: BoxAgentState): void {
-    this.#agentState = state;
+    this.agentState = state;
   }
 
   /**
@@ -274,12 +274,12 @@ export class MessageBox {
    * not sent with the reason given.
    */
   agentEnded(reason: string): void {
-    this.#agentLaunch++;
-    this.#agentStopping = true;
-    for (const conversation of this.#conversations) {
+    this.agentLaunch++;
+    this.agentStopping = true;
+    for (const conversation of this.conversations) {
       conversation.taskId = undefined;
     }
-    this.#stopReplay?.(reason);
+    this.stopReplay?.(reason);
   }
 
   /**
@@ -289,9 +289,9 @@ export class MessageBox {
    * its turn's connection was cut, does not reach the provider.
    */
   agentStopped(): void {
-    this.#agentStopping = false;
-    this.#disarmOnceStopped?.();
-    this.#disarmOnceStopped = undefined;
+    this.agentStopping = false;
+    this.disarmOnceStopped?.();
+    this.disarmOnceStopped = undefined;
   }
 
   /**
@@ -300,18 +300,18 @@ export class MessageBox {
    * at versions the box does not speak.
    */
   get cardRefusal(): string | undefined {
-    if (this.#card === undefined || this.#target === undefined) {
+    if (this.card === undefined || this.target === undefined) {
       return AGENT_STATE_REFUSALS.waiting;
     }
-    const transport = checkTransport(this.#card);
+    const transport = checkTransport(this.card);
     if (transport.kind === 'no_interface') {
       return "Can't send · the agent's card lists no interface to reach it at";
     }
     if (transport.kind === 'no_jsonrpc') {
       return `Can't send · the agent's card lists no A2A JSON-RPC interface, only ${transport.transports.join(', ')}`;
     }
-    if (this.#target.kind !== 'found') {
-      const {versions, unversioned} = this.#target;
+    if (this.target.kind !== 'found') {
+      const {versions, unversioned} = this.target;
       const at = [
         ...(versions.length > 0
           ? [`at ${versions.length === 1 ? 'version' : 'versions'} ${versions.join(', ')}`]
@@ -331,9 +331,9 @@ export class MessageBox {
   }
 
   /** Whether the agent runs and its latest card lists no A2A JSON-RPC interface, or none at all. */
-  get #listsNoJsonRpc(): boolean {
-    if (this.#agentState !== 'running' || this.#card === undefined) return false;
-    const {kind} = checkTransport(this.#card);
+  private get listsNoJsonRpc(): boolean {
+    if (this.agentState !== 'running' || this.card === undefined) return false;
+    const {kind} = checkTransport(this.card);
     return kind === 'no_interface' || kind === 'no_jsonrpc';
   }
 
@@ -344,15 +344,15 @@ export class MessageBox {
    * variable that is not set in Spectra's environment.
    */
   get unavailable(): string | undefined {
-    if (this.#agentState !== 'running') {
-      return AGENT_STATE_REFUSALS[this.#agentState];
+    if (this.agentState !== 'running') {
+      return AGENT_STATE_REFUSALS[this.agentState];
     }
     const cardRefusal = this.cardRefusal;
     if (cardRefusal !== undefined) {
       return cardRefusal;
     }
-    if (this.#unsetVariables.length > 0) {
-      return `Can't send · ${unsetVariablesClause(this.#unsetVariables)}`;
+    if (this.unsetVariables.length > 0) {
+      return `Can't send · ${unsetVariablesClause(this.unsetVariables)}`;
     }
     return undefined;
   }
@@ -360,7 +360,7 @@ export class MessageBox {
   state(): MessageBoxState {
     const unavailable = this.unavailable;
     return {
-      conversations: this.#conversations.map(conversation => ({
+      conversations: this.conversations.map(conversation => ({
         ...(conversation.conversationId !== undefined && {
           conversationId: conversation.conversationId,
         }),
@@ -368,10 +368,10 @@ export class MessageBox {
         ...(typeof conversation.open === 'string' && {openTurn: conversation.open}),
       })),
       ...(unavailable !== undefined && {unavailable}),
-      ...(this.#unsetVariables.length > 0 && {unsetVariables: [...this.#unsetVariables]}),
-      ...(this.#listsNoJsonRpc && {noJsonRpc: true as const}),
-      ...(this.#target?.kind === 'found' && {a2aVersion: this.#target.version}),
-      ...(this.#replaying !== undefined && {replay: {...this.#replaying}}),
+      ...(this.unsetVariables.length > 0 && {unsetVariables: [...this.unsetVariables]}),
+      ...(this.listsNoJsonRpc && {noJsonRpc: true as const}),
+      ...(this.target?.kind === 'found' && {a2aVersion: this.target.version}),
+      ...(this.replaying !== undefined && {replay: {...this.replaying}}),
     };
   }
 
@@ -382,8 +382,8 @@ export class MessageBox {
    * it. An action only continues a conversation.
    */
   async send(input: string | BoxInput, conversationId?: string): Promise<SentMessage> {
-    const target = this.#available();
-    if (this.#replaying !== undefined) {
+    const target = this.available();
+    if (this.replaying !== undefined) {
       throw new MessageBoxError(
         409,
         'A replay is running. The message box sends again once it ends.',
@@ -398,7 +398,7 @@ export class MessageBox {
     }
     let conversation: Conversation = {turns: []};
     if (conversationId !== undefined) {
-      const continued = this.#conversations.find(held => held.conversationId === conversationId);
+      const continued = this.conversations.find(held => held.conversationId === conversationId);
       if (continued === undefined) {
         throw new MessageBoxError(
           404,
@@ -413,7 +413,7 @@ export class MessageBox {
         'A turn is still open in this conversation. Wait for it to close, or start a new conversation.',
       );
     }
-    const messageId = this.#newMessageId();
+    const messageId = this.newMessageId();
     const request = boxRequest(
       target,
       {
@@ -424,13 +424,13 @@ export class MessageBox {
         }),
         ...(conversation.taskId !== undefined && {taskId: conversation.taskId}),
       },
-      ++this.#requestId,
+      ++this.requestId,
       {
-        ...(this.#offer !== undefined && {capabilities: capabilitiesFor(this.#offer())}),
-        headers: this.#headers,
+        ...(this.offer !== undefined && {capabilities: capabilitiesFor(this.offer())}),
+        headers: this.headers,
       },
     );
-    const {traceId} = await this.#dispatch(conversation, target, request, messageId);
+    const {traceId} = await this.dispatch(conversation, target, request, messageId);
     return {
       traceId,
       ...(conversation.conversationId !== undefined && {
@@ -455,17 +455,17 @@ export class MessageBox {
    * taken, and each turn's outcome is said on the terminal as it closes.
    */
   async replay(source: ReplaySource, mode: ReplayMode): Promise<ReplayStarted> {
-    const target = this.#available();
-    const hooks = this.#replayHooks;
+    const target = this.available();
+    const hooks = this.replayHooks;
     if (hooks === undefined) {
       throw new MessageBoxError(422, 'Replay is not available in this session.');
     }
-    if (this.#replaying !== undefined) {
+    if (this.replaying !== undefined) {
       throw new MessageBoxError(409, 'A replay is running. Wait for it to end.');
     }
     if (
-      this.#turns.openTurns().length > 0 ||
-      this.#conversations.some(conversation => conversation.open !== undefined)
+      this.turns.openTurns().length > 0 ||
+      this.conversations.some(conversation => conversation.open !== undefined)
     ) {
       throw new MessageBoxError(409, 'A turn is open. Wait for it to close before replaying.');
     }
@@ -482,12 +482,12 @@ export class MessageBox {
     const pool = mode === 'live' ? undefined : new ReplayPool(source.record, mode);
 
     const replaying: ReplayState = {source: source.path, mode, turn: 0, turns: inputs.length};
-    this.#replaying = replaying;
+    this.replaying = replaying;
     if (pool !== undefined) {
-      this.#disarmOnceStopped = undefined;
+      this.disarmOnceStopped = undefined;
       hooks.arm(pool);
     }
-    this.#turns.notify({type: 'replay_started', source: source.path, mode, turns: inputs.length});
+    this.turns.notify({type: 'replay_started', source: source.path, mode, turns: inputs.length});
     const conversation: Conversation = {turns: []};
     const replayed: ReplayedTurn[] = [];
     /** The turns of a live replay, which carry no verdict. */
@@ -499,22 +499,22 @@ export class MessageBox {
 
     /** Why the agent's process ended while this replay ran, once it has. */
     let agentEnded: string | undefined;
-    this.#stopReplay = reason => {
+    this.stopReplay = reason => {
       agentEnded ??= reason;
     };
     const end = () => {
       if (pool !== undefined) {
         // A replay the agent's end stopped stays armed until the process has stopped.
-        if (this.#agentStopping) this.#disarmOnceStopped = () => hooks.disarm();
+        if (this.agentStopping) this.disarmOnceStopped = () => hooks.disarm();
         else hooks.disarm();
       }
-      this.#replaying = undefined;
-      this.#stopReplay = undefined;
+      this.replaying = undefined;
+      this.stopReplay = undefined;
       if (pool === undefined) {
-        this.#turns.notify({type: 'replay_ended', source: source.path, mode: 'live', turns: live});
+        this.turns.notify({type: 'replay_ended', source: source.path, mode: 'live', turns: live});
         return;
       }
-      this.#turns.notify({
+      this.turns.notify({
         type: 'replay_ended',
         source: source.path,
         mode: pool.mode,
@@ -534,7 +534,7 @@ export class MessageBox {
     const sendTurn = async (index: number): Promise<{traceId: string; finished: Promise<void>}> => {
       const input = inputs[index];
       const recorded = recordedTurns[index];
-      const messageId = this.#newMessageId();
+      const messageId = this.newMessageId();
       const message: PreparedMessage = {
         parts: input.parts.map(part => a2aPart(part, target.version)),
         messageId,
@@ -546,11 +546,11 @@ export class MessageBox {
       };
       const metadata = joinInputMetadata(input.metadata);
       if (metadata !== undefined) message.metadata = metadata;
-      const request = preparedRequest(target, message, ++this.#requestId, {
+      const request = preparedRequest(target, message, ++this.requestId, {
         extensions: input.extensions,
-        headers: this.#headers,
+        headers: this.headers,
       });
-      this.#provenance.set(messageId, {
+      this.provenance.set(messageId, {
         // Written with forward slashes on every platform; the terminal's lines keep the platform's.
         'a2ui.replay.source': source.path.split(path.sep).join('/'),
         'a2ui.replay.turn': recorded.traceId,
@@ -558,12 +558,12 @@ export class MessageBox {
       });
       let dispatched: {traceId: string; closed: Promise<Turn>};
       try {
-        dispatched = await this.#dispatch(conversation, target, request, messageId);
+        dispatched = await this.dispatch(conversation, target, request, messageId);
       } finally {
-        this.#provenance.delete(messageId);
+        this.provenance.delete(messageId);
       }
       replaying.turn = index + 1;
-      this.#turns.notify({
+      this.turns.notify({
         type: 'replay_turn',
         traceId: dispatched.traceId,
         recordedTurn: recorded.traceId,
@@ -636,17 +636,17 @@ export class MessageBox {
 
   /** Stops reading any reply still coming. */
   close(): void {
-    this.#stop.abort();
-    this.#unsubscribe();
+    this.stop.abort();
+    this.unsubscribe();
   }
 
   /** The interface the box sends to, or the refusal when it cannot send. */
-  #available(): BoxInterface {
+  private available(): BoxInterface {
     const unavailable = this.unavailable;
-    if (this.#target?.kind !== 'found' || unavailable !== undefined) {
+    if (this.target?.kind !== 'found' || unavailable !== undefined) {
       throw new MessageBoxError(422, unavailable ?? '');
     }
-    return this.#target;
+    return this.target;
   }
 
   /**
@@ -655,19 +655,19 @@ export class MessageBox {
    * come; the reply is read in the background to carry the conversation on.
    * A new conversation joins the box's once its first turn opens.
    */
-  async #dispatch(
+  private async dispatch(
     conversation: Conversation,
     target: BoxInterface,
     request: BoxRequest,
     messageId: string,
   ): Promise<{traceId: string; closed: Promise<Turn>}> {
     conversation.open = true;
-    const opened = new Promise<string>(resolve => this.#opening.set(messageId, resolve));
-    const responding = this.#fetch(target.url, {
+    const opened = new Promise<string>(resolve => this.opening.set(messageId, resolve));
+    const responding = this.fetch(target.url, {
       method: 'POST',
       headers: request.headers,
       body: request.body,
-      signal: this.#stop.signal,
+      signal: this.stop.signal,
     });
     let traceId: string;
     try {
@@ -687,19 +687,19 @@ export class MessageBox {
       conversation.open = undefined;
       throw error;
     } finally {
-      this.#opening.delete(messageId);
+      this.opening.delete(messageId);
     }
 
-    const closed = new Promise<Turn>(resolve => this.#closing.set(traceId, resolve));
-    const launch = this.#agentLaunch;
+    const closed = new Promise<Turn>(resolve => this.closing.set(traceId, resolve));
+    const launch = this.agentLaunch;
     conversation.open = traceId;
     conversation.turns.push(traceId);
-    if (!this.#conversations.includes(conversation)) {
-      this.#conversations.push(conversation);
+    if (!this.conversations.includes(conversation)) {
+      this.conversations.push(conversation);
     }
     return {
       traceId,
-      closed: this.#finish(conversation, traceId, target, responding, closed, launch),
+      closed: this.finish(conversation, traceId, target, responding, closed, launch),
     };
   }
 
@@ -710,7 +710,7 @@ export class MessageBox {
    * input and the agent's process is the one that answered it. Resolves with
    * the closed turn.
    */
-  async #finish(
+  private async finish(
     conversation: Conversation,
     traceId: string,
     target: BoxInterface,
@@ -725,12 +725,12 @@ export class MessageBox {
       // A reply that cannot be read is a failed turn, which the record shows.
     }
     const turn = await closed;
-    this.#closing.delete(traceId);
+    this.closing.delete(traceId);
     const turnEvent = turn.events.find((event): event is TurnEvent => isEventOfKind(event, 'turn'));
     conversation.conversationId ??=
       summary.contextId ?? turnEvent?.attributes['gen_ai.conversation.id'];
     const waiting = summary.state === 'input-required' || summary.state === 'auth-required';
-    conversation.taskId = waiting && launch === this.#agentLaunch ? summary.taskId : undefined;
+    conversation.taskId = waiting && launch === this.agentLaunch ? summary.taskId : undefined;
     conversation.open = undefined;
     return turn;
   }

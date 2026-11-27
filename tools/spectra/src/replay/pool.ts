@@ -104,14 +104,14 @@ function startOf(event: CallEvent): bigint {
 
 export class ReplayPool {
   readonly mode: PoolMode;
-  readonly #model: Entry[] = [];
-  readonly #httpTools: Entry[] = [];
+  private readonly modelEntries: Entry[] = [];
+  private readonly httpTools: Entry[] = [];
   /** MCP requests: a client's request with its id, by its method and params. */
-  readonly #mcp: Entry[] = [];
+  private readonly mcpEntries: Entry[] = [];
   /** Every entry, in pool order. */
-  readonly #all: Entry[] = [];
+  private readonly all: Entry[] = [];
   /** MCP's session ends, `DELETE`s carrying `Mcp-Session-Id`. */
-  readonly #sessionEnds: CallEvent[] = [];
+  private readonly sessionEnds: CallEvent[] = [];
 
   constructor(record: TurnRecord, mode: PoolMode) {
     this.mode = mode;
@@ -126,18 +126,18 @@ export class ReplayPool {
           const order = startOf(a.event) - startOf(b.event);
           return order === 0n ? a.index - b.index : order < 0n ? -1 : 1;
         });
-      for (const {event} of calls) this.#add(event);
+      for (const {event} of calls) this.add(event);
     }
   }
 
-  #add(event: CallEvent): void {
+  private add(event: CallEvent): void {
     const attributes = event.attributes;
     // A call read from the agent's spans carries no exchange: nothing to serve.
     if (attributes['http.request.method'] === undefined) return;
     const entry: Entry = {event, consumed: false, served: false};
     if (attributes['a2ui.event.kind'] === 'model_call') {
-      this.#model.push(entry);
-      this.#all.push(entry);
+      this.modelEntries.push(entry);
+      this.all.push(entry);
       return;
     }
     // An operation the server initiated is never re-sent.
@@ -145,29 +145,29 @@ export class ReplayPool {
     if (typeof attributes['mcp.method.name'] === 'string') {
       // A client's notification is answered as the protocol fixes; a request is served.
       if (attributes['jsonrpc.request.id'] !== undefined) {
-        this.#mcp.push(entry);
-        this.#all.push(entry);
+        this.mcpEntries.push(entry);
+        this.all.push(entry);
       }
       return;
     }
     // A client's response to a server request is answered as the protocol fixes.
     if (event.name === 'response') return;
     if (event.name === 'DELETE') {
-      this.#sessionEnds.push(event);
+      this.sessionEnds.push(event);
       return;
     }
-    this.#httpTools.push(entry);
-    this.#all.push(entry);
+    this.httpTools.push(entry);
+    this.all.push(entry);
   }
 
   /** The recorded calls never served, in pool order: a consumed exchange and housekeeping that was asked for count as served. */
   unserved(): CallEvent[] {
-    return this.#all.filter(entry => !entry.served).map(entry => entry.event);
+    return this.all.filter(entry => !entry.served).map(entry => entry.event);
   }
 
   /** A model request: the first exchange with its key not yet served; else live in the live mode, a miss otherwise. */
   model(key: ExchangeKey): PoolAnswer {
-    const event = take(this.#model, recorded =>
+    const event = take(this.modelEntries, recorded =>
       isDeepStrictEqual(exchangeKey(recorded.attributes), key),
     );
     if (event !== undefined) return {type: 'served', event};
@@ -176,7 +176,7 @@ export class ReplayPool {
 
   /** An HTTP tool request: the first exchange with its key not yet served, else nothing. */
   httpTool(key: ExchangeKey): CallEvent | undefined {
-    return take(this.#httpTools, recorded =>
+    return take(this.httpTools, recorded =>
       isDeepStrictEqual(exchangeKey(recorded.attributes), key),
     );
   }
@@ -188,12 +188,14 @@ export class ReplayPool {
    */
   mcpRequest(method: string, params: unknown): CallEvent | undefined {
     if (HOUSEKEEPING.has(method)) {
-      const entry = this.#mcp.findLast(item => item.event.attributes['mcp.method.name'] === method);
+      const entry = this.mcpEntries.findLast(
+        item => item.event.attributes['mcp.method.name'] === method,
+      );
       if (entry !== undefined) entry.served = true;
       return entry?.event;
     }
     const key = paramsKey(params);
-    return take(this.#mcp, recorded => {
+    return take(this.mcpEntries, recorded => {
       const message = requestMessage(recorded);
       return (
         recorded.attributes['mcp.method.name'] === method &&
@@ -204,7 +206,7 @@ export class ReplayPool {
 
   /** The record's latest session end, served as often as asked. */
   sessionEnd(): CallEvent | undefined {
-    return this.#sessionEnds.at(-1);
+    return this.sessionEnds.at(-1);
   }
 
   /**
@@ -213,7 +215,7 @@ export class ReplayPool {
    * chunk is an `endpoint` event, with that event.
    */
   sseOpening(pathname: string): {event: CallEvent; endpoint: SpanEvent} | undefined {
-    for (const entry of [...this.#mcp].reverse()) {
+    for (const entry of [...this.mcpEntries].reverse()) {
       const {event} = entry;
       if (event.attributes['mcp.method.name'] !== 'initialize') continue;
       const first = event.events?.[0];

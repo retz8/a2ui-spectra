@@ -18,12 +18,12 @@ export interface LiveEvent {
 export class LiveStream {
   readonly events: LiveEvent[] = [];
   readonly ready: Promise<void>;
-  readonly #stop = new AbortController();
-  #waiters: Array<() => void> = [];
+  private readonly stop = new AbortController();
+  private waiters: Array<() => void> = [];
 
   constructor(url: string) {
-    this.ready = fetch(url, {signal: this.#stop.signal}).then(response => {
-      void this.#read(response);
+    this.ready = fetch(url, {signal: this.stop.signal}).then(response => {
+      void this.read(response);
     });
   }
 
@@ -51,17 +51,17 @@ export class LiveStream {
         throw new Error(message);
       }
       await new Promise<void>(resolve => {
-        this.#waiters.push(resolve);
+        this.waiters.push(resolve);
         setTimeout(resolve, 200);
       });
     }
   }
 
   close(): void {
-    this.#stop.abort();
+    this.stop.abort();
   }
 
-  async #read(response: Response): Promise<void> {
+  private async read(response: Response): Promise<void> {
     const sse = new SseParser();
     const text = new TextDecoder();
     try {
@@ -69,8 +69,8 @@ export class LiveStream {
         for (const event of sse.push(text.decode(chunk as Uint8Array, {stream: true}))) {
           this.events.push({event: event.event ?? 'message', data: JSON.parse(event.data)});
         }
-        const waiters = this.#waiters;
-        this.#waiters = [];
+        const waiters = this.waiters;
+        this.waiters = [];
         for (const wake of waiters) wake();
       }
     } catch {

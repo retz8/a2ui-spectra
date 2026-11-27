@@ -22,42 +22,42 @@ const CARRIAGE_RETURN = 0x0d;
  * split never falling inside a character.
  */
 export class LineSplitter {
-  #held: Buffer = Buffer.alloc(0);
-  readonly #decoder = new TextDecoder('utf-8');
+  private held: Buffer = Buffer.alloc(0);
+  private readonly decoder = new TextDecoder('utf-8');
 
   /** Takes a chunk as the stream gave it, and gives the lines it completed. */
   push(chunk: Buffer): string[] {
-    let rest = this.#held.length === 0 ? chunk : Buffer.concat([this.#held, chunk]);
+    let rest = this.held.length === 0 ? chunk : Buffer.concat([this.held, chunk]);
     const lines: string[] = [];
     for (;;) {
       const newline = rest.indexOf(NEWLINE);
       if (newline !== -1 && newline <= LINE_LIMIT) {
         const end = newline > 0 && rest[newline - 1] === CARRIAGE_RETURN ? newline - 1 : newline;
-        lines.push(this.#decoder.decode(rest.subarray(0, end)));
+        lines.push(this.decoder.decode(rest.subarray(0, end)));
         rest = rest.subarray(newline + 1);
       } else if (rest.length > LINE_LIMIT) {
         let cut = LINE_LIMIT;
         // A UTF-8 continuation byte belongs to the character before it.
         while (cut > 0 && (rest[cut] & 0xc0) === 0x80) cut--;
         if (cut === 0) cut = LINE_LIMIT;
-        lines.push(this.#decoder.decode(rest.subarray(0, cut)));
+        lines.push(this.decoder.decode(rest.subarray(0, cut)));
         rest = rest.subarray(cut);
       } else {
         break;
       }
     }
     // A copy, so the chunk the stream gave is not kept alive by what is held of it.
-    this.#held = Buffer.from(rest);
+    this.held = Buffer.from(rest);
     return lines;
   }
 
   /** The stream ended: what was held is its last line. */
   end(): string[] {
-    if (this.#held.length === 0) return [];
-    const held = this.#held;
-    this.#held = Buffer.alloc(0);
+    if (this.held.length === 0) return [];
+    const held = this.held;
+    this.held = Buffer.alloc(0);
     const end = held[held.length - 1] === CARRIAGE_RETURN ? held.length - 1 : held.length;
-    return [this.#decoder.decode(held.subarray(0, end))];
+    return [this.decoder.decode(held.subarray(0, end))];
   }
 }
 
@@ -113,38 +113,38 @@ export interface LogBufferOptions {
  * when the lines before it have left. Its times never go backwards.
  */
 export class LogBuffer {
-  readonly #cap: number;
-  readonly #now: () => Date;
-  #entries: LogEntry[] = [];
-  #lines = 0;
-  #next = 1;
-  #lastTime = '';
+  private readonly cap: number;
+  private readonly now: () => Date;
+  private entries: LogEntry[] = [];
+  private lines = 0;
+  private next = 1;
+  private lastTime = '';
 
   constructor({cap = LOG_CAP, now = () => new Date()}: LogBufferOptions = {}) {
-    this.#cap = cap;
-    this.#now = now;
+    this.cap = cap;
+    this.now = now;
   }
 
   /** Enters the entries, in order, at this moment. */
   add(entries: readonly NewLogEntry[]): LogAdded {
-    const now = this.#now().toISOString();
-    const time = now < this.#lastTime ? this.#lastTime : now;
-    this.#lastTime = time;
-    const added = entries.map((entry): LogEntry => ({n: this.#next++, time, ...entry}));
-    this.#entries.push(...added);
-    this.#lines += added.filter(entry => entry.type === 'line').length;
+    const now = this.now().toISOString();
+    const time = now < this.lastTime ? this.lastTime : now;
+    this.lastTime = time;
+    const added = entries.map((entry): LogEntry => ({n: this.next++, time, ...entry}));
+    this.entries.push(...added);
+    this.lines += added.filter(entry => entry.type === 'line').length;
     let dropped = false;
-    while (this.#lines > this.#cap) {
-      if (this.#entries.shift()?.type === 'line') this.#lines--;
+    while (this.lines > this.cap) {
+      if (this.entries.shift()?.type === 'line') this.lines--;
       dropped = true;
     }
-    while (dropped && this.#entries.length > 0 && this.#entries[0].type !== 'line') {
-      this.#entries.shift();
+    while (dropped && this.entries.length > 0 && this.entries[0].type !== 'line') {
+      this.entries.shift();
     }
-    return {entries: added, oldest: this.#entries[0]?.n ?? this.#next};
+    return {entries: added, oldest: this.entries[0]?.n ?? this.next};
   }
 
   snapshot(): LogSnapshot {
-    return {entries: [...this.#entries], lines: this.#lines, cap: this.#cap};
+    return {entries: [...this.entries], lines: this.lines, cap: this.cap};
   }
 }

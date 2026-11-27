@@ -126,21 +126,21 @@ const validateDefinition = new Ajv2020({strict: false, allErrors: true})
 const metaSchema = new Ajv2020({strict: false, allErrors: true});
 
 export class CatalogRegistry {
-  readonly #basic: readonly KnownCatalog[];
-  readonly #builtInCatalogs: readonly ProcessorCatalog[];
+  private readonly basic: readonly KnownCatalog[];
+  private readonly builtInCatalogs: readonly ProcessorCatalog[];
   /** The configured definitions in config order, each with the catalog built from it. */
-  readonly #configured: Array<{known: KnownCatalog; catalog: ProcessorCatalog}> = [];
-  readonly #now: () => Date;
-  #revision = 0;
+  private readonly configured: Array<{known: KnownCatalog; catalog: ProcessorCatalog}> = [];
+  private readonly now: () => Date;
+  private revisionCount = 0;
 
   private constructor(
     builtIn: readonly KnownCatalog[],
     catalogs: readonly ProcessorCatalog[],
     now: () => Date = () => new Date(),
   ) {
-    this.#basic = builtIn;
-    this.#builtInCatalogs = catalogs;
-    this.#now = now;
+    this.basic = builtIn;
+    this.builtInCatalogs = catalogs;
+    this.now = now;
   }
 
   /**
@@ -149,21 +149,21 @@ export class CatalogRegistry {
    * worked out again when it moves.
    */
   get revision(): number {
-    return this.#revision;
+    return this.revisionCount;
   }
 
   /** The built-in definitions first, then the configured ones in config order. */
   get known(): readonly KnownCatalog[] {
-    return [...this.#basic, ...this.#configured.map(entry => entry.known)];
+    return [...this.basic, ...this.configured.map(entry => entry.known)];
   }
 
   /** The registry with the built-in basic catalogs alone, built once. */
   static builtIn(): CatalogRegistry {
-    builtInRegistry ??= CatalogRegistry.#builtIn();
+    builtInRegistry ??= CatalogRegistry.buildBuiltIn();
     return builtInRegistry;
   }
 
-  static #builtIn(): CatalogRegistry {
+  private static buildBuiltIn(): CatalogRegistry {
     const v09 = basicV09 as Record<string, unknown>;
     const v10 = basicV10 as Record<string, unknown>;
     return new CatalogRegistry(
@@ -204,11 +204,11 @@ export class CatalogRegistry {
     options: {now?: () => Date} = {},
   ): Promise<CatalogRegistry> {
     const builtIn = CatalogRegistry.builtIn();
-    const registry = new CatalogRegistry(builtIn.#basic, builtIn.#builtInCatalogs, options.now);
+    const registry = new CatalogRegistry(builtIn.basic, builtIn.builtInCatalogs, options.now);
     for (const entry of files) {
       const configured = typeof entry === 'string' ? {file: entry, path: entry} : entry;
       try {
-        registry.#configured.push(await registry.#read(configured, undefined));
+        registry.configured.push(await registry.read(configured, undefined));
       } catch (error) {
         if (error instanceof ReadFailure) throw new ConfigError(error.atStart(configured.file));
         throw error;
@@ -221,7 +221,7 @@ export class CatalogRegistry {
    * A configured file read under the rules of its version, its id held by no
    * other definition: `own` is the definition the file itself holds now.
    */
-  async #read(
+  private async read(
     {file, path}: ConfiguredFile,
     own: KnownCatalog | undefined,
   ): Promise<{known: KnownCatalog; catalog: ProcessorCatalog}> {
@@ -246,7 +246,7 @@ export class CatalogRegistry {
         source: 'configured',
         file,
         path,
-        readTime: this.#now().toISOString(),
+        readTime: this.now().toISOString(),
         ...(typeof definition.title === 'string' && {title: definition.title}),
         definition,
       },
@@ -262,17 +262,17 @@ export class CatalogRegistry {
    * the definition read before, and stands as the file's failed read.
    */
   async reread(file: string): Promise<Reread> {
-    const index = this.#configured.findIndex(entry => entry.known.file === file);
+    const index = this.configured.findIndex(entry => entry.known.file === file);
     if (index < 0) return {kind: 'unchanged'};
-    const {known} = this.#configured[index];
+    const {known} = this.configured[index];
     let read: {known: KnownCatalog; catalog: ProcessorCatalog};
     try {
-      read = await this.#read({file, path: known.path ?? file}, known);
+      read = await this.read({file, path: known.path ?? file}, known);
     } catch (error) {
       if (!(error instanceof ReadFailure)) throw error;
-      this.#configured[index].known = {
+      this.configured[index].known = {
         ...known,
-        failedRead: {time: this.#now().toISOString(), error: error.reason},
+        failedRead: {time: this.now().toISOString(), error: error.reason},
       };
       return {kind: 'failed', error: error.reason};
     }
@@ -282,8 +282,8 @@ export class CatalogRegistry {
     ) {
       return {kind: 'unchanged'};
     }
-    this.#configured[index] = read;
-    this.#revision++;
+    this.configured[index] = read;
+    this.revisionCount++;
     return {
       kind: 'read',
       id: read.known.id,
@@ -302,7 +302,7 @@ export class CatalogRegistry {
    * definition, built schema-only.
    */
   catalogs(): ProcessorCatalog[] {
-    return [...this.#builtInCatalogs, ...this.#configured.map(entry => entry.catalog)];
+    return [...this.builtInCatalogs, ...this.configured.map(entry => entry.catalog)];
   }
 
   /**

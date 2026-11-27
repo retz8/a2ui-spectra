@@ -98,26 +98,26 @@ class Tally {
 }
 
 export class SpanReceiver {
-  readonly #options: SpanReceiverOptions;
+  private readonly options: SpanReceiverOptions;
   /** Every span placed this run, by its trace and span id. */
-  readonly #placed = new Map<string, Placed>();
+  private readonly placed = new Map<string, Placed>();
   /** The prompt generations that fell in no turn, by trace and span id, kept until Spectra stops. */
-  readonly #kept = new Map<string, Kept>();
+  private readonly kept = new Map<string, Kept>();
   /** The string values of the requests of each turn's proxy model calls, by the turn's trace id. */
-  readonly #proxyRequests = new Map<string, string[]>();
+  private readonly proxyRequests = new Map<string, string[]>();
   /** The spans placed in each turn, in the order they were placed. */
-  readonly #byTurn = new Map<string, Placed[]>();
+  private readonly byTurn = new Map<string, Placed[]>();
   /** Log records whose span has not arrived, by the span's trace and span id. */
-  readonly #held = new Map<string, ReceivedLog[]>();
+  private readonly held = new Map<string, ReceivedLog[]>();
   /** The spans not placed, by trace and span id, with why; their later logs follow them. */
-  readonly #dropped = new Map<string, Reason>();
+  private readonly dropped = new Map<string, Reason>();
   /** For each turn not yet written, each event's last form sent on the live stream, by span id. */
-  readonly #sent = new Map<string, Map<string, string>>();
-  readonly #amending = new Set<Promise<void>>();
-  #onIdle: Array<() => void> = [];
+  private readonly sent = new Map<string, Map<string, string>>();
+  private readonly amending = new Set<Promise<void>>();
+  private onIdle: Array<() => void> = [];
 
   constructor(options: SpanReceiverOptions) {
-    this.#options = options;
+    this.options = options;
   }
 
   /** Takes the spans of one trace export request. */
@@ -129,30 +129,30 @@ export class SpanReceiver {
     const arrived: Kept[] = [];
     for (const span of spans) {
       const key = spanKey(span.traceId, span.spanId);
-      if (this.#placed.has(key) || this.#kept.has(key)) continue;
-      const placed = this.#place(span);
-      const held = this.#held.get(key) ?? [];
-      this.#held.delete(key);
+      if (this.placed.has(key) || this.kept.has(key)) continue;
+      const placed = this.place(span);
+      const held = this.held.get(key) ?? [];
+      this.held.delete(key);
       if (typeof placed !== 'string') {
         const reason = placed.reason;
         const text = reason === 'no_turn' ? sectionTextOf(span) : undefined;
         if (text !== undefined) {
           const kept: Kept = {span, logs: held, text, turns: new Set()};
-          this.#kept.set(key, kept);
+          this.kept.set(key, kept);
           arrived.push(kept);
           continue;
         }
-        this.#dropped.set(key, reason);
+        this.dropped.set(key, reason);
         const tally = tallyOf(dropped, reason);
         tally.add('span', span.scope, span.startTimeUnixNano);
         for (const log of held) tally.add('log', log.scope, log.timeUnixNano);
         continue;
       }
       const entry: Placed = {span, logs: held, turn: placed};
-      this.#placed.set(key, entry);
-      const list = this.#byTurn.get(placed) ?? [];
+      this.placed.set(key, entry);
+      const list = this.byTurn.get(placed) ?? [];
       list.push(entry);
-      this.#byTurn.set(placed, list);
+      this.byTurn.set(placed, list);
       touched.add(placed);
       const step = readA2uiStep(span);
       if (step?.unread !== undefined) {
@@ -170,13 +170,13 @@ export class SpanReceiver {
         );
       }
     }
-    this.#report(dropped);
-    this.#reportHalfFormed(halfFormed);
-    this.#reportUnread(unread);
-    for (const turn of this.#options.turns.allTurns()) {
-      if (this.#placeKept(turn.traceId, arrived)) touched.add(turn.traceId);
+    this.report(dropped);
+    this.reportHalfFormed(halfFormed);
+    this.reportUnread(unread);
+    for (const turn of this.options.turns.allTurns()) {
+      if (this.placeKept(turn.traceId, arrived)) touched.add(turn.traceId);
     }
-    this.#settle(touched);
+    this.settle(touched);
   }
 
   /**
@@ -185,17 +185,17 @@ export class SpanReceiver {
    */
   takeCall(traceId: string, call: CallEvent): void {
     if (!isEventOfKind(call, 'model_call')) return;
-    const strings = this.#proxyRequests.get(traceId) ?? [];
+    const strings = this.proxyRequests.get(traceId) ?? [];
     strings.push(...stringValues(call.attributes['a2ui.http.request.body']));
-    this.#proxyRequests.set(traceId, strings);
-    if (this.#placeKept(traceId, [...this.#kept.values()])) this.#amend(traceId);
+    this.proxyRequests.set(traceId, strings);
+    if (this.placeKept(traceId, [...this.kept.values()])) this.amend(traceId);
   }
 
   /** Places the kept prompt generations in each turn touched, then brings each up to date. */
-  #settle(touched: Set<string>): void {
-    const kept = [...this.#kept.values()];
-    for (const turn of touched) this.#placeKept(turn, kept);
-    for (const turn of touched) this.#amend(turn);
+  private settle(touched: Set<string>): void {
+    const kept = [...this.kept.values()];
+    for (const turn of touched) this.placeKept(turn, kept);
+    for (const turn of touched) this.amend(turn);
   }
 
   /**
@@ -203,11 +203,11 @@ export class SpanReceiver {
    * section text, unless the turn already holds a prompt generation with an
    * equal text. Returns whether any was placed.
    */
-  #placeKept(traceId: string, candidates: readonly Kept[]): boolean {
+  private placeKept(traceId: string, candidates: readonly Kept[]): boolean {
     if (candidates.length === 0) return false;
-    const strings = this.#requestStrings(traceId);
+    const strings = this.requestStrings(traceId);
     if (strings.length === 0) return false;
-    const list = this.#byTurn.get(traceId) ?? [];
+    const list = this.byTurn.get(traceId) ?? [];
     const sections = new Set(
       list.flatMap(({span}) => {
         const section = span.attributes['a2ui.prompt.ui_section'];
@@ -225,7 +225,7 @@ export class SpanReceiver {
       list.push({span: kept.span, logs: kept.logs, turn: traceId});
       any = true;
     }
-    if (any) this.#byTurn.set(traceId, list);
+    if (any) this.byTurn.set(traceId, list);
     return any;
   }
 
@@ -234,8 +234,8 @@ export class SpanReceiver {
    * proxy's request body, and the text of a received span's system
    * instructions and input messages.
    */
-  #requestStrings(traceId: string): string[] {
-    const received = (this.#byTurn.get(traceId) ?? []).flatMap(({span, logs}) => {
+  private requestStrings(traceId: string): string[] {
+    const received = (this.byTurn.get(traceId) ?? []).flatMap(({span, logs}) => {
       if (a2uiStepKindOf(span) !== undefined) return [];
       const event = receivedEvent(span, logs, undefined);
       if (!isEventOfKind(event, 'model_call')) return [];
@@ -244,7 +244,7 @@ export class SpanReceiver {
         ...stringValues(event.attributes['gen_ai.input.messages']),
       ];
     });
-    return [...(this.#proxyRequests.get(traceId) ?? []), ...received];
+    return [...(this.proxyRequests.get(traceId) ?? []), ...received];
   }
 
   /** Takes the log records of one log export request. */
@@ -257,9 +257,9 @@ export class SpanReceiver {
         continue;
       }
       const key = spanKey(log.traceId, log.spanId);
-      const placed = this.#placed.get(key);
-      const kept = this.#kept.get(key);
-      const reason = this.#dropped.get(key);
+      const placed = this.placed.get(key);
+      const kept = this.kept.get(key);
+      const reason = this.dropped.get(key);
       if (placed !== undefined) {
         placed.logs.push(log);
         touched.add(placed.turn);
@@ -269,13 +269,13 @@ export class SpanReceiver {
       } else if (reason !== undefined) {
         tallyOf(dropped, reason).add('log', log.scope, log.timeUnixNano);
       } else {
-        const held = this.#held.get(key) ?? [];
+        const held = this.held.get(key) ?? [];
         held.push(log);
-        this.#held.set(key, held);
+        this.held.set(key, held);
       }
     }
-    this.#report(dropped);
-    this.#settle(touched);
+    this.report(dropped);
+    this.settle(touched);
   }
 
   /**
@@ -285,55 +285,55 @@ export class SpanReceiver {
   readonly assemble = (turn: Turn): Turn => {
     const turnEvent = turn.events.find(event => isEventOfKind(event, 'turn'));
     if (turnEvent === undefined) return turn;
-    this.#sent.delete(turnEvent.traceId);
-    return assembleTurn(turn, this.#byTurn.get(turnEvent.traceId) ?? []);
+    this.sent.delete(turnEvent.traceId);
+    return assembleTurn(turn, this.byTurn.get(turnEvent.traceId) ?? []);
   };
 
   /** Resolves once every amendment of a written turn has finished. */
   idle(): Promise<void> {
     return new Promise(resolve => {
-      this.#onIdle.push(resolve);
-      this.#checkIdle();
+      this.onIdle.push(resolve);
+      this.checkIdle();
     });
   }
 
   /** The turn a span belongs to, by its trace id, then by its start. */
-  #place(span: ReceivedSpan): string | {reason: Reason} {
-    const byTrace = this.#options.turns.turnOf(span.traceId);
+  private place(span: ReceivedSpan): string | {reason: Reason} {
+    const byTrace = this.options.turns.turnOf(span.traceId);
     if (byTrace !== undefined) return byTrace.traceId;
-    const holding = this.#options.turns.turnsHolding(BigInt(span.startTimeUnixNano));
+    const holding = this.options.turns.turnsHolding(BigInt(span.startTimeUnixNano));
     if (holding.length === 1) return holding[0].traceId;
     return {reason: holding.length === 0 ? 'no_turn' : 'several_turns'};
   }
 
   /** Brings a turn the export touched up to date: in memory and on the live stream, or in the store. */
-  #amend(traceId: string): void {
-    const turn = this.#options.turns.turnOf(traceId);
-    const placed = this.#byTurn.get(traceId) ?? [];
+  private amend(traceId: string): void {
+    const turn = this.options.turns.turnOf(traceId);
+    const placed = this.byTurn.get(traceId) ?? [];
     if (turn === undefined) return;
     if (turn.state !== 'written') {
-      this.#sendOpen(turn, placed);
+      this.sendOpen(turn, placed);
       return;
     }
-    const amending: Promise<void> = this.#options.store
+    const amending: Promise<void> = this.options.store
       .amend(traceId, stored => assembleTurn(stored, placed))
       .then(
         result => {
           if (result === undefined) return;
           const changed = changedEvents(result.previous.events, result.turn.events);
-          if (changed.length > 0) this.#options.onAmended?.(traceId, changed);
+          if (changed.length > 0) this.options.onAmended?.(traceId, changed);
         },
         (error: unknown) => {
-          this.#options.log(
+          this.options.log(
             `The spans received for turn ${traceId} could not be written: ${error instanceof Error ? error.message : String(error)}. ` +
               'The amended turn is kept in memory until Spectra stops.',
           );
         },
       );
-    this.#amending.add(amending);
+    this.amending.add(amending);
     void amending.then(() => {
-      this.#amending.delete(amending);
-      this.#checkIdle();
+      this.amending.delete(amending);
+      this.checkIdle();
     });
   }
 
@@ -342,7 +342,7 @@ export class SpanReceiver {
    * a stand-in turn event over the calls ended so far and the spans placed,
    * each event compared with its last form sent.
    */
-  #sendOpen(turn: RunTurn, placed: readonly PlacedSpan[]): void {
+  private sendOpen(turn: RunTurn, placed: readonly PlacedSpan[]): void {
     const standIn: Turn = {
       events: [
         {
@@ -362,14 +362,14 @@ export class SpanReceiver {
           },
           status: {code: 0},
         },
-        ...this.#options.turns.callsOf(turn.traceId),
+        ...this.options.turns.callsOf(turn.traceId),
       ],
     };
     const assembled = assembleTurn(standIn, placed).events.filter(
       event => !isEventOfKind(event, 'turn'),
     );
-    const sent = this.#sent.get(turn.traceId) ?? new Map<string, string>();
-    this.#sent.set(turn.traceId, sent);
+    const sent = this.sent.get(turn.traceId) ?? new Map<string, string>();
+    this.sent.set(turn.traceId, sent);
     const changed = assembled.filter(event => {
       const form = JSON.stringify(event);
       const isCall = !('a2ui.received.attributes' in event.attributes);
@@ -379,11 +379,11 @@ export class SpanReceiver {
       sent.set(event.spanId, form);
       return true;
     });
-    if (changed.length > 0) this.#options.onAmended?.(turn.traceId, changed);
+    if (changed.length > 0) this.options.onAmended?.(turn.traceId, changed);
   }
 
   /** One line per reason for what one export request did not record. */
-  #report(dropped: Map<Reason, Tally>): void {
+  private report(dropped: Map<Reason, Tally>): void {
     for (const [reason, tally] of dropped) {
       const counts = [
         tally.spans > 0 ? `${tally.spans} span${tally.spans === 1 ? '' : 's'}` : undefined,
@@ -391,18 +391,18 @@ export class SpanReceiver {
       ]
         .filter(part => part !== undefined)
         .join(' and ');
-      this.#options.log(
+      this.options.log(
         `The receiver did not record ${counts} from ${listed([...tally.scopes])}, which started ${when(tally)}: ${REASONS[reason]}.`,
       );
     }
   }
 
   /** One line per kind and missing names for the spans of the A2UI step one export wrote as framework spans. */
-  #reportHalfFormed(tallies: Map<string, Tally>): void {
+  private reportHalfFormed(tallies: Map<string, Tally>): void {
     for (const [reason, tally] of tallies) {
       const [kind, ...missing] = reason.split('\u0000');
       const one = tally.spans === 1;
-      this.#options.log(
+      this.options.log(
         `The receiver wrote ${tally.spans} span${one ? '' : 's'} from ${listed([...tally.scopes])}, ` +
           `which started ${when(tally)}, as ${one ? 'a framework_span' : 'framework_span events'}: ` +
           `${one ? 'it carries' : 'they carry'} a2ui.event.kind ${kind} without ${listed(missing)}.`,
@@ -415,7 +415,7 @@ export class SpanReceiver {
    * wrote as framework spans for following a turn record version this
    * Spectra does not read, in the half-formed line's form.
    */
-  #reportUnread(tallies: Map<string, Tally>): void {
+  private reportUnread(tallies: Map<string, Tally>): void {
     for (const [reason, tally] of tallies) {
       const [kind, version, newer] = reason.split('\u0000');
       const one = tally.spans === 1;
@@ -423,7 +423,7 @@ export class SpanReceiver {
         newer === 'newer'
           ? newerText(version)
           : `turn record ${version}, which this Spectra does not read: it reads ${readVersionsText()}.`;
-      this.#options.log(
+      this.options.log(
         `The receiver wrote ${tally.spans} span${one ? '' : 's'} from ${listed([...tally.scopes])}, ` +
           `which started ${when(tally)}, as ${one ? 'a framework_span' : 'framework_span events'}: ` +
           `${one ? 'it carries' : 'they carry'} a2ui.event.kind ${kind} under ${under}`,
@@ -431,10 +431,10 @@ export class SpanReceiver {
     }
   }
 
-  #checkIdle(): void {
-    if (this.#amending.size === 0) {
-      const waiting = this.#onIdle;
-      this.#onIdle = [];
+  private checkIdle(): void {
+    if (this.amending.size === 0) {
+      const waiting = this.onIdle;
+      this.onIdle = [];
       for (const resolve of waiting) resolve();
     }
   }

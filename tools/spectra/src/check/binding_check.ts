@@ -57,12 +57,12 @@ interface Bound {
 }
 
 class SurfaceBindings {
-  readonly #conversation: Conversation;
-  readonly #surfaceId: string;
-  readonly #surface: SurfaceModel;
-  readonly #skip: (entry: SkippedSurface) => void;
-  readonly #bound = new Map<string, Bound>();
-  readonly #findings: Finding[] = [];
+  private readonly conversation: Conversation;
+  private readonly surfaceId: string;
+  private readonly surface: SurfaceModel;
+  private readonly skip: (entry: SkippedSurface) => void;
+  private readonly bound = new Map<string, Bound>();
+  private readonly found: Finding[] = [];
 
   constructor(
     conversation: Conversation,
@@ -70,18 +70,18 @@ class SurfaceBindings {
     surface: SurfaceModel,
     skip: (entry: SkippedSurface) => void,
   ) {
-    this.#conversation = conversation;
-    this.#surfaceId = surfaceId;
-    this.#surface = surface;
-    this.#skip = skip;
+    this.conversation = conversation;
+    this.surfaceId = surfaceId;
+    this.surface = surface;
+    this.skip = skip;
   }
 
   findings(): Finding[] {
-    if (this.#surface.componentsModel.has(this.#surface.rootId)) {
-      this.#visit(this.#surface.rootId, '', new Set());
+    if (this.surface.componentsModel.has(this.surface.rootId)) {
+      this.visit(this.surface.rootId, '', new Set());
     }
     const unfilled: Finding[] = [];
-    for (const bound of this.#bound.values()) {
+    for (const bound of this.bound.values()) {
       if (bound.missing.length === 0) continue;
       const first = bound.missing[0];
       const where =
@@ -90,31 +90,31 @@ class SurfaceBindings {
           : `The data model has no value at ${bound.binding} in ${bound.missing.length} of ${bound.visits} items, the first at ${first}`;
       unfilled.push({
         code: 'BINDING_PATH_UNFILLED',
-        surfaceId: this.#surfaceId,
+        surfaceId: this.surfaceId,
         ...(bound.path !== undefined && {path: bound.path}),
         message:
           bound.path !== undefined
             ? `${where}.`
-            : `${where}, bound by the component '${bound.componentId}' in the surface '${this.#surfaceId}'.`,
+            : `${where}, bound by the component '${bound.componentId}' in the surface '${this.surfaceId}'.`,
       });
     }
-    return [...this.#findings, ...unfilled];
+    return [...this.found, ...unfilled];
   }
 
   /** Walks one component in one scope, then its children in the same scope and its templates' children per item. */
-  #visit(componentId: string, scope: string, chain: ReadonlySet<string>): void {
+  private visit(componentId: string, scope: string, chain: ReadonlySet<string>): void {
     if (chain.has(componentId)) return;
-    const model = this.#surface.componentsModel;
+    const model = this.surface.componentsModel;
     const component = model.get(componentId);
     if (component === undefined) return;
-    const carrier = this.#conversation.carrier(this.#surfaceId, componentId);
+    const carrier = this.conversation.carrier(this.surfaceId, componentId);
     const raw = carrier?.component ?? (component.componentTree as Record<string, unknown>);
-    const version = carrier?.version ?? this.#surface.protocolVersion;
+    const version = carrier?.version ?? this.surface.protocolVersion;
     const api = component.catalog.components.get(component.type);
     if (api === undefined) {
-      if (component.catalog.id !== this.#surface.defaultCatalog?.id) {
-        this.#skip({
-          surfaceId: this.#surfaceId,
+      if (component.catalog.id !== this.surface.defaultCatalog?.id) {
+        this.skip({
+          surfaceId: this.surfaceId,
           catalogId: component.catalog.id,
           reason: 'no_definition',
         });
@@ -122,7 +122,7 @@ class SurfaceBindings {
       return;
     }
     const below = new Set([...chain, componentId]);
-    const definition = this.#conversation.resolve(component.catalog.id)?.definition;
+    const definition = this.conversation.resolve(component.catalog.id)?.definition;
     const reading =
       version !== undefined && /^v?1\./.test(version) && definition !== undefined && isObject(raw)
         ? readEnvelope(raw, envelopeLayout(definition, component.type))
@@ -131,12 +131,12 @@ class SurfaceBindings {
       const inner = reading === undefined ? value.pointer : reading.written(value.pointer);
       const pointer = carrier?.own ? carrier.path + inner : undefined;
       if (value.kind === 'binding') {
-        this.#resolve(componentId, pointer, inner, value.path, scope);
+        this.resolve(componentId, pointer, inner, value.path, scope);
       } else if (value.kind === 'template') {
         const listPath = DataModel.resolvePath(value.path, scope);
-        const list: unknown = this.#surface.dataModel.get(listPath);
+        const list: unknown = this.surface.dataModel.get(listPath);
         if (list === undefined) {
-          this.#resolve(
+          this.resolve(
             componentId,
             pointer && `${pointer}/path`,
             `${inner}/path`,
@@ -144,25 +144,25 @@ class SurfaceBindings {
             scope,
           );
         } else if (!Array.isArray(list)) {
-          this.#findings.push({
+          this.found.push({
             code: 'BINDING_LIST_NOT_ARRAY',
-            surfaceId: this.#surfaceId,
+            surfaceId: this.surfaceId,
             ...(pointer !== undefined && {path: `${pointer}/path`}),
             message: `The data model's value at ${listPath} is not a list, so the template '${value.componentId}' draws no items.`,
           });
         } else {
-          list.forEach((_, index) => this.#visit(value.componentId, `${listPath}/${index}`, below));
+          list.forEach((_, index) => this.visit(value.componentId, `${listPath}/${index}`, below));
         }
       }
     }
     for (const [childId, propertyPath] of model.getChildReferences(componentId)) {
       if (propertyPath.endsWith('.componentId')) continue;
-      if (model.has(childId)) this.#visit(childId, scope, below);
+      if (model.has(childId)) this.visit(childId, scope, below);
     }
   }
 
   /** Looks one binding up in one scope and keeps what it found. */
-  #resolve(
+  private resolve(
     componentId: string,
     path: string | undefined,
     inner: string,
@@ -170,13 +170,13 @@ class SurfaceBindings {
     scope: string,
   ): void {
     const key = `${componentId}\u0000${inner}`;
-    let bound = this.#bound.get(key);
+    let bound = this.bound.get(key);
     if (bound === undefined) {
       bound = {componentId, ...(path !== undefined && {path}), binding, visits: 0, missing: []};
-      this.#bound.set(key, bound);
+      this.bound.set(key, bound);
     }
     bound.visits++;
     const resolved = DataModel.resolvePath(binding, scope);
-    if (!this.#surface.dataModel.hasPath(resolved)) bound.missing.push(resolved);
+    if (!this.surface.dataModel.hasPath(resolved)) bound.missing.push(resolved);
   }
 }

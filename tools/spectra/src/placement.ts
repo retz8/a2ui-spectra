@@ -92,41 +92,41 @@ interface OpenTurn {
  * receiver give a turn its spans as it is handed on.
  */
 export class CallPlacer {
-  readonly #options: CallPlacerOptions;
-  readonly #open = new Map<string, OpenTurn>();
+  private readonly options: CallPlacerOptions;
+  private readonly open = new Map<string, OpenTurn>();
   /** The trace ids of the turns handed on this run. */
-  readonly #written = new Set<string>();
+  private readonly written = new Set<string>();
   /** Every turn of this run, with its range, remembered until Spectra stops. */
-  readonly #runTurns = new Map<string, RunTurn>();
+  private readonly runTurns = new Map<string, RunTurn>();
 
   constructor(options: CallPlacerOptions) {
-    this.#options = options;
+    this.options = options;
   }
 
   /** Takes the adapter's turn notifications. */
   readonly onTurn: TurnListener = (notification: TurnNotification) => {
     if (notification.type === 'turn_opened') {
-      this.#open.set(notification.traceId, {
+      this.open.set(notification.traceId, {
         traceId: notification.traceId,
         spanId: notification.spanId,
         inFlight: 0,
         calls: [],
       });
-      this.#runTurns.set(notification.traceId, {
+      this.runTurns.set(notification.traceId, {
         traceId: notification.traceId,
         spanId: notification.spanId,
         startTimeUnixNano: BigInt(notification.startTimeUnixNano),
         state: 'open',
       });
-      this.#options.onTurn(notification);
+      this.options.onTurn(notification);
     } else if (notification.type === 'turn_closed') {
-      const turn = this.#open.get(notification.traceId);
+      const turn = this.open.get(notification.traceId);
       if (turn === undefined) {
-        this.#options.onTurn(notification);
+        this.options.onTurn(notification);
         return;
       }
       turn.closed = notification.turn;
-      const run = this.#runTurns.get(notification.traceId);
+      const run = this.runTurns.get(notification.traceId);
       const turnEvent = notification.turn.events.find(event => isEventOfKind(event, 'turn'));
       if (run !== undefined) {
         run.state = 'waiting';
@@ -134,40 +134,40 @@ export class CallPlacer {
           run.endTimeUnixNano = BigInt(turnEvent.endTimeUnixNano);
         }
       }
-      this.#handOnWhenDone(turn);
+      this.handOnWhenDone(turn);
     } else {
-      this.#options.onTurn(notification);
+      this.options.onTurn(notification);
     }
   };
 
   /** The turn of this run with a trace id, open, waiting or written. */
   turnOf(traceId: string): RunTurn | undefined {
-    return this.#runTurns.get(traceId);
+    return this.runTurns.get(traceId);
   }
 
   /** Every turn of this run so far, open, waiting or written. */
   allTurns(): RunTurn[] {
-    return [...this.#runTurns.values()];
+    return [...this.runTurns.values()];
   }
 
   /** The turns of this run whose time range holds a time, an open turn's ending at the present. */
   turnsHolding(unixNano: bigint): RunTurn[] {
-    const now = (this.#options.now ?? nowUnixNano)();
-    return [...this.#runTurns.values()].filter(
+    const now = (this.options.now ?? nowUnixNano)();
+    return [...this.runTurns.values()].filter(
       turn => turn.startTimeUnixNano <= unixNano && unixNano <= (turn.endTimeUnixNano ?? now),
     );
   }
 
   /** The calls of a turn not yet handed on that have ended so far, in the order they ended. */
   callsOf(traceId: string): readonly CallEvent[] {
-    return this.#open.get(traceId)?.calls ?? [];
+    return this.open.get(traceId)?.calls ?? [];
   }
 
   /** Places a call, or returns nothing and logs why when it cannot be placed. */
   place(call: CallToPlace): PlacedCall | undefined {
     const result = this.tryPlace(call);
     if ('line' in result) {
-      this.#options.log(result.line);
+      this.options.log(result.line);
       return undefined;
     }
     return result;
@@ -184,13 +184,13 @@ export class CallPlacer {
     // A trace id naming a turn already written is stale context, as an MCP
     // client's writer task carries its session's opening turn into every
     // later turn: the call is placed as one without trace context.
-    const stale = traceId !== undefined && this.#written.has(traceId);
-    if (traceId !== undefined && this.#open.has(traceId)) {
-      turn = this.#open.get(traceId);
-    } else if (this.#open.size === 1) {
-      turn = [...this.#open.values()][0];
+    const stale = traceId !== undefined && this.written.has(traceId);
+    if (traceId !== undefined && this.open.has(traceId)) {
+      turn = this.open.get(traceId);
+    } else if (this.open.size === 1) {
+      turn = [...this.open.values()][0];
     } else {
-      const open = this.#open.size === 0 ? 'no turn is open' : `${this.#open.size} turns are open`;
+      const open = this.open.size === 0 ? 'no turn is open' : `${this.open.size} turns are open`;
       reason = stale ? `its turn ${traceId} is already written and ${open}` : open;
     }
     if (turn === undefined) {
@@ -209,37 +209,37 @@ export class CallPlacer {
         done = true;
         placed.inFlight--;
         placed.calls.push(event);
-        this.#options.onCallEnded?.(placed.traceId, event);
-        this.#handOnWhenDone(placed);
+        this.options.onCallEnded?.(placed.traceId, event);
+        this.handOnWhenDone(placed);
       },
       release: () => {
         if (done) return;
         done = true;
         placed.inFlight--;
-        this.#handOnWhenDone(placed);
+        this.handOnWhenDone(placed);
       },
     };
   }
 
-  #handOnWhenDone(turn: OpenTurn): void {
+  private handOnWhenDone(turn: OpenTurn): void {
     if (turn.closed === undefined || turn.inFlight > 0) {
       return;
     }
-    this.#open.delete(turn.traceId);
-    this.#written.add(turn.traceId);
-    const run = this.#runTurns.get(turn.traceId);
+    this.open.delete(turn.traceId);
+    this.written.add(turn.traceId);
+    const run = this.runTurns.get(turn.traceId);
     if (run !== undefined) run.state = 'written';
-    const withCalls = this.#withCalls(turn.closed, turn.calls);
-    this.#options.onTurn({
+    const withCalls = this.withCalls(turn.closed, turn.calls);
+    this.options.onTurn({
       type: 'turn_closed',
       traceId: turn.traceId,
-      turn: this.#options.assemble?.(withCalls) ?? withCalls,
+      turn: this.options.assemble?.(withCalls) ?? withCalls,
     });
   }
 
   /** The turn with its calls among its events by start time, and the capture paths they prove. */
-  #withCalls(turn: Turn, calls: CallEvent[]): Turn {
-    const paths = new Set<CapturePath>(this.#options.alwaysCapturePaths ?? []);
+  private withCalls(turn: Turn, calls: CallEvent[]): Turn {
+    const paths = new Set<CapturePath>(this.options.alwaysCapturePaths ?? []);
     if (calls.some(call => isEventOfKind(call, 'model_call'))) {
       paths.add('model_proxy');
     }

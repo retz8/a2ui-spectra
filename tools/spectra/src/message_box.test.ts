@@ -30,11 +30,11 @@ class FakeProxy {
   readonly sent: Sent[] = [];
   readonly replies: Array<() => Promise<Response>> = [];
   readonly turns = new TurnHub();
-  #traces = 0;
+  private traces = 0;
 
   readonly fetch: typeof fetch = async (input, init) => {
     const body = JSON.parse(String(init?.body)) as {params: {message: Record<string, unknown>}};
-    const traceId = String(++this.#traces).padStart(32, '0');
+    const traceId = String(++this.traces).padStart(32, '0');
     this.sent.push({
       url: String(input),
       headers: init?.headers as Record<string, string>,

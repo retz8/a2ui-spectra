@@ -131,7 +131,7 @@ export class FixturesFolder {
 
   /** Every `.json` under the folder, recursively, in path order, each read for its record. */
   async list(): Promise<FixtureListing> {
-    const files = (await this.#files(this.dir)).sort();
+    const files = (await this.files(this.dir)).sort();
     const fixtures = await Promise.all(
       files.map(async (file): Promise<FixtureFile> => {
         const name = file.slice(0, -'.json'.length);
@@ -153,7 +153,7 @@ export class FixturesFolder {
   }
 
   /** The `.json` files under a directory, recursively, relative to the folder with `/` between folders. */
-  async #files(dir: string): Promise<string[]> {
+  private async files(dir: string): Promise<string[]> {
     let entries;
     try {
       entries = await readdir(dir, {withFileTypes: true});
@@ -165,7 +165,7 @@ export class FixturesFolder {
     for (const entry of entries) {
       const absolute = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        files.push(...(await this.#files(absolute)));
+        files.push(...(await this.files(absolute)));
       } else if (entry.isFile() && entry.name.endsWith('.json')) {
         files.push(path.relative(this.dir, absolute).split(path.sep).join('/'));
       }

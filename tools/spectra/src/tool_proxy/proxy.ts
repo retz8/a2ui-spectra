@@ -408,19 +408,19 @@ function logged(listener: Listener, result: PlacedCall | Unplaced): PlacedCall |
 class ToolCapture {
   readonly event: ToolCallEvent;
   readonly spanEvents: SpanEvent[] = [];
-  readonly #shared: Shared;
-  readonly #placed: PlacedCall;
+  private readonly shared: Shared;
+  private readonly placed: PlacedCall;
   /** The MCP method of the request it is, for reading its reply. */
-  readonly #method: string | undefined;
-  #ended = false;
+  private readonly method: string | undefined;
+  private hasEnded = false;
   /** Attributes learned after the start, such as the session a server assigned. */
-  #late: Record<string, unknown> = {};
-  #exchange: Record<string, unknown> | undefined;
-  #status: number | undefined;
-  #reply: JsonRpcMessage | undefined;
-  #closedAt: bigint | undefined;
-  #chunksAtClose = 0;
-  #graceTimer: NodeJS.Timeout | undefined;
+  private late: Record<string, unknown> = {};
+  private exchangeAttributes: Record<string, unknown> | undefined;
+  private status: number | undefined;
+  private firstReply: JsonRpcMessage | undefined;
+  private closedAt: bigint | undefined;
+  private chunksAtClose = 0;
+  private graceTimer: NodeJS.Timeout | undefined;
 
   constructor(
     shared: Shared,
@@ -433,9 +433,9 @@ class ToolCapture {
       method?: string;
     },
   ) {
-    this.#shared = shared;
-    this.#placed = placed;
-    this.#method = init.method;
+    this.shared = shared;
+    this.placed = placed;
+    this.method = init.method;
     this.event = {
       traceId: placed.traceId,
       spanId: shared.newSpanId(),
@@ -450,34 +450,34 @@ class ToolCapture {
   }
 
   get ended(): boolean {
-    return this.#ended;
+    return this.hasEnded;
   }
 
   chunk(event: SseEvent, at: bigint): void {
-    if (this.#ended) return;
+    if (this.hasEnded) return;
     const spanEvent = chunkEvent(at.toString(), event);
     this.spanEvents.push(spanEvent);
-    this.#shared.options.onCall?.({
+    this.shared.options.onCall?.({
       type: 'call_chunk',
-      traceId: this.#placed.traceId,
+      traceId: this.placed.traceId,
       spanId: this.event.spanId,
       chunk: spanEvent,
     });
   }
 
   set(attributes: Record<string, unknown>): void {
-    Object.assign(this.#late, attributes);
+    Object.assign(this.late, attributes);
   }
 
   /** The JSON-RPC response to the request it is. */
   reply(message: JsonRpcMessage): void {
-    this.#reply ??= message;
+    this.firstReply ??= message;
   }
 
   /** The exchange's response: its status, its headers and, when it was not streamed, its body. */
   exchange(status: number, headers: IncomingHttpHeaders, body?: string): void {
-    this.#status = status;
-    this.#exchange = responseAttributes(status, headers, body);
+    this.status = status;
+    this.exchangeAttributes = responseAttributes(status, headers, body);
   }
 
   /**
@@ -487,16 +487,16 @@ class ToolCapture {
    * before it, and `drop` drops the reply.
    */
   agentClosed(drop: () => void): void {
-    if (this.#ended || this.#closedAt !== undefined) return;
-    const at = this.#shared.now();
-    this.#closedAt = at;
-    this.#chunksAtClose = this.spanEvents.length;
-    this.#graceTimer = setTimeout(() => {
-      this.spanEvents.length = this.#chunksAtClose;
-      this.#closedAt = undefined;
+    if (this.hasEnded || this.closedAt !== undefined) return;
+    const at = this.shared.now();
+    this.closedAt = at;
+    this.chunksAtClose = this.spanEvents.length;
+    this.graceTimer = setTimeout(() => {
+      this.spanEvents.length = this.chunksAtClose;
+      this.closedAt = undefined;
       this.end(at, {type: 'aborted', message: AGENT_CLOSED});
       drop();
-    }, this.#shared.closeGraceMs);
+    }, this.shared.closeGraceMs);
   }
 
   /**
@@ -505,21 +505,21 @@ class ToolCapture {
    * the status. Later calls do nothing.
    */
   end(at: bigint, failure?: Failure): void {
-    if (this.#ended) return;
-    this.#ended = true;
-    clearTimeout(this.#graceTimer);
-    this.#shared.open.delete(this);
+    if (this.hasEnded) return;
+    this.hasEnded = true;
+    clearTimeout(this.graceTimer);
+    this.shared.open.delete(this);
     const attributes: Record<string, unknown> = {
       ...this.event.attributes,
-      ...this.#late,
-      ...this.#exchange,
+      ...this.late,
+      ...this.exchangeAttributes,
     };
     let failed = failure;
-    if (failed === undefined && this.#status !== undefined && this.#status >= 400) {
-      failed = {type: String(this.#status)};
+    if (failed === undefined && this.status !== undefined && this.status >= 400) {
+      failed = {type: String(this.status)};
     }
-    if (this.#reply !== undefined) {
-      const reading = readReply(this.#method, this.#reply);
+    if (this.firstReply !== undefined) {
+      const reading = readReply(this.method, this.firstReply);
       Object.assign(attributes, reading.attributes);
       if (reading.error !== undefined) {
         failed =
@@ -541,10 +541,10 @@ class ToolCapture {
           ? {code: 1}
           : {code: 2, ...(failed.message !== undefined && {message: failed.message})},
     };
-    this.#placed.ended(complete);
-    this.#shared.options.onCall?.({
+    this.placed.ended(complete);
+    this.shared.options.onCall?.({
       type: 'call_ended',
-      traceId: this.#placed.traceId,
+      traceId: this.placed.traceId,
       event: complete,
     });
   }

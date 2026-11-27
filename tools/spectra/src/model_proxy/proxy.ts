@@ -204,23 +204,23 @@ class Capture {
   readonly event: ModelCallEvent;
   readonly chunks: StreamChunk[] = [];
   readonly spanEvents: SpanEvent[] = [];
-  readonly #state: ProxyState;
-  readonly #placed: PlacedCall;
-  readonly #reader: ApiReader | undefined;
-  #ended = false;
+  private readonly state: ProxyState;
+  private readonly placed: PlacedCall;
+  private readonly reader: ApiReader | undefined;
+  private ended = false;
   /** When the first chunk carrying output arrived, on a call read in full. */
-  #firstChunkAt: bigint | undefined;
+  private firstChunkAt: bigint | undefined;
   /** When the agent closed its connection before the call ended, and the chunks it had by then. */
-  #closedAt: bigint | undefined;
-  #chunksAtClose = 0;
-  #graceTimer: NodeJS.Timeout | undefined;
-  #dropReply: (() => void) | undefined;
+  private closedAt: bigint | undefined;
+  private chunksAtClose = 0;
+  private graceTimer: NodeJS.Timeout | undefined;
+  private dropReply: (() => void) | undefined;
   /** When the last progress went out, on the monotonic clock, and how many chunks it read. */
-  #progressAt: number | undefined;
-  #progressChunks = 0;
-  #progressTimer: NodeJS.Timeout | undefined;
+  private progressAt: number | undefined;
+  private progressChunks = 0;
+  private progressTimer: NodeJS.Timeout | undefined;
   /** Runs `done` once what the reply delivered so far has been read; set by the relay. */
-  #settle: (done: () => void) => void = done => process.nextTick(done);
+  private settle: (done: () => void) => void = done => process.nextTick(done);
 
   constructor(
     state: ProxyState,
@@ -229,9 +229,9 @@ class Capture {
     start: bigint,
     attributes: Record<string, unknown>,
   ) {
-    this.#state = state;
-    this.#placed = placed;
-    this.#reader = reader;
+    this.state = state;
+    this.placed = placed;
+    this.reader = reader;
     const operation = attributes['gen_ai.operation.name'];
     const model = attributes['gen_ai.request.model'];
     this.event = {
@@ -250,7 +250,7 @@ class Capture {
   }
 
   settleWith(settle: (done: () => void) => void): void {
-    this.#settle = settle;
+    this.settle = settle;
   }
 
   /**
@@ -260,43 +260,43 @@ class Capture {
    * with the chunks before it, and `dropReply` drops the reply.
    */
   agentClosed(dropReply: () => void): void {
-    if (this.#ended || this.#closedAt !== undefined) return;
-    const at = this.#state.now();
-    this.#settle(() => {
-      if (this.#ended || this.#closedAt !== undefined) return;
-      this.#closedAt = at;
-      this.#chunksAtClose = this.spanEvents.length;
-      this.#dropReply = dropReply;
-      this.#graceTimer = setTimeout(() => this.#abandon(), this.#state.closeGraceMs);
+    if (this.ended || this.closedAt !== undefined) return;
+    const at = this.state.now();
+    this.settle(() => {
+      if (this.ended || this.closedAt !== undefined) return;
+      this.closedAt = at;
+      this.chunksAtClose = this.spanEvents.length;
+      this.dropReply = dropReply;
+      this.graceTimer = setTimeout(() => this.abandon(), this.state.closeGraceMs);
     });
   }
 
   /** Ends the call as aborted at the agent's close, and drops the reply. */
-  #abandon(): void {
-    this.spanEvents.length = this.#chunksAtClose;
-    this.chunks.length = this.#chunksAtClose;
-    this.end({failure: {type: 'aborted', message: AGENT_CLOSED}}, this.#closedAt);
-    this.#dropReply?.();
+  private abandon(): void {
+    this.spanEvents.length = this.chunksAtClose;
+    this.chunks.length = this.chunksAtClose;
+    this.end({failure: {type: 'aborted', message: AGENT_CLOSED}}, this.closedAt);
+    this.dropReply?.();
   }
 
   chunk(chunk: {event?: string; id?: string; data: string}): void {
-    if (this.#ended) return;
-    const at = this.#state.now();
+    if (this.ended) return;
+    const at = this.state.now();
     const spanEvent = chunkEvent(at.toString(), chunk);
     this.spanEvents.push(spanEvent);
     const read = streamChunkOf(spanEvent);
     this.chunks.push(read);
     // The first chunk is the first that carries output, on a call read in full.
-    if (this.#firstChunkAt === undefined && this.#reader?.carriesOutput(read) === true) {
-      this.#firstChunkAt = at;
+    if (this.firstChunkAt === undefined && this.reader?.carriesOutput(read) === true) {
+      this.firstChunkAt = at;
     }
-    this.#state.options.onCall?.({
+    this.state.options.onCall?.({
       type: 'call_chunk',
-      traceId: this.#placed.traceId,
+      traceId: this.placed.traceId,
       spanId: this.event.spanId,
       chunk: spanEvent,
     });
-    this.#progress();
+    this.progress();
   }
 
   /**
@@ -304,28 +304,28 @@ class Capture {
    * `PROGRESS_MS`: at once when the last went out long enough ago, else when
    * that time has passed, reading every chunk come by then.
    */
-  #progress(): void {
-    if (this.#reader === undefined || this.#progressTimer !== undefined) return;
-    const since = this.#progressAt === undefined ? Infinity : performance.now() - this.#progressAt;
+  private progress(): void {
+    if (this.reader === undefined || this.progressTimer !== undefined) return;
+    const since = this.progressAt === undefined ? Infinity : performance.now() - this.progressAt;
     if (since >= PROGRESS_MS) {
-      this.#sendProgress();
+      this.sendProgress();
       return;
     }
-    this.#progressTimer = setTimeout(() => {
-      this.#progressTimer = undefined;
-      if (!this.#ended) this.#sendProgress();
+    this.progressTimer = setTimeout(() => {
+      this.progressTimer = undefined;
+      if (!this.ended) this.sendProgress();
     }, PROGRESS_MS - since);
   }
 
-  #sendProgress(): void {
-    if (this.#reader === undefined) return;
-    this.#progressAt = performance.now();
-    this.#progressChunks = this.chunks.length;
-    this.#state.options.onCall?.({
+  private sendProgress(): void {
+    if (this.reader === undefined) return;
+    this.progressAt = performance.now();
+    this.progressChunks = this.chunks.length;
+    this.state.options.onCall?.({
       type: 'call_progress',
-      traceId: this.#placed.traceId,
+      traceId: this.placed.traceId,
       spanId: this.event.spanId,
-      attributes: withContentFitted(this.#reader.stream(this.chunks).attributes),
+      attributes: withContentFitted(this.reader.stream(this.chunks).attributes),
     });
   }
 
@@ -344,36 +344,35 @@ class Capture {
       };
       failure?: {type: string; message?: string};
     },
-    at: bigint = this.#state.now(),
+    at: bigint = this.state.now(),
   ): void {
-    if (this.#ended) return;
-    clearTimeout(this.#progressTimer);
-    this.#progressTimer = undefined;
+    if (this.ended) return;
+    clearTimeout(this.progressTimer);
+    this.progressTimer = undefined;
     // The last chunk's progress goes out before the call ends.
-    if (this.chunks.length > 0 && this.chunks.length !== this.#progressChunks) this.#sendProgress();
-    this.#ended = true;
-    clearTimeout(this.#graceTimer);
+    if (this.chunks.length > 0 && this.chunks.length !== this.progressChunks) this.sendProgress();
+    this.ended = true;
+    clearTimeout(this.graceTimer);
     const attributes: Record<string, unknown> = {...this.event.attributes};
     let failure = outcome.failure;
     if (outcome.response !== undefined) {
       const {status, headers, body, streamed} = outcome.response;
       Object.assign(attributes, responseAttributes(status, headers, streamed ? undefined : body));
-      if (streamed && this.#firstChunkAt !== undefined) {
+      if (streamed && this.firstChunkAt !== undefined) {
         attributes['gen_ai.response.time_to_first_chunk'] = seconds(
-          this.#firstChunkAt - BigInt(this.event.startTimeUnixNano),
+          this.firstChunkAt - BigInt(this.event.startTimeUnixNano),
         );
       }
-      if (this.#reader !== undefined) {
+      if (this.reader !== undefined) {
         if (status >= 400) {
-          const message =
-            body === undefined ? undefined : this.#reader.errorMessage(bodyJson(body));
+          const message = body === undefined ? undefined : this.reader.errorMessage(bodyJson(body));
           failure ??= {type: String(status), ...(message !== undefined && {message})};
         } else if (streamed) {
-          const read = this.#reader.stream(this.chunks);
+          const read = this.reader.stream(this.chunks);
           Object.assign(attributes, withContentFitted(read.attributes));
           failure ??= read.error;
         } else if (body !== undefined) {
-          Object.assign(attributes, withContentFitted(this.#reader.response(bodyJson(body))));
+          Object.assign(attributes, withContentFitted(this.reader.response(bodyJson(body))));
         }
       } else if (status >= 400) {
         failure ??= {type: String(status)};
@@ -392,10 +391,10 @@ class Capture {
           ? {code: 1}
           : {code: 2, ...(failure.message !== undefined && {message: failure.message})},
     };
-    this.#placed.ended(complete);
-    this.#state.options.onCall?.({
+    this.placed.ended(complete);
+    this.state.options.onCall?.({
       type: 'call_ended',
-      traceId: this.#placed.traceId,
+      traceId: this.placed.traceId,
       event: complete,
     });
   }

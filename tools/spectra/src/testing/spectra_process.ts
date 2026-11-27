@@ -69,9 +69,9 @@ export class SpectraProcess {
   stdout = '';
   stderr = '';
   readonly exited: Promise<Exit>;
-  readonly #child: ChildProcess;
-  readonly #ownGroup: boolean;
-  #listeners: Array<() => void> = [];
+  private readonly child: ChildProcess;
+  private readonly ownGroup: boolean;
+  private listeners: Array<() => void> = [];
 
   /**
    * Spectra starts in `cwd`, by default a fresh directory, where it creates
@@ -84,8 +84,8 @@ export class SpectraProcess {
     options: SpectraOptions = {},
   ) {
     const [command, ...prefix] = options.command ?? spectraCommand;
-    this.#ownGroup = !windows && options.ownGroup === true;
-    this.#child = windows
+    this.ownGroup = !windows && options.ownGroup === true;
+    this.child = windows
       ? spawn(python, [consoleHelper, 'run', '--', command, ...prefix, ...args], {
           stdio: ['pipe', 'pipe', 'pipe'],
           cwd,
@@ -95,22 +95,22 @@ export class SpectraProcess {
           stdio: ['ignore', 'pipe', 'pipe'],
           cwd,
           env: {...process.env, ...env},
-          detached: this.#ownGroup,
+          detached: this.ownGroup,
         });
     for (const [stream, name] of [
-      [this.#child.stdout, 'stdout'],
-      [this.#child.stderr, 'stderr'],
+      [this.child.stdout, 'stdout'],
+      [this.child.stderr, 'stderr'],
     ] as const) {
       stream?.setEncoding('utf8');
       stream?.on('data', (chunk: string) => {
         this.output += chunk;
         this[name] += chunk;
-        for (const listener of this.#listeners) listener();
+        for (const listener of this.listeners) listener();
       });
     }
     this.exited = new Promise(resolve => {
-      this.#child.once('exit', (code, signal) => resolve({code, signal}));
-      this.#child.once('error', error => {
+      this.child.once('exit', (code, signal) => resolve({code, signal}));
+      this.child.once('error', error => {
         this.output += `Spectra could not start: ${error.message}\n`;
         resolve({code: null, signal: null});
       });
@@ -135,9 +135,9 @@ export class SpectraProcess {
       }, timeoutMs);
       const done = () => {
         clearTimeout(timer);
-        this.#listeners = this.#listeners.filter(l => l !== check);
+        this.listeners = this.listeners.filter(l => l !== check);
       };
-      this.#listeners.push(check);
+      this.listeners.push(check);
       check();
     });
   }
@@ -148,17 +148,17 @@ export class SpectraProcess {
    */
   /** The process the test started: Spectra, or on Windows the console helper that runs it. */
   get pid(): number | undefined {
-    return this.#child.pid;
+    return this.child.pid;
   }
 
   signal(signal: NodeJS.Signals): void {
     if (!windows || signal === 'SIGKILL') {
-      this.#child.kill(signal);
+      this.child.kill(signal);
       return;
     }
     const event = CONSOLE_EVENTS[signal];
     if (event === undefined) throw new Error(`Windows has no console event for ${signal}.`);
-    this.#child.stdin?.write(`${event}\n`);
+    this.child.stdin?.write(`${event}\n`);
   }
 
   /**
@@ -167,11 +167,11 @@ export class SpectraProcess {
    * console, as `signal` sends it.
    */
   signalGroup(signal: NodeJS.Signals): void {
-    if (!this.#ownGroup) {
+    if (!this.ownGroup) {
       this.signal(signal);
       return;
     }
-    const pid = this.#child.pid;
+    const pid = this.child.pid;
     if (pid === undefined) return;
     try {
       process.kill(-pid, signal);

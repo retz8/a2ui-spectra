@@ -136,48 +136,48 @@ interface Launch {
  * is echoed as it arrives and kept, with a divider at each start and stop.
  */
 export class AgentSupervisor {
-  readonly #options: AgentSupervisorOptions;
-  readonly #command: string;
-  readonly #graceMs: number;
-  #seq = 0;
-  #state: NumberedAgentState;
-  readonly #events: AgentSessionEvent[] = [];
-  #launch: Launch | undefined;
+  private readonly options: AgentSupervisorOptions;
+  private readonly command: string;
+  private readonly graceMs: number;
+  private seq = 0;
+  private state: NumberedAgentState;
+  private readonly events: AgentSessionEvent[] = [];
+  private launch: Launch | undefined;
   /** The starts, restarts and exits, dealt with one at a time. */
-  #queue: Promise<void> = Promise.resolve();
+  private queue: Promise<void> = Promise.resolve();
   /** Whether a restart was accepted and has not reached its spawn yet. */
-  #restartPending = false;
+  private restartPending = false;
   /** Whether Spectra's own stop has begun; nothing is spawned from then on. */
-  #stopping = false;
-  #cardAnsweredOnce = false;
-  readonly #log = new LogBuffer();
+  private stopping = false;
+  private cardAnsweredOnce = false;
+  private readonly log = new LogBuffer();
 
   constructor(options: AgentSupervisorOptions) {
-    this.#options = options;
-    this.#command = [options.command.command, ...options.command.args].join(' ');
-    this.#graceMs = options.graceMs ?? STOP_GRACE_MS;
-    this.#state = {state: 'starting', seq: ++this.#seq};
+    this.options = options;
+    this.command = [options.command.command, ...options.command.args].join(' ');
+    this.graceMs = options.graceMs ?? STOP_GRACE_MS;
+    this.state = {state: 'starting', seq: ++this.seq};
     options.session.stateChanged('starting');
   }
 
   /** Starts the command for the first time. */
   start(): void {
-    this.#spawn();
+    this.spawn();
   }
 
   /** The command as launched, the state as it stands and the session's events. */
   snapshot(): AgentSnapshot {
-    return {command: this.#command, state: {...this.#state}, events: [...this.#events]};
+    return {command: this.command, state: {...this.state}, events: [...this.events]};
   }
 
   /** The agent's output as the buffer holds it. */
   logs(): LogSnapshot {
-    return this.#log.snapshot();
+    return this.log.snapshot();
   }
 
   /** Whether the command's own process is running. */
   get alive(): boolean {
-    return this.#launch !== undefined && this.#launch.exit === undefined;
+    return this.launch !== undefined && this.launch.exit === undefined;
   }
 
   /**
@@ -186,7 +186,7 @@ export class AgentSupervisor {
    * stop has ended.
    */
   get groupRunning(): boolean {
-    return this.#launch !== undefined && !this.#launch.ended;
+    return this.launch !== undefined && !this.launch.ended;
   }
 
   /**
@@ -196,68 +196,68 @@ export class AgentSupervisor {
    * again. While a restart is on its way to its spawn, nothing is added.
    */
   restart(cause: RestartCause): void {
-    if (this.#stopping || this.#restartPending) {
+    if (this.stopping || this.restartPending) {
       return;
     }
-    this.#restartPending = true;
-    void this.#enqueue(() => this.#restart(cause));
+    this.restartPending = true;
+    void this.enqueue(() => this.runRestart(cause));
   }
 
   /** Spectra's own stop has begun: the card wait ends, and nothing is spawned from now on. */
   beginStop(): void {
-    this.#stopping = true;
-    this.#launch?.wait.abort();
+    this.stopping = true;
+    this.launch?.wait.abort();
   }
 
   /** Stops the command and everything it started, in whatever state it is. */
   async stop(): Promise<void> {
     this.beginStop();
-    await this.#enqueue(async () => {
-      const launch = this.#launch;
+    await this.enqueue(async () => {
+      const launch = this.launch;
       if (launch === undefined || launch.ended) {
         return;
       }
       launch.stoppedBySpectra = true;
-      await this.#stopProcess(launch);
+      await this.stopProcess(launch);
     });
   }
 
   /** Force-kills the command and everything it started, at once, what is left of it after the command exited included. */
   kill(): void {
-    this.#launch?.process.kill();
+    this.launch?.process.kill();
   }
 
-  #enqueue(task: () => Promise<void>): Promise<void> {
-    this.#queue = this.#queue.then(task).catch((error: unknown) => {
-      this.#options.out.error(
+  private enqueue(task: () => Promise<void>): Promise<void> {
+    this.queue = this.queue.then(task).catch((error: unknown) => {
+      this.options.out.error(
         `Spectra failed while handling the agent's process: ${error instanceof Error ? error.message : String(error)}`,
       );
     });
-    return this.#queue;
+    return this.queue;
   }
 
-  #setState(state: AgentState): void {
-    this.#state = {...state, seq: ++this.#seq};
-    this.#options.session.stateChanged(state.state);
-    this.#options.notify({type: 'agent_state', ...this.#state});
+  private setState(state: AgentState): void {
+    this.state = {...state, seq: ++this.seq};
+    this.options.session.stateChanged(state.state);
+    this.options.notify({type: 'agent_state', ...this.state});
   }
 
-  #record(event: AgentSessionEvent): void {
-    this.#events.push(event);
-    this.#options.notify(event);
+  private record(event: AgentSessionEvent): void {
+    this.events.push(event);
+    this.options.notify(event);
   }
 
   /** Enters the entries into the buffer and sends them on, together. */
-  #enter(entries: NewLogEntry[]): void {
+  private enter(entries: NewLogEntry[]): void {
     if (entries.length === 0) return;
-    this.#options.notify({type: 'agent_log', ...this.#log.add(entries)});
+    this.options.notify({type: 'agent_log', ...this.log.add(entries)});
   }
 
   /** Starts the command and its card wait. */
-  #spawn(): void {
-    const {command, env, out} = this.#options;
-    out.info(`Starting the agent: ${this.#command}`);
-    this.#enter([{type: 'started', command: this.#command}]);
+  private spawn(): void {
+    const {command, env, out} = this.options;
+    out.info(`Starting the agent: ${this.command}`);
+    this.enter([{type: 'started', command: this.command}]);
     const splitters = {stdout: new LineSplitter(), stderr: new LineSplitter()};
     const line =
       (stream: 'stdout' | 'stderr') =>
@@ -269,11 +269,11 @@ export class AgentSupervisor {
     const launch: Launch = {
       process: startAgentProcess(command.command, command.args, {
         env,
-        graceMs: this.#graceMs,
+        graceMs: this.graceMs,
         // Each chunk is echoed as it arrived, on the stream it was written to, then split into lines for the buffer.
         onOutput: (stream, chunk) => {
           (stream === 'stdout' ? process.stdout : process.stderr).write(chunk);
-          this.#enter(splitters[stream].push(chunk).map(line(stream)));
+          this.enter(splitters[stream].push(chunk).map(line(stream)));
         },
       }),
       wait: new AbortController(),
@@ -284,23 +284,23 @@ export class AgentSupervisor {
     };
     // What a stream held unfinished at its end is its last line.
     void launch.process.outputEnded.then(() => {
-      this.#enter([
+      this.enter([
         ...splitters.stdout.end().map(line('stdout')),
         ...splitters.stderr.end().map(line('stderr')),
       ]);
     });
-    const first = this.#launch === undefined;
-    this.#launch = launch;
+    const first = this.launch === undefined;
+    this.launch = launch;
     if (!first) {
-      this.#setState({state: 'starting'});
+      this.setState({state: 'starting'});
     }
-    void launch.process.exited.then(exit => this.#exited(launch, exit));
-    void this.#waitForCard(launch);
+    void launch.process.exited.then(exit => this.exited(launch, exit));
+    void this.waitForCard(launch);
   }
 
   /** Reads the card once this launch answers it; the card is not asked for again until the next start. */
-  async #waitForCard(launch: Launch): Promise<void> {
-    const {cardUrl, headers, out, waitLine, session, cardIntervalMs} = this.#options;
+  private async waitForCard(launch: Launch): Promise<void> {
+    const {cardUrl, headers, out, waitLine, session, cardIntervalMs} = this.options;
     const card = await waitForAgentCard(cardUrl, {
       signal: launch.wait.signal,
       headers,
@@ -309,83 +309,83 @@ export class AgentSupervisor {
         if (launch.wait.signal.aborted) {
           return;
         }
-        const line = waitLine(reason, !this.#cardAnsweredOnce);
+        const line = waitLine(reason, !this.cardAnsweredOnce);
         out.info(line);
-        this.#setState({state: 'waiting', reason, line});
+        this.setState({state: 'waiting', reason, line});
       },
     });
-    if (card === undefined || launch.wait.signal.aborted || launch !== this.#launch) {
+    if (card === undefined || launch.wait.signal.aborted || launch !== this.launch) {
       return;
     }
     launch.cardAnswered = true;
-    this.#cardAnsweredOnce = true;
+    this.cardAnsweredOnce = true;
     out.info(
       typeof card.name === 'string' && card.name.trim() !== ''
         ? `The agent's card answered: ${card.name}.`
         : "The agent's card answered.",
     );
     session.cardAnswered(card);
-    this.#setState({state: 'running'});
+    this.setState({state: 'running'});
   }
 
   /** The command's own process exited: on its own, unless Spectra stopped it. */
-  #exited(launch: Launch, exit: AgentExit): void {
+  private exited(launch: Launch, exit: AgentExit): void {
     launch.exit = exit;
     launch.exitTime = new Date().toISOString();
     if (launch.stoppedBySpectra) {
       return;
     }
     launch.wait.abort();
-    void this.#enqueue(() => this.#settleOwnExit(launch));
+    void this.enqueue(() => this.settleOwnExit(launch));
   }
 
   /**
    * An exit the agent took on its own: what is left of its process group is
    * stopped, then the state is down with the exit line.
    */
-  async #settleOwnExit(launch: Launch): Promise<void> {
+  private async settleOwnExit(launch: Launch): Promise<void> {
     if (launch.ended || launch.stoppedBySpectra || launch.exit === undefined) {
       return;
     }
-    const {out, session} = this.#options;
+    const {out, session} = this.options;
     const exit = describeExit(launch.exit);
     session.processEnded(`The agent's process ${exit}.`);
-    await this.#stopProcess(launch);
+    await this.stopProcess(launch);
     session.processStopped();
-    if (this.#stopping) {
+    if (this.stopping) {
       return;
     }
-    await this.#writeStopped(launch);
+    await this.writeStopped(launch);
     const when =
       launch.cardAnswered || launch.exit.error !== undefined ? '' : ' before its card answered';
     out.info(`The agent's process ${exit}${when}. Restart it from the viewer.`);
-    this.#record({
+    this.record({
       type: 'agent_exited',
-      seq: ++this.#seq,
+      seq: ++this.seq,
       time: launch.exitTime ?? new Date().toISOString(),
       exit,
     });
-    this.#setState({state: 'down', exit});
+    this.setState({state: 'down', exit});
   }
 
-  async #restart(cause: RestartCause): Promise<void> {
-    const {out, session} = this.#options;
+  private async runRestart(cause: RestartCause): Promise<void> {
+    const {out, session} = this.options;
     try {
-      if (this.#stopping) {
+      if (this.stopping) {
         return;
       }
-      const launch = this.#launch;
+      const launch = this.launch;
       // An exit the agent took on its own just before is reported first.
       if (launch !== undefined) {
-        await this.#settleOwnExit(launch);
+        await this.settleOwnExit(launch);
       }
-      if (this.#stopping) {
+      if (this.stopping) {
         return;
       }
       out.info(`Restarting the agent: ${causeSentence(cause)}`);
-      this.#record({
+      this.record({
         type: 'agent_restarted',
-        seq: ++this.#seq,
+        seq: ++this.seq,
         time: new Date().toISOString(),
         cause,
       });
@@ -393,19 +393,19 @@ export class AgentSupervisor {
         launch.stoppedBySpectra = true;
         launch.wait.abort();
         session.processEnded('The agent was restarted.');
-        this.#setState({state: 'restarting'});
+        this.setState({state: 'restarting'});
         session.cutOpenTurns();
-        await this.#stopProcess(launch);
+        await this.stopProcess(launch);
         session.processStopped();
-        if (!this.#stopping) {
-          await this.#writeStopped(launch, cause);
+        if (!this.stopping) {
+          await this.writeStopped(launch, cause);
         }
       }
     } finally {
-      this.#restartPending = false;
+      this.restartPending = false;
     }
-    if (!this.#stopping) {
-      this.#spawn();
+    if (!this.stopping) {
+      this.spawn();
     }
   }
 
@@ -413,7 +413,7 @@ export class AgentSupervisor {
    * Writes the ended process's stopped divider, once, after its last line:
    * with its exit line, and the cause when a restart stopped it.
    */
-  async #writeStopped(launch: Launch, cause?: RestartCause): Promise<void> {
+  private async writeStopped(launch: Launch, cause?: RestartCause): Promise<void> {
     if (launch.dividerWritten) return;
     launch.dividerWritten = true;
     const exit = launch.exit ?? (await launch.process.exited);
@@ -421,15 +421,15 @@ export class AgentSupervisor {
       launch.process.outputEnded,
       new Promise<void>(resolve => setTimeout(resolve, OUTPUT_DRAIN_MS).unref()),
     ]);
-    this.#enter([{type: 'stopped', exit: describeExit(exit), ...(cause !== undefined && {cause})}]);
+    this.enter([{type: 'stopped', exit: describeExit(exit), ...(cause !== undefined && {cause})}]);
   }
 
   /** Stops the launch's process group with the stop signal, then the force-kill after the grace. */
-  async #stopProcess(launch: Launch): Promise<void> {
+  private async stopProcess(launch: Launch): Promise<void> {
     const {forceKilled} = await launch.process.stop();
     launch.ended = true;
     if (forceKilled) {
-      this.#options.out.info(forceKilledLine(this.#graceMs));
+      this.options.out.info(forceKilledLine(this.graceMs));
     }
   }
 }

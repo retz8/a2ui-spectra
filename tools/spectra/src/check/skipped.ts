@@ -2,20 +2,20 @@
 import type {SkippedSurface} from '../record/turn_record.js';
 
 export class SkippedList {
-  readonly #entries: SkippedSurface[] = [];
+  private readonly entries: SkippedSurface[] = [];
 
   add(entry: SkippedSurface): void {
-    const exists = this.#entries.some(
+    const exists = this.entries.some(
       each =>
         each.surfaceId === entry.surfaceId &&
         each.catalogId === entry.catalogId &&
         each.reason === entry.reason,
     );
-    if (!exists) this.#entries.push(entry);
+    if (!exists) this.entries.push(entry);
   }
 
   get list(): SkippedSurface[] {
-    return [...this.#entries];
+    return [...this.entries];
   }
 }
 

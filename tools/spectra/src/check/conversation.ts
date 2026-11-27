@@ -77,10 +77,10 @@ export class Conversation {
   readonly deletedByTurn: ReadonlySet<string>;
   /** Each surface's catalog id, from the last `createSurface` naming it. */
   readonly catalogIdOf: ReadonlyMap<string, string>;
-  readonly #registry: CatalogRegistry;
-  readonly #inline: ReadonlyMap<string, InlineDefinition>;
-  readonly #carriers: ReadonlyMap<string, Carrier>;
-  readonly #processor: MessageProcessor;
+  private readonly registry: CatalogRegistry;
+  private readonly inline: ReadonlyMap<string, InlineDefinition>;
+  private readonly carriers: ReadonlyMap<string, Carrier>;
+  private readonly processor: MessageProcessor;
 
   constructor(
     processor: MessageProcessor,
@@ -91,10 +91,10 @@ export class Conversation {
     catalogIdOf: Map<string, string>,
     carriers: Map<string, Carrier>,
   ) {
-    this.#processor = processor;
-    this.#registry = registry;
-    this.#inline = inline;
-    this.#carriers = carriers;
+    this.processor = processor;
+    this.registry = registry;
+    this.inline = inline;
+    this.carriers = carriers;
     this.surfaces = processor.getSurfaces() as ReadonlyMap<string, SurfaceModel>;
     this.own = own;
     this.created = created;
@@ -112,7 +112,7 @@ export class Conversation {
 
   /** Where a component's standing definition was carried; nothing for a component not in the state. */
   carrier(surfaceId: string, componentId: string): Carrier | undefined {
-    return this.#carriers.get(carrierKey(surfaceId, componentId));
+    return this.carriers.get(carrierKey(surfaceId, componentId));
   }
 
   /**
@@ -121,9 +121,9 @@ export class Conversation {
    * Nothing for an id the conversation cannot judge against.
    */
   resolve(catalogId: string): ResolvedCatalog | undefined {
-    const known = this.#registry.get(catalogId);
+    const known = this.registry.get(catalogId);
     if (known !== undefined) {
-      const catalog = this.#registry.catalogs().find(entry => entry.id === catalogId);
+      const catalog = this.registry.catalogs().find(entry => entry.id === catalogId);
       if (catalog !== undefined) {
         return {
           id: catalogId,
@@ -133,7 +133,7 @@ export class Conversation {
         };
       }
     }
-    const inline = this.#inline.get(catalogId);
+    const inline = this.inline.get(catalogId);
     return (
       inline && {
         id: inline.id,
@@ -151,7 +151,7 @@ export class Conversation {
 
   /** Releases the processor; the surfaces are not read after this. */
   dispose(): void {
-    this.#processor.dispose();
+    this.processor.dispose();
   }
 }
 

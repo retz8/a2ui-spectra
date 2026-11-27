@@ -12,41 +12,41 @@ export interface SseEvent {
  * dropped, as the standard has it.
  */
 export class SseParser {
-  #buffer = '';
-  #data: string[] = [];
-  #event: string | undefined;
-  #id: string | undefined;
+  private buffer = '';
+  private data: string[] = [];
+  private event: string | undefined;
+  private id: string | undefined;
 
   /** Reads the next chunk of text and returns the events it completed. */
   push(text: string): SseEvent[] {
-    this.#buffer += text;
+    this.buffer += text;
     const events: SseEvent[] = [];
     let start = 0;
-    for (let i = 0; i < this.#buffer.length; i++) {
-      const char = this.#buffer[i];
+    for (let i = 0; i < this.buffer.length; i++) {
+      const char = this.buffer[i];
       if (char !== '\n' && char !== '\r') {
         continue;
       }
-      if (char === '\r' && i === this.#buffer.length - 1) {
+      if (char === '\r' && i === this.buffer.length - 1) {
         // A CR at the end may be the first half of a CRLF still to come.
         break;
       }
-      const event = this.#line(this.#buffer.slice(start, i));
+      const event = this.line(this.buffer.slice(start, i));
       if (event !== undefined) {
         events.push(event);
       }
-      if (char === '\r' && this.#buffer[i + 1] === '\n') {
+      if (char === '\r' && this.buffer[i + 1] === '\n') {
         i++;
       }
       start = i + 1;
     }
-    this.#buffer = this.#buffer.slice(start);
+    this.buffer = this.buffer.slice(start);
     return events;
   }
 
-  #line(line: string): SseEvent | undefined {
+  private line(line: string): SseEvent | undefined {
     if (line === '') {
-      return this.#dispatch();
+      return this.dispatch();
     }
     if (line.startsWith(':')) {
       return undefined;
@@ -59,27 +59,27 @@ export class SseParser {
     }
     switch (field) {
       case 'data':
-        this.#data.push(value);
+        this.data.push(value);
         break;
       case 'event':
-        this.#event = value;
+        this.event = value;
         break;
       case 'id':
         if (!value.includes('\0')) {
-          this.#id = value;
+          this.id = value;
         }
         break;
     }
     return undefined;
   }
 
-  #dispatch(): SseEvent | undefined {
-    const data = this.#data;
-    const event = this.#event;
-    const id = this.#id;
-    this.#data = [];
-    this.#event = undefined;
-    this.#id = undefined;
+  private dispatch(): SseEvent | undefined {
+    const data = this.data;
+    const event = this.event;
+    const id = this.id;
+    this.data = [];
+    this.event = undefined;
+    this.id = undefined;
     if (data.length === 0) {
       return undefined;
     }

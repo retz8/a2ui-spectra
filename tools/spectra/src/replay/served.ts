@@ -194,17 +194,17 @@ export class ServedMessage extends Readable {
   readonly statusMessage: string;
   readonly headers: IncomingHttpHeaders;
   complete = false;
-  readonly #pieces: Buffer[];
-  readonly #broken: boolean;
-  #ending = false;
+  private readonly pieces: Buffer[];
+  private readonly broken: boolean;
+  private ending = false;
 
   constructor(reply: ServedReply) {
     super();
     this.statusCode = reply.status;
     this.statusMessage = STATUS_CODES[reply.status] ?? '';
     this.headers = reply.headers;
-    this.#broken = reply.broken === true;
-    this.#pieces =
+    this.broken = reply.broken === true;
+    this.pieces =
       reply.events !== undefined
         ? reply.events.map(event => Buffer.from(sseText(event)))
         : reply.body !== undefined && reply.body !== ''
@@ -213,14 +213,14 @@ export class ServedMessage extends Readable {
   }
 
   override _read(): void {
-    const piece = this.#pieces.shift();
+    const piece = this.pieces.shift();
     if (piece !== undefined) {
       this.push(piece);
       return;
     }
-    if (this.#ending) return;
-    this.#ending = true;
-    if (!this.#broken) {
+    if (this.ending) return;
+    this.ending = true;
+    if (!this.broken) {
       this.complete = true;
       this.push(null);
       return;
@@ -244,20 +244,20 @@ export class ServedMessage extends Readable {
  * the served reply, and it closes when the reply ends or is destroyed.
  */
 export class ServedUpstream extends EventEmitter {
-  readonly #reply: ServedReply;
-  #message: ServedMessage | undefined;
-  #destroyed = false;
+  private readonly reply: ServedReply;
+  private message: ServedMessage | undefined;
+  private destroyed = false;
 
   constructor(reply: ServedReply) {
     super();
-    this.#reply = reply;
+    this.reply = reply;
   }
 
   end(): this {
     setImmediate(() => {
-      if (this.#destroyed) return;
-      const message = new ServedMessage(this.#reply);
-      this.#message = message;
+      if (this.destroyed) return;
+      const message = new ServedMessage(this.reply);
+      this.message = message;
       message.once('close', () => this.emit('close'));
       this.emit('response', message);
     });
@@ -266,9 +266,9 @@ export class ServedUpstream extends EventEmitter {
 
   /** Drops the reply: one not yet given never comes, and one under way is aborted, as a dropped connection's is. */
   destroy(): this {
-    if (this.#destroyed) return this;
-    this.#destroyed = true;
-    const message = this.#message;
+    if (this.destroyed) return this;
+    this.destroyed = true;
+    const message = this.message;
     if (message === undefined) {
       setImmediate(() => this.emit('close'));
     } else if (!message.destroyed && !message.complete) {

@@ -70,22 +70,22 @@ export interface WatchRulesOptions {
  * with a dot, the named folders and the named files. Only a file is a save.
  */
 export class WatchRules {
-  readonly #entries: Array<{path: string; listed: boolean; own: boolean}>;
-  readonly #configFile: string | undefined;
+  private readonly entries: Array<{path: string; listed: boolean; own: boolean}>;
+  private readonly configFile: string | undefined;
 
   constructor({watch: {paths, excluded}, ignoredPaths, configFile}: WatchRulesOptions) {
-    this.#entries = [
+    this.entries = [
       ...paths.map(entry => ({path: entry, listed: true, own: false})),
       ...excluded.map(entry => ({path: entry, listed: false, own: false})),
       ...ignoredPaths.map(entry => ({path: entry, listed: false, own: true})),
     ];
-    this.#configFile = configFile;
+    this.configFile = configFile;
   }
 
   /** The listed entry a path falls under, when the deepest entry covering it is a listed one. */
-  #listedOver(target: string): string | undefined {
+  private listedOver(target: string): string | undefined {
     let deepest: {path: string; listed: boolean; own: boolean} | undefined;
-    for (const entry of this.#entries) {
+    for (const entry of this.entries) {
       if (!covers(entry.path, target)) continue;
       if (
         deepest === undefined ||
@@ -101,7 +101,7 @@ export class WatchRules {
   }
 
   /** The names from the listed entry down to the path, the path's own name last. */
-  #namesBelow(listed: string, target: string): string[] {
+  private namesBelow(listed: string, target: string): string[] {
     const relative = path.relative(listed, target);
     return relative === '' ? [] : relative.split(path.sep);
   }
@@ -112,15 +112,15 @@ export class WatchRules {
    * judged: whether that is a file or a folder is on the disk.
    */
   ignoredOnTheWay(target: string): boolean {
-    const listed = this.#listedOver(target);
+    const listed = this.listedOver(target);
     if (listed === undefined) return true;
-    return this.#namesBelow(listed, target).slice(0, -1).some(isIgnoredFolder);
+    return this.namesBelow(listed, target).slice(0, -1).some(isIgnoredFolder);
   }
 
   decide(target: string, kind: PathKind): SaveDecision {
-    const listed = this.#listedOver(target);
+    const listed = this.listedOver(target);
     if (listed === undefined || kind === 'folder') return 'ignored';
-    const names = this.#namesBelow(listed, target);
+    const names = this.namesBelow(listed, target);
     if (names.slice(0, -1).some(isIgnoredFolder)) return 'ignored';
     const name = names.at(-1);
     if (name !== undefined) {
@@ -128,7 +128,7 @@ export class WatchRules {
       // A path that is gone may have been a folder.
       if (kind === 'missing' && isIgnoredFolder(name)) return 'ignored';
     }
-    return target === this.#configFile ? 'config' : 'restart';
+    return target === this.configFile ? 'config' : 'restart';
   }
 }
 
