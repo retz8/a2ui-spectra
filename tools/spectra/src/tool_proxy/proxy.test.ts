@@ -1063,3 +1063,58 @@ describe('the tool proxy refusing a page', () => {
     assert.deepEqual(setup.logs, []);
   });
 });
+
+describe("the tool proxy reading an HTTP+SSE server's endpoint", () => {
+  it('passes an endpoint it cannot read on unchanged, says so once, and keeps running', async () => {
+    const server = httpSse({endpoint: 'http://['});
+    const setup = await setUp(server.handler, {path: '/sse'});
+    const stream = await openStream(setup.origin, '/sse');
+    await until(() => stream.events.length === 1, 'the endpoint');
+    assert.deepEqual(stream.events[0], {event: 'endpoint', data: 'http://['});
+    await until(() => setup.logs.length === 1, 'the line');
+    assert.equal(
+      setup.logs[0],
+      `The tool server at http://127.0.0.1:${setup.serverPort} announces an endpoint the tool proxy cannot read, http://[; ` +
+        'its calls will not pass through the tool proxy.',
+    );
+    assert.equal(setup.released, 1, 'the carrier was released as no call');
+    stream.close();
+  });
+
+  it("resolves a relative endpoint against the stream's URL, as the client does", async () => {
+    let carrier: ServerResponse | undefined;
+    const setup = await setUp(
+      (request, body, response) => {
+        if (request.method === 'GET') {
+          response.writeHead(200, {'content-type': 'text/event-stream'});
+          carrier = response;
+          sse(response, {event: 'endpoint', data: 'messages?sessionId=x'});
+          return;
+        }
+        const message = JSON.parse(body) as Record<string, unknown>;
+        response.writeHead(202).end();
+        sse(carrier!, {
+          event: 'message',
+          data: rpc({id: message.id, result: {protocolVersion: '2025-11-25', capabilities: {}}}),
+        });
+      },
+      {path: '/mcp/sse'},
+    );
+    const stream = await openStream(setup.origin, '/mcp/sse');
+    await until(() => stream.events.length === 1, 'the endpoint');
+    await send(setup.origin, {
+      path: '/mcp/messages?sessionId=x',
+      body: rpc({id: 0, method: 'initialize', params: {}}),
+    });
+    await until(() => setup.ended.length === 1, 'initialize');
+    const [initialize] = setup.ended;
+    assert.equal(initialize.name, 'initialize');
+    assert.equal(initialize.attributes['mcp.session.id'], 'x');
+    assert.equal(initialize.kind, 3);
+    assert.deepEqual(
+      (initialize.events ?? []).map(chunk => chunk.attributes?.['a2ui.http.response.chunk.event']),
+      ['endpoint', 'message'],
+    );
+    stream.close();
+  });
+});

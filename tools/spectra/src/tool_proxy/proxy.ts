@@ -1289,24 +1289,22 @@ function getRequest(call: Call): void {
   };
   const endpoint = (event: SseEvent, at: bigint) => {
     const data = event.data.trim();
-    let absolute: URL | undefined;
-    try {
-      absolute = new URL(data);
-    } catch {
-      absolute = undefined;
-    }
-    if (absolute !== undefined) {
+    const read = URL.canParse(data) ? undefined : endpointUrl(call, data);
+    if (read === undefined) {
       becomeCarrier(undefined);
       if (!listener.absoluteTold) {
         listener.absoluteTold = true;
         shared.options.log?.(
-          `The tool server at ${listener.origin} announces an absolute endpoint, ${removeFromUrl(data)}; ` +
+          `The tool server at ${listener.origin} announces ` +
+            (URL.canParse(data)
+              ? `an absolute endpoint, ${removeFromUrl(data)}; `
+              : `an endpoint the tool proxy cannot read, ${data}; `) +
             'its calls will not pass through the tool proxy.',
         );
       }
       return;
     }
-    becomeCarrier(openSseSession(listener, call, event, at));
+    becomeCarrier(openSseSession(listener, call, read, event, at));
   };
 
   let status = 0;
@@ -1369,12 +1367,33 @@ function getRequest(call: Call): void {
 }
 
 /**
+ * A relative endpoint as the client resolves it, against the stream's URL on
+ * the listener; none when it does not resolve.
+ */
+function endpointUrl(call: Call, data: string): URL | undefined {
+  const stream = new URL(
+    `${call.target.pathname}${call.target.search}`,
+    call.listener.server.proxyOrigin,
+  );
+  try {
+    return new URL(data, stream);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Registers the HTTP+SSE session a carrier's relative `endpoint` event
  * opens, keyed by the endpoint's path and query, its `initialize` to start
  * at the carrier's opening with the event as its first chunk.
  */
-function openSseSession(listener: Listener, call: Call, event: SseEvent, at: bigint): Session {
-  const url = new URL(event.data.trim(), listener.server.proxyOrigin);
+function openSseSession(
+  listener: Listener,
+  call: Call,
+  url: URL,
+  event: SseEvent,
+  at: bigint,
+): Session {
   const key = `endpoint:${url.pathname}${url.search}`;
   const id = url.searchParams.get('session_id') ?? url.searchParams.get('sessionId') ?? undefined;
   const session: Session = {
@@ -1414,9 +1433,12 @@ function armedGet(call: Call, pool: ReplayPool): void {
   const opening = pool.sseOpening(target.pathname);
   if (opening !== undefined) {
     const [endpoint] = recordedEvents({...opening.event, events: [opening.endpoint]});
-    const session = openSseSession(listener, call, endpoint, listener.shared.now());
-    holdCarrier(listener, call, session, endpoint);
-    return;
+    const url = endpointUrl(call, endpoint.data.trim());
+    if (url !== undefined) {
+      const session = openSseSession(listener, call, url, endpoint, listener.shared.now());
+      holdCarrier(listener, call, session, endpoint);
+      return;
+    }
   }
   httpTool(call, placeTool(), {served: undefined});
 }
