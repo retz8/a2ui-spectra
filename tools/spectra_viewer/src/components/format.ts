@@ -4,8 +4,10 @@ import type {TurnOutcome} from '@/model/record.ts';
 
 import type {IconKind} from './icons.tsx';
 
+/** A turn's status: its outcome once it has closed, else open. */
 export type TurnStatus = TurnOutcome | 'open';
 
+/** Each status's label, as the turn header's badge writes it. */
 export const STATUS_LABELS: Record<TurnStatus, string> = {
   completed: 'Completed',
   waiting_for_input: 'Waiting for input',
@@ -14,6 +16,7 @@ export const STATUS_LABELS: Record<TurnStatus, string> = {
   open: 'Open',
 };
 
+/** Each status's icon. */
 export const STATUS_ICONS: Record<TurnStatus, IconKind> = {
   completed: 'completed',
   waiting_for_input: 'waiting',
@@ -31,7 +34,6 @@ export function turnIconOf(turn: Pick<ListedTurn, 'open' | 'outcome' | 'newer'>)
   return STATUS_ICONS[turn.open ? 'open' : (turn.outcome ?? 'open')];
 }
 
-/** An icon's colour: grey for its shape alone, red for trouble, the accent for what is live. */
 /**
  * A model call's icon in its provider's colour: Claude's clay, OpenAI's in the
  * text colour, since OpenAI's mark carries no colour of its own, and Gemini's
@@ -43,6 +45,7 @@ export function brandIconOf(brand: Brand): {className: string; gradient?: 'gemin
   return {className: 'tone-foreground'};
 }
 
+/** An icon's colour: grey for its shape alone, red for trouble, the accent for what is live. */
 export function toneOf(icon: IconKind): string {
   if (icon === 'failed') return 'tone-problem';
   if (icon === 'open') return 'tone-brand';
@@ -92,6 +95,7 @@ function isToday(date: Date): boolean {
   return date.toDateString() === new Date().toDateString();
 }
 
+/** A duration: milliseconds under a second, seconds to a tenth under a minute, else minutes and seconds. */
 export function formatDuration(ms: number): string {
   if (ms < 1000) return `${Math.round(ms)} ms`;
   if (ms < 60_000) return `${(ms / 1000).toFixed(1)} s`;
@@ -103,6 +107,7 @@ export function formatOffset(ms: number): string {
   return `+${formatDuration(Math.max(0, ms))}`;
 }
 
+/** An id cut to its first eight characters, for a line that names it in brief. */
 export function shortId(id: string): string {
   return id.length > 8 ? id.slice(0, 8) : id;
 }

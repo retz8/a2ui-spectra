@@ -180,7 +180,8 @@ export function TurnView({
   onLogs: () => void;
 }) {
   const state = useSpectra();
-  // Maximize holds from turn to turn until the page is reloaded.
+  // Maximize holds from turn to turn until the page is reloaded or Fixtures is opened, which
+  // unmounts the turn view.
   const [maximized, setMaximized] = useState(false);
   const needs: string[] = [];
   const view: TurnViewState =
@@ -301,6 +302,7 @@ function NewerRecord({version}: {version: string}) {
   );
 }
 
+/** A sentence in the middle of the view, in place of a turn: no turn, one being read, or why there is none. */
 export function Empty({children}: {children: string}) {
   return (
     <div className="type-quiet flex min-h-0 flex-1 items-center justify-center p-6 text-center">
@@ -309,6 +311,14 @@ export function Empty({children}: {children: string}) {
   );
 }
 
+/**
+ * A turn's body: its header, the timeline of its steps, the result pane and
+ * the step's detail, with the page keys. The turn view draws it for a turn in
+ * the Turns section and the fixture view for a fixture's turn in the Fixtures
+ * section. With `fixture`, the header names the fixture's file and has no Save
+ * as fixture, Re-run and Replay take the fixture as their source, and a replay
+ * sends the fixture's whole record.
+ */
 export function TurnBody({
   traceId,
   view,
