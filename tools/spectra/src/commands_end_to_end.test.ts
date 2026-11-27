@@ -176,6 +176,10 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
           /a2ui-spectra: Replay of fixtures[\\/]greet-ada\.json, turn 2 of 2: passed\./,
         );
         assert.match(live.stderr, /a2ui-spectra: Turns are saved in /);
+        assert.match(
+          live.stderr,
+          /a2ui-spectra: fixtures[\\/]greet-ada\.json's inputs are sent to the agent as the record holds them, and each model call the record does not answer goes to your provider, at your cost\.\n/,
+        );
         assert.doesNotMatch(live.output, /The viewer is at/);
         assert.doesNotMatch(live.output, /export GOOGLE_GEMINI_BASE_URL/);
         const records = recordsIn(cwd, closing[1]);
@@ -200,6 +204,10 @@ describe(`replay and test from the terminal, ${binary ? 'the binary' : 'under No
           cwd,
         );
         assert.equal(allLive.code, 0, allLive.output);
+        assert.match(
+          allLive.stderr,
+          /a2ui-spectra: fixtures[\\/]greet-ada\.json's inputs are sent to the agent as the record holds them, and every model call and tool call goes to your provider and your tool servers\.\n/,
+        );
         const liveClosing = allLive.stdout.match(
           new RegExp(
             `^turn 1 of 2: ${outcomes[0]}\\nturn 2 of 2: ${outcomes[1]}\\n` +

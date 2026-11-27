@@ -29,6 +29,7 @@ import {hasNothingToServe} from './replay/pool.js';
 import {outcomeOf} from './replay/verdict.js';
 import {
   fixtureLines,
+  liveInputsLine,
   liveRecordLine,
   liveTurnLine,
   nothingReachedLine,
@@ -93,6 +94,7 @@ export async function prepareReplay(
       out.error(session.box.unavailable);
       return 1;
     }
+    if (mode !== 'recorded') out.info(liveInputsLine(source, mode));
     if (mode === 'live') {
       const outcome = await runLiveReplay(session, {path: source, record});
       if ('refused' in outcome) {

@@ -120,3 +120,13 @@ export function nothingReachedLine(source: string): string {
     'An agent already running needs the variables Spectra prints set in its shell, and an agent that hardcodes its model or tool endpoints is not redirected.'
   );
 }
+
+/** The line a replay with live calls starts with, on stderr: the record's inputs go to the agent as written, and which calls go out live. */
+export function liveInputsLine(source: string, mode: 'model_live' | 'live'): string {
+  return (
+    `${source}'s inputs are sent to the agent as the record holds them, and ` +
+    (mode === 'model_live'
+      ? 'each model call the record does not answer goes to your provider, at your cost.'
+      : 'every model call and tool call goes to your provider and your tool servers.')
+  );
+}
