@@ -59,6 +59,19 @@ describe('toolServers', () => {
     );
   });
 
+  it("says where a host off this machine the config file names gets the agent's traffic, and not for one Spectra's environment gives", () => {
+    const fromEnv = toolServers(CONFIGURED, [9823, 9824], {
+      CIRCLECI_MCP_URL: 'https://mcp.circleci.com/v1/mcp',
+    });
+    assert.equal(startLines(fromEnv).length, 2);
+    const local = toolServers(
+      [{variable: 'LOCAL_URL', url: new URL('http://localhost:8000/mcp')}],
+      [9823],
+      {},
+    );
+    assert.equal(startLines(local).length, 1);
+  });
+
   it('removes the credentials from a value of another scheme it names in its error', () => {
     assert.throws(
       () =>
@@ -77,6 +90,7 @@ describe('toolServers', () => {
     assert.deepEqual(startLines(servers), [
       'The tool proxy for FLOOR_PLAN_SERVER_URL is at http://127.0.0.1:9823, forwarding to http://127.0.0.1:8000',
       'The tool proxy for CIRCLECI_MCP_URL is at http://127.0.0.1:9824, forwarding to https://mcp.circleci.com',
+      'The config file names mcp.circleci.com for CIRCLECI_MCP_URL: what the agent sends under it, its credentials included, goes to that host.',
     ]);
     assert.deepEqual(exportLines(servers), [
       'export FLOOR_PLAN_SERVER_URL=http://127.0.0.1:9823/sse  # forwards to http://127.0.0.1:8000/sse',

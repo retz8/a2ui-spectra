@@ -108,7 +108,7 @@ A port that is taken is an error at start, and Spectra's ports must differ, each
 
 ## The config file
 
-`a2ui-spectra.json`, optional, in the directory Spectra is launched from, or the file `--config` names. It is meant to be committed in your agent's repository; it holds variable names, never secrets.
+`a2ui-spectra.json`, optional, in the directory Spectra is launched from, or the file `--config` names. It is meant to be committed in your agent's repository; it holds variable names, never secrets. It is trusted as your agent's code is: its `agent.url` and `tools` decide where the agent's traffic goes, and Spectra prints at start each host off this machine a `tools` entry names.
 
 ```json
 {

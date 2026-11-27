@@ -155,11 +155,12 @@ The rules of an original value:
 
 **Under `attach`.** Spectra prints at start, once the agent's card has answered, the line "To see model and tool calls, set these in the agent's shell and restart it:", then one POSIX `export` line per variable ending in a comment naming where it forwards, credentials removed from the comment and not from the value: the model proxy's five, each tool server's in config order, then the receiver's four, each ending in `# for Spectra's OpenTelemetry receiver`; and last the line saying that if the agent's shell already sets one of the model or tool variables to another address, Spectra is to be started with that value set as well, so the proxy forwards there. On Windows the lines are two blocks, one for PowerShell under `# In PowerShell:`, `$env:NAME = 'value'` with the same comment, and one for cmd under `rem In cmd:`, `set "NAME=value"` with no comment, as cmd takes everything after `=` as the value. The viewer's first screen shows the same lines, as [the viewer doc](viewer.md) describes. A turn lists `model_proxy` only when a call through the model proxy was placed in it, and `tool_proxy` only when a call through the tool proxy was.
 
-**Under both,** Spectra prints one line per tool server with its addresses. Cut from the tool servers' test, [`tools/spectra/src/tool_proxy/servers.test.ts`](../../tools/spectra/src/tool_proxy/servers.test.ts), for two servers on ports 9823 and 9824, the second's URL carrying a token:
+**Under both,** Spectra prints one line per tool server with its addresses, and after it, for a host off this machine that the config file names and Spectra's environment does not replace, one line saying the agent's traffic under the variable goes there. The config file is trusted as the agent's code is: a `tools` entry decides where the agent's tool traffic goes. Cut from the tool servers' test, [`tools/spectra/src/tool_proxy/servers.test.ts`](../../tools/spectra/src/tool_proxy/servers.test.ts), for two servers on ports 9823 and 9824, the second's URL carrying a token:
 
 ```
 The tool proxy for FLOOR_PLAN_SERVER_URL is at http://127.0.0.1:9823, forwarding to http://127.0.0.1:8000
 The tool proxy for CIRCLECI_MCP_URL is at http://127.0.0.1:9824, forwarding to https://mcp.circleci.com
+The config file names mcp.circleci.com for CIRCLECI_MCP_URL: what the agent sends under it, its credentials included, goes to that host.
 export FLOOR_PLAN_SERVER_URL=http://127.0.0.1:9823/sse  # forwards to http://127.0.0.1:8000/sse
 export CIRCLECI_MCP_URL=http://127.0.0.1:9824/v1/mcp?token=secret  # forwards to https://mcp.circleci.com/v1/mcp?token=REMOVED
 ```

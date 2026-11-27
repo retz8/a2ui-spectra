@@ -21,6 +21,8 @@ export interface ToolServer {
   value: string;
   /** The original URL: the environment's value of the variable, else the config's URL. */
   original: URL;
+  /** Whether the original is the config file's URL, Spectra's environment not setting the variable; unset, it is not. */
+  fromConfig?: boolean;
 }
 
 /** An environment value for a tool variable that is not a URL Spectra can forward to. */
@@ -55,6 +57,7 @@ export function toolServers(
     const port = ports[index];
     const proxyOrigin = `http://${LOOPBACK_ADDRESS}:${port}`;
     let original = url;
+    let fromConfig = true;
     const set = env[variable]?.trim();
     if (set !== undefined && set !== '') {
       let fromEnv: URL;
@@ -72,6 +75,7 @@ export function toolServers(
       }
       if (!isToolProxyItself(fromEnv, ports)) {
         original = fromEnv;
+        fromConfig = false;
       }
     }
     return {
@@ -80,6 +84,7 @@ export function toolServers(
       proxyOrigin,
       value: `${proxyOrigin}${original.pathname}${original.search}`,
       original,
+      fromConfig,
     };
   });
 }
@@ -94,12 +99,22 @@ function describeOriginal(server: ToolServer): string {
   return removeFromUrl(server.original.href);
 }
 
-/** The line Spectra prints at start for each server, with the port it listens on and where it forwards. */
+/**
+ * The line Spectra prints at start for each server, with the port it listens
+ * on and where it forwards; after it, for a host off this machine that the
+ * config file names, a line saying the agent's traffic under the variable
+ * goes there.
+ */
 export function startLines(servers: ToolServer[]): string[] {
-  return servers.map(
-    server =>
-      `The tool proxy for ${server.variable} is at ${server.proxyOrigin}, forwarding to ${server.original.origin}`,
-  );
+  return servers.flatMap(server => [
+    `The tool proxy for ${server.variable} is at ${server.proxyOrigin}, forwarding to ${server.original.origin}`,
+    ...(server.fromConfig === true && !LOOPBACK.has(server.original.hostname)
+      ? [
+          `The config file names ${server.original.host} for ${server.variable}: what the agent sends under it, ` +
+            'its credentials included, goes to that host.',
+        ]
+      : []),
+  ]);
 }
 
 /** The lines `attach` prints after the model proxy's for a shell, in config order. */
