@@ -1,7 +1,7 @@
 import {createServer, type IncomingMessage, type ServerResponse} from 'node:http';
 
 import {type Api, handleApi} from './api.js';
-import {isAllowedHost} from './host_check.js';
+import {HOST_REFUSED, isAllowedHost} from './host_check.js';
 import {sendText, serveViewerFile} from './viewer_files.js';
 
 /** The address both listeners bind: loopback only. */
@@ -72,11 +72,7 @@ function handle(
   response: ServerResponse,
 ): void {
   if (!isAllowedHost(request.headers.host, options.allowedHosts)) {
-    sendText(
-      response,
-      403,
-      'Blocked request: this host is not allowed. To allow it, start Spectra with --allow-host <name>.\n',
-    );
+    sendText(response, 403, HOST_REFUSED);
     return;
   }
   const changes = request.method !== 'GET' && request.method !== 'HEAD';

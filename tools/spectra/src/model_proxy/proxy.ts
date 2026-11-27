@@ -36,6 +36,7 @@ import {
   wasStreamed,
 } from '../replay/served.js';
 import {nowUnixNano} from '../clock.js';
+import {proxyRefusal, refuseRequest, refuseUpgrade} from '../host_check.js';
 import {listenError, LOOPBACK_ADDRESS} from '../server.js';
 import {NAME} from '../version.js';
 import {chunkEvent, endToEndHeaders, requestAttributes, responseAttributes} from './exchange.js';
@@ -73,6 +74,8 @@ export interface ModelProxyOptions {
   onCall?: CallListener;
   /** Takes the proxy's one-line notes, such as a token request passed on unrecorded. */
   log?: (line: string) => void;
+  /** The names given with `--allow-host`, answered beside the loopback names. None unless set. */
+  allowedHosts?: readonly string[];
   /**
    * How long a reply is waited for after the agent closes its connection,
    * in milliseconds; one that has not ended by then ends the call as aborted.
@@ -185,6 +188,11 @@ function noSuchPrefix(state: ProxyState, response: ServerResponse): void {
 }
 
 function handle(state: ProxyState, request: IncomingMessage, response: ServerResponse): void {
+  const refusal = proxyRefusal(request.headers, state.options.allowedHosts ?? [], 'refused');
+  if (refusal !== undefined) {
+    refuseRequest(request, response, refusal);
+    return;
+  }
   const target = targetOf(state, request.url ?? '/');
   if (target === undefined) {
     request.resume();
@@ -645,6 +653,11 @@ function relay(
 
 /** Passes a WebSocket upgrade on to the target as a tunnel, unrecorded; armed, only in the live mode. */
 function upgrade(state: ProxyState, request: IncomingMessage, socket: Duplex, head: Buffer): void {
+  const refusal = proxyRefusal(request.headers, state.options.allowedHosts ?? [], 'refused');
+  if (refusal !== undefined) {
+    refuseUpgrade(socket, refusal);
+    return;
+  }
   const target = targetOf(state, request.url ?? '/');
   if (target === undefined) {
     socket.end('HTTP/1.1 404 Not Found\r\nconnection: close\r\n\r\n');

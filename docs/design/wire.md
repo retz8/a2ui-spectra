@@ -163,6 +163,8 @@ The proxy speaks A2A 0.3 and A2A 1.0 over JSON-RPC, and it forwards to an agent 
 
 ### What the proxy does with each request
 
+**Who it answers.** The proxy answers a request by its `Host` header as the viewer's server does, as [the API doc](api.md#who-the-server-answers) describes: `localhost`, `127.0.0.1`, `[::1]` and the names given with `--allow-host`. Any other name is answered `403`, `Blocked request: this host is not allowed. To allow it, start Spectra with --allow-host <name>.` A request carrying `Origin`, a page's, is answered when its origin is `http` or `https` on one of those names, as a host app on `localhost` is; any other, `null` included, is answered `403`, `Blocked request: this origin is not allowed. To allow it, start Spectra with --allow-host <name>.` A request refused is not forwarded and opens no turn, and the terminal prints nothing for it.
+
 The proxy holds each request until its body has been read, then decides what it is:
 
 | The request                                                                                                                                                                              | What the proxy does                                                                          |

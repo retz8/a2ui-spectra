@@ -193,6 +193,8 @@ The two settings of this part. Where the file is found, that it is read strictly
 
 ### The model proxy
 
+**Who it answers.** The model proxy and the tool proxy answer a request or a WebSocket upgrade by its `Host` header as the viewer's server does, as [the API doc](api.md#who-the-server-answers) describes: `localhost`, `127.0.0.1`, `[::1]` and the names given with `--allow-host`, any other `403`, `Blocked request: this host is not allowed. To allow it, start Spectra with --allow-host <name>.` Their callers are the agent's clients, so a request or an upgrade carrying `Origin`, a page's, is answered `403`, `Blocked request: this proxy does not take requests from a web page.` A request refused is not forwarded and is not a call, and the terminal prints nothing for it.
+
 **Forwarding.** The proxy holds each request until its body has been read, then forwards it to its target with the headers and body as received, with three changes: `Host` is set to the target's, `content-length` is set to the body's length when the request has a body, and the headers that belong to one connection, `Connection` and those it names, `Keep-Alive`, `Proxy-Authenticate`, `Proxy-Authorization`, `Proxy-Connection`, `TE`, `Trailer`, `Transfer-Encoding` and `Upgrade`, are not passed on. The reply passes back with its status and its headers as received, the same connection headers left out, and a streamed reply chunk by chunk as it arrives.
 
 **The five requests read in full**, on the providers' own hosts:

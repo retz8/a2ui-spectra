@@ -26,7 +26,8 @@ const sharedOptions = `  --config <path>      The config file. Default: a2ui-spe
                        Default: ${DEFAULT_TOOL_PROXY_PORT}.
   --no-open            Do not open the browser.
   --allow-host <name>  Also answer requests addressed to <name>, a host name
-                       without a port, such as a tunnel's. Can be repeated.
+                       without a port, such as a tunnel's, and at the wire
+                       proxy a page on it. Can be repeated.
   --help               Show this help.`;
 
 const headlessOptions = `  --agent-url <url>    The agent's base address. Takes precedence over the

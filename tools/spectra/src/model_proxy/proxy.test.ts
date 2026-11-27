@@ -15,6 +15,7 @@ import type {ModelCallEvent} from '../record/turn_record.js';
 import {seconds} from './genai.js';
 import {type CallNotification, type ModelProxy, startModelProxy} from './proxy.js';
 import {type Redirection, redirections} from './redirection.js';
+import {HOST_REFUSED, PAGE_REFUSED} from '../host_check.js';
 import {freePort} from '../testing/free_port.js';
 import {eventually} from '../testing/eventually.js';
 import {listen} from '../testing/listen.js';
@@ -808,5 +809,70 @@ describe('the model proxy with a WebSocket upgrade', () => {
     assert.match(upgrade.head, /^HTTP\/1\.1 101/);
     await proxy.close();
     await upgrade.closed;
+  });
+});
+
+describe('the model proxy refusing a page', () => {
+  const request = {
+    path: '/ANTHROPIC_BASE_URL/v1/messages',
+    body: JSON.stringify(anthropicRequest),
+  };
+
+  it('refuses a Host that is not a loopback name or one allowed, and forwards and places nothing', async () => {
+    const {proxy, received, placements} = await setUp((_request, _body, response) =>
+      response.writeHead(200).end(),
+    );
+    const answer = await send(proxy, {
+      ...request,
+      headers: {host: 'r.attacker.example:9822', 'content-type': 'application/json'},
+    });
+    assert.equal(answer.status, 403);
+    assert.equal(answer.body.toString(), HOST_REFUSED);
+    assert.deepEqual(received, []);
+    assert.deepEqual(placements, []);
+  });
+
+  it('refuses any request from a page, and forwards and places nothing', async () => {
+    const {proxy, received, placements} = await setUp((_request, _body, response) =>
+      response.writeHead(200).end(),
+    );
+    for (const origin of ['https://attacker.example', 'http://localhost:5173']) {
+      const answer = await send(proxy, {
+        ...request,
+        headers: {origin, 'content-type': 'text/plain'},
+      });
+      assert.equal(answer.status, 403, origin);
+      assert.equal(answer.body.toString(), PAGE_REFUSED, origin);
+    }
+    assert.deepEqual(received, []);
+    assert.deepEqual(placements, []);
+  });
+
+  it('refuses an upgrade from a page, or under a Host not answered', async () => {
+    const echo = echoUpgradeServer();
+    servers.push(echo);
+    const echoPort = await listen(echo);
+    const port = await freePort();
+    const proxy = await startModelProxy({
+      port,
+      redirections: redirections({}, `http://127.0.0.1:${port}`).map(item => ({
+        ...item,
+        target: {kind: 'base', base: `http://127.0.0.1:${echoPort}`},
+      })),
+      place: () => undefined,
+    });
+    proxies.push(proxy);
+    const fromPage = await sendUpgrade(port, '/ANTHROPIC_BASE_URL/v1/socket', {
+      origin: 'https://attacker.example',
+    });
+    assert.match(fromPage.head, /^HTTP\/1\.1 403 Forbidden/);
+    await fromPage.closed;
+    assert.equal(fromPage.after(), PAGE_REFUSED);
+    const rebound = await sendUpgrade(port, '/ANTHROPIC_BASE_URL/v1/socket', {
+      host: 'r.attacker.example',
+    });
+    assert.match(rebound.head, /^HTTP\/1\.1 403 Forbidden/);
+    await rebound.closed;
+    assert.equal(rebound.after(), HOST_REFUSED);
   });
 });

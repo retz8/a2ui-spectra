@@ -15,6 +15,7 @@ import type {CallToPlace, PlacedCall, Unplaced} from '../placement.js';
 import type {CallEvent, ToolCallEvent} from '../record/turn_record.js';
 import {startToolProxy, type ToolProxy} from './proxy.js';
 import type {ToolServer} from './servers.js';
+import {HOST_REFUSED, PAGE_REFUSED} from '../host_check.js';
 import {freePort} from '../testing/free_port.js';
 import {eventually} from '../testing/eventually.js';
 import {listen} from '../testing/listen.js';
@@ -1013,5 +1014,52 @@ describe('the tool proxy with clients that name no session', () => {
       'tools/call first': {content: [{type: 'text', text: 'first'}]},
       'tools/call second': {content: [{type: 'text', text: 'second'}]},
     });
+  });
+});
+
+describe('the tool proxy refusing a page', () => {
+  const body = rpc({id: 1, method: 'tools/call', params: {name: 'ask'}});
+
+  it('refuses a Host that is not a loopback name or one allowed, and forwards and places nothing', async () => {
+    let reached = 0;
+    const setup = await setUp(streamable(() => (reached++, false)));
+    const answer = await send(setup.origin, {body, headers: {host: 'r.attacker.example:9824'}});
+    assert.equal(answer.status, 403);
+    assert.equal(answer.body, HOST_REFUSED);
+    assert.equal(reached, 0);
+    assert.deepEqual(setup.placements, []);
+  });
+
+  it('refuses any request from a page, and forwards and places nothing', async () => {
+    let reached = 0;
+    const setup = await setUp(streamable(() => (reached++, false)));
+    for (const origin of ['https://attacker.example', 'http://localhost:5173']) {
+      const answer = await send(setup.origin, {body, headers: {origin}});
+      assert.equal(answer.status, 403, origin);
+      assert.equal(answer.body, PAGE_REFUSED, origin);
+    }
+    const stream = await send(setup.origin, {
+      method: 'GET',
+      headers: {host: 'r.attacker.example:9824', 'mcp-session-id': 'S1'},
+    });
+    assert.equal(stream.status, 403);
+    assert.equal(reached, 0);
+    assert.deepEqual(setup.placements, []);
+  });
+
+  it('refuses an upgrade from a page, or under a Host not answered', async () => {
+    const echo = echoUpgradeServer();
+    servers.push(echo);
+    const setup = await setUp(() => {}, {port: await listen(echo)});
+    const port = Number(new URL(setup.origin).port);
+    const fromPage = await sendUpgrade(port, '/mcp/socket', {origin: 'https://attacker.example'});
+    assert.match(fromPage.head, /^HTTP\/1\.1 403 Forbidden/);
+    await fromPage.closed;
+    assert.equal(fromPage.after(), PAGE_REFUSED);
+    const rebound = await sendUpgrade(port, '/mcp/socket', {host: 'r.attacker.example'});
+    assert.match(rebound.head, /^HTTP\/1\.1 403 Forbidden/);
+    await rebound.closed;
+    assert.equal(rebound.after(), HOST_REFUSED);
+    assert.deepEqual(setup.logs, []);
   });
 });

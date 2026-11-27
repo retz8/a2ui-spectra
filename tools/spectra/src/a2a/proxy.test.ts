@@ -13,6 +13,7 @@ import {gzipSync} from 'node:zlib';
 import type {TurnEvent, TurnRecordEvent, WireOutputEvent} from '../record/turn_record.js';
 import {startWireProxy, type WireProxy, type WireProxyOptions} from './proxy.js';
 import type {TurnNotification} from './turn.js';
+import {HOST_REFUSED, ORIGIN_NOT_ALLOWED} from '../host_check.js';
 import {freePort} from '../testing/free_port.js';
 import {listen} from '../testing/listen.js';
 
@@ -726,5 +727,74 @@ describe('the wire proxy', () => {
     const {turnEvent} = await closedTurn(notifications);
     assert.equal(turnEvent.attributes['a2ui.turn.outcome'], 'failed');
     assert.deepEqual(turnEvent.status, {code: 2, message: 'The host closed the connection.'});
+  });
+});
+
+describe('the wire proxy refusing a page', () => {
+  const turn = jsonRpc('message/send', {message: userMessage});
+
+  it('refuses a Host that is not a loopback name or one allowed, opens no turn and forwards nothing', async () => {
+    const {proxy, received, notifications} = await setUp((_request, _body, response) => {
+      response.writeHead(200).end();
+    });
+    for (const request of [
+      {path: '/.well-known/agent-card.json'},
+      {method: 'POST', body: turn, headers: {'content-type': 'application/json'}},
+    ]) {
+      const answer = await send(proxy, {
+        ...request,
+        headers: {...request.headers, host: 'r.attacker.example:9821'},
+      });
+      assert.equal(answer.status, 403);
+      assert.equal(answer.body.toString(), HOST_REFUSED);
+    }
+    assert.deepEqual(received, []);
+    assert.deepEqual(notifications, []);
+  });
+
+  it('answers a Host given with --allow-host', async () => {
+    const {proxy, received} = await setUp(
+      (_request, _body, response) => response.writeHead(200).end(),
+      '',
+      {allowedHosts: ['tunnel.example']},
+    );
+    const answer = await send(proxy, {headers: {host: 'tunnel.example'}});
+    assert.equal(answer.status, 200);
+    assert.equal(received.length, 1);
+  });
+
+  it('refuses a page on another name, a form post among them, opens no turn and forwards nothing', async () => {
+    const {proxy, received, notifications} = await setUp((_request, _body, response) => {
+      response.writeHead(200).end();
+    });
+    const answer = await send(proxy, {
+      method: 'POST',
+      body: turn,
+      headers: {origin: 'https://attacker.example', 'content-type': 'text/plain'},
+    });
+    assert.equal(answer.status, 403);
+    assert.equal(answer.body.toString(), ORIGIN_NOT_ALLOWED);
+    assert.deepEqual(received, []);
+    assert.deepEqual(notifications, []);
+  });
+
+  it('passes a page on a loopback name or one allowed through', async () => {
+    const {proxy, received} = await setUp(
+      (_request, _body, response) => {
+        response.writeHead(200, {'content-type': 'application/json'});
+        response.end(JSON.stringify({jsonrpc: '2.0', id: 1, result: userMessage}));
+      },
+      '',
+      {allowedHosts: ['tunnel.example']},
+    );
+    for (const origin of ['http://localhost:5173', 'https://tunnel.example']) {
+      const answer = await send(proxy, {
+        method: 'POST',
+        body: turn,
+        headers: {origin, 'content-type': 'application/json'},
+      });
+      assert.equal(answer.status, 200, origin);
+    }
+    assert.equal(received.length, 2);
   });
 });

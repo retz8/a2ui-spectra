@@ -91,20 +91,20 @@ a2ui-spectra --version
 
 ## Options
 
-| Option                    | Meaning                                                                                                                                       | Default                                                         |
-| ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| `--agent-url <url>`       | The agent's base address. `run`, `replay` and `test`; takes precedence over the config file's `agent.url`.                                    |                                                                 |
-| `--config <path>`         | The config file, relative to the working directory when relative.                                                                             | `a2ui-spectra.json` in the working directory, when there is one |
-| `-H`, `--header <header>` | A header for every request the message box makes to the agent, written `Name: value` as curl takes one; see `agent.headers`. Can be repeated. |                                                                 |
-| `--port <n>`              | The viewer's port.                                                                                                                            | 9820                                                            |
-| `--proxy-port <n>`        | The wire proxy's port.                                                                                                                        | 9821                                                            |
-| `--model-proxy-port <n>`  | The model proxy's port.                                                                                                                       | 9822                                                            |
-| `--receiver-port <n>`     | The OpenTelemetry receiver's port.                                                                                                            | 9823                                                            |
-| `--tool-proxy-port <n>`   | The tool proxy's port for the config file's first tool server; each further one takes the next port, in config order.                         | 9824                                                            |
-| `--no-open`               | Do not open the browser.                                                                                                                      |                                                                 |
-| `--allow-host <name>`     | Also answer requests addressed to `<name>`, a host name without a port, such as a tunnel's. Can be repeated.                                  |                                                                 |
+| Option                    | Meaning                                                                                                                                          | Default                                                         |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| `--agent-url <url>`       | The agent's base address. `run`, `replay` and `test`; takes precedence over the config file's `agent.url`.                                       |                                                                 |
+| `--config <path>`         | The config file, relative to the working directory when relative.                                                                                | `a2ui-spectra.json` in the working directory, when there is one |
+| `-H`, `--header <header>` | A header for every request the message box makes to the agent, written `Name: value` as curl takes one; see `agent.headers`. Can be repeated.    |                                                                 |
+| `--port <n>`              | The viewer's port.                                                                                                                               | 9820                                                            |
+| `--proxy-port <n>`        | The wire proxy's port.                                                                                                                           | 9821                                                            |
+| `--model-proxy-port <n>`  | The model proxy's port.                                                                                                                          | 9822                                                            |
+| `--receiver-port <n>`     | The OpenTelemetry receiver's port.                                                                                                               | 9823                                                            |
+| `--tool-proxy-port <n>`   | The tool proxy's port for the config file's first tool server; each further one takes the next port, in config order.                            | 9824                                                            |
+| `--no-open`               | Do not open the browser.                                                                                                                         |                                                                 |
+| `--allow-host <name>`     | Also answer requests addressed to `<name>`, a host name without a port, such as a tunnel's, and at the wire proxy a page on it. Can be repeated. |                                                                 |
 
-A port that is taken is an error at start, and Spectra's ports must differ, each tool server's included. The viewer's server listens on loopback only and answers requests addressed to `localhost`, `127.0.0.1` and `[::1]`, plus the names given with `--allow-host`. Ports and allowed hosts are command-line only.
+A port that is taken is an error at start, and Spectra's ports must differ, each tool server's included. The viewer's server and the three proxies listen on loopback only and answer requests addressed to `localhost`, `127.0.0.1` and `[::1]`, plus the names given with `--allow-host`. The wire proxy answers a page on those names, and the model proxy and the tool proxy no page. Ports and allowed hosts are command-line only.
 
 ## The config file
 

@@ -31,8 +31,16 @@ export interface Upgrade {
   closed: Promise<void>;
 }
 
-/** Sends a WebSocket upgrade for `path` to the listener on `port`, and resolves once the answer's head arrived. */
-export function sendUpgrade(port: number, path: string): Promise<Upgrade> {
+/**
+ * Sends a WebSocket upgrade for `path` to the listener on `port`, `Host`
+ * naming the listener unless `headers` names another, and resolves once the
+ * answer's head arrived.
+ */
+export function sendUpgrade(
+  port: number,
+  path: string,
+  headers: Record<string, string> = {},
+): Promise<Upgrade> {
   return new Promise((resolve, reject) => {
     const socket = connect(port, '127.0.0.1');
     const closed = new Promise<void>(done => socket.once('close', () => done()));
@@ -49,9 +57,15 @@ export function sendUpgrade(port: number, path: string): Promise<Upgrade> {
       received = received.slice(end + 4);
       resolve({head, socket, after: () => received, closed});
     });
-    socket.write(
-      `GET ${path} HTTP/1.1\r\nhost: 127.0.0.1:${port}\r\nupgrade: websocket\r\nconnection: Upgrade\r\n` +
-        'sec-websocket-key: dGhlIHNhbXBsZSBub25jZQ==\r\nsec-websocket-version: 13\r\n\r\n',
-    );
+    const sent: Record<string, string> = {
+      host: `127.0.0.1:${port}`,
+      upgrade: 'websocket',
+      connection: 'Upgrade',
+      'sec-websocket-key': 'dGhlIHNhbXBsZSBub25jZQ==',
+      'sec-websocket-version': '13',
+      ...headers,
+    };
+    const lines = Object.entries(sent).map(([name, value]) => `${name}: ${value}\r\n`);
+    socket.write(`GET ${path} HTTP/1.1\r\n${lines.join('')}\r\n`);
   });
 }

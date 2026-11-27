@@ -57,6 +57,7 @@ import {
   wasStreamed,
 } from '../replay/served.js';
 import {nowUnixNano} from '../clock.js';
+import {proxyRefusal, refuseRequest, refuseUpgrade} from '../host_check.js';
 import {listenError, LOOPBACK_ADDRESS} from '../server.js';
 import {NAME} from '../version.js';
 import {
@@ -88,6 +89,8 @@ export interface ToolProxyOptions {
   onCall?: CallListener;
   /** Takes the proxy's one-line notes, such as a call that was not placed. */
   log?: (line: string) => void;
+  /** The names given with `--allow-host`, answered beside the loopback names. None unless set. */
+  allowedHosts?: readonly string[];
   /**
    * How long a reply is waited for after the agent closes its connection,
    * in milliseconds; one that has not ended by then ends the call as aborted.
@@ -262,6 +265,11 @@ function listen(shared: Shared, server: ToolServer): Promise<Server> {
   };
   const http = createServer((request, response) => handle(listener, request, response));
   http.on('upgrade', (request: IncomingMessage, socket: Duplex, head: Buffer) => {
+    const refusal = proxyRefusal(request.headers, shared.options.allowedHosts ?? [], 'refused');
+    if (refusal !== undefined) {
+      refuseUpgrade(socket, refusal);
+      return;
+    }
     const target = targetOf(listener, request);
     if (shared.pool !== undefined) {
       const line = missLine('tool proxy', request.method ?? 'GET', target);
@@ -296,6 +304,15 @@ function header(headers: IncomingHttpHeaders, name: string): string | undefined 
 }
 
 function handle(listener: Listener, request: IncomingMessage, response: ServerResponse): void {
+  const refusal = proxyRefusal(
+    request.headers,
+    listener.shared.options.allowedHosts ?? [],
+    'refused',
+  );
+  if (refusal !== undefined) {
+    refuseRequest(request, response, refusal);
+    return;
+  }
   const chunks: Buffer[] = [];
   request.on('data', (chunk: Buffer) => chunks.push(chunk));
   request.once('error', () => response.destroy());

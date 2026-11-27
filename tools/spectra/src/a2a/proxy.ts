@@ -11,6 +11,7 @@ import {request as httpsRequest} from 'node:https';
 import {PassThrough, type Transform} from 'node:stream';
 import {createBrotliDecompress, createGunzip, createInflate} from 'node:zlib';
 
+import {proxyRefusal, refuseRequest} from '../host_check.js';
 import {listenError, LOOPBACK_ADDRESS} from '../server.js';
 import {NAME, VERSION} from '../version.js';
 import {EXTENDED_CARD_METHODS, isCardPath, rewriteCard} from './card.js';
@@ -35,6 +36,8 @@ export interface WireProxyOptions {
   traceIdTaken?: (traceId: string) => Promise<boolean> | boolean;
   /** Takes the proxy's one-line warnings, such as that the host reuses trace ids. */
   warn?: (line: string) => void;
+  /** The names given with `--allow-host`, answered beside the loopback names. None unless set. */
+  allowedHosts?: readonly string[];
 }
 
 export interface WireProxy {
@@ -154,6 +157,11 @@ function forward(
   request: IncomingMessage,
   response: ServerResponse,
 ): void {
+  const refusal = proxyRefusal(request.headers, options.allowedHosts ?? [], 'allowed hosts');
+  if (refusal !== undefined) {
+    refuseRequest(request, response, refusal);
+    return;
+  }
   const bodyChunks: Buffer[] = [];
   request.on('data', (chunk: Buffer) => bodyChunks.push(chunk));
   request.once('error', () => response.destroy());

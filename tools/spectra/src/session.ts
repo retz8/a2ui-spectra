@@ -294,6 +294,7 @@ export async function runSession(
     process.on(signal, onSignal);
   }
 
+  const allowedHosts = options.viewer?.allowedHosts ?? [];
   try {
     // The model proxy listens before the agent starts, so its first call finds it.
     modelProxy = await startModelProxy({
@@ -303,6 +304,7 @@ export async function runSession(
       place: call => placer.place(call),
       onCall: turns.onCall,
       log: line => out.info(line),
+      allowedHosts,
     });
     if (tools.length > 0) {
       toolProxy = await startToolProxy({
@@ -310,6 +312,7 @@ export async function runSession(
         place: call => placer.tryPlace(call),
         onCall: turns.onCall,
         log: line => out.info(line),
+        allowedHosts,
       });
     }
     receiverListener = await startReceiverListener({
@@ -343,6 +346,7 @@ export async function runSession(
         traceIdTaken: async traceId =>
           turns.isOpen(traceId) || (await store.list()).some(turn => turn.traceId === traceId),
         warn: line => out.info(line),
+        allowedHosts,
       });
     const armed = {modelProxy, toolProxy};
     const openBox = (card: AgentCard | undefined): MessageBox =>
