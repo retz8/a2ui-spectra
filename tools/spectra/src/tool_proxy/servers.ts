@@ -5,7 +5,7 @@
  * forwards to.
  */
 import type {ToolServerConfig} from '../config.js';
-import {removeFromUrl} from '../model_proxy/credentials.js';
+import {removeFromUrl} from '../proxying/credentials.js';
 import {LOOPBACK_HOSTS} from '../host_check.js';
 import {LOOPBACK_ADDRESS} from '../server.js';
 import {pasteLine, type Shell} from '../paste.js';

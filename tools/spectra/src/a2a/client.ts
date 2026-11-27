@@ -8,7 +8,7 @@ import {JSONRPC} from './card.js';
 import {dataModelKeyFor} from './metadata.js';
 import {A2UI_MIME_TYPE} from './parts.js';
 import {type A2aVersion, isRecord, readReply, type TaskState} from './protocol.js';
-import {SseParser} from './sse.js';
+import {SseParser} from '../proxying/sse.js';
 
 /** The A2UI extension URIs of every version Spectra supports, sent in the extensions header. */
 export const A2UI_EXTENSION_URIS: readonly string[] = [

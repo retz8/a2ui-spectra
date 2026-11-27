@@ -5,7 +5,7 @@
  */
 import assert from 'node:assert/strict';
 
-import {SseParser} from '../a2a/sse.js';
+import {SseParser} from '../proxying/sse.js';
 import type {MessageBoxState, SentMessage} from '../message_box.js';
 import type {Turn} from '../record/turn_record.js';
 

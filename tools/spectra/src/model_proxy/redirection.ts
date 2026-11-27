@@ -6,7 +6,7 @@
  */
 import {LOOPBACK_HOSTS} from '../host_check.js';
 import {pasteBlocks, pasteLine, type Shell} from '../paste.js';
-import {removeFromUrl} from './credentials.js';
+import {removeFromUrl} from '../proxying/credentials.js';
 
 export const DEFAULT_MODEL_PROXY_PORT = 9822;
 

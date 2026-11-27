@@ -9,7 +9,7 @@
  * amending a written turn moves none of the events its checks' findings
  * point at.
  */
-import {parseTraceparent} from '../a2a/trace_context.js';
+import {parseTraceparent} from '../proxying/trace_context.js';
 import {isRecord} from '../model_proxy/genai.js';
 import {
   type CapturePath,

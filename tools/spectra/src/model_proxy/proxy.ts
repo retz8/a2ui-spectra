@@ -19,7 +19,7 @@ import {
 import {request as httpsRequest} from 'node:https';
 import type {Duplex} from 'node:stream';
 
-import {SseParser} from '../a2a/sse.js';
+import {SseParser} from '../proxying/sse.js';
 import type {CallToPlace, PlacedCall} from '../placement.js';
 import {withContentFitted} from '../receiver/genai.js';
 import type {CallEvent, ModelCallEvent, SpanEvent} from '../record/turn_record.js';
@@ -40,28 +40,23 @@ import {nowUnixNano} from '../clock.js';
 import {proxyRefusal, refuseRequest, refuseUpgrade} from '../host_check.js';
 import {listenError, LOOPBACK_ADDRESS} from '../server.js';
 import {NAME} from '../version.js';
-import {chunkEvent, endToEndHeaders, requestAttributes, responseAttributes} from './exchange.js';
-import {bodyJson, decoderFor, isTokenRequest, readBody, tunnelUpgrade} from './forwarding.js';
+import {
+  chunkEvent,
+  endToEndHeaders,
+  requestAttributes,
+  responseAttributes,
+} from '../proxying/exchange.js';
+import {
+  bodyJson,
+  decoderFor,
+  isTokenRequest,
+  readBody,
+  tunnelUpgrade,
+} from '../proxying/forwarding.js';
+import type {CallListener} from '../proxying/calls.js';
 import {seconds} from './genai.js';
 import {type ApiReader, readerFor, type StreamChunk} from './readers/index.js';
 import {forwardTo, type Redirection, splitPrefix, VARIABLES} from './redirection.js';
-
-/** What the model proxy and the tool proxy hand out as a call is captured. */
-export type CallNotification =
-  /** The call's event so far: its start, its request and the names read from it. */
-  | {type: 'call_started'; traceId: string; event: CallEvent}
-  /** One response chunk, as it arrives. */
-  | {type: 'call_chunk'; traceId: string; spanId: string; chunk: SpanEvent}
-  /**
-   * A model call's response names read from its chunks so far: the output
-   * messages, the finish reasons and the usage as far as the stream has
-   * given them.
-   */
-  | {type: 'call_progress'; traceId: string; spanId: string; attributes: Record<string, unknown>}
-  /** The complete event, as the record holds it. */
-  | {type: 'call_ended'; traceId: string; event: CallEvent};
-
-export type CallListener = (notification: CallNotification) => void;
 
 export interface ModelProxyOptions {
   /** The proxy's port, on loopback. */

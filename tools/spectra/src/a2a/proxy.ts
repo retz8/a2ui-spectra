@@ -16,8 +16,8 @@ import {listenError, LOOPBACK_ADDRESS} from '../server.js';
 import {NAME, VERSION} from '../version.js';
 import {EXTENDED_CARD_METHODS, isCardPath, rewriteCard} from './card.js';
 import {isRecord, readTurnRequest} from './protocol.js';
-import {SseParser} from './sse.js';
-import {formatTraceparent, parseTraceparent} from './trace_context.js';
+import {SseParser} from '../proxying/sse.js';
+import {formatTraceparent, parseTraceparent} from '../proxying/trace_context.js';
 import {TurnCapture, type TurnListener} from './turn.js';
 
 export interface WireProxyOptions {

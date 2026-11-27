@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {type IncomingHttpHeaders, request as httpRequest} from 'node:http';
 import {after, describe, it} from 'node:test';
 
-import {type SseEvent, SseParser} from '../a2a/sse.js';
+import {type SseEvent, SseParser} from '../proxying/sse.js';
 import type {PlacedCall} from '../placement.js';
 import type {SpanEvent, ToolCallEvent, TurnRecord} from '../record/turn_record.js';
 import {type PoolMode, ReplayPool} from '../replay/pool.js';

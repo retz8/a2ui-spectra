@@ -7,7 +7,7 @@ import type {IncomingHttpHeaders, OutgoingHttpHeaders} from 'node:http';
 
 import type {SpanEvent} from '../record/turn_record.js';
 import {removeFromHeaders, removeFromUrl} from './credentials.js';
-import {parsedJson} from './genai.js';
+import {parsedJson} from '../model_proxy/genai.js';
 
 /**
  * Headers that belong to one connection, which a proxy does not pass on

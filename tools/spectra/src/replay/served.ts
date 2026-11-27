@@ -9,8 +9,8 @@ import {EventEmitter} from 'node:events';
 import {type IncomingHttpHeaders, type ServerResponse, STATUS_CODES} from 'node:http';
 import {Readable} from 'node:stream';
 
-import type {SseEvent} from '../a2a/sse.js';
-import {REMOVED, removeFromUrl} from '../model_proxy/credentials.js';
+import type {SseEvent} from '../proxying/sse.js';
+import {REMOVED, removeFromUrl} from '../proxying/credentials.js';
 import type {CallEvent} from '../record/turn_record.js';
 import {NAME} from '../version.js';
 

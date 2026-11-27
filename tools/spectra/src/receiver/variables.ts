@@ -10,7 +10,7 @@
  * one, is replaced in the agent's; a signal-specific one it does not set
  * stays unset.
  */
-import {removeFromUrl} from '../model_proxy/credentials.js';
+import {removeFromUrl} from '../proxying/credentials.js';
 import {pasteLine, type Shell} from '../paste.js';
 
 const ENDPOINT = 'OTEL_EXPORTER_OTLP_ENDPOINT';

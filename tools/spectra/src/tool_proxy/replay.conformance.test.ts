@@ -14,7 +14,7 @@ import {describe, it} from 'node:test';
 
 import * as yaml from 'js-yaml';
 
-import {SseParser} from '../a2a/sse.js';
+import {SseParser} from '../proxying/sse.js';
 import {CallPlacer} from '../placement.js';
 import type {ToolCallEvent, Turn, TurnRecord} from '../record/turn_record.js';
 import {ReplayPool} from '../replay/pool.js';

@@ -2,7 +2,7 @@ import type {TurnListener} from './a2a/turn.js';
 import type {AgentLiveEvent} from './agent_supervisor.js';
 import {isoTimeOf} from './clock.js';
 import {inputBriefOf, type InputBrief} from './listing.js';
-import type {CallListener, CallNotification} from './model_proxy/proxy.js';
+import type {CallListener, CallNotification} from './proxying/calls.js';
 import {
   type CallEvent,
   isEventOfKind,

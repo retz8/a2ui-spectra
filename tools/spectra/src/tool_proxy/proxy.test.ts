@@ -9,8 +9,8 @@ import {
 } from 'node:http';
 import {after, describe, it} from 'node:test';
 
-import {type SseEvent, SseParser} from '../a2a/sse.js';
-import type {CallNotification} from '../model_proxy/proxy.js';
+import {type SseEvent, SseParser} from '../proxying/sse.js';
+import type {CallNotification} from '../proxying/calls.js';
 import type {CallToPlace, PlacedCall, Unplaced} from '../placement.js';
 import type {CallEvent, ToolCallEvent} from '../record/turn_record.js';
 import {startToolProxy, type ToolProxy} from './proxy.js';

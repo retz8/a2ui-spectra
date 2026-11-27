@@ -23,22 +23,22 @@ import {
 import {request as httpsRequest} from 'node:https';
 import type {Duplex} from 'node:stream';
 
-import {type SseEvent, SseParser} from '../a2a/sse.js';
-import {removeFromUrl} from '../model_proxy/credentials.js';
+import {type SseEvent, SseParser} from '../proxying/sse.js';
+import {removeFromUrl} from '../proxying/credentials.js';
 import {
   chunkEvent,
   endToEndHeaders,
   requestAttributes,
   responseAttributes,
-} from '../model_proxy/exchange.js';
+} from '../proxying/exchange.js';
 import {
   bodyJson,
   decoderFor,
   isTokenRequest,
   readBody,
   tunnelUpgrade,
-} from '../model_proxy/forwarding.js';
-import type {CallListener} from '../model_proxy/proxy.js';
+} from '../proxying/forwarding.js';
+import type {CallListener} from '../proxying/calls.js';
 import type {CallToPlace, PlacedCall, Unplaced} from '../placement.js';
 import type {CallEvent, SpanEvent, ToolCallEvent} from '../record/turn_record.js';
 import {exchangeKey, type ReplayPool, requestMessage} from '../replay/pool.js';

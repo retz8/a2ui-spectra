@@ -4,7 +4,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {after, describe, it} from 'node:test';
 
-import {SseParser} from './a2a/sse.js';
+import {SseParser} from './proxying/sse.js';
 import type {LogSnapshot} from './agent_log.js';
 import type {AgentSnapshot, RestartCause} from './agent_supervisor.js';
 import type {AgentApi, FixturesListing, ListedTurn, SessionContext} from './api.js';
