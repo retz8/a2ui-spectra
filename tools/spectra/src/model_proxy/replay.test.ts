@@ -15,6 +15,7 @@ import {type Redirection, redirections} from './redirection.js';
 import {freePort} from '../testing/free_port.js';
 import {eventually} from '../testing/eventually.js';
 import {listen} from '../testing/listen.js';
+import {sendUpgrade} from '../testing/upgrade.js';
 
 const TRACE = 'f'.repeat(32);
 const TURN_SPAN = '1'.repeat(16);
@@ -380,5 +381,22 @@ describe('the model proxy in replay', () => {
     await new Promise(resolve => setTimeout(resolve, 20));
     assert.deepEqual(setup.ended, [], 'a token request is never recorded');
     assert.equal(setup.logs.length, 1);
+  });
+});
+
+describe('the model proxy in replay with a WebSocket upgrade', () => {
+  it('answers an upgrade 502 with the miss line, with everything recorded', async () => {
+    const setup = await setUp();
+    arm(setup, 'recorded');
+    const upgrade = await sendUpgrade(
+      Number(new URL(setup.proxy.origin).port),
+      '/ANTHROPIC_BASE_URL/v1/socket',
+    );
+    const line =
+      "a2ui-spectra's model proxy is replaying, and GET /v1/socket matched nothing in the record.";
+    assert.match(upgrade.head, /^HTTP\/1\.1 502 Bad Gateway/);
+    await upgrade.closed;
+    assert.equal(upgrade.after(), `${line}\n`);
+    assert.deepEqual(setup.logs, [line]);
   });
 });

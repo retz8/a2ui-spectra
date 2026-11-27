@@ -9,6 +9,7 @@ import {type PoolMode, ReplayPool} from '../replay/pool.js';
 import {startToolProxy, type ToolProxy} from './proxy.js';
 import {freePort} from '../testing/free_port.js';
 import {eventually} from '../testing/eventually.js';
+import {sendUpgrade} from '../testing/upgrade.js';
 
 const TRACE = 'f'.repeat(32);
 const TURN_SPAN = '1'.repeat(16);
@@ -465,5 +466,19 @@ describe('the tool proxy in replay', () => {
       'the endpoint event first, then the reply',
     );
     carrier.close();
+  });
+});
+
+describe('the tool proxy in replay with a WebSocket upgrade', () => {
+  it('answers an upgrade 502 with the miss line', async () => {
+    const setup = await setUp();
+    arm(setup, 'recorded');
+    const upgrade = await sendUpgrade(Number(new URL(setup.origin).port), '/mcp/socket');
+    const line =
+      "a2ui-spectra's tool proxy is replaying, and GET /mcp/socket matched nothing in the record.";
+    assert.match(upgrade.head, /^HTTP\/1\.1 502 Bad Gateway/);
+    await upgrade.closed;
+    assert.equal(upgrade.after(), `${line}\n`);
+    assert.deepEqual(setup.logs, [line]);
   });
 });

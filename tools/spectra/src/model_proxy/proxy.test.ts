@@ -18,6 +18,7 @@ import {type Redirection, redirections} from './redirection.js';
 import {freePort} from '../testing/free_port.js';
 import {eventually} from '../testing/eventually.js';
 import {listen} from '../testing/listen.js';
+import {echoUpgradeServer, sendUpgrade} from '../testing/upgrade.js';
 
 type Handler = (request: IncomingMessage, body: string, response: ServerResponse) => void;
 
@@ -751,5 +752,61 @@ describe('the model proxy', () => {
     assert.deepEqual(placements, []);
     assert.deepEqual(ended, []);
     assert.equal(logs.length, 2);
+  });
+});
+
+describe('the model proxy with a WebSocket upgrade', () => {
+  /** A model proxy whose every prefix forwards to an echo server that switches protocols. */
+  async function upgradeSetUp(): Promise<{
+    proxy: ModelProxy;
+    port: number;
+    echoHost: string;
+    logs: string[];
+  }> {
+    const echo = echoUpgradeServer();
+    servers.push(echo);
+    const echoHost = `127.0.0.1:${await listen(echo)}`;
+    const port = await freePort();
+    const logs: string[] = [];
+    const proxy = await startModelProxy({
+      port,
+      redirections: redirections({}, `http://127.0.0.1:${port}`).map(item => ({
+        ...item,
+        target: {kind: 'base', base: `http://${echoHost}`},
+      })),
+      place: () => undefined,
+      log: line => logs.push(line),
+    });
+    proxies.push(proxy);
+    return {proxy, port, echoHost, logs};
+  }
+
+  it('answers 404 to an upgrade under no prefix', async () => {
+    const {port, logs} = await upgradeSetUp();
+    const upgrade = await sendUpgrade(port, '/not-a-prefix/socket');
+    assert.match(upgrade.head, /^HTTP\/1\.1 404 Not Found/);
+    await upgrade.closed;
+    assert.deepEqual(logs, []);
+  });
+
+  it('passes an upgrade on as a tunnel under the target host, unrecorded, with one line', async () => {
+    const {port, echoHost, logs} = await upgradeSetUp();
+    const upgrade = await sendUpgrade(port, '/ANTHROPIC_BASE_URL/v1/socket');
+    assert.match(upgrade.head, /^HTTP\/1\.1 101 Switching Protocols/);
+    assert.match(upgrade.head, new RegExp(`x-received-host: ${echoHost}`));
+    upgrade.socket.write('hello');
+    await eventually(() => upgrade.after() === 'hello', 'the echo');
+    assert.deepEqual(logs, [
+      `A WebSocket upgrade, http://${echoHost}/v1/socket, was passed on unrecorded.`,
+    ]);
+    upgrade.socket.destroy();
+  });
+
+  it("closes a tunnel's sockets when it stops", async () => {
+    const {proxy, port} = await upgradeSetUp();
+    const upgrade = await sendUpgrade(port, '/ANTHROPIC_BASE_URL/v1/socket');
+    assert.match(upgrade.head, /^HTTP\/1\.1 101/);
+    await proxy.close();
+    await upgrade.closed;
   });
 });

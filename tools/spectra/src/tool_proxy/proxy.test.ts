@@ -16,7 +16,9 @@ import type {CallEvent, ToolCallEvent} from '../record/turn_record.js';
 import {startToolProxy, type ToolProxy} from './proxy.js';
 import type {ToolServer} from './servers.js';
 import {freePort} from '../testing/free_port.js';
+import {eventually} from '../testing/eventually.js';
 import {listen} from '../testing/listen.js';
+import {echoUpgradeServer, sendUpgrade} from '../testing/upgrade.js';
 
 const TRACE = 'f'.repeat(32);
 const TURN_SPAN = '1'.repeat(16);
@@ -762,5 +764,24 @@ describe('the tool proxy for HTTP tools', () => {
     await setup.proxy.close();
     await until(() => setup.ended.length === 1, 'the aborted call');
     assert.equal(setup.ended[0].attributes['error.type'], 'aborted');
+  });
+});
+
+describe('the tool proxy with a WebSocket upgrade', () => {
+  it("passes an upgrade on as a tunnel under the tool server's host, unrecorded, with one line", async () => {
+    const echo = echoUpgradeServer();
+    servers.push(echo);
+    const echoPort = await listen(echo);
+    const setup = await setUp(() => {}, {port: echoPort});
+    const upgrade = await sendUpgrade(Number(new URL(setup.origin).port), '/mcp/socket');
+    assert.match(upgrade.head, /^HTTP\/1\.1 101 Switching Protocols/);
+    assert.match(upgrade.head, new RegExp(`x-received-host: 127\\.0\\.0\\.1:${echoPort}`));
+    upgrade.socket.write('hello');
+    await eventually(() => upgrade.after() === 'hello', 'the echo');
+    assert.deepEqual(setup.logs, [
+      `A WebSocket upgrade, http://127.0.0.1:${echoPort}/mcp/socket, was passed on unrecorded.`,
+    ]);
+    assert.deepEqual(setup.placements, []);
+    upgrade.socket.destroy();
   });
 });
