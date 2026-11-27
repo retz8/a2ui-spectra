@@ -18,6 +18,8 @@ import {
   processorOf,
   runNode,
   sdk,
+  SDK_VERSION,
+  versionPattern,
   Warnings,
 } from './testing/support.js';
 
@@ -100,6 +102,40 @@ describe('switching the wrapper on and off', () => {
     );
     assert.equal(code, 0, stderr);
     assert.deepEqual(JSON.parse(stdout), {hooked: true, provider: 'NodeTracerProvider'});
+  });
+
+  it('a prototype that cannot be hooked: nothing patched, one refusal line', async () => {
+    const child = [
+      'process.on("warning", warning => console.log(JSON.stringify(warning.message)));',
+      "const {DirectJsonParser, RendererState} = await import('@a2ui/agent');",
+      'Object.freeze(RendererState.prototype);',
+      "const {instrument} = await import('a2ui-spectra-instrumentation');",
+      'instrument();',
+      "const original = DirectJsonParser.prototype.compile[Symbol.for('a2ui-spectra-instrumentation.original')];",
+      'console.log(JSON.stringify({hooked: original !== undefined}));',
+    ].join('\n');
+    const {code, stdout, stderr} = await runNode(['--input-type=module', '-e', child], {
+      cwd: PACKAGE,
+      env: childEnv(),
+    });
+    assert.equal(code, 0, stderr);
+    const lines = stdout
+      .trim()
+      .split('\n')
+      .map(line => JSON.parse(line) as unknown);
+    assert.deepEqual(
+      lines.filter(line => typeof line !== 'string'),
+      [{hooked: false}],
+    );
+    const warnings = lines.filter(line => typeof line === 'string');
+    assert.equal(warnings.length, 1);
+    assert.match(
+      warnings[0],
+      new RegExp(
+        `^a2ui-spectra-instrumentation left @a2ui/agent ${versionPattern(SDK_VERSION)} unpatched: ` +
+          'hooking it failed \\(TypeError: [^)]+\\); it was written against ',
+      ),
+    );
   });
 
   it('one line, then a natural exit: the spans reach the endpoint through beforeExit', async () => {

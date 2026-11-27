@@ -63,7 +63,8 @@ export function atLeast(version: string, floor: string): boolean {
   return found[3] === undefined || wanted[3] !== undefined;
 }
 
-function refuse(version: string | undefined, why: string): void {
+/** The one line a refusal writes: nothing of the SDK is hooked, and why. */
+export function refuse(version: string | undefined, why: string): void {
   warn(
     `a2ui-spectra-instrumentation left ${AGENT_SDK} ${version ?? '(not installed)'} unpatched: ` +
       `${why}; it was written against ${PIN} (${AGENT_SDK} >= ${FLOOR})`,

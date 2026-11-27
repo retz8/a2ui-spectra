@@ -3,8 +3,8 @@
 import type {Tracer, TracerProvider} from '@opentelemetry/api';
 import {InstrumentationBase, type InstrumentationConfig} from '@opentelemetry/instrumentation';
 
-import {check, type Plan} from './check.js';
-import {reportFault, warn} from './log.js';
+import {check, type Plan, refuse} from './check.js';
+import {className, messageOf, warn} from './log.js';
 import {SCOPE_NAME, VERSION} from './package.js';
 import * as patching from './patching.js';
 import {startProvider} from './provider.js';
@@ -73,7 +73,7 @@ function switchOn(instrumentation: A2uiInstrumentation, tracer: () => Tracer): v
     patching.apply(plan);
   } catch (fault) {
     state.deactivate();
-    reportFault('hooking the SDK', fault);
+    refuse(plan.sdkVersion, `hooking it failed (${className(fault)}: ${messageOf(fault)})`);
     return;
   }
   owner = instrumentation;
