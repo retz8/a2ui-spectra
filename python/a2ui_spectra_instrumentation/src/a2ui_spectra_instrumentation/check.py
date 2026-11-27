@@ -1,4 +1,6 @@
-"""The pinned-API check: the version floor, and every hooked name, per distribution.
+"""The pinned-API check: the version floor, and every hooked name.
+
+Each is checked per distribution.
 
 The agent SDK's core names stand or fall together, Direct JSON's and Express's
 prompt generator classes with them; Atom's and Elemental's names and generator
@@ -26,7 +28,7 @@ _EXPERIMENTAL = ("atom", "elemental")
 
 @dataclass
 class Target:
-    """A hooked name, resolved: the object that holds it and its attribute there."""
+    """A hooked name, resolved: its holder and its attribute there."""
 
     hook: hooks.Hook
     owner: Any
@@ -35,7 +37,10 @@ class Target:
 
 @dataclass
 class Plan:
-    """What the check found: the SDK's version, every name to hook, and the format classes."""
+    """What the check found.
+
+    The SDK's version, every name to hook, and the format classes.
+    """
 
     sdk_version: str
     targets: list[Target] = field(default_factory=list)
@@ -82,7 +87,10 @@ def _resolve_class(module: str, name: str) -> type:
 
 
 def _add_group(plan: Plan, group: str) -> None:
-    """Adds every name and class of a group, or none, raising a LookupError naming the first missing."""
+    """Adds every name and class of a group, or none.
+
+    A LookupError names the first one missing.
+    """
     targets = []
     for hook in hooks.HOOKS:
         if hook.group == group:
@@ -157,7 +165,10 @@ def check() -> Plan | None:
 
 
 def _check_toolset(plan: Plan) -> None:
-    """Adds the toolset's names, unless `a2ui-adk` is not installed or lacks one."""
+    """Adds the toolset's names.
+
+    It adds none when `a2ui-adk` is not installed or lacks one of them.
+    """
     adk_version = installed_version(package.ADK)
     if adk_version is None:
         return

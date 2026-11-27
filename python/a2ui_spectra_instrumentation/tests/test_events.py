@@ -1,4 +1,7 @@
-"""One event per outermost call, the block an error belongs to, and arguments by keyword."""
+"""One event per outermost call, and the block an error belongs to.
+
+Also, a hooked call's arguments passed by keyword.
+"""
 
 from __future__ import annotations
 

@@ -1,4 +1,7 @@
-"""A stream's span: closed, ended by a raising `feed`, abandoned, and fed after its end."""
+"""A stream's span: closed, ended by a raising `feed`, or abandoned.
+
+Also a stream fed after its end.
+"""
 
 from __future__ import annotations
 

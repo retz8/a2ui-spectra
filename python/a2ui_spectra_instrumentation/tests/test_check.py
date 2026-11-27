@@ -1,4 +1,7 @@
-"""The pinned-API check: the version floor and the hooked names, per distribution."""
+"""The pinned-API check: the version floor and the hooked names.
+
+Each is checked per distribution.
+"""
 
 from __future__ import annotations
 

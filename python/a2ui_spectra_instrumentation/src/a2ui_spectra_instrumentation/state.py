@@ -1,4 +1,7 @@
-"""The instrumentation while it is switched on: its tracer and what it read off the SDK."""
+"""The instrumentation while it is switched on.
+
+Its tracer, and what it read off the SDK.
+"""
 
 from __future__ import annotations
 
@@ -50,7 +53,10 @@ _active: Active | None = None
 
 
 def current() -> Active | None:
-    """The switched-on instrumentation, or None: every hook then calls straight through."""
+    """The switched-on instrumentation, or None.
+
+    With None, every hook calls straight through.
+    """
     return _active
 
 

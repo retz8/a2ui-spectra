@@ -138,7 +138,10 @@ def no_otlp_variables(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.fixture
 def no_global_provider() -> Iterator[None]:
-    """The process starts with OpenTelemetry's proxy as its tracer provider, and gets it back."""
+    """The process starts with OpenTelemetry's proxy as its tracer provider.
+
+    It gets the proxy back after the test.
+    """
     saved = (trace._TRACER_PROVIDER, trace._TRACER_PROVIDER_SET_ONCE)
     trace._TRACER_PROVIDER = None
     trace._TRACER_PROVIDER_SET_ONCE = Once()
@@ -154,7 +157,10 @@ ProcessorFactory = Callable[..., A2uiRequestProcessor]
 
 @pytest.fixture
 def processor() -> ProcessorFactory:
-    """A processor on the basic catalog: Express at v1.0 by default, a renderer state bound on request."""
+    """A processor on the basic catalog, Express at v1.0 by default.
+
+    A renderer state is bound on request.
+    """
 
     def make(
         fmt: str = "express", version: str = "1.0", state: bool = False

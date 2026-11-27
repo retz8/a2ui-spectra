@@ -22,7 +22,10 @@ _swallowed = hooks.SwallowedErrors()
 
 
 def apply(plan: check.Plan) -> None:
-    """Hooks every name of the plan; on a failure, removes what it hooked and raises."""
+    """Hooks every name of the plan.
+
+    On a failure, it removes what it hooked and raises.
+    """
     try:
         for target in plan.targets:
             current = getattr(target.owner, target.attribute)

@@ -1,4 +1,6 @@
-"""OpenTelemetry instrumentation of upstream's A2UI agent SDK, reporting the A2UI step to Spectra.
+"""OpenTelemetry instrumentation of upstream's A2UI agent SDK.
+
+It reports the A2UI step to Spectra.
 
 Switched on by launching the agent under `opentelemetry-instrument` with the
 package installed, or with one line before the agent runs:
@@ -21,7 +23,9 @@ __all__ = ["A2uiInstrumentor", "__version__", "instrument", "uninstrument"]
 
 
 def instrument(**kwargs: Any) -> None:
-    """Switches the wrapper on: checks the SDK, hooks it, and starts a tracer provider if needed.
+    """Switches the wrapper on.
+
+    It checks the SDK, hooks it, and starts a tracer provider if needed.
 
     Args:
       tracer_provider: The provider the spans go to. By default the process's,

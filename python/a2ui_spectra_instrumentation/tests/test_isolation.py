@@ -1,4 +1,8 @@
-"""A failure inside the wrapper leaves the SDK's return and exception as they are, with one line; an error the wrapper records keeps nothing of the caller alive."""
+"""A failure inside the wrapper leaves the SDK's result as it is.
+
+The SDK's return and exception stay as they are, with one line. An error the
+wrapper records keeps nothing of the caller alive.
+"""
 
 from __future__ import annotations
 
@@ -98,7 +102,10 @@ def test_a_fault_leaves_the_exception_as_it_is(
 
 
 class Held:
-    """Stands for what the agent's frame holds, such as the generator it reads tokens from."""
+    """Stands for what the agent's frame holds.
+
+    For example, the generator it reads tokens from.
+    """
 
 
 def test_a_raising_feed_keeps_nothing_of_the_caller_alive(

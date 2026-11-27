@@ -21,7 +21,9 @@ from a2ui_spectra_instrumentation import version
 
 
 class A2uiInstrumentor(BaseInstrumentor):  # type: ignore[misc]
-    """Instruments upstream's A2UI agent SDK, and `a2ui-adk`'s toolset, at the pin.
+    """Instruments upstream's A2UI agent SDK and `a2ui-adk`'s toolset.
+
+    It hooks both as they are at the pin.
 
     `opentelemetry-instrument` loads it through the `opentelemetry_instrumentor`
     entry point; `a2ui_spectra_instrumentation.instrument()` is the one-line form.

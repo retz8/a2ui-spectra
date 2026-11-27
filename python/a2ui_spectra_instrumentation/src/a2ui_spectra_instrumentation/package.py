@@ -1,4 +1,7 @@
-"""What the wrapper instruments: the agent SDK, at the pin it was written against."""
+"""What the wrapper instruments.
+
+The agent SDK, at the pin it was written against.
+"""
 
 # The instrumentation scope's name.
 SCOPE_NAME = "a2ui-spectra-instrumentation"

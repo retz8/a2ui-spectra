@@ -1,4 +1,7 @@
-"""The tracer provider: started only when the process has none and the environment names an endpoint."""
+"""The tracer provider: started only when the process has none.
+
+And only when the environment names an endpoint.
+"""
 
 from __future__ import annotations
 

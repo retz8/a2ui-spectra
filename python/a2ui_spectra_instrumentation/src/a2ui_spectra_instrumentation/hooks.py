@@ -27,7 +27,10 @@ Wrapper = Callable[[Any, Any, tuple[Any, ...], dict[str, Any]], Any]
 
 @dataclass(frozen=True)
 class Hook:
-    """One hooked name: where it is, which group it stands or falls with, and its role."""
+    """One hooked name: where it is, its group and its role.
+
+    Its group is the set of names it stands or falls with.
+    """
 
     # `core`, `atom` and `elemental` on the agent SDK; `toolset` on `a2ui-adk`.
     group: str
@@ -43,7 +46,10 @@ class Hook:
 
 @dataclass(frozen=True)
 class Generator:
-    """A format's prompt generator class: read, not hooked, to name a generator's format."""
+    """A format's prompt generator class.
+
+    It is read, not hooked, to name a generator's format.
+    """
 
     # The group the class stands or falls with, as a hooked name's.
     group: str
@@ -133,7 +139,10 @@ def _safely(where: str, action: Callable[[], object]) -> None:
 
 
 def _leave(event: events.Event, token: contextvars.Token[events.Event | None]) -> None:
-    """The outermost call on an event is over: it is no longer the open one, and keeps no error."""
+    """The outermost call on an event is over.
+
+    The event is no longer the open one, and keeps no error.
+    """
     events.leave(token)
     event.release()
 
@@ -141,7 +150,10 @@ def _leave(event: events.Event, token: contextvars.Token[events.Event | None]) -
 def _arguments(
     wrapped: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> dict[str, Any]:
-    """The call's arguments, bound to the wrapped call's signature, defaults applied."""
+    """The call's arguments, bound to the wrapped call's signature.
+
+    Defaults are applied.
+    """
     bound = inspect.signature(wrapped).bind(*args, **kwargs)
     bound.apply_defaults()
     return dict(bound.arguments)
@@ -152,7 +164,10 @@ def _first(arguments: dict[str, Any]) -> Any:
 
 
 def _unrecorded(wrapped: Any, args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
-    """A call the wrapper does not record: the calls nested in it open no event either."""
+    """A call the wrapper does not record.
+
+    The calls nested in it open no event either.
+    """
     token = events.enter(events.Silent())
     try:
         return wrapped(*args, **kwargs)
@@ -177,7 +192,10 @@ def _inner(
     before: Callable[[], object] | None = None,
     whole_tree: bool = False,
 ) -> Any:
-    """A hooked call made while an event is open: it opens none, and tells the open one."""
+    """A hooked call made while an event is open.
+
+    It opens none, and tells the open one.
+    """
     if before is not None:
         _safely(where, before)
     event.depth += 1
@@ -222,6 +240,7 @@ def _outermost(
 def parse_response_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
+    """Hooks `Parser.parse_response`: an outermost call is one `parse`."""
     active = state.current()
     if active is None:
         return wrapped(*args, **kwargs)
@@ -253,9 +272,12 @@ def parse_response_hook(
 
 
 def compile_hook_for(inference_format: str | None) -> Wrapper:
+    """The hook on a parser's `compile`, for one inference format."""
+
     def compile_hook(
         wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
     ) -> Any:
+        """Hooks a parser's `compile`: an outermost call is one `parse`."""
         active = state.current()
         if active is None:
             return wrapped(*args, **kwargs)
@@ -300,9 +322,12 @@ def _stream_event(stream: Any) -> events.ParseEvent | None:
 
 
 def open_stream_hook_for(inference_format: str | None) -> Wrapper:
+    """The hook on a parser's `open_stream`, for one inference format."""
+
     def open_stream_hook(
         wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
     ) -> Any:
+        """Hooks `open_stream`: the stream it returns is one `parse`."""
         active = state.current()
         if active is None:
             return wrapped(*args, **kwargs)
@@ -338,7 +363,10 @@ def _stream_call(
     before: Callable[[events.ParseEvent], object] | None,
     closing: bool,
 ) -> Any:
-    """A `feed` or `close` on a stream with an event, which is the open event while it runs."""
+    """A `feed` or `close` on a stream with an event.
+
+    The event is the open event while it runs.
+    """
     if state.current() is None:
         return wrapped(*args, **kwargs)
     event = _stream_event(instance)
@@ -374,6 +402,8 @@ def _stream_call(
 def feed_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
+    """Hooks a stream's `feed`: the chunk joins the stream's `parse`."""
+
     def before(event: events.ParseEvent) -> None:
         event.feed(_first(_arguments(wrapped, args, kwargs)))
 
@@ -385,6 +415,7 @@ def feed_hook(
 def close_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
+    """Hooks a stream's `close`: the stream's `parse` ends."""
     return _stream_call(
         wrapped, instance, args, kwargs, "the close hook", None, closing=True
     )
@@ -393,7 +424,10 @@ def close_hook(
 def whole_tree_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
-    """A whole-tree check: an error it raises belongs to no block."""
+    """Hooks a whole-tree check: an error it raises belongs to no block.
+
+    The checks are `RendererState.check_topology` and `validate_payload`.
+    """
     open_event = events.current() if state.current() is not None else None
     if open_event is None:
         return wrapped(*args, **kwargs)
@@ -405,7 +439,7 @@ def whole_tree_hook(
 def apply_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
-    """Messages applied to a renderer state: an error it raises is seen as it is raised."""
+    """Hooks `RendererState.apply`: an error it raises is seen when raised."""
     open_event = events.current() if state.current() is not None else None
     if open_event is None:
         return wrapped(*args, **kwargs)
@@ -418,7 +452,10 @@ def apply_hook(
 def generate_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
-    """`PromptGenerator.generate`: one `prompt_generation` for a generator of a format's class."""
+    """Hooks `PromptGenerator.generate`: one `prompt_generation`.
+
+    It records one only for a generator of a format's class.
+    """
     active = state.current()
     if active is None:
         return wrapped(*args, **kwargs)
@@ -461,6 +498,7 @@ _refused_tools: weakref.WeakSet[Any] = weakref.WeakSet()
 def get_tools_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
+    """Hooks the toolset's `get_tools`: it hooks the tool it returns."""
     awaitable = wrapped(*args, **kwargs)
     if state.current() is None:
         return awaitable
@@ -502,6 +540,7 @@ def hook_tools(tools: Any) -> None:
 
 
 def unhook_tools() -> None:
+    """Removes the hooks on the toolset's tools, and forgets the tools."""
     for tool in list(_tools):
         for name in TOOL_METHODS:
             vars(tool).pop(name, None)
@@ -510,7 +549,9 @@ def unhook_tools() -> None:
 
 
 class SwallowedErrors(logging.Filter):
-    """Reads each error the toolset's tool swallows: the tool logs it while it handles it.
+    """Reads each error the toolset's tool swallows.
+
+    The tool logs it while it handles it.
 
     The filter is on the toolset module's logger. A record written while an
     exception is being handled, in a tool call's event, carries that exception;
@@ -524,6 +565,7 @@ class SwallowedErrors(logging.Filter):
 
 
 def swallowed(error: BaseException | None) -> None:
+    """Records an error the toolset's tool swallowed, in its call's event."""
     open_event = events.current() if state.current() is not None else None
     if (
         isinstance(error, Exception)
@@ -538,6 +580,7 @@ def swallowed(error: BaseException | None) -> None:
 def run_async_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
+    """Hooks the tool's `run_async`: an outermost call is one `parse`."""
     awaitable = wrapped(*args, **kwargs)
     active = state.current()
     if active is None:
@@ -586,6 +629,10 @@ async def _run_tool(
 def process_llm_request_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
+    """Hooks the tool's `process_llm_request`: one `prompt_generation`.
+
+    It records what the tool appends to the instructions.
+    """
     awaitable = wrapped(*args, **kwargs)
     active = state.current()
     if active is None:
@@ -604,7 +651,10 @@ def _system_text(llm_request: Any) -> str | None:
 
 
 def _adopt_processor(event: events.Event, tool: Any) -> None:
-    """The format and catalogs of the processor the tool was given, when it was given one."""
+    """Adopts the format and catalogs of the tool's processor.
+
+    When the tool was given none, the event adopts nothing.
+    """
     processor = getattr(tool, "_processor", None)
     generator = getattr(getattr(processor, "format", None), "prompt_generator", None)
     active = state.current()

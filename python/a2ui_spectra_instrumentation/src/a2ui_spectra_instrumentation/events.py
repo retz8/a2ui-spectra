@@ -1,4 +1,4 @@
-"""The A2UI step's events: the open event, and the span each one becomes when it ends.
+"""The A2UI step's events: the open event, and the span each one becomes.
 
 A context-local variable holds the open event. The outermost hooked call opens
 one, and a hooked call made while one is open opens none: it annotates the open
@@ -49,10 +49,12 @@ def current() -> Event | None:
 
 
 def enter(event: Event) -> contextvars.Token[Event | None]:
+    """Makes an event the open one; the token restores the one before."""
     return _open.set(event)
 
 
 def leave(token: contextvars.Token[Event | None]) -> None:
+    """Restores the open event the token was taken from."""
     _open.reset(token)
 
 
@@ -64,9 +66,12 @@ CHUNK = "a2ui.parse.chunk"
 
 
 def kept_span_events(events: list[SpanEvent]) -> list[SpanEvent]:
-    """The events a span is given, in order: a stream fed more chunks than fit
-    within the limit beside its other events keeps its first and last chunk and
-    evenly spaced ones between, so the SDK drops none of them."""
+    """The events a span is given, in order.
+
+    A stream fed more chunks than fit within the limit beside its other events
+    keeps its first and last chunk and evenly spaced ones between, so the SDK
+    drops none of them.
+    """
     chunks = [index for index, event in enumerate(events) if event[0] == CHUNK]
     room = max(2, SPAN_EVENT_LIMIT - (len(events) - len(chunks)))
     if len(chunks) <= room:
@@ -117,7 +122,7 @@ def record_version(active: state.Active, version: Any) -> str:
 
 
 def catalogs_of(active: state.Active, owner: object) -> list[dict[str, str]] | None:
-    """The catalogs a parser or a prompt generator holds, in the record's shape."""
+    """The catalogs a parser or prompt generator holds, in the record's form."""
     catalogs = getattr(owner, "catalogs", None)
     if not isinstance(catalogs, Iterable):
         return None
@@ -191,11 +196,17 @@ class Event:
         self.whole_tree += 1
 
     def seen(self, error: BaseException) -> object:
-        """What the event keeps of an error when it first sees it, to place it by."""
+        """What the event keeps of an error when it first sees it.
+
+        The event places the error by it.
+        """
         return None
 
     def place(self, error: BaseException, seen: object) -> Block | None:
-        """The block an error belongs to, from what the event kept when it first saw it."""
+        """The block an error belongs to.
+
+        It is found from what the event kept when it first saw the error.
+        """
         return None
 
     # Errors.
@@ -213,7 +224,10 @@ class Event:
             self.noted.append((error, self.seen(error)))
 
     def record(self, error: BaseException, placed: bool = True) -> None:
-        """Records an error as one `exception` span event, once; one not placed belongs to no block."""
+        """Records an error as one `exception` span event, once.
+
+        An error not placed belongs to no block.
+        """
         if any(seen is error for seen in self.errors):
             return
         noted, kept = self._seen_before(error)
@@ -242,7 +256,7 @@ class Event:
         """An error was placed in a block, its range in these attributes."""
 
     def fail(self, error: BaseException) -> None:
-        """The outermost call raised: the error is recorded and the event ends."""
+        """The outermost call raised: the event records the error and ends."""
         self.record(error)
         self.end()
 
@@ -300,7 +314,10 @@ class Event:
 
 
 class Silent(Event):
-    """Stands open for a call the wrapper does not record, so the calls nested in it record nothing either."""
+    """Stands open for a call the wrapper does not record.
+
+    The calls nested in it record nothing either.
+    """
 
     def __init__(self) -> None:
         self.depth = 0
@@ -321,7 +338,10 @@ class Silent(Event):
 
 
 class PromptEvent(Event):
-    """A `prompt_generation`: the UI section a prompt generator wrote, or a toolset appended."""
+    """A `prompt_generation`.
+
+    The UI section a prompt generator wrote, or a toolset appended.
+    """
 
     kind = "prompt_generation"
 
@@ -408,7 +428,10 @@ class ParseEvent(Event):
     # The block rule.
 
     def note_compile(self, text: object) -> None:
-        """A block is handed to `compile`: it is the current block, found in the input."""
+        """A block is handed to `compile`: it is the current block.
+
+        The event finds it in the input.
+        """
         if self.streamed or not isinstance(text, str):
             return
         found = self.input.find(text, self._cursor)
@@ -428,7 +451,11 @@ class ParseEvent(Event):
         self.tree_checks += 1
 
     def seen(self, error: BaseException) -> object:
-        """Whether a tree check was running, and the current block or, for a stream, the blocks it had done."""
+        """What the event keeps of an error to place it by.
+
+        Whether a tree check was running, and the current block or, for a
+        stream, the blocks it had done.
+        """
         if self.whole_tree:
             return _WHOLE_TREE
         if not self.streamed:
@@ -451,7 +478,7 @@ class ParseEvent(Event):
             self.located.append((attributes, block))
 
     def _state_blocks_whole(self) -> None:
-        """States each of a stream's errors' blocks whole, in the stream's whole input.
+        """States each of a stream's errors' blocks whole, in its whole input.
 
         An error is located when it surfaces, in the input fed so far, where a
         block rejected while it arrives is cut where the input then ended, and
@@ -480,11 +507,17 @@ class ParseEvent(Event):
             attributes["a2ui.parse.block.end"] = max(whole[1], end)
 
     def _done(self) -> int:
-        """The blocks a stream has done: one tree check for each it finished, one error for each it rejected."""
+        """The blocks a stream has done.
+
+        One tree check for each it finished, one error for each it rejected.
+        """
         return self.tree_checks + sum(block is not None for block in self.error_blocks)
 
     def _rejected_block(self, error: BaseException, text: str) -> Block | None:
-        """The block the error names: its `raw_content`, found in the input after the last error's block."""
+        """The block the error names: its `raw_content`, found in the input.
+
+        The search starts after the last error's block.
+        """
         raw = getattr(error, "raw_content", None)
         if not isinstance(raw, str) or not raw.strip():
             return None
@@ -495,7 +528,9 @@ class ParseEvent(Event):
         return (utf16_length(text[:found]), utf16_length(text[: self._cursor]))
 
     def _next_block(self, text: str, done: int) -> Block | None:
-        """The block after those the stream had done, among those `unwrap` finds in the input.
+        """The block after those the stream had done.
+
+        It is one of those `unwrap` finds in the input.
 
         The last block found stands in when there are fewer.
         """
@@ -507,7 +542,10 @@ class ParseEvent(Event):
         return block[0], block[1]
 
     def _unwrapped_blocks(self, text: str) -> list[tuple[int, int, int]]:
-        """Each block the parser's `unwrap` finds in the text: its range, and its end in code points."""
+        """Each block the parser's `unwrap` finds in the text.
+
+        Its range, and its end in code points.
+        """
         unwrap = getattr(self.stream_parser, "unwrap", None)
         if not callable(unwrap):
             return []
@@ -552,7 +590,11 @@ class ParseEvent(Event):
             self.messages.extend(self.active.to_message_dicts(list(messages)))
 
     def take_parts(self, parts: object) -> None:
-        """The parts a call returned: their messages, and the errors a stream read past."""
+        """The parts a call returned.
+
+        The event takes their messages and records the errors a stream read
+        past.
+        """
         if not isinstance(parts, (list, tuple)):
             return
         for part in parts:
@@ -569,6 +611,7 @@ class ParseEvent(Event):
         super().fail(error)
 
     def take_tool_result(self, result: object) -> None:
+        """The tool's result: its validated messages, and the event ends."""
         self.tool_result = result
         self.has_tool_result = True
         if isinstance(result, Mapping):
