@@ -11,7 +11,7 @@ Spectra's viewer loads a catalog's preview page in an iframe and speaks the prev
 The package has two entries:
 
 - `a2ui-spectra-preview`: the protocol's messages and `startPreviewPage`, which runs the page's side of the protocol. An adapter gives it four things: making a processor from the catalogs, feeding it one message, mounting a surface, and tearing down.
-- `a2ui-spectra-preview/web-core`: what every web adapter does with `@a2ui/web_core`'s message processor, whichever framework draws its surfaces: the action handler, watching each surface for its errors and its data model, and guarding web core's universal elements. It takes `@a2ui/web_core` `^0.15.0` as a peer dependency; the main entry does not import it.
+- `a2ui-spectra-preview/web-core`: what every web adapter does with `@a2ui/web_core`'s message processor, whichever framework draws its surfaces: the action handler, watching each surface for its errors and its data model, and guarding web core's universal elements. It takes `@a2ui/web_core` `^0.16.1` as a peer dependency; the main entry does not import it.
 
 [The preview](../../../docs/design/preview.md) is the protocol's full account: each message, the page's loads and answers, how a page is chosen for a surface, what a page reports, a press, and the version mismatch. The React, Lit and Angular adapters beside this folder are the worked examples.
 

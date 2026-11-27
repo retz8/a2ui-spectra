@@ -328,7 +328,7 @@ The viewer sends a page a render only when the surface or its list changes. Sele
 
 The events a processor's surfaces report through are four: an action with its surface's data model, a surface's data model as it is created and whenever it changes, an error web core reported, and a component that failed to draw. The core also holds the web carrier: `windowTransport`, the `postMessage` transport with the origin rules above, and `windowErrors`, the window's error events. `guardElementUpdates` guards a custom element class's updates: a throw in an element's update is reported with the element and does not leave the page, and the element stays as its last update left it. It covers components drawn as web components, which an error boundary of the page's framework does not see, a class's subclasses included, each throw going to the latest handler given for that class.
 
-**The web core part.** `a2ui-spectra-preview/web-core` is what every web adapter does with web core's message processor, whichever framework draws its surfaces. For this part the core's package takes `@a2ui/web_core` as a peer dependency, `^0.15.0`; the core's main entry does not import it.
+**The web core part.** `a2ui-spectra-preview/web-core` is what every web adapter does with web core's message processor, whichever framework draws its surfaces. For this part the core's package takes `@a2ui/web_core` as a peer dependency, `^0.16.1`; the core's main entry does not import it.
 
 - `actionHandlerFor` makes the action handler an adapter makes its processor with: each action is reported with its surface's data model at that moment.
 - `watchProcessor` watches a processor the adapter made: each surface it creates reports the errors web core sends through its error channel, and its data model as it appears and whenever the agent's messages or typing change it.
@@ -360,11 +360,11 @@ Each adapter takes its framework and upstream's packages as peer dependencies, s
 
 | Adapter                        | Upstream renderer         | Web core                   | Framework                                                                    |
 | ------------------------------ | ------------------------- | -------------------------- | ---------------------------------------------------------------------------- |
-| `a2ui-spectra-preview-react`   | `@a2ui/react` `^0.15.0`   | `@a2ui/web_core` `^0.15.0` | `react` and `react-dom` `^18.0.0 \|\| ^19.0.0`                               |
-| `a2ui-spectra-preview-lit`     | `@a2ui/lit` `^0.15.0`     | `@a2ui/web_core` `^0.15.0` | `lit` `^3.3.3`                                                               |
-| `a2ui-spectra-preview-angular` | `@a2ui/angular` `^0.14.0` | `@a2ui/web_core` `^0.15.0` | `@angular/common`, `@angular/core` and `@angular/platform-browser` `^21.2.5` |
+| `a2ui-spectra-preview-react`   | `@a2ui/react` `^0.16.1`   | `@a2ui/web_core` `^0.16.1` | `react` and `react-dom` `^18.0.0 \|\| ^19.0.0`                               |
+| `a2ui-spectra-preview-lit`     | `@a2ui/lit` `^0.16.0`     | `@a2ui/web_core` `^0.16.1` | `lit` `^3.3.3`                                                               |
+| `a2ui-spectra-preview-angular` | `@a2ui/angular` `^0.16.0` | `@a2ui/web_core` `^0.16.1` | `@angular/common`, `@angular/core` and `@angular/platform-browser` `^22.2.3` |
 
-For each upstream package Spectra supports the pin's main and the package's published latest; the floors are the low ends of these ranges. The published renderers, `@a2ui/react` 0.15.0, `@a2ui/lit` 0.15.0 and `@a2ui/angular` 0.14.0 on `@a2ui/web_core` 0.15.0, read a v1.0 component's envelope keys in the bare form only, and refuse a surface whose components carry the `@` keys; a page on them reports that refusal in the renderer's own words, as a refused message. Which release reads which form is in the root README's [What Spectra supports](../../README.md#what-spectra-supports), and how Spectra itself judges the two forms in [the checks doc](checks.md).
+Inside these ranges, a Spectra release supports the pin's main and the published releases it was tested on; the floors are the low ends of the ranges. The published renderers, `@a2ui/react` 0.16.1, `@a2ui/lit` 0.16.0 and `@a2ui/angular` 0.16.0 on `@a2ui/web_core` 0.16.1, read both forms of a v1.0 component's envelope keys, and refuse a component carrying both forms of one key; a page on them reports that refusal in the renderer's own words, as a refused message. Which release reads which form is in the root README's [What Spectra supports](../../README.md#what-spectra-supports), and how Spectra itself judges the two forms in [the checks doc](checks.md).
 
 ### The built-in page
 
@@ -452,7 +452,7 @@ http://localhost:5177/preview: preview page speaks protocol 3, this Spectra spea
 | A page is opened in a browser tab of its own                                           | "This is a Spectra preview page. It previews only inside Spectra."                                                                                                                              |
 | The page's dev server is stopped while the page reloads                                | The pane says the page is reloading, then "`<page>` has not answered". The surface is drawn again once the server is back and a load brings an answer                                           |
 | A `preview` entry that is not an `http://` or `https://` URL                           | Spectra stops at start, as the run below shows                                                                                                                                                  |
-| A surface in the v1.0 `@` form, on a page on the published renderers                   | "The preview page refused this message." with the renderer's own error, on the message's step                                                                                                   |
+| A v1.0 component carrying both forms of an envelope key                                | "The preview page refused this message." with the renderer's own error, on the message's step                                                                                                   |
 | A component throws while drawing                                                       | "`<type> <id>` did not render." on the step that carried it; for an Angular component, which is not a universal element, "A component did not render."                                          |
 | A press in a conversation the message box did not start                                | The composer: "Started by another host or in an earlier run · an action can only be sent in a conversation the message box started"                                                             |
 | A press in a conversation whose agent named none                                       | The composer: "The agent named no conversation · an action can only be sent in a conversation the agent named"                                                                                  |
@@ -490,7 +490,6 @@ The second comes from `"preview": ["localhost:5174"]`. A `preview` that is not a
 - The preview has two widths, Narrow and Wide. It has no variants for light and dark or for other themes, and the built-in page stays light.
 - A page draws one surface at a time, the one in view. A press carries the other surfaces' data models as the agent's messages left them, without what was typed in them.
 - On Angular, a component that throws is named only when it is one of web core's universal elements, drawn with `useUniversalComponents` set; an Angular component never is.
-- Until npm carries a renderer release that reads the `@` form of v1.0's envelope keys, a page on a published renderer refuses a surface in that form.
 - The page's reports are not in the turn record.
 
 ## Trying it

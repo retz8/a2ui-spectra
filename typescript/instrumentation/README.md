@@ -46,13 +46,13 @@ The wrapper uses your agent's tracer provider when it has one, and starts one ex
 
 ## What it supports
 
-| Package                                   | Range             | Tested at                                 |
-| ----------------------------------------- | ----------------- | ----------------------------------------- |
-| `@a2ui/agent`                             | `>=0.1.0`         | upstream's main at `0888f88b2`, and 0.1.0 |
-| `@opentelemetry/api`, the peer            | `>=1.3.0 <1.10.0` | 1.3.0 and 1.9.1                           |
-| `@opentelemetry/instrumentation`          | `^0.223.0`        | 0.223.0 and 0.223.2                       |
-| `@opentelemetry/exporter-trace-otlp-http` | `^0.223.0`        | 0.223.0 and 0.223.2                       |
-| `@opentelemetry/sdk-trace-node`           | `^2.12.0`         | 2.12.0 and 2.12.1                         |
+| Package                                   | Range             | Tested at                                        |
+| ----------------------------------------- | ----------------- | ------------------------------------------------ |
+| `@a2ui/agent`                             | `>=0.1.0`         | 0.1.0, upstream's main at `7a776e7a4`, and 0.2.1 |
+| `@opentelemetry/api`, the peer            | `>=1.3.0 <1.10.0` | 1.3.0 and 1.9.1                                  |
+| `@opentelemetry/instrumentation`          | `^0.223.0`        | 0.223.0 and 0.223.2                              |
+| `@opentelemetry/exporter-trace-otlp-http` | `^0.223.0`        | 0.223.0 and 0.223.2                              |
+| `@opentelemetry/sdk-trace-node`           | `^2.12.0`         | 2.12.0 and 2.12.1                                |
 
 Both inference formats the SDK implements are reported: Direct JSON and Express. The wrapper is on OpenTelemetry JavaScript's 2.x line: an agent whose own OpenTelemetry setup is on 3.x, `@opentelemetry/api` 1.10 with `@opentelemetry/sdk-trace` 3.x, is not supported yet, and npm refuses the install with `ERESOLVE`. The root README's [What Spectra supports](../../README.md#what-spectra-supports) has the rest.
 

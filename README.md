@@ -224,7 +224,7 @@ Add more as you need it:
 - **A2UI:** v0.9, v0.9.1 and v1.0, upstream's current and previous versions in [`versions.json`](https://github.com/a2ui-project/a2ui/blob/main/specification/versions.json). Not v0.8.
 - **Transport:** A2A 0.3 and A2A 1.0, over JSON-RPC.
 - **Model APIs read in full:** Gemini, OpenAI's Chat Completions and Responses, and Anthropic's Messages. Any other call is recorded raw.
-- **Upstream packages:** each agent SDK and renderer at upstream's main, pinned at `0888f88b2` (2026-11-13), and at its published latest.
+- **Upstream packages:** each agent SDK and renderer at upstream's main, pinned at `7a776e7a4` (2026-11-23), and the published releases `0.1.0` was tested on: `a2ui-agent-sdk` 0.12.1, with `a2ui-core` 0.7.1 and `a2ui-adk` 0.3.0; `@a2ui/agent` 0.2.1; `@a2ui/web_core` 0.16.1, `@a2ui/react` 0.16.1, `@a2ui/lit` 0.16.0 and `@a2ui/angular` 0.16.0. Each package's range is in the [wrappers'](#opentelemetry-instrumentation) and the [preview adapters'](#preview-your-own-catalog) READMEs.
 - **OpenTelemetry, for the wrappers:** OpenTelemetry Python 1.x from 1.39.0, and OpenTelemetry JavaScript's 2.x line, not its 3.x yet. Each range is tested at its floor and at its published latest; the ranges are in the [Python](python/a2ui_spectra_instrumentation/README.md#what-it-supports) and [TypeScript](typescript/instrumentation/README.md#what-it-supports) wrappers' READMEs.
 
 <details>
@@ -232,20 +232,11 @@ Add more as you need it:
 
 <br>
 
-Upstream renamed a v1.0 component's `catalogId`, `accessibility`, `metadata` and `checks` to `@catalogId`, `@accessibility`, `@metadata` and `@checks`. Upstream's main reads both forms and emits the `@` form. npm's releases predate the rename; PyPI's of 2026-11-17 emit the `@` form.
+Upstream renamed a v1.0 component's `catalogId`, `accessibility`, `metadata` and `checks` to `@catalogId`, `@accessibility`, `@metadata` and `@checks`. Upstream reads both forms and emits the `@` form.
 
 Spectra reads both. A bare key passes where upstream's transition accepts it, where the component's schema declares no property of that name, and the viewer marks it as the legacy form. A component carrying both forms of a key is rejected. When upstream drops the bare form ([#4082](https://github.com/a2ui-project/a2ui/issues/4082)), so does Spectra.
 
-| Package                                  | Used by                                | Published latest         | Envelope keys in that release                                                   |
-| ---------------------------------------- | -------------------------------------- | ------------------------ | ------------------------------------------------------------------------------- |
-| `a2ui-agent-sdk`, with `a2ui-adk` (PyPI) | The Python wrapper, from 0.11.0        | 0.12.0, `a2ui-adk` 0.3.0 | Emits the `@` keys                                                              |
-| `@a2ui/agent` (npm)                      | The TypeScript wrapper, from 0.1.0     | 0.1.0                    | Emits the bare keys                                                             |
-| `@a2ui/web_core` (npm)                   | Every preview adapter, `^0.15.0`       | 0.15.0                   | Reads the bare keys only, and refuses an `updateComponents` carrying an `@` key |
-| `@a2ui/react` (npm)                      | The React preview adapter, `^0.15.0`   | 0.15.0                   | Reads the bare keys only, through web core 0.15.0                               |
-| `@a2ui/lit` (npm)                        | The Lit preview adapter, `^0.15.0`     | 0.15.0                   | Reads the bare keys only, through web core 0.15.0                               |
-| `@a2ui/angular` (npm)                    | The Angular preview adapter, `^0.14.0` | 0.14.0                   | Reads the bare keys only, through web core 0.15.0                               |
-
-A preview page on a published renderer reports what that renderer refuses, in its own words: a surface carrying the `@` keys is refused there until npm carries a release that reads them.
+Every upstream release Spectra uses at `0.1.0` reads both forms and emits the `@` form, except `@a2ui/agent` below 0.2, which emits the bare keys.
 
 </details>
 
@@ -286,7 +277,7 @@ The turn record, the file format every fixture is, is specified in [`specificati
 
 ## Development
 
-The repository is Yarn workspaces built with Wireit, and a uv workspace for the Python wrapper. With Node 22, Yarn 4 through Corepack, and uv, from the repository root:
+The repository is Yarn workspaces built with Wireit, and a uv workspace for the Python wrapper. With Node 22 at 22.22.3 or later, Yarn 4 through Corepack, and uv, from the repository root:
 
 ```sh
 yarn install

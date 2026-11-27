@@ -44,13 +44,13 @@ The wrapper uses your agent's tracer provider when it has one, and starts one ex
 
 ## What it supports
 
-| Package                                                                            | Range            | Tested at                                  |
-| ---------------------------------------------------------------------------------- | ---------------- | ------------------------------------------ |
-| `a2ui-agent-sdk`                                                                   | `>=0.11.0`       | upstream's main at `0888f88b2`, and 0.12.0 |
-| `a2ui-adk`, for `SendA2uiToClientToolset`                                          | its API at 0.3.0 | 0.3.0                                      |
-| `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-exporter-otlp-proto-http` | `>=1.39.0,<2`    | 1.39.0 and 1.45.2                          |
-| `opentelemetry-instrumentation`                                                    | `>=0.60b0`       | 0.60b0 and 0.66b2                          |
-| `wrapt`                                                                            | `>=1.16.0,<3`    | 1.16.0 and 2.5.2                           |
+| Package                                                                            | Range            | Tested at                                          |
+| ---------------------------------------------------------------------------------- | ---------------- | -------------------------------------------------- |
+| `a2ui-agent-sdk`                                                                   | `>=0.11.0`       | 0.11.0, upstream's main at `7a776e7a4`, and 0.12.1 |
+| `a2ui-adk`, for `SendA2uiToClientToolset`                                          | its API at 0.3.0 | 0.3.0                                              |
+| `opentelemetry-api`, `opentelemetry-sdk`, `opentelemetry-exporter-otlp-proto-http` | `>=1.39.0,<2`    | 1.39.0 and 1.45.2                                  |
+| `opentelemetry-instrumentation`                                                    | `>=0.60b0`       | 0.60b0 and 0.66b2                                  |
+| `wrapt`                                                                            | `>=1.16.0,<3`    | 1.16.0 and 2.5.2                                   |
 
 Every inference format the SDK implements is reported: Direct JSON, Express, Elemental and Atom. So is A2UI sent as a tool call through `a2ui-adk`'s `SendA2uiToClientToolset`. The root README's [What Spectra supports](../../README.md#what-spectra-supports) has the rest.
 

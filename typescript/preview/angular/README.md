@@ -61,11 +61,11 @@ The sample catalog app in [`samples/preview/angular/`](../../../samples/preview/
 
 | Package                                        | Range     | Tested at                                  |
 | ---------------------------------------------- | --------- | ------------------------------------------ |
-| `@a2ui/angular`                                | `^0.14.0` | upstream's main at `0888f88b2`, and 0.14.0 |
-| `@a2ui/web_core`                               | `^0.15.0` | upstream's main at `0888f88b2`, and 0.15.0 |
-| `@angular/core` and the other Angular packages | `^21.2.5` | 21.2.25                                    |
+| `@a2ui/angular`                                | `^0.16.0` | upstream's main at `7a776e7a4`, and 0.16.0 |
+| `@a2ui/web_core`                               | `^0.16.1` | upstream's main at `7a776e7a4`, and 0.16.1 |
+| `@angular/core` and the other Angular packages | `^22.2.3` | 22.3.0                                     |
 
-The published `@a2ui/angular` 0.14.0, on `@a2ui/web_core` 0.15.0, reads a v1.0 component's envelope keys in the bare form only, and refuses a surface whose components carry the `@` keys; the page reports that refusal in the renderer's words. See [What Spectra supports](../../../README.md#what-spectra-supports).
+The published releases read a v1.0 component's envelope keys in both forms. See [What Spectra supports](../../../README.md#what-spectra-supports).
 
 ## When nothing shows up
 
@@ -75,7 +75,7 @@ The published `@a2ui/angular` 0.14.0, on `@a2ui/web_core` 0.15.0, reads a v1.0 c
 
 **Two protocol numbers, and the side to upgrade.** The page's adapter and the running Spectra speak different versions of the preview protocol. Move the adapter to the running Spectra's version, or upgrade `a2ui-spectra`, as the line says.
 
-**"The preview page refused this message.", with the renderer's own error.** The renderer refused what the agent sent, such as a v1.0 surface in the `@` form on the published renderer.
+**"The preview page refused this message.", with the renderer's own error.** The renderer refused what the agent sent, such as a v1.0 component carrying both forms of an envelope key.
 
 **"This is a Spectra preview page. It previews only inside Spectra."** The page was opened in a browser tab of its own. It draws only inside Spectra's Preview pane.
 
@@ -85,7 +85,7 @@ The published `@a2ui/angular` 0.14.0, on `@a2ui/web_core` 0.15.0, reads a v1.0 c
 
 ## Development
 
-From the repository root, after `yarn install`, on Node 22:
+From the repository root, after `yarn install`, on Node 22 at 22.22.3 or later:
 
 ```sh
 yarn workspace a2ui-spectra-preview-angular build
