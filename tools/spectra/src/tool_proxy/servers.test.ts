@@ -59,6 +59,19 @@ describe('toolServers', () => {
     );
   });
 
+  it('removes the credentials from a value of another scheme it names in its error', () => {
+    assert.throws(
+      () =>
+        toolServers(CONFIGURED.slice(0, 1), [9823], {
+          FLOOR_PLAN_SERVER_URL: 'ws://user:pass@example.com/mcp?token=t',
+        }),
+      (error: unknown) =>
+        error instanceof ToolServerError &&
+        error.message ===
+          "Spectra's environment sets FLOOR_PLAN_SERVER_URL to 'ws://REMOVED@example.com/mcp?token=REMOVED'; a tool server's URL must start with http:// or https://.",
+    );
+  });
+
   it('prints a start line and an export line per server, credentials removed from where it forwards', () => {
     const servers = toolServers(CONFIGURED, [9823, 9824], {});
     assert.deepEqual(startLines(servers), [

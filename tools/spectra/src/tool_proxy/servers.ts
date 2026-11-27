@@ -66,7 +66,7 @@ export function toolServers(
       }
       if (fromEnv.protocol !== 'http:' && fromEnv.protocol !== 'https:') {
         throw new ToolServerError(
-          `Spectra's environment sets ${variable} to '${set}'; a tool server's URL must start with http:// or https://.`,
+          `Spectra's environment sets ${variable} to '${removeFromUrl(fromEnv.href)}'; a tool server's URL must start with http:// or https://.`,
         );
       }
       if (!isToolProxyItself(fromEnv, ports)) {
