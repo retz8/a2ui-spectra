@@ -5,6 +5,7 @@
  * from the live card at send time; what the record can say about the offer,
  * the versions its capabilities are keyed by, becomes the extensions header.
  */
+import {a2uiExtensionUri} from '../a2a/extension_uri.js';
 import type {InputMetadata} from '../a2a/metadata.js';
 import {
   isEventOfKind,
@@ -16,7 +17,7 @@ import {
 
 /** The A2UI extension URI of a protocol version in the record's form. */
 function extensionUriOf(version: string): string {
-  return `https://a2ui.org/a2a-extension/a2ui/${recordFormOf(version)}`;
+  return a2uiExtensionUri(recordFormOf(version));
 }
 
 /** One recorded turn's input, ready to be written in the live A2A version's form. */

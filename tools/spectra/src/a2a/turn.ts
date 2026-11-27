@@ -11,6 +11,7 @@ import {
   recordFormOf,
 } from '../record/turn_record.js';
 import {nowUnixNano} from '../clock.js';
+import {a2uiExtensionVersion} from './extension_uri.js';
 import {splitInputMetadata} from './metadata.js';
 import {wirePart} from './parts.js';
 import {
@@ -72,9 +73,6 @@ const OUTCOMES: Readonly<Record<TaskState, TurnOutcome>> = {
   working: 'failed',
   unknown: 'failed',
 };
-
-/** An A2UI extension URI, which ends in the protocol version it stands for. */
-const A2UI_EXTENSION_URI = /^https?:\/\/a2ui\.org\/a2a-extension\/a2ui\/(v\d+(?:\.\d+)*)\/?$/;
 
 /**
  * One turn as the wire proxy sees it: opened by the host's request, given
@@ -156,7 +154,7 @@ export class TurnCapture {
   replyExtensions(header: string | undefined): void {
     const versions = (header ?? '')
       .split(',')
-      .map(uri => uri.trim().match(A2UI_EXTENSION_URI)?.[1])
+      .map(uri => a2uiExtensionVersion(uri.trim()))
       .filter(version => version !== undefined);
     this.headerVersions = [...new Set(versions)];
   }

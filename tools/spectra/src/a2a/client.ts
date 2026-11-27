@@ -14,15 +14,14 @@ import {
   readDelivery,
   type TaskState,
 } from './protocol.js';
+import {a2uiExtensionUri} from './extension_uri.js';
 import {bodyJson} from '../proxying/forwarding.js';
 import {SseParser} from '../proxying/sse.js';
 
 /** The A2UI extension URIs of every version Spectra supports, sent in the extensions header. */
-export const A2UI_EXTENSION_URIS: readonly string[] = [
-  'https://a2ui.org/a2a-extension/a2ui/v0.9',
-  'https://a2ui.org/a2a-extension/a2ui/v0.9.1',
-  'https://a2ui.org/a2a-extension/a2ui/v1.0',
-];
+export const A2UI_EXTENSION_URIS: readonly string[] = ['v0.9', 'v0.9.1', 'v1.0'].map(
+  a2uiExtensionUri,
+);
 
 /**
  * The capabilities for an offer of catalog ids: v0.9 and v0.9.1 under
