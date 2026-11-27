@@ -1076,14 +1076,19 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
         const reply = Array.isArray(value) ? value.find(isOurs) : isOurs(value) ? value : undefined;
         if (reply !== undefined) replied(reply);
       }
-      if (pending !== undefined && pending.repliedAt === undefined && status < 400 && !streamed) {
+      if (
+        pending !== undefined &&
+        pending.repliedAt === undefined &&
+        status < 400 &&
+        !streamed &&
+        session.key.startsWith('endpoint:')
+      ) {
         // The reply is to come on a carrier: HTTP+SSE's 202.
         pending.exchangeEndedAt = at;
-        if (session.key.startsWith('endpoint:') && session.carriers === 0) {
-          finish(at, {type: 'aborted', message: CARRIER_CLOSED});
-        }
+        if (session.carriers === 0) finish(at, {type: 'aborted', message: CARRIER_CLOSED});
         return;
       }
+      // Any other transport answers a request on its own exchange.
       finish(at);
     },
     fail(failure, at, reached) {

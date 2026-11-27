@@ -1118,3 +1118,38 @@ describe("the tool proxy reading an HTTP+SSE server's endpoint", () => {
     stream.close();
   });
 });
+
+describe('the tool proxy with a reply that holds no response', () => {
+  it('ends a streamable HTTP request at its exchange when its reply holds no response, where only HTTP+SSE waits for a carrier', async () => {
+    const setup = await setUp(
+      streamable((message, response) => {
+        if (message.method !== 'tools/call') return false;
+        const params = message.params as {name: string};
+        if (params.name === 'empty') {
+          response.writeHead(202).end();
+        } else {
+          response.writeHead(200, {'content-type': 'application/json'});
+          response.end(rpc({id: null, error: {code: -32700, message: 'Parse error'}}));
+        }
+        return true;
+      }),
+    );
+    for (const [id, name] of [
+      [1, 'empty'],
+      [2, 'unanswered'],
+    ] as const) {
+      await send(setup.origin, {
+        headers: {'mcp-session-id': 'S1'},
+        body: rpc({id, method: 'tools/call', params: {name}}),
+      });
+    }
+    await until(() => setup.ended.length === 2, 'both calls');
+    assert.deepEqual(
+      setup.ended.map(call => [call.name, call.attributes['http.response.status_code']]),
+      [
+        ['tools/call empty', 202],
+        ['tools/call unanswered', 200],
+      ],
+    );
+  });
+});
