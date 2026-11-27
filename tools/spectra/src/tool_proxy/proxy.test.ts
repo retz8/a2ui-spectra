@@ -981,3 +981,37 @@ describe('the tool proxy with a reply stream that breaks', () => {
     stream.close();
   });
 });
+
+describe('the tool proxy with clients that name no session', () => {
+  it('records two requests of the same id from two clients each with its own result', async () => {
+    const held: Array<() => void> = [];
+    const setup = await setUp((_request, body, response) => {
+      const message = JSON.parse(body) as {id: number; params: {name: string}};
+      held.push(() => {
+        response.writeHead(200, {'content-type': 'application/json'});
+        response.end(
+          rpc({id: message.id, result: {content: [{type: 'text', text: message.params.name}]}}),
+        );
+      });
+    });
+    const first = send(setup.origin, {
+      body: rpc({id: 1, method: 'tools/call', params: {name: 'first'}}),
+    });
+    const second = send(setup.origin, {
+      body: rpc({id: 1, method: 'tools/call', params: {name: 'second'}}),
+    });
+    await until(() => held.length === 2, 'both requests at the server');
+    held[0]();
+    await first;
+    held[1]();
+    await second;
+    await until(() => setup.ended.length === 2, 'both calls');
+    const results = Object.fromEntries(
+      setup.ended.map(call => [call.name, call.attributes['gen_ai.tool.call.result']]),
+    );
+    assert.deepEqual(results, {
+      'tools/call first': {content: [{type: 'text', text: 'first'}]},
+      'tools/call second': {content: [{type: 'text', text: 'second'}]},
+    });
+  });
+});
