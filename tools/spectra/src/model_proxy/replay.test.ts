@@ -13,6 +13,8 @@ import {ReplayPool, type PoolMode} from '../replay/pool.js';
 import {type ModelProxy, startModelProxy} from './proxy.js';
 import {type Redirection, redirections} from './redirection.js';
 import {freePort} from '../testing/free_port.js';
+import {eventually} from '../testing/eventually.js';
+import {listen} from '../testing/listen.js';
 
 const TRACE = 'f'.repeat(32);
 const TURN_SPAN = '1'.repeat(16);
@@ -26,16 +28,6 @@ after(async () => {
     server.close();
   }
 });
-
-function listen(server: Server): Promise<number> {
-  return new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      resolve(typeof address === 'object' && address !== null ? address.port : 0);
-    });
-  });
-}
 
 interface Setup {
   proxy: ModelProxy;
@@ -200,14 +192,6 @@ function post(
     outgoing.once('error', reject);
     outgoing.end(typeof body === 'string' ? body : JSON.stringify(body));
   });
-}
-
-async function eventually(check: () => boolean, what: string): Promise<void> {
-  const deadline = Date.now() + 5000;
-  while (!check()) {
-    assert.ok(Date.now() < deadline, what);
-    await new Promise(resolve => setTimeout(resolve, 10));
-  }
 }
 
 function arm(setup: Setup, mode: PoolMode, ...calls: ModelCallEvent[]): void {

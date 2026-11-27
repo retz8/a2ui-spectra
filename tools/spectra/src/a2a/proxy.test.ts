@@ -14,6 +14,7 @@ import type {TurnEvent, TurnRecordEvent, WireOutputEvent} from '../record/turn_r
 import {startWireProxy, type WireProxy, type WireProxyOptions} from './proxy.js';
 import type {TurnNotification} from './turn.js';
 import {freePort} from '../testing/free_port.js';
+import {listen} from '../testing/listen.js';
 
 type Handler = (request: IncomingMessage, body: string, response: ServerResponse) => void;
 
@@ -34,16 +35,6 @@ after(async () => {
     server.close();
   }
 });
-
-function listen(server: Server): Promise<number> {
-  return new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      resolve(typeof address === 'object' && address !== null ? address.port : 0);
-    });
-  });
-}
 
 async function setUp(
   handler: Handler,

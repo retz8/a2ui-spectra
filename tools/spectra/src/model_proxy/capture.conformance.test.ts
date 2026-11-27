@@ -19,14 +19,13 @@ import {
   comparable,
   type HarEntry,
   modelCalls,
-  PREFIXES,
   readJson,
+  redirectionsTo,
   sendEntry,
 } from '../testing/model_traffic.js';
 import {startStandIn} from '../testing/stand_in_provider.js';
 import {turnRecordErrors} from '../testing/turn_record_schema.js';
 import {type ModelProxy, startModelProxy} from './proxy.js';
-import {type Redirection, redirections} from './redirection.js';
 import {freePort} from '../testing/free_port.js';
 
 interface CaptureModelCase {
@@ -69,13 +68,7 @@ async function runCase(c: CaptureModelCase): Promise<void> {
     startTimeUnixNano: String(BigInt(Date.now()) * 1_000_000n),
   });
   const proxyPort = await freePort();
-  const redirected: Redirection[] = redirections({}, `http://127.0.0.1:${proxyPort}`).map(item => ({
-    ...item,
-    target: {
-      kind: 'base',
-      base: `${standIn.origin}${PREFIXES['api.openai.com'].variable === item.name ? '/v1' : ''}`,
-    },
-  }));
+  const redirected = redirectionsTo(`http://127.0.0.1:${proxyPort}`, standIn.origin);
   const proxy = await startModelProxy({
     port: proxyPort,
     redirections: redirected,

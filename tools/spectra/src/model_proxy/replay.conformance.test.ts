@@ -22,14 +22,13 @@ import {
   comparable,
   type HarEntry,
   modelCalls,
-  PREFIXES,
   readJson,
+  redirectionsTo,
   type Received,
   sendEntry,
 } from '../testing/model_traffic.js';
 import {turnRecordErrors} from '../testing/turn_record_schema.js';
 import {type ModelProxy, startModelProxy} from './proxy.js';
-import {type Redirection, redirections} from './redirection.js';
 import {freePort} from '../testing/free_port.js';
 
 interface ReplayModelCase {
@@ -191,13 +190,7 @@ async function runCase(c: ReplayModelCase): Promise<void> {
     log: line => unplaced.push(line),
   });
   const proxyPort = await freePort();
-  const redirected: Redirection[] = redirections({}, `http://127.0.0.1:${proxyPort}`).map(item => ({
-    ...item,
-    target: {
-      kind: 'base',
-      base: `${origin}${PREFIXES['api.openai.com'].variable === item.name ? '/v1' : ''}`,
-    },
-  }));
+  const redirected = redirectionsTo(`http://127.0.0.1:${proxyPort}`, origin);
   const proxy = await startModelProxy({
     port: proxyPort,
     redirections: redirected,

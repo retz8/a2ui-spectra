@@ -16,6 +16,8 @@ import {seconds} from './genai.js';
 import {type CallNotification, type ModelProxy, startModelProxy} from './proxy.js';
 import {type Redirection, redirections} from './redirection.js';
 import {freePort} from '../testing/free_port.js';
+import {eventually} from '../testing/eventually.js';
+import {listen} from '../testing/listen.js';
 
 type Handler = (request: IncomingMessage, body: string, response: ServerResponse) => void;
 
@@ -44,16 +46,6 @@ after(async () => {
     server.close();
   }
 });
-
-function listen(server: Server): Promise<number> {
-  return new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      resolve(typeof address === 'object' && address !== null ? address.port : 0);
-    });
-  });
-}
 
 /**
  * A fake provider behind the proxy, the stand-in's origin so its paths are
@@ -159,14 +151,6 @@ function send(
     request.once('error', reject);
     request.end(body);
   });
-}
-
-async function eventually(check: () => boolean, what: string): Promise<void> {
-  const deadline = Date.now() + 5000;
-  while (!check()) {
-    assert.ok(Date.now() < deadline, what);
-    await new Promise(resolve => setTimeout(resolve, 10));
-  }
 }
 
 const anthropicRequest = {
@@ -554,15 +538,8 @@ describe('the model proxy', () => {
   });
 
   it('answers 502 when the provider cannot be reached, and records the failure without a response', async () => {
-    const {proxy, ended} = await setUp((_request, _body, response) =>
-      response.writeHead(200).end(),
-    );
-    const closed = (await setUp((_request, _body, response) => response.writeHead(200).end()))
-      .providerPort;
-    await new Promise<void>(resolve => {
-      const dead = servers.find(server => (server.address() as {port: number}).port === closed);
-      dead?.close(() => resolve());
-    });
+    const ended: ModelCallEvent[] = [];
+    const closed = await freePort();
     const redirected = await startModelProxy({
       port: await freePort(),
       redirections: redirections({}, 'http://127.0.0.1:1').map(item => ({
@@ -577,7 +554,6 @@ describe('the model proxy', () => {
       }),
     });
     proxies.push(redirected);
-    void proxy;
     const answer = await send(redirected, {
       path: '/OPENAI_BASE_URL/v1/responses',
       body: '{}',
@@ -699,7 +675,7 @@ describe('the model proxy', () => {
   });
 
   it('ends a call cut off by the stop as aborted', async () => {
-    const {proxy, ended} = await setUp((_request, _body, response) => {
+    const {proxy, ended, notifications} = await setUp((_request, _body, response) => {
       response.writeHead(200, {'content-type': 'text/event-stream'});
       response.write('data: {"type": "ping"}\n\n');
     });
@@ -708,8 +684,10 @@ describe('the model proxy', () => {
       body: '{"stream": true}',
       headers: {'content-type': 'application/json'},
     });
-    await eventually(() => ended.length === 0 && proxies.includes(proxy), 'started');
-    await new Promise(resolve => setTimeout(resolve, 50));
+    await eventually(
+      () => notifications.some(notification => notification.type === 'call_started'),
+      'the call started',
+    );
     await proxy.close();
     await answer.catch(() => undefined);
     await eventually(() => ended.length === 1, 'the call ended');

@@ -19,6 +19,7 @@ import {turnRecordErrors} from '../testing/turn_record_schema.js';
 import {startWireProxy, type WireProxy} from './proxy.js';
 import type {TurnNotification} from './turn.js';
 import {freePort} from '../testing/free_port.js';
+import {listen} from '../testing/listen.js';
 
 interface CaptureA2aCase {
   name: string;
@@ -89,16 +90,6 @@ after(async () => {
     server.close();
   }
 });
-
-function listen(server: Server): Promise<number> {
-  return new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      resolve(typeof address === 'object' && address !== null ? address.port : 0);
-    });
-  });
-}
 
 function pathOf(url: string): string {
   const {pathname, search} = new URL(url);

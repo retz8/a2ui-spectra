@@ -16,6 +16,7 @@ import type {CallEvent, ToolCallEvent} from '../record/turn_record.js';
 import {startToolProxy, type ToolProxy} from './proxy.js';
 import type {ToolServer} from './servers.js';
 import {freePort} from '../testing/free_port.js';
+import {listen} from '../testing/listen.js';
 
 const TRACE = 'f'.repeat(32);
 const TURN_SPAN = '1'.repeat(16);
@@ -31,16 +32,6 @@ after(async () => {
     server.close();
   }
 });
-
-function listen(server: Server): Promise<number> {
-  return new Promise((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(0, '127.0.0.1', () => {
-      const address = server.address();
-      resolve(typeof address === 'object' && address !== null ? address.port : 0);
-    });
-  });
-}
 
 interface Setup {
   proxy: ToolProxy;

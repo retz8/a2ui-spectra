@@ -8,6 +8,7 @@ import type {SpanEvent, ToolCallEvent, TurnRecord} from '../record/turn_record.j
 import {type PoolMode, ReplayPool} from '../replay/pool.js';
 import {startToolProxy, type ToolProxy} from './proxy.js';
 import {freePort} from '../testing/free_port.js';
+import {eventually} from '../testing/eventually.js';
 
 const TRACE = 'f'.repeat(32);
 const TURN_SPAN = '1'.repeat(16);
@@ -203,14 +204,6 @@ function openStream(
     });
     outgoing.end();
   });
-}
-
-async function eventually(check: () => boolean, what: string): Promise<void> {
-  const deadline = Date.now() + 5000;
-  while (!check()) {
-    assert.ok(Date.now() < deadline, what);
-    await new Promise(resolve => setTimeout(resolve, 10));
-  }
 }
 
 describe('the tool proxy in replay', () => {

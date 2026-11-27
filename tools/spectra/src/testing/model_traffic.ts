@@ -9,7 +9,7 @@ import {request as httpRequest} from 'node:http';
 import * as path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
-import type {Variable} from '../model_proxy/redirection.js';
+import {type Redirection, redirections, type Variable} from '../model_proxy/redirection.js';
 import {isEventOfKind, type ModelCallEvent, type Turn} from '../record/turn_record.js';
 
 export interface HarHeader {
@@ -73,6 +73,17 @@ export const PREFIXES: Record<string, {variable: Variable; basePath: string}> = 
   'api.openai.com': {variable: 'OPENAI_BASE_URL', basePath: '/v1'},
   'api.anthropic.com': {variable: 'ANTHROPIC_BASE_URL', basePath: ''},
 };
+
+/** Every prefix of a model proxy at `proxyOrigin` forwarding to `origin`, under the base path its provider's host holds. */
+export function redirectionsTo(proxyOrigin: string, origin: string): Redirection[] {
+  const basePaths = new Map(
+    Object.values(PREFIXES).map(({variable, basePath}) => [variable as string, basePath]),
+  );
+  return redirections({}, proxyOrigin).map(item => ({
+    ...item,
+    target: {kind: 'base', base: `${origin}${basePaths.get(item.name) ?? ''}`},
+  }));
+}
 
 /** What the agent's side received for one request. */
 export interface Received {
