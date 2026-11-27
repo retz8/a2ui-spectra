@@ -41,7 +41,7 @@ import {
 import type {CallListener} from '../model_proxy/proxy.js';
 import type {CallToPlace, PlacedCall, Unplaced} from '../placement.js';
 import type {CallEvent, SpanEvent, ToolCallEvent} from '../record/turn_record.js';
-import {exchangeKey, type ReplayPool} from '../replay/pool.js';
+import {exchangeKey, type ReplayPool, requestMessage} from '../replay/pool.js';
 import {
   answer502,
   brokeOff,
@@ -63,6 +63,7 @@ import {listenError, LOOPBACK_ADDRESS} from '../server.js';
 import {NAME} from '../version.js';
 import {
   asJsonRpc,
+  cancelReason,
   cancelledRequestId,
   eventName,
   idKey,
@@ -75,6 +76,7 @@ import {
   progressTokenOf,
   readReply,
   reportedProgressToken,
+  sentProgressToken,
   traceparentOf,
 } from './mcp.js';
 import type {ToolServer} from './servers.js';
@@ -976,10 +978,10 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
     const cancelled = id === undefined ? undefined : session.pending.get(id);
     if (id !== undefined && cancelled !== undefined) {
       session.pending.delete(id);
-      const reason = (message.params as {reason?: unknown} | undefined)?.reason;
+      const reason = cancelReason(message);
       cancelled.capture?.end(call.start, {
         type: 'cancelled',
-        ...(typeof reason === 'string' && {message: reason}),
+        ...(reason !== undefined && {message: reason}),
       });
     }
   }
@@ -1026,24 +1028,15 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
   let pending: Pending | undefined;
   let home = session.pending;
   if (asking && id !== undefined && mcpMethod !== undefined) {
-    pending = {
-      method: mcpMethod,
-      capture,
-      ...(progressTokenOf(message) !== undefined && {progressToken: progressTokenOf(message)}),
-    };
+    const progressToken = progressTokenOf(message);
+    pending = {method: mcpMethod, capture, ...(progressToken !== undefined && {progressToken})};
     home.set(id, pending);
   }
   const replied = (reply: JsonRpcMessage) => {
     if (pending === undefined) return;
     pending.repliedAt ??= shared.now();
     capture?.reply(reply);
-    if (mcpMethod === 'initialize') {
-      const version = negotiatedVersion(reply);
-      if (version !== undefined) {
-        session.protocolVersion = version;
-        capture?.set({'mcp.protocol.version': version});
-      }
-    }
+    if (mcpMethod === 'initialize') noteNegotiated(session, capture, reply);
   };
   const isOurs = (value: unknown): value is JsonRpcMessage => {
     const reply = asJsonRpc(value);
@@ -1136,7 +1129,7 @@ function mcpMessage(call: Call, message: JsonRpcMessage): void {
     missOnCarrier(call, relay, message, session);
   } else {
     const recordedId = served === undefined ? undefined : recordedRequestId(served);
-    const token = liveProgressToken(message);
+    const token = sentProgressToken(message);
     serve(
       call,
       relay,
@@ -1185,19 +1178,19 @@ function pong(call: Call, relay: Relay, message: JsonRpcMessage, session: () => 
 
 /** The JSON-RPC id of the request a recorded event is, as the key the proxy matches on. */
 function recordedRequestId(event: CallEvent): string | undefined {
-  const body = event.attributes['a2ui.http.request.body'];
-  const id =
-    typeof body === 'object' && body !== null && !Array.isArray(body)
-      ? idKey((body as Record<string, unknown>).id)
-      : undefined;
-  return id ?? idKey(event.attributes['jsonrpc.request.id']);
+  return idKey(requestMessage(event)?.id) ?? idKey(event.attributes['jsonrpc.request.id']);
 }
 
-/** The progress token a live request asks its progress under, as it sent it. */
-function liveProgressToken(message: JsonRpcMessage): string | number | undefined {
-  const params = message.params as {_meta?: {progressToken?: unknown}} | undefined;
-  const token = params?._meta?.progressToken;
-  return typeof token === 'string' || typeof token === 'number' ? token : undefined;
+/** Records the version an `initialize` reply negotiated, on the session and on the call's event. */
+function noteNegotiated(
+  session: Session,
+  capture: ToolCapture | undefined,
+  reply: JsonRpcMessage,
+): void {
+  const version = negotiatedVersion(reply);
+  if (version === undefined) return;
+  session.protocolVersion = version;
+  capture?.set({'mcp.protocol.version': version});
 }
 
 /**
@@ -1501,13 +1494,7 @@ function carrierMessage(listener: Listener, session: Session, event: SseEvent, a
       pending.capture?.chunk(event, at);
       pending.capture?.reply(message);
       pending.repliedAt ??= at;
-      if (pending.method === 'initialize') {
-        const version = negotiatedVersion(message);
-        if (version !== undefined) {
-          session.protocolVersion = version;
-          pending.capture?.set({'mcp.protocol.version': version});
-        }
-      }
+      if (pending.method === 'initialize') noteNegotiated(session, pending.capture, message);
       if (pending.exchangeEndedAt !== undefined) {
         session.pending.delete(id);
         pending.capture?.end(at);

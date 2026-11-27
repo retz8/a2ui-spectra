@@ -64,6 +64,18 @@ export function progressTokenOf(message: JsonRpcMessage): string | undefined {
   return idKey(metaOf(message).progressToken);
 }
 
+/** The progress token a request asks its progress under, as it sent it, a string or a number. */
+export function sentProgressToken(message: JsonRpcMessage): string | number | undefined {
+  const token = metaOf(message).progressToken;
+  return typeof token === 'string' || typeof token === 'number' ? token : undefined;
+}
+
+/** The reason `notifications/cancelled` gives, `params.reason`. */
+export function cancelReason(message: JsonRpcMessage): string | undefined {
+  const reason = paramsOf(message).reason;
+  return typeof reason === 'string' ? reason : undefined;
+}
+
 /** The progress token a `notifications/progress` reports under. */
 export function reportedProgressToken(message: JsonRpcMessage): string | undefined {
   return idKey(paramsOf(message).progressToken);

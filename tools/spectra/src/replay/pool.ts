@@ -57,7 +57,7 @@ export type PoolAnswer =
   | {type: 'live'};
 
 /** The JSON-RPC message an MCP event's request body holds. */
-function requestMessage(event: CallEvent): Record<string, unknown> | undefined {
+export function requestMessage(event: CallEvent): Record<string, unknown> | undefined {
   const body = event.attributes['a2ui.http.request.body'];
   return typeof body === 'object' && body !== null && !Array.isArray(body)
     ? (body as Record<string, unknown>)
