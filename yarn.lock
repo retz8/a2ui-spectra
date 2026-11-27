@@ -5411,7 +5411,6 @@ __metadata:
     prettier: "npm:^3.8.4"
     syncpack: "npm:^13.0.0"
     typescript: "npm:6.0.3"
-    wireit: "npm:^0.15.0-pre.2"
   dependenciesMeta:
     bun:
       built: true

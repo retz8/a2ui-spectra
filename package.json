@@ -23,8 +23,7 @@
   "devDependencies": {
     "prettier": "^3.8.4",
     "syncpack": "^13.0.0",
-    "typescript": "6.0.3",
-    "wireit": "^0.15.0-pre.2"
+    "typescript": "6.0.3"
   },
   "dependenciesMeta": {
     "bun": {
