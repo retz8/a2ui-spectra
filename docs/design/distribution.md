@@ -60,6 +60,7 @@ The release notes are the changelog's section, with the preview protocol's lines
 
 ```
 - `a2ui-spectra-instrumentation`, the wrapper reporting the A2UI step, on npm for `@a2ui/agent` 0.1.0 or later, on OpenTelemetry JavaScript's 2.x line with `@opentelemetry/api` `>=1.3.0 <1.10.0`, and on PyPI for `a2ui-agent-sdk` 0.11.0 or later, with OpenTelemetry `>=1.39.0,<2`.
+- A skill for a coding agent, in the Agent Skills format, at `skills/a2ui-spectra/`: starting the agent under Spectra, sending a turn and reading its record and the checks' problems through the API, saving a fixture, and `a2ui-spectra replay` and `a2ui-spectra test`.
 
 ### The preview protocol
 

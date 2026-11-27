@@ -61,7 +61,7 @@ The restaurant finder runs under `a2ui-spectra run`, launched through `opentelem
 7. **Spectra places the spans.** The receiver reads each span by its `a2ui.event.kind` and its `a2ui.record.version`, and places it in the turn by its trace id, which the wire proxy's `traceparent` gave the agent's request.
 8. **The turn view shows the step.** The first parse is a problem on its row, "Read from" the reply it parsed and "Retried by" the call that followed. The raw text is drawn with the rejected block in red. Hovering the text outlines the component under the pointer, and clicking selects it and its node in the tree.
 
-The parse span of step 5, as the wrapper sends it. This is cut from the wrapper capture case `surface_already_exists`, in [`conformance/test_data/wrapper_capture/v0_1/surface_already_exists/expected.json`](../../conformance/test_data/wrapper_capture/v0_1/surface_already_exists/expected.json), which the wrapper capture suite records from this retry: the real wrapper on `a2ui-agent-sdk` 0.12.0, fed a restaurant card twice. The input and the messages are shortened here.
+The parse span of step 5, as the wrapper sends it. This is cut from the wrapper capture case `surface_already_exists`, in [`conformance/test_data/wrapper_capture/v0_1/surface_already_exists/expected.json`](../../conformance/test_data/wrapper_capture/v0_1/surface_already_exists/expected.json), which was recorded from this retry with the real wrapper on `a2ui-agent-sdk` 0.12.0, fed a restaurant card twice. The input and the messages are shortened here.
 
 ```jsonc
 // The span's attributes, as received

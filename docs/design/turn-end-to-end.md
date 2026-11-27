@@ -195,7 +195,7 @@ Inside the agent, upstream's agent SDK, `a2ui-agent-sdk`, does the A2UI step: it
 
 The sample feeds the second call's streamed reply to the SDK's stream chunk by chunk, then the whole reply once more. The second copy's `createSurface` for `default` meets the surface the first copy created, and the SDK stops the parse with `A2uiIntegrityError`, "Surface default already exists.". The sample takes it as a bad reply and calls the model again. From the parse span and the turn's model calls, Spectra works out that the parse read the second call's reply and that the third call retried it. [The A2UI step](a2ui-step.md) has the wrapper's rules, and [what Spectra does with the spans](a2ui-step.md#what-spectra-does-with-the-spans).
 
-The parse's error, as the wrapper sends it: the exception span event [the A2UI step doc](a2ui-step.md#one-turn-end-to-end) cuts from the wrapper capture case `surface_already_exists`, [`conformance/test_data/wrapper_capture/v0_1/surface_already_exists/expected.json`](../../conformance/test_data/wrapper_capture/v0_1/surface_already_exists/expected.json), which the wrapper capture suite records by feeding the real wrapper, on `a2ui-agent-sdk` 0.12.0, a restaurant card twice, as this retry does:
+The parse's error, as the wrapper sends it: the exception span event [the A2UI step doc](a2ui-step.md#one-turn-end-to-end) cuts from the wrapper capture case `surface_already_exists`, [`conformance/test_data/wrapper_capture/v0_1/surface_already_exists/expected.json`](../../conformance/test_data/wrapper_capture/v0_1/surface_already_exists/expected.json), which was recorded by feeding the real wrapper, on `a2ui-agent-sdk` 0.12.0, a restaurant card twice, as this retry does:
 
 ```json
 {
