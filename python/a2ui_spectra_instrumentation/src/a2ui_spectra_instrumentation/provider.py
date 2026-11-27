@@ -5,11 +5,11 @@ from __future__ import annotations
 import os
 
 from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http import trace_exporter
+from opentelemetry.sdk import trace as sdk_trace
+from opentelemetry.sdk.trace import export as sdk_export
 
-from .log import logger
+from a2ui_spectra_instrumentation import log
 
 
 def _variable(*names: str) -> str | None:
@@ -40,21 +40,23 @@ def tracer_provider(given: trace.TracerProvider | None) -> trace.TracerProvider 
         "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL", "OTEL_EXPORTER_OTLP_PROTOCOL"
     )
     if endpoint is None:
-        logger.info(
+        log.logger.info(
             "a2ui-spectra-instrumentation started no tracer provider: the"
             " environment names no OTLP endpoint (OTEL_EXPORTER_OTLP_ENDPOINT);"
             " the spans go to a provider the process sets"
         )
         return None
     if protocol is not None and protocol != "http/protobuf":
-        logger.info(
+        log.logger.info(
             "a2ui-spectra-instrumentation started no tracer provider: the"
             " environment names the OTLP protocol %s, and the wrapper exports"
             " only http/protobuf; the spans go to a provider the process sets",
             protocol,
         )
         return None
-    provider = TracerProvider()
-    provider.add_span_processor(BatchSpanProcessor(OTLPSpanExporter()))
+    provider = sdk_trace.TracerProvider()
+    provider.add_span_processor(
+        sdk_export.BatchSpanProcessor(trace_exporter.OTLPSpanExporter())
+    )
     trace.set_tracer_provider(provider)
     return None

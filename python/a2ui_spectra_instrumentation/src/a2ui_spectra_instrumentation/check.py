@@ -14,12 +14,12 @@ import importlib.metadata
 from dataclasses import dataclass, field
 from typing import Any
 
-from packaging.requirements import Requirement
-from packaging.version import InvalidVersion, Version
+from packaging import requirements
+from packaging import version as packaging_version
 
-from .hooks import GENERATORS, HOOKS, READS, Hook
-from .log import logger
-from .package import ADK, AGENT_SDK, FLOOR, PINS, RELEASE
+from a2ui_spectra_instrumentation import hooks
+from a2ui_spectra_instrumentation import log
+from a2ui_spectra_instrumentation import package
 
 _EXPERIMENTAL = ("atom", "elemental")
 
@@ -28,7 +28,7 @@ _EXPERIMENTAL = ("atom", "elemental")
 class Target:
     """A hooked name, resolved: the object that holds it and its attribute there."""
 
-    hook: Hook
+    hook: hooks.Hook
     owner: Any
     attribute: str
 
@@ -84,13 +84,13 @@ def _resolve_class(module: str, name: str) -> type:
 def _add_group(plan: Plan, group: str) -> None:
     """Adds every name and class of a group, or none, raising a LookupError naming the first missing."""
     targets = []
-    for hook in HOOKS:
+    for hook in hooks.HOOKS:
         if hook.group == group:
             holder, attribute, _ = _resolve(hook.module, hook.name)
             targets.append(Target(hook, holder, attribute))
     generators = [
         (_resolve_class(generator.module, generator.name), generator.format)
-        for generator in GENERATORS
+        for generator in hooks.GENERATORS
         if generator.group == group
     ]
     plan.targets.extend(targets)
@@ -99,41 +99,43 @@ def _add_group(plan: Plan, group: str) -> None:
 
 def _refuse(distribution: str, version: str | None, why: str) -> None:
     # The floor is the agent SDK's alone; `a2ui-adk` is named by its release.
-    logger.warning(
+    log.logger.warning(
         "a2ui-spectra-instrumentation left %s %s unpatched: %s; it was written"
         " against %s, %s%s",
         distribution,
         version if version is not None else "(not installed)",
         why,
-        PINS[distribution],
-        RELEASE,
-        f" ({FLOOR})" if distribution == AGENT_SDK else "",
+        package.PINS[distribution],
+        package.RELEASE,
+        f" ({package.FLOOR})" if distribution == package.AGENT_SDK else "",
     )
 
 
 def _above_floor(version: str) -> bool:
     try:
-        return Requirement(FLOOR).specifier.contains(Version(version), prereleases=True)
-    except InvalidVersion:
+        return requirements.Requirement(package.FLOOR).specifier.contains(
+            packaging_version.Version(version), prereleases=True
+        )
+    except packaging_version.InvalidVersion:
         return False
 
 
 def check() -> Plan | None:
     """The names to hook, or None when the agent SDK is refused."""
-    version = installed_version(AGENT_SDK)
+    version = installed_version(package.AGENT_SDK)
     if version is None:
-        _refuse(AGENT_SDK, None, "it is not installed")
+        _refuse(package.AGENT_SDK, None, "it is not installed")
         return None
     if not _above_floor(version):
-        _refuse(AGENT_SDK, version, "it is below the version floor")
+        _refuse(package.AGENT_SDK, version, "it is below the version floor")
         return None
     plan = Plan(sdk_version=version)
     try:
         _add_group(plan, "core")
-        for module, name in READS:
+        for module, name in hooks.READS:
             plan.reads[name] = _resolve(module, name)[2]
     except LookupError as missing:
-        _refuse(AGENT_SDK, version, f"{missing} is missing")
+        _refuse(package.AGENT_SDK, version, f"{missing} is missing")
         return None
     try:
         plan.to_protocol_version = _resolve("a2ui.core.common", "to_protocol_version")[
@@ -145,7 +147,7 @@ def check() -> Plan | None:
         try:
             _add_group(plan, group)
         except LookupError as missing:
-            logger.debug(
+            log.logger.debug(
                 "a2ui-spectra-instrumentation: %s is not hooked: %s is missing",
                 group.capitalize(),
                 missing,
@@ -156,7 +158,7 @@ def check() -> Plan | None:
 
 def _check_toolset(plan: Plan) -> None:
     """Adds the toolset's names, unless `a2ui-adk` is not installed or lacks one."""
-    adk_version = installed_version(ADK)
+    adk_version = installed_version(package.ADK)
     if adk_version is None:
         return
     try:
@@ -166,4 +168,4 @@ def _check_toolset(plan: Plan) -> None:
     try:
         _add_group(plan, "toolset")
     except LookupError as missing:
-        _refuse(ADK, adk_version, f"{missing} is missing")
+        _refuse(package.ADK, adk_version, f"{missing} is missing")

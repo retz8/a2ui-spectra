@@ -6,14 +6,14 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from opentelemetry.trace import Tracer
+from opentelemetry import trace
 
 
 @dataclass(frozen=True)
 class Active:
     """What every hook reads while the wrapper is switched on."""
 
-    tracer: Tracer
+    tracer: trace.Tracer
     # The agent SDK's version, as its distribution reports it.
     sdk_version: str
     # `a2ui.parser.to_message_dicts`: messages as wire-format dicts.

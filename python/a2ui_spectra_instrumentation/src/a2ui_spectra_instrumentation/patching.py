@@ -8,8 +8,8 @@ from typing import Any
 import wrapt
 from opentelemetry.instrumentation.utils import unwrap
 
-from . import hooks
-from .check import Plan
+from a2ui_spectra_instrumentation import check
+from a2ui_spectra_instrumentation import hooks
 
 # A hook's class: wrapt 2's `BaseObjectProxy`, wrapt 1's `ObjectProxy`.
 _PROXY: type = getattr(wrapt, "BaseObjectProxy", wrapt.ObjectProxy)
@@ -21,7 +21,7 @@ _applied: list[tuple[Any, str]] = []
 _swallowed = hooks.SwallowedErrors()
 
 
-def apply(plan: Plan) -> None:
+def apply(plan: check.Plan) -> None:
     """Hooks every name of the plan; on a failure, removes what it hooked and raises."""
     try:
         for target in plan.targets:

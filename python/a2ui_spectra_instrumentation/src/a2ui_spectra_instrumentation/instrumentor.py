@@ -12,11 +12,12 @@ from opentelemetry.instrumentation.instrumentor import (  # type: ignore[attr-de
     BaseInstrumentor,
 )
 
-from . import check, patching, state
-from .check import Plan
-from .package import SCOPE_NAME, _instruments
-from .provider import tracer_provider
-from .version import __version__
+from a2ui_spectra_instrumentation import check
+from a2ui_spectra_instrumentation import package
+from a2ui_spectra_instrumentation import patching
+from a2ui_spectra_instrumentation import provider
+from a2ui_spectra_instrumentation import state
+from a2ui_spectra_instrumentation import version
 
 
 class A2uiInstrumentor(BaseInstrumentor):  # type: ignore[misc]
@@ -27,14 +28,16 @@ class A2uiInstrumentor(BaseInstrumentor):  # type: ignore[misc]
     """
 
     def instrumentation_dependencies(self) -> Collection[str]:
-        return _instruments
+        return package._instruments
 
     def _instrument(self, **kwargs: Any) -> None:
         plan = check.check()
         if plan is None:
             return
-        provider = tracer_provider(kwargs.get("tracer_provider"))
-        tracer = trace.get_tracer(SCOPE_NAME, __version__, tracer_provider=provider)
+        chosen_provider = provider.tracer_provider(kwargs.get("tracer_provider"))
+        tracer = trace.get_tracer(
+            package.SCOPE_NAME, version.__version__, tracer_provider=chosen_provider
+        )
         state.activate(_active(plan, tracer))
         try:
             patching.apply(plan)
@@ -47,7 +50,7 @@ class A2uiInstrumentor(BaseInstrumentor):  # type: ignore[misc]
         state.deactivate()
 
 
-def _active(plan: Plan, tracer: trace.Tracer) -> state.Active:
+def _active(plan: check.Plan, tracer: trace.Tracer) -> state.Active:
     parsers = tuple(
         (target.owner, target.hook.format)
         for target in plan.targets

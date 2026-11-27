@@ -20,12 +20,12 @@ from collections.abc import Iterable, Mapping
 from typing import Any
 
 from opentelemetry import context as otel_context
-from opentelemetry.trace import SpanKind, Status, StatusCode
+from opentelemetry import trace
 from opentelemetry.util.types import AttributeValue
 
-from .log import logger
-from .package import AGENT_SDK
-from .state import Active
+from a2ui_spectra_instrumentation import log
+from a2ui_spectra_instrumentation import package
+from a2ui_spectra_instrumentation import state
 
 # A block's range in the input: start inclusive, end exclusive, in UTF-16 code units.
 Block = tuple[int, int]
@@ -105,7 +105,7 @@ def error_details(error: BaseException) -> list[Any]:
     ]
 
 
-def record_version(active: Active, version: Any) -> str:
+def record_version(active: state.Active, version: Any) -> str:
     """A protocol version in the record's form: `v0.9`, `v0.9.1`, `v1.0`."""
     if active.to_protocol_version is not None:
         try:
@@ -116,7 +116,7 @@ def record_version(active: Active, version: Any) -> str:
     return text if text.startswith("v") else f"v{text}"
 
 
-def catalogs_of(active: Active, owner: object) -> list[dict[str, str]] | None:
+def catalogs_of(active: state.Active, owner: object) -> list[dict[str, str]] | None:
     """The catalogs a parser or a prompt generator holds, in the record's shape."""
     catalogs = getattr(owner, "catalogs", None)
     if not isinstance(catalogs, Iterable):
@@ -143,7 +143,7 @@ class Event:
 
     kind = ""
 
-    def __init__(self, active: Active) -> None:
+    def __init__(self, active: state.Active) -> None:
         self.active = active
         # Times come from one wall-clock reading and a monotonic clock, so the
         # span events keep their order.
@@ -267,7 +267,7 @@ class Event:
         """Ends the event without a span."""
         self.ended = True
         if why is not None:
-            logger.debug("a2ui-spectra-instrumentation: %s", why)
+            log.logger.debug("a2ui-spectra-instrumentation: %s", why)
 
     def end(self) -> None:
         """Ends the event, writing it as one span."""
@@ -282,18 +282,21 @@ class Event:
         span = self.active.tracer.start_span(
             self.kind,
             context=self.context,
-            kind=SpanKind.INTERNAL,
+            kind=trace.SpanKind.INTERNAL,
             attributes=attributes,
             start_time=self.start,
         )
         for name, event_attributes, at in kept_span_events(self.span_events):
             span.add_event(name, event_attributes, timestamp=at)
         if self.first_error is not None:
-            span.set_status(Status(StatusCode.ERROR, self.first_error[1]))
+            span.set_status(trace.Status(trace.StatusCode.ERROR, self.first_error[1]))
         span.end(end_time=self.now())
 
     def _sdk(self) -> dict[str, AttributeValue]:
-        return {"a2ui.sdk.name": AGENT_SDK, "a2ui.sdk.version": self.active.sdk_version}
+        return {
+            "a2ui.sdk.name": package.AGENT_SDK,
+            "a2ui.sdk.version": self.active.sdk_version,
+        }
 
 
 class Silent(Event):
@@ -322,7 +325,7 @@ class PromptEvent(Event):
 
     kind = "prompt_generation"
 
-    def __init__(self, active: Active) -> None:
+    def __init__(self, active: state.Active) -> None:
         super().__init__(active)
         self.ui_section: str | None = None
 
@@ -357,7 +360,7 @@ class PromptEvent(Event):
         return attributes
 
     def abandon_reason(self, why: str) -> None:
-        logger.debug(
+        log.logger.debug(
             "a2ui-spectra-instrumentation: a prompt generation is not recorded: %s", why
         )
 
@@ -367,7 +370,9 @@ class ParseEvent(Event):
 
     kind = "parse"
 
-    def __init__(self, active: Active, entry_point: str, text: object = "") -> None:
+    def __init__(
+        self, active: state.Active, entry_point: str, text: object = ""
+    ) -> None:
         super().__init__(active)
         self.entry_point = entry_point
         self.input = text if isinstance(text, str) else ""
