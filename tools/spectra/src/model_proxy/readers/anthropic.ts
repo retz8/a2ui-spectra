@@ -12,6 +12,7 @@ import {
   type FinishReason,
   type GenAiPart,
   isRecord,
+  parsedJson,
   reasoningPart,
   type StreamError,
   sum,
@@ -209,13 +210,7 @@ export const anthropicReader: ApiReader = {
       .sort(([a], [b]) => a - b)
       .map(([, block]) => {
         const {partialJson, ...rest} = block;
-        if (partialJson !== undefined) {
-          try {
-            rest.input = JSON.parse(partialJson) as unknown;
-          } catch {
-            rest.input = partialJson;
-          }
-        }
+        if (partialJson !== undefined) rest.input = parsedJson(partialJson);
         return rest;
       });
     return {

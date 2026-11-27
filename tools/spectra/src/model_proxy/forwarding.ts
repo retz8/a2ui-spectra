@@ -103,7 +103,7 @@ export function tunnelUpgrade(
     sockets.delete(socket);
     sockets.delete(upstream);
   };
-  upstream.once('connect', () => {
+  upstream.once(target.protocol === 'https:' ? 'secureConnect' : 'connect', () => {
     const lines = [`${request.method ?? 'GET'} ${target.pathname}${target.search} HTTP/1.1`];
     for (let i = 0; i < request.rawHeaders.length; i += 2) {
       const name = request.rawHeaders[i];
@@ -115,7 +115,6 @@ export function tunnelUpgrade(
     if (head.length > 0) upstream.write(head);
     socket.pipe(upstream).pipe(socket);
   });
-  upstream.once('secureConnect', () => upstream.emit('connect'));
   upstream.once('error', () => {
     socket.destroy();
     forget();

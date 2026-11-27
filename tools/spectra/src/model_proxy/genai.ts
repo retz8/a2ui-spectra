@@ -85,8 +85,8 @@ export function uriPart(mimeType: string | undefined, uri: string): GenAiPart {
   return defined({type: 'uri', mime_type: mimeType, modality: modalityOf(mimeType), uri});
 }
 
-/** A tool call's arguments as the model wrote them: the parsed JSON of a string, else the value itself. */
-export function parsedArguments(value: unknown): unknown {
+/** The parsed JSON of a string that is JSON, else the value itself: a tool call's arguments as the model wrote them, or a body as the record holds it. */
+export function parsedJson(value: unknown): unknown {
   if (typeof value !== 'string') return value;
   try {
     return JSON.parse(value) as unknown;

@@ -89,6 +89,7 @@ const DEFAULT_CLOSE_GRACE_MS = 5000;
 /** The least time between two of a call's progress notifications: at most ten a second. */
 const PROGRESS_MS = 100;
 const AGENT_CLOSED = 'The agent closed the connection before the response ended.';
+const STOPPED = 'Spectra stopped before the response ended.';
 
 export interface ModelProxy {
   readonly origin: string;
@@ -146,7 +147,7 @@ export function startModelProxy(options: ModelProxyOptions): Promise<ModelProxy>
           new Promise(done => {
             state.closing = true;
             for (const upstream of state.inFlight) {
-              upstream.destroy(new Error('Spectra stopped before the response ended.'));
+              upstream.destroy(new Error(STOPPED));
             }
             for (const socket of state.sockets) {
               socket.destroy();
@@ -283,8 +284,7 @@ class Capture {
     const at = this.#state.now();
     const spanEvent = chunkEvent(at.toString(), chunk);
     this.spanEvents.push(spanEvent);
-    const body = spanEvent.attributes?.['a2ui.http.response.chunk.body'];
-    const read: StreamChunk = {...(chunk.event !== undefined && {event: chunk.event}), data: body};
+    const read = streamChunkOf(spanEvent);
     this.chunks.push(read);
     // The first chunk is the first that carries output, on a call read in full.
     if (this.#firstChunkAt === undefined && this.#reader?.carriesOutput(read) === true) {
@@ -512,14 +512,16 @@ async function forward(
     if (response.destroyed) {
       // The agent is gone; nothing to answer.
     } else if (!response.headersSent) {
-      response.writeHead(502, {'content-type': 'text/plain; charset=utf-8'});
-      response.end(`${NAME}'s model proxy could not reach ${target.host}: ${error.message}\n`);
+      answer502(
+        response,
+        unreachedLine('model proxy', target.host, {type: code ?? 'error', message: error.message}),
+      );
     } else {
       response.destroy(error);
     }
     capture?.end({
       failure: state.closing
-        ? {type: 'aborted', message: 'Spectra stopped before the response ended.'}
+        ? {type: 'aborted', message: STOPPED}
         : {type: code ?? 'error', message: error.message},
     });
   });
@@ -533,16 +535,19 @@ async function forward(
  */
 function statedError(event: CallEvent, reader: ApiReader | undefined): string | undefined {
   if (reader === undefined || !wasStreamed(event.attributes)) return undefined;
-  const chunks: StreamChunk[] = (event.events ?? [])
+  const chunks = (event.events ?? [])
     .filter(chunk => chunk.name === 'a2ui.http.response.chunk')
-    .map(chunk => {
-      const name = chunk.attributes?.['a2ui.http.response.chunk.event'];
-      return {
-        ...(typeof name === 'string' && {event: name}),
-        data: chunk.attributes?.['a2ui.http.response.chunk.body'],
-      };
-    });
+    .map(streamChunkOf);
   return reader.stream(chunks).error?.type;
+}
+
+/** A recorded chunk as a reader reads it: its server-sent event's name, if one, and its body. */
+function streamChunkOf(spanEvent: SpanEvent): StreamChunk {
+  const name = spanEvent.attributes?.['a2ui.http.response.chunk.event'];
+  return {
+    ...(typeof name === 'string' && {event: name}),
+    data: spanEvent.attributes?.['a2ui.http.response.chunk.body'],
+  };
 }
 
 /** Passes the reply on as received, and reads a copy into the capture, if there is one; `served` when the reply is from a replay's record. */
@@ -592,7 +597,7 @@ function relay(
     capture.end({
       response: {status, headers: reply.headers, streamed},
       failure: state.closing
-        ? {type: 'aborted', message: 'Spectra stopped before the response ended.'}
+        ? {type: 'aborted', message: STOPPED}
         : {
             type: (error as NodeJS.ErrnoException | undefined)?.code ?? 'ECONNRESET',
             message: error?.message ?? "The provider's response broke before it ended.",

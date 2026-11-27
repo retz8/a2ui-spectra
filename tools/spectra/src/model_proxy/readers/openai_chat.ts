@@ -14,7 +14,7 @@ import {
   type GenAiMessage,
   type GenAiPart,
   isRecord,
-  parsedArguments,
+  parsedJson,
   reasoningPart,
   type StreamError,
   textPart,
@@ -105,9 +105,7 @@ function toolCalls(value: unknown): GenAiPart[] {
   return asArray(value).flatMap(call => {
     if (!isRecord(call)) return [];
     const fn = isRecord(call.function) ? call.function : {};
-    return [
-      toolCallPart(asString(call.id), asString(fn.name) ?? '', parsedArguments(fn.arguments)),
-    ];
+    return [toolCallPart(asString(call.id), asString(fn.name) ?? '', parsedJson(fn.arguments))];
   });
 }
 

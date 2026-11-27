@@ -11,7 +11,7 @@ import {
   type GenAiMessage,
   type GenAiPart,
   isRecord,
-  parsedArguments,
+  parsedJson,
   reasoningPart,
   type StreamError,
   textPart,
@@ -65,7 +65,7 @@ function itemMessage(item: Record<string, unknown>): GenAiMessage | undefined {
           toolCallPart(
             asString(item.call_id) ?? asString(item.id),
             asString(item.name) ?? '',
-            parsedArguments(item.arguments),
+            parsedJson(item.arguments),
           ),
         ],
       };
@@ -115,7 +115,7 @@ function outputMessage(response: Record<string, unknown>): GenAiMessage | undefi
           toolCallPart(
             asString(item.call_id) ?? asString(item.id),
             asString(item.name) ?? '',
-            parsedArguments(item.arguments),
+            parsedJson(item.arguments),
           ),
         );
         break;

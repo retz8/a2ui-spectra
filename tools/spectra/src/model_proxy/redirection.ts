@@ -4,6 +4,7 @@
  * calls forward: what the variable's client would have resolved from the
  * values in Spectra's own environment, else the provider's own API.
  */
+import {LOOPBACK_HOSTS} from '../host_check.js';
 import {pasteBlocks, pasteLine, type Shell} from '../paste.js';
 import {removeFromUrl} from './credentials.js';
 
@@ -23,6 +24,7 @@ export type Variable = (typeof VARIABLES)[number];
 const GEMINI_HOST = 'https://generativelanguage.googleapis.com';
 const OPENAI_API = 'https://api.openai.com/v1';
 const ANTHROPIC_HOST = 'https://api.anthropic.com';
+const LOOPBACK = new Set(LOOPBACK_HOSTS);
 
 /** Where a prefix's calls forward. */
 export type Target =
@@ -53,11 +55,10 @@ function isProxyItself(value: string, proxyOrigin: string): boolean {
     return false;
   }
   const proxy = new URL(proxyOrigin);
-  const loopback = new Set(['127.0.0.1', 'localhost', '[::1]']);
   return (
     url.protocol === proxy.protocol &&
-    loopback.has(url.hostname) &&
-    loopback.has(proxy.hostname) &&
+    LOOPBACK.has(url.hostname) &&
+    LOOPBACK.has(proxy.hostname) &&
     (url.port || '80') === (proxy.port || '80')
   );
 }

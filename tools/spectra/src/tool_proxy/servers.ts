@@ -6,6 +6,7 @@
  */
 import type {ToolServerConfig} from '../config.js';
 import {removeFromUrl} from '../model_proxy/credentials.js';
+import {LOOPBACK_HOSTS} from '../host_check.js';
 import {LOOPBACK_ADDRESS} from '../server.js';
 import {pasteLine, type Shell} from '../paste.js';
 
@@ -30,7 +31,7 @@ export class ToolServerError extends Error {
   }
 }
 
-const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]']);
+const LOOPBACK = new Set(LOOPBACK_HOSTS);
 
 /** Whether a value points at one of the tool proxy's own listeners, left over from an earlier `attach`. */
 function isToolProxyItself(url: URL, ports: number[]): boolean {

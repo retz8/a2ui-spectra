@@ -7,6 +7,7 @@ import type {IncomingHttpHeaders, OutgoingHttpHeaders} from 'node:http';
 
 import type {SpanEvent} from '../record/turn_record.js';
 import {removeFromHeaders, removeFromUrl} from './credentials.js';
+import {parsedJson} from './genai.js';
 
 /**
  * Headers that belong to one connection, which a proxy does not pass on
@@ -57,15 +58,6 @@ function bodyKept(contentType: string | undefined): boolean {
   );
 }
 
-/** A body as the record holds it: its parsed JSON value when it is JSON, its text otherwise. */
-export function bodyValue(text: string): unknown {
-  try {
-    return JSON.parse(text) as unknown;
-  } catch {
-    return text;
-  }
-}
-
 /** The request's exchange attributes, credentials removed. */
 export function requestAttributes(
   method: string,
@@ -83,7 +75,7 @@ export function requestAttributes(
   attributes['server.address'] = url.hostname;
   attributes['server.port'] = Number(url.port || (url.protocol === 'https:' ? 443 : 80));
   if (body !== undefined && bodyKept(String(headers['content-type'] ?? ''))) {
-    attributes['a2ui.http.request.body'] = bodyValue(body);
+    attributes['a2ui.http.request.body'] = parsedJson(body);
   }
   return attributes;
 }
@@ -102,7 +94,7 @@ export function responseAttributes(
   }
   attributes['http.response.status_code'] = status;
   if (body !== undefined && bodyKept(String(headers['content-type'] ?? ''))) {
-    attributes['a2ui.http.response.body'] = bodyValue(body);
+    attributes['a2ui.http.response.body'] = parsedJson(body);
   }
   return attributes;
 }
@@ -116,7 +108,7 @@ export function chunkEvent(
     timeUnixNano,
     name: 'a2ui.http.response.chunk',
     attributes: {
-      'a2ui.http.response.chunk.body': bodyValue(chunk.data),
+      'a2ui.http.response.chunk.body': parsedJson(chunk.data),
       ...(chunk.event !== undefined && {'a2ui.http.response.chunk.event': chunk.event}),
       ...(chunk.id !== undefined && {'a2ui.http.response.chunk.id': chunk.id}),
     },
