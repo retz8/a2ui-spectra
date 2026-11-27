@@ -754,6 +754,40 @@ describe('the model proxy', () => {
     assert.deepEqual(ended, []);
     assert.equal(logs.length, 2);
   });
+
+  it('relays a reply in an encoding it cannot decode as received, and records its status without a body', async () => {
+    const {proxy, ended} = await setUp((_request, _body, response) => {
+      response.writeHead(200, {'content-type': 'application/json', 'content-encoding': 'compress'});
+      response.end('opaque');
+    });
+    const answer = await send(proxy, {
+      path: '/ANTHROPIC_BASE_URL/v1/messages',
+      body: JSON.stringify(anthropicRequest),
+      headers: {'content-type': 'application/json'},
+    });
+    assert.equal(answer.status, 200);
+    assert.equal(answer.headers['content-encoding'], 'compress');
+    assert.equal(answer.body.toString(), 'opaque');
+    await eventually(() => ended.length === 1, 'the call ended');
+    assert.equal(ended[0].attributes['http.response.status_code'], 200);
+    assert.equal(ended[0].attributes['a2ui.http.response.body'], undefined);
+    assert.equal(ended[0].status?.code, 1);
+  });
+
+  it('drops the upstream at once when the agent leaves a call that was not placed', async () => {
+    let upstreamClosed = false;
+    const {proxy, ended} = await setUp(
+      (_request, _body, response) => {
+        response.writeHead(200, {'content-type': 'text/event-stream'});
+        response.write('data: {"type": "ping"}\n\n');
+        response.once('close', () => (upstreamClosed = true));
+      },
+      {place: false, closeGraceMs: 5000},
+    );
+    await leave(proxy, '/ANTHROPIC_BASE_URL/v1/messages', 1);
+    await eventually(() => upstreamClosed, 'the upstream dropped before the grace');
+    assert.deepEqual(ended, []);
+  });
 });
 
 describe('the model proxy with a WebSocket upgrade', () => {

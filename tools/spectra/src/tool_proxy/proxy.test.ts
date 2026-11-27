@@ -1176,3 +1176,58 @@ describe('the tool proxy with a GET stream that names no session', () => {
     await opened.closed;
   });
 });
+
+describe('the tool proxy relaying what it cannot read', () => {
+  it('relays a reply in an encoding it cannot decode as received, and records its status without a body', async () => {
+    const setup = await setUp(
+      (_request, _body, response) => {
+        response.writeHead(200, {
+          'content-type': 'application/json',
+          'content-encoding': 'compress',
+        });
+        response.end('opaque');
+      },
+      {path: '/api'},
+    );
+    const answer = await send(setup.origin, {path: '/api/json', body: '{"x": 1}'});
+    assert.equal(answer.status, 200);
+    assert.equal(answer.headers['content-encoding'], 'compress');
+    assert.equal(answer.body, 'opaque');
+    await until(() => setup.ended.length === 1, 'the request');
+    const [call] = setup.ended;
+    assert.equal(call.attributes['http.response.status_code'], 200);
+    assert.equal(call.attributes['a2ui.http.response.body'], undefined);
+    assert.equal(call.status?.code, 1);
+  });
+
+  it('reads the reply of an agent that left before its head into the call, and passes nothing on', async () => {
+    let answerLater: (() => void) | undefined;
+    const setup = await setUp(
+      (_request, _body, response) => {
+        answerLater = () => {
+          response.writeHead(200, {'content-type': 'application/json'});
+          response.end('{"ok": true}');
+        };
+      },
+      {path: '/api', closeGraceMs: 1000},
+    );
+    await new Promise<void>(resolve => {
+      const request = httpRequest(new URL('/api/json', setup.origin), {
+        method: 'POST',
+        headers: {'content-type': 'application/json'},
+      });
+      request.once('error', () => {});
+      request.end('{"x": 1}');
+      void until(() => answerLater !== undefined, 'the request at the server').then(() => {
+        request.destroy();
+        setTimeout(resolve, 50);
+      });
+    });
+    answerLater!();
+    await until(() => setup.ended.length === 1, 'the request');
+    const [call] = setup.ended;
+    assert.equal(call.name, 'POST /api/json');
+    assert.equal(call.attributes['http.response.status_code'], 200);
+    assert.deepEqual(call.attributes['a2ui.http.response.body'], {ok: true});
+  });
+});
