@@ -12,7 +12,8 @@
  *   --card-file <path>           A JSON file read at start whose `name`,
  *                                `transports` and `streaming` replace the
  *                                card's, so a test changes the card between
- *                                two starts of the command.
+ *                                two starts of the command; its `card`, when
+ *                                it holds one, is the card whole.
  *   --streaming                  The card declares streaming, so the message
  *                                box sends a stream.
  *   --hold-card-until-file <path>
@@ -115,6 +116,8 @@ export interface FakeAgentOptions {
   otelExport?: boolean;
   /** The card's name. Default: the fake agent's. */
   name?: string;
+  /** The card whole, in place of the one the other options build. */
+  card?: Record<string, unknown>;
   /** Whether the card declares streaming. */
   streaming?: boolean;
   /** While it says so, a card request is left unanswered. */
@@ -316,6 +319,7 @@ export function startFakeAgent(
     otelExport = false,
     name = FAKE_AGENT_NAME,
     streaming = false,
+    card: wholeCard,
     holdCard,
     holdStream,
     a2ui,
@@ -326,7 +330,8 @@ export function startFakeAgent(
   const capabilities = streaming ? {capabilities: {streaming: true}} : {};
   // No transports is a card that lists no interface at all, as an empty A2A 1.0 list.
   const card =
-    transports.length === 0
+    wholeCard ??
+    (transports.length === 0
       ? {name, ...capabilities, supportedInterfaces: []}
       : {
           name,
@@ -336,7 +341,7 @@ export function startFakeAgent(
           ...(transports.length > 1 && {
             additionalInterfaces: transports.slice(1).map(transport => ({url, transport})),
           }),
-        };
+        });
   /** The JSON-RPC requests this process received, in order. */
   const requests: unknown[] = [];
   const server = createServer((request, response) => {
@@ -499,6 +504,7 @@ async function runAsScript(): Promise<void> {
           name?: string;
           transports?: string[];
           streaming?: boolean;
+          card?: Record<string, unknown>;
         })
       : {};
   const holdCardFile = values['hold-card-until-file'];
@@ -515,6 +521,7 @@ async function runAsScript(): Promise<void> {
   const server = await startFakeAgent(Number(values.port), {
     transports: fromFile.transports ?? values.transports?.split(','),
     ...(fromFile.name !== undefined && {name: fromFile.name}),
+    ...(fromFile.card !== undefined && {card: fromFile.card}),
     streaming: fromFile.streaming ?? values.streaming === true,
     ...(holdCardFile !== undefined && {holdCard: () => !existsSync(holdCardFile)}),
     ...(holdStreamFile !== undefined && {holdStream: () => existsSync(holdStreamFile)}),

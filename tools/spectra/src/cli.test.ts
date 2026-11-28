@@ -700,6 +700,46 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
     },
   );
 
+  it(
+    'attach takes a card that names no agent: no name in the context',
+    {timeout: TIMEOUT},
+    async () => {
+      const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
+        freePort(),
+        freePort(),
+        freePort(),
+        freePort(),
+      ]);
+      const agent = await startFakeAgent(agentPort, {
+        card: {url: `http://localhost:${agentPort}/`, preferredTransport: 'JSONRPC'},
+      });
+      const spectra = new SpectraProcess([
+        'attach',
+        `http://localhost:${agentPort}`,
+        '--port',
+        String(port),
+        '--proxy-port',
+        String(proxyPort),
+        '--model-proxy-port',
+        String(modelProxyPort),
+        '--receiver-port',
+        String(await freePort()),
+        '--no-open',
+      ]);
+      try {
+        await spectra.waitFor(viewerUrl);
+        const context = (await getJson<SessionContext>(`http://127.0.0.1:${port}/api/context`))
+          .body;
+        assert.equal('agentName' in context, false);
+        assert.deepEqual(context.a2aVersions, []);
+        spectra.requestStop();
+        assert.equal((await spectra.exited).code, STOPPED_CODE);
+      } finally {
+        await closeServer(agent);
+      }
+    },
+  );
+
   it('attach stops when the card lists no interface at all', {timeout: TIMEOUT}, async () => {
     const [agentPort, port, proxyPort, modelProxyPort] = await Promise.all([
       freePort(),
@@ -2295,6 +2335,54 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
             assert.equal((await boxOf(base)).noJsonRpc, undefined);
             await sendMessage(base, 'Hi');
             await boxSettled(base);
+            await stopped(spectra);
+          } finally {
+            rmSync(dir, {recursive: true, force: true});
+          }
+        },
+      );
+
+      it(
+        'says on the terminal a card that prefers another transport, a card whose JSON-RPC the box does not speak and a card that names no agent, and keeps running',
+        {timeout: TIMEOUT},
+        async () => {
+          const dir = tempDir();
+          const cardFile = path.join(dir, 'card.json');
+          const {spectra, base, agentPort} = await launch(['--card-file', cardFile]);
+          const url = `http://localhost:${agentPort}/`;
+          try {
+            await spectra.waitFor(cardAnswered);
+            const first = await stateIs(base, 'running');
+
+            writeFileSync(cardFile, JSON.stringify({transports: ['GRPC', 'JSONRPC']}));
+            assert.equal((await press(base)).status, 202);
+            const second = await stateIs(base, 'running', first.state.seq);
+            await spectra.waitFor(
+              /The agent's card prefers GRPC to JSON-RPC\. Hosts that follow the card's preference bypass the wire proxy, and their turns are not captured\./,
+            );
+            assert.equal((await boxOf(base)).unavailable, undefined);
+
+            const unspoken = {
+              name: 'Later agent',
+              supportedInterfaces: [{url, protocolBinding: 'JSONRPC', protocolVersion: '2.0'}],
+            };
+            writeFileSync(cardFile, JSON.stringify({card: unspoken}));
+            assert.equal((await press(base)).status, 202);
+            const third = await stateIs(base, 'running', second.state.seq);
+            const line =
+              'The message box cannot send to this agent: its card lists A2A JSON-RPC only at version 2.0, ' +
+              'and the box speaks A2A 0.3 and 1.0. Hosts pointed at the wire proxy are not affected.';
+            await spectra.waitFor(new RegExp(line.replaceAll('.', '\\.')));
+            assert.equal((await boxOf(base)).unavailable, line);
+            assert.equal((await boxOf(base)).noJsonRpc, undefined);
+
+            writeFileSync(cardFile, JSON.stringify({card: {url, preferredTransport: 'JSONRPC'}}));
+            assert.equal((await press(base)).status, 202);
+            await stateIs(base, 'running', third.state.seq);
+            await spectra.waitFor(/The agent's card answered\.\r?\n/);
+            const context = (await getJson<SessionContext>(`${base}/api/context`)).body;
+            assert.equal('agentName' in context, false);
+            assert.equal((await boxOf(base)).unavailable, undefined);
             await stopped(spectra);
           } finally {
             rmSync(dir, {recursive: true, force: true});
