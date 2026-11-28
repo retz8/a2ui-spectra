@@ -5,11 +5,13 @@ Each is checked per distribution.
 
 from __future__ import annotations
 
+import importlib
 import logging
 import sys
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import pytest
+import wrapt
 from a2ui.adk import SendA2uiToClientToolset, send_a2ui_to_client_toolset
 from a2ui.inference_formats import AtomParser, ElementalParser, ExpressParser
 from a2ui.inference_formats.experimental.atom import (
@@ -19,10 +21,12 @@ from a2ui.inference_formats.express import prompt_generator as express_prompt_ge
 from a2ui.parser import Parser
 from a2ui.prompt import PromptGenerator
 from a2ui.utils import RendererState
+from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 
 import a2ui_spectra_instrumentation
 from a2ui_spectra_instrumentation import check
+from a2ui_spectra_instrumentation import state
 
 # The fixtures' types, for the type check only: mypy names the tests by their
 # path from the repository root.
@@ -147,6 +151,97 @@ def test_a_missing_toolset_name_skips_the_toolset_naming_its_own_release(
     assert message.endswith(
         "it was written against a2ui-adk 0.3.0, upstream's release of 2026-11-10"
     )
+
+
+def failing_import(module: str, error: Exception) -> Any:
+    """`importlib.import_module`, failing for one module with the error given."""
+    real = importlib.import_module
+
+    def import_module(name: str, package: str | None = None) -> Any:
+        if name == module:
+            raise error
+        return real(name, package)
+
+    return import_module
+
+
+def test_a_core_module_that_fails_to_import_is_a_refusal_not_an_error(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    provider: TracerProvider,
+    support: conftest.Support,
+) -> None:
+    monkeypatch.setattr(
+        importlib,
+        "import_module",
+        failing_import("a2ui.prompt", TypeError("metaclass conflict")),
+    )
+    with caplog.at_level(logging.DEBUG, logger=support.logger):
+        a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
+
+    assert not support.hooked(Parser, "parse_response")
+    assert not support.hooked(SendA2uiToClientToolset, "get_tools")
+    [line] = support.lines(caplog)
+    assert line.levelno == logging.WARNING
+    message = line.getMessage()
+    assert "a2ui.prompt could not be imported" in message
+    assert "TypeError: metaclass conflict" in message
+    assert "a2ui-agent-sdk 0.11.0, upstream's release of 2026-11-10" in message
+
+
+def test_an_adk_extension_that_fails_to_import_skips_the_toolset_with_one_line(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    provider: TracerProvider,
+    support: conftest.Support,
+) -> None:
+    monkeypatch.setattr(
+        importlib,
+        "import_module",
+        failing_import("a2ui.adk", TypeError("metaclass conflict")),
+    )
+    with caplog.at_level(logging.DEBUG, logger=support.logger):
+        a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
+
+    assert support.hooked(Parser, "parse_response")
+    assert not support.hooked(SendA2uiToClientToolset, "get_tools")
+    [line] = support.lines(caplog)
+    assert line.levelno == logging.WARNING
+    message = line.getMessage()
+    assert "left a2ui-adk" in message
+    assert "a2ui.adk could not be imported (TypeError: metaclass conflict)" in message
+
+
+@pytest.mark.usefixtures("no_global_provider", "no_otlp_variables")
+def test_a_failure_while_hooking_is_a_refusal_and_nothing_stays_hooked(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    support: conftest.Support,
+) -> None:
+    monkeypatch.setenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://127.0.0.1:9")
+    real = wrapt.wrap_function_wrapper
+    calls = 0
+
+    def failing_on_the_third(*args: Any, **kwargs: Any) -> Any:
+        nonlocal calls
+        calls += 1
+        if calls == 3:
+            raise RuntimeError("the attribute is read-only")
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(wrapt, "wrap_function_wrapper", failing_on_the_third)
+    with caplog.at_level(logging.WARNING, logger=support.logger):
+        a2ui_spectra_instrumentation.instrument()
+
+    assert not support.hooked(Parser, "parse_response")
+    assert not support.hooked(RendererState, "check_topology")
+    assert state.current() is None
+    assert isinstance(trace.get_tracer_provider(), trace.ProxyTracerProvider)
+    [line] = support.lines(caplog)
+    assert line.levelno == logging.WARNING
+    message = line.getMessage()
+    assert "left a2ui-agent-sdk" in message
+    assert "hooking it failed (RuntimeError: the attribute is read-only)" in message
 
 
 def test_an_sdk_below_the_floor_is_refused(

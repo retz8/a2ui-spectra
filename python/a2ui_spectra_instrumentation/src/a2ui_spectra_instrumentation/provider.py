@@ -21,22 +21,16 @@ def _variable(*names: str) -> str | None:
     return None
 
 
-def start_provider_if_needed(
-    given: trace.TracerProvider | None,
-) -> trace.TracerProvider | None:
-    """The provider the wrapper's spans go to, starting one if needed.
+def start_provider_if_needed() -> None:
+    """Starts a tracer provider when the process has none.
 
-    None means the global one, set now or later.
-
-    A provider passed in is used. A provider the process has set is kept. With
-    none, and an OTLP endpoint in the environment with its protocol unset or
-    `http/protobuf`, the wrapper sets an SDK provider on the SDK's default
-    resource, exporting over OTLP/HTTP. Otherwise it starts none, and says why.
+    A provider the process has set is kept. With none, and an OTLP endpoint in
+    the environment with its protocol unset or `http/protobuf`, the wrapper
+    sets an SDK provider on the SDK's default resource, exporting over
+    OTLP/HTTP. Otherwise it starts none, and says why.
     """
-    if given is not None:
-        return given
     if not isinstance(trace.get_tracer_provider(), trace.ProxyTracerProvider):
-        return None
+        return
     endpoint = _variable(
         "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "OTEL_EXPORTER_OTLP_ENDPOINT"
     )
@@ -49,7 +43,7 @@ def start_provider_if_needed(
             " environment names no OTLP endpoint (OTEL_EXPORTER_OTLP_ENDPOINT);"
             " the spans go to a provider the process sets"
         )
-        return None
+        return
     if protocol is not None and protocol != "http/protobuf":
         log.logger.info(
             "a2ui-spectra-instrumentation started no tracer provider: the"
@@ -58,7 +52,7 @@ def start_provider_if_needed(
             " spans go to a provider the process sets",
             protocol,
         )
-        return None
+        return
     # The flush on exit: the SDK provider's default, `shutdown_on_exit=True`,
     # registers its shutdown with `atexit`, and shutting the batch span
     # processor down exports the spans it still holds.
@@ -67,4 +61,3 @@ def start_provider_if_needed(
         sdk_export.BatchSpanProcessor(trace_exporter.OTLPSpanExporter())
     )
     trace.set_tracer_provider(provider)
-    return None

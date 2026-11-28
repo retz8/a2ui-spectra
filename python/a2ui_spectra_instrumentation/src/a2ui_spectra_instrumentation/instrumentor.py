@@ -33,21 +33,44 @@ class A2uiInstrumentor(BaseInstrumentor):  # type: ignore[misc]
         return package._instruments
 
     def _instrument(self, **kwargs: Any) -> None:
-        plan = check.check()
+        """Checks the SDK and hooks it, or leaves it unpatched with one line.
+
+        Nothing the wrapper meets while it switches on is raised into the
+        agent: an agent with the wrapper on starts as it does without it.
+        """
+        try:
+            plan = check.check()
+        except Exception as fault:
+            check.refuse(
+                package.AGENT_SDK,
+                check.installed_version(package.AGENT_SDK),
+                f"its check failed ({type(fault).__name__}: {fault})",
+            )
+            return
         if plan is None:
             return
-        chosen_provider = provider.start_provider_if_needed(
-            kwargs.get("tracer_provider")
-        )
+        given = kwargs.get("tracer_provider")
+        # With no provider given, the tracer is the global provider's, whichever
+        # that is when a span is written.
         tracer = trace.get_tracer(
-            package.SCOPE_NAME, version.__version__, tracer_provider=chosen_provider
+            package.SCOPE_NAME, version.__version__, tracer_provider=given
         )
         state.activate(_active(plan, tracer))
         try:
             patching.apply(plan)
+        except Exception as fault:
+            state.deactivate()
+            check.refuse(
+                package.AGENT_SDK,
+                plan.sdk_version,
+                f"hooking it failed ({type(fault).__name__}: {fault})",
+            )
+            return
         except BaseException:
             state.deactivate()
             raise
+        if given is None:
+            provider.start_provider_if_needed()
 
     def _uninstrument(self, **kwargs: Any) -> None:
         patching.remove()
