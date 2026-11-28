@@ -9,7 +9,7 @@ import importlib
 import logging
 import sys
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, get_args
 
 import pytest
 import wrapt
@@ -29,6 +29,7 @@ from opentelemetry.sdk.trace import TracerProvider
 
 import a2ui_spectra_instrumentation
 from a2ui_spectra_instrumentation import check
+from a2ui_spectra_instrumentation import hooks
 from a2ui_spectra_instrumentation import state
 
 # The fixtures' types, for the type check only: mypy names the tests by their
@@ -189,6 +190,11 @@ def test_an_sdk_without_to_protocol_version_is_patched_and_its_versions_written(
         "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
         "protocolVersion": "v1.0",
     }]
+
+
+def test_every_role_of_the_hook_table_has_its_hook() -> None:
+    assert set(hooks.HOOK_FOR) == set(get_args(hooks.Role))
+    assert {hook.role for hook in hooks.HOOKS} <= set(hooks.HOOK_FOR)
 
 
 def failing_import(module: str, error: Exception) -> Any:

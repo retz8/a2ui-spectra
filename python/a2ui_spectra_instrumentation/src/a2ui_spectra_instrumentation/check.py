@@ -23,7 +23,7 @@ from a2ui_spectra_instrumentation import hooks
 from a2ui_spectra_instrumentation import log
 from a2ui_spectra_instrumentation import package
 
-_EXPERIMENTAL = ("atom", "elemental")
+_EXPERIMENTAL: tuple[hooks.Group, ...] = ("atom", "elemental")
 
 
 @dataclass
@@ -110,7 +110,7 @@ def _resolve_class(module: str, name: str) -> type:
     return found
 
 
-def _add_group(plan: Plan, group: str) -> None:
+def _add_group(plan: Plan, group: hooks.Group) -> None:
     """Adds every name and class of a group, or none.
 
     An Unusable names the first one that cannot be used.

@@ -15,7 +15,7 @@ import types
 import weakref
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 import wrapt
 
@@ -25,6 +25,27 @@ from a2ui_spectra_instrumentation import state
 
 Wrapper = Callable[[Any, Any, tuple[Any, ...], dict[str, Any]], Any]
 
+# The names a hooked name stands or falls with: `core`, `atom` and `elemental`
+# on the agent SDK, `toolset` on `a2ui-adk`.
+Group = Literal["core", "atom", "elemental", "toolset"]
+
+# What a hooked name does, and so the hook it gets.
+Role = Literal[
+    "parse_response",
+    "compile",
+    "open_stream",
+    "feed",
+    "close",
+    "generate",
+    "whole_tree",
+    "apply",
+    "get_tools",
+    "resolve_processor",
+]
+
+# An inference format, as the record names it.
+InferenceFormat = Literal["direct_json", "express", "atom", "elemental"]
+
 
 @dataclass(frozen=True)
 class Hook:
@@ -33,16 +54,13 @@ class Hook:
     Its group is the set of names it stands or falls with.
     """
 
-    # `core`, `atom` and `elemental` on the agent SDK; `toolset` on `a2ui-adk`.
-    group: str
+    group: Group
     module: str
     # The name's path in the module: `Class.method` or `function`.
     name: str
-    # `parse_response`, `compile`, `open_stream`, `feed`, `close`, `generate`,
-    # `whole_tree`, `apply`, `get_tools` or `resolve_processor`.
-    role: str
+    role: Role
     # The inference format a parser's hook belongs to.
-    format: str | None = None
+    format: InferenceFormat | None = None
 
 
 @dataclass(frozen=True)
@@ -53,11 +71,11 @@ class Generator:
     """
 
     # The group the class stands or falls with, as a hooked name's.
-    group: str
+    group: Group
     # The module that defines the class.
     module: str
     name: str
-    format: str
+    format: InferenceFormat
 
 
 @dataclass(frozen=True)
@@ -335,7 +353,7 @@ def parse_response_hook(
     return _outermost(event, wrapped, args, kwargs, where, returned)
 
 
-def compile_hook_for(inference_format: str | None) -> Wrapper:
+def compile_hook_for(inference_format: InferenceFormat | None) -> Wrapper:
     """The hook on a parser's `compile`, for one inference format."""
 
     def compile_hook(
@@ -385,7 +403,7 @@ def _stream_event(stream: Any) -> events.ParseEvent | None:
         return None
 
 
-def open_stream_hook_for(inference_format: str | None) -> Wrapper:
+def open_stream_hook_for(inference_format: InferenceFormat | None) -> Wrapper:
     """The hook on a parser's `open_stream`, for one inference format."""
 
     def open_stream_hook(
@@ -810,26 +828,21 @@ async def _append_prompt(
     return await _outermost_awaited(event, awaitable, where, appended, failed)
 
 
+# The hook each role gets, made for the hooked name.
+HOOK_FOR: dict[Role, Callable[[Hook], Wrapper]] = {
+    "parse_response": lambda hook: parse_response_hook,
+    "compile": lambda hook: compile_hook_for(hook.format),
+    "open_stream": lambda hook: open_stream_hook_for(hook.format),
+    "feed": lambda hook: feed_hook,
+    "close": lambda hook: close_hook,
+    "generate": lambda hook: generate_hook,
+    "whole_tree": lambda hook: whole_tree_hook,
+    "apply": lambda hook: apply_hook,
+    "get_tools": lambda hook: get_tools_hook,
+    "resolve_processor": lambda hook: resolve_processor_hook,
+}
+
+
 def wrapper_for(hook: Hook) -> Wrapper:
     """The hook a hooked name gets."""
-    if hook.role == "parse_response":
-        return parse_response_hook
-    if hook.role == "compile":
-        return compile_hook_for(hook.format)
-    if hook.role == "open_stream":
-        return open_stream_hook_for(hook.format)
-    if hook.role == "feed":
-        return feed_hook
-    if hook.role == "close":
-        return close_hook
-    if hook.role == "generate":
-        return generate_hook
-    if hook.role == "whole_tree":
-        return whole_tree_hook
-    if hook.role == "apply":
-        return apply_hook
-    if hook.role == "get_tools":
-        return get_tools_hook
-    if hook.role == "resolve_processor":
-        return resolve_processor_hook
-    raise ValueError(f"No hook for the role {hook.role}")
+    return HOOK_FOR[hook.role](hook)
