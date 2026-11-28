@@ -1,7 +1,7 @@
 import {stat} from 'node:fs/promises';
 import {constants} from 'node:os';
 
-import {cardDetailsOf, checkTransport, rewriteCard, transportLine} from './a2a/card.js';
+import {type AnsweredCard, readAnsweredCard, rewriteCard} from './a2a/card.js';
 import {startWireProxy, type WireProxy} from './a2a/proxy.js';
 import {type AgentCard, agentCardUrl, waitForAgentCard} from './a2a/agent_card.js';
 import {
@@ -597,14 +597,12 @@ async function runMode(parts: SessionParts, agentCommand: AgentCommand): Promise
       processStopped: () => session.agentStopped(),
       cutOpenTurns: () => wire.cut(),
       cardAnswered: card => {
-        const name = typeof card.name === 'string' ? card.name : undefined;
+        const {name, details, line, capturable} = readAnsweredCard(card);
         wire.setAgentName(name);
         session.setCard(rewriteCard(card, wire.origin));
         delete context.agentName;
-        Object.assign(context, name !== undefined && {agentName: name}, cardDetailsOf(card));
-        const transport = checkTransport(card);
-        const line = transportLine(transport);
-        if (transport.kind === 'no_interface' || transport.kind === 'no_jsonrpc') {
+        Object.assign(context, name !== undefined && {agentName: name}, details);
+        if (!capturable) {
           if (line !== undefined) out.error(line);
         } else {
           if (line !== undefined) out.info(line);
@@ -696,7 +694,7 @@ async function runMode(parts: SessionParts, agentCommand: AgentCommand): Promise
  */
 async function reachAgent(
   parts: SessionParts,
-): Promise<{card: AgentCard; proxy: WireProxy; box: MessageBox} | 'refused' | undefined> {
+): Promise<{answered: AnsweredCard; proxy: WireProxy; box: MessageBox} | 'refused' | undefined> {
   const {out, stop, running} = parts;
   const card = await waitForAgentCard(parts.cardUrl, {
     signal: stop.signal,
@@ -704,19 +702,18 @@ async function reachAgent(
     onWaiting: reason => out.info(parts.waitLine(reason, true)),
   });
   if (card === undefined || stop.signal.aborted) return undefined;
-  const transport = checkTransport(card);
-  const line = transportLine(transport);
-  if (transport.kind === 'no_interface' || transport.kind === 'no_jsonrpc') {
-    if (line !== undefined) out.error(line);
+  const answered = readAnsweredCard(card);
+  if (!answered.capturable) {
+    if (answered.line !== undefined) out.error(answered.line);
     stop.abort();
     return 'refused';
   }
-  if (line !== undefined) out.info(line);
-  const proxy = await parts.openWireProxy(typeof card.name === 'string' ? card.name : undefined);
+  if (answered.line !== undefined) out.info(answered.line);
+  const proxy = await parts.openWireProxy(answered.name);
   running.proxy = proxy;
   const box = parts.openBox(rewriteCard(card, proxy.origin));
   running.box = box;
-  return {card, proxy, box};
+  return {answered, proxy, box};
 }
 
 /**
@@ -735,7 +732,7 @@ async function attachMode(parts: SessionParts): Promise<'refused' | undefined> {
   }).stop;
   const reached = await reachAgent(parts);
   if (reached === undefined || reached === 'refused') return reached;
-  const {card, proxy, box} = reached;
+  const {answered, proxy, box} = reached;
   if (box.unavailable !== undefined) {
     out.info(box.unavailable);
   }
@@ -751,7 +748,7 @@ async function attachMode(parts: SessionParts): Promise<'refused' | undefined> {
       catalogs,
       prices: options.config.prices,
       context: {
-        ...(typeof card.name === 'string' && {agentName: card.name}),
+        ...(answered.name !== undefined && {agentName: answered.name}),
         agentUrl: options.agentUrl.href,
         mode: 'attach',
         proxyAddress: proxy.address,
@@ -759,7 +756,7 @@ async function attachMode(parts: SessionParts): Promise<'refused' | undefined> {
         fixturesFolder: fixtures.display,
         variables: [...variablesOf(redirected), ...toolVariablesOf(tools), ...otel.printed],
         shells: shellsOf(),
-        ...cardDetailsOf(card),
+        ...answered.details,
       },
     },
   });

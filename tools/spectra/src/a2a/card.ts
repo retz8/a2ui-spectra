@@ -86,7 +86,7 @@ export function checkTransport(card: Record<string, unknown>): TransportCheck {
  * interface or no JSON-RPC interface, an error, or that it prefers another
  * transport; nothing for a card that puts JSON-RPC first.
  */
-export function transportLine(transport: TransportCheck): string | undefined {
+function transportLine(transport: TransportCheck): string | undefined {
   switch (transport.kind) {
     case 'no_interface':
       return (
@@ -167,6 +167,33 @@ export function cardDetailsOf(card: Record<string, unknown>): CardDetails {
   });
 
   return {a2aVersions, a2uiExtensions, examples};
+}
+
+/** What Spectra reads of a card that answered, at each start under `run` and at the start otherwise. */
+export interface AnsweredCard {
+  /** The agent's name, when the card names one. */
+  name?: string;
+  /** What the card states, as the viewer shows it. */
+  details: CardDetails;
+  /** The terminal's sentence on where the card puts JSON-RPC, when it has one. */
+  line?: string;
+  /**
+   * Whether a turn can start through the wire proxy. Not when the card lists
+   * no interface, or no JSON-RPC interface: its sentence is then an error.
+   */
+  capturable: boolean;
+}
+
+/** Reads a card that answered. */
+export function readAnsweredCard(card: Record<string, unknown>): AnsweredCard {
+  const transport = checkTransport(card);
+  const line = transportLine(transport);
+  return {
+    ...(typeof card.name === 'string' && {name: card.name}),
+    details: cardDetailsOf(card),
+    ...(line !== undefined && {line}),
+    capturable: transport.kind !== 'no_interface' && transport.kind !== 'no_jsonrpc',
+  };
 }
 
 function isText(value: unknown): value is string {

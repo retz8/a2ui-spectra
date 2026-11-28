@@ -4,7 +4,14 @@ import * as path from 'node:path';
 import {describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
 
-import {type CardDetails, cardDetailsOf, checkTransport, isCardPath, rewriteCard} from './card.js';
+import {
+  type CardDetails,
+  cardDetailsOf,
+  checkTransport,
+  isCardPath,
+  readAnsweredCard,
+  rewriteCard,
+} from './card.js';
 import {chooseInterface} from './client.js';
 
 const proxy = 'http://127.0.0.1:9821';
@@ -455,5 +462,61 @@ describe("the card's interfaces, as each reader reads them", () => {
         versions: [],
       },
     );
+  });
+});
+
+describe('readAnsweredCard', () => {
+  it('reads the name, the details, and no sentence for a card that puts JSON-RPC first', () => {
+    const card = {name: 'Finder', url: 'http://a/', protocolVersion: '0.3.0'};
+    assert.deepEqual(readAnsweredCard(card), {
+      name: 'Finder',
+      details: cardDetailsOf(card),
+      capturable: true,
+    });
+  });
+
+  it('leaves the name out for a card that names none, or names something that is no text', () => {
+    assert.equal('name' in readAnsweredCard({url: 'http://a/'}), false);
+    assert.equal('name' in readAnsweredCard({name: 7, url: 'http://a/'}), false);
+  });
+
+  it('says a card prefers another transport, and can still be captured', () => {
+    const answered = readAnsweredCard({
+      url: 'http://a/',
+      preferredTransport: 'GRPC',
+      additionalInterfaces: [{url: 'http://a/', transport: 'JSONRPC'}],
+    });
+    assert.equal(
+      answered.line,
+      "The agent's card prefers GRPC to JSON-RPC. " +
+        "Hosts that follow the card's preference bypass the wire proxy, and their turns are not captured.",
+    );
+    assert.equal(answered.capturable, true);
+  });
+
+  it('says a card lists no JSON-RPC interface, or no interface, and cannot be captured', () => {
+    assert.deepEqual(
+      readAnsweredCard({
+        supportedInterfaces: [
+          {url: 'http://a/', protocolBinding: 'GRPC'},
+          {url: 'http://a/', protocolBinding: 'HTTP+JSON'},
+        ],
+      }),
+      {
+        details: {a2aVersions: [], a2uiExtensions: [], examples: []},
+        line:
+          "The agent's card lists no A2A JSON-RPC interface, only GRPC, HTTP+JSON. " +
+          'Spectra captures A2A over JSON-RPC only.',
+        capturable: false,
+      },
+    );
+    assert.deepEqual(readAnsweredCard({supportedInterfaces: []}), {
+      details: {a2aVersions: [], a2uiExtensions: [], examples: []},
+      line:
+        "The agent's card lists no interface to reach it at. A2A 1.0 requires the card's " +
+        'supportedInterfaces, and A2A 0.3 its url, so hosts that follow the card cannot reach ' +
+        'the agent either.',
+      capturable: false,
+    });
   });
 });
