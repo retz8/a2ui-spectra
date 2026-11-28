@@ -175,7 +175,8 @@ export type Surfaced = 'returned' | 'thrown';
 
 /** One event of the A2UI step, open from its outermost call to its end. */
 export abstract class Event {
-  abstract readonly kind: 'parse' | 'prompt_generation';
+  /** The kind of span the event becomes; `unrecorded` becomes none. */
+  abstract readonly kind: 'parse' | 'prompt_generation' | 'unrecorded';
   readonly start: HrTime = now();
   /** The span current when the event opened is its parent. */
   readonly parent: Context = otelContext.active();
@@ -184,16 +185,12 @@ export abstract class Event {
   protected readonly spanEvents: SpanEventRecord[] = [];
   /** The errors recorded as `exception` span events, in order. */
   protected readonly errors: unknown[] = [];
-  /** How many `checkTopology` calls are running. */
-  wholeTree = 0;
-  /** The errors seen leaving `checkTopology`: they belong to no block. */
-  protected readonly afterEveryBlock = new WeakSet<object>();
   ended = false;
 
   constructor(readonly active: Active) {}
 
   // What hooked calls nested in the event tell it. A prompt generation's event
-  // takes only a generator's format and catalogs.
+  // takes only a generator's format and catalogs; a parse takes the rest.
 
   adoptParser(_parser: unknown): void {}
 
@@ -201,18 +198,14 @@ export abstract class Event {
 
   noteCompile(_text: unknown): void {}
 
-  startWholeTree(): void {
-    this.wholeTree += 1;
-  }
+  /** A `checkTopology`, the check of whole trees, starts. */
+  startWholeTree(): void {}
 
-  finishWholeTree(_returned: boolean): void {
-    this.wholeTree -= 1;
-  }
+  /** A `checkTopology` is over, returned or thrown. */
+  finishWholeTree(_returned: boolean): void {}
 
-  /** An error left `checkTopology`, the check of whole trees. */
-  escapedWholeTree(error: unknown): void {
-    if (isObject(error)) this.afterEveryBlock.add(error);
-  }
+  /** An error left `checkTopology`. */
+  escapedWholeTree(_error: unknown): void {}
 
   noteMarkChecked(): void {}
 
@@ -223,11 +216,6 @@ export abstract class Event {
 
   /** An error was placed in a block, its range in these attributes. */
   protected placed(_attributes: Attributes, _block: Block): void {}
-
-  /** Whether an error left `checkTopology`, so it belongs to no block. */
-  protected isAfterEveryBlock(error: unknown): boolean {
-    return isObject(error) && this.afterEveryBlock.has(error);
-  }
 
   /** Records an error as one `exception` span event, once. */
   record(error: unknown, surfaced: Surfaced): void {
@@ -296,14 +284,8 @@ export abstract class Event {
 
 /** Stands open for a call the wrapper does not record, so the calls nested in it record nothing either. */
 export class Silent extends Event {
-  readonly kind = 'parse';
+  readonly kind = 'unrecorded';
   override ended = true;
-
-  override startWholeTree(): void {}
-
-  override finishWholeTree(): void {}
-
-  override escapedWholeTree(): void {}
 
   override record(): void {}
 
@@ -380,6 +362,10 @@ export class ParseEvent extends Event {
    * block, or a stream's next rejected one.
    */
   private cursor = 0;
+  /** How many `checkTopology` calls are running. */
+  private wholeTree = 0;
+  /** The errors seen leaving `checkTopology`: they belong to no block. */
+  private readonly afterEveryBlock = new WeakSet<object>();
   /** How many blocks a stream has finished: each a `checkTopology` that returned. */
   private finished = 0;
   /** How many rejected blocks a stream has caught, each noted at its `markChecked`. */
@@ -425,13 +411,22 @@ export class ParseEvent extends Event {
   }
 
   override startWholeTree(): void {
-    super.startWholeTree();
+    this.wholeTree += 1;
     this.currentBlock = undefined;
   }
 
   override finishWholeTree(returned: boolean): void {
-    super.finishWholeTree(returned);
+    this.wholeTree -= 1;
     if (returned && this.streamed && this.wholeTree === 0) this.finished += 1;
+  }
+
+  /** An error that left `checkTopology` belongs to no block. */
+  override escapedWholeTree(error: unknown): void {
+    if (isObject(error)) this.afterEveryBlock.add(error);
+  }
+
+  private isAfterEveryBlock(error: unknown): boolean {
+    return isObject(error) && this.afterEveryBlock.has(error);
   }
 
   /** A stream catches a rejected block: the blocks it had done then are noted. */
