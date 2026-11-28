@@ -271,6 +271,24 @@ describe('the replay pool', () => {
     }
   });
 
+  it('takes a body or params that differ by the sign of a zero alone as the same, as the record cannot keep the sign', () => {
+    const pool = new ReplayPool(
+      record([
+        modelCall('0000000000000001', 10, {'a2ui.http.request.body': {offset: 0, at: [0]}}),
+        mcpCall('0000000000000002', 20, 'tools/call', {name: 'move', arguments: {dx: 0}}),
+      ]),
+      'recorded',
+    );
+    const key = exchangeKey(
+      modelCall('x', 0, {'a2ui.http.request.body': {offset: -0, at: [-0]}}).attributes,
+    );
+    assert.equal(served(pool.model(key)), '0000000000000001');
+    assert.equal(
+      pool.mcpRequest('tools/call', {name: 'move', arguments: {dx: -0}})?.spanId,
+      '0000000000000002',
+    );
+  });
+
   it('consumes any other request by its key, as tools/call is', () => {
     const pool = new ReplayPool(
       record([

@@ -6,8 +6,6 @@
  * that the request goes live. The pool is the one place that holds what has
  * been consumed.
  */
-import {isDeepStrictEqual} from 'node:util';
-
 import {
   type CallEvent,
   isEventOfKind,
@@ -15,11 +13,12 @@ import {
   type SpanEvent,
   type TurnRecord,
 } from '../record/turn_record.js';
+import {jsonEqual} from './json_value.js';
 
 /** The modes that arm the proxies with a pool; a `live` replay arms none. */
 export type PoolMode = Exclude<ReplayMode, 'live'>;
 
-/** What keys a model call and an HTTP tool: three of the exchange's attributes, compared by deep JSON equality. */
+/** What keys a model call and an HTTP tool: three of the exchange's attributes, compared by JSON value. */
 export interface ExchangeKey {
   method: unknown;
   url: unknown;
@@ -168,7 +167,7 @@ export class ReplayPool {
   /** A model request: the first exchange with its key not yet served; else live in the live mode, a miss otherwise. */
   model(key: ExchangeKey): PoolAnswer {
     const event = take(this.modelEntries, recorded =>
-      isDeepStrictEqual(exchangeKey(recorded.attributes), key),
+      jsonEqual(exchangeKey(recorded.attributes), key),
     );
     if (event !== undefined) return {type: 'served', event};
     return this.mode === 'model_live' ? {type: 'live'} : {type: 'miss'};
@@ -176,9 +175,7 @@ export class ReplayPool {
 
   /** An HTTP tool request: the first exchange with its key not yet served, else nothing. */
   httpTool(key: ExchangeKey): CallEvent | undefined {
-    return take(this.httpTools, recorded =>
-      isDeepStrictEqual(exchangeKey(recorded.attributes), key),
-    );
+    return take(this.httpTools, recorded => jsonEqual(exchangeKey(recorded.attributes), key));
   }
 
   /**
@@ -200,7 +197,7 @@ export class ReplayPool {
       const message = requestMessage(recorded);
       return (
         recorded.attributes['mcp.method.name'] === method &&
-        isDeepStrictEqual(paramsKey(message?.params), key) &&
+        jsonEqual(paramsKey(message?.params), key) &&
         isOnServer(recorded, server)
       );
     });

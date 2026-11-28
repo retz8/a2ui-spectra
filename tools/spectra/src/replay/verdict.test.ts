@@ -133,6 +133,12 @@ describe('verdictOf, the replayed turn against the recorded one', () => {
     });
   });
 
+  it('takes A2UI that differs by the sign of a zero alone as equal, as the record cannot keep the sign', () => {
+    const recorded = testTurn({messages: [...messages, updateDataModel('s1', {n: 0, at: [0]})]});
+    const replayed = testTurn({messages: [...messages, updateDataModel('s1', {n: -0, at: [-0]})]});
+    assert.deepEqual(verdictOf(recorded, replayed), {verdict: 'passed', reasons: []});
+  });
+
   it('does not fail an answer the protocol fixed, a tool call with no served_from that is not a miss, nor a live call', () => {
     const recorded = testTurn({messages});
     const replayed = withCalls(

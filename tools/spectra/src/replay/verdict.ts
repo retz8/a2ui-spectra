@@ -7,8 +7,6 @@
  * served from the record, an answer the protocol fixed and a live call are
  * all equal before the verdict; only a miss fails it.
  */
-import {isDeepStrictEqual} from 'node:util';
-
 import {agentMessages} from '../check/schema_check.js';
 import {
   type CallEvent,
@@ -18,6 +16,7 @@ import {
   type Turn,
   type TurnOutcome,
 } from '../record/turn_record.js';
+import {jsonEqual} from './json_value.js';
 
 export interface Verdict {
   verdict: ReplayVerdict;
@@ -90,7 +89,7 @@ function a2uiReason(recorded: Turn, replayed: Turn): ReplayReason[] {
   const actual = agentMessages(replayed);
   const shared = Math.min(expected.length, actual.length);
   for (let index = 0; index < shared; index++) {
-    if (!isDeepStrictEqual(expected[index].message, actual[index].message)) {
+    if (!jsonEqual(expected[index].message, actual[index].message)) {
       return [
         {
           code: 'A2UI_DIFFERS',
