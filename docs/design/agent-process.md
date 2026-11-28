@@ -46,7 +46,7 @@ Each chunk the agent writes goes to your terminal as it arrives, on the stream i
 
 You launch the restaurant finder under Spectra from the sample's folder, open the viewer, and press Restart once the agent is up.
 
-1. **Spectra binds and prints its addresses.** The viewer, the wire proxy, the OpenTelemetry receiver, where turns and fixtures are saved, then what restart on save watches: the sample's folder.
+1. **Spectra binds and prints its addresses.** The viewer, the wire proxy, the model proxy's prefixes, the OpenTelemetry receiver, where turns and fixtures are saved, then what restart on save watches: the sample's folder.
 2. **The command starts.** `Starting the agent: uv run . --port 9964`, and the state is `starting`. The agent's environment carries the redirection variables, so its model calls go through the model proxy, and `PYTHONUNBUFFERED=1`, so Python writes each line as it is printed.
 3. **The card is waited for.** The first attempt finds nothing listening, `connection refused`, and the state is `waiting`. The line carries a hint about the agent's URL, said until a card has answered once.
 4. **The agent comes up.** uvicorn's lines are echoed as uvicorn wrote them, on stderr, with no `a2ui-spectra:` prefix. Its access line for Spectra's card request is on stdout.
@@ -54,11 +54,13 @@ You launch the restaurant finder under Spectra from the sample's folder, open th
 6. **Restart is pressed.** The state is `restarting`. Spectra cuts the open turns' connections at the wire proxy, sends SIGTERM to the process group, and waits. The signal reaches every process of the group, uvicorn shuts down, and `uv` exits with code 143. The buffer gets a `stopped` divider naming the press and that exit.
 7. **The same command starts again**, with the same environment, and the card is waited for, with no hint this time. When it answers, the agent is running again, and you can re-run the turn you were working on.
 
-The terminal, cut from a run of the built binary in upstream's sample folder, `a2ui-spectra run --agent-url http://localhost:9964 --port 9960 --proxy-port 9961 --model-proxy-port 9962 --receiver-port 9963 --no-open -- uv run . --port 9964`, with Restart pressed through `POST /api/agent/restart`, then Ctrl-C. The folder's path and uvicorn's repeated lines are shortened here:
+The terminal, cut from a run of the built binary in upstream's sample folder, `a2ui-spectra run --agent-url http://localhost:9964 --port 9960 --proxy-port 9961 --model-proxy-port 9962 --receiver-port 9963 --no-open -- uv run . --port 9964`, with Restart pressed through `POST /api/agent/restart`, then Ctrl-C. The folder's path, the model proxy's other four prefix lines and uvicorn's repeated lines are shortened here:
 
 ```
 a2ui-spectra: The viewer is at http://localhost:9960/
 a2ui-spectra: Point a host at the wire proxy: http://127.0.0.1:9961/
+a2ui-spectra: The model proxy for GOOGLE_GEMINI_BASE_URL is at http://127.0.0.1:9962/GOOGLE_GEMINI_BASE_URL, forwarding to https://generativelanguage.googleapis.com
+…
 a2ui-spectra: The OpenTelemetry receiver is at http://127.0.0.1:9963
 a2ui-spectra: Turns are saved in …/restaurant_finder/.a2ui-spectra/turns
 a2ui-spectra: Fixtures are saved in …/restaurant_finder/a2ui-spectra-fixtures
@@ -141,9 +143,9 @@ The exit is `exited with code 143`, not `was ended by SIGTERM`: the command's ow
 3. **Settles the agent's URL**: `--agent-url`, else the config file's `agent.url` ([the wire](wire.md)). With neither, Spectra stops with a usage error naming both. Then the tool proxy's ports, one per configured tool server.
 4. **Opens the store**, `.a2ui-spectra/` in the working directory, and **loads the configured catalogs**; a catalog file that does not load stops Spectra ([the checks](checks.md)).
 5. **Says what it read**: `Settings read from <file>` when it read a config file, and `Catalogs configured: <ids>` when there are any. A configured header whose variable is not set is said here too; Spectra carries on, and the message box refuses to send ([the wire](wire.md)).
-6. **Checks the tool servers** ([model and tool calls](model-and-tool-calls.md)), then **each path `watch` lists**: one that does not exist stops Spectra with `The watch path <path> does not exist.`
+6. **Checks the tool servers and the model providers' base-URL variables** in Spectra's own environment ([model and tool calls](model-and-tool-calls.md)), then **each path `watch` lists**: one that does not exist stops Spectra with `The watch path <path> does not exist.`
 7. **Binds every listener**: the model proxy, the tool proxy's listeners, the OpenTelemetry receiver, the wire proxy, then the viewer's server. A port that is taken stops Spectra before the command has started, naming the option that moves it: `Port 9821 is taken. Choose another port with --proxy-port.` A port the system refuses with an access error, as Windows does for one it has set aside or another program holds with exclusive access, reads `The system would not give Spectra port 9821. Choose another port with --proxy-port.`
-8. **Prints the addresses**: the line naming any OpenTelemetry variable it replaced in the agent's environment ([OpenTelemetry](opentelemetry.md)), then `The viewer is at …`, `Point a host at the wire proxy: …`, one line per tool server's listener, `The OpenTelemetry receiver is at …`, `Turns are saved in …` and `Fixtures are saved in …`, whether or not the fixtures folder exists yet.
+8. **Prints the addresses**: the line naming any OpenTelemetry variable it replaced in the agent's environment ([OpenTelemetry](opentelemetry.md)), then `The viewer is at …`, `Point a host at the wire proxy: …`, one line per prefix of the model proxy naming where it forwards, one line per tool server's listener, with a line after it naming the host when the config file names one off this machine ([model and tool calls](model-and-tool-calls.md)), one line per configured preview page on a host off this machine ([the preview](preview.md)), `The OpenTelemetry receiver is at …`, `Turns are saved in …` and `Fixtures are saved in …`, whether or not the fixtures folder exists yet.
 9. **Says what restart on save watches**, and starts watching ([Restart on save](#restart-on-save)), with the watch of the configured catalog files that no watched folder holds ([the checks](checks.md)).
 10. **Starts the command**, `Starting the agent: <command>`, and the card wait.
 11. **Opens the browser** at the viewer, unless `--no-open` is given.
@@ -291,7 +293,7 @@ Under `run` Spectra watches the working directory and restarts the agent on a sa
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/retz8/a2ui-spectra/main/tools/spectra/src/config.schema.json",
+  "$schema": "https://raw.githubusercontent.com/retz8/a2ui-spectra/v0.1.0/tools/spectra/src/config.schema.json",
   "watch": [".", "../shared", "!sessions.db"]
 }
 ```
