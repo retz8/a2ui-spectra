@@ -36,6 +36,8 @@ export default [
     ignores: [
       '**/dist/**',
       '**/lib/**',
+      // A package's own source folder named lib is linted.
+      '!**/src/lib/**',
       '**/node_modules/**',
       '**/.angular/**',
       '.wireit/**',
