@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import threading
 
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.http import trace_exporter
@@ -19,6 +20,37 @@ def _variable(*names: str) -> str | None:
         if value:
             return value
     return None
+
+
+class LateStart:
+    """Starts the wrapper's provider at most once, the first time it is called.
+
+    The wrapper calls it when its first event ends, not when it is switched
+    on: OpenTelemetry takes one global provider a process, so a provider the
+    wrapper set at switch-on would refuse the one the agent sets after it.
+    """
+
+    def __init__(self) -> None:
+        self._lock = threading.Lock()
+        self._called = False
+
+    def __call__(self) -> None:
+        if self._called:
+            return
+        with self._lock:
+            if self._called:
+                return
+            self._called = True
+            try:
+                start_provider_if_needed()
+            except Exception as fault:
+                log.logger.warning(
+                    "a2ui-spectra-instrumentation could not start a tracer"
+                    " provider (%s: %s); the spans go to a provider the process"
+                    " sets",
+                    type(fault).__name__,
+                    fault,
+                )
 
 
 def start_provider_if_needed() -> None:

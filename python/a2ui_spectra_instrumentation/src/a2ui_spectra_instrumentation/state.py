@@ -17,6 +17,9 @@ class Active:
     """What every hook reads while the wrapper is switched on."""
 
     tracer: trace.Tracer
+    # Called before a span is written: it starts the wrapper's own tracer
+    # provider the first time, when the process has none by then.
+    start_provider: Callable[[], None]
     # The agent SDK's version, as its distribution reports it.
     sdk_version: str
     # `a2ui.parser.to_message_dicts`: messages as wire-format dicts.

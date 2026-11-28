@@ -293,6 +293,7 @@ class Event:
             return
         if self.first_error is not None:
             attributes["error.type"] = self.first_error[0]
+        self.active.start_provider()
         span = self.active.tracer.start_span(
             self.kind,
             context=self.context,

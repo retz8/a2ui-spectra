@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Collection
+from collections.abc import Callable, Collection
 from typing import Any
 
 from opentelemetry import trace
@@ -51,11 +51,14 @@ class A2uiInstrumentor(BaseInstrumentor):  # type: ignore[misc]
             return
         given = kwargs.get("tracer_provider")
         # With no provider given, the tracer is the global provider's, whichever
-        # that is when a span is written.
+        # that is when a span is written: the agent's own, or the one the
+        # wrapper starts when its first event ends.
         tracer = trace.get_tracer(
             package.SCOPE_NAME, version.__version__, tracer_provider=given
         )
-        state.activate(_active(plan, tracer))
+        state.activate(
+            _active(plan, tracer, provider.LateStart() if given is None else _nothing)
+        )
         try:
             patching.apply(plan)
         except Exception as fault:
@@ -69,15 +72,19 @@ class A2uiInstrumentor(BaseInstrumentor):  # type: ignore[misc]
         except BaseException:
             state.deactivate()
             raise
-        if given is None:
-            provider.start_provider_if_needed()
 
     def _uninstrument(self, **kwargs: Any) -> None:
         patching.remove()
         state.deactivate()
 
 
-def _active(plan: check.Plan, tracer: trace.Tracer) -> state.Active:
+def _nothing() -> None:
+    """With a provider given, the wrapper starts none."""
+
+
+def _active(
+    plan: check.Plan, tracer: trace.Tracer, start_provider: Callable[[], None]
+) -> state.Active:
     parsers = tuple(
         (target.owner, target.hook.format)
         for target in plan.targets
@@ -85,6 +92,7 @@ def _active(plan: check.Plan, tracer: trace.Tracer) -> state.Active:
     )
     return state.Active(
         tracer=tracer,
+        start_provider=start_provider,
         sdk_version=plan.sdk_version,
         to_message_dicts=plan.reads["to_message_dicts"],
         to_protocol_version=plan.to_protocol_version,

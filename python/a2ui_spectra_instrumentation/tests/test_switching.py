@@ -73,20 +73,25 @@ def test_uninstrument_removes_every_hook(
 CHILD = """
 import json
 import wrapt
+from a2ui.core.basic_catalog import BasicCatalog
 from a2ui.parser import Parser
+from a2ui.processor import A2uiRequestProcessor
 from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 
+before = isinstance(trace.get_tracer_provider(), TracerProvider)
+A2uiRequestProcessor([BasicCatalog("1.0")]).prompt_snippet
 print(json.dumps({
     "hooked": isinstance(
         vars(Parser)["parse_response"], getattr(wrapt, "BaseObjectProxy", wrapt.ObjectProxy)
     ),
+    "sdk_provider_before_the_first_event": before,
     "sdk_provider": isinstance(trace.get_tracer_provider(), TracerProvider),
 }))
 """
 
 
-def test_the_launcher_switches_it_on_and_starts_the_provider() -> None:
+def test_the_launcher_switches_it_on_and_the_first_event_starts_the_provider() -> None:
     launcher = Path(sys.executable).with_name("opentelemetry-instrument")
     env = {
         name: value
@@ -106,5 +111,6 @@ def test_the_launcher_switches_it_on_and_starts_the_provider() -> None:
 
     assert json.loads(child.stdout.strip().splitlines()[-1]) == {
         "hooked": True,
+        "sdk_provider_before_the_first_event": False,
         "sdk_provider": True,
     }
