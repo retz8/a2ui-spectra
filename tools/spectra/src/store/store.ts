@@ -113,7 +113,7 @@ export class TurnStore {
 
   /**
    * Writes a closed turn's record file: the earlier turns of its conversation
-   * from the conversation's latest file, then the turn. The file is written
+   * from the conversation's latest file that started before it, then the turn. The file is written
    * once, atomically. When the write fails, the record is kept for this run
    * and the error is thrown.
    *
@@ -305,7 +305,7 @@ export class TurnStore {
     finish: (earlierTurns: readonly Turn[]) => Turn,
   ): Promise<{stored: StoredTurn; record: TurnRecord}> {
     const earlier: readonly Turn[] =
-      stored.conversationId === undefined ? [] : await this.latestTurns(folder);
+      stored.conversationId === undefined ? [] : await this.latestTurns(folder, stored.file);
     const turn = finish(earlier);
     const turns: Turn[] = [...earlier, turn];
     const record: TurnRecord = {version: WRITTEN_VERSION, turns: turns as TurnRecord['turns']};
@@ -314,10 +314,13 @@ export class TurnStore {
   }
 
   /**
-   * The turns of a conversation's latest record that reads as one, on disk
-   * or kept from a failed write; none for a new conversation.
+   * The turns of a conversation's latest record that started before the
+   * turn written at `before` and reads as one, on disk or kept from a
+   * failed write; none for a new conversation. A file's name sorts by its
+   * turn's start, so a turn that started later and closed first is no
+   * earlier turn.
    */
-  private async latestTurns(folder: string): Promise<Turn[]> {
+  private async latestTurns(folder: string, before: string): Promise<Turn[]> {
     let names: string[] = [];
     try {
       names = await readdir(path.join(this.turnsDir, folder));
@@ -328,7 +331,10 @@ export class TurnStore {
       .filter(name => FILE_NAME.test(name))
       .map(name => `${folder}/${name}`)
       .concat([...this.unwritten.keys()].filter(file => path.posix.dirname(file) === folder));
-    for (const file of [...new Set(files)].sort().reverse()) {
+    for (const file of [...new Set(files)]
+      .filter(file => file < before)
+      .sort()
+      .reverse()) {
       try {
         return (await this.read(file)).turns;
       } catch {

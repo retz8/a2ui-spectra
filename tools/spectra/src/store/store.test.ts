@@ -136,6 +136,16 @@ describe('the store', () => {
     );
   });
 
+  it('embeds only the turns that started before the turn, when a turn that started later closed first', async () => {
+    const store = await TurnStore.open(workingDir());
+    await store.write(turnOf('1', T0, 'ctx-1'));
+    // Turn 3 started after turn 2 and closed before it.
+    const {record: later} = await store.write(turnOf('3', T0 + 2000, 'ctx-1'));
+    const {record: earlier} = await store.write(turnOf('2', T0 + 1000, 'ctx-1'));
+    assert.deepEqual(traceIds(later), ['1', '3']);
+    assert.deepEqual(traceIds(earlier), ['1', '2']);
+  });
+
   it('passes over a file that does not read as a record for the one before it', async () => {
     const store = await TurnStore.open(workingDir());
     await store.write(turnOf('1', T0, 'ctx-1'));
