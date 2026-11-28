@@ -143,7 +143,7 @@ export function recordedAnswer(
     };
   }
   // A redirect would send the agent's client, its credentials with it, where the record says.
-  if (status >= 300 && status < 400) {
+  if (isRedirect(status)) {
     const location = attributes['http.response.header.location'];
     const first = Array.isArray(location) ? location[0] : location;
     return {type: 'redirect', status, location: typeof first === 'string' ? first : undefined};
@@ -172,6 +172,19 @@ export function recordedAnswer(
       ...(broke && {broken: true}),
     },
   };
+}
+
+function isRedirect(status: unknown): boolean {
+  return typeof status === 'number' && status >= 300 && status < 400;
+}
+
+/**
+ * The attribute naming the recorded event a call is served from; none for an
+ * event a replay does not serve, a recorded redirect, whose call is a miss.
+ */
+export function servedFrom(event: CallEvent | undefined): Record<string, unknown> {
+  if (event === undefined || isRedirect(event.attributes['http.response.status_code'])) return {};
+  return {'a2ui.replay.served_from': event.spanId};
 }
 
 /** A forwarded request, or the served reply standing in its place. */

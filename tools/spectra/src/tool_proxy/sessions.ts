@@ -13,7 +13,8 @@ import {bodyJson} from '../proxying/forwarding.js';
 import {type Failure, forward, type Relay, STOPPED} from '../proxying/relay.js';
 import type {PlacedCall, Unplaced} from '../placement.js';
 import type {CallEvent} from '../record/turn_record.js';
-import {captured, placementOf, placeOf, recording, servedFrom, ToolCapture} from './capture.js';
+import {servedFrom} from '../replay/served.js';
+import {captured, placementOf, placeOf, recording, ToolCapture} from './capture.js';
 import {type Call, forwarderOf, header, type Listener} from './listener.js';
 import {
   asJsonRpc,

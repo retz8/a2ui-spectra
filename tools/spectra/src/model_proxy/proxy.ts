@@ -26,6 +26,7 @@ import {
   missLine,
   recordedAnswer,
   redirectLine,
+  servedFrom,
   type ServedReply,
   unreachedLine,
   type Upstream,
@@ -500,7 +501,7 @@ function placeCall(
       reader?.request({pathname: target.pathname, search: target.searchParams, body}) ?? {},
     ),
     ...exchange,
-    ...(answer?.type === 'served' && {'a2ui.replay.served_from': answer.event.spanId}),
+    ...(answer?.type === 'served' && servedFrom(answer.event)),
   });
 }
 

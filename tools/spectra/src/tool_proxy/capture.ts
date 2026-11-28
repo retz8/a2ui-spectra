@@ -8,7 +8,7 @@ import type {SseEvent} from '../proxying/sse.js';
 import {chunkEvent, responseAttributes} from '../proxying/exchange.js';
 import {AGENT_CLOSED, type Failure, type Relay} from '../proxying/relay.js';
 import type {PlacedCall, Unplaced} from '../placement.js';
-import type {CallEvent, SpanEvent, ToolCallEvent} from '../record/turn_record.js';
+import type {SpanEvent, ToolCallEvent} from '../record/turn_record.js';
 import {type Call, header, type Listener, type Shared} from './listener.js';
 import {type JsonRpcMessage, readReply} from './mcp.js';
 
@@ -231,9 +231,4 @@ export function recording(capture: ToolCapture | undefined): Relay {
       else capture.agentClosed(drop);
     },
   };
-}
-
-/** The attribute naming the recorded event a call was served from. */
-export function servedFrom(event: CallEvent | undefined): Record<string, unknown> {
-  return event === undefined ? {} : {'a2ui.replay.served_from': event.spanId};
 }

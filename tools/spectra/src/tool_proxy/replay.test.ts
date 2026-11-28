@@ -351,6 +351,8 @@ describe('the tool proxy in replay', () => {
     assert.deepEqual(setup.logs, [line]);
     await eventually(() => setup.ended.length === 1, 'the call ended');
     assert.equal(setup.ended[0].attributes['error.type'], 'replay_miss');
+    // Not served, so not marked as served: the verdict counts it as a miss.
+    assert.equal(setup.ended[0].attributes['a2ui.replay.served_from'], undefined);
   });
 
   it('misses housekeeping the record never saw, in either mode', async () => {

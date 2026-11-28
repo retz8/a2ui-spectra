@@ -256,6 +256,8 @@ describe('the model proxy in replay', () => {
       assert.deepEqual(setup.received, [], mode);
       await eventually(() => setup.ended.length === 1, `the call ended, ${mode}`);
       assert.equal(setup.ended[0].attributes['error.type'], 'replay_miss', mode);
+      // Not served, so not marked as served: the verdict counts it as a miss.
+      assert.equal(setup.ended[0].attributes['a2ui.replay.served_from'], undefined, mode);
     }
   });
 

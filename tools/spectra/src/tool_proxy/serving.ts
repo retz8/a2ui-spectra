@@ -16,12 +16,13 @@ import {
   recordedAnswer,
   redirectLine,
   recordedEvents,
+  servedFrom,
   type ServedReply,
   sseText,
   unreachedLine,
   wasStreamed,
 } from '../replay/served.js';
-import {captured, placementOf, recording, servedFrom} from './capture.js';
+import {captured, placementOf, recording} from './capture.js';
 import {type Call, forwarderOf, header, type Listener} from './listener.js';
 import {
   asJsonRpc,
