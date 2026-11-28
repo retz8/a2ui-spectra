@@ -35,6 +35,11 @@ npm install --save-dev a2ui-spectra-preview-react
 
    Import from the renderer's package root, `@a2ui/react`: it draws every version Spectra reads, v0.9, v0.9.1 and v1.0. The catalogs are the page's claims: Spectra sends the page every surface whose catalog one of them carries.
 
+   `SpectraPreview`'s props, `SpectraPreviewProps`, are read once, as it mounts:
+
+   - `catalogs`: the catalogs your host passes to its message processor, implementations and all. Each React component in them is drawn in an error boundary of its own, in a copy of the catalog; your catalog objects are left as they are.
+   - `processorOptions`, optional: the options your host makes its message processor with, such as its `validationConfig`, so that the preview validates as your host does. Its `version`, `validationConfig`, `adapterRegistry`, `defaultTimeoutMs` and `maxAgentCallCacheEntries` are used; `reportErrorsOnly` is not, so that every message the renderer refuses is reported; and its channel to the agent, `outboundListener`, `unifiedOutbound` and `errorHandler`, is not used, so that nothing in the preview goes out through it. A component that calls an agent function fails in the preview, as an error on the surface.
+
 2. Name the page's URL in Spectra's config file, `a2ui-spectra.json`, under `preview`, beside your catalog's definition under `catalogs`. The sample's config file:
 
    ```json
@@ -83,4 +88,4 @@ yarn workspace a2ui-spectra-preview-react lint
 yarn workspace a2ui-spectra-preview-react format:check
 ```
 
-The adapter has no unit tests of its own: what the three adapters share is the preview core's, tested there, and the browser end-to-end test in the tool's test target, `yarn workspace a2ui-spectra test`, runs it through the React sample.
+The adapter has no unit tests of its own: what the three adapters share is the preview core's, tested there. The tool's test target, `yarn workspace a2ui-spectra test`, runs it in Chromium twice over: the preview adapters' browser test frames its page in [`tools/spectra_preview_test_pages/`](../../../tools/spectra_preview_test_pages/README.md), and the browser end-to-end test runs it through the React sample.
