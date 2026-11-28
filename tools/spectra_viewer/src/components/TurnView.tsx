@@ -4,7 +4,6 @@ import {type PanelImperativeHandle, usePanelRef} from 'react-resizable-panels';
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
 import {
   parseOfComponent,
-  parseOfMessage,
   readByLinesOf,
   retriesOf,
   retrySentenceOf,
@@ -16,13 +15,14 @@ import {checkLinesOf, checkStateOf} from '@/model/check_state.ts';
 import {keptPick, nextProblem, pickedRowId, pickForKey, stepInView} from '@/model/follow.ts';
 import {inputBriefOfTurn} from '@/model/input_brief.ts';
 import {pageKeyOf} from '@/model/keys.ts';
+import {asOfLabel, positionOf, resultMomentOf} from '@/model/as_of.ts';
 import {catalogsOf} from '@/model/catalogs.ts';
 import {firstScreenBoxOf} from '@/model/dev_loop.ts';
 import {dataModelMapOf, dataModelVersionOf} from '@/model/host_message.ts';
 import {legacyByStep, legacyEntriesOf, legacyKeysByPath} from '@/model/legacy_form.ts';
 import {agentMessages} from '@/model/messages.ts';
 import {previewProblemsOf, routeOf, surfaceFeedOf, targetOf} from '@/model/preview.ts';
-import {modelReadingOf, timedEventOf} from '@/model/call_rows.ts';
+import {modelReadingOf} from '@/model/call_rows.ts';
 import {isProxyModelCall, isReadInFull} from '@/model/model_calls.ts';
 import {fixtureLinePartsOf} from '@/model/fixtures.ts';
 import {
@@ -55,10 +55,9 @@ import {
   type Turn,
   type TurnRecord,
   type TurnRecordEvent,
-  unixMillis,
 } from '@/model/record.ts';
 import {replay, type SurfaceView, type TreeNode} from '@/model/replay.ts';
-import {type Position, repliesThrough, type TimelineRow, timelineOf} from '@/model/steps.ts';
+import {repliesThrough, timelineOf} from '@/model/steps.ts';
 import {openFieldsOf, summaryOf} from '@/model/summary.ts';
 import {insideLineOf} from '@/model/turn_calls.ts';
 import {briefText} from '@/model/turn_groups.ts';
@@ -99,7 +98,7 @@ import {
 } from './FixtureControls.tsx';
 import {FirstScreen} from './FirstScreen.tsx';
 import {Icon} from './icons.tsx';
-import {formatDuration, formatOffset, formatStart} from './format.ts';
+import {formatDuration, formatStart} from './format.ts';
 import type {StepOnCall} from './ModelCallDetail.tsx';
 import {ResultPane} from './ResultPane.tsx';
 import {HEAD_MOST, headHeightOf, StepDetail, TITLE_ROW} from './StepDetail.tsx';
@@ -1042,68 +1041,6 @@ function rememberedHeight(panel: PanelImperativeHandle): number | undefined {
   return asPercentage > 0
     ? detailOpenHeight(remembered, (inPixels * 100) / asPercentage)
     : remembered;
-}
-
-/** Where the surfaces stand for a row: after its step, or after its whole delivery; the outcome follows everything. */
-function positionOf(row: TimelineRow | undefined): Position | undefined {
-  if (row === undefined) return undefined;
-  return row.row === 'delivery' ? {eventIndex: row.eventIndex} : row.position;
-}
-
-/**
- * The moment a call's or a parse's result shows, in milliseconds since the
- * turn's start: a call's end, or the present while it is in flight; a
- * parse's last wire message. None for any other row, or for a parse no
- * message is traced to, whose result shows right after it.
- */
-function resultMomentOf(
-  row: TimelineRow | undefined,
-  events: readonly TurnRecordEvent[],
-  startMs: number,
-): number | undefined {
-  if (row === undefined || row.row === 'delivery') return undefined;
-  if (row.parse !== undefined) {
-    const {parse, position} = row;
-    const traced =
-      position !== undefined &&
-      agentMessages(events).some(
-        message =>
-          message.eventIndex === position.eventIndex &&
-          parseOfMessage(events, message.key)?.spanId === parse.spanId,
-      );
-    return traced ? unixMillis(events[position.eventIndex].startTimeUnixNano) - startMs : undefined;
-  }
-  if (row.call !== undefined) {
-    const end = timedEventOf(row.call).endTimeUnixNano;
-    return end === undefined ? Infinity : unixMillis(end) - startMs;
-  }
-  return undefined;
-}
-
-function asOfLabel(
-  row: TimelineRow | undefined,
-  events: readonly TurnRecordEvent[],
-  startMs: number,
-): string {
-  if (row === undefined) return '';
-  if (row.row === 'delivery') return `After the delivery at ${formatOffset(row.offsetMs)}`;
-  const moment = resultMomentOf(row, events, startMs);
-  if (row.parse !== undefined) {
-    return moment === undefined
-      ? `Right after the parse at ${formatOffset(row.offsetMs ?? 0)}`
-      : `After the parse’s last message, ${formatOffset(moment)}`;
-  }
-  if (row.call !== undefined) {
-    return moment === undefined || moment === Infinity
-      ? 'Live · the call is in flight'
-      : `At the end of the call, ${formatOffset(moment)}`;
-  }
-  const offset =
-    row.offsetMs ??
-    (row.position === undefined
-      ? undefined
-      : unixMillis(events[row.position.eventIndex].startTimeUnixNano) - startMs);
-  return offset === undefined ? '' : `After the step at ${formatOffset(offset)}`;
 }
 
 /** Whether a surface's tree, as shown, holds a component. */
