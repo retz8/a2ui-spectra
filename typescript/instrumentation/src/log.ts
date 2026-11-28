@@ -24,17 +24,29 @@ export function className(error: unknown): string {
   return typeof error;
 }
 
-/** A thrown value's message. */
+/** A thrown value's message. A value that cannot be shown as text has a fixed one. */
 export function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  try {
+    return error instanceof Error ? error.message : String(error);
+  } catch {
+    return 'a value that cannot be shown as text';
+  }
 }
 
-/** The line a failure inside a hook writes; the SDK's call goes on as if unhooked. */
+/**
+ * The line a failure inside a hook writes; the SDK's call goes on as if
+ * unhooked. It never throws: a line that cannot be built or written is left
+ * out, since a throw here would reach the agent in place of its own result.
+ */
 export function reportFault(where: string, fault: unknown): void {
-  warn(
-    `a2ui-spectra-instrumentation: ${where} failed (${className(fault)}: ${messageOf(fault)}); ` +
-      "this call's A2UI step is not recorded",
-  );
+  try {
+    warn(
+      `a2ui-spectra-instrumentation: ${where} failed (${className(fault)}: ${messageOf(fault)}); ` +
+        "this call's A2UI step is not recorded",
+    );
+  } catch {
+    // Nothing more can be said.
+  }
 }
 
 /** Runs what a hook records around the SDK's call, reporting a failure instead of throwing it. */

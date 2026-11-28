@@ -25,6 +25,27 @@ describe('a fault inside a hook', () => {
     }
   });
 
+  it("leaves the SDK's return as it is when the fault cannot be shown as text", async () => {
+    const processor = await processorOf('express');
+    const text = 'surface("e")\nroot = Text("Hi")';
+    const unhooked = processor.parser.compile(text);
+    const fail = () => {
+      throw Object.create(null) as object;
+    };
+    const warnings = new Warnings();
+    try {
+      instrument({
+        tracerProvider: {getTracer: () => ({startSpan: fail, startActiveSpan: fail}) as never},
+      });
+      assert.deepEqual(processor.parser.compile(text), unhooked);
+      const lines = await warnings.settled();
+      assert.equal(lines.length, 1);
+      assert.match(lines[0], /the compile hook failed/);
+    } finally {
+      warnings.stop();
+    }
+  });
+
   it('leaves the exception the SDK throws as it is, with one warning', async () => {
     const processor = await processorOf('direct_json');
     const text = '<a2ui-json>[{"oops"}]</a2ui-json>';

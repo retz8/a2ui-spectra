@@ -28,8 +28,13 @@ afterEach(() => uninstrument());
  * wrapper, OpenTelemetry, and a stub `@a2ui/agent` at a version or none, and
  * returns the warnings it wrote.
  */
-async function warningsWith(stubVersion: string | undefined): Promise<string[]> {
-  const dir = await mkdtemp(path.join(tmpdir(), 'a2ui-spectra-instrumentation-'));
+async function warningsWith(
+  stubVersion: string | undefined,
+  {stubName = '@a2ui/agent', outerManifest}: {stubName?: string; outerManifest?: string} = {},
+): Promise<string[]> {
+  // The agent's project is a folder of its own, so a test can put a manifest above it.
+  const outer = await mkdtemp(path.join(tmpdir(), 'a2ui-spectra-instrumentation-'));
+  const dir = path.join(outer, 'project');
   try {
     const modules = path.join(dir, 'node_modules');
     const wrapper = path.join(modules, 'a2ui-spectra-instrumentation');
@@ -40,13 +45,17 @@ async function warningsWith(stubVersion: string | undefined): Promise<string[]> 
       filter: source => !source.includes('.test.') && !source.includes(`${path.sep}testing`),
     });
     await symlink(OPENTELEMETRY, path.join(modules, '@opentelemetry'), 'dir');
+    await writeFile(path.join(dir, 'package.json'), JSON.stringify({name: 'agent'}));
+    if (outerManifest !== undefined) {
+      await writeFile(path.join(outer, 'package.json'), outerManifest);
+    }
     if (stubVersion !== undefined) {
       const agent = path.join(modules, '@a2ui', 'agent');
       await mkdir(agent, {recursive: true});
       await writeFile(
         path.join(agent, 'package.json'),
         JSON.stringify({
-          name: '@a2ui/agent',
+          name: stubName,
           version: stubVersion,
           type: 'module',
           exports: {'.': './index.js'},
@@ -70,7 +79,7 @@ async function warningsWith(stubVersion: string | undefined): Promise<string[]> 
       .filter(line => line !== '')
       .map(line => JSON.parse(line) as string);
   } finally {
-    await rm(dir, {recursive: true, force: true});
+    await rm(outer, {recursive: true, force: true});
   }
 }
 
@@ -113,6 +122,20 @@ describe('the pinned-API check', () => {
     const lines = await warningsWith(undefined);
     assert.equal(lines.length, 1);
     assert.match(lines[0], /left @a2ui\/agent \(not installed\) unpatched: it is not installed/);
+  });
+
+  it('the SDK under an npm alias, below a manifest that does not parse: one warning, and nothing thrown', async () => {
+    // The folder is `@a2ui/agent` and its own package.json names the fork. A
+    // manifest above the agent's project is none of Node's to read.
+    const lines = await warningsWith('0.2.1', {
+      stubName: '@fork/agent',
+      outerManifest: '{"name": "outer", not json',
+    });
+    assert.equal(lines.length, 1);
+    assert.match(
+      lines[0],
+      /left @a2ui\/agent \(not installed\) unpatched: no package\.json names it/,
+    );
   });
 
   it('the floor: a release at or past it passes, a prerelease of it does not', () => {

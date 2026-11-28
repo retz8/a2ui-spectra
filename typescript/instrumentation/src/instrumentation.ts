@@ -61,7 +61,14 @@ function switchOn(instrumentation: A2uiInstrumentation, tracer: () => Tracer): v
     warn('a2ui-spectra-instrumentation is already switched on; switching it on again does nothing');
     return;
   }
-  const plan: Plan | undefined = check();
+  let plan: Plan | undefined;
+  try {
+    plan = check();
+  } catch (fault) {
+    // Nothing the wrapper meets while it switches on is thrown into the agent.
+    refuse(undefined, `its check failed (${className(fault)}: ${messageOf(fault)})`);
+    return;
+  }
   if (plan === undefined) return;
   state.activate({
     tracer,

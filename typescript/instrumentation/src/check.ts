@@ -30,14 +30,22 @@ export interface Plan {
   readonly generators: ReadonlyArray<readonly [Function, InferenceFormat]>;
 }
 
-/** The version a `package.json` above the SDK's entry file gives, the package's own. */
+/**
+ * The SDK's version: what the first `package.json` with a name above its entry
+ * file gives, when that name is the SDK's. That one is the package's own; the
+ * walk reads no manifest above it, the agent's and its ancestors' among them.
+ */
 function sdkVersion(entry: string): string | undefined {
   let dir = path.dirname(entry);
   for (;;) {
     const file = path.join(dir, 'package.json');
     if (existsSync(file)) {
       const json = JSON.parse(readFileSync(file, 'utf8')) as {name?: unknown; version?: unknown};
-      if (json.name === AGENT_SDK && typeof json.version === 'string') return json.version;
+      if (typeof json.name === 'string') {
+        return json.name === AGENT_SDK && typeof json.version === 'string'
+          ? json.version
+          : undefined;
+      }
     }
     const parent = path.dirname(dir);
     if (parent === dir) return undefined;
