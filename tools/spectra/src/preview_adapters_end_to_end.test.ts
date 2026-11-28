@@ -324,6 +324,35 @@ describe('the preview adapters and the built-in page in Chromium', {timeout: 10 
       );
 
       it(
+        'draws a component that threw again once a later message gives it props that draw',
+        {timeout: TIMEOUT},
+        async () => {
+          const framed = await frame(`${adapter}/`);
+          try {
+            await framed.post(render(1, [create, components(true)]));
+            await framed.waitForMessage(
+              message =>
+                message.type === 'a2ui-spectra-preview/report' &&
+                (message.report as {kind: string}).kind === 'component',
+            );
+            const mended = {
+              version: 'v0.9',
+              updateComponents: {
+                surfaceId: 'main',
+                components: [
+                  {id: 'thrower', component: 'Thrower', text: 'Thrower mended', fail: false},
+                ],
+              },
+            };
+            await framed.post(render(2, [create, components(true), mended]));
+            await framed.frame.getByText('Thrower mended').waitFor({timeout: 5_000});
+          } finally {
+            await framed.page.close();
+          }
+        },
+      );
+
+      it(
         "validates as the host's processor options say, reports every refusal, and sends nothing through the host's channel to its agent",
         {timeout: TIMEOUT},
         async () => {
