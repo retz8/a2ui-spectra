@@ -337,11 +337,13 @@ export interface ModelCallAttributes {
   [name: string]: unknown;
 }
 
-/** A proxy's model call: a client span under the turn event, lasting from the request to the end of the response. */
-export interface ModelCallEvent extends EventFields<ModelCallAttributes> {
-  kind: 3;
-  parentSpanId: SpanId;
-}
+/**
+ * A model call. A proxy's is a client span under the turn event, lasting
+ * from the request to the end of the response; one read from the agent's
+ * spans keeps its own kind, and its parent in the agent's own span tree or
+ * none.
+ */
+export type ModelCallEvent = EventFields<ModelCallAttributes>;
 
 // The tool call.
 
