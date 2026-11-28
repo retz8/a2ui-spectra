@@ -53,7 +53,21 @@ export function resolveViewerFile(viewerDir: string, urlPath: string): ViewerFil
   return {kind: 'index', path: path.join(root, ...(preview ? [PREVIEW_DIR] : []), 'index.html')};
 }
 
-/** Answers a GET or HEAD request from the viewer's files. */
+/**
+ * Who may frame a file: no page for the viewer's own files, and the viewer's
+ * origin alone for the built-in preview page's, which the viewer frames.
+ */
+function framingHeaders(viewerDir: string, filePath: string): Record<string, string> {
+  const relative = path.relative(path.resolve(viewerDir), filePath);
+  return relative.startsWith(PREVIEW_DIR + path.sep)
+    ? {'content-security-policy': "frame-ancestors 'self'", 'x-frame-options': 'SAMEORIGIN'}
+    : {'content-security-policy': "frame-ancestors 'none'", 'x-frame-options': 'DENY'};
+}
+
+/**
+ * Answers a GET or HEAD request from the viewer's files, each with the
+ * framing headers of `framingHeaders`.
+ */
 export function serveViewerFile(
   viewerDir: string,
   request: IncomingMessage,
@@ -91,6 +105,7 @@ export function serveViewerFile(
     'content-type': type,
     'content-length': body.length,
     'x-content-type-options': 'nosniff',
+    ...framingHeaders(viewerDir, file.path),
     ...(file.kind === 'index' ? {'cache-control': 'no-cache'} : {}),
   });
   response.end(request.method === 'HEAD' ? undefined : body);
