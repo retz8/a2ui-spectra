@@ -271,6 +271,45 @@ describe('the replay pool', () => {
     }
   });
 
+  it('serves a paged list the page its cursor names, and the latest page for a cursor the record lacks', () => {
+    const pool = new ReplayPool(
+      record([
+        mcpCall('0000000000000001', 10, 'tools/list', undefined),
+        mcpCall('0000000000000002', 20, 'tools/list', {cursor: 'c2'}),
+      ]),
+      'recorded',
+    );
+    for (let i = 0; i < 2; i++) {
+      assert.equal(pool.mcpRequest('tools/list', undefined)?.spanId, '0000000000000001');
+      assert.equal(
+        pool.mcpRequest('tools/list', {_meta: {progressToken: 1}})?.spanId,
+        '0000000000000001',
+        'params with nothing but _meta are none',
+      );
+      assert.equal(pool.mcpRequest('tools/list', {cursor: 'c2'})?.spanId, '0000000000000002');
+    }
+    assert.equal(pool.mcpRequest('tools/list', {cursor: 'c9'})?.spanId, '0000000000000002');
+  });
+
+  it("serves housekeeping the latest exchange with the request's params, when the record holds one", () => {
+    const pool = new ReplayPool(
+      record(
+        [mcpCall('0000000000000001', 10, 'initialize', {protocolVersion: '2025-06-18'})],
+        [mcpCall('0000000000000002', 10, 'initialize', {protocolVersion: '2025-06-18'})],
+        [mcpCall('0000000000000003', 10, 'initialize', {protocolVersion: '2025-11-25'})],
+      ),
+      'recorded',
+    );
+    assert.equal(
+      pool.mcpRequest('initialize', {protocolVersion: '2025-06-18'})?.spanId,
+      '0000000000000002',
+    );
+    assert.equal(
+      pool.mcpRequest('initialize', {protocolVersion: '2025-11-25'})?.spanId,
+      '0000000000000003',
+    );
+  });
+
   it('takes a body or params that differ by the sign of a zero alone as the same, as the record cannot keep the sign', () => {
     const pool = new ReplayPool(
       record([

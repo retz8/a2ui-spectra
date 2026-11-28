@@ -36,8 +36,10 @@ export function exchangeKey(attributes: Record<string, unknown>): ExchangeKey {
 }
 
 /**
- * MCP's housekeeping requests: matched by method alone and not consumed, the
- * record's latest exchange of the method served as often as asked.
+ * MCP's housekeeping requests: not consumed, the record's latest exchange of
+ * the method with the request's params served as often as asked, so a paged
+ * list gets the page its cursor names; with params the record does not hold,
+ * the latest exchange of the method.
  */
 const HOUSEKEEPING: ReadonlySet<string> = new Set([
   'initialize',
@@ -180,19 +182,24 @@ export class ReplayPool {
 
   /**
    * An MCP request by its method and params, its id and `params._meta` left
-   * out: housekeeping is the latest exchange of its method, as often as
-   * asked; any other request the first exchange with its key not yet served.
+   * out: housekeeping is the latest exchange with its key, or of its method
+   * when none has its params, as often as asked; any other request the first
+   * exchange with its key not yet served.
    */
   mcpRequest(method: string, params: unknown, server?: string): CallEvent | undefined {
+    const key = paramsKey(params);
     if (HOUSEKEEPING.has(method)) {
-      const entry = this.mcpEntries.findLast(
+      const ofMethod = this.mcpEntries.filter(
         item =>
           item.event.attributes['mcp.method.name'] === method && isOnServer(item.event, server),
       );
+      const withParams = ofMethod.filter(item =>
+        jsonEqual(paramsKey(requestMessage(item.event)?.params), key),
+      );
+      const entry = (withParams.length > 0 ? withParams : ofMethod).at(-1);
       if (entry !== undefined) entry.served = true;
       return entry?.event;
     }
-    const key = paramsKey(params);
     return take(this.mcpEntries, recorded => {
       const message = requestMessage(recorded);
       return (
