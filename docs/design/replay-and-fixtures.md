@@ -217,7 +217,7 @@ A replay sends the record's conversation as one new conversation of the message 
 
 ### The pool and the request key
 
-While a replay runs with everything recorded or with the model live, the model proxy and the tool proxy are armed with one pool: every model call and tool call of the record, in turn order and then start order. They are disarmed when the replay ends. The pool is the one place that holds what has been consumed, so a call recorded in one turn can be served in another. An armed proxy asks the pool for every request it gets, placed in a turn or not; placement decides only whether the call is recorded.
+While a replay runs with everything recorded or with the model live, the model proxy and the tool proxy are armed with one pool: every model call and tool call of the record, in turn order and then start order. They are disarmed when the replay ends, under `run` and `attach`. Under `replay` and `test` they stay armed with the ended replay's pool until the next fixture's replay arms them or Spectra stops, the tool proxy's carriers closed: the agent runs on after a fixture's last turn, and a call it makes then is a miss with everything recorded, where a disarmed proxy would send it to the provider. The pool is the one place that holds what has been consumed, so a call recorded in one turn can be served in another. An armed proxy asks the pool for every request it gets, placed in a turn or not; placement decides only whether the call is recorded.
 
 Not every recorded call is in the pool. A call read from the agent's own spans has no exchange to serve; an operation the MCP server started is never re-sent; and a notification, a client's response to the server and a session's end are answered as the protocol fixes, below.
 

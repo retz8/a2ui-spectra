@@ -40,6 +40,7 @@ import {SpanReceiver} from './receiver/receiver.js';
 import {receiverExportLines, receiverVariables, replacedLine} from './receiver/variables.js';
 import type {CapturePath, Turn} from './record/turn_record.js';
 import {TurnRecorder} from './recorder.js';
+import {replayHooks} from './replay_hooks.js';
 import {startSaveWatcher} from './save_watcher.js';
 import {LOOPBACK_ADDRESS, PortTakenError, startViewerServer, type ViewerServer} from './server.js';
 import {TurnStore} from './store/store.js';
@@ -365,7 +366,15 @@ export async function runSession(
         warn: line => out.info(line),
         allowedHosts,
       });
-    const armed = {modelProxy, toolProxy};
+    const hooks = replayHooks({
+      modelProxy,
+      toolProxy,
+      // Under replay and test the agent runs on after a replay's last turn, until Spectra stops it.
+      keepArmed: headless !== undefined,
+      recorder,
+      onAmended: turns.onAmended,
+      log: line => out.info(line),
+    });
     const openBox = (card: AgentCard | undefined): MessageBox =>
       new MessageBox({
         ...(card !== undefined && {card}),
@@ -373,22 +382,7 @@ export async function runSession(
         headers,
         unsetVariables: unset,
         offer: () => catalogs.offer(),
-        replay: {
-          arm: pool => {
-            armed.modelProxy.arm(pool);
-            armed.toolProxy?.arm(pool);
-          },
-          disarm: () => {
-            armed.modelProxy.disarm();
-            armed.toolProxy?.disarm();
-          },
-          annotate: (traceId, attributes) => recorder.annotate(traceId, attributes),
-          amend: async (traceId, attributes) => {
-            const turnEvent = await recorder.amend(traceId, attributes);
-            if (turnEvent !== undefined) turns.onAmended(traceId, [turnEvent]);
-          },
-          log: line => out.info(line),
-        },
+        replay: hooks,
       });
     const viewer = options.viewer ?? {port: 0, open: false, allowedHosts: []};
 
