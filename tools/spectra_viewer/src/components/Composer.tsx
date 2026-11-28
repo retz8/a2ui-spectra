@@ -29,8 +29,8 @@ import {JsonLines} from './JsonBlock.tsx';
  * its text up to six lines; Enter sends, and Shift+Enter starts a new line.
  * A text carries the data model at the step in view. An action pressed in
  * the preview takes the text's place, as the wire message the agent would
- * receive, with Send, which Enter presses once it lands, and Discard, which
- * Escape presses; the text stays under it. While the box cannot send to the
+ * receive, with Send, which Enter presses once it lands from the developer's
+ * own press, and Discard, which Escape presses; the text stays under it. While the box cannot send to the
  * agent, for whatever reason, the line above the field carries the box's
  * reason, wrapped onto a second line when it is long, and the field stays
  * disabled with its text kept; the reason comes first, then a replay
@@ -115,9 +115,11 @@ export function Composer({
     if (active === null || active === document.body) field.current?.focus();
   }, [disabled, field, pending]);
 
-  // A press lands with focus on Send, so Enter sends it; on Discard when it cannot be sent.
+  // A press the developer made in a preview page, whose frame holds the focus, lands with focus
+  // on Send, so Enter sends it, or on Discard when it cannot be sent. A press that lands while
+  // focus is elsewhere, which a page can post on its own, leaves focus where it was.
   useEffect(() => {
-    if (pending === undefined) return;
+    if (pending === undefined || !(document.activeElement instanceof HTMLIFrameElement)) return;
     (sendButton.current?.disabled === false ? sendButton : discardButton).current?.focus();
   }, [pending]);
 

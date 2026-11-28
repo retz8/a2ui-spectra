@@ -563,7 +563,7 @@ The composer, docked under the turn view, is one line until typing and grows wit
 
 A press in the preview lands in the composer as a pending action, in place of the field, its text kept for when the action goes: a line naming the action, its component and its surface, 'Action “`<name>`”' and "from `<Type> <id>` on surface `<surface id>`", with Copy, Discard and Send, and the wire message the agent would receive, in the turn record's form, its data models folded. The message's shape in each A2UI and A2A version is in [the wire](wire.md). Its data models are the pressed surface's from the page, and the others' at the step of the render it was pressed in, even after a newer render went out.
 
-- Focus moves to Send, so Enter sends it, or to Discard while Send is off. Escape, or Discard, takes it out, and focus goes back to the text. Copy copies the message as JSON.
+- Focus moves to Send, so Enter sends it, or to Discard while Send is off, when it was in the preview page's frame as the press landed. A press that lands while focus is elsewhere, which a page can post on its own, leaves focus where it was. Escape, or Discard, takes it out, and focus goes back to the text. Copy copies the message as JSON.
 - A newer press replaces it. A turn of another conversation, New conversation, or no turn selected drops it.
 - It is sent only in a conversation the message box started and the agent named. Otherwise the composer says why, "Started by another host or in an earlier run · an action can only be sent in a conversation the message box started" or "The agent named no conversation · an action can only be sent in a conversation the agent named".
 - A send that fails leaves it pending.

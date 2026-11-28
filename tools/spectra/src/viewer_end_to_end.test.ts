@@ -421,6 +421,56 @@ describe(`the viewer on the retried-parse record in Chromium, ${binary ? 'the bi
   );
 });
 
+describe(`a press in the built-in preview, in Chromium, ${binary ? 'the binary' : 'under Node'}`, () => {
+  let browser: Browser;
+  before(async () => {
+    browser = await chromium.launch();
+  });
+  after(async () => {
+    await browser?.close();
+  });
+
+  it(
+    'lands with focus on Send when the developer pressed in the preview, and leaves focus where it was when the page pressed on its own',
+    {timeout: TIMEOUT},
+    async () => {
+      await withViewer(browser, async (page, base) => {
+        await page.goto(base);
+        await page.getByRole('textbox', {name: 'Message the agent'}).fill('Hi');
+        await page.getByRole('button', {name: 'Send', exact: true}).click();
+        await page.getByRole('heading', {level: 1, name: 'Hi', exact: true}).waitFor();
+        const pane = page
+          .getByRole('group', {name: 'Result panes'})
+          .getByRole('button', {name: 'Preview'});
+        if ((await pane.getAttribute('aria-pressed')) !== 'true') await pane.click();
+        const greet = page
+          .frameLocator('iframe[title="Spectra’s built-in preview"]')
+          .getByRole('button', {name: 'Greet me'});
+        await greet.waitFor();
+        const pending = page.getByText('Action “greet”');
+        const send = page.locator('button:has-text("Discard") + button');
+        const focused = (locator: Locator) =>
+          locator.evaluate(element => element === element.ownerDocument.activeElement);
+
+        // The developer presses in the preview: Send takes focus, so Enter sends it.
+        await greet.click();
+        await pending.waitFor();
+        assert.equal(await focused(send), true, 'Send has focus after a press in the preview.');
+        await page.getByRole('button', {name: 'Discard'}).click();
+        await pending.waitFor({state: 'detached'});
+
+        // The page presses while the developer is in the search: focus stays in the search.
+        const search = page.getByRole('searchbox', {name: 'Search turns'});
+        await search.focus();
+        await greet.evaluate(button => (button as unknown as {click(): void}).click());
+        await pending.waitFor();
+        assert.equal(await focused(search), true, 'The search keeps focus after the page pressed.');
+        assert.equal(await focused(send), false);
+      });
+    },
+  );
+});
+
 describe(`the agent popover on a catalog file that did not read, in Chromium, ${binary ? 'the binary' : 'under Node'}`, () => {
   let browser: Browser;
   before(async () => {
