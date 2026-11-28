@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {afterEach, beforeEach, describe, it} from 'node:test';
 
 import {instrument, uninstrument} from './index.js';
-import {Capture, eventsOf, goodBlock, processorOf, sdk} from './testing/support.js';
+import {Capture, eventsOf, goodBlock, otlpVariables, processorOf, sdk} from './testing/support.js';
 
 const capture = new Capture();
 
@@ -82,6 +82,27 @@ describe('a stream', () => {
       times,
       [...times].sort((a, b) => a - b),
     );
+  });
+
+  it('a lower limit in the environment is the limit the chunks are thinned to', async () => {
+    // The SDK's provider reads its limit from the environment when it is made.
+    uninstrument();
+    const restore = otlpVariables({OTEL_SPAN_EVENT_COUNT_LIMIT: '32'});
+    try {
+      const limited = new Capture();
+      instrument({tracerProvider: limited.provider});
+      const processor = await processorOf('direct_json');
+      const text = `Hi. ${'word '.repeat(20)}\n${goodBlock('a')}\n`;
+      const stream = processor.openStream();
+      for (const character of text) stream.feed(character);
+      stream.close();
+      const chunks = eventsOf(limited.only(), 'a2ui.parse.chunk');
+      assert.equal(limited.only().events.length, 32);
+      assert.equal(chunks[0]['a2ui.parse.chunk.end'], 1);
+      assert.equal(chunks[chunks.length - 1]['a2ui.parse.chunk.end'], text.length);
+    } finally {
+      restore();
+    }
   });
 
   it('a close after the end returns nothing and records nothing', async () => {

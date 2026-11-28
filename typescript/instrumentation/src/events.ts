@@ -135,17 +135,33 @@ interface SpanEventRecord {
 }
 
 /** OpenTelemetry's default limit on a span's events; past it the SDK drops the oldest. */
-const SPAN_EVENT_LIMIT = 128;
+const DEFAULT_SPAN_EVENT_LIMIT = 128;
 const CHUNK = 'a2ui.parse.chunk';
+
+/**
+ * The limit on a span's events, as the environment sets it:
+ * `OTEL_SPAN_EVENT_COUNT_LIMIT`, read as OpenTelemetry's SDK reads it when a
+ * provider is made, a value that is no number being the default. A limit a
+ * provider was given in code cannot be read from here.
+ */
+function spanEventLimit(): number {
+  const value = process.env.OTEL_SPAN_EVENT_COUNT_LIMIT?.trim();
+  if (value === undefined || value === '') return DEFAULT_SPAN_EVENT_LIMIT;
+  const limit = Number(value);
+  return Number.isFinite(limit) && limit >= 0 ? limit : DEFAULT_SPAN_EVENT_LIMIT;
+}
 
 /**
  * The events a span is given, in order: a stream fed more chunks than fit
  * within the limit beside its other events keeps its first and last chunk and
  * evenly spaced ones between, so the SDK drops none of them.
  */
-function keptSpanEvents(events: readonly SpanEventRecord[]): readonly SpanEventRecord[] {
+function keptSpanEvents(
+  events: readonly SpanEventRecord[],
+  limit: number,
+): readonly SpanEventRecord[] {
   const chunks = events.flatMap((event, index) => (event.name === CHUNK ? [index] : []));
-  const room = Math.max(2, SPAN_EVENT_LIMIT - (events.length - chunks.length));
+  const room = Math.max(2, limit - (events.length - chunks.length));
   if (chunks.length <= room) return events;
   const kept = new Set<number>();
   for (let step = 0; step < room; step++) {
@@ -263,7 +279,8 @@ export abstract class Event {
         {kind: SpanKind.INTERNAL, attributes, startTime: this.start},
         this.parent,
       );
-    for (const {name, attributes: eventAttributes, time} of keptSpanEvents(this.spanEvents)) {
+    const kept = keptSpanEvents(this.spanEvents, spanEventLimit());
+    for (const {name, attributes: eventAttributes, time} of kept) {
       span.addEvent(name, eventAttributes, time);
     }
     if (this.errors.length > 0) {
