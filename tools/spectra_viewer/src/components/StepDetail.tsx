@@ -1,7 +1,6 @@
 import {type ReactNode, useEffect, useState} from 'react';
 
 import {cn} from '@/lib/utils';
-import {generationTitleOf, parseTitleOf} from '@/model/a2ui_step.ts';
 import type {NodeRef} from '@/model/address.ts';
 import type {Prices} from '@/model/cost.ts';
 import {legacyLinesOf, type StepLegacy} from '@/model/legacy_form.ts';
@@ -12,7 +11,7 @@ import type {Problem} from '@/model/problems.ts';
 import type {CallReplay, RecordedCall} from '@/model/provenance.ts';
 import {isWireInput, type TurnRecordEvent, unixMillis, type WireEvent} from '@/model/record.ts';
 import {deliveryLabel, plural, type Step, type TimelineRow} from '@/model/steps.ts';
-import {callTitleOf, factsOf, usageOf} from '@/model/step_head.ts';
+import {factsOf, titleOf, usageOf} from '@/model/step_head.ts';
 import {useBlockFold} from '@/state/block_folds.ts';
 import {clearDetailTabRequest, detailTabRequest, requestDetailTab} from '@/state/detail_tab.ts';
 
@@ -103,14 +102,7 @@ export function StepDetail({
   onRecorded: (recorded: RecordedCall) => void;
 }) {
   const call = row.row === 'step' ? row.call : undefined;
-  const title =
-    row.row === 'step' && row.parse !== undefined
-      ? parseTitleOf(row, startMs)
-      : row.row === 'step' && row.generation !== undefined
-        ? generationTitleOf(row)
-        : call === undefined || row.row !== 'step'
-          ? undefined
-          : callTitleOf(call, row.target, startMs);
+  const title = titleOf(row, startMs);
   const facts = factsOf(row, events, startMs);
   const usage = usageOf(row, prices);
   const [reveal, setReveal] = useState<Reveal>();

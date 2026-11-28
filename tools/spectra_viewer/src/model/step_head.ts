@@ -31,23 +31,24 @@ const USAGE_LINE = 18;
 /** The tallest head: a model call's, with its usage line. */
 export const HEAD_MOST = TITLE_ROW + FACTS_LINE + USAGE_LINE;
 
+/** A parse's, a prompt generation's or a call's title line; none for any other row. */
+export function titleOf(
+  row: TimelineRow,
+  startMs: number,
+): {target: string; times: string} | undefined {
+  if (row.row !== 'step') return undefined;
+  if (row.parse !== undefined) return parseTitleOf(row, startMs);
+  if (row.generation !== undefined) return generationTitleOf(row);
+  return row.call === undefined ? undefined : callTitleOf(row.call, row.target, startMs);
+}
+
 /** The head's facts line: the title's times, or the step's offset. */
 export function factsOf(
   row: TimelineRow,
   events: readonly TurnRecordEvent[],
   startMs: number,
 ): string | undefined {
-  const call = row.row === 'step' ? row.call : undefined;
-  const title =
-    row.row !== 'step'
-      ? undefined
-      : row.parse !== undefined
-        ? parseTitleOf(row, startMs)
-        : row.generation !== undefined
-          ? generationTitleOf(row)
-          : call === undefined
-            ? undefined
-            : callTitleOf(call, row.target, startMs);
+  const title = titleOf(row, startMs);
   if (title !== undefined) return title.times;
   const offset = offsetOf(row, events, startMs);
   return offset === undefined ? undefined : formatOffset(offset);

@@ -8,6 +8,7 @@ import {parseOfMessage} from './a2ui_step.ts';
 import {timedEventOf} from './call_rows.ts';
 import {agentMessages} from './messages.ts';
 import {type TurnRecordEvent, unixMillis} from './record.ts';
+import {offsetOf} from './step_head.ts';
 import type {Position, TimelineRow} from './steps.ts';
 
 /** Where the surfaces stand for a row: after its step, or after its whole delivery; the outcome follows everything. */
@@ -65,10 +66,6 @@ export function asOfLabel(
       ? 'Live · the call is in flight'
       : `At the end of the call, ${formatOffset(moment)}`;
   }
-  const offset =
-    row.offsetMs ??
-    (row.position === undefined
-      ? undefined
-      : unixMillis(events[row.position.eventIndex].startTimeUnixNano) - startMs);
+  const offset = offsetOf(row, events, startMs);
   return offset === undefined ? '' : `After the step at ${formatOffset(offset)}`;
 }
