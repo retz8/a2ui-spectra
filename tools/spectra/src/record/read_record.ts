@@ -4,7 +4,7 @@
  * local store. A record of a version this release does not read is refused,
  * one of a newer version with the newer line.
  */
-import {isEventOfKind, type TurnRecord} from './turn_record.js';
+import {isEventOfKind, type TurnRecord, type TurnRecordEvent} from './turn_record.js';
 import {newerText, readVersion, readVersionsText} from './versions.js';
 
 /** A file that does not read as a turn record. */
@@ -55,7 +55,10 @@ function recordOf(json: unknown): TurnRecord {
   for (const [index, turn] of record.turns.entries()) {
     const events = (turn as {events?: unknown})?.events;
     if (!Array.isArray(events)) throw notARecord(`turn ${index + 1} has no events`);
-    if (!events.some(event => isTurnEvent(event))) {
+    // Every reader of a record reads each event's attributes, so each event has them.
+    const odd = events.findIndex(event => !isEvent(event));
+    if (odd !== -1) throw notARecord(`event ${odd + 1} of turn ${index + 1} is not an event`);
+    if (!(events as TurnRecordEvent[]).some(event => isEventOfKind(event, 'turn'))) {
       throw notARecord(`turn ${index + 1} has no turn event`);
     }
   }
@@ -66,11 +69,11 @@ function notARecord(reason: string): RecordReadError {
   return new RecordReadError(`The file is not a turn record ${readVersionsText()}: ${reason}.`);
 }
 
-function isTurnEvent(event: unknown): boolean {
-  return (
-    typeof event === 'object' &&
-    event !== null &&
-    typeof (event as {attributes?: unknown}).attributes === 'object' &&
-    isEventOfKind(event as TurnRecord['turns'][number]['events'][number], 'turn')
-  );
+/** Whether a value is an object holding its attributes as an object, as every event does. */
+function isEvent(event: unknown): boolean {
+  return isObject(event) && isObject((event as {attributes?: unknown}).attributes);
+}
+
+function isObject(value: unknown): boolean {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

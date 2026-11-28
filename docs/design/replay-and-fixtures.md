@@ -196,6 +196,7 @@ One reader reads every record file Spectra is handed: a fixture, a store turn's 
 | A version of that form newer than every one this Spectra reads      | `The file is a turn record v0.2, newer than this Spectra reads: it reads v0.1. Upgrade a2ui-spectra to read it.`     |
 | Any other version this Spectra does not read, such as `v0.1.0`      | `The file is not a turn record v0.1: its version is v0.1.0.`, not called newer                                       |
 | No turns, a turn with no `events`, or a turn without its turn event | `The file is not a turn record v0.1: it has no turns.`, `…: turn 2 has no events.` or `…: turn 2 has no turn event.` |
+| An event that is not an object, or holds no `attributes` object     | `The file is not a turn record v0.1: event 3 of turn 2 is not an event.`                                             |
 
 A release reads the versions it knows and refuses every other, one that differs in its third part alone included; the newer line rests on the top-level `version` alone. The rule is the turn record's [Versions](../../specification/turn_record/v0_1/docs/turn_record.md#versions). Where it applies:
 
