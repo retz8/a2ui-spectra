@@ -185,7 +185,7 @@ catalog ──▶ prompt generator ──▶ prompt ──▶ model ──▶ ra
 - The A2UI parts (messages, surfaces, actions, checks, the wrapper's spans) are Spectra's own. The hook proposal carries them upstream as the shared convention.
 - Every event carries a timestamp.
 - Nothing in the record is transport-specific. Its shape is checked against AG-UI's (activity snapshots, streamed tool-call arguments) as well as A2A's.
-- No credential is ever in the record.
+- A credential a header or a URL carries under a name the removal rules know is never in the record: it is written as `REMOVED`. A credential in a body, in a URL's path, or under a name outside the rules is recorded as sent.
 - The exact requests and responses that replay depends on come from Spectra's proxies. OpenTelemetry adds the view from inside the agent's process.
 - It ships with shared test data, the way upstream's `conformance/` suite checks that its SDKs in different languages behave the same. Every capture path in every language proves it writes the same record.
 
@@ -199,7 +199,7 @@ catalog ──▶ prompt generator ──▶ prompt ──▶ model ──▶ ra
 - **Storage:** plain files.
   - Turns captured during development go to a local store that git ignores, by default.
   - Save as fixture writes the turn record, whole, as `<name>.json` in the fixtures folder: the config file's `fixtures` setting, `a2ui-spectra-fixtures/` beside the config file by default, a visible folder outside the store. Every `.json` under it, recursively, lists and replays as a fixture. What content is safe to commit is the adopter's call.
-  - Credentials are stripped at the proxy before anything reaches disk, always.
+  - Credentials are removed by those rules, at the proxies and at the receiver, before anything reaches disk, always.
 
 ## Preview
 

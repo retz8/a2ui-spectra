@@ -149,7 +149,7 @@ A fixture is a turn record saved where you decide, to replay from the viewer, wi
 
 - **What is written.** The turn's record as the store holds it, whole: the conversation's earlier turns embedded and nothing stripped, as `<name>.json` at the top of the fixtures folder, atomically. The folder is created on the first save.
 - **Which turns.** Any turn in the store, from earlier runs too, and a turn kept in memory after its file failed to write. An open turn has no record yet and is refused: `The turn is still open, so it has no record yet.` A store turn whose file is of a newer turn record version is refused with the line [Reading a record file](#reading-a-record-file) gives.
-- **What is in it.** No credential is ever in a record: the proxies remove them before anything is written, as [the model and tool calls doc](model-and-tool-calls.md) describes. Everything else is kept, prompts, tool results and the user's messages included. What content is safe to commit is your call.
+- **What is in it.** A credential a header or a URL carries under a name the removal rules know is not in a record: the proxies and the receiver write it as `REMOVED` before anything is written, as [the model and tool calls doc](model-and-tool-calls.md) describes. A credential in a request's or a response's body, in a URL's path, or under a header or parameter name outside the rules is recorded as sent. Everything else is kept, prompts, tool results and the user's messages included. What content is safe to commit is your call.
 
 **The name** follows one rule, on every platform:
 

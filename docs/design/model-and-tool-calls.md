@@ -484,7 +484,7 @@ Upstream's three core samples exercise these paths: the Python restaurant finder
 - Vertex AI is not redirected, and other hosts of the four APIs, Azure OpenAI and Amazon Bedrock among them, are recorded raw.
 - The proxies listen on loopback, so the agent runs on the same machine as Spectra.
 - MCP over stdio is not seen; tools that are functions in the agent's process are not seen at the network edge, and run live during a replay.
-- A credential in a request or response body is recorded as sent, except in a token request, which is not recorded at all.
+- A credential in a request or response body, in a URL's path, or under a header or parameter name outside the rules is recorded as sent, except in a token request, which is not recorded at all.
 - A body in an encoding other than `gzip`, `deflate` or `br` is not read.
 - MCP housekeeping before any turn is open, such as an `initialize` at the agent's start, is not recorded, which [the replay doc](replay-and-fixtures.md) describes for a replay.
 - The estimated cost applies no service tier, no batch, flex or priority rate and no one-hour cache write rate, and a config price has no reasoning rate and no thresholds.

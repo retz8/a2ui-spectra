@@ -210,7 +210,7 @@ Spectra is one local process at the edges every agent stack already has: the wir
   <img alt="Spectra at the edges of an agent. The viewer's message box sends a turn over A2A to Spectra's wire proxy, which opens the turn and passes it on to your agent. The agent's model calls go through the model proxy to Gemini, OpenAI or Anthropic, and its tool calls through the tool proxy to MCP servers and HTTP tools; each proxy records the call and passes it on as sent. The agent's OpenTelemetry spans go to the receiver over OTLP, and Spectra streams each turn live to the viewer." src="docs/design/diagrams/spectra.png">
 </picture>
 
-**Your keys stay yours.** Spectra runs on your machine and nothing is deployed. API keys and other credentials are removed from everything it records, before it shows or saves anything.
+**Your keys stay yours.** Spectra runs on your machine and nothing is deployed. The API keys and other credentials your agent sends in headers and URL parameters are removed from everything it records, before it shows or saves anything. One sent inside a request's body, in a URL's path, or under a header name that does not say what it is, is recorded as sent; the rules are in [Model and tool calls](docs/design/model-and-tool-calls.md).
 
 Add more as you need it:
 
