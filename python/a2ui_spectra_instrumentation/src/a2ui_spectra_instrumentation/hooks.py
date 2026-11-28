@@ -234,6 +234,30 @@ def _outermost(
         _leave(event, token)
 
 
+async def _outermost_awaited(
+    event: events.Event,
+    awaitable: Awaitable[Any],
+    where: str,
+    returned: Callable[[Any], object],
+    failed: Callable[[BaseException], object] | None = None,
+) -> Any:
+    """The outermost call, awaited: `_outermost` for a hooked coroutine.
+
+    What a raised error is recorded by is the event's `fail`, unless given.
+    """
+    token = events.enter(event)
+    try:
+        result = await awaitable
+    except BaseException as error:
+        _safely(where, lambda: (failed or event.fail)(error))
+        raise
+    else:
+        _safely(where, lambda: returned(result))
+        return result
+    finally:
+        _leave(event, token)
+
+
 # The parsing entry points.
 
 
@@ -380,23 +404,13 @@ def _stream_call(
             log.report_fault(where, fault)
             event.abandon()
             return _unrecorded(wrapped, args, kwargs)
-    token = events.enter(event)
-    try:
-        parts = wrapped(*args, **kwargs)
-    except BaseException as error:
-        _safely(where, lambda: event.fail(error))
-        raise
-    else:
 
-        def returned() -> None:
-            event.take_parts(parts)
-            if closing:
-                event.end()
+    def returned(parts: Any) -> None:
+        event.take_parts(parts)
+        if closing:
+            event.end()
 
-        _safely(where, returned)
-        return parts
-    finally:
-        _leave(event, token)
+    return _outermost(event, wrapped, args, kwargs, where, returned)
 
 
 def feed_hook(
@@ -613,17 +627,7 @@ async def _run_tool(
     except Exception as fault:
         log.report_fault(where, fault)
         return await _await_unrecorded(awaitable)
-    token = events.enter(event)
-    try:
-        result = await awaitable
-    except BaseException as error:
-        _safely(where, lambda: event.fail(error))
-        raise
-    else:
-        _safely(where, lambda: event.take_tool_result(result))
-        return result
-    finally:
-        _leave(event, token)
+    return await _outermost_awaited(event, awaitable, where, event.take_tool_result)
 
 
 def process_llm_request_hook(
@@ -682,36 +686,25 @@ async def _append_prompt(
     except Exception as fault:
         log.report_fault(where, fault)
         return await _await_unrecorded(awaitable)
-    token = events.enter(event)
-    try:
-        result = await awaitable
-    except BaseException as error:
 
-        def failed() -> None:
-            _adopt_processor(event, tool)
-            event.fail(error)
+    def failed(error: BaseException) -> None:
+        _adopt_processor(event, tool)
+        event.fail(error)
 
-        _safely(where, failed)
-        raise
-    else:
+    def appended(_: Any) -> None:
+        _adopt_processor(event, tool)
+        after = _system_text(llm_request)
+        section = None
+        if before is not None and after is not None and after.startswith(before):
+            section = after[len(before) :]
+            if before and section.startswith("\n\n"):
+                section = section[2:]
+        if section:
+            event.take_section(section)
+        else:
+            event.abandon("the toolset appended no text to the instructions")
 
-        def appended() -> None:
-            _adopt_processor(event, tool)
-            after = _system_text(llm_request)
-            section = None
-            if before is not None and after is not None and after.startswith(before):
-                section = after[len(before) :]
-                if before and section.startswith("\n\n"):
-                    section = section[2:]
-            if section:
-                event.take_section(section)
-            else:
-                event.abandon("the toolset appended no text to the instructions")
-
-        _safely(where, appended)
-        return result
-    finally:
-        _leave(event, token)
+    return await _outermost_awaited(event, awaitable, where, appended, failed)
 
 
 def wrapper_for(hook: Hook) -> Wrapper:
