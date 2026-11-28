@@ -129,7 +129,7 @@ describe('CallPlacer', () => {
     assert.deepEqual([placed?.traceId, placed?.parentSpanId], [T2, S2]);
   });
 
-  it('places a call whose trace id names no turn by the time window', () => {
+  it('places a call whose trace id names no turn in the one open turn', () => {
     const {placer} = setUp();
     placer.onTurn(opened(T1, S1));
     const placed = placer.place({...aCall, traceparent: `00-${'e'.repeat(32)}-${S1}-01`});
@@ -148,7 +148,7 @@ describe('CallPlacer', () => {
     ]);
   });
 
-  it('places a call whose trace id names a turn already written by the time window, as stale context', () => {
+  it('places a call whose trace id names a turn already written in the one open turn, as stale context', () => {
     const {placer, log} = setUp();
     placer.onTurn(opened(T1, S1));
     placer.onTurn(closed(T1, S1));
@@ -158,7 +158,7 @@ describe('CallPlacer', () => {
     assert.deepEqual(log, []);
   });
 
-  it('says that a stale trace id named a written turn when the time window cannot place the call either', () => {
+  it('says that a stale trace id named a written turn when no one open turn can take the call either', () => {
     const {placer, log} = setUp();
     placer.onTurn(opened(T1, S1));
     placer.onTurn(closed(T1, S1));
@@ -192,7 +192,7 @@ describe('CallPlacer', () => {
     );
   });
 
-  it('counts a turn waiting for its calls as open for the time window', () => {
+  it('counts a turn waiting for its calls as open, for the one open turn', () => {
     const {placer, log} = setUp();
     placer.onTurn(opened(T1, S1));
     const first = placer.place(aCall);
