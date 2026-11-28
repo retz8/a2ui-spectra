@@ -26,7 +26,7 @@ import {
 } from './record/turn_record.js';
 import {ReplayRecordError, replayInputs} from './replay/inputs.js';
 import {hasNothingToServe, ReplayPool} from './replay/pool.js';
-import {inWords, outcomeOf, verdictOf} from './replay/verdict.js';
+import {inWords, outcomeOf, type Verdict, verdictOf} from './replay/verdict.js';
 import type {LiveReplayedTurn, ReplayedTurn, TurnHub} from './turn_hub.js';
 
 /**
@@ -527,8 +527,25 @@ export class MessageBox {
       }
     };
 
-    /** Sends recorded turn `index`, and resolves with its trace id and the closed turn's verdict work. */
-    const sendTurn = async (index: number): Promise<{traceId: string; finished: Promise<void>}> => {
+    /** Says a closed turn's line; resolves the turn's work with why the replay stops when the line cannot be said. */
+    const say = (line: string, what: string, number: number): string | undefined => {
+      try {
+        hooks.log(line);
+        return undefined;
+      } catch (error) {
+        return `The ${what} of turn ${number} could not be said: ${messageOf(error)}`;
+      }
+    };
+
+    /**
+     * Sends recorded turn `index`, and resolves with its trace id and the
+     * closed turn's verdict work, which never rejects: it resolves with why
+     * the replay stops there, when the turn's verdict could not be taken or
+     * its line could not be said, and with nothing otherwise.
+     */
+    const sendTurn = async (
+      index: number,
+    ): Promise<{traceId: string; finished: Promise<string | undefined>}> => {
       const input = inputs[index];
       const recorded = recordedTurns[index];
       const messageId = this.newMessageId();
@@ -565,60 +582,92 @@ export class MessageBox {
         turn: index + 1,
         turns: inputs.length,
       });
+      const number = index + 1;
       const finished = dispatched.closed.then(async turn => {
         if (pool === undefined) {
           live.push({traceId: dispatched.traceId, recordedTurn: recorded.traceId});
-          hooks.log(
-            `Re-run of ${source.path}, turn ${index + 1} of ${inputs.length}: ${inWords(outcomeOf(turn))}.`,
+          return say(
+            `Re-run of ${source.path}, turn ${number} of ${inputs.length}: ${inWords(outcomeOf(turn))}.`,
+            'outcome',
+            number,
           );
-          return;
         }
-        const verdict = verdictOf(recorded.turn, turn);
-        await hooks.amend(dispatched.traceId, {
-          'a2ui.replay.verdict': verdict.verdict,
-          ...(verdict.reasons.length > 0 && {'a2ui.replay.reasons': verdict.reasons}),
-        });
-        const unconsumed = pool.unserved().filter(call => call.traceId === recorded.traceId).length;
+        const unconsumedOf = () =>
+          pool.unserved().filter(call => call.traceId === recorded.traceId).length;
+        let verdict: Verdict;
+        let unconsumed = 0;
+        try {
+          verdict = verdictOf(recorded.turn, turn);
+          await hooks.amend(dispatched.traceId, {
+            'a2ui.replay.verdict': verdict.verdict,
+            ...(verdict.reasons.length > 0 && {'a2ui.replay.reasons': verdict.reasons}),
+          });
+          unconsumed = unconsumedOf();
+        } catch (error) {
+          // A turn whose verdict could not be taken did not pass, and the replay stops at it.
+          try {
+            unconsumed = unconsumedOf();
+          } catch {
+            // The pool cannot say either; the turn has failed whatever the count.
+          }
+          replayed.push({
+            traceId: dispatched.traceId,
+            recordedTurn: recorded.traceId,
+            verdict: 'failed',
+            unconsumed,
+          });
+          const message = messageOf(error);
+          say(
+            `Replay of ${source.path}, turn ${number} of ${inputs.length}: failed (its verdict could not be taken: ${message}).`,
+            'verdict',
+            number,
+          );
+          return `The verdict of turn ${number} could not be taken: ${message}`;
+        }
         replayed.push({
           traceId: dispatched.traceId,
           recordedTurn: recorded.traceId,
           verdict: verdict.verdict,
           unconsumed,
         });
-        hooks.log(
-          `Replay of ${source.path}, turn ${index + 1} of ${inputs.length}: ${verdict.verdict}` +
+        return say(
+          `Replay of ${source.path}, turn ${number} of ${inputs.length}: ${verdict.verdict}` +
             (verdict.reasons.length > 0
               ? ` (${verdict.reasons.map(reason => reason.message).join(' ')})`
               : '') +
             (unconsumed > 0
               ? `; ${unconsumed} of the recorded calls ${unconsumed === 1 ? 'was' : 'were'} not asked for.`
               : '.'),
+          'verdict',
+          number,
         );
       });
       return {traceId: dispatched.traceId, finished};
     };
 
-    let first: {traceId: string; finished: Promise<void>};
+    let first: {traceId: string; finished: Promise<string | undefined>};
     try {
       first = await sendTurn(0);
     } catch (error) {
-      notSent(0, error instanceof Error ? error.message : String(error));
+      notSent(0, messageOf(error));
       end();
       throw error;
     }
     void (async () => {
       try {
-        await first.finished;
+        /** Why the replay stops before its next turn: a closed turn's work failed, or the agent's process ended. */
+        let stopped = await first.finished;
         for (let index = 1; index < inputs.length; index++) {
-          if (agentEnded !== undefined) {
-            notSent(index, agentEnded);
+          stopped ??= agentEnded;
+          if (stopped !== undefined) {
+            notSent(index, stopped);
             break;
           }
           try {
             const {finished} = await sendTurn(index);
-            await finished;
+            stopped = await finished;
           } catch (error) {
-            notSent(index, error instanceof Error ? error.message : String(error));
+            notSent(index, messageOf(error));
             break;
           }
         }
@@ -729,6 +778,11 @@ export class MessageBox {
     conversation.open = undefined;
     return turn;
   }
+}
+
+/** An error's message, or the thrown value as text. */
+function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 /** A recorded turn's trace id, from its turn event. */

@@ -941,6 +941,122 @@ describe('the message box replaying a record', () => {
     box.close();
   });
 
+  /** Collects the rejections nothing handled while a replay runs; `stop` ends the collecting. */
+  function unhandledRejections(): {seen: unknown[]; stop(): void} {
+    const seen: unknown[] = [];
+    const listener = (reason: unknown) => seen.push(reason);
+    process.on('unhandledRejection', listener);
+    return {seen, stop: () => process.off('unhandledRejection', listener)};
+  }
+
+  it('reports a turn whose verdict could not be taken as sent and failed, the rest as not sent and the record failed, on the first turn and on a later one, with nothing left unhandled', async () => {
+    for (const failing of [1, 2]) {
+      const proxy = new FakeProxy();
+      let amends = 0;
+      const hooks = new (class extends FakeHooks {
+        override async amend(traceId: string, attributes: Record<string, unknown>): Promise<void> {
+          if (++amends === failing) throw new Error('the amend broke');
+          await super.amend(traceId, attributes);
+        }
+      })();
+      const box = boxOn(proxy, CARD_1_0, {replay: hooks});
+      const events: HubEvent[] = [];
+      proxy.turns.subscribe(event => events.push(event));
+      proxy.replies.push(streamReply('TASK_STATE_COMPLETED'), streamReply('TASK_STATE_COMPLETED'));
+      proxy.closeAsOpened([{conversationId: 'ctx-1'}, {conversationId: 'ctx-1'}]);
+      const record = recordOf(
+        recordedTurn(RECORDED[0], 'completed'),
+        recordedTurn(RECORDED[1], 'completed'),
+        recordedTurn(RECORDED[2], 'completed'),
+      );
+      const unhandled = unhandledRejections();
+      try {
+        const started = await box.replay({path: SOURCE, record}, 'model_live');
+        const end = await ended(events);
+        await new Promise(resolve => setTimeout(resolve, 20));
+        assert.deepEqual(unhandled.seen, []);
+        const reason = `The verdict of turn ${failing} could not be taken: the amend broke`;
+        assert.deepEqual(
+          end.turns,
+          failing === 1
+            ? [
+                {
+                  traceId: started.traceId,
+                  recordedTurn: RECORDED[0],
+                  verdict: 'failed',
+                  unconsumed: 0,
+                },
+                {recordedTurn: RECORDED[1], notSent: reason},
+                {recordedTurn: RECORDED[2], notSent: reason},
+              ]
+            : [
+                {
+                  traceId: started.traceId,
+                  recordedTurn: RECORDED[0],
+                  verdict: 'passed',
+                  unconsumed: 0,
+                },
+                {
+                  traceId: proxy.sent[1].traceId,
+                  recordedTurn: RECORDED[1],
+                  verdict: 'failed',
+                  unconsumed: 0,
+                },
+                {recordedTurn: RECORDED[2], notSent: reason},
+              ],
+        );
+        assert.equal(end.verdict, 'failed');
+        assert.equal(
+          hooks.lines.at(-1),
+          `Replay of ${SOURCE}, turn ${failing} of 3: failed (its verdict could not be taken: the amend broke).`,
+        );
+        assert.equal(proxy.sent.length, failing);
+        assert.equal(hooks.disarmed, 1);
+        assert.equal(box.state().replay, undefined);
+      } finally {
+        unhandled.stop();
+        box.close();
+      }
+    }
+  });
+
+  it("stops a live replay whose turn's outcome could not be said, the turn reported as sent and the rest as not sent, with nothing left unhandled", async () => {
+    const proxy = new FakeProxy();
+    const hooks = new (class extends FakeHooks {
+      override log(line: string): void {
+        if (line.startsWith('Re-run of')) throw new Error('the terminal broke');
+        super.log(line);
+      }
+    })();
+    const box = boxOn(proxy, CARD_1_0, {replay: hooks});
+    const events: HubEvent[] = [];
+    proxy.turns.subscribe(event => events.push(event));
+    proxy.replies.push(streamReply('TASK_STATE_COMPLETED'));
+    proxy.closeAsOpened([{conversationId: 'ctx-1'}]);
+    const record = recordOf(
+      recordedTurn(RECORDED[0], 'completed'),
+      recordedTurn(RECORDED[1], 'completed'),
+    );
+    const unhandled = unhandledRejections();
+    try {
+      const started = await box.replay({path: SOURCE, record}, 'live');
+      const end = await replayEnd(events);
+      await new Promise(resolve => setTimeout(resolve, 20));
+      assert.deepEqual(unhandled.seen, []);
+      assert.deepEqual(end.turns, [
+        {traceId: started.traceId, recordedTurn: RECORDED[0]},
+        {
+          recordedTurn: RECORDED[1],
+          notSent: 'The outcome of turn 1 could not be said: the terminal broke',
+        },
+      ]);
+      assert.equal(box.state().replay, undefined);
+    } finally {
+      unhandled.stop();
+      box.close();
+    }
+  });
+
   it('rejects when the first turn cannot be sent, the replay over before it began', async () => {
     const hooks = new FakeHooks();
     const turns = new TurnHub();
