@@ -5,7 +5,8 @@
  * The A2UI is compared as the flattened sequence, an array part contributing
  * its elements, so the wire form the agent chose does not count. A call
  * served from the record, an answer the protocol fixed and a live call are
- * all equal before the verdict; only a miss fails it.
+ * all equal before the verdict; only a miss fails it. A call served from a
+ * miss an earlier replay recorded is a served call, not a miss.
  */
 import {agentMessages} from '../check/schema_check.js';
 import {
@@ -39,7 +40,9 @@ function misses(turn: Turn): ReplayReason[] {
     .filter(
       (event): event is CallEvent =>
         (isEventOfKind(event, 'model_call') || isEventOfKind(event, 'tool_call')) &&
-        event.attributes['error.type'] === 'replay_miss',
+        event.attributes['error.type'] === 'replay_miss' &&
+        // A miss the record held, served again as recorded, is a served call.
+        event.attributes['a2ui.replay.served_from'] === undefined,
     )
     .map(call => ({
       code: 'REPLAY_MISS' as const,

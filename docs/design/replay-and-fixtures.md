@@ -273,7 +273,7 @@ Disarming closes the carriers the proxy holds.
 - A JSON body serialised from the recorded value, a text body as its text.
 - A stream as one server-sent event per recorded chunk, with its `event` and `id`, written as fast as the agent reads.
 - A reply that broke off once it had begun is served as recorded, its chunks or its body, and then the connection destroyed; a call the agent aborted, as recorded and a clean end.
-- A call recorded with no response, one whose provider could not be reached, as the proxy's `502` line with the recorded failure.
+- A call recorded with no response, one whose provider could not be reached, as the proxy's `502` line with the recorded failure; a miss an earlier replay recorded, as the `502` and the line that miss was answered with.
 
 **A miss** is answered `502` with one plain-text line, which the terminal prints at each miss: `a2ui-spectra's model proxy is replaying, and POST /v1beta/models/gemini-3.6-flash:streamGenerateContent?alt=sse matched nothing in the record.`, with `tool proxy` for the tool proxy and the path and query with any credential removed. The call is recorded as failed, `error.type` `replay_miss`, the line as its status message, and the request's exchange with no response attributes. Under HTTP+SSE the POST gets the `502`, and the request's JSON-RPC error, code `-32603` with the same line as its message, is written on the session's carrier, where the client waits for its reply; that error is not recorded. A token request and a WebSocket upgrade get the same answer and are not recorded, except from the model proxy with the model live, which passes them on.
 
@@ -297,7 +297,7 @@ Disarming closes the carriers the proxy holds.
 
 A turn replayed with everything recorded or with the model live is judged when it closes, against the recorded turn it re-sent. It passes when:
 
-1. **No call missed.** Every call that matched nothing is a reason, `REPLAY_MISS`, naming its kind, its method and its path without the query: `A model call matched nothing in the record: POST /v1beta/models/gemini-3.6-flash:streamGenerateContent.` A call served from the record, an answer the protocol fixed and a live call all count the same.
+1. **No call missed.** Every call that matched nothing is a reason, `REPLAY_MISS`, naming its kind, its method and its path without the query: `A model call matched nothing in the record: POST /v1beta/models/gemini-3.6-flash:streamGenerateContent.` A call served from the record, an answer the protocol fixed and a live call all count the same. A miss the record itself holds, in the record of an earlier replay, is served again as recorded, with its own line, and counts as served.
 2. **Its outcome is the recorded one**, `completed`, `failed`, `cancelled` or `waiting_for_input`; otherwise `OUTCOME_DIFFERS`: `The turn ended failed; the record ended completed.`
 3. **Its A2UI messages equal the recorded ones** by JSON value, in order, compared as the flattened sequence of the A2UI parts of the turn's wire outputs, an array part giving its elements. The wire form does not count: one data part holding an array equals one part per message. Otherwise `A2UI_DIFFERS`, naming the first message that differs, `The A2UI differs from the record: message 2 of 3 is not the recorded one.`, with its `path`, a JSON Pointer to that message in the replayed turn; or naming the two counts when one is a prefix of the other, as in the running example, with the `path` of the first message beyond the record when the replayed turn sent more.
 

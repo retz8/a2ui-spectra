@@ -133,6 +133,42 @@ describe('verdictOf, the replayed turn against the recorded one', () => {
     });
   });
 
+  it('does not fail a call served from a recorded miss: the record held it, and it was served', () => {
+    const recorded = withOutcome(
+      withCalls(
+        testTurn({messages: []}),
+        modelCall('aaaaaaaaaaaaaaaa', {'error.type': 'replay_miss'}, true),
+        toolCall(
+          'bbbbbbbbbbbbbbbb',
+          {'mcp.method.name': 'tools/call', 'error.type': 'replay_miss'},
+          true,
+        ),
+      ),
+      'failed',
+    );
+    const replayed = withOutcome(
+      withCalls(
+        testTurn({messages: []}),
+        modelCall(
+          'cccccccccccccccc',
+          {'error.type': 'replay_miss', 'a2ui.replay.served_from': 'aaaaaaaaaaaaaaaa'},
+          true,
+        ),
+        toolCall(
+          'dddddddddddddddd',
+          {
+            'mcp.method.name': 'tools/call',
+            'error.type': 'replay_miss',
+            'a2ui.replay.served_from': 'bbbbbbbbbbbbbbbb',
+          },
+          true,
+        ),
+      ),
+      'failed',
+    );
+    assert.deepEqual(verdictOf(recorded, replayed), {verdict: 'passed', reasons: []});
+  });
+
   it('takes A2UI that differs by the sign of a zero alone as equal, as the record cannot keep the sign', () => {
     const recorded = testTurn({messages: [...messages, updateDataModel('s1', {n: 0, at: [0]})]});
     const replayed = testTurn({messages: [...messages, updateDataModel('s1', {n: -0, at: [-0]})]});
