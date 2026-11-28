@@ -5,8 +5,8 @@
 
 import {type CatalogOffer, CatalogRegistry} from '../catalog/registry.js';
 import {type CardInterface, cardInterfaces, JSONRPC} from './card.js';
-import {dataModelKeyFor} from './metadata.js';
-import {A2UI_MIME_TYPE} from './parts.js';
+import {dataModelKeyFor, joinInputMetadata} from './metadata.js';
+import {A2UI_MIME_TYPE, a2aPart} from './parts.js';
 import {
   type A2aVersion,
   isRecord,
@@ -17,6 +17,7 @@ import {
 import {a2uiExtensionUri} from './extension_uri.js';
 import {bodyJson} from '../proxying/forwarding.js';
 import {SseParser} from '../proxying/sse.js';
+import type {ReplayInput} from '../replay/inputs.js';
 
 /** The A2UI extension URIs of every version Spectra supports, sent in the extensions header. */
 export const A2UI_EXTENSION_URIS: readonly string[] = ['v0.9', 'v0.9.1', 'v1.0'].map(
@@ -256,6 +257,44 @@ export function preparedRequest(
       },
     }),
   };
+}
+
+/** The message a replayed input is sent as, and what the live conversation holds so far. */
+export interface ReplayedMessage {
+  messageId: string;
+  contextId?: string;
+  /** The live conversation's task, sent on only after a recorded turn that ended waiting for input. */
+  taskId?: string;
+}
+
+/**
+ * The send or stream request that re-sends a recorded input in the
+ * interface's A2A version: its parts in that version's form, its metadata
+ * joined back under A2A's keys, the extensions header naming the A2UI
+ * extension of each version the host offered, none sending no header, and
+ * the live conversation's task where the recorded turn before it ended
+ * waiting for input.
+ */
+export function replayRequest(
+  target: BoxInterface,
+  input: ReplayInput,
+  message: ReplayedMessage,
+  id: number,
+  headers: Readonly<Record<string, string>> = {},
+): BoxRequest {
+  const metadata = joinInputMetadata(input.metadata);
+  return preparedRequest(
+    target,
+    {
+      parts: input.parts.map(part => a2aPart(part, target.version)),
+      ...(metadata !== undefined && {metadata}),
+      messageId: message.messageId,
+      ...(message.contextId !== undefined && {contextId: message.contextId}),
+      ...(input.afterWaitingTurn && message.taskId !== undefined && {taskId: message.taskId}),
+    },
+    id,
+    {extensions: input.offeredVersions.map(a2uiExtensionUri), headers},
+  );
 }
 
 /** What the box carries into its next send from a reply. */

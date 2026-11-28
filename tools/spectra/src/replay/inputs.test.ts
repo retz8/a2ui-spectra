@@ -5,9 +5,6 @@ import type {Turn, TurnRecord, WireInputEvent} from '../record/turn_record.js';
 import {testTurn} from '../testing/turns.js';
 import {ReplayRecordError, replayInputs} from './inputs.js';
 
-const V0_9_1 = 'https://a2ui.org/a2a-extension/a2ui/v0.9.1';
-const V1_0 = 'https://a2ui.org/a2a-extension/a2ui/v1.0';
-
 /** A test turn with its wire input's attributes changed, and its outcome. */
 function turnWith(
   input: Partial<WireInputEvent['attributes']>,
@@ -33,7 +30,7 @@ function recordOf(...turns: Turn[]): TurnRecord {
 }
 
 describe('replayInputs, what the driver re-sends for each recorded turn', () => {
-  it('gives each turn its parts, its metadata split as recorded and the versions it offered as extension URIs', () => {
+  it("gives each turn its parts, its metadata split as recorded and the versions it offered in the record's form", () => {
     const capabilities = {
       'v0.9.1': {supportedCatalogIds: ['a']},
       '1.0': {supportedCatalogIds: ['b']},
@@ -54,14 +51,14 @@ describe('replayInputs, what the driver re-sends for each recorded turn', () => 
       {
         parts: [{type: 'text', content: 'Hi'}],
         metadata: {capabilities, metadata: {source: 'planner'}},
-        extensions: [V0_9_1, V1_0],
-        carriesTask: false,
+        offeredVersions: ['v0.9.1', 'v1.0'],
+        afterWaitingTurn: false,
       },
       {
         parts: [{type: 'a2ui', content: {version: '1.0', action: {name: 'go'}}}],
         metadata: {capabilities, dataModel},
-        extensions: [V0_9_1, V1_0],
-        carriesTask: false,
+        offeredVersions: ['v0.9.1', 'v1.0'],
+        afterWaitingTurn: false,
       },
     ]);
   });
@@ -70,17 +67,17 @@ describe('replayInputs, what the driver re-sends for each recorded turn', () => 
     const [withVersion, withNeither] = replayInputs(
       recordOf(turnWith({}, 'completed', 'v0.9.1'), turnWith({})),
     );
-    assert.deepEqual(withVersion.extensions, [V0_9_1]);
+    assert.deepEqual(withVersion.offeredVersions, ['v0.9.1']);
     assert.deepEqual(withVersion.metadata, {});
-    assert.deepEqual(withNeither.extensions, []);
+    assert.deepEqual(withNeither.offeredVersions, []);
   });
 
-  it('marks a turn as carrying a task when the recorded turn before it ended waiting for input', () => {
+  it('marks a turn whose recorded turn before it ended waiting for input', () => {
     const inputs = replayInputs(
       recordOf(turnWith({}, 'waiting_for_input'), turnWith({}, 'completed'), turnWith({})),
     );
     assert.deepEqual(
-      inputs.map(input => input.carriesTask),
+      inputs.map(input => input.afterWaitingTurn),
       [false, true, false],
     );
   });

@@ -1,12 +1,11 @@
 /**
  * What the driver re-sends for each recorded turn: the host's wire input as
  * the record holds it, read back out of its transport-neutral form. The
- * record keeps no transport envelope, so the A2A version and the method come
- * from the live card at send time; what the record can say about the offer,
- * the versions its capabilities are keyed by, becomes the extensions header.
+ * record keeps no transport envelope, so the transport's host writes each
+ * input in its own form at send time, from what the record can say: the
+ * parts, the metadata, the protocol versions the host offered and whether
+ * the turn before it ended waiting for input.
  */
-import {a2uiExtensionUri} from '../a2a/extension_uri.js';
-import type {InputMetadata} from '../a2a/metadata.js';
 import {
   isEventOfKind,
   recordFormOf,
@@ -15,25 +14,24 @@ import {
   type WirePart,
 } from '../record/turn_record.js';
 
-/** The A2UI extension URI of a protocol version in the record's form. */
-function extensionUriOf(version: string): string {
-  return a2uiExtensionUri(recordFormOf(version));
-}
-
-/** One recorded turn's input, ready to be written in the live A2A version's form. */
+/** One recorded turn's input, for a transport's host to write in its own form. */
 export interface ReplayInput {
   /** The host's parts, in the record's form. */
   parts: WirePart[];
   /** The capabilities, the data model and the other metadata, as recorded. */
-  metadata: InputMetadata;
+  metadata: {
+    capabilities?: Record<string, unknown>;
+    dataModel?: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
+  };
   /**
-   * The A2UI extension URIs of the versions the host offered: those the
-   * recorded capabilities are keyed by, else the turn's protocol version,
-   * else none.
+   * The protocol versions the host offered, in the record's form, such as
+   * `v0.9.1`: those the recorded capabilities are keyed by, else the turn's
+   * protocol version, else none.
    */
-  extensions: string[];
-  /** Whether the request carried a task id: the recorded turn before it ended waiting for input. */
-  carriesTask: boolean;
+  offeredVersions: string[];
+  /** Whether the recorded turn before this one ended waiting for input. */
+  afterWaitingTurn: boolean;
 }
 
 /** A record the driver cannot replay. */
@@ -55,7 +53,7 @@ export function replayInputs(record: TurnRecord): ReplayInput[] {
   });
 }
 
-function replayInput(turn: Turn, number: number, carriesTask: boolean): ReplayInput {
+function replayInput(turn: Turn, number: number, afterWaitingTurn: boolean): ReplayInput {
   const wireInputs = turn.events.filter(event => isEventOfKind(event, 'wire_input'));
   const wireInput = wireInputs[0];
   if (wireInput === undefined) {
@@ -81,11 +79,11 @@ function replayInput(turn: Turn, number: number, carriesTask: boolean): ReplayIn
   const metadata = attributes['a2ui.wire.metadata'];
   const turnEvent = turn.events.find(event => isEventOfKind(event, 'turn'));
   const protocolVersion = turnEvent?.attributes['a2ui.turn.protocol_version'];
-  const extensions =
+  const offeredVersions =
     capabilities !== undefined && Object.keys(capabilities).length > 0
-      ? Object.keys(capabilities).map(extensionUriOf)
+      ? Object.keys(capabilities).map(recordFormOf)
       : protocolVersion !== undefined
-        ? [extensionUriOf(protocolVersion)]
+        ? [recordFormOf(protocolVersion)]
         : [];
   return {
     parts: attributes['a2ui.wire.message'].parts,
@@ -94,7 +92,7 @@ function replayInput(turn: Turn, number: number, carriesTask: boolean): ReplayIn
       ...(dataModel !== undefined && {dataModel}),
       ...(metadata !== undefined && {metadata}),
     },
-    extensions,
-    carriesTask,
+    offeredVersions,
+    afterWaitingTurn,
   };
 }

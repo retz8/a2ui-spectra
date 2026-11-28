@@ -9,6 +9,7 @@ import {
   chooseInterface,
   preparedRequest,
   readReplySummary,
+  replayRequest,
 } from './client.js';
 
 const PROXY = 'http://127.0.0.1:10999';
@@ -353,6 +354,114 @@ describe('preparedRequest, a message sent as it stands', () => {
       1,
     );
     assert.equal(request.headers['a2a-extensions'], A2UI_EXTENSION_URIS.join(', '));
+  });
+});
+
+describe('replayRequest, a recorded input written for the live interface', () => {
+  const input = {
+    parts: [
+      {type: 'text' as const, content: 'Book a table'},
+      {type: 'a2ui' as const, content: {version: 'v0.9.1', action: {name: 'go'}}},
+    ],
+    metadata: {
+      capabilities: {
+        'v0.9.1': {supportedCatalogIds: ['a']},
+        '1.0': {supportedCatalogIds: ['b']},
+      },
+      dataModel: {version: '1.0', surfaces: {s1: {}}},
+      metadata: {source: 'planner'},
+    },
+    offeredVersions: ['v0.9.1', 'v1.0'],
+    afterWaitingTurn: true,
+  };
+
+  it("writes the parts in the interface's version's form, the metadata under A2A's keys and the offered versions as extension URIs", () => {
+    const request = replayRequest(
+      {version: '1.0', url: PROXY, streaming: false},
+      input,
+      {messageId: 'm-9', contextId: 'ctx-1', taskId: 't-1'},
+      4,
+      {Authorization: 'Bearer t'},
+    );
+    assert.deepEqual(request.headers, {
+      authorization: 'Bearer t',
+      'content-type': 'application/json',
+      accept: 'application/json',
+      'a2a-version': '1.0',
+      'a2a-extensions':
+        'https://a2ui.org/a2a-extension/a2ui/v0.9.1, https://a2ui.org/a2a-extension/a2ui/v1.0',
+    });
+    assert.deepEqual(JSON.parse(request.body), {
+      jsonrpc: '2.0',
+      id: 4,
+      method: 'SendMessage',
+      params: {
+        message: {
+          messageId: 'm-9',
+          role: 'ROLE_USER',
+          parts: [
+            {text: 'Book a table'},
+            {
+              data: {version: 'v0.9.1', action: {name: 'go'}},
+              mediaType: 'application/a2ui+json',
+            },
+          ],
+          contextId: 'ctx-1',
+          taskId: 't-1',
+          metadata: {
+            source: 'planner',
+            a2uiClientCapabilities: {'v0.9.1': {supportedCatalogIds: ['a']}},
+            a2uiRendererCapabilities: {'1.0': {supportedCatalogIds: ['b']}},
+            a2uiRendererDataModel: {version: '1.0', surfaces: {s1: {}}},
+          },
+        },
+      },
+    });
+  });
+
+  it('sends the task only after a recorded turn that ended waiting for input, and only when the live conversation holds one', () => {
+    const target = {version: '0.3' as const, url: PROXY, streaming: true};
+    const message = (request: {body: string}) =>
+      (JSON.parse(request.body) as {params: {message: Record<string, unknown>}}).params.message;
+    const waited = replayRequest(target, input, {messageId: 'm-1', taskId: 't-1'}, 1);
+    assert.equal(message(waited).taskId, 't-1');
+    const noLiveTask = replayRequest(target, input, {messageId: 'm-1'}, 1);
+    assert.equal('taskId' in message(noLiveTask), false);
+    const notWaited = replayRequest(
+      target,
+      {...input, afterWaitingTurn: false},
+      {messageId: 'm-1', taskId: 't-1'},
+      1,
+    );
+    assert.equal('taskId' in message(notWaited), false);
+  });
+
+  it('sends no extensions header for an input that offered no version, and no metadata for one that carried none', () => {
+    const request = replayRequest(
+      {version: '0.3', url: PROXY, streaming: true},
+      {
+        parts: [{type: 'text', content: 'Hi'}],
+        metadata: {},
+        offeredVersions: [],
+        afterWaitingTurn: false,
+      },
+      {messageId: 'm-1'},
+      1,
+    );
+    assert.equal('x-a2a-extensions' in request.headers, false);
+    assert.deepEqual(JSON.parse(request.body), {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'message/stream',
+      params: {
+        message: {
+          kind: 'message',
+          messageId: 'm-1',
+          role: 'user',
+          parts: [{kind: 'text', text: 'Hi'}],
+        },
+      },
+    });
   });
 });
 

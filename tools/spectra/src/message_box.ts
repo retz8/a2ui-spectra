@@ -9,14 +9,11 @@ import {
   capabilitiesFor,
   chooseInterface,
   type InterfaceChoice,
-  type PreparedMessage,
-  preparedRequest,
   readReplySummary,
+  replayRequest,
   type ReplySummary,
 } from './a2a/client.js';
 import {checkTransport} from './a2a/card.js';
-import {joinInputMetadata} from './a2a/metadata.js';
-import {a2aPart} from './a2a/parts.js';
 import type {A2aVersion} from './a2a/protocol.js';
 import type {CatalogOffer} from './catalog/registry.js';
 import {type InputBrief, inputBriefOf} from './listing.js';
@@ -535,21 +532,19 @@ export class MessageBox {
       const input = inputs[index];
       const recorded = recordedTurns[index];
       const messageId = this.newMessageId();
-      const message: PreparedMessage = {
-        parts: input.parts.map(part => a2aPart(part, target.version)),
-        messageId,
-        ...(conversation.conversationId !== undefined && {
-          contextId: conversation.conversationId,
-        }),
-        ...(input.carriesTask &&
-          conversation.taskId !== undefined && {taskId: conversation.taskId}),
-      };
-      const metadata = joinInputMetadata(input.metadata);
-      if (metadata !== undefined) message.metadata = metadata;
-      const request = preparedRequest(target, message, ++this.requestId, {
-        extensions: input.extensions,
-        headers: this.headers,
-      });
+      const request = replayRequest(
+        target,
+        input,
+        {
+          messageId,
+          ...(conversation.conversationId !== undefined && {
+            contextId: conversation.conversationId,
+          }),
+          ...(conversation.taskId !== undefined && {taskId: conversation.taskId}),
+        },
+        ++this.requestId,
+        this.headers,
+      );
       this.provenance.set(messageId, {
         // Written with forward slashes on every platform; the terminal's lines keep the platform's.
         'a2ui.replay.source': source.path.split(path.sep).join('/'),
