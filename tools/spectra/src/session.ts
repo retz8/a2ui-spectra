@@ -587,8 +587,7 @@ async function runMode(parts: SessionParts, agentCommand: AgentCommand): Promise
     command: agentCommand,
     // The agent's streams are pipes, which Python holds back and, on Windows, writes in the ANSI code page.
     env: {...parts.agentEnvironment, ...pythonVariables(own, {unbuffered: true})},
-    cardUrl: parts.cardUrl,
-    headers: parts.headers,
+    waitForCard: wait => waitForAgentCard(parts.cardUrl, {...wait, headers: parts.headers}),
     out,
     waitLine: parts.waitLine,
     notify: event => turns.notify(event),

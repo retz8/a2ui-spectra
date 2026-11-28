@@ -1,4 +1,3 @@
-import {type AgentCard, waitForAgentCard} from './agent_card.js';
 import {
   LineSplitter,
   type LogAdded,
@@ -74,7 +73,7 @@ export interface AgentSessionHooks {
   /** The state changed; called before the state's event is sent, so the box refuses by it already. */
   stateChanged(state: AgentState['state']): void;
   /** A card answered; called before the running state's event is sent. */
-  cardAnswered(card: AgentCard): void;
+  cardAnswered(card: Record<string, unknown>): void;
   /** The process ended, by a restart or on its own, with the sentence a stopped replay reports. */
   processEnded(reason: string): void;
   /** Nothing of the ended process is running any more; called once after each `processEnded`. */
@@ -87,9 +86,16 @@ export interface AgentSupervisorOptions {
   command: AgentCommand;
   /** Variables added to Spectra's environment for the command: the redirection. */
   env: Record<string, string>;
-  cardUrl: URL;
-  /** Headers sent with each card fetch. */
-  headers: Readonly<Record<string, string>>;
+  /**
+   * Waits until the agent's card answers and resolves with it, or with
+   * nothing when the signal ends the wait first. `onWaiting` is told why
+   * there is no card yet, on the first miss and again whenever the reason
+   * changes.
+   */
+  waitForCard(wait: {
+    signal: AbortSignal;
+    onWaiting(reason: string): void;
+  }): Promise<Record<string, unknown> | undefined>;
   out: Output;
   /** The terminal's wait line for a reason, with the hint about the agent's URL or without. */
   waitLine(reason: string, hint: boolean): string;
@@ -98,8 +104,6 @@ export interface AgentSupervisorOptions {
   notify(event: AgentLiveEvent): void;
   /** The time a stopped process gets before it is force-killed. */
   graceMs?: number;
-  /** How long the card wait sleeps between attempts. */
-  cardIntervalMs?: number;
 }
 
 /**
@@ -300,11 +304,9 @@ export class AgentSupervisor {
 
   /** Reads the card once this launch answers it; the card is not asked for again until the next start. */
   private async waitForCard(launch: Launch): Promise<void> {
-    const {cardUrl, headers, out, waitLine, session, cardIntervalMs} = this.options;
-    const card = await waitForAgentCard(cardUrl, {
+    const {out, waitLine, session} = this.options;
+    const card = await this.options.waitForCard({
       signal: launch.wait.signal,
-      headers,
-      ...(cardIntervalMs !== undefined && {intervalMs: cardIntervalMs}),
       onWaiting: reason => {
         if (launch.wait.signal.aborted) {
           return;
