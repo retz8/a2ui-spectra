@@ -158,6 +158,34 @@ describe('replay', () => {
     }
   });
 
+  it('rejects a message holding more components than the cap without feeding it to web core', () => {
+    const started = performance.now();
+    const result = replay(
+      [],
+      turnOf(
+        {version: '1.0', createSurface: {surfaceId: 's', catalogId: V10_BASIC}},
+        {
+          version: '1.0',
+          updateComponents: {surfaceId: 's', components: Array.from({length: 1_000_000}, () => 0)},
+        },
+      ).events,
+    );
+    assert.ok(
+      performance.now() - started < 2_000,
+      `a million components took ${Math.round(performance.now() - started)} ms`,
+    );
+    assert.deepEqual(
+      result.rejections.map(({code, message}) => ({code, message})),
+      [
+        {
+          code: 'TOO_MANY_COMPONENTS',
+          message:
+            'The message holds 1,000,000 components, and Spectra reads at most 10,000 in one message.',
+        },
+      ],
+    );
+  });
+
   it('puts the surfaces the turn touched first, then the others as not changed', () => {
     const result = replayRecord(
       readRecording('react_client/node_restaurant_finder_text_and_action'),

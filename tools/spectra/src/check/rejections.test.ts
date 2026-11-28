@@ -6,6 +6,7 @@ import {fileURLToPath} from 'node:url';
 
 import {CatalogRegistry} from '../catalog/registry.js';
 import type {Turn, TurnRecord, TurnRecordEvent} from '../record/turn_record.js';
+import {MAX_COMPONENTS, tooManyComponents} from './conversation.js';
 import {rejectionCount} from './rejections.js';
 
 const CIRCLECI = path.join(
@@ -129,6 +130,41 @@ describe('rejectionCount', () => {
     ];
     assert.equal(rejectionCount(turnOf(undefined, ...surface('1.0'))), 0);
     assert.equal(rejectionCount(turnOf(undefined, ...surface('v1.0'))), 2);
+  });
+
+  it('rejects a message holding more components than the cap without feeding it to web core, and takes one at the cap', () => {
+    const surface = (count: number): unknown[] => [
+      {version: '1.0', createSurface: {surfaceId: 's', catalogId: BASIC_V1_0}},
+      {
+        version: '1.0',
+        updateComponents: {
+          surfaceId: 's',
+          // Each fails web core's schema, which collects every failure of every element.
+          components: Array.from({length: count}, () => 0),
+        },
+      },
+    ];
+    const started = performance.now();
+    assert.equal(rejectionCount(turnOf(undefined, ...surface(1_000_000))), 1);
+    assert.ok(
+      performance.now() - started < 2_000,
+      `a million components took ${Math.round(performance.now() - started)} ms`,
+    );
+    assert.equal(MAX_COMPONENTS, 10_000);
+    assert.equal(
+      tooManyComponents({version: '1.0', updateComponents: {components: Array(10_000)}}),
+      undefined,
+    );
+    assert.deepEqual(
+      tooManyComponents({version: '1.0', createSurface: {components: Array(10_001)}}),
+      {
+        code: 'TOO_MANY_COMPONENTS',
+        message:
+          'The message holds 10,001 components, and Spectra reads at most 10,000 in one message.',
+      },
+    );
+    assert.equal(tooManyComponents({version: '1.0', deleteSurface: {surfaceId: 's'}}), undefined);
+    assert.equal(tooManyComponents('text'), undefined);
   });
 
   it('counts the same with the built-in registry as with none', () => {

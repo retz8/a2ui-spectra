@@ -267,10 +267,44 @@ function carrierKey(surfaceId: string, componentId: string): string {
 }
 
 /**
+ * The most components Spectra reads in one message. Web core's message
+ * schema, on the `zod` release web core 0.16.1 takes, collects every failure
+ * of every failing element of a `components` list with no cap
+ * (GHSA-mrhx-c7xc-m3w5), so a message of a million failing components takes
+ * it to 1.5 GB and 8 s. Measured on web core 0.16.1: 10,000 failing
+ * components cost about 110 ms and 150 MB. The largest list in the samples
+ * and the conformance data holds 34. The viewer's replay holds the same cap,
+ * in `model/replay.ts`.
+ */
+export const MAX_COMPONENTS = 10_000;
+
+/**
+ * The rejection of a message whose `components` list, in whichever action
+ * holds one, is longer than the cap: such a message is not fed to web core.
+ */
+export function tooManyComponents(message: unknown): {code: string; message: string} | undefined {
+  if (typeof message !== 'object' || message === null) return undefined;
+  for (const action of Object.values(message)) {
+    const components = (action as {components?: unknown} | null)?.components;
+    if (Array.isArray(components) && components.length > MAX_COMPONENTS) {
+      return {
+        code: 'TOO_MANY_COMPONENTS',
+        message:
+          `The message holds ${components.length.toLocaleString('en-US')} components, and Spectra ` +
+          `reads at most ${MAX_COMPONENTS.toLocaleString('en-US')} in one message.`,
+      };
+    }
+  }
+  return undefined;
+}
+
+/**
  * Feeds a copy of one message, since the processor keeps and changes the
- * objects it is given; web core's rejection when it threw on it.
+ * objects it is given; web core's rejection when it threw on it, or Spectra's own of a message over the cap.
  */
 function feed(processor: MessageProcessor, message: unknown): Rejection | undefined {
+  const tooMany = tooManyComponents(message);
+  if (tooMany !== undefined) return tooMany;
   try {
     processor.processMessages(
       structuredClone(message) as Parameters<MessageProcessor['processMessages']>[0],
