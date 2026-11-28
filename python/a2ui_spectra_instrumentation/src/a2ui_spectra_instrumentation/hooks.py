@@ -203,7 +203,7 @@ def _inner(
         event.start_whole_tree()
     try:
         return wrapped(*args, **kwargs)
-    except BaseException as error:
+    except Exception as error:
         _safely(where, lambda: event.escaped(error))
         raise
     finally:
@@ -220,12 +220,19 @@ def _outermost(
     where: str,
     returned: Callable[[Any], object],
 ) -> Any:
-    """The outermost call: the event is open while it runs, and ends with it."""
+    """The outermost call: the event is open while it runs, and ends with it.
+
+    A cancellation or an interrupt is no error of the call: it passes, and the
+    event ends without a span.
+    """
     token = events.enter(event)
     try:
         result = wrapped(*args, **kwargs)
-    except BaseException as error:
+    except Exception as error:
         _safely(where, lambda: event.fail(error))
+        raise
+    except BaseException:
+        _safely(where, event.abandon)
         raise
     else:
         _safely(where, lambda: returned(result))
@@ -239,7 +246,7 @@ async def _outermost_awaited(
     awaitable: Awaitable[Any],
     where: str,
     returned: Callable[[Any], object],
-    failed: Callable[[BaseException], object] | None = None,
+    failed: Callable[[Exception], object] | None = None,
 ) -> Any:
     """The outermost call, awaited: `_outermost` for a hooked coroutine.
 
@@ -248,8 +255,11 @@ async def _outermost_awaited(
     token = events.enter(event)
     try:
         result = await awaitable
-    except BaseException as error:
+    except Exception as error:
         _safely(where, lambda: (failed or event.fail)(error))
+        raise
+    except BaseException:
+        _safely(where, event.abandon)
         raise
     else:
         _safely(where, lambda: returned(result))
@@ -687,7 +697,7 @@ async def _append_prompt(
         log.report_fault(where, fault)
         return await _await_unrecorded(awaitable)
 
-    def failed(error: BaseException) -> None:
+    def failed(error: Exception) -> None:
         _adopt_processor(event, tool)
         event.fail(error)
 

@@ -150,6 +150,8 @@ The attributes of each kind, their types and which are required are in the turn 
 
 The chunk that brought a stream's error may run on into the next block; the range is the rejected block's, not the chunk's. The blocks a stream has finished or rejected are counted as it runs. Python counts a finished block at each check of whole trees it starts, and a rejected one at each error it has placed in a block. TypeScript counts a finished block at each `RendererState.checkTopology` that returns, and a rejected one at each `RendererState.markChecked`, which the stream calls when it catches a rejected block or fails; that is why `markChecked` is hooked.
 
+**A call that is cancelled or interrupted writes no span.** In Python, a cancellation, a keyboard interrupt or the interpreter's exit that passes through a hooked call is no error of the parse or of the prompt generation. The wrapper lets it pass and writes nothing for that call, as for a stream never closed; a stream it passes through is not recorded further.
+
 **Nothing of the agent is kept.** The Python wrapper holds an error only while the outermost hooked call that saw it runs, and keeps its type, message and stack trace as text. An error object holds its traceback, and the traceback the frames of the agent's calls. A stream's event lives as long as its stream and must not keep those frames, or an async generator the agent abandoned in one would never be closed.
 
 ### The pinned API

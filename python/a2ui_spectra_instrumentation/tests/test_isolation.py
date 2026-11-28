@@ -341,6 +341,62 @@ def test_a_tool_that_lacks_a_method_is_left_unhooked_with_one_line(
     assert "run_async" not in vars(tool)
 
 
+# A cancellation or an interrupt is no error of the call: it passes, and the
+# call writes no span.
+
+
+def test_a_cancelled_tool_call_writes_no_span(
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
+) -> None:
+    async def cancelled(context: Any) -> Any:
+        raise asyncio.CancelledError()
+
+    toolset = SendA2uiToClientToolset(a2ui_enabled=True, a2ui_processor=cancelled)
+    tools = asyncio.run(toolset.get_tools(SimpleNamespace()))  # type: ignore[arg-type]
+    tool = next(tool for tool in tools if tool.name == TOOL_NAME)
+    context: Any = SimpleNamespace(actions=SimpleNamespace(skip_summarization=False))
+
+    with pytest.raises(asyncio.CancelledError):
+        asyncio.run(tool.run_async(args={"a2ui_payload": CARD}, tool_context=context))
+
+    assert spans.all() == []
+
+
+def interrupt(*args: Any, **kwargs: Any) -> None:
+    raise KeyboardInterrupt()
+
+
+def test_an_interrupted_generate_writes_no_span(
+    monkeypatch: pytest.MonkeyPatch,
+    spans: conftest.Recorded,
+    processor: conftest.ProcessorFactory,
+) -> None:
+    generator = processor().format.prompt_generator
+    monkeypatch.setattr(type(generator), "generate_base_rules", interrupt)
+
+    with pytest.raises(KeyboardInterrupt):
+        generator.generate()
+
+    assert spans.all() == []
+
+
+def test_an_interrupted_feed_writes_no_span_and_ends_the_streams_recording(
+    monkeypatch: pytest.MonkeyPatch,
+    spans: conftest.Recorded,
+    processor: conftest.ProcessorFactory,
+) -> None:
+    made = processor()
+    stream = made.open_stream()
+    monkeypatch.setattr(type(made.parser), "compile", interrupt)
+
+    with pytest.raises(KeyboardInterrupt):
+        stream.feed(CARD_TEXT)
+    monkeypatch.undo()
+    stream.close()
+
+    assert spans.all() == []
+
+
 class Held:
     """Stands for what the agent's frame holds.
 
