@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
-import type {TurnNotification} from './a2a/turn.js';
+import type {TurnNotification} from './turn_notification.js';
 import {CallPlacer} from './placement.js';
 import type {ModelCallEvent, ToolCallEvent, Turn, TurnEvent} from './record/turn_record.js';
 

@@ -1,6 +1,6 @@
 import {randomBytes} from 'node:crypto';
 
-import type {TurnListener, TurnNotification} from './a2a/turn.js';
+import type {TurnListener, TurnNotification} from './turn_notification.js';
 import type {CatalogRegistry} from './catalog/registry.js';
 import {checkEvents, checkTurn} from './check/checks.js';
 import {nowUnixNano} from './clock.js';

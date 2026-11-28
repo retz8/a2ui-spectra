@@ -1,4 +1,4 @@
-import type {TurnListener, TurnNotification} from './a2a/turn.js';
+import type {TurnListener, TurnNotification} from './turn_notification.js';
 import {parseTraceparent} from './proxying/trace_context.js';
 import {isoTimeOf, nowUnixNano} from './clock.js';
 import {

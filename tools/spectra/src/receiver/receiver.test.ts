@@ -4,7 +4,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {afterEach, beforeEach, describe, it} from 'node:test';
 
-import type {TurnNotification} from '../a2a/turn.js';
+import type {TurnNotification} from '../turn_notification.js';
 import {CallPlacer} from '../placement.js';
 import type {ModelCallEvent, Turn, TurnEvent, TurnRecordEvent} from '../record/turn_record.js';
 import {TurnStore} from '../store/store.js';

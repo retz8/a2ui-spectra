@@ -17,7 +17,7 @@ import * as yaml from 'js-yaml';
 import type {Turn, TurnRecord, TurnRecordEvent} from '../record/turn_record.js';
 import {turnRecordErrors} from '../testing/turn_record_schema.js';
 import {startWireProxy, type WireProxy} from './proxy.js';
-import type {TurnNotification} from './turn.js';
+import type {TurnNotification} from '../turn_notification.js';
 import {freePort} from '../testing/free_port.js';
 import {listen} from '../testing/listen.js';
 

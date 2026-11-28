@@ -1,4 +1,4 @@
-import type {TurnListener} from './a2a/turn.js';
+import type {TurnListener} from './turn_notification.js';
 import type {AgentLiveEvent} from './agent_supervisor.js';
 import {isoTimeOf} from './clock.js';
 import {inputBriefOf, type InputBrief} from './listing.js';

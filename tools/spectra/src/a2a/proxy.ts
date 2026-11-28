@@ -18,7 +18,8 @@ import {endToEndHeaders} from '../proxying/exchange.js';
 import {bodyJson, readBody} from '../proxying/forwarding.js';
 import {forwardedHeaders, type Forwarder, type Relay, relayReply} from '../proxying/relay.js';
 import {formatTraceparent, parseTraceparent} from '../proxying/trace_context.js';
-import {TurnCapture, type TurnListener} from './turn.js';
+import type {TurnListener} from '../turn_notification.js';
+import {TurnCapture} from './turn.js';
 
 export interface WireProxyOptions {
   /** The proxy's port, on loopback. */

@@ -4,7 +4,8 @@ import {describe, it} from 'node:test';
 import type {Turn, TurnEvent, WireInputEvent, WireOutputEvent} from '../record/turn_record.js';
 import {turnRecordErrors} from '../testing/turn_record_schema.js';
 import {readTurnRequest} from './protocol.js';
-import {TurnCapture, type TurnNotification} from './turn.js';
+import type {TurnNotification} from '../turn_notification.js';
+import {TurnCapture} from './turn.js';
 
 // Hand-written A2A traffic, shaped as upstream's samples and the A2A 1.0
 // agents of the coverage survey send it.

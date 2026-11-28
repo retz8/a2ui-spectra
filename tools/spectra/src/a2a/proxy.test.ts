@@ -12,7 +12,7 @@ import {gzipSync} from 'node:zlib';
 
 import type {TurnEvent, TurnRecordEvent, WireOutputEvent} from '../record/turn_record.js';
 import {startWireProxy, type WireProxy, type WireProxyOptions} from './proxy.js';
-import type {TurnNotification} from './turn.js';
+import type {TurnNotification} from '../turn_notification.js';
 import {HOST_REFUSED, ORIGIN_NOT_ALLOWED} from '../host_check.js';
 import {freePort} from '../testing/free_port.js';
 import {listen} from '../testing/listen.js';
