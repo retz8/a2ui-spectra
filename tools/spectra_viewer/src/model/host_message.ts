@@ -8,6 +8,7 @@ import type {PreviewAction} from 'a2ui-spectra-preview';
 
 import {recordFormOf} from './record.ts';
 import type {SurfaceView, TreeNode} from './replay.ts';
+import {escapePointer} from './json_lines.ts';
 
 /** The A2A versions the box speaks. */
 export type A2aVersion = '0.3' | '1.0';
@@ -92,7 +93,7 @@ export function foldedAtFirst(dataModel: DataModelMap | undefined): string[] {
   if (dataModel === undefined) return [];
   const key = dataModelKeyOf(dataModel.version);
   return Object.keys(dataModel.surfaces).map(
-    surfaceId => `/metadata/${key}/surfaces/${surfaceId.replace(/~/g, '~0').replace(/\//g, '~1')}`,
+    surfaceId => `/metadata/${key}/surfaces/${escapePointer(surfaceId)}`,
   );
 }
 

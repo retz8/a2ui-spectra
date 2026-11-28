@@ -4,6 +4,7 @@ import {describe, it} from 'node:test';
 import {readRecording} from '../testing/recordings.ts';
 import {
   carriesJsonInString,
+  escapePointer,
   jsonLines,
   lineMarksOf,
   markedLine,
@@ -197,5 +198,13 @@ describe('lineMarksOf', () => {
       {marked: false, legacy: true, text: '{ … 4 keys },'},
       {marked: false, legacy: true, text: '{ … 4 keys }'},
     ]);
+  });
+});
+
+describe('escapePointer', () => {
+  it('escapes a JSON Pointer segment’s ~ before its /', () => {
+    assert.equal(escapePointer('a/b~c'), 'a~1b~0c');
+    assert.equal(escapePointer('~1'), '~01');
+    assert.equal(escapePointer('plain'), 'plain');
   });
 });

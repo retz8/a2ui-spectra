@@ -91,7 +91,7 @@ export function jsonLines(
         child,
         depth + 1,
         isArray ? '' : `${JSON.stringify(key)}: `,
-        `${path}/${key.replace(/~/g, '~0').replace(/\//g, '~1')}`,
+        `${path}/${escapePointer(key)}`,
         index < entries.length - 1,
       ),
     );
@@ -153,4 +153,9 @@ export function lineMarksOf(
 /** The folded objects and arrays left once those that hide a marked path are unfolded. */
 export function unfoldedTo(folded: ReadonlySet<string>, path: string): Set<string> {
   return new Set([...folded].filter(fold => !path.startsWith(`${fold}/`)));
+}
+
+/** A JSON Pointer segment, escaped: `~` as `~0` and `/` as `~1`. */
+export function escapePointer(segment: string): string {
+  return segment.replace(/~/g, '~0').replace(/\//g, '~1');
 }

@@ -12,6 +12,7 @@ import {locateFinding} from './messages.ts';
 import {isCheck, type LegacyFormEntry, type TurnRecordEvent} from './record.ts';
 import type {SurfaceView} from './replay.ts';
 import {plural, type TimelineRow} from './steps.ts';
+import {escapePointer} from './json_lines.ts';
 
 /** The turn's legacy-form entries, from its catalog check events, in order. */
 export function legacyEntriesOf(events: readonly TurnRecordEvent[]): LegacyFormEntry[] {
@@ -147,8 +148,4 @@ function comparePointers(a: string, b: string): number {
     return left[index] < right[index] ? -1 : 1;
   }
   return left.length - right.length;
-}
-
-function escapePointer(segment: string): string {
-  return segment.replace(/~/g, '~0').replace(/\//g, '~1');
 }

@@ -25,6 +25,7 @@ import {
   type TurnRecordEvent,
 } from './record.ts';
 import {isThrough, messageTypeOf, type Position} from './steps.ts';
+import {escapePointer} from './json_lines.ts';
 
 export interface ComponentNode {
   id: string;
@@ -385,9 +386,7 @@ function issuePointer(issue: ZodIssue | ErrorDetail): string {
   const zod = issue as ZodIssue;
   const path =
     zod.code === 'unrecognized_keys' && zod.keys?.length ? [...zod.path, zod.keys[0]] : zod.path;
-  return path
-    .map(segment => `/${String(segment).replace(/~/g, '~0').replace(/\//g, '~1')}`)
-    .join('');
+  return path.map(segment => `/${escapePointer(String(segment))}`).join('');
 }
 
 /**

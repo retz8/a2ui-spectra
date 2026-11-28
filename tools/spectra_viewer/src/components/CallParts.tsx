@@ -16,6 +16,7 @@ import {CopyButton} from './CopyButton.tsx';
 import {formatDuration, formatOffset} from './format.ts';
 import {ProblemMark} from './icons.tsx';
 import {BlockLabel, FoldButton, JsonBlock, JsonLines} from './JsonBlock.tsx';
+import {escapePointer} from '@/model/json_lines.ts';
 
 /** A link in the accent, in a detail's line, which selects another step. */
 export function DetailLink({onClick, children}: {onClick: () => void; children: ReactNode}) {
@@ -467,9 +468,7 @@ function Body({value}: {value: unknown}) {
   const folded =
     typeof value === 'object' && value !== null
       ? Object.entries(value).flatMap(([key, child]) =>
-          typeof child === 'object' && child !== null
-            ? [`/${key.replace(/~/g, '~0').replace(/\//g, '~1')}`]
-            : [],
+          typeof child === 'object' && child !== null ? [`/${escapePointer(key)}`] : [],
         )
       : [];
   return <JsonBlock label="Body" value={value} folded={folded} />;
