@@ -119,6 +119,9 @@ export function check(): Plan | undefined {
     [InferenceFormat, (typeof FORMAT_CLASSES)[InferenceFormat]]
   >;
   logger.debug(`${AGENT_SDK} ${version} passes the check`);
+  // Each of the formats' classes is a function here: the hook table names every
+  // one, as the class of a `compile` or of a `generate`, and the loop above
+  // has just found each on the SDK.
   return {
     sdkVersion: version,
     targets,

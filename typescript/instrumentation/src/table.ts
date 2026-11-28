@@ -31,6 +31,9 @@ export const HOOKS: readonly Hook[] = [
   {className: 'ExpressResponseStream', method: 'close', role: 'close'},
   {className: 'DirectJsonParser', method: 'compile', role: 'compile'},
   {className: 'ExpressParser', method: 'compile', role: 'compile'},
+  // Each format's generator is hooked, not the one `generate` of their base
+  // class, `PromptGenerator`: at the floor, 0.1.0, `DirectJsonPromptGenerator`
+  // has a `generate` of its own, which does not call the base class's.
   {className: 'DirectJsonPromptGenerator', method: 'generate', role: 'generate'},
   {className: 'ExpressPromptGenerator', method: 'generate', role: 'generate'},
   {className: 'RendererState', method: 'checkTopology', role: 'check_topology'},
