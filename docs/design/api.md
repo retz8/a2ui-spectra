@@ -270,7 +270,7 @@ How a `Host` header is read:
 | `a2uiExtensions` | once a card has answered                    | Each A2UI extension in the card's `capabilities.extensions`, in card order: `version`, the version its URI names, and `catalogIds`, its `supportedCatalogIds`. An A2UI extension's URI is `https://a2ui.org/a2a-extension/a2ui/` and a version of `v` and numbers, such as `v0.9`, read under `http` too and with a trailing slash or none, as the reply's extensions header is |
 | `examples`       | once a card has answered                    | The first example of each of the card's skills, trimmed, in card order                                                                                                                                                                                                                                                                                                          |
 
-What the card states is the card's at start under `attach`. Under `run` it is the latest card's, read at each start of the agent's command, and replaced whole by a later card; before any card has answered, the four card fields are absent. The context has no event of its own: `agent_state` is sent once the context reflects the change.
+What the card states is the card's at start under `attach`. Under `run` it is the latest card's, read at each start of the agent's command, and replaced whole by a later card; before any card has answered, the four card fields are absent. The context has no event of its own: `agent_state` is sent once the context reflects the change. The four card fields are the A2A adapter's: an agent served over A2A has them, and another transport would have fields of its own beside them.
 
 **`GET /api/agent`**, under `run`, the agent's process. Cut from the run above after one restart:
 
@@ -396,6 +396,8 @@ The message box is Spectra's own host, which sends to the agent through the wire
 | `noJsonRpc`      | while the agent runs and its card lists no A2A JSON-RPC interface, or none | `true`: no turn can start, from the box or from a host app pointed at the wire proxy                                                                                                                                                                                                                                                  |
 | `a2aVersion`     | when the card lists an interface the box speaks                            | `"0.3"` or `"1.0"`, the A2A version of the interface the box sends to                                                                                                                                                                                                                                                                 |
 | `replay`         | while a replay runs                                                        | `source`, the record's path; `mode`; `turn`, the number of the turn being replayed, `0` before the first opens; and `turns`, the total                                                                                                                                                                                                |
+
+`noJsonRpc` and `a2aVersion` are the A2A adapter's, as the four card fields of `GET /api/context` are.
 
 Cut from the run above, while the agent restarted:
 
