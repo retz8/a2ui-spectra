@@ -58,7 +58,7 @@ export interface Problem {
 export interface FoldedRejection {
   stepId: string;
   sentence: string;
-  /** What reported it, when it is not the viewer's web core: the preview page. */
+  /** What reported it, when it is not the viewer's web core: the preview page, or Spectra. */
   lead?: string;
 }
 
@@ -114,13 +114,19 @@ export function turnProblemsOf(
   for (const rejection of rejections) {
     const stepId = stepOfMessage.get(rejection.key);
     if (stepId !== undefined && found.has(stepId)) {
-      folded.push({stepId, sentence: rejection.message});
+      folded.push({
+        stepId,
+        sentence: rejection.message,
+        ...(rejection.refusedBy !== undefined && {
+          lead: `${rejection.refusedBy} also refused this message`,
+        }),
+      });
       continue;
     }
     problems.push({
       stepId: stepId ?? turnLevel,
       sentence: rejection.message,
-      code: `${rejection.code} · A2UI web core`,
+      code: `${rejection.code} · ${rejection.refusedBy ?? 'A2UI web core'}`,
       ...(rejection.surfaceId !== undefined && {surfaceId: rejection.surfaceId}),
       ...(rejection.inner !== undefined && stepId !== undefined && {inner: rejection.inner}),
     });

@@ -150,6 +150,36 @@ describe('problemsOf', () => {
     );
     assert.deepEqual(folded, [{step: '3.0', sentence: 'Surface stub-notice already exists.'}]);
   });
+
+  it('names Spectra as what refused a message it did not feed to web core, as a problem and folded', () => {
+    const {turns} = readRecording('node_restaurant_finder/stream_v1_0_booking');
+    const events = turns[turns.length - 1].events;
+    const start = events.find(isTurnEvent);
+    assert.ok(start);
+    const rows = timelineOf(events, unixMillis(start.startTimeUnixNano));
+    const step = rows.find(row => row.row === 'step' && row.messageKey === '3.0');
+    assert.ok(step);
+    const refused = {
+      key: '3.0',
+      code: 'TOO_MANY_COMPONENTS',
+      message: 'Too many.',
+      refusedBy: 'Spectra' as const,
+    };
+    assert.deepEqual(
+      turnProblemsOf(events, rows, [refused]).problems.map(({code}) => code),
+      ['TOO_MANY_COMPONENTS · Spectra'],
+    );
+    const finding = check([
+      {
+        code: 'VALIDATION_FAILED',
+        message: 'Bad surface.',
+        path: '/events/3/attributes/a2ui.wire.message/parts/0/content/createSurface',
+      },
+    ]);
+    assert.deepEqual(turnProblemsOf([...events, finding], rows, [refused]).folded, [
+      {stepId: step.id, sentence: 'Too many.', lead: 'Spectra also refused this message'},
+    ]);
+  });
 });
 
 describe("the flawed booking's problems", () => {

@@ -186,6 +186,34 @@ describe('replay', () => {
     );
   });
 
+  it('names Spectra as what refused a message over the cap, and web core for its own rejections', () => {
+    const over = replay(
+      [],
+      turnOf(
+        {version: '1.0', createSurface: {surfaceId: 's', catalogId: V10_BASIC}},
+        {
+          version: '1.0',
+          updateComponents: {surfaceId: 's', components: Array.from({length: 10_001}, () => 0)},
+        },
+      ).events,
+    );
+    assert.deepEqual(
+      over.rejections.map(({code, refusedBy}) => ({code, refusedBy})),
+      [{code: 'TOO_MANY_COMPONENTS', refusedBy: 'Spectra'}],
+    );
+    const again = replay(
+      [],
+      turnOf(
+        {version: '1.0', createSurface: {surfaceId: 's', catalogId: V10_BASIC}},
+        {version: '1.0', createSurface: {surfaceId: 's', catalogId: V10_BASIC}},
+      ).events,
+    );
+    assert.deepEqual(
+      again.rejections.map(({code, refusedBy}) => ({code, refusedBy})),
+      [{code: 'INTEGRITY_ERROR', refusedBy: undefined}],
+    );
+  });
+
   it('puts the surfaces the turn touched first, then the others as not changed', () => {
     const result = replayRecord(
       readRecording('react_client/node_restaurant_finder_text_and_action'),

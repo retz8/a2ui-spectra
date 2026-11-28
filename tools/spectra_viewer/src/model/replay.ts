@@ -82,7 +82,7 @@ export type SurfaceStructure =
     }
   | {unnested: ComponentNode[]};
 
-/** A message of the turn the processor rejected. */
+/** A message of the turn the processor rejected, or Spectra refused to feed it. */
 export interface Rejection {
   /** The message, as `messageKey` names it. */
   key: string;
@@ -91,6 +91,8 @@ export interface Rejection {
   message: string;
   /** A JSON Pointer inside the message to where web core says it went wrong, when it says. */
   inner?: string;
+  /** What refused the message, when it is not web core: Spectra, for a message over the cap. */
+  refusedBy?: 'Spectra';
 }
 
 export interface Replay {
@@ -261,7 +263,9 @@ export const MAX_COMPONENTS = 10_000;
  * The rejection of a message whose `components` list, in whichever action
  * holds one, is longer than the cap: such a message is not fed to web core.
  */
-export function tooManyComponents(message: unknown): {code: string; message: string} | undefined {
+export function tooManyComponents(
+  message: unknown,
+): {code: string; message: string; refusedBy: 'Spectra'} | undefined {
   if (typeof message !== 'object' || message === null) return undefined;
   for (const action of Object.values(message)) {
     const components = (action as {components?: unknown} | null)?.components;
@@ -271,6 +275,7 @@ export function tooManyComponents(message: unknown): {code: string; message: str
         message:
           `The message holds ${components.length.toLocaleString('en-US')} components, and Spectra ` +
           `reads at most ${MAX_COMPONENTS.toLocaleString('en-US')} in one message.`,
+        refusedBy: 'Spectra',
       };
     }
   }
@@ -284,7 +289,7 @@ export function tooManyComponents(message: unknown): {code: string; message: str
 function feed(
   processor: Processor,
   message: unknown,
-): {code: string; message: string; inner?: string} | undefined {
+): {code: string; message: string; inner?: string; refusedBy?: 'Spectra'} | undefined {
   const tooMany = tooManyComponents(message);
   if (tooMany !== undefined) return tooMany;
   try {
