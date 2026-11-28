@@ -108,6 +108,35 @@ function refusalOf(error: unknown): string {
   return isError(error) ? error.message : errorText(error);
 }
 
+/** A component's failure as the page reports it. */
+function componentReportOf(failure: {
+  componentId?: string;
+  componentType?: string;
+  error: unknown;
+}): Report {
+  return {
+    kind: 'component',
+    ...(failure.componentId !== undefined && {componentId: failure.componentId}),
+    ...(failure.componentType !== undefined && {componentType: failure.componentType}),
+    error: errorText(failure.error),
+  };
+}
+
+/**
+ * A processor the page made, and what its surfaces have reported. A reset
+ * makes a new one; the events of one that is no longer the page's are
+ * dropped.
+ */
+interface Made<P> {
+  /** Unset while the adapter makes it, and when making it threw. */
+  processor?: P;
+  /** What its surfaces have reported, each once, sent again with every render that extends the list. */
+  reports: Report[];
+  seen: Set<string>;
+  /** Its last data model of each surface. */
+  models: Map<string, unknown>;
+}
+
 /**
  * Starts the page's side of the protocol: listens for the viewer's pings and
  * renders, then sends the ready message, so a document that said it is ready
@@ -119,18 +148,13 @@ export function startPreviewPage<P>({
   transport,
   errors,
 }: PreviewPageOptions<P>): PreviewPage {
+  /** The render applied last, and the surface it shows. */
   let current: number | undefined;
-  let applied: Applied | undefined;
-  let processor: P | undefined;
-  /** Counts the processors made, so a disposed one's late events are dropped. */
-  let generation = 0;
-  /** What the current processor's surfaces have reported, each once, for every later render too. */
-  let reports: Report[] = [];
-  let seen = new Set<string>();
-  /** The surface the current render shows. */
   let shown: string | undefined;
-  /** The current processor's last data model of each surface, and the render it was last sent for. */
-  let models = new Map<string, unknown>();
+  let applied: Applied | undefined;
+  /** The page's processor, from the first render until the page stops. */
+  let made: Made<P> | undefined;
+  /** The render the shown surface's data model was last sent for. */
   let modelSentFor: number | undefined;
 
   const send = (report: Report) => {
@@ -138,81 +162,83 @@ export function startPreviewPage<P>({
       transport.send({type: 'a2ui-spectra-preview/report', render: current, report});
     }
   };
-  const add = (report: Report) => {
+  const add = (into: Made<P>, report: Report) => {
     const key = JSON.stringify(report);
-    if (seen.has(key)) return;
-    seen.add(key);
-    reports.push(report);
+    if (into.seen.has(key)) return;
+    into.seen.add(key);
+    into.reports.push(report);
     send(report);
   };
   const sendModel = () => {
-    if (current === undefined || shown === undefined || !models.has(shown)) return;
+    if (current === undefined || shown === undefined || !made?.models.has(shown)) return;
     modelSentFor = current;
     transport.send({
       type: 'a2ui-spectra-preview/data-model',
       render: current,
       surfaceId: shown,
-      dataModel: models.get(shown),
+      dataModel: made.models.get(shown),
     });
   };
-  const failed = (failure: {componentId?: string; componentType?: string; error: unknown}) => {
-    add({
-      kind: 'component',
-      ...(failure.componentId !== undefined && {componentId: failure.componentId}),
-      ...(failure.componentType !== undefined && {componentType: failure.componentType}),
-      error: errorText(failure.error),
-    });
-  };
-  const eventsFor = (made: number): PageEvents => ({
+  const eventsFor = (own: Made<P>): PageEvents => ({
     action: (action, dataModel) => {
-      if (made !== generation || current === undefined) return;
+      if (own !== made || current === undefined) return;
       transport.send({type: 'a2ui-spectra-preview/action', render: current, action, dataModel});
     },
     dataModel: (surfaceId, dataModel) => {
-      if (made !== generation) return;
-      models.set(surfaceId, dataModel);
+      if (own !== made) return;
+      own.models.set(surfaceId, dataModel);
       if (surfaceId === shown) sendModel();
     },
     surfaceError: ({code, message, componentId}) => {
-      if (made !== generation) return;
-      add({kind: 'surface', code, error: message, ...(componentId !== undefined && {componentId})});
+      if (own !== made) return;
+      add(own, {
+        kind: 'surface',
+        code,
+        error: message,
+        ...(componentId !== undefined && {componentId}),
+      });
     },
     componentFailed: failure => {
-      if (made === generation) failed(failure);
+      if (own === made) add(own, componentReportOf(failure));
     },
   });
+
+  /** The processor to apply a render with: the one held, or a new one. */
+  const processorFor = (render: RenderMessage, keys: readonly string[]) => {
+    const difference = differenceOf(applied, {surfaceId: render.surfaceId, keys});
+    if (difference.kind === 'append' && made?.processor !== undefined) {
+      // What the surface reported so far still holds for the state it stands in.
+      for (const report of made.reports) send(report);
+      return {own: made, processor: made.processor, from: difference.from};
+    }
+    if (made?.processor !== undefined) adapter.teardown(made.processor);
+    // Until the new processor is made, nothing is applied: a throw leaves the page to start anew.
+    applied = undefined;
+    const own: Made<P> = {reports: [], seen: new Set(), models: new Map()};
+    made = own;
+    own.processor = adapter.createProcessor(eventsFor(own));
+    return {own, processor: own.processor, from: 0};
+  };
 
   const apply = (render: RenderMessage) => {
     current = render.render;
     shown = render.surfaceId;
     const keys = keysOf(render.messages);
-    const difference = differenceOf(applied, {surfaceId: render.surfaceId, keys});
-    let from = 0;
-    if (difference.kind === 'reset' || processor === undefined) {
-      if (processor !== undefined) adapter.teardown(processor);
-      // Until the new processor is made, nothing is applied: a throw leaves the page to start anew.
-      processor = undefined;
-      applied = undefined;
-      generation += 1;
-      reports = [];
-      seen = new Set();
-      models = new Map();
-      processor = adapter.createProcessor(eventsFor(generation));
-    } else {
-      from = difference.from;
-      // What the surface reported so far still holds for the state it stands in.
-      for (const report of reports) send(report);
-    }
-    const target = processor;
+    const {own, processor, from} = processorFor(render, keys);
     render.messages.slice(from).forEach((message, offset) => {
       try {
-        adapter.feed(target, message);
+        adapter.feed(processor, message);
       } catch (error) {
-        add({kind: 'refused', index: from + offset, code: codeOf(error), error: refusalOf(error)});
+        add(own, {
+          kind: 'refused',
+          index: from + offset,
+          code: codeOf(error),
+          error: refusalOf(error),
+        });
       }
     });
     applied = {surfaceId: render.surfaceId, keys};
-    adapter.mount(target, render.surfaceId);
+    adapter.mount(processor, render.surfaceId);
     // A render that left the data model as it was still gets it, under its own number.
     if (modelSentFor !== current) sendModel();
   };
@@ -224,7 +250,7 @@ export function startPreviewPage<P>({
     }
   });
   const stopErrors = errors?.listen(error => {
-    if (current !== undefined) failed({error});
+    if (current !== undefined && made !== undefined) add(made, componentReportOf({error}));
   });
   transport.send({
     type: 'a2ui-spectra-preview/ready',
@@ -236,9 +262,8 @@ export function startPreviewPage<P>({
     stop: () => {
       stopListening();
       stopErrors?.();
-      if (processor !== undefined) adapter.teardown(processor);
-      processor = undefined;
-      generation += 1;
+      if (made?.processor !== undefined) adapter.teardown(made.processor);
+      made = undefined;
     },
   };
 }
