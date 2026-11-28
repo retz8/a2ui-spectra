@@ -11,7 +11,7 @@ package installed, or with one line before the agent runs:
 
 from __future__ import annotations
 
-from typing import Any
+from opentelemetry import trace
 
 from a2ui_spectra_instrumentation import _instrumentor
 from a2ui_spectra_instrumentation import version
@@ -22,17 +22,22 @@ __version__ = version.__version__
 __all__ = ["A2uiInstrumentor", "__version__", "instrument", "uninstrument"]
 
 
-def instrument(**kwargs: Any) -> None:
+def instrument(*, tracer_provider: trace.TracerProvider | None = None) -> None:
     """Switches the wrapper on.
 
-    It checks the SDK, hooks it, and starts a tracer provider if needed.
+    It checks the SDK and hooks it. A second call does nothing, with
+    OpenTelemetry's "already instrumented" warning.
 
     Args:
-      tracer_provider: The provider the spans go to. By default the process's,
-        or one the wrapper starts when the process has none and the environment
-        names an OTLP endpoint.
+      tracer_provider: The provider the spans go to. By default the process's
+        own, or one the wrapper starts when its first span is written, if the
+        process has none by then and the environment names an OTLP endpoint.
     """
-    A2uiInstrumentor().instrument(skip_dep_check=True, **kwargs)
+    # `A2uiInstrumentor()` is the one instrumentor each time: OpenTelemetry's
+    # `BaseInstrumentor` makes a single instance a class.
+    _instrumentor.A2uiInstrumentor().instrument(
+        skip_dep_check=True, tracer_provider=tracer_provider
+    )
 
 
 def uninstrument() -> None:

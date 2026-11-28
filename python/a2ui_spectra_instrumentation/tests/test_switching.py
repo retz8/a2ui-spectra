@@ -18,7 +18,9 @@ from a2ui.inference_formats import ExpressParser
 from a2ui.inference_formats.direct_json import DirectJsonResponseStream
 from a2ui.parser import Parser
 from a2ui.prompt import PromptGenerator
+import pytest
 from a2ui.utils import RendererState
+from opentelemetry.sdk.trace import TracerProvider
 
 import a2ui_spectra_instrumentation
 
@@ -61,6 +63,19 @@ def test_uninstrument_removes_every_hook(
     context: Any = SimpleNamespace(actions=SimpleNamespace(skip_summarization=False))
     asyncio.run(tool.run_async(args={"a2ui_payload": CARD}, tool_context=context))
     assert spans.all() == []
+
+
+def test_instrument_takes_its_one_keyword_and_no_other(
+    provider: TracerProvider, support: conftest.Support
+) -> None:
+    with pytest.raises(TypeError):
+        a2ui_spectra_instrumentation.instrument(tracerprovider=provider)  # type: ignore[call-arg]
+    with pytest.raises(TypeError):
+        a2ui_spectra_instrumentation.instrument(provider)  # type: ignore[call-arg]
+
+    assert not support.hooked(Parser, "parse_response")
+    a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
+    assert support.hooked(Parser, "parse_response")
 
 
 CHILD = """
