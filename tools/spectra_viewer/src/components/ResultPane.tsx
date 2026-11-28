@@ -22,9 +22,6 @@ import {ProblemMark} from './TurnList.tsx';
 /** The Preview pane's width beside Structure at Narrow: the frame and the canvas's padding around it. */
 const PREVIEW_AT_NARROW = NARROW + 32;
 
-/** No legacy-form keys, kept the same from render to render. */
-const NO_LEGACY: ReadonlyMap<string, string[]> = new Map();
-
 /** The preview of the surface in view: where it is routed, and what its page reported. */
 export interface PreviewView {
   route: Route;
@@ -50,11 +47,11 @@ export function ResultPane({
   open,
   sentA2ui,
   failed,
-  later = false,
-  folded = false,
+  later,
+  folded,
   selectedNode,
   onSelectNode,
-  legacyKeys = NO_LEGACY,
+  legacyKeys,
 }: {
   /** The agent's replies up to the step, a line each. */
   replies: readonly Reply[];
@@ -75,14 +72,14 @@ export function ResultPane({
   sentA2ui: boolean;
   failed: boolean;
   /** Whether the turn has surfaces after the step in view, none of which stood yet at it. */
-  later?: boolean;
+  later: boolean;
   /** Folded to its header line, while the step's detail is maximized. */
-  folded?: boolean;
+  folded: boolean;
   /** The tree node selected, whose parse and range the detail shows. */
   selectedNode?: NodeRef;
   onSelectNode?: (node: NodeRef) => void;
   /** The bare keys of each component object the turn's messages carried in the legacy form, by its pointer from the turn. */
-  legacyKeys?: ReadonlyMap<string, string[]>;
+  legacyKeys: ReadonlyMap<string, string[]>;
 }) {
   const settings = useViewSettings();
   // At least one pane shows: Structure when both are toggled off.

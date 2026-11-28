@@ -37,8 +37,8 @@ function durationOf(event: TurnRecordEvent): string {
 }
 
 /** The Spans tab's facts: where its spans came from, each source and scope once. */
-export function spansFactsOf(row: CallRow, sources?: readonly string[]): string {
-  return (sources ?? sourceLinesOf(row)).join(' · ');
+export function spansFactsOf(row: CallRow): string {
+  return sourceLinesOf(row).join(' · ');
 }
 
 export function AgentSpans({

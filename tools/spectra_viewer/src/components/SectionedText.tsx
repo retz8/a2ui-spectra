@@ -8,7 +8,6 @@
  */
 import {type ReactNode, useState} from 'react';
 
-import {cn} from '@/lib/utils';
 import type {UiSection} from '@/model/a2ui_step.ts';
 import {type Marker, resumeAfterLine} from '@/model/prefix.ts';
 import {useBlockFold, useFoldUnless} from '@/state/block_folds.ts';
@@ -78,7 +77,6 @@ export function SectionedText({
   sections,
   labelOf,
   marker,
-  mono,
   startsFolded = false,
 }: {
   label: string;
@@ -88,7 +86,6 @@ export function SectionedText({
   labelOf: (section: UiSection) => string;
   /** The prefix break, when it falls in this segment. */
   marker: Marker | undefined;
-  mono: boolean;
   /** Folded at first, as a system prompt is, unless the prefix breaks inside it. */
   startsFolded?: boolean;
 }) {
@@ -132,12 +129,7 @@ export function SectionedText({
         </CopyButton>
       </BlockLabel>
       {fold.open && (
-        <div
-          className={cn(
-            'flex flex-col rounded-lg bg-tint px-3 py-2.5 break-words whitespace-pre-wrap',
-            mono ? 'type-code leading-relaxed' : 'type-body',
-          )}
-        >
+        <div className="type-body flex flex-col rounded-lg bg-tint px-3 py-2.5 break-words whitespace-pre-wrap">
           {pieces.map((piece, index) =>
             piece.label === undefined ? (
               <span key={index}>{marked(piece)}</span>
