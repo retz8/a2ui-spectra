@@ -1,9 +1,10 @@
 /**
  * Every catalog component in a boundary of its own, so one that throws is
  * reported with its id and type and leaves the rest of the surface drawn. A
- * React implementation gets an error boundary around its view; a web
- * component, such as web core's universal elements, which both basic
- * catalogs are drawn with, is guarded at its updates by the core.
+ * React implementation gets an error boundary around its view, in a copy of
+ * the page's catalog; a web component, such as web core's universal
+ * elements, which both basic catalogs are drawn with, is guarded at its
+ * updates by the core.
  */
 import type {ReactCatalogComponent} from '@a2ui/react/v0_9';
 import type {Catalog} from '@a2ui/web_core/v0_9';
@@ -19,15 +20,10 @@ interface Identity {
 
 type Report = PageEvents['componentFailed'];
 
-/** Where the boundaries report: the current processor's events, replaced as each is made. */
-let reportTo: Report | undefined;
-
-/** Sets where the boundaries report a component that throws. */
-export function reportFailuresTo(report: Report | undefined): void {
-  reportTo = report;
-}
-
-class ComponentBoundary extends Component<Identity & {children: ReactNode}, {failed: boolean}> {
+class ComponentBoundary extends Component<
+  Identity & {report: Report; children: ReactNode},
+  {failed: boolean}
+> {
   override state = {failed: false};
 
   static getDerivedStateFromError(): {failed: boolean} {
@@ -35,12 +31,8 @@ class ComponentBoundary extends Component<Identity & {children: ReactNode}, {fai
   }
 
   override componentDidCatch(error: unknown): void {
-    const {componentId, componentType} = this.props;
-    reportTo?.({
-      ...(componentId !== undefined && {componentId}),
-      ...(componentType !== undefined && {componentType}),
-      error,
-    });
+    const {componentId, componentType, report} = this.props;
+    report({componentId, componentType, error});
   }
 
   override render(): ReactNode {
@@ -51,9 +43,10 @@ class ComponentBoundary extends Component<Identity & {children: ReactNode}, {fai
 function withBoundary<Props extends object>(
   Inner: FC<Props>,
   identify: (props: Props) => Identity,
+  report: Report,
 ): FC<Props> {
   const Guarded: FC<Props> = props => (
-    <ComponentBoundary {...identify(props)}>
+    <ComponentBoundary {...identify(props)} report={report}>
       <Inner {...props} />
     </ComponentBoundary>
   );
@@ -61,27 +54,29 @@ function withBoundary<Props extends object>(
   return Guarded;
 }
 
-const guarded = new WeakSet<object>();
-
 /**
- * Puts each React implementation of a catalog in an error boundary, once per
- * catalog, in place, as upstream's renderer prepares the catalogs it is given.
+ * A copy of a page's catalog with each React implementation in an error
+ * boundary, which reports a component that throws to the report given. The
+ * page's own catalog is left as it was.
  */
-export function guardCatalog(catalog: Catalog<ReactCatalogComponent>): void {
-  if (guarded.has(catalog)) return;
-  guarded.add(catalog);
-  const components = catalog.components as Map<string, ReactCatalogComponent>;
-  for (const [name, implementation] of components) {
-    if (!('render' in implementation)) continue;
+export function guardedCopyOf(
+  catalog: Catalog<ReactCatalogComponent>,
+  report: Report,
+): Catalog<ReactCatalogComponent> {
+  const components = [...catalog.components.values()].map(implementation => {
+    if (!('render' in implementation)) return implementation;
     const {render, view} = implementation;
-    components.set(name, {
+    return {
       ...implementation,
-      render: withBoundary(render, props => identityOf(props.context.componentModel)),
+      render: withBoundary(render, props => identityOf(props.context.componentModel), report),
       ...(view !== undefined && {
-        view: withBoundary(view, props =>
-          identityOf({id: props.node.componentId, type: props.node.type}),
+        view: withBoundary(
+          view,
+          props => identityOf({id: props.node.componentId, type: props.node.type}),
+          report,
         ),
       }),
-    });
-  }
+    };
+  });
+  return catalog.copyWith<ReactCatalogComponent>({components});
 }

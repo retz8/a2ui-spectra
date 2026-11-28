@@ -387,6 +387,26 @@ describe('the preview adapters and the built-in page in Chromium', {timeout: 10 
   }
 
   it(
+    "the React adapter leaves the page's catalog objects as they were",
+    {timeout: TIMEOUT},
+    async () => {
+      const framed = await frame('react/');
+      try {
+        await framed.post(render(1, [create, components(true)]));
+        await framed.frame.getByText('Hello from the test').waitFor();
+        assert.equal(
+          await framed.frame.evaluate(
+            "window.spectraTestPage.testCatalog.components.get('Thrower') === window.spectraTestPage.Thrower",
+          ),
+          true,
+        );
+      } finally {
+        await framed.page.close();
+      }
+    },
+  );
+
+  it(
     'the React adapter reads its catalogs once, and stops when unmounted',
     {timeout: TIMEOUT},
     async () => {

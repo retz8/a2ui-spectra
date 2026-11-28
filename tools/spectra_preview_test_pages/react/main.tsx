@@ -56,5 +56,8 @@ Object.assign(window, {
     changeCatalogs: () => draw([basicCatalog as Catalog<ReactCatalogComponent>]),
     unmount: () => root.unmount(),
     hostSent,
+    /** The catalog the page gives the adapter, and the thrower's implementation in it. */
+    testCatalog,
+    Thrower,
   },
 });

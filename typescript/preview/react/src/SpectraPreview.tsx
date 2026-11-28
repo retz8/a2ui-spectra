@@ -7,7 +7,7 @@
  */
 import {A2uiSurface, type ReactCatalogComponent} from '@a2ui/react/v0_9';
 import {type Catalog, MessageProcessor, type MessageProcessorOptions} from '@a2ui/web_core/v0_9';
-import {STANDALONE_LINE, viewerOriginOf} from 'a2ui-spectra-preview';
+import {type PageEvents, STANDALONE_LINE, viewerOriginOf} from 'a2ui-spectra-preview';
 import {
   type DrawnSurface,
   type MadeProcessor,
@@ -15,7 +15,7 @@ import {
 } from 'a2ui-spectra-preview/web-core';
 import {useEffect, useState} from 'react';
 
-import {guardCatalog, reportFailuresTo} from './boundaries.js';
+import {guardedCopyOf} from './boundaries.js';
 
 /** What the page gives the preview component. */
 export interface SpectraPreviewProps {
@@ -50,15 +50,19 @@ export function SpectraPreview({catalogs, processorOptions}: SpectraPreviewProps
 
   useEffect(() => {
     if (origin === undefined) return;
-    for (const catalog of pageCatalogs) guardCatalog(catalog);
+    /** Where a React implementation that throws is reported: the current processor's events. */
+    let failed: PageEvents['componentFailed'] | undefined;
+    const guarded = pageCatalogs.map(catalog =>
+      guardedCopyOf(catalog, failure => failed?.(failure)),
+    );
     const page = startWebPreviewPage<ReactCatalogComponent, Made>({
       catalogs: pageCatalogs,
       viewerOrigin: origin,
       processorOptions: hostOptions,
       makeProcessor: ({actionHandler, options, componentFailed}) => {
-        reportFailuresTo(componentFailed);
+        failed = componentFailed;
         const processor = new MessageProcessor<ReactCatalogComponent>(
-          [...pageCatalogs],
+          guarded,
           actionHandler,
           options,
         );
@@ -68,7 +72,7 @@ export function SpectraPreview({catalogs, processorOptions}: SpectraPreviewProps
     });
     return () => {
       page.stop();
-      reportFailuresTo(undefined);
+      failed = undefined;
     };
   }, [origin, pageCatalogs, hostOptions]);
 
