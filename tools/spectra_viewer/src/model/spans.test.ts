@@ -10,7 +10,16 @@ import {
   T0,
   toolCall,
 } from '../testing/model_calls.ts';
-import {callRowsOf, modelReadingOf, readingOf, sourcesOfRow} from './call_rows.ts';
+import {
+  callRowsOf,
+  mergedAttributesOf,
+  modelReadingOf,
+  readingOf,
+  shownElsewhereOf,
+  sourcesOfRow,
+  spanEventsOf,
+  spansAboveOf,
+} from './call_rows.ts';
 import {callCostOf, type Prices} from './cost.ts';
 import {lanesOf, shareOf} from './lanes.ts';
 import {problemsOf, rowFailureOf} from './problems.ts';
@@ -392,3 +401,78 @@ function shifted(ms: number): (event: TurnRecordEvent) => TurnRecordEvent {
     }),
   });
 }
+
+describe('the Spans tab’s reading of a chain', () => {
+  const root = receivedSpan({
+    spanId: 'a0'.repeat(8),
+    name: 'invocation',
+    kind: 'framework_span',
+    start: 0,
+    end: 900,
+  });
+  const agent = receivedSpan({
+    spanId: 'a1'.repeat(8),
+    parentSpanId: root.spanId,
+    name: 'agent_run',
+    kind: 'framework_span',
+    start: 5,
+    end: 890,
+  });
+  const outer = receivedSpan({
+    spanId: 'b0'.repeat(8),
+    parentSpanId: agent.spanId,
+    name: 'call_llm',
+    start: 10,
+    end: 800,
+    names: {'gen_ai.request.model': 'outer', 'gen_ai.input.messages': '[]'},
+    events: [{ms: 30, name: 'b'}],
+  });
+  const inner = receivedSpan({
+    spanId: 'b1'.repeat(8),
+    parentSpanId: outer.spanId,
+    name: 'generate_content',
+    start: 20,
+    end: 700,
+    names: {'gen_ai.request.model': 'inner'},
+    events: [{ms: 15, name: 'a'}],
+  });
+  const chain = [outer, inner];
+  const events = [root, agent, outer, inner];
+
+  it('lists every span above the chain, root first, the chain’s own left out', () => {
+    assert.deepEqual(
+      spansAboveOf(chain, events).map(span => span.name),
+      ['invocation', 'agent_run'],
+    );
+    assert.deepEqual(spansAboveOf([root], events), []);
+  });
+
+  it('orders the chain’s span events by time', () => {
+    assert.deepEqual(
+      spanEventsOf(chain).map(event => event.name),
+      ['a', 'b'],
+    );
+  });
+
+  it('merges the chain’s attributes, the innermost span winning, the receiver’s own names left out', () => {
+    assert.deepEqual(Object.fromEntries(mergedAttributesOf(chain, false)), {
+      'gen_ai.request.model': 'inner',
+      'gen_ai.input.messages': '[]',
+    });
+    assert.deepEqual(Object.fromEntries(mergedAttributesOf(chain, true)), {
+      'gen_ai.request.model': 'inner',
+      'span.name': 'generate_content',
+      'gen_ai.input.messages': '[]',
+    });
+  });
+
+  it('leaves out what another of the detail’s tabs shows, naming the tab, and nothing as received', () => {
+    const merged = mergedAttributesOf(chain, false);
+    assert.deepEqual(shownElsewhereOf(merged, ['Prompt', 'Reply'], false), {
+      leftOut: ['gen_ai.input.messages'],
+      tabs: ['Prompt'],
+    });
+    assert.deepEqual(shownElsewhereOf(merged, ['Reply'], false), {leftOut: [], tabs: []});
+    assert.deepEqual(shownElsewhereOf(merged, ['Prompt'], true), {leftOut: [], tabs: []});
+  });
+});
