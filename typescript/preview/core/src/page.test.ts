@@ -364,6 +364,30 @@ describe('startPreviewPage', () => {
     );
   });
 
+  it('starts anew after making a processor threw, feeding nothing into the one it disposed', () => {
+    const fake = fakeAdapter();
+    const createProcessor = fake.adapter.createProcessor;
+    let refuseNext = false;
+    fake.adapter.createProcessor = events => {
+      if (refuseNext) {
+        refuseNext = false;
+        throw new Error('the processor could not be made');
+      }
+      return createProcessor(events);
+    };
+    const wire = fakeTransport();
+    startPreviewPage({catalogs: CATALOGS, adapter: fake.adapter, transport: wire.transport});
+    wire.deliver(render(1, [create]));
+    refuseNext = true;
+    assert.throws(() => wire.deliver(render(2, [update])), /could not be made/);
+    assert.equal(fake.processors[0].disposed, true);
+    // This list extends render 1's, which the disposed processor holds.
+    wire.deliver(render(3, [create, data]));
+    assert.deepEqual(fake.processors[0].fed, [create]);
+    assert.equal(fake.processors.length, 2);
+    assert.deepEqual(fake.processors[1].fed, [create, data]);
+  });
+
   it("sends a recreated processor's data model, not the one it replaced", () => {
     const {deliver, processors, sent} = start();
     deliver(render(1, [create]));

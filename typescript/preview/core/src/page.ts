@@ -190,6 +190,9 @@ export function startPreviewPage<P>({
     let from = 0;
     if (difference.kind === 'reset' || processor === undefined) {
       if (processor !== undefined) adapter.teardown(processor);
+      // Until the new processor is made, nothing is applied: a throw leaves the page to start anew.
+      processor = undefined;
+      applied = undefined;
       generation += 1;
       reports = [];
       seen = new Set();
