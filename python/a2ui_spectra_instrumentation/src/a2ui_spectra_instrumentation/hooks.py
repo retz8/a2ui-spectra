@@ -187,20 +187,22 @@ def _first(arguments: dict[str, Any]) -> Any:
     return next(iter(arguments.values()), None)
 
 
-def _unrecorded(wrapped: Any, args: tuple[Any, ...], kwargs: dict[str, Any]) -> Any:
+def _unrecorded(
+    active: state.Active, wrapped: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
+) -> Any:
     """A call the wrapper does not record.
 
     The calls nested in it open no event either.
     """
-    token = events.enter(events.Silent())
+    token = events.enter(events.Silent(active))
     try:
         return wrapped(*args, **kwargs)
     finally:
         events.leave(token)
 
 
-async def _await_unrecorded(awaitable: Awaitable[Any]) -> Any:
-    token = events.enter(events.Silent())
+async def _await_unrecorded(active: state.Active, awaitable: Awaitable[Any]) -> Any:
+    token = events.enter(events.Silent(active))
     try:
         return await awaitable
     finally:
@@ -324,7 +326,7 @@ def parse_response_hook(
         event.adopt_parser(instance, None)
     except Exception as fault:
         log.report_fault(where, fault)
-        return _unrecorded(wrapped, args, kwargs)
+        return _unrecorded(active, wrapped, args, kwargs)
 
     def returned(parts: Any) -> None:
         event.take_parts(parts)
@@ -359,7 +361,7 @@ def compile_hook_for(inference_format: str | None) -> Wrapper:
             event.note_compile(text)
         except Exception as fault:
             log.report_fault(where, fault)
-            return _unrecorded(wrapped, args, kwargs)
+            return _unrecorded(active, wrapped, args, kwargs)
 
         def returned(messages: Any) -> None:
             event.take_messages(messages)
@@ -408,7 +410,7 @@ def open_stream_hook_for(inference_format: str | None) -> Wrapper:
             event.adopt_parser(instance, inference_format)
         except Exception as fault:
             log.report_fault(where, fault)
-            return _unrecorded(wrapped, args, kwargs)
+            return _unrecorded(active, wrapped, args, kwargs)
 
         def returned(stream: Any) -> None:
             _streams[stream] = event
@@ -431,19 +433,20 @@ def _stream_call(
 
     The event is the open event while it runs.
     """
-    if state.current() is None:
+    active = state.current()
+    if active is None:
         return wrapped(*args, **kwargs)
     event = _stream_event(instance)
     if event is None or event.ended:
         # A stream opened unrecorded, or one that has ended: nothing in it is recorded.
-        return _unrecorded(wrapped, args, kwargs)
+        return _unrecorded(active, wrapped, args, kwargs)
     if before is not None:
         try:
             before(event)
         except Exception as fault:
             log.report_fault(where, fault)
             event.abandon()
-            return _unrecorded(wrapped, args, kwargs)
+            return _unrecorded(active, wrapped, args, kwargs)
 
     def returned(parts: Any) -> None:
         event.take_parts(parts)
@@ -536,7 +539,7 @@ def generate_hook(
             event.adopt_generator(instance, inference_format)
     except Exception as fault:
         log.report_fault(where, fault)
-        return _unrecorded(wrapped, args, kwargs)
+        return _unrecorded(active, wrapped, args, kwargs)
     if event is None:
         return wrapped(*args, **kwargs)
     return _outermost(event, wrapped, args, kwargs, where, event.take_section)
@@ -700,7 +703,7 @@ async def _run_tool(
         )
     except Exception as fault:
         log.report_fault(where, fault)
-        return await _await_unrecorded(awaitable)
+        return await _await_unrecorded(active, awaitable)
     return await _outermost_awaited(event, awaitable, where, event.take_tool_result)
 
 
@@ -781,7 +784,7 @@ async def _append_prompt(
         event = events.PromptEvent(active, tool_name=events.TOOL_NAME)
     except Exception as fault:
         log.report_fault(where, fault)
-        return await _await_unrecorded(awaitable)
+        return await _await_unrecorded(active, awaitable)
 
     # The processor the call resolved is adopted as it resolves. A call that
     # failed before that falls back on what the tool holds, when it is one.

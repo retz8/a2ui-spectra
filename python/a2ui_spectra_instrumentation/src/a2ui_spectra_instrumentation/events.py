@@ -348,9 +348,8 @@ class Silent(Event):
     The calls nested in it record nothing either.
     """
 
-    def __init__(self) -> None:
-        self.depth = 0
-        self.whole_tree = 0
+    def __init__(self, active: state.Active) -> None:
+        super().__init__(active)
         self.ended = True
 
     def escaped(self, error: BaseException) -> None:
