@@ -42,7 +42,7 @@ const sdk = new NodeSDK({instrumentations: [new A2uiInstrumentation()]});
 
 `a2ui-spectra run` points the wrapper at Spectra for you. Under `a2ui-spectra attach`, set the variables Spectra prints at start in your agent's shell, then start the agent any of the three ways.
 
-The wrapper uses your agent's tracer provider when it has one, and starts one exporting to Spectra when it has none. `instrument({tracerProvider})` sends the spans to a provider of your own.
+The wrapper uses your agent's tracer provider when it has one, and starts one exporting to Spectra when it has none. It decides when it writes its first span, at your agent's first prompt generation or parse, so a provider your agent sets up after the wrapper is switched on is kept. `instrument({tracerProvider})` sends the spans to a provider of your own; its options are the exported type `InstrumentOptions`. `uninstrument()` puts every hooked method back.
 
 ## What it supports
 
@@ -68,7 +68,7 @@ Both inference formats the SDK implements are reported: Direct JSON and Express.
 
 **The wrapper started no tracer provider.** The agent's environment names no OTLP endpoint, or names a protocol other than `http/protobuf`. Under `a2ui-spectra attach`, set the variables Spectra prints at start; under `a2ui-spectra run` they are set for you.
 
-**The last parses are missing after Ctrl-C.** The wrapper flushes its spans when the agent's process ends on its own. An agent stopped by a signal keeps only what was exported already, up to five seconds behind.
+**The last parse is missing after Ctrl-C.** The wrapper sends its spans soon after they end, and an agent that ends on its own loses none. An agent stopped by a signal loses the spans that were still being sent.
 
 **The step is there, but says it was reported under a newer turn record.** The wrapper is newer than the running Spectra. Upgrade `a2ui-spectra`.
 

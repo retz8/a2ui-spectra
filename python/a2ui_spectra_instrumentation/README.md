@@ -40,7 +40,7 @@ a2ui_spectra_instrumentation.instrument()
 
 `a2ui-spectra run` points the wrapper at Spectra for you. Under `a2ui-spectra attach`, set the variables Spectra prints at start in your agent's shell, then start the agent either way.
 
-The wrapper uses your agent's tracer provider when it has one, and starts one exporting to Spectra when it has none. `instrument(tracer_provider=...)` sends the spans to a provider of your own.
+The wrapper uses your agent's tracer provider when it has one, and starts one exporting to Spectra when it has none. It decides when it writes its first span, at your agent's first prompt generation or parse, so a provider your agent sets up after the wrapper is switched on is kept. `instrument(tracer_provider=...)` sends the spans to a provider of your own.
 
 The package's public names are `instrument()`; `uninstrument()`, which removes every hook; `A2uiInstrumentor`, the instrumentor `opentelemetry-instrument` loads; and `__version__`, also at `a2ui_spectra_instrumentation.version`. The modules whose names start with an underscore are the wrapper's own, and may change in any release.
 
