@@ -18,6 +18,7 @@
  * recorded, and a span of the A2UI step written as a framework span, are
  * each counted in one terminal line per export request and reason.
  */
+import {logWithoutCredentials, spanWithoutCredentials} from './credentials.js';
 import {
   type CallEvent,
   isEventOfKind,
@@ -121,7 +122,9 @@ export class SpanReceiver {
   }
 
   /** Takes the spans of one trace export request. */
-  takeSpans(spans: readonly ReceivedSpan[]): void {
+  takeSpans(received: readonly ReceivedSpan[]): void {
+    // Credentials are removed before a span is placed, translated, sent live or written.
+    const spans = received.map(spanWithoutCredentials);
     const dropped = new Map<Reason, Tally>();
     const halfFormed = new Map<string, Tally>();
     const unread = new Map<string, Tally>();
@@ -248,7 +251,8 @@ export class SpanReceiver {
   }
 
   /** Takes the log records of one log export request. */
-  takeLogs(logs: readonly ReceivedLog[]): void {
+  takeLogs(received: readonly ReceivedLog[]): void {
+    const logs = received.map(logWithoutCredentials);
     const dropped = new Map<Reason, Tally>();
     const touched = new Set<string>();
     for (const log of logs) {

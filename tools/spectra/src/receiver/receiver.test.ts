@@ -234,6 +234,40 @@ describe('the span receiver', () => {
     assert.deepEqual(h.lines, []);
   });
 
+  it("writes a span, its events and its logs with their credentials removed, by the proxies' rules", async () => {
+    const h = await harness();
+    h.open(A, S(1), BASE);
+    const client: ReceivedSpan = {
+      ...span(A, S(10), BASE + SECOND, {name: 'POST', parent: S(1)}),
+      attributes: {
+        'url.full': 'https://generativelanguage.googleapis.com/v1beta/models?key=abc123',
+        'http.request.header.authorization': ['Bearer abc123'],
+      },
+      events: [
+        {
+          timeUnixNano: (BASE + SECOND).toString(),
+          name: 'redirect',
+          attributes: {'http.url': 'https://api.example/?access_token=abc123'},
+        },
+      ],
+    };
+    h.receiver.takeSpans([client]);
+    h.receiver.takeLogs([
+      {
+        ...log(A, S(10), BASE + SECOND),
+        attributes: {'http.request.header.x-api-key': 'abc123'},
+      },
+    ]);
+    h.close(A, S(1), BASE, BASE + 10n * SECOND);
+    assert.doesNotMatch(JSON.stringify(h.amended), /abc123/, 'what is sent live');
+    const written = JSON.stringify(h.handedOn[0]);
+    assert.doesNotMatch(written, /abc123/, 'what is handed on to be written');
+    assert.match(written, /models\?key=REMOVED/);
+    assert.match(written, /access_token=REMOVED/);
+    assert.match(written, /"http.request.header.authorization":\["REMOVED"\]/);
+    assert.match(written, /"http.request.header.x-api-key":"REMOVED"/);
+  });
+
   it('places a span of another trace by its start in the one turn whose range holds it, and counts the rest', async () => {
     const h = await harness();
     h.open(A, S(1), BASE);
