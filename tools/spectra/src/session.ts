@@ -413,25 +413,7 @@ export async function runSession(
     }
   } catch (error) {
     failed = true;
-    if (error instanceof PortTakenError) {
-      const option =
-        error.port === options.viewer?.port
-          ? '--port'
-          : error.port === options.proxyPort
-            ? '--proxy-port'
-            : error.port === options.modelProxyPort
-              ? '--model-proxy-port'
-              : error.port === options.receiverPort
-                ? '--receiver-port'
-                : '--tool-proxy-port';
-      out.error(
-        error.refused
-          ? `The system would not give Spectra port ${error.port}. Choose another port with ${option}.`
-          : `Port ${error.port} is taken. Choose another port with ${option}.`,
-      );
-    } else {
-      out.error(`Spectra failed: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    out.error(failureLine(error, options));
   } finally {
     running.supervisor?.beginStop();
     running.stopSaveWatcher?.();
@@ -492,6 +474,34 @@ export async function runSession(
       running.supervisor?.groupRunning ?? (running.agent !== undefined && !running.agentStopped)
     );
   }
+}
+
+/**
+ * What the terminal says when Spectra fails to start or run: a port that is
+ * taken, or that the system would not give, with the option that chooses
+ * another, a port matching no other option being a tool proxy's; else the
+ * error's own message.
+ */
+export function failureLine(
+  error: unknown,
+  ports: Pick<SessionSettings, 'viewer' | 'proxyPort' | 'modelProxyPort' | 'receiverPort'>,
+): string {
+  if (!(error instanceof PortTakenError)) {
+    return `Spectra failed: ${error instanceof Error ? error.message : String(error)}`;
+  }
+  const option =
+    error.port === ports.viewer?.port
+      ? '--port'
+      : error.port === ports.proxyPort
+        ? '--proxy-port'
+        : error.port === ports.modelProxyPort
+          ? '--model-proxy-port'
+          : error.port === ports.receiverPort
+            ? '--receiver-port'
+            : '--tool-proxy-port';
+  return error.refused
+    ? `The system would not give Spectra port ${error.port}. Choose another port with ${option}.`
+    : `Port ${error.port} is taken. Choose another port with ${option}.`;
 }
 
 /** What a session has started so far, each part set as it starts, for the stop to close. */
