@@ -3,6 +3,8 @@ name: Everything CI runs
 # CI and the release workflow both run this, so that a release runs everything CI runs, on the
 # commit it was dispatched on. Under `release-files`, the release workflow's, the binary's
 # packages and the libraries' packs are uploaded to the run, the files its publishing jobs publish.
+# With `wireit-cache` false, as the release workflow sets it, no job sets up Wireit's GitHub
+# Actions cache, so a run whose cache reads are refused builds every output itself.
 
 on:
   workflow_call:
@@ -15,6 +17,10 @@ on:
         description: Fail when an npm package bundled into the binary resolves to a local patch
         type: boolean
         default: false
+      wireit-cache:
+        description: Restore and save Wireit's outputs through the GitHub Actions cache
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -35,6 +41,7 @@ jobs:
       - name: Sync the Python workspace
         run: uv sync --all-packages --locked
       - name: Setup Wireit Cache
+        if: inputs.wireit-cache
         uses: google/wireit@9d7c2e5346f8ef1b1ab6014c4e96c74e234f7ed5 # setup-github-actions-caching/v2.0.4
       - name: Build
         run: yarn build:all
@@ -101,6 +108,7 @@ jobs:
       - name: Check that each floor is what is installed
         run: node scripts/wrapper_floors.mjs check
       - name: Setup Wireit Cache
+        if: inputs.wireit-cache
         uses: google/wireit@9d7c2e5346f8ef1b1ab6014c4e96c74e234f7ed5 # setup-github-actions-caching/v2.0.4
       - name: The Python wrapper's tests
         run: uv run pytest
@@ -157,6 +165,7 @@ jobs:
       - name: Sync the Python workspace
         run: uv sync --all-packages --locked
       - name: Setup Wireit Cache
+        if: inputs.wireit-cache
         uses: google/wireit@9d7c2e5346f8ef1b1ab6014c4e96c74e234f7ed5 # setup-github-actions-caching/v2.0.4
       - name: Build
         run: yarn build:all
@@ -179,3 +188,5 @@ jobs:
   windows:
     needs: binaries
     uses: $/.github/workflows/windows_binary_test.yml
+    with:
+      wireit-cache: ${{ inputs.wireit-cache }}

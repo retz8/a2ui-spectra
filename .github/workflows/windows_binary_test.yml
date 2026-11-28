@@ -2,6 +2,11 @@ name: The binary test run on Windows x64
 
 on:
   workflow_call:
+    inputs:
+      wireit-cache:
+        description: Restore and save Wireit's outputs through the GitHub Actions cache
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -26,6 +31,7 @@ jobs:
           name: a2ui-spectra-windows-x64.exe
           path: ${{ runner.temp }}/binary
       - name: Setup Wireit Cache
+        if: inputs.wireit-cache
         uses: google/wireit@9d7c2e5346f8ef1b1ab6014c4e96c74e234f7ed5 # setup-github-actions-caching/v2.0.4
       - name: Build
         run: yarn build:all
