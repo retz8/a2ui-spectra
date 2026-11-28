@@ -14,7 +14,14 @@
  * innermost outward, that carries it, the token counts together from one
  * span.
  */
-import {isModelCall, type ModelCallEvent, type OtherEvent, type TurnRecordEvent} from './record.ts';
+import {
+  isModelCall,
+  isTurnEvent,
+  type ModelCallEvent,
+  type OtherEvent,
+  type SpanEvent,
+  type TurnRecordEvent,
+} from './record.ts';
 
 export type CallKind = 'model' | 'tool';
 
@@ -47,7 +54,8 @@ export function isProxyCall(event: TurnRecordEvent): event is OtherEvent {
   return callKindOf(event) !== undefined && !isReceivedEvent(event);
 }
 
-function keyOf(event: {traceId: string; spanId: string}): string {
+/** An event's key within the turn's spans: its trace id and its span id. */
+export function keyOf(event: {traceId: string; spanId: string}): string {
   return `${event.traceId}:${event.spanId}`;
 }
 
@@ -192,7 +200,7 @@ export function failedCallsOf(events: readonly TurnRecordEvent[]): number {
 const USAGE_PREFIX = 'gen_ai.usage.';
 
 /** The names the receiver writes about a span itself, which are not a call's sections. */
-const SPAN_NAMES = new Set([
+export const SPAN_NAMES = new Set([
   'a2ui.event.kind',
   'otel.scope.name',
   'otel.scope.version',
@@ -310,4 +318,90 @@ function sourceLineOf(span: TurnRecordEvent): string {
 /** The spans section's source lines: one per source and scope of the row's chain, outermost first. */
 export function sourceLinesOf(row: CallRow): string[] {
   return [...new Set(row.spans.map(sourceLineOf))];
+}
+
+/** The attributes another tab shows, by the tab that shows them. */
+const SHOWN_ELSEWHERE: Record<string, string> = {
+  'gen_ai.tool.call.arguments': 'Arguments',
+  'gen_ai.tool.call.result': 'Result',
+  'gen_ai.input.messages': 'Prompt',
+  'gen_ai.system_instructions': 'Prompt',
+  'gen_ai.tool.definitions': 'Prompt',
+  'gen_ai.output.messages': 'Reply',
+  'a2ui.parse.input': 'Raw text',
+  'a2ui.parse.messages': 'Messages',
+};
+
+/** Every ancestor of a chain's spans within the turn, root first, the chain's own and the turn event not listed. */
+export function spansAboveOf(
+  chain: readonly TurnRecordEvent[],
+  events: readonly TurnRecordEvent[],
+): TurnRecordEvent[] {
+  const own = new Set(chain.map(keyOf));
+  const above = new Map<string, {event: TurnRecordEvent; depth: number}>();
+  for (const span of chain) {
+    const ancestors = ancestorsOf(span, events);
+    ancestors.forEach((event, index) => {
+      if (own.has(keyOf(event)) || isTurnEvent(event)) return;
+      const depth = ancestors.length - index;
+      const known = above.get(keyOf(event));
+      if (known === undefined || known.depth < depth) above.set(keyOf(event), {event, depth});
+    });
+  }
+  return [...above.values()].sort((a, b) => a.depth - b.depth).map(({event}) => event);
+}
+
+/** A chain's span events, in time order. */
+export function spanEventsOf(chain: readonly TurnRecordEvent[]): SpanEvent[] {
+  return chain
+    .flatMap(span => span.events ?? [])
+    .sort((a, b) => {
+      const x = BigInt(a.timeUnixNano);
+      const y = BigInt(b.timeUnixNano);
+      return x === y ? 0 : x < y ? -1 : 1;
+    });
+}
+
+/**
+ * A chain's attributes in one table, the innermost span's value winning: by
+ * their translated names, the receiver's own names about a span left out; or
+ * as the receiver got them, every one.
+ */
+export function mergedAttributesOf(
+  chain: readonly TurnRecordEvent[],
+  asReceived: boolean,
+): Map<string, unknown> {
+  const merged = new Map<string, unknown>();
+  for (const span of [...chain].reverse()) {
+    const attributes = asReceived
+      ? asRecord(attributesOf(span)['a2ui.received.attributes'])
+      : attributesOf(span);
+    for (const [name, value] of Object.entries(attributes)) {
+      if ((asReceived || !SPAN_NAMES.has(name)) && !merged.has(name)) merged.set(name, value);
+    }
+  }
+  return merged;
+}
+
+/**
+ * The translated attributes another of the detail's tabs shows, left out of
+ * the table, and those tabs; none as received.
+ */
+export function shownElsewhereOf(
+  merged: ReadonlyMap<string, unknown>,
+  present: readonly string[],
+  asReceived: boolean,
+): {leftOut: string[]; tabs: string[]} {
+  const leftOut = asReceived
+    ? []
+    : [...merged.keys()].filter(name => present.includes(SHOWN_ELSEWHERE[name] ?? ''));
+  return {leftOut, tabs: [...new Set(leftOut.map(name => SHOWN_ELSEWHERE[name]))]};
+}
+
+function attributesOf(event: TurnRecordEvent): Record<string, unknown> {
+  return event.attributes as Record<string, unknown>;
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 }

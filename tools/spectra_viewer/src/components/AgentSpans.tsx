@@ -8,48 +8,27 @@
  */
 import {type ReactNode, useState} from 'react';
 
-import {ancestorsOf, type CallRow, sourceLinesOf} from '@/model/call_rows.ts';
+import {
+  type CallRow,
+  keyOf,
+  mergedAttributesOf,
+  shownElsewhereOf,
+  sourceLinesOf,
+  spanEventsOf,
+  spansAboveOf,
+} from '@/model/call_rows.ts';
 import {jsonInString} from '@/model/json_lines.ts';
-import {isTurnEvent, type SpanEvent, type TurnRecordEvent, unixMillis} from '@/model/record.ts';
+import {type SpanEvent, type TurnRecordEvent, unixMillis} from '@/model/record.ts';
 
 import {DetailLink, Pairs, type Row, RowList} from './CallParts.tsx';
 import {formatDuration, formatOffset} from './format.ts';
 import {JsonLines, ShownSwitch} from './JsonBlock.tsx';
-
-/** The names the receiver writes about a span itself, which are not translated names. */
-const SPAN_NAMES = new Set([
-  'a2ui.event.kind',
-  'otel.scope.name',
-  'otel.scope.version',
-  'a2ui.received.dialect',
-  'a2ui.received.attributes',
-]);
-
-/** The attributes another tab shows, by the tab that shows them. */
-const SHOWN_ELSEWHERE: Record<string, string> = {
-  'gen_ai.tool.call.arguments': 'Arguments',
-  'gen_ai.tool.call.result': 'Result',
-  'gen_ai.input.messages': 'Prompt',
-  'gen_ai.system_instructions': 'Prompt',
-  'gen_ai.tool.definitions': 'Prompt',
-  'gen_ai.output.messages': 'Reply',
-  'a2ui.parse.input': 'Raw text',
-  'a2ui.parse.messages': 'Messages',
-};
 
 /** The prefix of the names a log record attached to its span carries. */
 const LOG_PREFIX = 'a2ui.received.log.';
 
 /** A value longer than this shows its start until it is opened. */
 const LONG_VALUE = 160;
-
-function attributesOf(event: TurnRecordEvent): Record<string, unknown> {
-  return event.attributes as Record<string, unknown>;
-}
-
-function keyOf(event: TurnRecordEvent): string {
-  return `${event.traceId}:${event.spanId}`;
-}
 
 /** A span's duration, as a row says it; none for a span with no end. */
 function durationOf(event: TurnRecordEvent): string {
@@ -84,26 +63,8 @@ export function AgentSpans({
   lead?: {line: string; event: TurnRecordEvent};
 }) {
   const chain = row.spans;
-  const own = new Set(chain.map(keyOf));
-  // Every ancestor of the chain's spans within the turn, root first, the turn event not listed.
-  const above = new Map<string, {event: TurnRecordEvent; depth: number}>();
-  for (const span of chain) {
-    const ancestors = ancestorsOf(span, events);
-    ancestors.forEach((event, index) => {
-      if (own.has(keyOf(event)) || isTurnEvent(event)) return;
-      const depth = ancestors.length - index;
-      const known = above.get(keyOf(event));
-      if (known === undefined || known.depth < depth) above.set(keyOf(event), {event, depth});
-    });
-  }
-  const ancestors = [...above.values()].sort((a, b) => a.depth - b.depth).map(({event}) => event);
-  const spanEvents = chain
-    .flatMap(span => span.events ?? [])
-    .sort((a, b) => {
-      const x = BigInt(a.timeUnixNano);
-      const y = BigInt(b.timeUnixNano);
-      return x === y ? 0 : x < y ? -1 : 1;
-    });
+  const ancestors = spansAboveOf(chain, events);
+  const spanEvents = spanEventsOf(chain);
   return (
     <>
       {lead !== undefined && (
@@ -145,19 +106,8 @@ function Attributes({
   present: readonly string[];
 }) {
   const [asReceived, setAsReceived] = useState(false);
-  const merged = new Map<string, unknown>();
-  for (const span of [...chain].reverse()) {
-    const attributes = asReceived
-      ? asRecord(attributesOf(span)['a2ui.received.attributes'])
-      : attributesOf(span);
-    for (const [name, value] of Object.entries(attributes)) {
-      if ((asReceived || !SPAN_NAMES.has(name)) && !merged.has(name)) merged.set(name, value);
-    }
-  }
-  const leftOut = asReceived
-    ? []
-    : [...merged.keys()].filter(name => present.includes(SHOWN_ELSEWHERE[name] ?? ''));
-  const tabs = [...new Set(leftOut.map(name => SHOWN_ELSEWHERE[name]))];
+  const merged = mergedAttributesOf(chain, asReceived);
+  const {leftOut, tabs} = shownElsewhereOf(merged, present, asReceived);
   const pairs = [...merged]
     .filter(([name]) => !leftOut.includes(name))
     .map(([key, value]) => {
@@ -185,10 +135,6 @@ function Attributes({
       })}
     />
   );
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
 }
 
 /** A span of the chain above the step, or of its own chain, as a row with its duration. */
