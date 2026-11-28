@@ -374,11 +374,7 @@ function MonoLine({label, text}: {label: string; text: string}) {
 
 /** The HTTP exchange's facts, as the HTTP tab's line says them: the request, the status, then a model call's chunks or a tool call's reply. */
 export function exchangeFactsOf(call: OtherEvent | ModelCallEvent, tool = false): string {
-  const attributes = call.attributes as Record<string, unknown>;
-  const method = String(attributes['http.request.method'] ?? '');
-  const url = typeof attributes['url.full'] === 'string' ? attributes['url.full'] : '';
-  const status = statusOf(attributes);
-  const chunks = chunksOf(call);
+  const {attributes, method, url, status, chunks} = exchangeFieldsOf(call);
   let host = url;
   try {
     const parsed = new URL(url);
@@ -395,6 +391,24 @@ export function exchangeFactsOf(call: OtherEvent | ModelCallEvent, tool = false)
         ? [plural(chunks.length, 'chunk')]
         : []),
   ].join(' · ');
+}
+
+/** An exchange as the proxy recorded it: its attributes, method, URL, status and response chunks. */
+function exchangeFieldsOf(call: OtherEvent | ModelCallEvent): {
+  attributes: Record<string, unknown>;
+  method: string;
+  url: string;
+  status: unknown;
+  chunks: SpanEvent[];
+} {
+  const attributes = call.attributes as Record<string, unknown>;
+  return {
+    attributes,
+    method: String(attributes['http.request.method'] ?? ''),
+    url: typeof attributes['url.full'] === 'string' ? attributes['url.full'] : '',
+    status: statusOf(attributes),
+    chunks: chunksOf(call),
+  };
 }
 
 /** A miss holds no response attributes; the proxy answered it with its `502` line. */
@@ -414,11 +428,7 @@ function chunksOf(call: OtherEvent | ModelCallEvent): SpanEvent[] {
  * line, its headers and its body or chunks.
  */
 export function Exchange({call}: {call: OtherEvent | ModelCallEvent}) {
-  const attributes = call.attributes as Record<string, unknown>;
-  const method = String(attributes['http.request.method'] ?? '');
-  const url = typeof attributes['url.full'] === 'string' ? attributes['url.full'] : '';
-  const status = statusOf(attributes);
-  const chunks = chunksOf(call);
+  const {attributes, method, url, status, chunks} = exchangeFieldsOf(call);
   let parameters: Array<{key: string; value: string; removed?: boolean}> = [];
   try {
     parameters = [...new URL(url).searchParams].map(([key, value]) => ({
