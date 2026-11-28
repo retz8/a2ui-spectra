@@ -324,6 +324,35 @@ describe('the preview adapters and the built-in page in Chromium', {timeout: 10 
       );
 
       it(
+        "validates as the host's processor options say, reports every refusal, and sends nothing through the host's channel to its agent",
+        {timeout: TIMEOUT},
+        async () => {
+          const framed = await frame(`${adapter}/?options`);
+          try {
+            // The host's options refuse every message but a surface's and its components.
+            const data = {version: 'v0.9', updateDataModel: {surfaceId: 'main', value: {seats: 3}}};
+            await framed.post(render(1, [create, components(), data]));
+            await framed.frame.getByText('Hello from the test').waitFor();
+            const refused = await framed.waitForMessage(
+              message =>
+                message.type === 'a2ui-spectra-preview/report' &&
+                (message.report as {kind: string}).kind === 'refused',
+            );
+            assert.deepEqual(refused.report, {
+              kind: 'refused',
+              index: 2,
+              code: 'VALIDATION_ERROR',
+              error:
+                "Operation 'updateDataModel' is not permitted by ValidationConfig.allowedMessages",
+            });
+            assert.deepEqual(await framed.frame.evaluate('window.spectraTestPage.hostSent'), []);
+          } finally {
+            await framed.page.close();
+          }
+        },
+      );
+
+      it(
         adapter === 'angular'
           ? "sends a press with the surface's data model, in place of the page's own action handler"
           : "sends a press with the surface's data model",

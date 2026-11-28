@@ -13,6 +13,7 @@ import type {
   ActionListener,
   ComponentApi,
   MessageProcessor,
+  MessageProcessorOptions,
   SurfaceModel,
 } from '@a2ui/web_core/v0_9';
 import {A2uiLitElement} from '@a2ui/web_core/v0_9/universal';
@@ -122,10 +123,32 @@ export function guardUniversalElements(report: PageEvents['componentFailed']): v
   });
 }
 
+/**
+ * The options a preview's processor is made with, from the host's: those that
+ * shape how messages are validated and processed pass through; every
+ * refusal throws, so the page reports it; and the host's own channel to its
+ * agent, its outbound listener and its error handler, is left out, so that
+ * nothing in the preview goes out through it.
+ */
+function previewOptionsOf(host: MessageProcessorOptions | undefined): MessageProcessorOptions {
+  const {version, validationConfig, adapterRegistry, defaultTimeoutMs, maxAgentCallCacheEntries} =
+    host ?? {};
+  return {
+    ...(version !== undefined && {version}),
+    ...(validationConfig !== undefined && {validationConfig}),
+    ...(adapterRegistry !== undefined && {adapterRegistry}),
+    ...(defaultTimeoutMs !== undefined && {defaultTimeoutMs}),
+    ...(maxAgentCallCacheEntries !== undefined && {maxAgentCallCacheEntries}),
+    reportErrorsOnly: false,
+  };
+}
+
 /** What a web adapter's processor is made with. */
 export interface ProcessorInputs {
   /** The action handler the processor dispatches each action to. */
   actionHandler: ActionListener;
+  /** The processor's options, made from the host's. */
+  options: MessageProcessorOptions;
   /** Where a component of the adapter's own framework that throws while drawing is reported. */
   componentFailed: PageEvents['componentFailed'];
 }
@@ -153,6 +176,8 @@ export interface WebPreviewPageOptions<T extends ComponentApi, M extends MadePro
   catalogs: Iterable<ClaimedCatalog>;
   /** The viewer's origin, from the page's address. */
   viewerOrigin: string;
+  /** The processor options the host gives its own processor, if any. */
+  processorOptions?: MessageProcessorOptions;
   /** Makes a processor with the page's catalogs. */
   makeProcessor(inputs: ProcessorInputs): M;
   /** Draws this surface, or none; called when what is drawn changes. */
@@ -177,9 +202,11 @@ interface Held<T extends ComponentApi, M extends MadeProcessor<T>> {
 export function startWebPreviewPage<T extends ComponentApi, M extends MadeProcessor<T>>({
   catalogs,
   viewerOrigin,
+  processorOptions,
   makeProcessor,
   draw,
 }: WebPreviewPageOptions<T, M>): PreviewPage {
+  const options = previewOptionsOf(processorOptions);
   /** Counts the processors made, so that a new one's surface remounts. */
   let generation = 0;
   let shown: Held<T, M> | undefined;
@@ -199,6 +226,7 @@ export function startWebPreviewPage<T extends ComponentApi, M extends MadeProces
       // The action handler is made before the processor, and reaches it once it is held.
       const made = makeProcessor({
         actionHandler: actionHandlerFor(events, () => held.made.processor),
+        options,
         componentFailed: events.componentFailed,
       });
       generation += 1;

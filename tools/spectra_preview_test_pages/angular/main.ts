@@ -6,7 +6,9 @@
  * components need, and a component of Angular's own inside one of them
  * throws to the window; with `native` in the page's address they are off, so
  * that Angular draws a surface of the thrower alone itself and its throw
- * reaches the error handler. Opened on its own, outside Spectra, the page bootstraps without
+ * reaches the error handler; with `options` the config carries a host's
+ * processor options, whose channel to the agent records what it is sent.
+ * Opened on its own, outside Spectra, the page bootstraps without
  * the renderer config, so the browser tests see the adapter needs none
  * there. `window.spectraTestPage` holds what the handlers recorded and
  * destroys the application.
@@ -31,7 +33,13 @@ import {bootstrapApplication} from '@angular/platform-browser';
 import {VIEWER_PARAMETER} from 'a2ui-spectra-preview';
 import {SpectraPreviewComponent} from 'a2ui-spectra-preview-angular';
 
-import {TEST_CATALOG_ID, THROWER_FAILURE, throwerApi} from '../shared/thrower';
+import {
+  hostProcessorOptions,
+  OPTIONS_PARAMETER,
+  TEST_CATALOG_ID,
+  THROWER_FAILURE,
+  throwerApi,
+} from '../shared/thrower';
 
 @Component({
   selector: 'test-thrower',
@@ -55,6 +63,8 @@ const testCatalog = new AngularCatalog(
 
 const pageErrors: string[] = [];
 const pageActions: unknown[] = [];
+/** What the host's own channel to its agent is sent. */
+const hostSent: unknown[] = [];
 
 @Injectable()
 class RecordingErrorHandler extends ErrorHandler {
@@ -83,6 +93,9 @@ bootstrapApplication(TestPage, {
           provideA2Ui({
             catalogs: [testCatalog],
             useUniversalComponents: !parameters.has('native'),
+            ...(parameters.has(OPTIONS_PARAMETER) && {
+              processorOptions: hostProcessorOptions(hostSent),
+            }),
             actionHandler: action => {
               pageActions.push(action);
             },
@@ -93,7 +106,7 @@ bootstrapApplication(TestPage, {
 })
   .then(application => {
     Object.assign(window, {
-      spectraTestPage: {pageErrors, pageActions, destroy: () => application.destroy()},
+      spectraTestPage: {pageErrors, pageActions, hostSent, destroy: () => application.destroy()},
     });
   })
   .catch(error => console.error(error));

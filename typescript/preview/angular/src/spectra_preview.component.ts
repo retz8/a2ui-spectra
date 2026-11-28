@@ -101,11 +101,15 @@ export class SpectraPreviewComponent {
     const page = startWebPreviewPage<AngularComponentImplementation, Made>({
       catalogs: config.catalogs,
       viewerOrigin: origin,
-      makeProcessor: ({actionHandler, componentFailed}) => {
+      processorOptions: config.processorOptions,
+      makeProcessor: ({actionHandler, options, componentFailed}) => {
         reportTo = componentFailed;
         const injector = Injector.create({
           providers: [
-            {provide: A2UI_RENDERER_CONFIG, useValue: {...config, actionHandler}},
+            {
+              provide: A2UI_RENDERER_CONFIG,
+              useValue: {...config, actionHandler, processorOptions: options},
+            },
             {provide: A2uiRendererService},
           ],
           parent,

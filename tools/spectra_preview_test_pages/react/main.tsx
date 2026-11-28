@@ -1,7 +1,9 @@
 /**
  * The React test page: the React preview adapter with the test catalog, in
  * which the thrower is a React component. `window.spectraTestPage` lets the
- * browser tests give the adapter another catalogs prop and unmount it.
+ * browser tests give the adapter another catalogs prop and unmount it. With
+ * `options` in its address, the page gives the adapter a host's processor
+ * options, whose channel to the agent records what it is sent.
  */
 import {createComponentImplementation, type ReactCatalogComponent} from '@a2ui/react';
 import {Catalog} from '@a2ui/web_core/v0_9';
@@ -10,7 +12,13 @@ import {SpectraPreview} from 'a2ui-spectra-preview-react';
 import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 
-import {TEST_CATALOG_ID, THROWER_FAILURE, throwerApi} from '../shared/thrower.ts';
+import {
+  hostProcessorOptions,
+  OPTIONS_PARAMETER,
+  TEST_CATALOG_ID,
+  THROWER_FAILURE,
+  throwerApi,
+} from '../shared/thrower.ts';
 
 const Thrower = createComponentImplementation(throwerApi, ({props}) => {
   if (props.fail === true) throw new Error(THROWER_FAILURE);
@@ -26,11 +34,16 @@ const testCatalog = new Catalog<ReactCatalogComponent>(
 );
 
 const root = createRoot(document.getElementById('root')!);
+/** What the host's own channel to its agent is sent. */
+const hostSent: unknown[] = [];
+const processorOptions = new URLSearchParams(window.location.search).has(OPTIONS_PARAMETER)
+  ? hostProcessorOptions(hostSent)
+  : undefined;
 
 function draw(catalogs: ReadonlyArray<Catalog<ReactCatalogComponent>>): void {
   root.render(
     <StrictMode>
-      <SpectraPreview catalogs={catalogs} />
+      <SpectraPreview catalogs={catalogs} processorOptions={processorOptions} />
     </StrictMode>,
   );
 }
@@ -42,5 +55,6 @@ Object.assign(window, {
     /** Gives the adapter a catalogs prop of other catalogs. */
     changeCatalogs: () => draw([basicCatalog as Catalog<ReactCatalogComponent>]),
     unmount: () => root.unmount(),
+    hostSent,
   },
 });

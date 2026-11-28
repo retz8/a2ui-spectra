@@ -9,7 +9,7 @@
 // Registers `<a2ui-surface>`.
 import '@a2ui/lit/v0_9';
 import type {LitComponentApi} from '@a2ui/lit/v0_9';
-import {type Catalog, MessageProcessor} from '@a2ui/web_core/v0_9';
+import {type Catalog, MessageProcessor, type MessageProcessorOptions} from '@a2ui/web_core/v0_9';
 import {type PreviewPage, STANDALONE_LINE, viewerOriginOf} from 'a2ui-spectra-preview';
 import {
   type DrawnSurface,
@@ -26,7 +26,7 @@ type Made = MadeProcessor<LitComponentApi>;
  * surfaces Spectra sends, with the page's catalogs.
  */
 export class SpectraPreviewElement extends LitElement {
-  static override properties = {catalogs: {attribute: false}};
+  static override properties = {catalogs: {attribute: false}, processorOptions: {attribute: false}};
 
   /**
    * The catalogs the page renders, implementations and all, as the real host
@@ -35,6 +35,15 @@ export class SpectraPreviewElement extends LitElement {
    * They are read once, when the element is first connected with them.
    */
   declare catalogs: ReadonlyArray<Catalog<LitComponentApi>> | undefined;
+
+  /**
+   * The options the real host makes its message processor with, such as its
+   * `validationConfig`, so that the preview validates as the host does. Its
+   * channel to the agent, `outboundListener` and `errorHandler`, is not used,
+   * and every refusal is reported. They are read with the catalogs, set as a
+   * property before them.
+   */
+  declare processorOptions: MessageProcessorOptions | undefined;
 
   private readonly origin = viewerOriginOf(window.location.search);
   private page: PreviewPage | undefined;
@@ -67,8 +76,13 @@ export class SpectraPreviewElement extends LitElement {
     this.page = startWebPreviewPage<LitComponentApi, Made>({
       catalogs,
       viewerOrigin: origin,
-      makeProcessor: ({actionHandler}) => {
-        const processor = new MessageProcessor<LitComponentApi>([...catalogs], actionHandler);
+      processorOptions: this.processorOptions,
+      makeProcessor: ({actionHandler, options}) => {
+        const processor = new MessageProcessor<LitComponentApi>(
+          [...catalogs],
+          actionHandler,
+          options,
+        );
         return {processor, dispose: () => processor.dispose()};
       },
       draw: drawn => {

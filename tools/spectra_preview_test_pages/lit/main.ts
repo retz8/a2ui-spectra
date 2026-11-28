@@ -2,7 +2,9 @@
  * The Lit test page: the Lit preview adapter's element with the test
  * catalog, in which the thrower is a Lit element. `window.spectraTestPage`
  * gives the browser tests the catalogs and the element's class, to place a
- * new element themselves.
+ * new element themselves. With `options` in its address, the page gives the
+ * element a host's processor options, whose channel to the agent records
+ * what it is sent.
  */
 import {A2uiLitElement, basicCatalog, type LitComponentApi} from '@a2ui/lit/v0_9';
 import {Catalog} from '@a2ui/web_core/v0_9';
@@ -10,7 +12,13 @@ import type {WebComponentImplementation} from '@a2ui/web_core/v0_9/universal';
 import {SpectraPreviewElement} from 'a2ui-spectra-preview-lit';
 import {html, nothing} from 'lit';
 
-import {TEST_CATALOG_ID, THROWER_FAILURE, throwerApi} from '../shared/thrower.ts';
+import {
+  hostProcessorOptions,
+  OPTIONS_PARAMETER,
+  TEST_CATALOG_ID,
+  THROWER_FAILURE,
+  throwerApi,
+} from '../shared/thrower.ts';
 
 class TestThrower extends A2uiLitElement<typeof throwerApi> {
   protected override readonly api = throwerApi;
@@ -43,10 +51,20 @@ const testCatalog = new Catalog<LitComponentApi>(
   ...(basicCatalog.themeSchema === undefined ? [] : [basicCatalog.themeSchema]),
 );
 
+/** What the host's own channel to its agent is sent. */
+const hostSent: unknown[] = [];
 const element = document.createElement('a2ui-spectra-preview');
+if (new URLSearchParams(window.location.search).has(OPTIONS_PARAMETER)) {
+  element.processorOptions = hostProcessorOptions(hostSent);
+}
 element.catalogs = [testCatalog];
 document.getElementById('root')!.append(element);
 
 Object.assign(window, {
-  spectraTestPage: {catalogs: [testCatalog], otherCatalogs: [basicCatalog], SpectraPreviewElement},
+  spectraTestPage: {
+    catalogs: [testCatalog],
+    otherCatalogs: [basicCatalog],
+    SpectraPreviewElement,
+    hostSent,
+  },
 });
