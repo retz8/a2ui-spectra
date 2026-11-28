@@ -1,12 +1,23 @@
 /**
- * The preview core: the preview protocol's messages, and the page that runs
- * it, which every adapter starts with its own framework's processor.
+ * The preview core's main entry: the preview protocol's messages, with the
+ * guards the viewer reads a page's messages with; `startPreviewPage`, which
+ * runs a page's side of the protocol, with the types its options take; and
+ * the viewer's origin and the standalone line every adapter reads.
  */
-export * from './protocol.js';
-export {claimsOf, type ClaimedCatalog} from './claims.js';
-export {type Applied, type Difference, differenceOf, keysOf} from './difference.js';
 export {
-  errorText,
+  type Claim,
+  isPageMessage,
+  isReadyMessage,
+  type PageMessage,
+  type PingMessage,
+  PREVIEW_PROTOCOL,
+  type PreviewAction,
+  type RenderMessage,
+  type Report,
+  VIEWER_PARAMETER,
+} from './protocol.js';
+export type {ClaimedCatalog} from './claims.js';
+export {
   type ErrorSource,
   type PageEvents,
   type PreviewAdapter,
@@ -15,11 +26,4 @@ export {
   type PreviewTransport,
   startPreviewPage,
 } from './page.js';
-export {
-  isFromViewer,
-  STANDALONE_LINE,
-  viewerOriginOf,
-  windowErrors,
-  windowTransport,
-} from './window.js';
-export {guardElementUpdates, type UpdatingElementClass} from './guard.js';
+export {STANDALONE_LINE, viewerOriginOf} from './window.js';

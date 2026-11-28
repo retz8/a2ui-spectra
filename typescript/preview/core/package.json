@@ -19,8 +19,8 @@
       "default": "./dist/index.js"
     },
     "./web-core": {
-      "types": "./dist/web_core.d.ts",
-      "default": "./dist/web_core.js"
+      "types": "./dist/web_core_entry.d.ts",
+      "default": "./dist/web_core_entry.js"
     }
   },
   "files": [
