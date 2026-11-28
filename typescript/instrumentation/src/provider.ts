@@ -2,7 +2,11 @@
 
 import {ProxyTracerProvider, trace} from '@opentelemetry/api';
 import {OTLPTraceExporter} from '@opentelemetry/exporter-trace-otlp-http';
-import {BatchSpanProcessor, NodeTracerProvider} from '@opentelemetry/sdk-trace-node';
+import {
+  BatchSpanProcessor,
+  NodeTracerProvider,
+  type SpanProcessor,
+} from '@opentelemetry/sdk-trace-node';
 
 import {logger, messageOf} from './log.js';
 import {SCOPE_NAME} from './package.js';
@@ -25,12 +29,58 @@ function hasProvider(): boolean {
 }
 
 /**
+ * Sends the spans soon after they end: when a span ends it asks for a flush on
+ * the next turn of the event loop, one flush at a time, so the spans that end
+ * together go in one export.
+ *
+ * The pending flush is what keeps the process up until its last spans are
+ * sent. A flush on `beforeExit` would do that too, but work started in a
+ * `beforeExit` listener makes Node emit the event again, and the agent's own
+ * `beforeExit` listeners would run twice.
+ */
+class FlushAfterEnd implements SpanProcessor {
+  private flushing = false;
+  private endedSince = false;
+
+  constructor(private readonly flush: () => Promise<void>) {}
+
+  onStart(): void {}
+
+  onEnd(): void {
+    if (this.flushing) {
+      this.endedSince = true;
+      return;
+    }
+    this.flushing = true;
+    setImmediate(() => {
+      this.flush()
+        .catch((error: unknown) => {
+          logger.info(`could not flush its tracer provider: ${messageOf(error)}`);
+        })
+        .finally(() => {
+          this.flushing = false;
+          if (!this.endedSince) return;
+          this.endedSince = false;
+          this.onEnd();
+        });
+    });
+  }
+
+  forceFlush(): Promise<void> {
+    return Promise.resolve();
+  }
+
+  shutdown(): Promise<void> {
+    return Promise.resolve();
+  }
+}
+
+/**
  * Starts a provider when the process has none and the environment names an
  * OTLP endpoint, with its protocol unset or `http/protobuf`: a
  * `NodeTracerProvider` on the SDK's default resource, with a batch span
- * processor on the OTLP/HTTP exporter, which reads the endpoint itself. It is
- * shut down on `beforeExit`, once, which flushes a natural exit. Otherwise it
- * starts none, and says why at info.
+ * processor on the OTLP/HTTP exporter, which reads the endpoint itself, flushed
+ * soon after each span ends. Otherwise it starts none, and says why at info.
  */
 export function startProvider(): void {
   if (hasProvider()) {
@@ -54,13 +104,10 @@ export function startProvider(): void {
     );
     return;
   }
+  const batch = new BatchSpanProcessor(new OTLPTraceExporter());
+  // The batch takes a span before the flush for it is asked for.
   const provider = new NodeTracerProvider({
-    spanProcessors: [new BatchSpanProcessor(new OTLPTraceExporter())],
+    spanProcessors: [batch, new FlushAfterEnd(() => batch.forceFlush())],
   });
   provider.register();
-  process.once('beforeExit', () => {
-    provider.shutdown().catch((error: unknown) => {
-      logger.info(`could not flush its tracer provider: ${messageOf(error)}`);
-    });
-  });
 }

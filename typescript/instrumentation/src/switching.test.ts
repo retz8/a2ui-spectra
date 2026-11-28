@@ -153,7 +153,7 @@ describe('switching the wrapper on and off', () => {
     );
   });
 
-  it('one line, then a natural exit: the spans reach the endpoint through beforeExit', async () => {
+  it('one line, then a natural exit: the spans reach the endpoint before the process ends', async () => {
     const bodies: unknown[] = [];
     const server = createServer((request: IncomingMessage, response) => {
       let body = '';

@@ -14,7 +14,15 @@ import {
 import {NodeTracerProvider} from '@opentelemetry/sdk-trace-node';
 
 import {instrument, uninstrument} from './index.js';
-import {Capture, collector, otlpVariables, processorOf} from './testing/support.js';
+import {
+  Capture,
+  childEnv,
+  collector,
+  otlpVariables,
+  PACKAGE,
+  processorOf,
+  runNode,
+} from './testing/support.js';
 
 const capture = new Capture();
 let restore: () => void = () => {};
@@ -77,7 +85,31 @@ describe('the tracer provider', () => {
     assert.equal(hasGlobalProvider(), false);
     await compileOnce();
     assert.ok(delegate() instanceof NodeTracerProvider);
-    assert.equal(process.listeners('beforeExit').length, exitListeners.length + 1);
+    assert.equal(process.listeners('beforeExit').length, exitListeners.length);
+  });
+
+  it("its own provider's spans are sent before the process ends, and the agent's beforeExit listeners run once", async () => {
+    const child = [
+      "import {instrument} from './dist/index.js';",
+      "import {processorOf} from './dist/testing/support.js';",
+      'let calls = 0;',
+      "process.on('beforeExit', () => { calls += 1; });",
+      "process.on('exit', () => console.log(JSON.stringify({beforeExit: calls})));",
+      'instrument();',
+      '(await processorOf(\'express\')).parser.compile(\'surface("e")\\nroot = Text("Hi")\');',
+    ].join('\n');
+    const {endpoint, exports, close} = await collector();
+    try {
+      const {code, stdout, stderr} = await runNode(['--input-type=module', '-e', child], {
+        cwd: PACKAGE,
+        env: childEnv({OTEL_EXPORTER_OTLP_ENDPOINT: endpoint}),
+      });
+      assert.equal(code, 0, stderr);
+      assert.deepEqual(JSON.parse(stdout), {beforeExit: 1});
+      assert.equal(exports(), 1);
+    } finally {
+      await close();
+    }
   });
 
   it('a provider the agent registers after instrument(), with an endpoint named, is kept', async () => {
