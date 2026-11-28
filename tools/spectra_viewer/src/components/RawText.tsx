@@ -8,6 +8,7 @@
  */
 import {type MouseEvent, type ReactNode, useEffect, useRef, useState} from 'react';
 
+import {reducedMotion, scrollingAncestorOf} from '@/lib/scroll.ts';
 import {cn} from '@/lib/utils';
 import type {NodeRef} from '@/model/address.ts';
 import type {ComponentRange} from '@/model/record.ts';
@@ -184,10 +185,7 @@ export function RawText({
  * as the split settles after a reload, until the reader scrolls the pane.
  */
 function keepInView(element: HTMLElement | null, reveal: () => void): (() => void) | undefined {
-  let pane = element?.parentElement ?? null;
-  while (pane !== null && !/(auto|scroll)/.test(getComputedStyle(pane).overflowY)) {
-    pane = pane.parentElement;
-  }
+  const pane = element === null ? null : scrollingAncestorOf(element);
   if (pane === null) return undefined;
   let height = pane.clientHeight;
   const observer = new ResizeObserver(() => {
@@ -211,11 +209,8 @@ function keepInView(element: HTMLElement | null, reveal: () => void): (() => voi
  */
 function scrollTo(element: Element | null | undefined): void {
   if (element === null || element === undefined) return;
-  const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  let pane = element.parentElement;
-  while (pane !== null && !/(auto|scroll)/.test(getComputedStyle(pane).overflowY)) {
-    pane = pane.parentElement;
-  }
+  const reduce = reducedMotion();
+  const pane = scrollingAncestorOf(element);
   const tall = pane !== null && element.getBoundingClientRect().height > pane.clientHeight;
   element.scrollIntoView({block: tall ? 'start' : 'center', behavior: reduce ? 'auto' : 'smooth'});
 }

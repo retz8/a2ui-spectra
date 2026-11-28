@@ -11,6 +11,7 @@ import {Strip} from '@/components/Strip.tsx';
 import {TurnList} from '@/components/TurnList.tsx';
 import {TurnView} from '@/components/TurnView.tsx';
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
+import {reducedMotion} from '@/lib/scroll.ts';
 import {cn} from '@/lib/utils';
 import {
   type Address,
@@ -75,10 +76,6 @@ function swingWidths(
     landing:
       listNow === undefined || viewNow === undefined ? undefined : viewNow + listNow - listThen,
   };
-}
-
-function reducedMotion(): boolean {
-  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 
 function subscribeToHash(listener: () => void): () => void {

@@ -20,3 +20,17 @@ export function scrollIntoColumn(column: Column | null, item: Box | null): void 
   if (box.top < area.top) column.scrollTop -= area.top - box.top;
   else if (box.bottom > area.bottom) column.scrollTop += box.bottom - area.bottom;
 }
+
+/** Whether the reader asked for reduced motion: scrolls jump and the panels swing at once. */
+export function reducedMotion(): boolean {
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+/** The nearest ancestor of an element that scrolls vertically; none when no ancestor does. */
+export function scrollingAncestorOf(element: Element): HTMLElement | null {
+  let pane = element.parentElement;
+  while (pane !== null && !/(auto|scroll)/.test(getComputedStyle(pane).overflowY)) {
+    pane = pane.parentElement;
+  }
+  return pane;
+}

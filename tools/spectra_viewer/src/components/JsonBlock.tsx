@@ -1,5 +1,6 @@
 import {type ReactNode, useEffect, useMemo, useRef, useState} from 'react';
 
+import {reducedMotion} from '@/lib/scroll.ts';
 import {cn} from '@/lib/utils';
 import {
   carriesJsonInString,
@@ -81,7 +82,7 @@ export function JsonBlock({
       return;
     }
     scrolled.current = reveal;
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduce = reducedMotion();
     block.current?.children[markedLine(lines, reveal.path)]?.scrollIntoView({
       block: 'center',
       inline: 'nearest',

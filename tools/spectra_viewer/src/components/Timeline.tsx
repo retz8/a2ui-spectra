@@ -1,5 +1,6 @@
 import {type KeyboardEvent, useEffect, useMemo, useRef} from 'react';
 
+import {reducedMotion} from '@/lib/scroll.ts';
 import {cn} from '@/lib/utils';
 import type {TimelineKey} from '@/model/follow.ts';
 import {type Lane, lanesOf, shareOf} from '@/model/lanes.ts';
@@ -77,7 +78,7 @@ export function Timeline({
   const list = useRef<HTMLDivElement>(null);
   useEffect(() => {
     // The step in view is scrolled to as following or landing moves it; a step clicked is in view already.
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduce = reducedMotion();
     list.current
       ?.querySelector('[aria-selected="true"]')
       ?.scrollIntoView({block: 'nearest', behavior: reduce ? 'auto' : 'smooth'});
