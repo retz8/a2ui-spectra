@@ -204,7 +204,7 @@ catalog ──▶ prompt generator ──▶ prompt ──▶ model ──▶ ra
 
 ## Preview
 
-- The viewer talks to the preview over the preview protocol: A2UI messages go in; render errors, actions and a screenshot come out.
+- The viewer talks to the preview over the preview protocol: A2UI messages go in; render errors and actions come out. A screenshot message is reserved for the first adapter that cannot be embedded in an iframe.
 - A catalog has a definition (`catalog.json`, the component names and props as JSON Schema, which the checks use) and an implementation per renderer. A catalog renders only through a renderer it is implemented for. The basic catalog is implemented in every upstream renderer.
 - **The catalog supplies its own renderer.** The adopter adds the preview adapter as a dev dependency, adds a small page served by the catalog's dev server, and tells Spectra its URL. The adapter takes the renderer as a peer dependency, so the preview runs on the framework and the renderer version the real host uses.
 - The preview adapter is a framework-free core holding the preview protocol, with thin adapters for React, Lit and Angular in v1. The Flutter and SwiftUI adapters follow in Dart and Swift, running in a simulator or on a device and connecting back over a socket.
