@@ -115,7 +115,7 @@ The binary also reads `A2UI_SPECTRA_PROVIDER_STAND_IN`, which makes an origin re
 
 ## The config file
 
-`a2ui-spectra.json`, optional, in the directory Spectra is launched from, or the file `--config` names. It is meant to be committed in your agent's repository; it holds variable names, never secrets. It is trusted as your agent's code is: its `agent.url` and `tools` decide where the agent's traffic goes, and Spectra prints at start each host off this machine a `tools` entry names.
+`a2ui-spectra.json`, optional, in the directory Spectra is launched from, or the file `--config` names. It is meant to be committed in your agent's repository; it holds variable names, never secrets. It is trusted as your agent's code is: its `agent.url` and `tools` decide where the agent's traffic goes, its `preview` pages are sent the agent's A2UI, and Spectra prints at start each host off this machine a `tools` entry or a `preview` page names.
 
 ```json
 {

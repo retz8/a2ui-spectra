@@ -23,7 +23,7 @@ import type {AgentCommand, HeadlessOptions} from './args.js';
 import {openBrowser} from './browser.js';
 import {CatalogRegistry, rereadLine} from './catalog/registry.js';
 import {startCatalogWatch} from './catalog/watch.js';
-import {agentHeaders, ConfigError, type SpectraConfig} from './config.js';
+import {agentHeaders, ConfigError, previewPageLines, type SpectraConfig} from './config.js';
 import {ownEnvironment, pythonVariables} from './environment.js';
 import {FixturesFolder} from './fixtures/fixtures.js';
 import {type MessageBox, unsetVariablesClause} from './message_box.js';
@@ -641,6 +641,7 @@ async function runMode(parts: SessionParts, agentCommand: AgentCommand): Promise
   // The agent's environment points every prefix at the model proxy: where each forwards.
   for (const line of prefixLines(redirected)) out.info(line);
   for (const line of startLines(tools)) out.info(line);
+  for (const line of previewPageLines(options.config.preview)) out.info(line);
   printPlaces(parts);
   const watch = options.config.watch;
   /** The catalog files the save watcher's watch tells, which need no watch of their own. */
@@ -770,6 +771,7 @@ async function attachMode(parts: SessionParts): Promise<'refused' | undefined> {
   out.info(`The viewer is at ${server.url}`);
   out.info(`Point a host at the wire proxy: ${proxy.address}`);
   for (const line of startLines(tools)) out.info(line);
+  for (const line of previewPageLines(options.config.preview)) out.info(line);
   printPlaces(parts);
   const lines = attachLines(redirected, shell => [
     ...exportLines(tools, shell),

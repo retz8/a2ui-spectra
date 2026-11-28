@@ -4,7 +4,14 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {after, describe, it} from 'node:test';
 
-import {agentHeaders, CONFIG_FILE, ConfigError, loadConfig, substituteVariables} from './config.js';
+import {
+  agentHeaders,
+  CONFIG_FILE,
+  ConfigError,
+  loadConfig,
+  previewPageLines,
+  substituteVariables,
+} from './config.js';
 
 const dirs: string[] = [];
 after(() => {
@@ -371,5 +378,23 @@ describe('substituteVariables', () => {
     const {headers, unset} = substituteVariables({'X-Empty': '[${EMPTY}]'}, {EMPTY: ''});
     assert.deepEqual(headers, {'X-Empty': '[]'});
     assert.deepEqual(unset, []);
+  });
+});
+
+describe('previewPageLines', () => {
+  it("says, for each preview page on a host off this machine, that the page gets the agent's A2UI and its presses wait in the composer", () => {
+    assert.deepEqual(
+      previewPageLines([
+        'http://localhost:5173/preview.html',
+        'http://127.0.0.1:4200/',
+        'http://[::1]:8080/',
+        'https://catalog.example:8443/preview/',
+        'http://192.168.1.20:5173/',
+      ]),
+      [
+        "The config file names catalog.example:8443 for a preview page: the agent's A2UI for each surface whose catalog the page claims goes to it, and a press it reports waits in the composer.",
+        "The config file names 192.168.1.20:5173 for a preview page: the agent's A2UI for each surface whose catalog the page claims goes to it, and a press it reports waits in the composer.",
+      ],
+    );
   });
 });

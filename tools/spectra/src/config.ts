@@ -14,6 +14,7 @@ import path from 'node:path';
 import {Ajv2020, type ErrorObject} from 'ajv/dist/2020.js';
 
 import schema from './config.schema.json' with {type: 'json'};
+import {LOOPBACK_HOSTS} from './host_check.js';
 import {VARIABLES as MODEL_VARIABLES} from './model_proxy/redirection.js';
 import type {WatchPaths} from './save_watcher.js';
 
@@ -287,6 +288,24 @@ export function agentHeaders(
     unset,
     left: Object.keys(kept).filter(name => !(name in headers)),
   };
+}
+
+/**
+ * The lines Spectra prints at start under `run` and `attach`, one for each
+ * preview page the config file names on a host off this machine: the page
+ * is sent the agent's A2UI for the surfaces it claims, and a press it
+ * reports waits in the composer.
+ */
+export function previewPageLines(pages: readonly string[]): string[] {
+  return pages.flatMap(page => {
+    const url = new URL(page);
+    return LOOPBACK_HOSTS.includes(url.hostname.toLowerCase())
+      ? []
+      : [
+          `The config file names ${url.host} for a preview page: the agent's A2UI for each surface ` +
+            'whose catalog the page claims goes to it, and a press it reports waits in the composer.',
+        ];
+  });
 }
 
 function parseUrl(value: string, setting: string, file: string): URL {

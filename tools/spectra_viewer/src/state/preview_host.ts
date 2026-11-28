@@ -22,6 +22,9 @@
  * keeps the turn and step it was asked for, so a press, which names its
  * render, goes on as pressed there even after a newer render went out.
  *
+ * A configured page's iframe is sandboxed: it keeps its scripts, its own
+ * origin, its forms and its pop-ups, and cannot navigate the viewer's tab.
+ *
  * The iframes come after the viewer's tree, so a sentinel on each side of
  * them hands focus that leaves a page back beside the Preview pane, whose
  * own stop hands focus to the shown page.
@@ -60,6 +63,15 @@ const BUILT_IN = 'built-in';
 
 /** Where Spectra serves the built-in page. */
 const BUILT_IN_PATH = '/preview/';
+
+/**
+ * A configured page's sandbox: its scripts, its own origin, its forms and
+ * its pop-ups, such as `openUrl`'s window, and not the viewer's tab, its
+ * downloads or its modal dialogs. The built-in page, on the viewer's own
+ * origin, could lift a sandbox, and has none.
+ */
+const CONFIGURED_SANDBOX =
+  'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox';
 
 /** How many of a page's latest renders keep their turn and step, for a press that comes late. */
 const KEPT_RENDERS = 50;
@@ -169,6 +181,7 @@ class PreviewHost {
       url.searchParams.set(VIEWER_PARAMETER, origin);
       const iframe = document.createElement('iframe');
       iframe.title = id === BUILT_IN ? 'Spectra’s built-in preview' : `Preview page ${label}`;
+      if (id !== BUILT_IN) iframe.setAttribute('sandbox', CONFIGURED_SANDBOX);
       Object.assign(iframe.style, {
         position: 'fixed',
         border: '0',

@@ -391,6 +391,13 @@ The built-in page draws the basic catalogs with no setup. It is a React page thr
 - The viewer loads each, in config order and before Spectra's built-in page, and draws a surface in the first page that claims its catalogs.
 - The browser loads the page, not Spectra, so a page must be reachable from the browser the viewer is open in: a remote browser, such as one reaching Spectra through a tunnel, needs the page's address as it reaches it.
 - The page is told the viewer's origin and sends nowhere else; the viewer talks to the origin of the URL as configured. A URL this browser cannot read is left out.
+- The page's iframe is sandboxed with `allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox`: it runs its scripts on its own origin, submits its forms and opens windows, such as `openUrl`'s, and cannot navigate the viewer's tab, start a download or open a modal dialog. The built-in page, on the viewer's own origin, has no sandbox.
+- A configured page is trusted as the agent's code is, as the rest of the config file is. It is sent the agent's A2UI for every surface whose catalogs it claims, ahead of the built-in page; the surface's data model it reports rides the next text in that conversation; and a press it reports waits in the composer, Send taking focus only when the developer pressed in its frame. Under `run` and `attach`, Spectra prints at start a line for each page on a host off this machine:
+
+  ```
+  a2ui-spectra: The config file names catalog.example:8443 for a preview page: the agent's A2UI for each surface whose catalog the page claims goes to it, and a press it reports waits in the composer.
+  ```
+
 - Left out, the list is empty, and the built-in page is the only page.
 
 `catalogs`, beside it, is the catalog definitions for the checks, and is independent of the preview: a page claims what its own code passes to its renderer. Where the config file is found and how strictly it is read are in [the command's README](../../tools/spectra/README.md). The viewer reads the configured pages from the session, as `previewPages` in `GET /api/context`, described in [the API doc](api.md).

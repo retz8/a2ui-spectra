@@ -281,6 +281,19 @@ describe(`the sample catalog apps in Chromium, ${binary ? 'the binary' : 'under 
           const slider = preview.locator('input[type="range"]');
           await slider.waitFor();
 
+          // A configured page's frame is sandboxed, with scripts, its own origin, forms and
+          // pop-ups; the built-in page's is not.
+          assert.equal(
+            await page.locator(`iframe[title="Preview page ${pageUrl}"]`).getAttribute('sandbox'),
+            'allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox',
+          );
+          assert.equal(
+            await page
+              .locator('iframe[title="Spectra’s built-in preview"]')
+              .getAttribute('sandbox'),
+            null,
+          );
+
           // The page reloads itself: the surface is drawn again, and the page stays answered past
           // its time to answer, its new document having answered for its load.
           await reloadFrame(page, pageUrl);
