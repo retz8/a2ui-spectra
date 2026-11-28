@@ -6,6 +6,8 @@ Also, a hooked call's arguments passed by keyword.
 from __future__ import annotations
 
 import asyncio
+import logging
+from collections.abc import Callable
 from types import SimpleNamespace
 from typing import TYPE_CHECKING, Any, Literal
 
@@ -486,6 +488,87 @@ def test_an_error_the_tool_raises_itself_is_recorded_with_no_block(
     assert spans.attributes(span)["error.type"] == error_type
     assert span.status.description == error["exception.message"]
     assert spans.parsed(span, "gen_ai.tool.call.result") == result
+
+
+TOOLSET_LOGGER = "a2ui.adk.send_a2ui_to_client_toolset"
+
+
+@pytest.mark.parametrize(
+    "silence",
+    [
+        lambda: setattr(logging.getLogger(TOOLSET_LOGGER), "disabled", True),
+        lambda: logging.getLogger("a2ui").setLevel(logging.CRITICAL),
+        lambda: logging.disable(logging.ERROR),
+    ],
+    ids=["its logger disabled", "the SDK's loggers raised", "logging disabled"],
+)
+def test_the_tools_own_error_is_recorded_whatever_the_logging_setup(
+    silence: Callable[[], None],
+    spans: conftest.Recorded,
+    processor: conftest.ProcessorFactory,
+) -> None:
+    tool = tool_of(processor())
+    toolset_logger = logging.getLogger(TOOLSET_LOGGER)
+    sdk_logger = logging.getLogger("a2ui")
+    before = (toolset_logger.disabled, sdk_logger.level, logging.root.manager.disable)
+    silence()
+    try:
+        run_tool(tool, "")
+    finally:
+        toolset_logger.disabled, sdk_level, disabled = before
+        sdk_logger.setLevel(sdk_level)
+        logging.disable(disabled)
+
+    span = spans.one()
+    [error] = spans.exceptions(span)
+    assert error["exception.type"] == "A2uiValidationError"
+    assert spans.attributes(span)["error.type"] == "A2uiValidationError"
+
+
+def test_an_exception_the_caller_is_handling_is_not_the_tool_calls_error(
+    caplog: pytest.LogCaptureFixture,
+    spans: conftest.Recorded,
+    processor: conftest.ProcessorFactory,
+) -> None:
+    tool = tool_of(processor())
+    context: Any = SimpleNamespace(actions=SimpleNamespace(skip_summarization=False))
+
+    async def inside_a_handler() -> Any:
+        try:
+            raise RuntimeError("the caller's own")
+        except RuntimeError:
+            return await tool.run_async(
+                args={"a2ui_payload": CARD}, tool_context=context
+            )
+
+    # The tool's "Validated call" line is written at INFO.
+    with caplog.at_level(logging.INFO, logger=TOOLSET_LOGGER):
+        result = asyncio.run(inside_a_handler())
+
+    span = spans.one()
+    assert "validated_a2ui_json" in result
+    assert spans.exceptions(span) == []
+    assert "error.type" not in spans.attributes(span)
+    assert span.status.is_ok or span.status.is_unset
+
+
+def test_the_tools_error_line_is_the_agents_as_without_the_wrapper(
+    caplog: pytest.LogCaptureFixture,
+    spans: conftest.Recorded,
+    processor: conftest.ProcessorFactory,
+) -> None:
+    tool = tool_of(processor())
+    with caplog.at_level(logging.ERROR, logger=TOOLSET_LOGGER):
+        run_tool(tool, "")
+
+    [line] = [
+        record
+        for record in caplog.records
+        if record.name == TOOLSET_LOGGER and record.levelno == logging.ERROR
+    ]
+    assert line.funcName == "run_async"
+    assert line.filename == "send_a2ui_to_client_toolset.py"
+    assert line.getMessage().endswith("A2uiValidationError")
 
 
 # Arguments passed by keyword.

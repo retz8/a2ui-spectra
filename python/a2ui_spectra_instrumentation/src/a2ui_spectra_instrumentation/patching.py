@@ -17,8 +17,8 @@ _PROXY: type = getattr(wrapt, "BaseObjectProxy", wrapt.ObjectProxy)
 # Each attribute hooked, on the object that holds it, in the order hooked.
 _applied: list[tuple[Any, str]] = []
 
-# The filter on the toolset module's logger, while the toolset is hooked.
-_swallowed = hooks.SwallowedErrors()
+# The toolset module's logger, while its `error` is hooked.
+_hooked_loggers: list[logging.Logger] = []
 
 
 def apply(plan: check.Plan) -> None:
@@ -39,7 +39,9 @@ def apply(plan: check.Plan) -> None:
             )
             _applied.append((target.owner, target.attribute))
         if any(target.hook.group == "toolset" for target in plan.targets):
-            logging.getLogger(hooks.TOOLSET_MODULE).addFilter(_swallowed)
+            logger = logging.getLogger(hooks.TOOLSET_MODULE)
+            wrapt.wrap_function_wrapper(logger, "error", hooks.error_line_hook)
+            _hooked_loggers.append(logger)
     except BaseException:
         remove()
         raise
@@ -50,5 +52,7 @@ def remove() -> None:
     while _applied:
         owner, attribute = _applied.pop()
         unwrap(owner, attribute)
-    logging.getLogger(hooks.TOOLSET_MODULE).removeFilter(_swallowed)
+    while _hooked_loggers:
+        # The hook is the logger's own attribute, over its class's method.
+        vars(_hooked_loggers.pop()).pop("error", None)
     hooks.unhook_tools()

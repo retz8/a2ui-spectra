@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import contextvars
 import inspect
-import logging
+import os
 import sys
+import types
 import weakref
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass
@@ -121,7 +122,8 @@ GENERATORS: tuple[Generator, ...] = (
 # The methods hooked on the tool `get_tools` returns named `send_a2ui_json_to_client`.
 TOOL_METHODS = ("run_async", "process_llm_request")
 
-# The toolset's module, whose logger the tool writes each error it swallows to.
+# The toolset's module, on whose logger the tool calls `error` for each error it
+# swallows.
 TOOLSET_MODULE = "a2ui.adk.send_a2ui_to_client_toolset"
 
 # Names the hooks call, checked with the core names.
@@ -572,20 +574,51 @@ def unhook_tools() -> None:
     _refused_tools.clear()
 
 
-class SwallowedErrors(logging.Filter):
-    """Reads each error the toolset's tool swallows.
+_WRAPT_FOLDER = os.path.dirname(os.path.abspath(wrapt.__file__))
 
-    The tool logs it while it handles it.
 
-    The filter is on the toolset module's logger. A record written while an
-    exception is being handled, in a tool call's event, carries that exception;
-    the event records it, belonging to no block, unless an inner call's hook
-    recorded it already. Every record passes.
+def _frames_the_hook_adds(hook_frame: types.FrameType | None) -> int:
+    """How many frames stand between a hooked logger method and its caller.
+
+    The hook's own, and wrapt's when wrapt runs without its C extension.
+    """
+    added = 1
+    frame = hook_frame.f_back if hook_frame is not None else None
+    while frame is not None and os.path.abspath(frame.f_code.co_filename).startswith(
+        _WRAPT_FOLDER
+    ):
+        added += 1
+        frame = frame.f_back
+    return added
+
+
+def error_line_hook(
+    wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
+) -> Any:
+    """Hooks `error` on the toolset module's logger: the error the tool swallows.
+
+    The tool catches every error of its call and calls the logger's `error`
+    while it handles it, the one place it shows the error. In a tool call's
+    event the hook records that error, belonging to no block, unless an inner
+    call's hook recorded it already. It is a hook on the method and not a
+    logging filter, so that the agent's logging setup, a level or a disabled
+    logger, does not decide whether the error is recorded, and no other line of
+    the module reaches it. The line is written as without the hook, at the
+    place the tool wrote it.
     """
 
-    def filter(self, record: logging.LogRecord) -> bool:
-        _safely("the toolset's log filter", lambda: swallowed(sys.exc_info()[1]))
-        return True
+    hook_frame = inspect.currentframe()
+
+    def count_out_the_hook() -> None:
+        # The logger finds the line's place by counting frames up from itself.
+        kwargs["stacklevel"] = kwargs.get("stacklevel", 1) + _frames_the_hook_adds(
+            hook_frame
+        )
+
+    where = "the toolset's error line hook"
+    _safely(where, lambda: swallowed(sys.exc_info()[1]))
+    _safely(where, count_out_the_hook)
+    return wrapped(*args, **kwargs)
 
 
 def swallowed(error: BaseException | None) -> None:

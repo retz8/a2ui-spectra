@@ -22,7 +22,6 @@ import a2ui.utils
 from a2ui.utils import RendererState
 
 import a2ui_spectra_instrumentation
-from a2ui_spectra_instrumentation.hooks import SwallowedErrors
 
 # The fixtures' types, for the type check only: mypy names the tests by their
 # path from the repository root.
@@ -56,12 +55,7 @@ def test_uninstrument_removes_every_hook(
         (SendA2uiToClientToolset, "get_tools"),
     ]:
         assert not support.hooked(owner, name), name
-    assert not any(
-        isinstance(log_filter, SwallowedErrors)
-        for log_filter in logging.getLogger(
-            send_a2ui_to_client_toolset.__name__
-        ).filters
-    )
+    assert "error" not in vars(logging.getLogger(send_a2ui_to_client_toolset.__name__))
     assert "run_async" not in vars(tool)
     assert "process_llm_request" not in vars(tool)
     processor().parse_response(CARD, False)
