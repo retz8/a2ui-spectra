@@ -81,6 +81,34 @@ export function checkTransport(card: Record<string, unknown>): TransportCheck {
   return {kind: 'no_jsonrpc', transports};
 }
 
+/**
+ * What the terminal says of where a card puts JSON-RPC: that it lists no
+ * interface or no JSON-RPC interface, an error, or that it prefers another
+ * transport; nothing for a card that puts JSON-RPC first.
+ */
+export function transportLine(transport: TransportCheck): string | undefined {
+  switch (transport.kind) {
+    case 'no_interface':
+      return (
+        "The agent's card lists no interface to reach it at. A2A 1.0 requires the card's " +
+        'supportedInterfaces, and A2A 0.3 its url, so hosts that follow the card cannot reach ' +
+        'the agent either.'
+      );
+    case 'no_jsonrpc':
+      return (
+        `The agent's card lists no A2A JSON-RPC interface, only ${transport.transports.join(', ')}. ` +
+        'Spectra captures A2A over JSON-RPC only.'
+      );
+    case 'jsonrpc_later':
+      return (
+        `The agent's card prefers ${transport.preferred} to JSON-RPC. ` +
+        "Hosts that follow the card's preference bypass the wire proxy, and their turns are not captured."
+      );
+    case 'jsonrpc_first':
+      return undefined;
+  }
+}
+
 /** An A2UI extension the card advertises. */
 export interface A2uiExtension {
   /** The version its URI names, such as `v0.9`. */
