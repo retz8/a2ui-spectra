@@ -22,6 +22,7 @@ import type {CallEvent, ModelCallEvent, SpanEvent} from '../record/turn_record.j
 import {exchangeKey, type PoolAnswer, type ReplayPool} from '../replay/pool.js';
 import {
   answer502,
+  bodyLeftOutLine,
   brokeOff,
   missLine,
   recordedAnswer,
@@ -448,6 +449,13 @@ async function forward(
     }
     if (recorded.type === 'redirect') {
       const line = redirectLine('model proxy', method, target, recorded.status, recorded.location);
+      state.options.log?.(line);
+      answer502(response, line);
+      capture?.end({failure: {type: 'replay_miss', message: line}});
+      return;
+    }
+    if (recorded.type === 'body_left_out') {
+      const line = bodyLeftOutLine('model proxy', method, target, recorded.contentType);
       state.options.log?.(line);
       answer502(response, line);
       capture?.end({failure: {type: 'replay_miss', message: line}});

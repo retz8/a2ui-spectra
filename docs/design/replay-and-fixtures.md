@@ -279,6 +279,8 @@ Disarming closes the carriers the proxy holds.
 
 **A recorded redirect** is not served, in any mode: a matched call whose recorded status is in the 300s would send the agent's client, its credentials with it, where the record says. It is answered as a miss, `502` and `replay_miss`, carrying no `a2ui.replay.served_from`, with a line of its own naming the status and the host the location named: `a2ui-spectra's model proxy is replaying, and the record answers POST /v1/messages with a redirect, 302 to attacker.example, which a replay does not serve.`
 
+**A reply whose body the record left out** is not served either. The exchange keeps no body that is not JSON, text or form-encoded, so a recorded reply of another type that had a body, an audio file or an image, would be served empty. It is answered as a miss, `502` and `replay_miss`, carrying no `a2ui.replay.served_from`, with a line of its own naming the content type: `a2ui-spectra's model proxy is replaying, and the record answers POST /v1/audio/speech with a body it does not hold, audio/mpeg, which a replay does not serve.` A reply that had no body, a `204` or one whose `content-length` is 0, is served as recorded.
+
 **`a2ui.replay.served_from`**, on a call served from the record, is the span id of the recorded event it was served from. An answer the protocol fixes and a live call carry none. The attribute is in the turn record's [`model_call`](../../specification/turn_record/v0_1/docs/turn_record.md#model_call) and [`tool_call`](../../specification/turn_record/v0_1/docs/turn_record.md#tool_call).
 
 ### The modes

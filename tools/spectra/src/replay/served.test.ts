@@ -3,10 +3,12 @@ import {describe, it} from 'node:test';
 
 import type {ModelCallEvent} from '../record/turn_record.js';
 import {
+  bodyLeftOutLine,
   brokeOff,
   missLine,
   recordedAnswer,
   redirectLine,
+  servedFrom,
   ServedMessage,
   servedHeaders,
   sseText,
@@ -132,7 +134,7 @@ describe('a served reply', () => {
     });
   });
 
-  it('writes a text body as its text, and a body left out of the record as none', () => {
+  it('writes a text body as its text, and a reply that had no body as none', () => {
     const text = recordedAnswer(
       call({
         'http.response.status_code': 404,
@@ -142,14 +144,67 @@ describe('a served reply', () => {
       {broke: false},
     );
     assert.equal(text.type === 'reply' && text.reply.body, 'Not here.');
-    const binary = recordedAnswer(
-      call({
+    for (const none of [
+      {'http.response.status_code': 204},
+      {
         'http.response.status_code': 200,
         'http.response.header.content-type': ['application/octet-stream'],
-      }),
-      {broke: false},
+        'http.response.header.content-length': ['0'],
+      },
+      {
+        'http.request.method': 'HEAD',
+        'http.response.status_code': 200,
+        'http.response.header.content-type': ['audio/mpeg'],
+        'http.response.header.content-length': ['4096'],
+      },
+    ]) {
+      const answer = recordedAnswer(call(none), {broke: false});
+      assert.equal(answer.type === 'reply' && answer.reply.body, '', JSON.stringify(none));
+      assert.equal(answer.type === 'reply' && answer.reply.headers['content-length'], '0');
+    }
+  });
+
+  it('serves no reply whose body the record left out, one that is not JSON, text or form-encoded, naming its type instead', () => {
+    const binary = call({
+      'http.request.method': 'POST',
+      'http.response.status_code': 200,
+      'http.response.header.content-type': ['audio/mpeg'],
+    });
+    assert.deepEqual(recordedAnswer(binary, {broke: false}), {
+      type: 'body_left_out',
+      contentType: 'audio/mpeg',
+    });
+    assert.deepEqual(servedFrom(binary), {}, 'not served, so not marked as served');
+    assert.deepEqual(
+      recordedAnswer(
+        call({
+          'http.response.status_code': 404,
+          'http.response.header.content-type': ['Application/Octet-Stream; charset=binary'],
+          'http.response.header.content-length': ['12'],
+          'error.type': '404',
+        }),
+        {broke: false},
+      ),
+      {type: 'body_left_out', contentType: 'application/octet-stream'},
     );
-    assert.equal(binary.type === 'reply' && binary.reply.headers['content-length'], '0');
+    // A reply that broke off, or that the agent gave up on, is served as far as it came.
+    assert.equal(recordedAnswer(binary, {broke: true}).type, 'reply');
+    assert.equal(
+      recordedAnswer(call({...binary.attributes, 'error.type': 'aborted'}), {broke: false}).type,
+      'reply',
+    );
+  });
+
+  it('says which reply was not served for want of its body, and its type', () => {
+    assert.equal(
+      bodyLeftOutLine(
+        'model proxy',
+        'POST',
+        new URL('https://api.openai.com/v1/audio/speech?key=sk-secret'),
+        'audio/mpeg',
+      ),
+      "a2ui-spectra's model proxy is replaying, and the record answers POST /v1/audio/speech?key=REMOVED with a body it does not hold, audio/mpeg, which a replay does not serve.",
+    );
   });
 
   it('serves a stream as one server-sent event per chunk, its event and id fields as recorded', () => {

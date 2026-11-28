@@ -401,6 +401,37 @@ describe('the tool proxy in replay', () => {
     assert.equal(setup.ended[1].attributes['a2ui.replay.served_from'], '00000000000000c1');
   });
 
+  it('serves no HTTP tool reply whose body the record left out: a miss with a line of its own', async () => {
+    const setup = await setUp('/');
+    const tool: ToolCallEvent = {
+      ...recordedRequest(
+        '00000000000000d2',
+        `${setup.original}/api/image`,
+        {},
+        {
+          'http.response.status_code': 200,
+          'http.response.header.content-type': ['image/png'],
+          'http.response.header.content-length': ['2048'],
+        },
+      ),
+      name: 'GET /api/image',
+    };
+    delete tool.attributes['mcp.method.name'];
+    delete tool.attributes['jsonrpc.request.id'];
+    delete tool.attributes['a2ui.http.request.body'];
+    tool.attributes['http.request.method'] = 'GET';
+    arm(setup, 'recorded', tool);
+    const answer = await send(setup.origin, {method: 'GET', path: '/api/image'});
+    const line =
+      "a2ui-spectra's tool proxy is replaying, and the record answers GET /api/image with a body it does not hold, image/png, which a replay does not serve.";
+    assert.equal(answer.status, 502);
+    assert.equal(answer.body, `${line}\n`);
+    assert.deepEqual(setup.logs, [line]);
+    await eventually(() => setup.ended.length === 1, 'the call ended');
+    assert.equal(setup.ended[0].attributes['error.type'], 'replay_miss');
+    assert.equal(setup.ended[0].attributes['a2ui.replay.served_from'], undefined);
+  });
+
   it('reads a GET: a recorded HTTP tool, a streamable HTTP carrier held open, else a miss', async () => {
     const setup = await setUp('/');
     const tool: ToolCallEvent = {

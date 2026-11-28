@@ -48,7 +48,7 @@ function headerLists(headers: OutgoingHttpHeaders): Record<string, string[]> {
 }
 
 /** Whether a body of this content type is kept in the exchange: JSON, text or form-encoded. */
-function bodyKept(contentType: string | undefined): boolean {
+export function bodyKept(contentType: string | undefined): boolean {
   const type = (contentType ?? '').split(';')[0].trim().toLowerCase();
   return (
     type === 'application/json' ||

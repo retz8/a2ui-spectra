@@ -11,6 +11,7 @@ import {Readable} from 'node:stream';
 
 import type {SseEvent} from '../proxying/sse.js';
 import {REMOVED, removeFromUrl} from '../proxying/credentials.js';
+import {bodyKept} from '../proxying/exchange.js';
 import type {CallEvent} from '../record/turn_record.js';
 import {NAME} from '../version.js';
 
@@ -28,13 +29,15 @@ export interface ServedReply {
 
 /**
  * What a recorded call is served as: a reply; with no response recorded, the
- * proxy's 502 line; or, for a recorded redirect, which a replay does not
- * serve, its status and location.
+ * proxy's 502 line; or, for what a replay does not serve, a recorded redirect
+ * with its status and location, and a reply whose body the record left out
+ * with its content type.
  */
 export type RecordedAnswer =
   | {type: 'reply'; reply: ServedReply}
   | {type: 'unreached'; failure: {type: string; message?: string}}
-  | {type: 'redirect'; status: number; location: string | undefined};
+  | {type: 'redirect'; status: number; location: string | undefined}
+  | {type: 'body_left_out'; contentType: string};
 
 const HEADER = 'http.response.header.';
 
@@ -148,6 +151,8 @@ export function recordedAnswer(
     const first = Array.isArray(location) ? location[0] : location;
     return {type: 'redirect', status, location: typeof first === 'string' ? first : undefined};
   }
+  const leftOut = broke ? undefined : bodyLeftOut(event);
+  if (leftOut !== undefined) return {type: 'body_left_out', contentType: leftOut};
   const headers = servedHeaders(attributes);
   if (wasStreamed(attributes)) {
     return {
@@ -178,12 +183,53 @@ function isRedirect(status: unknown): boolean {
   return typeof status === 'number' && status >= 300 && status < 400;
 }
 
+function firstOf(value: unknown): string | undefined {
+  const first = Array.isArray(value) ? value[0] : value;
+  return first === undefined ? undefined : String(first);
+}
+
+/**
+ * The content type of a recorded reply whose body the record left out: the
+ * exchange keeps no body that is not JSON, text or form-encoded, so a reply of
+ * another type that had one cannot be served. None for a reply that had no
+ * body, that broke off, or that the agent gave up on before it came.
+ */
+function bodyLeftOut(event: CallEvent): string | undefined {
+  const attributes = event.attributes;
+  const status = attributes['http.response.status_code'];
+  const error = attributes['error.type'];
+  if (
+    attributes['a2ui.http.response.body'] !== undefined ||
+    wasStreamed(attributes) ||
+    typeof status !== 'number' ||
+    status === 204 ||
+    status === 304 ||
+    attributes['http.request.method'] === 'HEAD' ||
+    error === 'aborted' ||
+    error === 'cancelled' ||
+    brokeOff(event) ||
+    firstOf(attributes[`${HEADER}content-length`]) === '0'
+  ) {
+    return undefined;
+  }
+  const contentType = firstOf(attributes[`${HEADER}content-type`]);
+  if (contentType === undefined || bodyKept(contentType)) return undefined;
+  return contentType.split(';')[0].trim().toLowerCase();
+}
+
 /**
  * The attribute naming the recorded event a call is served from; none for an
- * event a replay does not serve, a recorded redirect, whose call is a miss.
+ * event a replay does not serve, a recorded redirect or a reply whose body
+ * the record left out, whose call is a miss.
  */
 export function servedFrom(event: CallEvent | undefined): Record<string, unknown> {
-  if (event === undefined || isRedirect(event.attributes['http.response.status_code'])) return {};
+  if (
+    event === undefined ||
+    isRedirect(event.attributes['http.response.status_code']) ||
+    bodyLeftOut(event) !== undefined
+  ) {
+    return {};
+  }
   return {'a2ui.replay.served_from': event.spanId};
 }
 
@@ -331,6 +377,20 @@ export function redirectLine(
   return (
     `${NAME}'s ${proxy} is replaying, and the record answers ${method} ${url.pathname}${url.search} ` +
     `with a redirect, ${status}${where}, which a replay does not serve.`
+  );
+}
+
+/** The 502 line, and the terminal's, for a recorded reply whose body the record left out: its content type. */
+export function bodyLeftOutLine(
+  proxy: string,
+  method: string,
+  target: URL,
+  contentType: string,
+): string {
+  const url = new URL(removeFromUrl(target.href));
+  return (
+    `${NAME}'s ${proxy} is replaying, and the record answers ${method} ${url.pathname}${url.search} ` +
+    `with a body it does not hold, ${contentType}, which a replay does not serve.`
   );
 }
 

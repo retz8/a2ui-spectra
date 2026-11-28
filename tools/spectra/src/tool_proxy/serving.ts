@@ -11,6 +11,7 @@ import type {CallEvent} from '../record/turn_record.js';
 import {exchangeKey, type ReplayPool, requestMessage} from '../replay/pool.js';
 import {
   answer502,
+  bodyLeftOutLine,
   brokeOff,
   missLine,
   recordedAnswer,
@@ -124,6 +125,18 @@ function serve(
       call.target,
       recorded.status,
       recorded.location,
+    );
+    shared.options.log?.(line);
+    answer502(call.response, line);
+    relay.fail({type: 'replay_miss', message: line}, shared.now(), false);
+    return;
+  }
+  if (recorded.type === 'body_left_out') {
+    const line = bodyLeftOutLine(
+      'tool proxy',
+      call.request.method ?? 'GET',
+      call.target,
+      recorded.contentType,
     );
     shared.options.log?.(line);
     answer502(call.response, line);
