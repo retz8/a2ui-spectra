@@ -315,8 +315,12 @@ def parse_response_hook(
         )
     try:
         arguments = _arguments(wrapped, args, kwargs)
-        event = events.ParseEvent(active, "parse_response", _first(arguments))
-        event.wrapped = arguments.get("wrapped") is not False
+        event = events.ParseEvent(
+            active,
+            "parse_response",
+            _first(arguments),
+            wrapped=arguments.get("wrapped") is not False,
+        )
         event.adopt_parser(instance, None)
     except Exception as fault:
         log.report_fault(where, fault)
@@ -395,10 +399,12 @@ def open_stream_hook_for(inference_format: str | None) -> Wrapper:
             return _inner(open_event, wrapped, args, kwargs, where)
         try:
             arguments = _arguments(wrapped, args, kwargs)
-            event = events.ParseEvent(active, "open_stream")
-            event.streamed = True
-            event.stream_parser = instance
-            event.wrapped = arguments.get("wrapped") is not False
+            event = events.ParseEvent(
+                active,
+                "open_stream",
+                wrapped=arguments.get("wrapped") is not False,
+                stream_parser=instance,
+            )
             event.adopt_parser(instance, inference_format)
         except Exception as fault:
             log.report_fault(where, fault)
@@ -684,11 +690,14 @@ async def _run_tool(
         payload = (
             tool_args.get("a2ui_payload") if isinstance(tool_args, Mapping) else None
         )
-        event = events.ParseEvent(active, "tool_call", payload)
-        event.tool_name = events.TOOL_NAME
         call_id = getattr(arguments.get("tool_context"), "function_call_id", None)
-        if isinstance(call_id, str) and call_id:
-            event.call_id = call_id
+        event = events.ParseEvent(
+            active,
+            "tool_call",
+            payload,
+            tool_name=events.TOOL_NAME,
+            call_id=call_id if isinstance(call_id, str) and call_id else None,
+        )
     except Exception as fault:
         log.report_fault(where, fault)
         return await _await_unrecorded(awaitable)
@@ -769,8 +778,7 @@ async def _append_prompt(
     try:
         llm_request = _arguments(wrapped, args, kwargs).get("llm_request")
         before = _system_text(llm_request)
-        event = events.PromptEvent(active)
-        event.tool_name = events.TOOL_NAME
+        event = events.PromptEvent(active, tool_name=events.TOOL_NAME)
     except Exception as fault:
         log.report_fault(where, fault)
         return await _await_unrecorded(awaitable)

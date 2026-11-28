@@ -18,7 +18,7 @@ import os
 import time
 import traceback
 from collections.abc import Iterable, Mapping
-from typing import Any
+from typing import Any, Literal
 
 from opentelemetry import context as otel_context
 from opentelemetry import trace
@@ -30,6 +30,9 @@ from a2ui_spectra_instrumentation import state
 
 # A block's range in the input: start inclusive, end exclusive, in UTF-16 code units.
 Block = tuple[int, int]
+
+# How a parse's text was given, as `a2ui.parse.entry_point`.
+EntryPoint = Literal["parse_response", "open_stream", "compile", "tool_call"]
 
 # The turn record version every span of the step follows, as `a2ui.record.version`.
 RECORD_VERSION = "v0.1"
@@ -170,7 +173,7 @@ class Event:
 
     kind = ""
 
-    def __init__(self, active: state.Active) -> None:
+    def __init__(self, active: state.Active, tool_name: str | None = None) -> None:
         self.active = active
         # Times come from one wall-clock reading and a monotonic clock, so the
         # span events keep their order.
@@ -181,7 +184,8 @@ class Event:
         self.context = otel_context.get_current()
         self.format: str | None = None
         self.catalogs: list[dict[str, str]] | None = None
-        self.tool_name: str | None = None
+        # The toolset's tool, for an event of its call or of its prompt.
+        self.tool_name = tool_name
         self.span_events: list[SpanEvent] = []
         # The errors recorded as `exception` span events in the outermost call
         # that is running, in order; the blocks of every error recorded; and
@@ -370,8 +374,8 @@ class PromptEvent(Event):
 
     kind = "prompt_generation"
 
-    def __init__(self, active: state.Active) -> None:
-        super().__init__(active)
+    def __init__(self, active: state.Active, tool_name: str | None = None) -> None:
+        super().__init__(active, tool_name)
         self.ui_section: str | None = None
 
     def adopt_generator(self, generator: object, inference_format: str | None) -> None:
@@ -416,24 +420,39 @@ class ParseEvent(Event):
     kind = "parse"
 
     def __init__(
-        self, active: state.Active, entry_point: str, text: object = ""
+        self,
+        active: state.Active,
+        entry_point: EntryPoint,
+        text: object = "",
+        *,
+        wrapped: bool = True,
+        stream_parser: object = None,
+        tool_name: str | None = None,
+        call_id: str | None = None,
     ) -> None:
-        super().__init__(active)
+        super().__init__(active, tool_name)
         self.entry_point = entry_point
+        # A whole text's input; a stream's is its chunks.
         self.input = text if isinstance(text, str) else ""
-        self.wrapped = True
-        # A stream's chunks, its parser, and how far its input reaches.
-        self.streamed = False
+        # Whether the call left `wrapped` on; off, the whole input is one block.
+        self.wrapped = wrapped
+        # Whether the event is a stream's, opened by `open_stream`.
+        self.streamed = entry_point == "open_stream"
+        # The parser a stream was opened on, whose `unwrap` finds the blocks
+        # in its input; a stream's chunks; and how far its input reaches.
+        self.stream_parser = stream_parser
         self.chunks: list[str] = []
         self.fed = 0
-        self.stream_parser: object = None
         self.messages: list[Any] = []
-        # The block being compiled, and where the search for the next one starts.
+        # The block being compiled, for a whole text.
         self.current_block: Block | None = None
+        # Where the search for the next block starts, in code points: a whole
+        # text's next compiled block, or a stream's next rejected one.
         self._cursor = 0
         # How many tree checks a stream has run: one for each block it finished.
         self.tree_checks = 0
-        self.call_id: str | None = None
+        # A tool call's id, when its context names one, and what it returned.
+        self.call_id = call_id
         self.tool_result: object = None
         self.has_tool_result = False
         # A stream's placed errors: each one's attributes and the block located
