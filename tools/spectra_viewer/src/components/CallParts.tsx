@@ -548,8 +548,3 @@ function Chunks({
     />
   );
 }
-
-/** A value that should be a list, as one: itself when it is an array, else empty. */
-export function asList(value: unknown): unknown[] {
-  return Array.isArray(value) ? value : [];
-}
