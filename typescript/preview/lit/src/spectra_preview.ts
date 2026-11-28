@@ -9,38 +9,17 @@
 // Registers `<a2ui-surface>`.
 import '@a2ui/lit/v0_9';
 import type {LitComponentApi} from '@a2ui/lit/v0_9';
-import {type Catalog, MessageProcessor, type SurfaceModel} from '@a2ui/web_core/v0_9';
+import {type Catalog, MessageProcessor} from '@a2ui/web_core/v0_9';
+import {type PreviewPage, STANDALONE_LINE, viewerOriginOf} from 'a2ui-spectra-preview';
 import {
-  type PageEvents,
-  type PreviewAdapter,
-  type PreviewPage,
-  STANDALONE_LINE,
-  startPreviewPage,
-  viewerOriginOf,
-  windowErrors,
-  windowTransport,
-} from 'a2ui-spectra-preview';
-import {
-  actionHandlerFor,
-  guardUniversalElements,
-  watchProcessor,
+  type DrawnSurface,
+  type MadeProcessor,
+  startWebPreviewPage,
 } from 'a2ui-spectra-preview/web-core';
 import {html, LitElement, nothing, type PropertyValues} from 'lit';
 import {keyed} from 'lit/directives/keyed.js';
 
-/** A processor the core made, and the way to stop watching it. */
-interface Held {
-  processor: MessageProcessor<LitComponentApi>;
-  generation: number;
-  stopWatching: () => void;
-  surfaceId?: string;
-}
-
-/** What is drawn: a processor's surface, keyed by the processor so a new one remounts. */
-interface Drawn {
-  generation: number;
-  surface: SurfaceModel<LitComponentApi>;
-}
+type Made = MadeProcessor<LitComponentApi>;
 
 /**
  * The Lit preview adapter's element, `<a2ui-spectra-preview>`: draws the
@@ -59,7 +38,7 @@ export class SpectraPreviewElement extends LitElement {
 
   private readonly origin = viewerOriginOf(window.location.search);
   private page: PreviewPage | undefined;
-  private drawn: Drawn | undefined;
+  private drawn: DrawnSurface<LitComponentApi, Made> | undefined;
 
   override createRenderRoot(): this {
     return this;
@@ -85,58 +64,17 @@ export class SpectraPreviewElement extends LitElement {
     if (this.page !== undefined || !this.isConnected || origin === undefined) return;
     if (this.catalogs === undefined) return;
     const catalogs = [...this.catalogs];
-    let made = 0;
-    let shown: Held | undefined;
-    const show = (held: Held) => {
-      shown = held;
-      const surface =
-        held.surfaceId === undefined ? undefined : held.processor.getSurface(held.surfaceId);
-      const before = this.drawn;
-      if (before?.surface === surface && before?.generation === held.generation) return;
-      this.drawn = surface === undefined ? undefined : {generation: held.generation, surface};
-      this.requestUpdate();
-    };
-    const adapter: PreviewAdapter<Held> = {
-      createProcessor: (events: PageEvents) => {
-        guardUniversalElements(events.componentFailed);
-        const processor: MessageProcessor<LitComponentApi> = new MessageProcessor<LitComponentApi>(
-          [...catalogs],
-          actionHandlerFor(events, () => processor),
-        );
-        made += 1;
-        const held: Held = {
-          processor,
-          generation: made,
-          stopWatching: watchProcessor(processor, events, surface => {
-            if (surface.id === held.surfaceId && shown === held) show(held);
-          }),
-        };
-        return held;
-      },
-      feed: (held, message) => {
-        held.processor.processMessages(
-          message as Parameters<MessageProcessor<LitComponentApi>['processMessages']>[0],
-        );
-      },
-      mount: (held, surfaceId) => {
-        held.surfaceId = surfaceId;
-        show(held);
-      },
-      teardown: held => {
-        held.stopWatching();
-        held.processor.dispose();
-        if (shown === held) {
-          shown = undefined;
-          this.drawn = undefined;
-          this.requestUpdate();
-        }
-      },
-    };
-    this.page = startPreviewPage({
+    this.page = startWebPreviewPage<LitComponentApi, Made>({
       catalogs,
-      adapter,
-      transport: windowTransport(origin),
-      errors: windowErrors(),
+      viewerOrigin: origin,
+      makeProcessor: ({actionHandler}) => {
+        const processor = new MessageProcessor<LitComponentApi>([...catalogs], actionHandler);
+        return {processor, dispose: () => processor.dispose()};
+      },
+      draw: drawn => {
+        this.drawn = drawn;
+        this.requestUpdate();
+      },
     });
   }
 

@@ -11,6 +11,7 @@
  */
 import {
   A2UI_RENDERER_CONFIG,
+  type AngularComponentImplementation,
   A2uiRendererService,
   type RendererConfiguration,
   SurfaceComponent,
@@ -26,28 +27,12 @@ import {
   Injector,
   signal,
 } from '@angular/core';
-import {
-  type PageEvents,
-  type PreviewAdapter,
-  STANDALONE_LINE,
-  startPreviewPage,
-  viewerOriginOf,
-  windowErrors,
-  windowTransport,
-} from 'a2ui-spectra-preview';
-import {
-  actionHandlerFor,
-  guardUniversalElements,
-  watchProcessor,
-} from 'a2ui-spectra-preview/web-core';
+import {type PageEvents, STANDALONE_LINE, viewerOriginOf} from 'a2ui-spectra-preview';
+import {type MadeProcessor, startWebPreviewPage} from 'a2ui-spectra-preview/web-core';
 
-/** A processor the core made: its service, the injector holding it, and the way to stop watching it. */
-interface Held {
+/** A processor the core made: its service, and the injector holding it. */
+interface Made extends MadeProcessor<AngularComponentImplementation> {
   injector: DestroyableInjector;
-  service: A2uiRendererService;
-  generation: number;
-  stopWatching: () => void;
-  surfaceId?: string;
 }
 
 /** What is drawn: a surface under its processor's injector, keyed by the processor so a new one remounts. */
@@ -113,74 +98,40 @@ export class SpectraPreviewComponent {
     const config: RendererConfiguration = inject(A2UI_RENDERER_CONFIG);
     const parent = inject(Injector);
     wrapErrorHandler(inject(ErrorHandler));
-    let made = 0;
-    let shown: Held | undefined;
-    const show = (held: Held) => {
-      shown = held;
-      const surfaceId = held.surfaceId;
-      const surface =
-        surfaceId === undefined ? undefined : held.service.processor.getSurface(surfaceId);
-      const before = this.drawn();
-      if (before?.generation === held.generation && before.surfaceId === surface?.id) return;
-      this.drawn.set(
-        surface === undefined
-          ? undefined
-          : {generation: held.generation, surfaceId: surface.id, injector: held.injector},
-      );
-    };
-    const adapter: PreviewAdapter<Held> = {
-      createProcessor: (events: PageEvents) => {
-        reportTo = events.componentFailed;
-        guardUniversalElements(events.componentFailed);
-        const injector: DestroyableInjector = Injector.create({
+    const page = startWebPreviewPage<AngularComponentImplementation, Made>({
+      catalogs: config.catalogs,
+      viewerOrigin: origin,
+      makeProcessor: ({actionHandler, componentFailed}) => {
+        reportTo = componentFailed;
+        const injector = Injector.create({
           providers: [
-            {
-              provide: A2UI_RENDERER_CONFIG,
-              useValue: {
-                ...config,
-                actionHandler: actionHandlerFor(events, () => service.processor),
-              },
-            },
+            {provide: A2UI_RENDERER_CONFIG, useValue: {...config, actionHandler}},
             {provide: A2uiRendererService},
           ],
           parent,
         });
         const service = injector.get(A2uiRendererService);
-        made += 1;
-        const held: Held = {
+        return {
+          processor: service.processor,
           injector,
-          service,
-          generation: made,
-          stopWatching: watchProcessor(service.processor, events, surface => {
-            if (surface.id === held.surfaceId && shown === held) show(held);
-          }),
+          feed: message =>
+            service.processMessages(
+              message as Parameters<A2uiRendererService['processMessages']>[0],
+            ),
+          // The service disposes of its processor as its injector is destroyed.
+          dispose: () => injector.destroy(),
         };
-        return held;
       },
-      feed: (held, message) => {
-        held.service.processMessages(
-          message as Parameters<A2uiRendererService['processMessages']>[0],
-        );
-      },
-      mount: (held, surfaceId) => {
-        held.surfaceId = surfaceId;
-        show(held);
-      },
-      teardown: held => {
-        held.stopWatching();
-        if (shown === held) {
-          shown = undefined;
-          this.drawn.set(undefined);
-        }
-        // The service disposes of its processor as its injector is destroyed.
-        held.injector.destroy();
-      },
-    };
-    const page = startPreviewPage({
-      catalogs: config.catalogs,
-      adapter,
-      transport: windowTransport(origin),
-      errors: windowErrors(),
+      draw: drawn =>
+        this.drawn.set(
+          drawn === undefined
+            ? undefined
+            : {
+                generation: drawn.generation,
+                surfaceId: drawn.surface.id,
+                injector: drawn.made.injector,
+              },
+        ),
     });
     inject(DestroyRef).onDestroy(() => {
       page.stop();

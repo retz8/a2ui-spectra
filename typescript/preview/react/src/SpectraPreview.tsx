@@ -6,20 +6,12 @@
  * `A2uiSurface`. Opened on its own, outside Spectra, the page says what it is.
  */
 import {A2uiSurface, type ReactCatalogComponent} from '@a2ui/react/v0_9';
-import {type Catalog, MessageProcessor, type SurfaceModel} from '@a2ui/web_core/v0_9';
+import {type Catalog, MessageProcessor} from '@a2ui/web_core/v0_9';
+import {STANDALONE_LINE, viewerOriginOf} from 'a2ui-spectra-preview';
 import {
-  type PageEvents,
-  type PreviewAdapter,
-  STANDALONE_LINE,
-  startPreviewPage,
-  viewerOriginOf,
-  windowErrors,
-  windowTransport,
-} from 'a2ui-spectra-preview';
-import {
-  actionHandlerFor,
-  guardUniversalElements,
-  watchProcessor,
+  type DrawnSurface,
+  type MadeProcessor,
+  startWebPreviewPage,
 } from 'a2ui-spectra-preview/web-core';
 import {useEffect, useState} from 'react';
 
@@ -36,19 +28,7 @@ export interface SpectraPreviewProps {
   catalogs: ReadonlyArray<Catalog<ReactCatalogComponent>>;
 }
 
-/** A processor the core made, and the way to stop watching it. */
-interface Held {
-  processor: MessageProcessor<ReactCatalogComponent>;
-  generation: number;
-  stopWatching: () => void;
-  surfaceId?: string;
-}
-
-/** What is drawn: a processor's surface, keyed by the processor so a new one remounts. */
-interface Drawn {
-  generation: number;
-  surface: SurfaceModel<ReactCatalogComponent>;
-}
+type Made = MadeProcessor<ReactCatalogComponent>;
 
 /**
  * The React preview adapter's component: draws the surfaces Spectra sends,
@@ -57,67 +37,23 @@ interface Drawn {
 export function SpectraPreview({catalogs}: SpectraPreviewProps) {
   const [origin] = useState(() => viewerOriginOf(window.location.search));
   const [pageCatalogs] = useState(() => [...catalogs]);
-  const [drawn, setDrawn] = useState<Drawn | undefined>();
+  const [drawn, setDrawn] = useState<DrawnSurface<ReactCatalogComponent, Made> | undefined>();
 
   useEffect(() => {
     if (origin === undefined) return;
     for (const catalog of pageCatalogs) guardCatalog(catalog);
-    let made = 0;
-    let shown: Held | undefined;
-    const show = (held: Held) => {
-      shown = held;
-      const surface =
-        held.surfaceId === undefined ? undefined : held.processor.getSurface(held.surfaceId);
-      setDrawn(before =>
-        surface === undefined
-          ? undefined
-          : before?.surface === surface && before.generation === held.generation
-            ? before
-            : {generation: held.generation, surface},
-      );
-    };
-    const adapter: PreviewAdapter<Held> = {
-      createProcessor: (events: PageEvents) => {
-        reportFailuresTo(events.componentFailed);
-        guardUniversalElements(events.componentFailed);
-        const processor: MessageProcessor<ReactCatalogComponent> =
-          new MessageProcessor<ReactCatalogComponent>(
-            [...pageCatalogs],
-            actionHandlerFor(events, () => processor),
-          );
-        made += 1;
-        const held: Held = {
-          processor,
-          generation: made,
-          stopWatching: watchProcessor(processor, events, surface => {
-            if (surface.id === held.surfaceId && shown === held) show(held);
-          }),
-        };
-        return held;
-      },
-      feed: (held, message) => {
-        held.processor.processMessages(
-          message as Parameters<MessageProcessor<ReactCatalogComponent>['processMessages']>[0],
-        );
-      },
-      mount: (held, surfaceId) => {
-        held.surfaceId = surfaceId;
-        show(held);
-      },
-      teardown: held => {
-        held.stopWatching();
-        held.processor.dispose();
-        if (shown === held) {
-          shown = undefined;
-          setDrawn(undefined);
-        }
-      },
-    };
-    const page = startPreviewPage({
+    const page = startWebPreviewPage<ReactCatalogComponent, Made>({
       catalogs: pageCatalogs,
-      adapter,
-      transport: windowTransport(origin),
-      errors: windowErrors(),
+      viewerOrigin: origin,
+      makeProcessor: ({actionHandler, componentFailed}) => {
+        reportFailuresTo(componentFailed);
+        const processor = new MessageProcessor<ReactCatalogComponent>(
+          [...pageCatalogs],
+          actionHandler,
+        );
+        return {processor, dispose: () => processor.dispose()};
+      },
+      draw: setDrawn,
     });
     return () => {
       page.stop();
