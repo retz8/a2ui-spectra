@@ -335,6 +335,7 @@ export async function runSession(
       port: options.receiverPort,
       onSpans: received => spans.takeSpans(received),
       onLogs: received => spans.takeLogs(received),
+      allowedHosts,
     });
     const agentEnvironment = {
       ...environmentOf(redirected),

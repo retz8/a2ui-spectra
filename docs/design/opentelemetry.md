@@ -136,6 +136,8 @@ That line is cut from a run of the built binary with `--receiver-port 9923`.
 
 | Request                                                                       | Answer                                                                                                     |
 | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| A `Host` that is not a loopback name or one given with `--allow-host`         | `403`, `Blocked request: this host is not allowed. To allow it, start Spectra with --allow-host <name>.`   |
+| A request carrying `Origin`, a page's                                         | `403`, `Blocked request: this proxy does not take requests from a web page.`                               |
 | `POST /v1/traces` or `POST /v1/logs`, read                                    | `200` with an empty export response in the request's own encoding: no bytes in protobuf, `{}` in OTLP/JSON |
 | `POST /v1/metrics`                                                            | `200`, and the metrics are dropped                                                                         |
 | A body that does not unzip, or does not decode as its signal's export request | `400`, with the reason, such as `resourceSpans[0].scopeSpans[0].spans[0].traceId is not 16 bytes of hex.`  |

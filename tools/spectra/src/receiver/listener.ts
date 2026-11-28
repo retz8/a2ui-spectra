@@ -3,12 +3,15 @@
  * `POST /v1/traces` and `POST /v1/logs` read, in protobuf or OTLP/JSON,
  * gzip included; `POST /v1/metrics` answered and dropped. A request that was
  * read is answered `200` with an empty export response in its own encoding;
- * a body that does not decode, `400`. No header of an export request is
- * recorded.
+ * a body that does not decode, `400`. A request whose `Host` is not a
+ * loopback name or one given with `--allow-host`, or that carries `Origin`,
+ * a page's, is refused `403`, as the model proxy refuses it. No header of an
+ * export request is recorded.
  */
 import {createServer, type IncomingMessage, type ServerResponse} from 'node:http';
 import {gunzip} from 'node:zlib';
 
+import {proxyRefusal, refuseRequest} from '../host_check.js';
 import {listenError, LOOPBACK_ADDRESS} from '../server.js';
 import {NAME} from '../version.js';
 import {
@@ -31,6 +34,8 @@ export interface ReceiverListenerOptions {
   onSpans: (spans: ReceivedSpan[]) => void;
   /** Takes the log records of each log export request. */
   onLogs: (logs: ReceivedLog[]) => void;
+  /** The names given with `--allow-host`, answered beside the loopback names. None unless set. */
+  allowedHosts?: readonly string[];
 }
 
 export interface ReceiverListener {
@@ -104,6 +109,11 @@ function handle(
   request: IncomingMessage,
   response: ServerResponse,
 ): void {
+  const refusal = proxyRefusal(request.headers, options.allowedHosts ?? [], 'refused');
+  if (refusal !== undefined) {
+    refuseRequest(request, response, refusal);
+    return;
+  }
   const {pathname} = new URL(request.url ?? '/', 'http://localhost');
   if (!SIGNALS.has(pathname)) {
     request.resume();
