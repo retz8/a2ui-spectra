@@ -23,9 +23,9 @@ from google.adk.models.llm_request import LlmRequest
 from google.genai import types
 
 import a2ui_spectra_instrumentation
-from a2ui_spectra_instrumentation import events
-from a2ui_spectra_instrumentation import hooks
-from a2ui_spectra_instrumentation import state
+from a2ui_spectra_instrumentation import _events
+from a2ui_spectra_instrumentation import _hooks
+from a2ui_spectra_instrumentation import _state
 
 # The fixtures' types, for the type check only: mypy names the tests by their
 # path from the repository root.
@@ -64,9 +64,9 @@ def unhooked(processor: conftest.ProcessorFactory, text: str) -> Any:
 @pytest.mark.parametrize(
     "where",
     [
-        (events.ParseEvent, "__init__"),
-        (events.ParseEvent, "take_parts"),
-        (events.Event, "end"),
+        (_events.ParseEvent, "__init__"),
+        (_events.ParseEvent, "take_parts"),
+        (_events.Event, "end"),
     ],
     ids=["before the call", "after it returns", "when the span is written"],
 )
@@ -91,7 +91,7 @@ def test_a_fault_leaves_the_return_as_it_is(
 
 @pytest.mark.parametrize(
     "where",
-    [(events.ParseEvent, "__init__"), (events.ParseEvent, "fail")],
+    [(_events.ParseEvent, "__init__"), (_events.ParseEvent, "fail")],
     ids=["before the call", "after it raises"],
 )
 def test_a_fault_leaves_the_exception_as_it_is(
@@ -165,18 +165,18 @@ def tool_prompt(processor: conftest.ProcessorFactory) -> Any:
 @pytest.mark.parametrize(
     ("call", "where", "lines"),
     [
-        (compile_alone, (events.ParseEvent, "__init__"), 1),
-        (compile_alone, (events.ParseEvent, "take_messages"), 1),
-        (stream, (events.ParseEvent, "__init__"), 1),
-        (stream, (events.ParseEvent, "feed"), 1),
+        (compile_alone, (_events.ParseEvent, "__init__"), 1),
+        (compile_alone, (_events.ParseEvent, "take_messages"), 1),
+        (stream, (_events.ParseEvent, "__init__"), 1),
+        (stream, (_events.ParseEvent, "feed"), 1),
         # One line for the `feed` and one for the `close`.
-        (stream, (events.ParseEvent, "take_parts"), 2),
-        (generate, (events.PromptEvent, "__init__"), 1),
-        (generate, (events.PromptEvent, "take_section"), 1),
-        (tool_call, (events.ParseEvent, "__init__"), 1),
-        (tool_call, (events.ParseEvent, "take_tool_result"), 1),
-        (tool_prompt, (events.PromptEvent, "__init__"), 1),
-        (tool_prompt, (events.PromptEvent, "take_section"), 1),
+        (stream, (_events.ParseEvent, "take_parts"), 2),
+        (generate, (_events.PromptEvent, "__init__"), 1),
+        (generate, (_events.PromptEvent, "take_section"), 1),
+        (tool_call, (_events.ParseEvent, "__init__"), 1),
+        (tool_call, (_events.ParseEvent, "take_tool_result"), 1),
+        (tool_prompt, (_events.PromptEvent, "__init__"), 1),
+        (tool_prompt, (_events.PromptEvent, "take_section"), 1),
     ],
     ids=[
         "compile, before the call",
@@ -241,12 +241,12 @@ def raised_by(call: Call, processor: conftest.ProcessorFactory) -> Exception:
 @pytest.mark.parametrize(
     ("call", "where"),
     [
-        (compile_rejected, (events.ParseEvent, "__init__")),
-        (compile_rejected, (events.ParseEvent, "fail")),
-        (feed_rejected, (events.ParseEvent, "feed")),
-        (feed_rejected, (events.ParseEvent, "fail")),
-        (tool_prompt_without_a_request, (events.PromptEvent, "__init__")),
-        (tool_prompt_without_a_request, (events.PromptEvent, "fail")),
+        (compile_rejected, (_events.ParseEvent, "__init__")),
+        (compile_rejected, (_events.ParseEvent, "fail")),
+        (feed_rejected, (_events.ParseEvent, "feed")),
+        (feed_rejected, (_events.ParseEvent, "fail")),
+        (tool_prompt_without_a_request, (_events.PromptEvent, "__init__")),
+        (tool_prompt_without_a_request, (_events.PromptEvent, "fail")),
     ],
     ids=[
         "compile, before the call",
@@ -303,13 +303,13 @@ def test_the_tools_prompt_raising_gives_the_failed_form_and_its_own_error(
 def test_the_tool_under_an_open_event_opens_none(
     call: Call, spans: conftest.Recorded, processor: conftest.ProcessorFactory
 ) -> None:
-    active = state.current()
+    active = _state.current()
     assert active is not None
-    token = events.enter(events.PromptEvent(active))
+    token = _events.enter(_events.PromptEvent(active))
     try:
         returned = call(processor)
     finally:
-        events.leave(token)
+        _events.leave(token)
 
     assert spans.all() == []
     a2ui_spectra_instrumentation.uninstrument()
@@ -332,8 +332,8 @@ def test_a_tool_that_lacks_a_method_is_left_unhooked_with_one_line(
 ) -> None:
     tool = Lacking()
     with caplog.at_level(logging.WARNING):
-        hooks.hook_tools([tool])
-        hooks.hook_tools([tool])
+        _hooks.hook_tools([tool])
+        _hooks.hook_tools([tool])
 
     [line] = support.lines(caplog)
     assert line.levelno == logging.WARNING

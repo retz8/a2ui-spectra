@@ -12,11 +12,11 @@ from opentelemetry.instrumentation.instrumentor import (  # type: ignore[attr-de
     BaseInstrumentor,
 )
 
-from a2ui_spectra_instrumentation import check
-from a2ui_spectra_instrumentation import package
-from a2ui_spectra_instrumentation import patching
-from a2ui_spectra_instrumentation import provider
-from a2ui_spectra_instrumentation import state
+from a2ui_spectra_instrumentation import _check
+from a2ui_spectra_instrumentation import _package
+from a2ui_spectra_instrumentation import _patching
+from a2ui_spectra_instrumentation import _provider
+from a2ui_spectra_instrumentation import _state
 from a2ui_spectra_instrumentation import version
 
 
@@ -30,7 +30,7 @@ class A2uiInstrumentor(BaseInstrumentor):  # type: ignore[misc]
     """
 
     def instrumentation_dependencies(self) -> Collection[str]:
-        return package._instruments
+        return _package._instruments
 
     def _instrument(self, **kwargs: Any) -> None:
         """Checks the SDK and hooks it, or leaves it unpatched with one line.
@@ -39,11 +39,11 @@ class A2uiInstrumentor(BaseInstrumentor):  # type: ignore[misc]
         agent: an agent with the wrapper on starts as it does without it.
         """
         try:
-            plan = check.check()
+            plan = _check.check()
         except Exception as fault:
-            check.refuse(
-                package.AGENT_SDK,
-                check.installed_version(package.AGENT_SDK),
+            _check.refuse(
+                _package.AGENT_SDK,
+                _check.installed_version(_package.AGENT_SDK),
                 f"its check failed ({type(fault).__name__}: {fault})",
             )
             return
@@ -54,28 +54,28 @@ class A2uiInstrumentor(BaseInstrumentor):  # type: ignore[misc]
         # that is when a span is written: the agent's own, or the one the
         # wrapper starts when its first event ends.
         tracer = trace.get_tracer(
-            package.SCOPE_NAME, version.__version__, tracer_provider=given
+            _package.SCOPE_NAME, version.__version__, tracer_provider=given
         )
-        state.activate(
-            _active(plan, tracer, provider.LateStart() if given is None else _nothing)
+        _state.activate(
+            _active(plan, tracer, _provider.LateStart() if given is None else _nothing)
         )
         try:
-            patching.apply(plan)
+            _patching.apply(plan)
         except Exception as fault:
-            state.deactivate()
-            check.refuse(
-                package.AGENT_SDK,
+            _state.deactivate()
+            _check.refuse(
+                _package.AGENT_SDK,
                 plan.sdk_version,
                 f"hooking it failed ({type(fault).__name__}: {fault})",
             )
             return
         except BaseException:
-            state.deactivate()
+            _state.deactivate()
             raise
 
     def _uninstrument(self, **kwargs: Any) -> None:
-        patching.remove()
-        state.deactivate()
+        _patching.remove()
+        _state.deactivate()
 
 
 def _nothing() -> None:
@@ -83,14 +83,14 @@ def _nothing() -> None:
 
 
 def _active(
-    plan: check.Plan, tracer: trace.Tracer, start_provider: Callable[[], None]
-) -> state.Active:
+    plan: _check.Plan, tracer: trace.Tracer, start_provider: Callable[[], None]
+) -> _state.Active:
     parsers = tuple(
         (target.owner, target.hook.format)
         for target in plan.targets
         if target.hook.role == "compile" and target.hook.format is not None
     )
-    return state.Active(
+    return _state.Active(
         tracer=tracer,
         start_provider=start_provider,
         sdk_version=plan.sdk_version,

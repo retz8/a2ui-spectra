@@ -19,9 +19,9 @@ from typing import Any, Literal
 
 import wrapt
 
-from a2ui_spectra_instrumentation import events
-from a2ui_spectra_instrumentation import log
-from a2ui_spectra_instrumentation import state
+from a2ui_spectra_instrumentation import _events
+from a2ui_spectra_instrumentation import _log
+from a2ui_spectra_instrumentation import _state
 
 Wrapper = Callable[[Any, Any, tuple[Any, ...], dict[str, Any]], Any]
 
@@ -177,15 +177,17 @@ def _safely(where: str, action: Callable[[], object]) -> None:
     try:
         action()
     except Exception as fault:
-        log.report_fault(where, fault)
+        _log.report_fault(where, fault)
 
 
-def _leave(event: events.Event, token: contextvars.Token[events.Event | None]) -> None:
+def _leave(
+    event: _events.Event, token: contextvars.Token[_events.Event | None]
+) -> None:
     """The outermost call on an event is over.
 
     The event is no longer the open one, and keeps no error.
     """
-    events.leave(token)
+    _events.leave(token)
     event.release()
 
 
@@ -206,29 +208,29 @@ def _first(arguments: dict[str, Any]) -> Any:
 
 
 def _unrecorded(
-    active: state.Active, wrapped: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
+    active: _state.Active, wrapped: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
     """A call the wrapper does not record.
 
     The calls nested in it open no event either.
     """
-    token = events.enter(events.Silent(active))
+    token = _events.enter(_events.Silent(active))
     try:
         return wrapped(*args, **kwargs)
     finally:
-        events.leave(token)
+        _events.leave(token)
 
 
-async def _await_unrecorded(active: state.Active, awaitable: Awaitable[Any]) -> Any:
-    token = events.enter(events.Silent(active))
+async def _await_unrecorded(active: _state.Active, awaitable: Awaitable[Any]) -> Any:
+    token = _events.enter(_events.Silent(active))
     try:
         return await awaitable
     finally:
-        events.leave(token)
+        _events.leave(token)
 
 
 def _inner(
-    event: events.Event,
+    event: _events.Event,
     wrapped: Any,
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
@@ -257,7 +259,7 @@ def _inner(
 
 
 def _outermost(
-    event: events.Event,
+    event: _events.Event,
     wrapped: Any,
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
@@ -269,7 +271,7 @@ def _outermost(
     A cancellation or an interrupt is no error of the call: it passes, and the
     event ends without a span.
     """
-    token = events.enter(event)
+    token = _events.enter(event)
     try:
         result = wrapped(*args, **kwargs)
     except Exception as error:
@@ -286,7 +288,7 @@ def _outermost(
 
 
 async def _outermost_awaited(
-    event: events.Event,
+    event: _events.Event,
     awaitable: Awaitable[Any],
     where: str,
     returned: Callable[[Any], object],
@@ -296,7 +298,7 @@ async def _outermost_awaited(
 
     What a raised error is recorded by is the event's `fail`, unless given.
     """
-    token = events.enter(event)
+    token = _events.enter(event)
     try:
         result = await awaitable
     except Exception as error:
@@ -319,11 +321,11 @@ def parse_response_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
     """Hooks `Parser.parse_response`: an outermost call is one `parse`."""
-    active = state.current()
+    active = _state.current()
     if active is None:
         return wrapped(*args, **kwargs)
     where = "the parse_response hook"
-    open_event = events.current()
+    open_event = _events.current()
     if open_event is not None:
         return _inner(
             open_event,
@@ -335,7 +337,7 @@ def parse_response_hook(
         )
     try:
         arguments = _arguments(wrapped, args, kwargs)
-        event = events.ParseEvent(
+        event = _events.ParseEvent(
             active,
             "parse_response",
             _first(arguments),
@@ -343,7 +345,7 @@ def parse_response_hook(
         )
         event.adopt_parser(instance, None)
     except Exception as fault:
-        log.report_fault(where, fault)
+        _log.report_fault(where, fault)
         return _unrecorded(active, wrapped, args, kwargs)
 
     def returned(parts: Any) -> None:
@@ -360,11 +362,11 @@ def compile_hook_for(inference_format: InferenceFormat | None) -> Wrapper:
         wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
     ) -> Any:
         """Hooks a parser's `compile`: an outermost call is one `parse`."""
-        active = state.current()
+        active = _state.current()
         if active is None:
             return wrapped(*args, **kwargs)
         where = "the compile hook"
-        open_event = events.current()
+        open_event = _events.current()
         if open_event is not None:
 
             def before() -> None:
@@ -374,11 +376,11 @@ def compile_hook_for(inference_format: InferenceFormat | None) -> Wrapper:
             return _inner(open_event, wrapped, args, kwargs, where, before=before)
         try:
             text = _first(_arguments(wrapped, args, kwargs))
-            event = events.ParseEvent(active, "compile", text)
+            event = _events.ParseEvent(active, "compile", text)
             event.adopt_parser(instance, inference_format)
             event.note_compile(text)
         except Exception as fault:
-            log.report_fault(where, fault)
+            _log.report_fault(where, fault)
             return _unrecorded(active, wrapped, args, kwargs)
 
         def returned(messages: Any) -> None:
@@ -391,12 +393,12 @@ def compile_hook_for(inference_format: InferenceFormat | None) -> Wrapper:
 
 
 # A stream's event lives with its stream object.
-_streams: weakref.WeakKeyDictionary[Any, events.ParseEvent] = (
+_streams: weakref.WeakKeyDictionary[Any, _events.ParseEvent] = (
     weakref.WeakKeyDictionary()
 )
 
 
-def _stream_event(stream: Any) -> events.ParseEvent | None:
+def _stream_event(stream: Any) -> _events.ParseEvent | None:
     try:
         return _streams.get(stream)
     except TypeError:
@@ -410,16 +412,16 @@ def open_stream_hook_for(inference_format: InferenceFormat | None) -> Wrapper:
         wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
     ) -> Any:
         """Hooks `open_stream`: the stream it returns is one `parse`."""
-        active = state.current()
+        active = _state.current()
         if active is None:
             return wrapped(*args, **kwargs)
         where = "the open_stream hook"
-        open_event = events.current()
+        open_event = _events.current()
         if open_event is not None:
             return _inner(open_event, wrapped, args, kwargs, where)
         try:
             arguments = _arguments(wrapped, args, kwargs)
-            event = events.ParseEvent(
+            event = _events.ParseEvent(
                 active,
                 "open_stream",
                 wrapped=arguments.get("wrapped") is not False,
@@ -427,7 +429,7 @@ def open_stream_hook_for(inference_format: InferenceFormat | None) -> Wrapper:
             )
             event.adopt_parser(instance, inference_format)
         except Exception as fault:
-            log.report_fault(where, fault)
+            _log.report_fault(where, fault)
             return _unrecorded(active, wrapped, args, kwargs)
 
         def returned(stream: Any) -> None:
@@ -444,14 +446,14 @@ def _stream_call(
     args: tuple[Any, ...],
     kwargs: dict[str, Any],
     where: str,
-    before: Callable[[events.ParseEvent], object] | None,
+    before: Callable[[_events.ParseEvent], object] | None,
     closing: bool,
 ) -> Any:
     """A `feed` or `close` on a stream with an event.
 
     The event is the open event while it runs.
     """
-    active = state.current()
+    active = _state.current()
     if active is None:
         return wrapped(*args, **kwargs)
     event = _stream_event(instance)
@@ -462,7 +464,7 @@ def _stream_call(
         try:
             before(event)
         except Exception as fault:
-            log.report_fault(where, fault)
+            _log.report_fault(where, fault)
             event.abandon()
             return _unrecorded(active, wrapped, args, kwargs)
 
@@ -479,7 +481,7 @@ def feed_hook(
 ) -> Any:
     """Hooks a stream's `feed`: the chunk joins the stream's `parse`."""
 
-    def before(event: events.ParseEvent) -> None:
+    def before(event: _events.ParseEvent) -> None:
         event.feed(_first(_arguments(wrapped, args, kwargs)))
 
     return _stream_call(
@@ -503,7 +505,7 @@ def whole_tree_hook(
 
     The checks are `RendererState.check_topology` and `validate_payload`.
     """
-    open_event = events.current() if state.current() is not None else None
+    open_event = _events.current() if _state.current() is not None else None
     if open_event is None:
         return wrapped(*args, **kwargs)
     return _inner(
@@ -515,7 +517,7 @@ def apply_hook(
     wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
 ) -> Any:
     """Hooks `RendererState.apply`: an error it raises is seen when raised."""
-    open_event = events.current() if state.current() is not None else None
+    open_event = _events.current() if _state.current() is not None else None
     if open_event is None:
         return wrapped(*args, **kwargs)
     return _inner(open_event, wrapped, args, kwargs, "the apply hook")
@@ -531,11 +533,11 @@ def generate_hook(
 
     It records one only for a generator of a format's class.
     """
-    active = state.current()
+    active = _state.current()
     if active is None:
         return wrapped(*args, **kwargs)
     where = "the generate hook"
-    open_event = events.current()
+    open_event = _events.current()
     if open_event is not None:
         return _inner(
             open_event,
@@ -553,10 +555,10 @@ def generate_hook(
             # A generator of none of the format classes gives no event.
             event = None
         else:
-            event = events.PromptEvent(active)
+            event = _events.PromptEvent(active)
             event.adopt_generator(instance, inference_format)
     except Exception as fault:
-        log.report_fault(where, fault)
+        _log.report_fault(where, fault)
         return _unrecorded(active, wrapped, args, kwargs)
     if event is None:
         return wrapped(*args, **kwargs)
@@ -575,7 +577,7 @@ def get_tools_hook(
 ) -> Any:
     """Hooks the toolset's `get_tools`: it hooks the tool it returns."""
     awaitable = wrapped(*args, **kwargs)
-    if state.current() is None:
+    if _state.current() is None:
         return awaitable
 
     async def returned() -> Any:
@@ -590,7 +592,7 @@ def hook_tools(tools: Any) -> None:
     """Hooks `run_async` and `process_llm_request` on the toolset's tool."""
     for tool in tools if isinstance(tools, list) else []:
         if (
-            getattr(tool, "name", None) != events.TOOL_NAME
+            getattr(tool, "name", None) != _events.TOOL_NAME
             or tool in _tools
             or tool in _refused_tools
         ):
@@ -601,9 +603,9 @@ def hook_tools(tools: Any) -> None:
         )
         if missing is not None:
             _refused_tools.add(tool)
-            log.logger.warning(
+            _log.logger.warning(
                 "a2ui-spectra-instrumentation left the %s tool unhooked: it has no %s",
-                events.TOOL_NAME,
+                _events.TOOL_NAME,
                 missing,
             )
             continue
@@ -672,10 +674,10 @@ def error_line_hook(
 
 def swallowed(error: BaseException | None) -> None:
     """Records an error the toolset's tool swallowed, in its call's event."""
-    open_event = events.current() if state.current() is not None else None
+    open_event = _events.current() if _state.current() is not None else None
     if (
         isinstance(error, Exception)
-        and isinstance(open_event, events.ParseEvent)
+        and isinstance(open_event, _events.ParseEvent)
         and open_event.entry_point == "tool_call"
         and open_event.depth == 0
         and not open_event.ended
@@ -688,14 +690,14 @@ def run_async_hook(
 ) -> Any:
     """Hooks the tool's `run_async`: an outermost call is one `parse`."""
     awaitable = wrapped(*args, **kwargs)
-    active = state.current()
+    active = _state.current()
     if active is None:
         return awaitable
     return _run_tool(active, awaitable, wrapped, args, kwargs)
 
 
 async def _run_tool(
-    active: state.Active,
+    active: _state.Active,
     awaitable: Awaitable[Any],
     wrapped: Any,
     args: tuple[Any, ...],
@@ -703,7 +705,7 @@ async def _run_tool(
 ) -> Any:
     """The tool's call is one `parse`, its input the `a2ui_payload` argument."""
     where = "the run_async hook"
-    if events.current() is not None:
+    if _events.current() is not None:
         return await awaitable
     try:
         arguments = _arguments(wrapped, args, kwargs)
@@ -712,15 +714,15 @@ async def _run_tool(
             tool_args.get("a2ui_payload") if isinstance(tool_args, Mapping) else None
         )
         call_id = getattr(arguments.get("tool_context"), "function_call_id", None)
-        event = events.ParseEvent(
+        event = _events.ParseEvent(
             active,
             "tool_call",
             payload,
-            tool_name=events.TOOL_NAME,
+            tool_name=_events.TOOL_NAME,
             call_id=call_id if isinstance(call_id, str) and call_id else None,
         )
     except Exception as fault:
-        log.report_fault(where, fault)
+        _log.report_fault(where, fault)
         return await _await_unrecorded(active, awaitable)
     return await _outermost_awaited(event, awaitable, where, event.take_tool_result)
 
@@ -733,7 +735,7 @@ def process_llm_request_hook(
     It records what the tool appends to the instructions.
     """
     awaitable = wrapped(*args, **kwargs)
-    active = state.current()
+    active = _state.current()
     if active is None:
         return awaitable
     return _append_prompt(active, awaitable, wrapped, instance, args, kwargs)
@@ -749,13 +751,13 @@ def _system_text(llm_request: Any) -> str | None:
     return instruction if isinstance(instruction, str) else None
 
 
-def _adopt_processor(event: events.Event, processor: Any) -> None:
+def _adopt_processor(event: _events.Event, processor: Any) -> None:
     """Adopts the format and catalogs of a processor's prompt generator.
 
     What is no processor, such as a provider of one, gives the event nothing.
     """
     generator = getattr(getattr(processor, "format", None), "prompt_generator", None)
-    active = state.current()
+    active = _state.current()
     if generator is not None and active is not None:
         event.adopt_generator(generator, active.generator_format(generator))
 
@@ -769,7 +771,7 @@ def resolve_processor_hook(
     of processors, which names neither.
     """
     awaitable = wrapped(*args, **kwargs)
-    open_event = events.current() if state.current() is not None else None
+    open_event = _events.current() if _state.current() is not None else None
     if open_event is None:
         return awaitable
 
@@ -785,7 +787,7 @@ def resolve_processor_hook(
 
 
 async def _append_prompt(
-    active: state.Active,
+    active: _state.Active,
     awaitable: Awaitable[Any],
     wrapped: Any,
     tool: Any,
@@ -794,14 +796,14 @@ async def _append_prompt(
 ) -> Any:
     """What the tool appends to the instructions is one `prompt_generation`."""
     where = "the process_llm_request hook"
-    if events.current() is not None:
+    if _events.current() is not None:
         return await awaitable
     try:
         llm_request = _arguments(wrapped, args, kwargs).get("llm_request")
         before = _system_text(llm_request)
-        event = events.PromptEvent(active, tool_name=events.TOOL_NAME)
+        event = _events.PromptEvent(active, tool_name=_events.TOOL_NAME)
     except Exception as fault:
-        log.report_fault(where, fault)
+        _log.report_fault(where, fault)
         return await _await_unrecorded(active, awaitable)
 
     # The processor the call resolved is adopted as it resolves. A call that

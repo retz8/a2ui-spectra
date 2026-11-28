@@ -8,8 +8,8 @@ from typing import Any
 import wrapt
 from opentelemetry.instrumentation.utils import unwrap
 
-from a2ui_spectra_instrumentation import check
-from a2ui_spectra_instrumentation import hooks
+from a2ui_spectra_instrumentation import _check
+from a2ui_spectra_instrumentation import _hooks
 
 # A hook's class: wrapt 2's `BaseObjectProxy`, wrapt 1's `ObjectProxy`.
 _PROXY: type = getattr(wrapt, "BaseObjectProxy", wrapt.ObjectProxy)
@@ -21,7 +21,7 @@ _applied: list[tuple[Any, str]] = []
 _hooked_loggers: list[logging.Logger] = []
 
 
-def apply(plan: check.Plan) -> None:
+def apply(plan: _check.Plan) -> None:
     """Hooks every name of the plan.
 
     On a failure, it removes what it hooked and raises.
@@ -35,12 +35,12 @@ def apply(plan: check.Plan) -> None:
                 _applied.append((target.owner, target.attribute))
                 continue
             wrapt.wrap_function_wrapper(
-                target.owner, target.attribute, hooks.wrapper_for(target.hook)
+                target.owner, target.attribute, _hooks.wrapper_for(target.hook)
             )
             _applied.append((target.owner, target.attribute))
         if any(target.hook.group == "toolset" for target in plan.targets):
-            logger = logging.getLogger(hooks.TOOLSET_MODULE)
-            wrapt.wrap_function_wrapper(logger, "error", hooks.error_line_hook)
+            logger = logging.getLogger(_hooks.TOOLSET_MODULE)
+            wrapt.wrap_function_wrapper(logger, "error", _hooks.error_line_hook)
             _hooked_loggers.append(logger)
     except BaseException:
         remove()
@@ -55,4 +55,4 @@ def remove() -> None:
     while _hooked_loggers:
         # The hook is the logger's own attribute, over its class's method.
         vars(_hooked_loggers.pop()).pop("error", None)
-    hooks.unhook_tools()
+    _hooks.unhook_tools()

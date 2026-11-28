@@ -19,18 +19,18 @@ from typing import Any
 from packaging import requirements
 from packaging import version as packaging_version
 
-from a2ui_spectra_instrumentation import hooks
-from a2ui_spectra_instrumentation import log
-from a2ui_spectra_instrumentation import package
+from a2ui_spectra_instrumentation import _hooks
+from a2ui_spectra_instrumentation import _log
+from a2ui_spectra_instrumentation import _package
 
-_EXPERIMENTAL: tuple[hooks.Group, ...] = ("atom", "elemental")
+_EXPERIMENTAL: tuple[_hooks.Group, ...] = ("atom", "elemental")
 
 
 @dataclass
 class Target:
     """A hooked name, resolved: its holder and its attribute there."""
 
-    hook: hooks.Hook
+    hook: _hooks.Hook
     owner: Any
     attribute: str
 
@@ -110,19 +110,19 @@ def _resolve_class(module: str, name: str) -> type:
     return found
 
 
-def _add_group(plan: Plan, group: hooks.Group) -> None:
+def _add_group(plan: Plan, group: _hooks.Group) -> None:
     """Adds every name and class of a group, or none.
 
     An Unusable names the first one that cannot be used.
     """
     targets = []
-    for hook in hooks.HOOKS:
+    for hook in _hooks.HOOKS:
         if hook.group == group:
             holder, attribute, _ = _resolve(hook.module, hook.name)
             targets.append(Target(hook, holder, attribute))
     generators = [
         (_resolve_class(generator.module, generator.name), generator.format)
-        for generator in hooks.GENERATORS
+        for generator in _hooks.GENERATORS
         if generator.group == group
     ]
     plan.targets.extend(targets)
@@ -132,21 +132,21 @@ def _add_group(plan: Plan, group: hooks.Group) -> None:
 def refuse(distribution: str, version: str | None, why: str) -> None:
     """Writes the one line a refusal writes: what is left unpatched, and why."""
     # The floor is the agent SDK's alone; `a2ui-adk` is named by its release.
-    log.logger.warning(
+    _log.logger.warning(
         "a2ui-spectra-instrumentation left %s %s unpatched: %s; it was written"
         " against %s, %s%s",
         distribution,
         version if version is not None else "(not installed)",
         why,
-        package.PINS[distribution],
-        package.RELEASE,
-        f" ({package.FLOOR})" if distribution == package.AGENT_SDK else "",
+        _package.PINS[distribution],
+        _package.RELEASE,
+        f" ({_package.FLOOR})" if distribution == _package.AGENT_SDK else "",
     )
 
 
 def _at_or_above_floor(version: str) -> bool:
     try:
-        return requirements.Requirement(package.FLOOR).specifier.contains(
+        return requirements.Requirement(_package.FLOOR).specifier.contains(
             packaging_version.Version(version), prereleases=True
         )
     except packaging_version.InvalidVersion:
@@ -155,30 +155,30 @@ def _at_or_above_floor(version: str) -> bool:
 
 def check() -> Plan | None:
     """The names to hook, or None when the agent SDK is refused."""
-    version = installed_version(package.AGENT_SDK)
+    version = installed_version(_package.AGENT_SDK)
     if version is None:
-        refuse(package.AGENT_SDK, None, "it is not installed")
+        refuse(_package.AGENT_SDK, None, "it is not installed")
         return None
     if not _at_or_above_floor(version):
-        refuse(package.AGENT_SDK, version, "it is below the version floor")
+        refuse(_package.AGENT_SDK, version, "it is below the version floor")
         return None
     plan = Plan(sdk_version=version)
     try:
         _add_group(plan, "core")
-        for read in hooks.READS:
+        for read in _hooks.READS:
             try:
                 plan.reads[read.name] = _resolve(read.module, read.name)[2]
             except Unusable:
                 if read.required:
                     raise
     except Unusable as unusable:
-        refuse(package.AGENT_SDK, version, str(unusable))
+        refuse(_package.AGENT_SDK, version, str(unusable))
         return None
     for group in _EXPERIMENTAL:
         try:
             _add_group(plan, group)
         except Unusable as unusable:
-            log.logger.debug(
+            _log.logger.debug(
                 "a2ui-spectra-instrumentation: %s is not hooked: %s",
                 group.capitalize(),
                 unusable,
@@ -194,7 +194,7 @@ def _check_toolset(plan: Plan) -> None:
     extension that is not there to import is skipped with no line; one that
     fails as it is imported is skipped with the refusal's line.
     """
-    adk_version = installed_version(package.ADK)
+    adk_version = installed_version(_package.ADK)
     if adk_version is None:
         return
     try:
@@ -203,7 +203,7 @@ def _check_toolset(plan: Plan) -> None:
         return
     except Exception as error:
         refuse(
-            package.ADK,
+            _package.ADK,
             adk_version,
             f"a2ui.adk could not be imported ({_fault(error)})",
         )
@@ -211,4 +211,4 @@ def _check_toolset(plan: Plan) -> None:
     try:
         _add_group(plan, "toolset")
     except Unusable as unusable:
-        refuse(package.ADK, adk_version, str(unusable))
+        refuse(_package.ADK, adk_version, str(unusable))

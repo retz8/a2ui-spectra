@@ -28,9 +28,9 @@ from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 
 import a2ui_spectra_instrumentation
-from a2ui_spectra_instrumentation import check
-from a2ui_spectra_instrumentation import hooks
-from a2ui_spectra_instrumentation import state
+from a2ui_spectra_instrumentation import _check
+from a2ui_spectra_instrumentation import _hooks
+from a2ui_spectra_instrumentation import _state
 
 # The fixtures' types, for the type check only: mypy names the tests by their
 # path from the repository root.
@@ -193,8 +193,8 @@ def test_an_sdk_without_to_protocol_version_is_patched_and_its_versions_written(
 
 
 def test_every_role_of_the_hook_table_has_its_hook() -> None:
-    assert set(hooks.HOOK_FOR) == set(get_args(hooks.Role))
-    assert {hook.role for hook in hooks.HOOKS} <= set(hooks.HOOK_FOR)
+    assert set(_hooks.HOOK_FOR) == set(get_args(_hooks.Role))
+    assert {hook.role for hook in _hooks.HOOKS} <= set(_hooks.HOOK_FOR)
 
 
 def failing_import(module: str, error: Exception) -> Any:
@@ -279,7 +279,7 @@ def test_a_failure_while_hooking_is_a_refusal_and_nothing_stays_hooked(
 
     assert not support.hooked(Parser, "parse_response")
     assert not support.hooked(RendererState, "check_topology")
-    assert state.current() is None
+    assert _state.current() is None
     assert isinstance(trace.get_tracer_provider(), trace.ProxyTracerProvider)
     [line] = support.lines(caplog)
     assert line.levelno == logging.WARNING
@@ -294,9 +294,9 @@ def test_an_sdk_below_the_floor_is_refused(
     provider: TracerProvider,
     support: conftest.Support,
 ) -> None:
-    real = check.installed_version
+    real = _check.installed_version
     monkeypatch.setattr(
-        check,
+        _check,
         "installed_version",
         lambda name: "0.10.0" if name == "a2ui-agent-sdk" else real(name),
     )

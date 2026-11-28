@@ -13,10 +13,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from a2ui_spectra_instrumentation import instrumentor
+from a2ui_spectra_instrumentation import _instrumentor
 from a2ui_spectra_instrumentation import version
 
-A2uiInstrumentor = instrumentor.A2uiInstrumentor
+A2uiInstrumentor = _instrumentor.A2uiInstrumentor
 __version__ = version.__version__
 
 __all__ = ["A2uiInstrumentor", "__version__", "instrument", "uninstrument"]

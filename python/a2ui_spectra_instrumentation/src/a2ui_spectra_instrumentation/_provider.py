@@ -10,7 +10,7 @@ from opentelemetry.exporter.otlp.proto.http import trace_exporter
 from opentelemetry.sdk import trace as sdk_trace
 from opentelemetry.sdk.trace import export as sdk_export
 
-from a2ui_spectra_instrumentation import log
+from a2ui_spectra_instrumentation import _log
 
 
 def _variable(*names: str) -> str | None:
@@ -44,7 +44,7 @@ class LateStart:
             try:
                 start_provider_if_needed()
             except Exception as fault:
-                log.logger.warning(
+                _log.logger.warning(
                     "a2ui-spectra-instrumentation could not start a tracer"
                     " provider (%s: %s); the spans go to a provider the process"
                     " sets",
@@ -70,14 +70,14 @@ def start_provider_if_needed() -> None:
         "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL", "OTEL_EXPORTER_OTLP_PROTOCOL"
     )
     if endpoint is None:
-        log.logger.info(
+        _log.logger.info(
             "a2ui-spectra-instrumentation started no tracer provider: the"
             " environment names no OTLP endpoint (OTEL_EXPORTER_OTLP_ENDPOINT);"
             " the spans go to a provider the process sets"
         )
         return
     if protocol is not None and protocol != "http/protobuf":
-        log.logger.info(
+        _log.logger.info(
             "a2ui-spectra-instrumentation started no tracer provider: the"
             " environment names the OTLP protocol %s, and the wrapper starts one"
             " only for http/protobuf, the protocol a2ui-spectra run sets; the"
