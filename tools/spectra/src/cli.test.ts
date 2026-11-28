@@ -860,6 +860,63 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
     });
 
     it(
+      "words the card wait by the command: replay with no command names --agent-url, not attach's argument",
+      {timeout: TIMEOUT},
+      async () => {
+        const cwd = workingDir();
+        writeFileSync(
+          path.join(cwd, 'one.json'),
+          JSON.stringify({
+            version: 'v0.1',
+            turns: [
+              {
+                events: [
+                  {attributes: {'a2ui.event.kind': 'turn'}},
+                  {
+                    attributes: {
+                      'a2ui.event.kind': 'model_call',
+                      'http.request.method': 'POST',
+                      'url.full': 'https://api.anthropic.com/v1/messages',
+                    },
+                  },
+                ],
+              },
+            ],
+          }),
+        );
+        const [agentPort, proxyPort, modelProxyPort, receiverPort] = await Promise.all([
+          freePort(),
+          freePort(),
+          freePort(),
+          freePort(),
+        ]);
+        const spectra = new SpectraProcess(
+          [
+            'replay',
+            'one.json',
+            '--agent-url',
+            `http://localhost:${agentPort}`,
+            '--proxy-port',
+            String(proxyPort),
+            '--model-proxy-port',
+            String(modelProxyPort),
+            '--receiver-port',
+            String(receiverPort),
+          ],
+          cwd,
+        );
+        await spectra.waitFor(
+          new RegExp(
+            `Waiting for the agent's card at http://localhost:${agentPort}/\\.well-known/agent-card\\.json: ` +
+              "connection refused\\. Change the agent's URL with --agent-url, or agent\\.url in the config file\\.",
+          ),
+        );
+        spectra.requestStop();
+        assert.equal((await spectra.exited).code, STOPPED_CODE, spectra.output);
+      },
+    );
+
+    it(
       'exits 2 on a record file that is missing or is not a turn record',
       {timeout: TIMEOUT},
       async () => {

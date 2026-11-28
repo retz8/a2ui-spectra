@@ -347,7 +347,7 @@ export async function runSession(
     const waitLine = (reason: string, hint: boolean): string =>
       `Waiting for the agent's card at ${cardUrl.href}: ${reason}.` +
       (hint
-        ? agentCommand === undefined
+        ? agentCommand === undefined && headless === undefined
           ? " The agent's URL is attach's <agent-url> argument, or agent.url in the config file."
           : " Change the agent's URL with --agent-url, or agent.url in the config file."
         : '') +
