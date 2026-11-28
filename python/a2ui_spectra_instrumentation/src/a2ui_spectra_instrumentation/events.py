@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import contextvars
 import json
+import os
 import time
 import traceback
 from collections.abc import Iterable, Mapping
@@ -61,19 +62,40 @@ def leave(token: contextvars.Token[Event | None]) -> None:
 SpanEvent = tuple[str, dict[str, AttributeValue], int]
 
 # OpenTelemetry's default limit on a span's events; past it the SDK drops the oldest.
-SPAN_EVENT_LIMIT = 128
+DEFAULT_SPAN_EVENT_LIMIT = 128
 CHUNK = "a2ui.parse.chunk"
 
 
-def kept_span_events(events: list[SpanEvent]) -> list[SpanEvent]:
+def span_event_limit() -> int | None:
+    """The limit on a span's events, as the environment sets it; None is no limit.
+
+    `OTEL_SPAN_EVENT_COUNT_LIMIT`, read as OpenTelemetry's SDK reads it when a
+    provider is made: unset is the default, and `unset` is no limit. A limit a
+    provider was given in code cannot be read from here.
+    """
+    value = os.environ.get("OTEL_SPAN_EVENT_COUNT_LIMIT", "").strip().lower()
+    if not value:
+        return DEFAULT_SPAN_EVENT_LIMIT
+    if value == "unset":
+        return None
+    try:
+        limit = int(value)
+    except ValueError:
+        return DEFAULT_SPAN_EVENT_LIMIT
+    return limit if limit >= 0 else DEFAULT_SPAN_EVENT_LIMIT
+
+
+def kept_span_events(events: list[SpanEvent], limit: int | None) -> list[SpanEvent]:
     """The events a span is given, in order.
 
     A stream fed more chunks than fit within the limit beside its other events
     keeps its first and last chunk and evenly spaced ones between, so the SDK
     drops none of them.
     """
+    if limit is None:
+        return events
     chunks = [index for index, event in enumerate(events) if event[0] == CHUNK]
-    room = max(2, SPAN_EVENT_LIMIT - (len(events) - len(chunks)))
+    room = max(2, limit - (len(events) - len(chunks)))
     if len(chunks) <= room:
         return events
     kept = {
@@ -301,7 +323,9 @@ class Event:
             attributes=attributes,
             start_time=self.start,
         )
-        for name, event_attributes, at in kept_span_events(self.span_events):
+        for name, event_attributes, at in kept_span_events(
+            self.span_events, span_event_limit()
+        ):
             span.add_event(name, event_attributes, timestamp=at)
         if self.first_error is not None:
             span.set_status(trace.Status(trace.StatusCode.ERROR, self.first_error[1]))

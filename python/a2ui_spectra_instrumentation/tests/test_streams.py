@@ -10,6 +10,11 @@ from typing import TYPE_CHECKING
 
 import pytest
 from a2ui.core import A2uiError
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+import a2ui_spectra_instrumentation
 
 # The fixtures' types, for the type check only: mypy names the tests by their
 # path from the repository root.
@@ -98,6 +103,37 @@ def test_a_stream_fed_more_chunks_than_a_span_holds_keeps_its_first_chunk_and_it
     assert ends == sorted(ends)
     times = [event.timestamp for event in span.events]
     assert times == sorted(times)
+
+
+def test_a_lower_limit_in_the_environment_is_the_limit_the_chunks_are_thinned_to(
+    monkeypatch: pytest.MonkeyPatch,
+    exporter: InMemorySpanExporter,
+    processor: conftest.ProcessorFactory,
+) -> None:
+    # The SDK's provider reads its limit from the environment when it is made.
+    monkeypatch.setenv("OTEL_SPAN_EVENT_COUNT_LIMIT", "32")
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
+
+    stream = processor().open_stream(after_rejected_block="continue")
+    stream.feed(REJECTED)
+    for character in "Some more text. " * 6:
+        stream.feed(character)
+    stream.feed(TEXT)
+    stream.close()
+
+    [span] = exporter.get_finished_spans()
+    names = [event.name for event in span.events]
+    assert len(names) == 32
+    assert names.count("exception") == 1
+    ends = [
+        dict(event.attributes or {})["a2ui.parse.chunk.end"]
+        for event in span.events
+        if event.name == "a2ui.parse.chunk"
+    ]
+    assert ends[0] == len(REJECTED)
+    assert ends[-1] == len(REJECTED) + 96 + len(TEXT)
 
 
 def test_an_abandoned_stream_is_never_exported(
