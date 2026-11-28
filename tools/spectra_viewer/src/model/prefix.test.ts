@@ -6,8 +6,11 @@ import {
   candidatesFor,
   markerOf,
   partName,
+  partsOf,
+  partsText,
   prefixBreakOf,
   resumeAfterLine,
+  segmentStartsOf,
   segmentsOf,
 } from './prefix.ts';
 
@@ -266,5 +269,50 @@ describe("the text after the break's line", () => {
     const marker = markerOf(earlier, current, offset, 0);
     assert.ok(marker.current[0].startsWith('…'), 'the line is shown clipped');
     assert.equal(current.slice(resumeAfterLine(marker, current)), tail.slice(1));
+  });
+});
+
+describe('segmentStartsOf', () => {
+  it('starts the system prompt after the tools, and the messages after the system prompt', () => {
+    const call = first('a'.repeat(16), 0);
+    const segments = segmentsOf(call);
+    const starts = segmentStartsOf(call);
+    assert.deepEqual(starts, {system: 1, messages: 2});
+    assert.equal(segments[starts.system].part, 'system');
+    assert.equal(segments[starts.messages].part, 'message');
+  });
+
+  it('starts the messages at the first segment with no tools and no system prompt', () => {
+    const call = modelCall({
+      spanId: 'c'.repeat(16),
+      start: 0,
+      messages: [{role: 'user', text: 'Hi'}],
+    });
+    assert.deepEqual(segmentStartsOf(call), {system: 0, messages: 0});
+  });
+
+  it('starts the messages after the tools with no system prompt', () => {
+    const call = modelCall({
+      spanId: 'd'.repeat(16),
+      start: 0,
+      tools: [...tools, {name: 'find_places'}],
+      messages: [{role: 'user', text: 'Hi'}],
+    });
+    assert.deepEqual(segmentStartsOf(call), {system: 2, messages: 2});
+  });
+});
+
+describe('partsOf and partsText', () => {
+  it('reads a list attribute’s items, none for anything else, and joins parts’ texts with a blank line', () => {
+    assert.deepEqual(partsOf([1, 2]), [1, 2]);
+    assert.deepEqual(partsOf({0: 1}), []);
+    assert.deepEqual(partsOf(undefined), []);
+    assert.equal(
+      partsText([
+        {type: 'text', content: 'One.'},
+        {type: 'text', content: 'Two.'},
+      ]),
+      'One.\n\nTwo.',
+    );
   });
 });

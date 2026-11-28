@@ -30,12 +30,13 @@ export function partText(part: unknown): string {
   return JSON.stringify(part, null, 2);
 }
 
-function partsOf(value: unknown): unknown[] {
+/** A list attribute's items; none for a value that is not a list. */
+export function partsOf(value: unknown): unknown[] {
   return Array.isArray(value) ? value : [];
 }
 
 /** A message's parts' texts, joined as the readable request lays them out. */
-function partsText(parts: unknown[]): string {
+export function partsText(parts: unknown[]): string {
   return parts.map(partText).join('\n\n');
 }
 
@@ -57,6 +58,18 @@ export function segmentsOf(call: ModelCallEvent): Segment[] {
     };
   });
   return [...tools, ...prompt, ...messages];
+}
+
+/**
+ * Where a call's system prompt and its messages start among its segments, in
+ * `segmentsOf`'s order: the tools first, then the system prompt as one
+ * segment when there is one, then each message.
+ */
+export function segmentStartsOf(call: ModelCallEvent): {system: number; messages: number} {
+  const segments = segmentsOf(call);
+  const tools = segments.filter(segment => segment.part === 'tools').length;
+  const system = segments.some(segment => segment.part === 'system') ? 1 : 0;
+  return {system: tools, messages: tools + system};
 }
 
 function commonPrefix(a: string, b: string): number {
