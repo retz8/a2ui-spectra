@@ -187,12 +187,12 @@ export function TurnView({
   const view: TurnViewState =
     traceId === undefined ? {status: 'none'} : turnViewOf(state, traceId, needs);
   useNeededRecords(needs);
-  const input = useRef<HTMLTextAreaElement>(null);
+  const composerInput = useRef<HTMLTextAreaElement>(null);
   // A new conversation asked for holds until a turn is selected.
-  const selected = `${selection}:${traceId ?? ''}`;
+  const selectionKey = `${selection}:${traceId ?? ''}`;
   const [newAt, setNewAt] = useState<string | undefined>();
 
-  const startsNew = newAt === selected;
+  const startsNew = newAt === selectionKey;
   // A press in the preview lands in the composer, which goes back to the turn's conversation.
   const pending = usePendingAction();
   useEffect(() => {
@@ -214,7 +214,7 @@ export function TurnView({
 
   const first = traceId === undefined && listEmpty;
   useEffect(() => {
-    if (first) input.current?.focus();
+    if (first) composerInput.current?.focus();
   }, [first]);
 
   let body: ReactNode;
@@ -225,7 +225,7 @@ export function TurnView({
         onLogs={onLogs}
         onExample={example => {
           onDraft(example);
-          input.current?.focus();
+          composerInput.current?.focus();
         }}
       />
     );
@@ -266,13 +266,13 @@ export function TurnView({
         <Composer
           text={draft}
           onText={onDraft}
-          inputRef={input}
+          inputRef={composerInput}
           onSent={onSelect}
           traceId={traceId}
           startsNew={startsNew}
           onStartNew={() => {
-            setNewAt(selected);
-            input.current?.focus();
+            setNewAt(selectionKey);
+            composerInput.current?.focus();
           }}
           pending={pending}
           onDiscard={() => setPendingAction(undefined)}
@@ -319,9 +319,9 @@ export function Empty({children}: {children: string}) {
 export function TurnBody({
   traceId,
   view,
-  stepId: picked,
+  stepId: addressStep,
   node,
-  onStep: setPicked,
+  onStep: writeStep,
   onOther,
   onAddress,
   onReplayStarted,
@@ -426,17 +426,17 @@ export function TurnBody({
   const kept = useMemo(() => onlyProblems(timeline, filterByStep), [timeline, filterByStep]);
   // A row picked by an id it no longer goes by, such as a span-only row merged into its proxy's row
   // as its link arrived, is the row that holds that id now.
-  const pickedId = useMemo(() => pickedRowId(picked, timeline), [picked, timeline]);
+  const addressRowId = useMemo(() => pickedRowId(addressStep, timeline), [addressStep, timeline]);
   const shown = filtered ? kept : timeline;
   const toggleFilter = () => {
     // A pick the filter hides gives way to the first problem.
-    if (!filtered) setPicked(keptPick(pickedId, kept));
+    if (!filtered) writeStep(keptPick(addressRowId, kept));
     setFiltered(!filtered);
   };
-  const inView = stepInView(shown, {open, picked: pickedId, problems: recordedByStep});
-  const selected = inView.row;
-  const position = useMemo(() => positionOf(selected), [selected]);
-  const pane = useMemo(
+  const inView = stepInView(shown, {open, picked: addressRowId, problems: recordedByStep});
+  const selectedRow = inView.row;
+  const position = useMemo(() => positionOf(selectedRow), [selectedRow]);
+  const surfacesAtStep = useMemo(
     () =>
       earlier === undefined
         ? undefined
@@ -449,8 +449,8 @@ export function TurnBody({
 
   // The surface in view, and its preview: its list goes to the page it is routed to.
   const [pickedSurface, setPickedSurface] = useState<string | undefined>();
-  const surfaces = pane?.surfaces ?? NO_SURFACES;
-  const surface = surfaces.find(view => view.surfaceId === pickedSurface) ?? surfaces[0];
+  const surfaces = surfacesAtStep?.surfaces ?? NO_SURFACES;
+  const surface = surfaces.find(each => each.surfaceId === pickedSurface) ?? surfaces[0];
   const surfaceId = surface?.surfaceId;
   const feed = useMemo(
     () =>
@@ -478,18 +478,18 @@ export function TurnBody({
     () => (feed === undefined ? undefined : targetOf(feed).protocolVersion),
     [feed],
   );
-  const stepId = selected?.id;
+  const selectedStepId = selectedRow?.id;
   // Each render keeps the turn and step it is for, with the surfaces there, for a press made in it.
   useEffect(() => {
     if (routedId !== undefined && surfaceId !== undefined && feedMessages !== undefined) {
       previewHost.render(routedId, surfaceId, feedMessages, {
         traceId,
-        ...(stepId !== undefined && {stepId}),
+        ...(selectedStepId !== undefined && {stepId: selectedStepId}),
         surfaces,
         ...(version !== undefined && {version}),
       });
     }
-  }, [routedId, surfaceId, feedMessages, traceId, stepId, surfaces, version]);
+  }, [routedId, surfaceId, feedMessages, traceId, selectedStepId, surfaces, version]);
   // A page's reports and its data model hold for the render of this very list.
   const current = routed !== undefined && routed.sentKey === feedKey;
   const reports = current ? routed.reports : NO_REPORTS;
@@ -550,11 +550,11 @@ export function TurnBody({
       position,
       state.catalogs,
     );
-    setPicked(traced === undefined ? selected?.id : traced.parse.spanId, next);
+    writeStep(traced === undefined ? selectedRow?.id : traced.parse.spanId, next);
   };
   const selectRange = (next: NodeRef) => {
     setPickedSurface(next.surfaceId);
-    setPicked(selected?.id, next);
+    writeStep(selectedRow?.id, next);
   };
   // The node and the two ways to select one go to the tree and the raw text through a mirror of
   // the address, laid out before the page paints.
@@ -563,12 +563,12 @@ export function TurnBody({
   });
   // A node the tree shown no longer has is dropped from the address.
   const nodeShown =
-    node === undefined || pane === undefined
+    node === undefined || surfacesAtStep === undefined
       ? undefined
-      : surfaces.some(view => view.surfaceId === node.surfaceId && treeHas(view, node.componentId));
+      : surfaces.some(each => each.surfaceId === node.surfaceId && treeHas(each, node.componentId));
   useEffect(() => {
-    if (nodeShown === false) setPicked(picked, undefined);
-  }, [nodeShown, picked, setPicked]);
+    if (nodeShown === false) writeStep(addressStep, undefined);
+  }, [nodeShown, addressStep, writeStep]);
   // The surface in view follows the node the address holds, as it changes.
   const nodeSurface = node?.surfaceId;
   const [followedSurface, setFollowedSurface] = useState(nodeSurface);
@@ -584,8 +584,8 @@ export function TurnBody({
     [events, startMs, state.prices],
   );
   // Only a call the model proxy read in full is compared for the prefix break.
-  const selectedRow = selected?.row === 'step' ? selected.call : undefined;
-  const selectedProxy = selectedRow?.kind === 'model' ? selectedRow.proxy : undefined;
+  const selectedCallRow = selectedRow?.row === 'step' ? selectedRow.call : undefined;
+  const selectedProxy = selectedCallRow?.kind === 'model' ? selectedCallRow.proxy : undefined;
   const selectedCall =
     selectedProxy !== undefined && isModelCall(selectedProxy) && isReadInFull(selectedProxy)
       ? selectedProxy
@@ -620,13 +620,13 @@ export function TurnBody({
     });
   }, [selectedCall, earlier, events, traceId, provenance, sourceLabel, recordedCalls]);
   const stepOnCall: StepOnCall | undefined =
-    selectedRow?.kind === 'model'
+    selectedCallRow?.kind === 'model'
       ? {
-          ...(retries.has(selectedRow.id) && {
-            retry: retrySentenceOf(events, retries.get(selectedRow.id)!, startMs),
+          ...(retries.has(selectedCallRow.id) && {
+            retry: retrySentenceOf(events, retries.get(selectedCallRow.id)!, startMs),
           }),
-          readBy: readByLinesOf(events, selectedRow.id, startMs),
-          sections: uiSectionsOf(events, modelReadingOf(selectedRow).event),
+          readBy: readByLinesOf(events, selectedCallRow.id, startMs),
+          sections: uiSectionsOf(events, modelReadingOf(selectedCallRow).event),
           ...(!hasStep &&
             (newerStep !== undefined
               ? {newerStep}
@@ -634,7 +634,7 @@ export function TurnBody({
           catalogs: state.catalogs ?? [],
           onParse: parseSpanId => {
             requestTimelineFocus();
-            setPicked(parseSpanId);
+            writeStep(parseSpanId);
           },
         }
       : undefined;
@@ -649,7 +649,7 @@ export function TurnBody({
     requestTimelineFocus();
     requestDetailTab('Prompt');
     if (recorded !== undefined) toRecorded(turnOf, call.spanId);
-    else if (turnOf === traceId) setPicked(call.spanId);
+    else if (turnOf === traceId) writeStep(call.spanId);
     else onOther(turnOf, call.spanId);
   };
   const onRecorded = ({traceId: turnOf, call}: RecordedCall) => {
@@ -657,16 +657,17 @@ export function TurnBody({
     toRecorded(turnOf, call.spanId);
   };
   const callReplay =
-    selectedRow === undefined || provenance === undefined || source === undefined
+    selectedCallRow === undefined || provenance === undefined || source === undefined
       ? undefined
-      : callReplayOf(selectedRow, provenance, source.resolved, sourceTurns, state.turns);
+      : callReplayOf(selectedCallRow, provenance, source.resolved, sourceTurns, state.turns);
 
   // The page address holds the step selected, picked or landed on; a pick not in a closed turn gives way.
-  const shownId = inView.selected ? selected?.id : undefined;
-  const arriving = open && pickedId !== undefined && !timeline.some(row => row.id === pickedId);
+  const shownId = inView.selected ? selectedRow?.id : undefined;
+  const arriving =
+    open && addressRowId !== undefined && !timeline.some(row => row.id === addressRowId);
   useEffect(() => {
-    if (shownId !== picked && !arriving) setPicked(shownId);
-  }, [shownId, picked, arriving, setPicked]);
+    if (shownId !== addressStep && !arriving) writeStep(shownId);
+  }, [shownId, addressStep, arriving, writeStep]);
 
   const detail = usePanelRef();
   const result = usePanelRef();
@@ -675,7 +676,9 @@ export function TurnBody({
   const beside = detailDock === 'beside';
   // Collapsed, the detail keeps its head: the title row and the facts lines under it.
   const head =
-    selected === undefined ? TITLE_ROW : headHeightOf(selected, events, startMs, state.prices);
+    selectedRow === undefined
+      ? TITLE_ROW
+      : headHeightOf(selectedRow, events, startMs, state.prices);
   const timelinePanel = usePanelRef();
   const [collapsed, setCollapsed] = useState(!inView.selected);
   // Below the result, the detail is collapsed to its title line until a step is selected; beside
@@ -708,28 +711,28 @@ export function TurnBody({
 
   // A selected call or parse tints the rows that start inside it up to the moment its result shows.
   const covered = useMemo(() => {
-    if (!inView.selected || selected === undefined) return undefined;
-    const until = resultMomentOf(selected, events, startMs);
-    return until === undefined ? undefined : coveredRowsOf(timeline, selected.id, until);
-  }, [inView.selected, selected, events, startMs, timeline]);
+    if (!inView.selected || selectedRow === undefined) return undefined;
+    const until = resultMomentOf(selectedRow, events, startMs);
+    return until === undefined ? undefined : coveredRowsOf(timeline, selectedRow.id, until);
+  }, [inView.selected, selectedRow, events, startMs, timeline]);
   useEffect(() => {
     // Beside, a maximized detail takes the result's place by drawing the result no longer.
-    const pane = result.current;
-    if (beside || pane === null) return;
+    const resultPanel = result.current;
+    if (beside || resultPanel === null) return;
     if (folding) {
       openDetail(detail.current);
-      pane.collapse();
-    } else if (pane.isCollapsed()) {
-      pane.expand();
+      resultPanel.collapse();
+    } else if (resultPanel.isCollapsed()) {
+      resultPanel.expand();
     }
-  }, [folding, result, detail, selected?.id, beside]);
+  }, [folding, result, detail, selectedRow?.id, beside]);
   const toggleMaximized = () => {
     if (folding) {
       onMaximized(false);
       return;
     }
     // Maximizing the step the view follows selects it.
-    if (!inView.selected && selected !== undefined) setPicked(selected.id);
+    if (!inView.selected && selectedRow !== undefined) writeStep(selectedRow.id);
     onMaximized(true);
   };
 
@@ -739,15 +742,15 @@ export function TurnBody({
     const onKey = (event: KeyboardEvent) => {
       const key = pageKeyOf(event);
       if (key === 'm') {
-        if (selected !== undefined) toggleMaximized();
+        if (selectedRow !== undefined) toggleMaximized();
       } else if (key === 'n' || key === 'N') {
-        const next = nextProblem(shown, byStep, selected?.id, {backwards: key === 'N'});
+        const next = nextProblem(shown, byStep, selectedRow?.id, {backwards: key === 'N'});
         if (next === undefined) return;
-        setPicked(next);
+        writeStep(next);
         openDetail(detail.current);
       } else if (key === 'l') {
-        const move = pickForKey(shown, selected?.id, 'End', {open, following: inView.following});
-        if (move !== undefined) setPicked(move.pick);
+        const move = pickForKey(shown, selectedRow?.id, 'End', {open, following: inView.following});
+        if (move !== undefined) writeStep(move.pick);
       }
     };
     document.addEventListener('keydown', onKey);
@@ -757,7 +760,7 @@ export function TurnBody({
   });
 
   const row = state.turns.find(listed => listed.traceId === traceId);
-  const input = turn === undefined ? undefined : inputBriefOfTurn(turn);
+  const inputBrief = turn === undefined ? undefined : inputBriefOfTurn(turn);
   // What a replay of this turn sends: the whole fixture, or the turn's conversation up to it.
   const recordTurns = fixture?.record.turns ?? [
     ...(earlier ?? []),
@@ -765,7 +768,7 @@ export function TurnBody({
   ];
   // A store turn whose record was not written has no file to replay or re-run.
   const unwritten = fixture === undefined && row?.unwritten === true;
-  const title = briefText(input ?? row?.input) || 'A turn';
+  const title = briefText(inputBrief ?? row?.input) || 'A turn';
   const agent = summary?.agentName ?? row?.agentName ?? state.context?.agentName;
   // An open turn's duration runs to its newest step, or to the present while a call is in
   // flight, as the lanes do; its version is its first message's.
@@ -813,7 +816,7 @@ export function TurnBody({
             {fixture === undefined && (
               <SaveAsFixture
                 traceId={traceId}
-                input={input ?? row?.input}
+                input={inputBrief ?? row?.input}
                 turns={(earlier?.length ?? 0) + 1}
                 disabled={open}
                 onOpenFixture={name => onAddress({section: 'fixtures', fixture: name})}
@@ -862,7 +865,7 @@ export function TurnBody({
             allRows={timeline}
             startMs={startMs}
             endMs={turnEndMs}
-            selected={selected?.id ?? ''}
+            selected={selectedRow?.id ?? ''}
             problems={byStep}
             tags={tags}
             legacy={legacyStepIds}
@@ -875,14 +878,14 @@ export function TurnBody({
                 onShowAll: toggleFilter,
               },
             })}
-            onSelect={setPicked}
-            onJump={() => setPicked(undefined)}
+            onSelect={writeStep}
+            onJump={() => writeStep(undefined)}
             onKey={key => {
-              const move = pickForKey(shown, selected?.id, key, {
+              const move = pickForKey(shown, selectedRow?.id, key, {
                 open,
                 following: inView.following,
               });
-              if (move !== undefined) setPicked(move.pick);
+              if (move !== undefined) writeStep(move.pick);
             }}
           />
         </ResizablePanel>
@@ -898,8 +901,13 @@ export function TurnBody({
               if (panel === null) return;
               setCollapsed(panel.isCollapsed());
               // Dragging the divider, or collapsing the detail, brings the split back.
-              const pane = result.current;
-              if (isUserInteraction && folding && pane !== null && !pane.isCollapsed()) {
+              const resultPanel = result.current;
+              if (
+                isUserInteraction &&
+                folding &&
+                resultPanel !== null &&
+                !resultPanel.isCollapsed()
+              ) {
                 onMaximized(false);
               }
               if (isUserInteraction && !panel.isCollapsed()) {
@@ -920,10 +928,10 @@ export function TurnBody({
                   replies={replies}
                   onReplyParse={parseSpanId => {
                     requestTimelineFocus();
-                    setPicked(parseSpanId);
+                    writeStep(parseSpanId);
                   }}
-                  asOf={inView.following ? 'Live' : asOfLabel(selected, events, startMs)}
-                  replay={pane}
+                  asOf={inView.following ? 'Live' : asOfLabel(selectedRow, events, startMs)}
+                  replay={surfacesAtStep}
                   surface={surface}
                   onPick={setPickedSurface}
                   preview={
@@ -956,20 +964,22 @@ export function TurnBody({
                 groupResizeBehavior="preserve-pixel-size"
                 collapsedSize={head}
               >
-                {selected !== undefined && (
+                {selectedRow !== undefined && (
                   <StepDetail
-                    key={selected.id}
-                    row={selected}
+                    key={selectedRow.id}
+                    row={selectedRow}
                     events={events}
                     startMs={startMs}
-                    problems={problems.filter(problem => problem.stepId === selected.id)}
+                    problems={problems.filter(problem => problem.stepId === selectedRow.id)}
                     folded={folded
-                      .filter(rejection => rejection.stepId === selected.id)
+                      .filter(rejection => rejection.stepId === selectedRow.id)
                       .map(
                         rejection =>
                           `${rejection.lead ?? 'A2UI web core also rejected this message'} · ${rejection.sentence}`,
                       )}
-                    {...(legacySteps.has(selected.id) && {legacy: legacySteps.get(selected.id)})}
+                    {...(legacySteps.has(selectedRow.id) && {
+                      legacy: legacySteps.get(selectedRow.id),
+                    })}
                     collapsed={!beside && collapsed}
                     onToggle={() => {
                       if (collapsed) openDetail(detail.current);
@@ -988,7 +998,7 @@ export function TurnBody({
                     catalogs={state.catalogs}
                     onStep={id => {
                       requestTimelineFocus();
-                      setPicked(id);
+                      writeStep(id);
                     }}
                     stepOnCall={stepOnCall}
                     callReplay={callReplay}
