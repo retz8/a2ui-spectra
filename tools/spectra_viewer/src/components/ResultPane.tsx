@@ -4,6 +4,7 @@ import {usePanelRef} from 'react-resizable-panels';
 
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
 import {cn} from '@/lib/utils';
+import {noSurfaceSentenceOf} from '@/model/as_of.ts';
 import type {NodeRef} from '@/model/address.ts';
 import {bindingOf} from '@/model/bindings.ts';
 import {legacyKeysOfNode} from '@/model/legacy_form.ts';
@@ -187,17 +188,7 @@ export function ResultPane({
         <Centered>Reading the conversation’s earlier turns…</Centered>
       ) : surface === undefined ? (
         <Centered icon>
-          {open
-            ? 'No surfaces yet.'
-            : later
-              ? 'No surfaces yet at this step.'
-              : replay.deleted.length > 0
-                ? 'No surfaces: the turn deleted every surface it had.'
-                : sentA2ui
-                  ? 'No surfaces: the agent sent no A2UI that builds one.'
-                  : failed
-                    ? 'No surfaces: the turn failed before any A2UI arrived.'
-                    : 'No surfaces: the agent sent no A2UI in this turn.'}
+          {noSurfaceSentenceOf({open, later, deleted: replay.deleted.length > 0, sentA2ui, failed})}
         </Centered>
       ) : (
         <Panes

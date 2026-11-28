@@ -1,7 +1,7 @@
 /**
  * Where the result pane stands for a timeline row: the position the surfaces
- * are replayed to, the moment the row's result shows, and the line that says
- * it.
+ * are replayed to, the moment the row's result shows, the line that says
+ * it, and the sentence that stands in for the surfaces when there are none.
  */
 import {formatOffset} from '../components/format.ts';
 import {parseOfMessage} from './a2ui_step.ts';
@@ -68,4 +68,36 @@ export function asOfLabel(
   }
   const offset = offsetOf(row, events, startMs);
   return offset === undefined ? '' : `After the step at ${formatOffset(offset)}`;
+}
+
+/** Why the result pane has no surface to show: the sentence that stands in its place. */
+export function noSurfaceSentenceOf({
+  open,
+  later,
+  deleted,
+  sentA2ui,
+  failed,
+}: {
+  /** Whether the turn is still open. */
+  open: boolean;
+  /** Whether the turn has surfaces after the step in view. */
+  later: boolean;
+  /** Whether the turn deleted surfaces it had. */
+  deleted: boolean;
+  /** Whether the agent sent any A2UI in the turn. */
+  sentA2ui: boolean;
+  /** Whether the turn failed. */
+  failed: boolean;
+}): string {
+  return open
+    ? 'No surfaces yet.'
+    : later
+      ? 'No surfaces yet at this step.'
+      : deleted
+        ? 'No surfaces: the turn deleted every surface it had.'
+        : sentA2ui
+          ? 'No surfaces: the agent sent no A2UI that builds one.'
+          : failed
+            ? 'No surfaces: the turn failed before any A2UI arrived.'
+            : 'No surfaces: the agent sent no A2UI in this turn.';
 }
