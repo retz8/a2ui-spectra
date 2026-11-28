@@ -14,7 +14,7 @@ import {useBlockFold} from '@/state/block_folds.ts';
 
 import {CopyButton} from './CopyButton.tsx';
 import {formatDuration, formatOffset} from './format.ts';
-import {Icon} from './icons.tsx';
+import {ProblemMark} from './icons.tsx';
 import {BlockLabel, FoldButton, JsonBlock, JsonLines} from './JsonBlock.tsx';
 
 /** A link in the accent, in a detail's line, which selects another step. */
@@ -126,20 +126,10 @@ export function Section({
         {meta !== undefined && meta !== '' && (
           <span className="type-meta min-w-0 truncate">{meta}</span>
         )}
-        {mark !== undefined && <ErrorMark text={mark} />}
+        {mark !== undefined && <ProblemMark word={mark} />}
       </div>
       {open && children}
     </>
-  );
-}
-
-/** A status in red with its icon, as a span's error. */
-function ErrorMark({text}: {text: string}) {
-  return (
-    <span className="type-mark-problem inline-flex shrink-0 items-center gap-1">
-      <Icon kind="failed" size={12} />
-      {text}
-    </span>
   );
 }
 
@@ -344,7 +334,7 @@ export function RowList({
                   {row.end !== undefined && row.end !== '' && (
                     <span className="type-meta shrink-0">{row.end}</span>
                   )}
-                  {row.mark !== undefined && <ErrorMark text={row.mark} />}
+                  {row.mark !== undefined && <ProblemMark word={row.mark} />}
                   {row.link !== undefined && (
                     <button
                       type="button"

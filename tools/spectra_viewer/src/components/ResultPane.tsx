@@ -14,10 +14,9 @@ import type {Reply} from '@/model/steps.ts';
 import {rememberedSize, rememberSize} from '@/state/layout.ts';
 import {setViewSetting, useViewSettings} from '@/state/view_settings.ts';
 
-import {Icon, LegacyMark} from './icons.tsx';
+import {Icon, LegacyMark, ProblemMark} from './icons.tsx';
 import {JsonBlock} from './JsonBlock.tsx';
 import {NARROW, PreviewPane, WidthSwitch} from './PreviewPane.tsx';
-import {ProblemMark} from './TurnList.tsx';
 
 /** The Preview pane's width beside Structure at Narrow: the frame and the canvas's padding around it. */
 const PREVIEW_AT_NARROW = NARROW + 32;
@@ -337,7 +336,7 @@ function SurfaceSwitcher({
         >
           <span className="type-meta">Surface</span>
           <span>{current.surfaceId}</span>
-          <ProblemMark count={problemsBySurface.get(current.surfaceId) ?? 0} size={12} />
+          <ProblemMark count={problemsBySurface.get(current.surfaceId) ?? 0} />
           <Icon kind="chevronDown" size={12} className="tone-muted" />
         </button>
       </Popover.Trigger>
@@ -371,7 +370,7 @@ function SurfaceSwitcher({
                       <span className="flex min-w-0 items-center gap-1.5">
                         <Icon kind="createSurface" size={14} className="shrink-0 tone-muted" />
                         <span className="type-name truncate">{view.surfaceId}</span>
-                        <ProblemMark count={problemsBySurface.get(view.surfaceId) ?? 0} size={12} />
+                        <ProblemMark count={problemsBySurface.get(view.surfaceId) ?? 0} />
                       </span>
                       <span className="type-meta truncate pl-5">
                         {view.catalogId ?? 'No catalog named'}

@@ -7,6 +7,7 @@
 import {type ReactNode, useId} from 'react';
 
 import {cn} from '@/lib/utils';
+import {plural} from '@/model/steps.ts';
 
 const PATHS = {
   fixtures: (
@@ -368,5 +369,22 @@ export function Mark({size = 48, className}: {size?: number; className?: string}
       />
       <circle cx="16" cy="16" r="6.5" fill="none" stroke="currentColor" strokeWidth="2" />
     </svg>
+  );
+}
+
+/**
+ * A problem in red with its icon: a count of problems, titled with it, and
+ * nothing when there are none; or a word, as a span's error status.
+ */
+export function ProblemMark(props: {count: number} | {word: string}) {
+  if ('count' in props && props.count === 0) return null;
+  return (
+    <span
+      {...('count' in props && {title: plural(props.count, 'problem')})}
+      className="type-mark-problem inline-flex shrink-0 items-center gap-1"
+    >
+      <Icon kind="failed" size={12} />
+      {'count' in props ? props.count : props.word}
+    </span>
   );
 }

@@ -7,8 +7,7 @@ import {deliveryLabel, type TimelineRow} from '@/model/steps.ts';
 import {takeTimelineFocusRequest} from '@/state/timeline_focus.ts';
 
 import {brandIconOf, formatDuration, formatOffset, toneOf} from './format.ts';
-import {Icon, LegacyMark} from './icons.tsx';
-import {ProblemMark} from './TurnList.tsx';
+import {Icon, LegacyMark, ProblemMark} from './icons.tsx';
 import {useNow} from './use_now.ts';
 
 /**
@@ -188,7 +187,7 @@ export function Timeline({
                   {row.row === 'delivery' ? '' : row.target}
                 </span>
                 {tags?.get(row.id) !== undefined && <RowTag tag={tags.get(row.id)!} />}
-                {row.row === 'step' && <ProblemMark count={count} size={12} />}
+                {row.row === 'step' && <ProblemMark count={count} />}
                 {end}
               </button>
             );
@@ -221,7 +220,7 @@ export function Timeline({
               <span className="type-name min-w-0 truncate">{row.label}</span>
               <span className="type-meta min-w-0 flex-1 truncate">{row.target}</span>
               {tags?.get(row.id) !== undefined && <RowTag tag={tags.get(row.id)!} />}
-              <ProblemMark count={count} size={12} />
+              <ProblemMark count={count} />
               {legacy?.has(row.id) === true && <LegacyMark size={12} />}
               {end}
             </button>

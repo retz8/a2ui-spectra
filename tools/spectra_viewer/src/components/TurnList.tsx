@@ -21,7 +21,7 @@ import {plural} from '@/model/steps.ts';
 import {briefText, rowTextOf, searchGroups, type TurnGroup} from '@/model/turn_groups.ts';
 
 import {formatClock, formatDuration, formatTime, toneOf, turnIconOf} from './format.ts';
-import {Icon, type IconKind} from './icons.tsx';
+import {Icon, type IconKind, ProblemMark} from './icons.tsx';
 import {Key} from './KeysDialog.tsx';
 
 /** The agent picker's choices, the agent shown and what picking one does. */
@@ -469,7 +469,7 @@ function Group<T extends ListedTurn>({
           </span>
           <span className="mt-px flex items-center gap-1.5">
             <span className="type-meta truncate">{line.meta}</span>
-            <ProblemMark count={group.problems} size={12} />
+            <ProblemMark count={group.problems} />
           </span>
         </span>
         <Icon
@@ -544,21 +544,7 @@ function Row({
       {turn.durationMs !== undefined && (
         <span className="type-meta shrink-0">{formatDuration(turn.durationMs)}</span>
       )}
-      <ProblemMark count={listedProblemCount(turn)} size={12} />
+      <ProblemMark count={listedProblemCount(turn)} />
     </button>
-  );
-}
-
-/** A problem count in red; nothing when there are none. */
-export function ProblemMark({count, size}: {count: number; size: number}) {
-  if (count === 0) return null;
-  return (
-    <span
-      title={plural(count, 'problem')}
-      className="type-mark-problem inline-flex shrink-0 items-center gap-1"
-    >
-      <Icon kind="failed" size={size} />
-      {count}
-    </span>
   );
 }
