@@ -154,10 +154,14 @@ describe('the preview adapters and the built-in page in Chromium', {timeout: 10 
     `http://localhost:${port}/${page}${page.includes('?') ? '&' : '?'}a2ui-spectra-viewer=${encodeURIComponent(`http://127.0.0.1:${port}`)}`;
 
   /** Frames the page in the stand-in viewer and resolves once it said it is ready. */
-  async function frame(name: string): Promise<Framed> {
+  async function frame(name: string, prepare?: (page: Page) => Promise<void>): Promise<Framed> {
     const page = await browser.newPage();
+    await prepare?.(page);
     const url = pageUrl(name);
-    await page.goto(`http://127.0.0.1:${port}/viewer?page=${encodeURIComponent(url)}`);
+    // The page's ready message is waited for below; its load may wait on a request held back.
+    await page.goto(`http://127.0.0.1:${port}/viewer?page=${encodeURIComponent(url)}`, {
+      waitUntil: 'domcontentloaded',
+    });
     const received = () => page.evaluate<Message[]>('window.received');
     const waitForMessage = async (match: (message: Message) => boolean) => {
       const deadline = Date.now() + 20_000;
@@ -559,6 +563,46 @@ describe('the preview adapters and the built-in page in Chromium', {timeout: 10 
           await framed.frame.evaluate('window.spectraTestPage.errorHandlerReplaced()'),
           false,
         );
+      } finally {
+        await framed.page.close();
+      }
+    },
+  );
+
+  it(
+    'the built-in page reports nothing when its icon font fails to load',
+    {timeout: TIMEOUT},
+    async () => {
+      let failFont: () => void = () => {};
+      const fontRequested = new Promise<void>(resolve => {
+        failFont = resolve;
+      });
+      const framed = await frame('preview/', page =>
+        page.route('**/*.woff2', async route => {
+          await fontRequested;
+          await route.abort();
+        }),
+      );
+      try {
+        await framed.post({
+          type: 'a2ui-spectra-preview/render',
+          render: 1,
+          surfaceId: 'basic',
+          messages: [
+            {version: 'v0.9', createSurface: {surfaceId: 'basic', catalogId: BASIC_V09}},
+            {
+              version: 'v0.9',
+              updateComponents: {
+                surfaceId: 'basic',
+                components: [{id: 'root', component: 'Text', text: 'Drawn without the font'}],
+              },
+            },
+          ],
+        });
+        await framed.frame.getByText('Drawn without the font').waitFor();
+        failFont();
+        await new Promise(resolve => setTimeout(resolve, 1_000));
+        assert.deepEqual(await reportsOf(framed), []);
       } finally {
         await framed.page.close();
       }

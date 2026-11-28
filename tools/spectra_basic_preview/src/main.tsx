@@ -26,12 +26,15 @@ const basicV091 = new Catalog<ReactCatalogComponent>(
 );
 
 // Web core's basic catalog Icon sets the icon's name in the Material Icons font, as a ligature.
-// The font loads from the start, and an icon's name stays hidden while it does.
+// The font loads from the start, and an icon's name stays hidden while it does. A font that does
+// not load is the page's own matter, logged, not a component's failure.
 const iconFont = new FontFace('Material Icons', `url(${iconFontUrl}) format('woff2')`, {
   display: 'block',
 });
 document.fonts.add(iconFont);
-void iconFont.load();
+iconFont.load().catch((error: unknown) => {
+  console.warn('The Material Icons font did not load; icons show their names.', error);
+});
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
