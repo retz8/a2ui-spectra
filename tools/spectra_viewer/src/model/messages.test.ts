@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import {readRecording} from '../testing/recordings.ts';
-import {agentMessages, locateFinding, messageKey} from './messages.ts';
+import {agentMessages, locateFinding, messageKey, sameWire} from './messages.ts';
 import type {TurnRecordEvent, WirePart} from './record.ts';
 
 function output(...parts: WirePart[]): TurnRecordEvent {
@@ -77,5 +77,26 @@ describe('locateFinding', () => {
     assert.equal(locateFinding(EVENTS, `${base}/7`), undefined);
     assert.equal(locateFinding(EVENTS, '/events/9'), undefined);
     assert.equal(locateFinding(EVENTS, undefined), undefined);
+  });
+});
+
+describe('sameWire', () => {
+  const wire = output({type: 'text', content: 'Hi'});
+  const call: TurnRecordEvent = {
+    ...wire,
+    spanId: '3'.repeat(16),
+    name: 'model_call',
+    attributes: {'a2ui.event.kind': 'model_call'},
+  };
+
+  it('holds while only a call other than the wire changes', () => {
+    const changed = {...call, endTimeUnixNano: '1792800000001000000'};
+    assert.equal(sameWire([wire, call], [wire, changed]), true);
+  });
+
+  it('breaks when an event is added, the order changes, or a wire event is a new object', () => {
+    assert.equal(sameWire([wire], [wire, call]), false);
+    assert.equal(sameWire([wire, call], [call, wire]), false);
+    assert.equal(sameWire([wire, call], [{...wire}, call]), false);
   });
 });

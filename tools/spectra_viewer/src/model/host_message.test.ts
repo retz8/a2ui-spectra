@@ -9,6 +9,7 @@ import {
   dataModelVersionOf,
   foldedAtFirst,
   shownMessageOf,
+  treeHas,
 } from './host_message.ts';
 import type {Turn, TurnRecordEvent} from './record.ts';
 import {replay, type SurfaceView} from './replay.ts';
@@ -138,6 +139,33 @@ describe('the host message', () => {
     assert.equal(componentTypeOf(form, 'send'), 'Button');
     assert.equal(componentTypeOf(form, 'nowhere'), undefined);
     assert.equal(componentTypeOf(undefined, 'send'), undefined);
+  });
+
+  it('finds a component in the tree as shown, a child id no component has among it', () => {
+    const [form, notice] = surfaces();
+    assert.equal(treeHas(form, 'root'), true);
+    assert.equal(treeHas(form, 'label'), true);
+    assert.equal(treeHas(form, 'nowhere'), false);
+    // A surface with no components shows its root as a child id no component has.
+    assert.equal(treeHas(notice, 'root'), true);
+    assert.equal(componentTypeOf(notice, 'root'), undefined);
+    const {
+      surfaces: [ghosted],
+    } = replay(
+      [],
+      turnOf(
+        {version: 'v0.9.1', createSurface: {surfaceId: 'g', catalogId: V09_BASIC}},
+        {
+          version: 'v0.9.1',
+          updateComponents: {
+            surfaceId: 'g',
+            components: [{id: 'root', component: 'Column', children: ['ghost']}],
+          },
+        },
+      ).events,
+    );
+    assert.equal(treeHas(ghosted, 'ghost'), true);
+    assert.equal(componentTypeOf(ghosted, 'ghost'), undefined);
   });
 
   it("takes v1.0's surfaces under v1.0", () => {

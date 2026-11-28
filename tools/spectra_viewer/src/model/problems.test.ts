@@ -4,7 +4,7 @@ import {describe, it} from 'node:test';
 import {parse, promptGeneration} from '../testing/a2ui_step.ts';
 import {at, byStart, receivedSpan} from '../testing/model_calls.ts';
 import {readRecording, readTestData} from '../testing/recordings.ts';
-import {listedProblemCount, onlyProblems, problemsOf, turnProblemsOf} from './problems.ts';
+import {countBy, listedProblemCount, onlyProblems, problemsOf, turnProblemsOf} from './problems.ts';
 import {isTurnEvent, type Turn, type TurnRecordEvent, unixMillis} from './record.ts';
 import {replay} from './replay.ts';
 import {timelineOf} from './steps.ts';
@@ -310,5 +310,19 @@ describe("the A2UI step's problems", () => {
 
   it("adds the A2UI step's errors to the listed count", () => {
     assert.equal(listedProblemCount({findings: 1, a2uiStepErrors: 2}), 3);
+  });
+});
+
+describe('countBy', () => {
+  it('counts the items of each key, an item with no key left out', () => {
+    const counts = countBy(['a', 'b', 'a', '', 'a'], item => (item === '' ? undefined : item));
+    assert.deepEqual(
+      [...counts],
+      [
+        ['a', 3],
+        ['b', 1],
+      ],
+    );
+    assert.equal(countBy([], () => 'a').size, 0);
   });
 });
