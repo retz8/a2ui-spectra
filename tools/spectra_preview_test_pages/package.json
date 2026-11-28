@@ -1,0 +1,76 @@
+{
+  "name": "a2ui-spectra-preview-test-pages",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Preview pages for the browser tests of Spectra's React, Lit and Angular preview adapters, each with a test catalog whose component throws on demand. Never packed or published.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "scripts": {
+    "build": "wireit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "clean": "wireit",
+    "format": "prettier --ignore-path ../../.prettierignore --write .",
+    "format:check": "prettier --ignore-path ../../.prettierignore --check ."
+  },
+  "wireit": {
+    "build": {
+      "command": "tsc -b && vite build && ng build",
+      "dependencies": [
+        "../../typescript/preview/react:build",
+        "../../typescript/preview/lit:build",
+        "../../typescript/preview/angular:build"
+      ],
+      "files": [
+        "shared/**/*",
+        "react/**/*",
+        "lit/**/*",
+        "angular/**/*",
+        "tsconfig*.json",
+        "vite.config.*",
+        "angular.json"
+      ],
+      "output": [
+        "dist/"
+      ]
+    },
+    "clean": {
+      "command": "rm -rf dist .angular .wireit"
+    }
+  },
+  "dependencies": {
+    "@a2ui/angular": "0.16.0",
+    "@a2ui/lit": "0.16.0",
+    "@a2ui/react": "0.16.1",
+    "@a2ui/web_core": "0.16.1",
+    "@angular/common": "^22.2.3",
+    "@angular/core": "^22.2.3",
+    "@angular/platform-browser": "^22.2.3",
+    "a2ui-spectra-preview": "workspace:^",
+    "a2ui-spectra-preview-angular": "workspace:^",
+    "a2ui-spectra-preview-lit": "workspace:^",
+    "a2ui-spectra-preview-react": "workspace:^",
+    "lit": "^3.3.3",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "rxjs": "^7.8.2",
+    "tslib": "^2.8.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@angular/build": "^22.2.3",
+    "@angular/cli": "^22.2.3",
+    "@angular/compiler": "^22.2.3",
+    "@angular/compiler-cli": "^22.2.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "eslint": "^10.4.1",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "gts": "^7.0.0",
+    "prettier": "^3.8.4",
+    "typescript": "6.0.3",
+    "vite": "^8.0.16",
+    "wireit": "^0.15.0-pre.2"
+  }
+}

@@ -215,7 +215,8 @@
         "../../conformance/wrapper_driver/typescript:build",
         "../../typescript/preview/react:build",
         "../../typescript/preview/lit:build",
-        "../../typescript/preview/angular:build"
+        "../../typescript/preview/angular:build",
+        "../spectra_preview_test_pages:build"
       ],
       "env": {
         "SPECTRA_BINARY": {

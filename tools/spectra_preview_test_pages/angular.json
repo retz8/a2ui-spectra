@@ -1,0 +1,31 @@
+{
+  "$schema": "../../node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "projects": {
+    "test-page": {
+      "projectType": "application",
+      "root": ".",
+      "sourceRoot": "./angular",
+      "prefix": "test",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "angular/main.ts",
+            "index": "angular/index.html",
+            "tsConfig": "tsconfig.angular.json",
+            "outputPath": {"base": "dist/angular", "browser": ""},
+            "baseHref": "./",
+            "allowedCommonJsDependencies": ["validate-color"],
+            "optimization": false,
+            "extractLicenses": false,
+            "sourceMap": true
+          }
+        }
+      }
+    }
+  },
+  "cli": {
+    "analytics": false
+  }
+}

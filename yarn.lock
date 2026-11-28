@@ -5288,6 +5288,44 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"a2ui-spectra-preview-test-pages@workspace:tools/spectra_preview_test_pages":
+  version: 0.0.0-use.local
+  resolution: "a2ui-spectra-preview-test-pages@workspace:tools/spectra_preview_test_pages"
+  dependencies:
+    "@a2ui/angular": "npm:0.16.0"
+    "@a2ui/lit": "npm:0.16.0"
+    "@a2ui/react": "npm:0.16.1"
+    "@a2ui/web_core": "npm:0.16.1"
+    "@angular/build": "npm:^22.2.3"
+    "@angular/cli": "npm:^22.2.3"
+    "@angular/common": "npm:^22.2.3"
+    "@angular/compiler": "npm:^22.2.3"
+    "@angular/compiler-cli": "npm:^22.2.3"
+    "@angular/core": "npm:^22.2.3"
+    "@angular/platform-browser": "npm:^22.2.3"
+    "@types/react": "npm:^19.2.17"
+    "@types/react-dom": "npm:^19.2.3"
+    "@vitejs/plugin-react": "npm:^6.0.2"
+    a2ui-spectra-preview: "workspace:^"
+    a2ui-spectra-preview-angular: "workspace:^"
+    a2ui-spectra-preview-lit: "workspace:^"
+    a2ui-spectra-preview-react: "workspace:^"
+    eslint: "npm:^10.4.1"
+    eslint-plugin-react-hooks: "npm:^7.1.1"
+    gts: "npm:^7.0.0"
+    lit: "npm:^3.3.3"
+    prettier: "npm:^3.8.4"
+    react: "npm:^19.2.7"
+    react-dom: "npm:^19.2.7"
+    rxjs: "npm:^7.8.2"
+    tslib: "npm:^2.8.1"
+    typescript: "npm:6.0.3"
+    vite: "npm:^8.0.16"
+    wireit: "npm:^0.15.0-pre.2"
+    zod: "npm:^3.25.76"
+  languageName: unknown
+  linkType: soft
+
 "a2ui-spectra-preview@workspace:^, a2ui-spectra-preview@workspace:typescript/preview/core":
   version: 0.0.0-use.local
   resolution: "a2ui-spectra-preview@workspace:typescript/preview/core"
