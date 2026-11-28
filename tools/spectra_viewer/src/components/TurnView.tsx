@@ -5,7 +5,6 @@ import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components
 import {
   parseOfComponent,
   readByLinesOf,
-  retriesOf,
   retrySentenceOf,
   stepHeaderPartsOf,
   uiSectionsOf,
@@ -17,9 +16,9 @@ import {inputBriefOfTurn} from '@/model/input_brief.ts';
 import {pageKeyOf} from '@/model/keys.ts';
 import {asOfLabel, positionOf, resultMomentOf} from '@/model/as_of.ts';
 import {catalogsOf} from '@/model/catalogs.ts';
+import {turnFactsOf, turnSurfacesOf} from '@/model/turn_facts.ts';
 import {firstScreenBoxOf} from '@/model/dev_loop.ts';
 import {dataModelMapOf, dataModelVersionOf, treeHas} from '@/model/host_message.ts';
-import {legacyByStep, legacyEntriesOf, legacyKeysByPath} from '@/model/legacy_form.ts';
 import {agentMessages, sameWire} from '@/model/messages.ts';
 import {previewProblemsOf, routeOf, surfaceFeedOf, targetOf} from '@/model/preview.ts';
 import {modelReadingOf} from '@/model/call_rows.ts';
@@ -36,7 +35,6 @@ import {
   callReplayOf,
   type RecordedCall,
   recordedCallsOf,
-  rowTagsOf,
   sourceAddressOf,
   sourceNameAt,
   traceIdOfTurn,
@@ -45,18 +43,14 @@ import {countBy, type Problem, onlyProblems, turnProblemsOf} from '@/model/probl
 import {
   isCallEvent,
   isModelCall,
-  isParse,
-  isPromptGeneration,
   isTurnEvent,
-  newerStepVersionOf,
   readRecordVersionsText,
-  type Turn,
   type TurnRecord,
   type TurnRecordEvent,
 } from '@/model/record.ts';
 import {replay} from '@/model/replay.ts';
-import {repliesThrough, timelineOf} from '@/model/steps.ts';
-import {openFieldsOf, summaryOf} from '@/model/summary.ts';
+import {repliesThrough} from '@/model/steps.ts';
+import {openFieldsOf} from '@/model/summary.ts';
 import {insideLineOf} from '@/model/turn_calls.ts';
 import {briefText} from '@/model/turn_groups.ts';
 import {coveredRowsOf} from '@/model/covered.ts';
@@ -360,20 +354,25 @@ export function TurnBody({
   const state = useSpectra();
   const small = useSmallWindow();
   const open = view.status === 'open';
-  const events: readonly TurnRecordEvent[] = open ? view.live.events : view.turn.events;
-  const turn: Turn | undefined = open ? undefined : view.turn;
-  const summary = useMemo(() => (turn === undefined ? undefined : summaryOf(turn)), [turn]);
-  const startMs = open ? Date.parse(view.live.startTime) : (summary?.startTime ?? 0);
-  // A closed turn's lanes run to its end and every row's; a live turn's to the present.
-  const turnEndMs =
-    open || summary === undefined ? undefined : summary.startTime + summary.durationMs;
+  const closedTurn = open ? undefined : view.turn;
+  const liveEvents = open ? view.live.events : undefined;
+  const liveStart = open ? view.live.startTime : undefined;
   // The earlier turns and the events keep their identity until they change, so each replay runs once per change.
-  const earlier = 'turns' in view.earlier ? view.earlier.turns : undefined;
-
-  const timeline = useMemo(() => timelineOf(events, startMs), [events, startMs]);
-  // The A2UI step, worked out when shown: the retries among the model calls, and what the readers know of the catalogs.
-  const retries = useMemo(() => retriesOf(events), [events]);
-  const tags = useMemo(() => rowTagsOf(timeline, retries), [timeline, retries]);
+  const earlierTurns = 'turns' in view.earlier ? view.earlier.turns : undefined;
+  // The turn's facts from its record, worked out again only when the turn or its earlier turns change.
+  const facts = useMemo(
+    () =>
+      turnFactsOf(
+        closedTurn !== undefined
+          ? {turn: closedTurn, earlier: earlierTurns}
+          : {events: liveEvents ?? [], startTime: liveStart ?? '', earlier: earlierTurns},
+      ),
+    [closedTurn, liveEvents, liveStart, earlierTurns],
+  );
+  const {events, turn, summary, startMs, earlier, timeline, retries, tags, hasStep, newerStep} =
+    facts;
+  // A closed turn's lanes run to its end and every row's; a live turn's to the present.
+  const turnEndMs = facts.endMs;
   // A replayed turn: what it came from, where that is now, and the source's turns once read.
   const provenance = useMemo(
     () => provenanceOfTurn(state, traceId, events),
@@ -398,17 +397,11 @@ export function TurnBody({
     () => sourceTurns?.find(each => traceIdOfTurn(each) === provenance?.recordedTurn),
     [sourceTurns, provenance?.recordedTurn],
   );
-  const hasStep = useMemo(
-    () => events.some(event => isParse(event) || isPromptGeneration(event)),
-    [events],
-  );
-  // A step reported under a newer turn record, which the receiver kept as framework spans.
-  const newerStep = useMemo(() => newerStepVersionOf(events), [events]);
   // The surfaces are rebuilt only when the wire changes, not as a call's chunks arrive.
-  const wireEvents = useWireEvents(events);
+  const wireEvents = useWireEvents(facts.surfaceEvents);
   const catalogs = useMemo(() => catalogsOf(state.catalogs), [state.catalogs]);
   const whole = useMemo(
-    () => (earlier === undefined ? undefined : replay(earlier, wireEvents, undefined, catalogs)),
+    () => turnSurfacesOf(earlier, wireEvents, catalogs),
     [earlier, wireEvents, catalogs],
   );
   // The record's problems: the checks' findings, web core's rejections and a failed outcome.
@@ -421,13 +414,7 @@ export function TurnBody({
     [recorded],
   );
   // The legacy form, as the record's catalog check lists it: not a problem, so neither counted nor filtered.
-  const legacyEntries = useMemo(() => legacyEntriesOf(events), [events]);
-  const legacySteps = useMemo(
-    () => legacyByStep(events, timeline, legacyEntries),
-    [events, timeline, legacyEntries],
-  );
-  const legacyStepIds = useMemo(() => new Set(legacySteps.keys()), [legacySteps]);
-  const legacyKeys = useMemo(() => legacyKeysByPath(legacyEntries), [legacyEntries]);
+  const {legacySteps, legacyStepIds, legacyKeys} = facts;
 
   // The filter belongs to this turn: each turn opens with all its steps.
   // It keeps the record's problems and every step a render error has been on while the turn is in
