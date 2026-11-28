@@ -128,6 +128,19 @@ def spans(provider: TracerProvider, exporter: InMemorySpanExporter) -> Recorded:
 
 
 @pytest.fixture
+def spans_of(
+    provider: TracerProvider, exporter: InMemorySpanExporter
+) -> Callable[[], Recorded]:
+    """Switches the wrapper on when called, as `spans` does when it is asked for."""
+
+    def switch_on() -> Recorded:
+        a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
+        return Recorded(exporter)
+
+    return switch_on
+
+
+@pytest.fixture
 def no_otlp_variables(monkeypatch: pytest.MonkeyPatch) -> None:
     for name in OTLP_VARIABLES:
         monkeypatch.delenv(name, raising=False)

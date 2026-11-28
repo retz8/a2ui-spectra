@@ -8,6 +8,7 @@ from __future__ import annotations
 import importlib
 import logging
 import sys
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 import pytest
@@ -18,6 +19,8 @@ from a2ui.inference_formats.experimental.atom import (
     prompt_generator as atom_prompt_generator,
 )
 from a2ui.inference_formats.express import prompt_generator as express_prompt_generator
+from a2ui import parser as a2ui_parser
+from a2ui.core import common as a2ui_core_common
 from a2ui.parser import Parser
 from a2ui.prompt import PromptGenerator
 from a2ui.utils import RendererState
@@ -151,6 +154,41 @@ def test_a_missing_toolset_name_skips_the_toolset_naming_its_own_release(
     assert message.endswith(
         "it was written against a2ui-adk 0.3.0, upstream's release of 2026-11-10"
     )
+
+
+def test_a_missing_function_the_hooks_call_leaves_everything_unpatched(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    provider: TracerProvider,
+    support: conftest.Support,
+) -> None:
+    monkeypatch.delattr(a2ui_parser, "to_message_dicts")
+    with caplog.at_level(logging.DEBUG, logger=support.logger):
+        a2ui_spectra_instrumentation.instrument(tracer_provider=provider)
+
+    assert not support.hooked(Parser, "parse_response")
+    [line] = support.lines(caplog)
+    assert line.levelno == logging.WARNING
+    assert "a2ui.parser.to_message_dicts is missing" in line.getMessage()
+
+
+def test_an_sdk_without_to_protocol_version_is_patched_and_its_versions_written(
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    spans_of: Callable[[], conftest.Recorded],
+    processor: conftest.ProcessorFactory,
+    support: conftest.Support,
+) -> None:
+    monkeypatch.delattr(a2ui_core_common, "to_protocol_version")
+    with caplog.at_level(logging.DEBUG, logger=support.logger):
+        spans = spans_of()
+    processor().parser.compile('surface("card")\nroot = Text("Hi")')
+
+    assert support.lines(caplog) == []
+    assert spans.parsed(spans.one(), "a2ui.parse.catalogs") == [{
+        "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+        "protocolVersion": "v1.0",
+    }]
 
 
 def failing_import(module: str, error: Exception) -> Any:
