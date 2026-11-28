@@ -283,3 +283,16 @@ export function listedProblemCount(turn: {
     (turn.renderErrors ?? 0)
   );
 }
+
+/** How many items there are of each key, an item with no key left out. */
+export function countBy<T>(
+  items: readonly T[],
+  keyOf: (item: T) => string | undefined,
+): Map<string, number> {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const key = keyOf(item);
+    if (key !== undefined) counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}

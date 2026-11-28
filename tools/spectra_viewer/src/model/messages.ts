@@ -1,4 +1,4 @@
-import {isWireOutput, type TurnRecordEvent} from './record.ts';
+import {isWireInput, isWireOutput, type TurnRecordEvent} from './record.ts';
 
 /** One A2UI message the agent sent in a turn, and where it sits among the turn's events. */
 export interface AgentMessage {
@@ -135,4 +135,19 @@ export function componentPointer(message: unknown, id: string): string | undefin
   return index === -1
     ? undefined
     : `/${type.replace(/~/g, '~0').replace(/\//g, '~1')}/components/${index}`;
+}
+
+/** Whether two versions of a turn's events hold the same events in order and the same wire events. */
+export function sameWire(
+  before: readonly TurnRecordEvent[],
+  events: readonly TurnRecordEvent[],
+): boolean {
+  return (
+    before.length === events.length &&
+    events.every(
+      (event, index) =>
+        event.spanId === before[index].spanId &&
+        (!(isWireInput(event) || isWireOutput(event)) || event === before[index]),
+    )
+  );
 }

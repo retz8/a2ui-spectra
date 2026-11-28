@@ -18,9 +18,9 @@ import {pageKeyOf} from '@/model/keys.ts';
 import {asOfLabel, positionOf, resultMomentOf} from '@/model/as_of.ts';
 import {catalogsOf} from '@/model/catalogs.ts';
 import {firstScreenBoxOf} from '@/model/dev_loop.ts';
-import {dataModelMapOf, dataModelVersionOf} from '@/model/host_message.ts';
+import {dataModelMapOf, dataModelVersionOf, treeHas} from '@/model/host_message.ts';
 import {legacyByStep, legacyEntriesOf, legacyKeysByPath} from '@/model/legacy_form.ts';
-import {agentMessages} from '@/model/messages.ts';
+import {agentMessages, sameWire} from '@/model/messages.ts';
 import {previewProblemsOf, routeOf, surfaceFeedOf, targetOf} from '@/model/preview.ts';
 import {modelReadingOf} from '@/model/call_rows.ts';
 import {isProxyModelCall, isReadInFull} from '@/model/model_calls.ts';
@@ -41,22 +41,20 @@ import {
   sourceNameAt,
   traceIdOfTurn,
 } from '@/model/provenance.ts';
-import {type Problem, onlyProblems, turnProblemsOf} from '@/model/problems.ts';
+import {countBy, type Problem, onlyProblems, turnProblemsOf} from '@/model/problems.ts';
 import {
   isCallEvent,
   isModelCall,
   isParse,
   isPromptGeneration,
   isTurnEvent,
-  isWireInput,
-  isWireOutput,
   newerStepVersionOf,
   readRecordVersionsText,
   type Turn,
   type TurnRecord,
   type TurnRecordEvent,
 } from '@/model/record.ts';
-import {replay, type SurfaceView, type TreeNode} from '@/model/replay.ts';
+import {replay} from '@/model/replay.ts';
 import {repliesThrough, timelineOf} from '@/model/steps.ts';
 import {openFieldsOf, summaryOf} from '@/model/summary.ts';
 import {insideLineOf} from '@/model/turn_calls.ts';
@@ -1043,16 +1041,6 @@ function rememberedHeight(panel: PanelImperativeHandle): number | undefined {
     : remembered;
 }
 
-/** Whether a surface's tree, as shown, holds a component. */
-function treeHas(surface: SurfaceView, componentId: string): boolean {
-  const has = (node: TreeNode): boolean =>
-    node.id === componentId || (!('missing' in node) && node.children.some(has));
-  const {structure} = surface;
-  const roots =
-    'tree' in structure ? [structure.tree, ...structure.notUnderRoot] : structure.unnested;
-  return roots.some(has);
-}
-
 /**
  * The events as the surfaces read them: the same array until a wire event
  * comes or an event is added, so a call's chunks and progress, which change
@@ -1065,28 +1053,4 @@ function useWireEvents(events: readonly TurnRecordEvent[]): readonly TurnRecordE
     return events;
   }
   return kept;
-}
-
-/** Whether two versions of a turn's events hold the same events in order and the same wire events. */
-function sameWire(before: readonly TurnRecordEvent[], events: readonly TurnRecordEvent[]): boolean {
-  return (
-    before.length === events.length &&
-    events.every(
-      (event, index) =>
-        event.spanId === before[index].spanId &&
-        (!(isWireInput(event) || isWireOutput(event)) || event === before[index]),
-    )
-  );
-}
-
-function countBy<T>(
-  items: readonly T[],
-  keyOf: (item: T) => string | undefined,
-): Map<string, number> {
-  const counts = new Map<string, number>();
-  for (const item of items) {
-    const key = keyOf(item);
-    if (key !== undefined) counts.set(key, (counts.get(key) ?? 0) + 1);
-  }
-  return counts;
 }

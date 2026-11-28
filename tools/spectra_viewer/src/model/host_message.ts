@@ -96,6 +96,16 @@ export function foldedAtFirst(dataModel: DataModelMap | undefined): string[] {
   );
 }
 
+/** Whether a surface's tree, as shown, holds a component. */
+export function treeHas(surface: SurfaceView, componentId: string): boolean {
+  const has = (node: TreeNode): boolean =>
+    node.id === componentId || (!('missing' in node) && node.children.some(has));
+  const {structure} = surface;
+  const roots =
+    'tree' in structure ? [structure.tree, ...structure.notUnderRoot] : structure.unnested;
+  return roots.some(has);
+}
+
 /** A component's type, by its id, as the surface's structure has it. */
 export function componentTypeOf(surface: SurfaceView | undefined, id: string): string | undefined {
   if (surface === undefined) return undefined;
