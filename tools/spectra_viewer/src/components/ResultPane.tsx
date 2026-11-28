@@ -5,13 +5,13 @@ import {usePanelRef} from 'react-resizable-panels';
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
 import {cn} from '@/lib/utils';
 import {noSurfaceSentenceOf} from '@/model/as_of.ts';
-import type {NodeRef} from '@/model/address.ts';
 import {bindingOf} from '@/model/bindings.ts';
 import {legacyKeysOfNode} from '@/model/legacy_form.ts';
 import {pageNoteOf, type Route} from '@/model/preview.ts';
 import type {ComponentNode, Replay, SurfaceView, TreeNode} from '@/model/replay.ts';
 import type {Reply} from '@/model/steps.ts';
 import {rememberedSize, rememberSize} from '@/state/layout.ts';
+import {useSelectedNode} from '@/state/selected_node.ts';
 import {setViewSetting, useViewSettings} from '@/state/view_settings.ts';
 
 import {Icon, LegacyMark, ProblemMark} from './icons.tsx';
@@ -48,8 +48,6 @@ export function ResultPane({
   failed,
   later,
   folded,
-  selectedNode,
-  onSelectNode,
   legacyKeys,
 }: {
   /** The agent's replies up to the step, a line each. */
@@ -74,9 +72,6 @@ export function ResultPane({
   later: boolean;
   /** Folded to its header line, while the step's detail is maximized. */
   folded: boolean;
-  /** The tree node selected, whose parse and range the detail shows. */
-  selectedNode?: NodeRef;
-  onSelectNode?: (node: NodeRef) => void;
   /** The bare keys of each component object the turn's messages carried in the legacy form, by its pointer from the turn. */
   legacyKeys: ReadonlyMap<string, string[]>;
 }) {
@@ -193,8 +188,6 @@ export function ResultPane({
           preview={showPreview ? preview : undefined}
           showStructure={showStructure}
           width={settings.width}
-          selectedNode={selectedNode}
-          onSelectNode={onSelectNode}
           legacyKeys={legacyKeys}
         />
       )}
@@ -209,8 +202,6 @@ function Panes({
   preview,
   showStructure,
   width,
-  selectedNode,
-  onSelectNode,
   legacyKeys,
 }: {
   surface: SurfaceView;
@@ -219,28 +210,13 @@ function Panes({
   preview: PreviewView | undefined;
   showStructure: boolean;
   width: 'narrow' | 'wide';
-  selectedNode: NodeRef | undefined;
-  onSelectNode: ((node: NodeRef) => void) | undefined;
   legacyKeys: ReadonlyMap<string, string[]>;
 }) {
   const previewPanel = usePanelRef();
   const [group, setGroup] = useState<HTMLDivElement | null>(null);
   const groupWidth = useWidthOf(group);
   const structure = (
-    <Structure
-      key={surface.surfaceId}
-      surface={surface}
-      open={open}
-      legacyKeys={legacyKeys}
-      selected={
-        selectedNode?.surfaceId === surface.surfaceId ? selectedNode.componentId : undefined
-      }
-      onSelect={
-        onSelectNode === undefined
-          ? undefined
-          : componentId => onSelectNode({surfaceId: surface.surfaceId, componentId})
-      }
-    />
+    <Structure key={surface.surfaceId} surface={surface} open={open} legacyKeys={legacyKeys} />
   );
   const drawing = preview === undefined ? undefined : <PreviewPane {...preview} width={width} />;
   if (drawing === undefined) return structure;
@@ -407,15 +383,10 @@ function Structure({
   surface,
   open,
   legacyKeys,
-  selected,
-  onSelect,
 }: {
   surface: SurfaceView;
   open: boolean;
   legacyKeys: ReadonlyMap<string, string[]>;
-  /** The selected node's component id, on this surface. */
-  selected: string | undefined;
-  onSelect: ((componentId: string) => void) | undefined;
 }) {
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const toggle = (key: string) => {
@@ -453,8 +424,6 @@ function Structure({
               expanded={expanded}
               onToggle={toggle}
               open={open}
-              selected={selected}
-              onSelect={onSelect}
               surface={surface}
               legacyKeys={legacyKeys}
             />
@@ -471,8 +440,6 @@ function Structure({
                 expanded={expanded}
                 onToggle={toggle}
                 open={open}
-                selected={selected}
-                onSelect={onSelect}
                 surface={surface}
                 legacyKeys={legacyKeys}
               />
@@ -507,8 +474,6 @@ function TreeRows({
   expanded,
   onToggle,
   open,
-  selected,
-  onSelect,
   surface,
   legacyKeys,
 }: {
@@ -517,11 +482,11 @@ function TreeRows({
   expanded: ReadonlySet<string>;
   onToggle: (key: string) => void;
   open: boolean;
-  selected: string | undefined;
-  onSelect: ((componentId: string) => void) | undefined;
   surface: SurfaceView;
   legacyKeys: ReadonlyMap<string, string[]>;
 }) {
+  // The node the page address holds, and how a row selects one: its parse with it.
+  const {node: selectedNode, selectInTree} = useSelectedNode();
   const pad = {paddingLeft: depth * 16 + 6};
   if ('missing' in node) {
     return (
@@ -537,29 +502,28 @@ function TreeRows({
   const isOpen = expanded.has(key);
   const properties = propertiesOf(surface.written?.get(node.id)?.object ?? node.properties);
   const legacy = legacyKeysOfNode(surface, node.id, legacyKeys);
-  const isSelected = selected === node.id;
+  const isSelected =
+    selectedNode?.surfaceId === surface.surfaceId && selectedNode.componentId === node.id;
+  const onSelect = (componentId: string) =>
+    selectInTree({surfaceId: surface.surfaceId, componentId});
   return (
     <>
       <div
         style={pad}
-        {...(onSelect !== undefined && {
-          role: 'button',
-          tabIndex: 0,
-          'aria-pressed': isSelected,
-          onClick: () => onSelect(node.id),
-          onKeyDown: (event: {key: string; preventDefault: () => void}) => {
-            if (event.key === 'Enter' || event.key === ' ') {
-              event.preventDefault();
-              onSelect(node.id);
-            }
-          },
-        })}
+        role="button"
+        tabIndex={0}
+        aria-pressed={isSelected}
+        onClick={() => onSelect(node.id)}
+        onKeyDown={event => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            onSelect(node.id);
+          }
+        }}
         className={cn(
           '-mx-1.5 flex h-6 items-center gap-1.5 rounded-md pr-1.5 whitespace-nowrap',
-          onSelect !== undefined && 'cursor-pointer',
-          isSelected
-            ? 'bg-brand-soft shadow-mark-start'
-            : onSelect !== undefined && 'hover:bg-tint',
+          'cursor-pointer',
+          isSelected ? 'bg-brand-soft shadow-mark-start' : 'hover:bg-tint',
         )}
       >
         <button
@@ -620,8 +584,6 @@ function TreeRows({
           expanded={expanded}
           onToggle={onToggle}
           open={open}
-          selected={selected}
-          onSelect={onSelect}
           surface={surface}
           legacyKeys={legacyKeys}
         />

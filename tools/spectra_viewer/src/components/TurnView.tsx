@@ -1,4 +1,4 @@
-import {type ReactNode, useEffect, useMemo, useRef, useState} from 'react';
+import {type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState} from 'react';
 import {type PanelImperativeHandle, usePanelRef} from 'react-resizable-panels';
 
 import {ResizableHandle, ResizablePanel, ResizablePanelGroup} from '@/components/ui/resizable.tsx';
@@ -65,6 +65,7 @@ import {
   usePendingAction,
 } from '@/state/press.ts';
 import {setRenderErrorsInView} from '@/state/render_errors.ts';
+import {setSelectedNode} from '@/state/selected_node.ts';
 import type {SavedState} from '@/state/fixtures.ts';
 import {
   provenanceOfTurn,
@@ -534,6 +535,7 @@ export function TurnBody({
     return () => {
       setRenderErrorsInView(undefined);
       setDataModelInView(undefined);
+      setSelectedNode(undefined);
     };
   }, []);
   const sentA2ui = useMemo(() => agentMessages(wireEvents).length > 0, [wireEvents]);
@@ -554,6 +556,11 @@ export function TurnBody({
     setPickedSurface(next.surfaceId);
     setPicked(selected?.id, next);
   };
+  // The node and the two ways to select one go to the tree and the raw text through a mirror of
+  // the address, laid out before the page paints.
+  useLayoutEffect(() => {
+    setSelectedNode({node, selectInTree: selectNode, selectInRawText: selectRange});
+  });
   // A node the tree shown no longer has is dropped from the address.
   const nodeShown =
     node === undefined || pane === undefined
@@ -928,8 +935,6 @@ export function TurnBody({
                   failed={summary?.outcome === 'failed'}
                   later={position !== undefined && (whole?.surfaces.length ?? 0) > 0}
                   folded={folding}
-                  selectedNode={node}
-                  onSelectNode={selectNode}
                   legacyKeys={legacyKeys}
                 />
               </ResizablePanel>
@@ -981,8 +986,6 @@ export function TurnBody({
                     prefix={prefix}
                     onEarlier={onEarlier}
                     catalogs={state.catalogs}
-                    selectedNode={node}
-                    onSelectNode={selectRange}
                     onStep={id => {
                       requestTimelineFocus();
                       setPicked(id);

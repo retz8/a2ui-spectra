@@ -8,7 +8,6 @@
  */
 import {useMemo} from 'react';
 
-import type {NodeRef} from '@/model/address.ts';
 import {
   parseProblemsOf,
   rangesSentenceOf,
@@ -40,8 +39,6 @@ export function parseDetailOf({
   events,
   startMs,
   catalogs,
-  selectedNode,
-  onSelectNode,
   onStep,
   reveal,
 }: {
@@ -52,9 +49,6 @@ export function parseDetailOf({
   startMs: number;
   /** The catalog definitions the viewer holds, which the parse's own catalogs are read from. */
   catalogs: readonly KnownCatalog[] | undefined;
-  selectedNode: NodeRef | undefined;
-  /** Selects a component by its range in the raw text, keeping this parse selected. */
-  onSelectNode: (node: NodeRef) => void;
   /** Selects another step of the turn. */
   onStep: (stepId: string) => void;
   reveal: RangeReveal | undefined;
@@ -91,15 +85,7 @@ export function parseDetailOf({
   const tabs: DetailTab[] = [
     {
       name: 'Raw text',
-      content: (
-        <ParseRawText
-          parse={parse}
-          catalogs={catalogs}
-          selectedNode={selectedNode}
-          onSelectNode={onSelectNode}
-          reveal={reveal}
-        />
-      ),
+      content: <ParseRawText parse={parse} catalogs={catalogs} reveal={reveal} />,
     },
     {
       name: 'Messages',
@@ -142,14 +128,10 @@ export function parseDetailOf({
 function ParseRawText({
   parse,
   catalogs,
-  selectedNode,
-  onSelectNode,
   reveal,
 }: {
   parse: ParseEvent;
   catalogs: readonly KnownCatalog[] | undefined;
-  selectedNode: NodeRef | undefined;
-  onSelectNode: (node: NodeRef) => void;
   reveal: RangeReveal | undefined;
 }) {
   const {attributes} = parse;
@@ -165,8 +147,6 @@ function ParseRawText({
       text={attributes['a2ui.parse.input']}
       ranges={reading?.ranges ?? []}
       blocks={blocks}
-      selected={selectedNode}
-      onSelect={onSelectNode}
       reveal={reveal}
       sentence={rangesSentenceOf(reading, attributes['a2ui.parse.inference_format'])}
     />

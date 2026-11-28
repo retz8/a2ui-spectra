@@ -13,6 +13,7 @@ import {cn} from '@/lib/utils';
 import type {NodeRef} from '@/model/address.ts';
 import type {ComponentRange} from '@/model/record.ts';
 import {toggleBlockFold, useBlockFold} from '@/state/block_folds.ts';
+import {useSelectedNode} from '@/state/selected_node.ts';
 
 import {CopyButton} from './CopyButton.tsx';
 import {BlockLabel} from './JsonBlock.tsx';
@@ -57,8 +58,6 @@ export function RawText({
   text,
   ranges,
   blocks,
-  selected,
-  onSelect,
   reveal,
   sentence,
 }: {
@@ -66,9 +65,6 @@ export function RawText({
   ranges: readonly ComponentRange[];
   /** The rejected blocks, each tinted red-soft. */
   blocks: ReadonlyArray<{start: number; end: number}>;
-  /** The selected component, whose range takes the selection tint. */
-  selected: NodeRef | undefined;
-  onSelect: (node: NodeRef) => void;
   reveal: RangeReveal | undefined;
   /** Why the ranges are not all worked out, when they are not. */
   sentence: string | undefined;
@@ -77,6 +73,8 @@ export function RawText({
   const fold = useBlockFold(label);
   const [hovered, setHovered] = useState<string | undefined>();
   const block = useRef<HTMLDivElement>(null);
+  // The selected component, whose range takes the selection tint, and how a click selects one.
+  const {node: selected, selectInRawText: onSelect} = useSelectedNode();
   const selectedKey = selected === undefined ? undefined : keyOf(selected);
   // The selected range is scrolled into view as it changes; a revealed block likewise.
   useEffect(() => {

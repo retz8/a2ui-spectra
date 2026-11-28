@@ -1,7 +1,6 @@
 import {type ReactNode, useEffect, useState} from 'react';
 
 import {cn} from '@/lib/utils';
-import type {NodeRef} from '@/model/address.ts';
 import type {Prices} from '@/model/cost.ts';
 import {legacyLinesOf, type StepLegacy} from '@/model/legacy_form.ts';
 import type {KnownCatalog} from '@/model/catalogs.ts';
@@ -58,8 +57,6 @@ export function StepDetail({
   prefix,
   onEarlier,
   catalogs,
-  selectedNode,
-  onSelectNode,
   onStep,
   stepOnCall,
   callReplay,
@@ -88,10 +85,6 @@ export function StepDetail({
   onEarlier: (found: Exclude<PrefixBreak, {form: 'first'}>) => void;
   /** The catalog definitions the viewer holds, for a parse's component ranges. */
   catalogs: readonly KnownCatalog[] | undefined;
-  /** The tree node selected, whose range a parse's raw text tints. */
-  selectedNode: NodeRef | undefined;
-  /** Selects a component by its range in a parse's raw text. */
-  onSelectNode: (node: NodeRef) => void;
   /** Selects another step of the turn, by its id or a span id it holds. */
   onStep: (stepId: string) => void;
   /** What the A2UI step adds to a model call's detail. */
@@ -126,8 +119,6 @@ export function StepDetail({
             events,
             startMs,
             catalogs,
-            selectedNode,
-            onSelectNode,
             onStep,
             reveal: rangeReveal,
           })
