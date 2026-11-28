@@ -3,7 +3,7 @@ import {constants} from 'node:os';
 
 import {cardDetailsOf, checkTransport, rewriteCard, type TransportCheck} from './a2a/card.js';
 import {startWireProxy, type WireProxy} from './a2a/proxy.js';
-import {type AgentCard, agentCardUrl, waitForAgentCard} from './agent_card.js';
+import {type AgentCard, agentCardUrl, waitForAgentCard} from './a2a/agent_card.js';
 import {
   type AgentExit,
   type AgentProcess,

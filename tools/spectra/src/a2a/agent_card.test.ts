@@ -3,7 +3,7 @@ import {createServer, type Server} from 'node:http';
 import {after, before, describe, it} from 'node:test';
 
 import {agentCardUrl, fetchAgentCard, waitForAgentCard} from './agent_card.js';
-import {freePort} from './testing/free_port.js';
+import {freePort} from '../testing/free_port.js';
 
 describe('agentCardUrl', () => {
   it("puts the card at the well-known path under the agent's base address", () => {
