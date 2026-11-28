@@ -44,7 +44,6 @@ import {countBy, type Problem, onlyProblems, turnProblemsOf} from '@/model/probl
 import {
   isCallEvent,
   isModelCall,
-  isTurnEvent,
   readRecordVersionsText,
   type TurnRecord,
   type TurnRecordEvent,
@@ -602,7 +601,7 @@ export function TurnBody({
     if (selectedCall === undefined || earlier === undefined) return undefined;
     const turns = [
       ...earlier.map(turn => ({
-        traceId: turn.events.find(isTurnEvent)?.traceId ?? '',
+        traceId: traceIdOfTurn(turn) ?? '',
         calls: turn.events.filter(isProxyModelCall),
       })),
       {traceId, calls: events.filter(isProxyModelCall)},

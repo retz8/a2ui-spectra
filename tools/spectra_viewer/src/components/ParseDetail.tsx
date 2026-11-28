@@ -17,7 +17,7 @@ import {
   retriedByOf,
   sourceLineOfStep,
 } from '@/model/a2ui_step.ts';
-import type {CallRow} from '@/model/call_rows.ts';
+import {type CallRow, sourceLineOf} from '@/model/call_rows.ts';
 import {rangesOfParse} from '@/model/ranges.ts';
 import type {KnownCatalog} from '@/model/catalogs.ts';
 import type {
@@ -175,27 +175,11 @@ function ParseRawText({
 
 /** The sources of the tool call's own spans, the parse's left out. */
 function sourceLinesOfCall(call: CallRow): string[] {
-  const lines = new Set<string>();
-  for (const span of call.spans) {
-    if (span.attributes['a2ui.event.kind'] === 'parse') continue;
-    const attributes = span.attributes as Record<string, unknown>;
-    const dialect = attributes['a2ui.received.dialect'];
-    const source =
-      dialect === 'adk'
-        ? 'ADK spans'
-        : dialect === 'openinference'
-          ? 'OpenInference spans'
-          : dialect === 'genai'
-            ? 'GenAI spans'
-            : typeof dialect === 'string'
-              ? `${dialect} spans`
-              : 'Received spans';
-    const scope = [attributes['otel.scope.name'], attributes['otel.scope.version']]
-      .filter((part): part is string => typeof part === 'string' && part !== '')
-      .join(' ');
-    lines.add(scope === '' ? source : `${source} · ${scope}`);
-  }
-  return [...lines];
+  return [
+    ...new Set(
+      call.spans.filter(span => span.attributes['a2ui.event.kind'] !== 'parse').map(sourceLineOf),
+    ),
+  ];
 }
 
 /** A failed prompt generation's span, in one column under its section. */

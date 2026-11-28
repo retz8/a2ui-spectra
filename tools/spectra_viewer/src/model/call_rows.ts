@@ -307,7 +307,7 @@ export function sourcesOfRow(row: CallRow): string[] {
 }
 
 /** A span's source line: its source, then its scope's name and version. */
-function sourceLineOf(span: TurnRecordEvent): string {
+export function sourceLineOf(span: TurnRecordEvent): string {
   const attributes = span.attributes as Record<string, unknown>;
   const scope = [attributes['otel.scope.name'], attributes['otel.scope.version']]
     .filter((part): part is string => typeof part === 'string' && part !== '')
