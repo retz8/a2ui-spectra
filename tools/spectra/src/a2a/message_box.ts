@@ -1,8 +1,6 @@
 import {randomUUID} from 'node:crypto';
-import path from 'node:path';
 
 import type {CatalogOffer} from '../catalog/registry.js';
-import {type InputBrief, inputBriefOf} from '../listing.js';
 import {
   type BoxInput,
   type MessageBox,
@@ -12,11 +10,13 @@ import {
   unsetVariablesClause,
 } from '../message_box.js';
 import {isEventOfKind, type ReplayMode, type Turn, type TurnEvent} from '../record/turn_record.js';
-import type {ReplayHooks, ReplaySource, ReplayStarted, ReplayState} from '../replay/driver.js';
-import {ReplayRecordError, replayInputs} from '../replay/inputs.js';
-import {hasNothingToServe, NOTHING_TO_SERVE, ReplayPool} from '../replay/pool.js';
-import {inWords, outcomeOf, type Verdict, verdictOf} from '../replay/verdict.js';
-import type {LiveReplayedTurn, ReplayedTurn, TurnHub} from '../turn_hub.js';
+import {
+  ReplayDriver,
+  type ReplayHooks,
+  type ReplaySource,
+  type ReplayStarted,
+} from '../replay/driver.js';
+import type {TurnHub} from '../turn_hub.js';
 import {checkTransport} from './card.js';
 import {
   boxRequest,
@@ -105,17 +105,11 @@ export class A2aMessageBox implements MessageBox {
   private agentState: BoxAgentState = 'running';
   /** Counts the ends of the agent's process, so a reply read across one carries no task on. */
   private agentLaunch = 0;
-  /** Stops the replay running, with the sentence its remaining turns are reported not sent with. */
-  private stopReplay: ((reason: string) => void) | undefined;
-  /** Whether the agent's process has ended and what is left of it is still being stopped. */
-  private agentStopping = false;
-  /** Disarms the proxies of a replay that ended while the agent's process was being stopped. */
-  private disarmOnceStopped: (() => void) | undefined;
   private readonly turns: TurnHub;
   private readonly headers: Readonly<Record<string, string>>;
   private readonly unsetVariables: readonly string[];
   private readonly offer: (() => CatalogOffer) | undefined;
-  private readonly replayHooks: ReplayHooks | undefined;
+  private readonly replays: ReplayDriver;
   private readonly fetch: typeof fetch;
   private readonly newMessageId: () => string;
   private readonly stop = new AbortController();
@@ -123,14 +117,9 @@ export class A2aMessageBox implements MessageBox {
   /** Turns waited for: by the host message's id until they open, by trace id until they close. */
   private readonly opening = new Map<string, (traceId: string) => void>();
   private readonly closing = new Map<string, (turn: Turn) => void>();
-  /** The provenance to write on a replayed turn as it opens, by the host message's id. */
-  private readonly provenance = new Map<string, Record<string, unknown>>();
   private requestId = 0;
   /** Oldest first; a new conversation joins once its first turn opens. */
   private readonly conversations: Conversation[] = [];
-  private replaying: ReplayState | undefined;
-  /** Turns another host opened while the proxies replay, named on the terminal once their input comes. */
-  private readonly foreign = new Set<string>();
 
   constructor(options: A2aMessageBoxOptions) {
     if (options.card !== undefined) this.setCard(options.card);
@@ -139,34 +128,18 @@ export class A2aMessageBox implements MessageBox {
     this.unsetVariables = options.unsetVariables ?? [];
     const offer = options.offer;
     this.offer = typeof offer === 'object' ? () => offer : offer;
-    this.replayHooks = options.replay;
     this.fetch = options.fetch ?? fetch;
     this.newMessageId = options.newMessageId ?? randomUUID;
+    // The driver follows the turns first: a replayed turn's provenance is written before its send resolves.
+    this.replays = new ReplayDriver({
+      turns: this.turns,
+      ...(options.replay !== undefined && {hooks: options.replay}),
+      newMessageId: this.newMessageId,
+    });
     this.unsubscribe = this.turns.subscribe(event => {
       if (event.type === 'turn_opened') {
-        const provenance =
-          event.messageId === undefined ? undefined : this.provenance.get(event.messageId);
-        if (provenance !== undefined && event.messageId !== undefined) {
-          this.provenance.delete(event.messageId);
-          this.replayHooks?.annotate(event.traceId, provenance);
-        } else if (this.replaying !== undefined && this.replaying.mode !== 'live') {
-          // With no proxy armed, another host's turn is an ordinary turn.
-          this.foreign.add(event.traceId);
-        }
         if (event.messageId !== undefined) this.opening.get(event.messageId)?.(event.traceId);
-      } else if (
-        event.type === 'wire_event' &&
-        this.foreign.has(event.traceId) &&
-        isEventOfKind(event.event, 'wire_input')
-      ) {
-        this.foreign.delete(event.traceId);
-        const source = this.replaying?.source ?? 'the record';
-        this.replayHooks?.log(
-          `A turn from another host opened while ${source} replays: ${briefLine(inputBriefOf(event.event))}, ` +
-            `trace ${event.traceId}. Its model and tool calls meet the record the proxies are replaying.`,
-        );
       } else if (event.type === 'turn_closed') {
-        this.foreign.delete(event.traceId);
         this.closing.get(event.traceId)?.(event.turn);
       }
     });
@@ -191,11 +164,10 @@ export class A2aMessageBox implements MessageBox {
    */
   agentEnded(reason: string): void {
     this.agentLaunch++;
-    this.agentStopping = true;
     for (const conversation of this.conversations) {
       conversation.taskId = undefined;
     }
-    this.stopReplay?.(reason);
+    this.replays.agentEnded(reason);
   }
 
   /**
@@ -205,9 +177,7 @@ export class A2aMessageBox implements MessageBox {
    * its turn's connection was cut, does not reach the provider.
    */
   agentStopped(): void {
-    this.agentStopping = false;
-    this.disarmOnceStopped?.();
-    this.disarmOnceStopped = undefined;
+    this.replays.agentStopped();
   }
 
   /**
@@ -275,6 +245,7 @@ export class A2aMessageBox implements MessageBox {
 
   state(): A2aMessageBoxState {
     const unavailable = this.unavailable;
+    const replay = this.replays.state;
     return {
       conversations: this.conversations.map(conversation => ({
         ...(conversation.conversationId !== undefined && {
@@ -287,7 +258,7 @@ export class A2aMessageBox implements MessageBox {
       ...(this.unsetVariables.length > 0 && {unsetVariables: [...this.unsetVariables]}),
       ...(this.listsNoJsonRpc && {noJsonRpc: true as const}),
       ...(this.target?.kind === 'found' && {a2aVersion: this.target.version}),
-      ...(this.replaying !== undefined && {replay: {...this.replaying}}),
+      ...(replay !== undefined && {replay}),
     };
   }
 
@@ -299,7 +270,7 @@ export class A2aMessageBox implements MessageBox {
    */
   async send(input: string | BoxInput, conversationId?: string): Promise<SentMessage> {
     const target = this.available();
-    if (this.replaying !== undefined) {
+    if (this.replays.state !== undefined) {
       throw new MessageBoxError(
         409,
         'A replay is running. The message box sends again once it ends.',
@@ -356,251 +327,45 @@ export class A2aMessageBox implements MessageBox {
   }
 
   /**
-   * Replays a record as one new conversation: both proxies armed with the
-   * record's calls, each recorded turn's wire input re-sent in order, the
-   * earlier turns first, in the live interface's A2A version, the first with
-   * no `contextId` and each later one with the id the agent named, a task id
-   * where the record carried one and the live previous turn ended waiting
-   * for input. Resolves once the first turn opens; the rest runs on, each
-   * turn's provenance written as it opens and its verdict once it has closed,
-   * and the proxies disarmed after the last. A turn that cannot be sent stops
-   * the replay, the rest reported as not sent, and so does the end of the
-   * agent's process, the open turn having failed and the proxies staying
-   * armed until that process has stopped. Live, no pool is built and
-   * no proxy armed, so every model and tool call goes out; no verdict is
-   * taken, and each turn's outcome is said on the terminal as it closes.
+   * Replays a record as one new conversation, through the session's replay
+   * driver: each recorded turn's wire input re-sent in the live interface's
+   * A2A version, the first with no `contextId` and each later one with the
+   * id the agent named, a task id where the recorded turn before it ended
+   * waiting for input and the live one did too. Resolves once the first
+   * turn opens.
    */
   async replay(source: ReplaySource, mode: ReplayMode): Promise<ReplayStarted> {
     const target = this.available();
-    const hooks = this.replayHooks;
-    if (hooks === undefined) {
-      throw new MessageBoxError(422, 'Replay is not available in this session.');
-    }
-    if (this.replaying !== undefined) {
-      throw new MessageBoxError(409, 'A replay is running. Wait for it to end.');
-    }
-    if (
-      this.turns.openTurns().length > 0 ||
-      this.conversations.some(conversation => conversation.open !== undefined)
-    ) {
-      throw new MessageBoxError(409, 'A turn is open. Wait for it to close before replaying.');
-    }
-    let inputs;
-    try {
-      inputs = replayInputs(source.record);
-    } catch (error) {
-      if (error instanceof ReplayRecordError) throw new MessageBoxError(422, error.message);
-      throw error;
-    }
-    if (mode === 'recorded' && hasNothingToServe(source.record)) {
-      throw new MessageBoxError(422, `${NOTHING_TO_SERVE} Replay it with the model live.`);
-    }
-    const pool = mode === 'live' ? undefined : new ReplayPool(source.record, mode);
-
-    const replaying: ReplayState = {source: source.path, mode, turn: 0, turns: inputs.length};
-    this.replaying = replaying;
-    if (pool !== undefined) {
-      this.disarmOnceStopped = undefined;
-      hooks.arm(pool);
-    }
-    this.turns.notify({type: 'replay_started', source: source.path, mode, turns: inputs.length});
     const conversation: Conversation = {turns: []};
-    const replayed: ReplayedTurn[] = [];
-    /** The turns of a live replay, which carry no verdict. */
-    const live: LiveReplayedTurn[] = [];
-    const recordedTurns = source.record.turns.map(turn => ({
-      traceId: traceIdOf(turn),
-      turn,
-    }));
-
-    /** Why the agent's process ended while this replay ran, once it has. */
-    let agentEnded: string | undefined;
-    this.stopReplay = reason => {
-      agentEnded ??= reason;
-    };
-    const end = () => {
-      if (pool !== undefined) {
-        // A replay the agent's end stopped stays armed until the process has stopped.
-        if (this.agentStopping) this.disarmOnceStopped = () => hooks.disarm();
-        else hooks.disarm();
-      }
-      this.replaying = undefined;
-      this.stopReplay = undefined;
-      if (pool === undefined) {
-        this.turns.notify({type: 'replay_ended', source: source.path, mode: 'live', turns: live});
-        return;
-      }
-      this.turns.notify({
-        type: 'replay_ended',
-        source: source.path,
-        mode: pool.mode,
-        verdict: replayed.every(turn => 'verdict' in turn && turn.verdict === 'passed')
-          ? 'passed'
-          : 'failed',
-        turns: replayed,
-      });
-    };
-    const notSent = (from: number, reason: string) => {
-      for (const {traceId} of recordedTurns.slice(from)) {
-        (pool === undefined ? live : replayed).push({recordedTurn: traceId, notSent: reason});
-      }
-    };
-
-    /** Says a closed turn's line; resolves the turn's work with why the replay stops when the line cannot be said. */
-    const say = (line: string, what: string, number: number): string | undefined => {
-      try {
-        hooks.log(line);
-        return undefined;
-      } catch (error) {
-        return `The ${what} of turn ${number} could not be said: ${messageOf(error)}`;
-      }
-    };
-
-    /**
-     * Sends recorded turn `index`, and resolves with its trace id and the
-     * closed turn's verdict work, which never rejects: it resolves with why
-     * the replay stops there, when the turn's verdict could not be taken or
-     * its line could not be said, and with nothing otherwise.
-     */
-    const sendTurn = async (
-      index: number,
-    ): Promise<{traceId: string; finished: Promise<string | undefined>}> => {
-      const input = inputs[index];
-      const recorded = recordedTurns[index];
-      const messageId = this.newMessageId();
-      const request = replayRequest(
-        target,
-        input,
-        {
+    return this.replays.start(source, mode, {
+      turnOpen: this.conversations.some(held => held.open !== undefined),
+      send: (input, messageId) =>
+        this.dispatch(
+          conversation,
+          target,
+          replayRequest(
+            target,
+            input,
+            {
+              messageId,
+              ...(conversation.conversationId !== undefined && {
+                contextId: conversation.conversationId,
+              }),
+              ...(conversation.taskId !== undefined && {taskId: conversation.taskId}),
+            },
+            ++this.requestId,
+            this.headers,
+          ),
           messageId,
-          ...(conversation.conversationId !== undefined && {
-            contextId: conversation.conversationId,
-          }),
-          ...(conversation.taskId !== undefined && {taskId: conversation.taskId}),
-        },
-        ++this.requestId,
-        this.headers,
-      );
-      this.provenance.set(messageId, {
-        // Written with forward slashes on every platform; the terminal's lines keep the platform's.
-        'a2ui.replay.source': source.path.split(path.sep).join('/'),
-        'a2ui.replay.turn': recorded.traceId,
-        'a2ui.replay.mode': mode,
-      });
-      let dispatched: {traceId: string; closed: Promise<Turn>};
-      try {
-        dispatched = await this.dispatch(conversation, target, request, messageId);
-      } finally {
-        this.provenance.delete(messageId);
-      }
-      replaying.turn = index + 1;
-      this.turns.notify({
-        type: 'replay_turn',
-        traceId: dispatched.traceId,
-        recordedTurn: recorded.traceId,
-        turn: index + 1,
-        turns: inputs.length,
-      });
-      const number = index + 1;
-      const finished = dispatched.closed.then(async turn => {
-        if (pool === undefined) {
-          live.push({traceId: dispatched.traceId, recordedTurn: recorded.traceId});
-          return say(
-            `Re-run of ${source.path}, turn ${number} of ${inputs.length}: ${inWords(outcomeOf(turn))}.`,
-            'outcome',
-            number,
-          );
-        }
-        const unconsumedOf = () =>
-          pool.unserved().filter(call => call.traceId === recorded.traceId).length;
-        let verdict: Verdict;
-        let unconsumed = 0;
-        try {
-          verdict = verdictOf(recorded.turn, turn);
-          await hooks.amend(dispatched.traceId, {
-            'a2ui.replay.verdict': verdict.verdict,
-            ...(verdict.reasons.length > 0 && {'a2ui.replay.reasons': verdict.reasons}),
-          });
-          unconsumed = unconsumedOf();
-        } catch (error) {
-          // A turn whose verdict could not be taken did not pass, and the replay stops at it.
-          try {
-            unconsumed = unconsumedOf();
-          } catch {
-            // The pool cannot say either; the turn has failed whatever the count.
-          }
-          replayed.push({
-            traceId: dispatched.traceId,
-            recordedTurn: recorded.traceId,
-            verdict: 'failed',
-            unconsumed,
-          });
-          const message = messageOf(error);
-          say(
-            `Replay of ${source.path}, turn ${number} of ${inputs.length}: failed (its verdict could not be taken: ${message}).`,
-            'verdict',
-            number,
-          );
-          return `The verdict of turn ${number} could not be taken: ${message}`;
-        }
-        replayed.push({
-          traceId: dispatched.traceId,
-          recordedTurn: recorded.traceId,
-          verdict: verdict.verdict,
-          unconsumed,
-        });
-        return say(
-          `Replay of ${source.path}, turn ${number} of ${inputs.length}: ${verdict.verdict}` +
-            (verdict.reasons.length > 0
-              ? ` (${verdict.reasons.map(reason => reason.message).join(' ')})`
-              : '') +
-            (unconsumed > 0
-              ? `; ${unconsumed} of the recorded calls ${unconsumed === 1 ? 'was' : 'were'} not asked for.`
-              : '.'),
-          'verdict',
-          number,
-        );
-      });
-      return {traceId: dispatched.traceId, finished};
-    };
-
-    let first: {traceId: string; finished: Promise<string | undefined>};
-    try {
-      first = await sendTurn(0);
-    } catch (error) {
-      notSent(0, messageOf(error));
-      end();
-      throw error;
-    }
-    void (async () => {
-      try {
-        /** Why the replay stops before its next turn: a closed turn's work failed, or the agent's process ended. */
-        let stopped = await first.finished;
-        for (let index = 1; index < inputs.length; index++) {
-          stopped ??= agentEnded;
-          if (stopped !== undefined) {
-            notSent(index, stopped);
-            break;
-          }
-          try {
-            const {finished} = await sendTurn(index);
-            stopped = await finished;
-          } catch (error) {
-            notSent(index, messageOf(error));
-            break;
-          }
-        }
-      } finally {
-        end();
-      }
-    })();
-    return {traceId: first.traceId, turns: inputs.length};
+        ),
+    });
   }
 
   /** Stops reading any reply still coming. */
   close(): void {
     this.stop.abort();
     this.unsubscribe();
+    this.replays.close();
   }
 
   /** The interface the box sends to, or the refusal when it cannot send. */
@@ -697,23 +462,4 @@ export class A2aMessageBox implements MessageBox {
     conversation.open = undefined;
     return turn;
   }
-}
-
-/** An error's message, or the thrown value as text. */
-function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
-}
-
-/** A recorded turn's trace id, from its turn event. */
-function traceIdOf(turn: Turn): string {
-  return turn.events.find(event => isEventOfKind(event, 'turn'))?.traceId ?? '';
-}
-
-/** A turn's input in brief, as a terminal line names it. */
-function briefLine(input: InputBrief | undefined): string {
-  if (input === undefined) return 'a message with no parts';
-  if ('text' in input) return `“${input.text}”`;
-  if ('action' in input) return `the action “${input.action}”`;
-  // A data part that is not A2UI is named as A2A names it.
-  return `a ${input.partType === 'a2ui.data' ? 'data' : input.partType} part`;
 }
