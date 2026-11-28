@@ -1,6 +1,5 @@
 import type {IncomingMessage, ServerResponse} from 'node:http';
 
-import type {CardDetails} from './a2a/card.js';
 import type {LogSnapshot} from './agent_log.js';
 import type {AgentSnapshot, RestartCause} from './agent_supervisor.js';
 import type {CatalogRegistry} from './catalog/registry.js';
@@ -25,10 +24,10 @@ import type {Shell} from './paste.js';
 
 /**
  * What the context bar, the agent's popover and the first screen show of the
- * session. What the card states is the latest card's, kept until a later card
- * replaces it, and absent under `run` before any card has answered.
+ * session, whatever the transport; the session adds what the transport's
+ * adapter reads of the agent, as A2A's adds what the agent's card states.
  */
-export interface SessionContext extends Partial<CardDetails> {
+export interface SessionContext {
   /** The agent's name, from its latest card. */
   agentName?: string;
   /** The agent's own URL, the one Spectra was given. */

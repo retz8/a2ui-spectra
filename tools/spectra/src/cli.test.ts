@@ -24,6 +24,7 @@ import type {LogEntry, LogSnapshot} from './agent_log.js';
 import type {AgentSnapshot} from './agent_supervisor.js';
 import type {ListedTurn, SessionContext} from './api.js';
 import type {CatalogListing} from './catalog/registry.js';
+import type {A2aSessionContext} from './a2a/card.js';
 import type {A2aMessageBoxState} from './a2a/message_box.js';
 import type {ReplayStarted} from './replay/driver.js';
 import {VARIABLES} from './model_proxy/redirection.js';
@@ -729,7 +730,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
       ]);
       try {
         await spectra.waitFor(viewerUrl);
-        const context = (await getJson<SessionContext>(`http://127.0.0.1:${port}/api/context`))
+        const context = (await getJson<A2aSessionContext>(`http://127.0.0.1:${port}/api/context`))
           .body;
         assert.equal('agentName' in context, false);
         assert.deepEqual(context.a2aVersions, []);

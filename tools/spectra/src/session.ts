@@ -1,7 +1,12 @@
 import {stat} from 'node:fs/promises';
 import {constants} from 'node:os';
 
-import {type AnsweredCard, readAnsweredCard, rewriteCard} from './a2a/card.js';
+import {
+  type A2aSessionContext,
+  type AnsweredCard,
+  readAnsweredCard,
+  rewriteCard,
+} from './a2a/card.js';
 import {startWireProxy, type WireProxy} from './a2a/proxy.js';
 import {type AgentCard, agentCardUrl, waitForAgentCard} from './a2a/agent_card.js';
 import {A2aMessageBox} from './a2a/message_box.js';
@@ -14,7 +19,6 @@ import {
   startAgentProcess,
 } from './agent_process.js';
 import {AgentSupervisor} from './agent_supervisor.js';
-import type {SessionContext} from './api.js';
 import type {AgentCommand, HeadlessOptions} from './args.js';
 import {openBrowser} from './browser.js';
 import {CatalogRegistry, rereadLine} from './catalog/registry.js';
@@ -577,7 +581,7 @@ async function runMode(parts: SessionParts, agentCommand: AgentCommand): Promise
   running.proxy = wire;
   const session = parts.openBox(undefined);
   running.box = session;
-  const context: SessionContext = {
+  const context: A2aSessionContext = {
     agentUrl: options.agentUrl.href,
     mode: 'run',
     proxyAddress: wire.address,

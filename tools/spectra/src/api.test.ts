@@ -7,10 +7,11 @@ import {after, describe, it} from 'node:test';
 import {SseParser} from './proxying/sse.js';
 import type {LogSnapshot} from './agent_log.js';
 import type {AgentSnapshot, RestartCause} from './agent_supervisor.js';
-import type {AgentApi, FixturesListing, ListedTurn, SessionContext} from './api.js';
+import type {AgentApi, FixturesListing, ListedTurn} from './api.js';
 import {CatalogRegistry} from './catalog/registry.js';
 import {CONFIG_SCHEMA, type PriceOverride} from './config.js';
 import {FixturesFolder} from './fixtures/fixtures.js';
+import type {A2aSessionContext} from './a2a/card.js';
 import {A2aMessageBox} from './a2a/message_box.js';
 import type {Turn, TurnRecord, WireInputEvent, WirePart} from './record/turn_record.js';
 import type {ReplayHooks} from './replay/driver.js';
@@ -29,7 +30,7 @@ after(async () => {
 
 const trace = (n: number) => String(n).padStart(32, '0');
 
-const CONTEXT: SessionContext = {
+const CONTEXT: A2aSessionContext = {
   agentName: 'Restaurant Agent',
   agentUrl: 'http://localhost:10002/',
   mode: 'run',

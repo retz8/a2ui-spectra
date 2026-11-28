@@ -1,3 +1,4 @@
+import type {SessionContext} from '../api.js';
 import {a2uiExtensionVersion} from './extension_uri.js';
 import {isRecord} from './protocol.js';
 
@@ -130,6 +131,13 @@ export interface CardDetails {
   /** The first example of each of the card's skills, in card order. */
   examples: string[];
 }
+
+/**
+ * The session's context with what the card states: the latest card's, kept
+ * until a later card replaces it, and absent under `run` before any card has
+ * answered.
+ */
+export type A2aSessionContext = SessionContext & Partial<CardDetails>;
 
 /** Reads what the viewer shows of the card. */
 export function cardDetailsOf(card: Record<string, unknown>): CardDetails {
