@@ -275,17 +275,19 @@ function isRoute(pathname: string): boolean {
 
 /** The fixtures folder's files, each one's turns in the listing's form. */
 async function listFixtures(api: Api): Promise<FixturesListing> {
-  const {folder, fixtures} = await api.fixtures.list();
-  return {
-    folder,
-    fixtures: fixtures.map(({name, path, savedAt, record, error}) => ({
+  const fixtures: FixturesListing['fixtures'] = [];
+  // One file at a time, each record let go once its turns are listed.
+  for (const fixture of await api.fixtures.names()) {
+    const {name, path, savedAt, record, error} = await api.fixtures.entry(fixture);
+    fixtures.push({
       name,
       path,
       savedAt,
       ...(record !== undefined && {turns: listedTurnsOf(record, api.catalogs)}),
       ...(error !== undefined && {error}),
-    })),
-  };
+    });
+  }
+  return {folder: api.fixtures.display, fixtures};
 }
 
 /** A record's turns in the listing's form, oldest first, each after the turns before it. */

@@ -1,5 +1,13 @@
 import assert from 'node:assert/strict';
-import {mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync} from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  symlinkSync,
+  utimesSync,
+  writeFileSync,
+} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {after, describe, it} from 'node:test';
@@ -190,6 +198,61 @@ describe('the fixtures folder', () => {
     assert.equal((await folder.read('my notes')).record.version, 'v0.1');
     await assert.rejects(folder.read('../hello'), FixtureNameError);
     await assert.rejects(folder.read('..'), FixtureNameError);
+  });
+
+  it(
+    'takes a symbolic link in the folder as no fixture, by name as in the list, while the folder itself may be one',
+    {skip: process.platform === 'win32' && 'making a symbolic link needs a privilege there'},
+    async () => {
+      const cwd = freshDir();
+      const folder = folderIn(cwd);
+      await folder.save(record, 'hello');
+      const outside = path.join(cwd, 'outside');
+      mkdirSync(outside);
+      writeFileSync(path.join(outside, 'secret.json'), JSON.stringify(record));
+      symlinkSync(path.join(outside, 'secret.json'), path.join(folder.dir, 'linked.json'));
+      symlinkSync(outside, path.join(folder.dir, 'elsewhere'));
+      symlinkSync(path.join(folder.dir, 'hello.json'), path.join(folder.dir, 'again.json'));
+
+      assert.deepEqual(
+        (await folder.list()).fixtures.map(fixture => fixture.name),
+        ['hello'],
+      );
+      for (const name of ['linked', 'elsewhere/secret', 'again']) {
+        await assert.rejects(folder.read(name), (error: unknown) => {
+          assert.ok(error instanceof FixtureNotFoundError, `${name}: ${String(error)}`);
+          assert.equal(error.message, `No fixture is named ${name}.`);
+          return true;
+        });
+      }
+
+      // The folder the setting names may itself be a link: the developer named it.
+      symlinkSync(folder.dir, path.join(cwd, 'by-link'));
+      const byLink = new FixturesFolder('by-link', cwd);
+      assert.deepEqual((await byLink.read('hello')).record, record);
+    },
+  );
+
+  it('reads the folder one file at a time, each entry given as it is read', async () => {
+    const cwd = freshDir();
+    const folder = folderIn(cwd);
+    await folder.save(record, 'b');
+    await folder.save(record, 'a');
+    mkdirSync(path.join(folder.dir, 'sub'));
+    writeFileSync(path.join(folder.dir, 'sub', 'c.json'), 'not json');
+    assert.deepEqual(await folder.names(), ['a', 'b', 'sub/c']);
+    const a = await folder.entry('a');
+    assert.deepEqual(a.record, record);
+    assert.equal(a.path, path.join('a2ui-spectra-fixtures', 'a.json'));
+    const c = await folder.entry('sub/c');
+    assert.equal(c.record, undefined);
+    assert.match(c.error ?? '', /^The file is not JSON: /);
+    // A file gone since it was named is an entry with the reason, not a failed listing.
+    rmSync(path.join(folder.dir, 'b.json'));
+    const gone = await folder.entry('b');
+    assert.equal(gone.record, undefined);
+    assert.match(gone.error ?? '', /ENOENT/);
+    assert.deepEqual(await new FixturesFolder('nowhere', cwd).names(), []);
   });
 
   it('watches the folder, once it exists, and says when files join or leave it', async () => {

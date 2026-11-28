@@ -7,7 +7,7 @@
  */
 import {randomBytes} from 'node:crypto';
 import {type FSWatcher, watch} from 'node:fs';
-import {mkdir, readdir, readFile, rename, rm, stat, writeFile} from 'node:fs/promises';
+import {lstat, mkdir, readdir, readFile, rename, rm, stat, writeFile} from 'node:fs/promises';
 import path from 'node:path';
 
 import type {InputBrief} from '../listing.js';
@@ -129,26 +129,35 @@ export class FixturesFolder {
     return path.join(this.display, ...`${name}.json`.split('/'));
   }
 
-  /** Every `.json` under the folder, recursively, in path order, each read for its record. */
+  /** The name of every `.json` under the folder, recursively, in path order; none read. */
+  async names(): Promise<string[]> {
+    return (await this.files(this.dir)).sort().map(file => file.slice(0, -'.json'.length));
+  }
+
+  /**
+   * One named file of the folder, read for its record: a file that cannot be
+   * read, one gone since it was named included, is an entry with the reason.
+   */
+  async entry(name: string): Promise<FixtureFile> {
+    const absolute = path.join(this.dir, ...`${name}.json`.split('/'));
+    const entry: FixtureFile = {name, path: this.pathOf(name), savedAt: ''};
+    try {
+      entry.savedAt = (await stat(absolute)).mtime.toISOString();
+      entry.record = readRecord(await readFile(absolute, 'utf8'));
+    } catch (error) {
+      entry.error = error instanceof Error ? error.message : String(error);
+    }
+    return entry;
+  }
+
+  /**
+   * Every `.json` under the folder, recursively, in path order, each read for
+   * its record, one file at a time. It holds every record at once: a caller
+   * that needs one at a time reads `names()` and then each `entry()`.
+   */
   async list(): Promise<FixtureListing> {
-    const files = (await this.files(this.dir)).sort();
-    const fixtures = await Promise.all(
-      files.map(async (file): Promise<FixtureFile> => {
-        const name = file.slice(0, -'.json'.length);
-        const absolute = path.join(this.dir, ...file.split('/'));
-        const entry: FixtureFile = {
-          name,
-          path: this.pathOf(name),
-          savedAt: (await stat(absolute)).mtime.toISOString(),
-        };
-        try {
-          entry.record = readRecord(await readFile(absolute, 'utf8'));
-        } catch (error) {
-          entry.error = error instanceof Error ? error.message : String(error);
-        }
-        return entry;
-      }),
-    );
+    const fixtures: FixtureFile[] = [];
+    for (const name of await this.names()) fixtures.push(await this.entry(name));
     return {folder: this.display, fixtures};
   }
 
@@ -177,12 +186,15 @@ export class FixturesFolder {
   async read(name: string): Promise<{record: TurnRecord; path: string}> {
     const segments = name.split('/');
     if (!segments.every(isListedSegment)) throw new FixtureNameError();
+    const file = [...segments.slice(0, -1), `${segments.at(-1)}.json`];
     let text: string;
     try {
-      text = await readFile(
-        path.join(this.dir, ...segments.slice(0, -1), `${segments.at(-1)}.json`),
-        'utf8',
-      );
+      // The list follows no symbolic link, so a name that passes through one names no fixture.
+      for (let depth = 1; depth <= file.length; depth++) {
+        const entry = await lstat(path.join(this.dir, ...file.slice(0, depth)));
+        if (entry.isSymbolicLink()) throw new FixtureNotFoundError(name);
+      }
+      text = await readFile(path.join(this.dir, ...file), 'utf8');
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw new FixtureNotFoundError(name);
       throw error;

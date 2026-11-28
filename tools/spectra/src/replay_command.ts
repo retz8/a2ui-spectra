@@ -12,7 +12,7 @@ import path from 'node:path';
 
 import {UsageError} from './args.js';
 import type {SpectraConfig} from './config.js';
-import {type FixtureListing, FixturesFolder} from './fixtures/fixtures.js';
+import {type FixtureFile, FixturesFolder} from './fixtures/fixtures.js';
 import {MessageBoxError, NOTHING_TO_SERVE, type ReplaySource} from './message_box.js';
 import type {Output} from './output.js';
 import {readRecord, RecordReadError} from './record/read_record.js';
@@ -138,8 +138,8 @@ export async function prepareTest(
   if (!isFolder) {
     throw new UsageError(`No folder at ${fixtures.display}.`, 'test');
   }
-  const listing: FixtureListing = await fixtures.list();
-  if (listing.fixtures.length === 0) {
+  const names = await fixtures.names();
+  if (names.length === 0) {
     throw new UsageError(`${fixtures.display} holds no .json file.`, 'test');
   }
   return async session => {
@@ -148,8 +148,12 @@ export async function prepareTest(
       return 1;
     }
     const reported: ReportedFixture[] = [];
-    for (const entry of listing.fixtures) {
+    for (const name of names) {
       let fixture: ReportedFixture;
+      // Each fixture's record is read when its turn comes, and let go after it.
+      const entry: FixtureFile = session.stopping.aborted
+        ? {name, path: fixtures.pathOf(name), savedAt: ''}
+        : await fixtures.entry(name);
       if (session.stopping.aborted) {
         fixture = {name: entry.name, notRun: session.stopReason()};
       } else if (entry.record === undefined) {
