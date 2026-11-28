@@ -108,19 +108,23 @@ interface ElementLike {
 /**
  * Guards web core's universal elements at their updates: a throw is reported
  * with the component the element draws, and the rest of the surface stays
- * drawn. Each call replaces the report the guard gives to.
+ * drawn. The latest guard not stopped is reported to. Returns the way to
+ * stop it.
  */
-export function guardUniversalElements(report: PageEvents['componentFailed']): void {
+export function guardUniversalElements(report: PageEvents['componentFailed']): () => void {
   // A2uiLitElement is an UpdatingElementClass here, because Lit declares `performUpdate`
   // protected, not missing: every instance has it.
-  guardElementUpdates(A2uiLitElement as unknown as UpdatingElementClass, (element, error) => {
-    const {node, context} = element as ElementLike;
-    const identity =
-      node !== undefined
-        ? identityOf({id: node.componentId, type: node.type})
-        : identityOf(context?.componentModel);
-    report({...identity, error});
-  });
+  return guardElementUpdates(
+    A2uiLitElement as unknown as UpdatingElementClass,
+    (element, error) => {
+      const {node, context} = element as ElementLike;
+      const identity =
+        node !== undefined
+          ? identityOf({id: node.componentId, type: node.type})
+          : identityOf(context?.componentModel);
+      report({...identity, error});
+    },
+  );
 }
 
 /**
@@ -195,9 +199,10 @@ interface Held<T extends ComponentApi, M extends MadeProcessor<T>> {
 /**
  * Starts a web adapter's preview page on the window carrier: each processor
  * the core asks for is made by the adapter, with the action handler made
- * here, watched, and web core's universal elements guarded; the surface each
- * render names is handed to the adapter to draw once it exists, and nothing
- * once its processor is torn down.
+ * here, and watched; web core's universal elements are guarded while the
+ * page runs, a throw reported to the current processor's events; the surface
+ * each render names is handed to the adapter to draw once it exists, and
+ * nothing once its processor is torn down.
  */
 export function startWebPreviewPage<T extends ComponentApi, M extends MadeProcessor<T>>({
   catalogs,
@@ -207,6 +212,8 @@ export function startWebPreviewPage<T extends ComponentApi, M extends MadeProces
   draw,
 }: WebPreviewPageOptions<T, M>): PreviewPage {
   const options = previewOptionsOf(processorOptions);
+  /** Where a universal element that throws is reported: the current processor's events. */
+  let failed: PageEvents['componentFailed'] | undefined;
   /** Counts the processors made, so that a new one's surface remounts. */
   let generation = 0;
   let shown: Held<T, M> | undefined;
@@ -222,7 +229,7 @@ export function startWebPreviewPage<T extends ComponentApi, M extends MadeProces
   };
   const adapter: PreviewAdapter<Held<T, M>> = {
     createProcessor: events => {
-      guardUniversalElements(events.componentFailed);
+      failed = events.componentFailed;
       // The action handler is made before the processor, and reaches it once it is held.
       const made = makeProcessor({
         actionHandler: actionHandlerFor(events, () => held.made.processor),
@@ -261,10 +268,18 @@ export function startWebPreviewPage<T extends ComponentApi, M extends MadeProces
       held.made.dispose();
     },
   };
-  return startPreviewPage({
+  const stopGuard = guardUniversalElements(failure => failed?.(failure));
+  const page = startPreviewPage({
     catalogs,
     adapter,
     transport: windowTransport(viewerOrigin),
     errors: windowErrors(),
   });
+  return {
+    stop: () => {
+      page.stop();
+      stopGuard();
+      failed = undefined;
+    },
+  };
 }
