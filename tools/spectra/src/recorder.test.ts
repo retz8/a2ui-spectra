@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {mkdtempSync, rmSync, writeFileSync} from 'node:fs';
+import {chmodSync, mkdtempSync, rmSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {after, describe, it} from 'node:test';
@@ -268,6 +268,56 @@ describe('the turn recorder', () => {
     assert.equal(turnEvent?.attributes['a2ui.turn.outcome'], 'completed');
     assert.deepEqual(turnRecordErrors(record), []);
   });
+
+  it("amends a written turn's turn event, and gives the event as amended", async () => {
+    const store = await storeIn();
+    const out = collect();
+    const recorder = new TurnRecorder(store, out);
+    recorder.onTurn({type: 'turn_closed', traceId: TRACE_ID, turn: turnOf([SURFACE])});
+    await recorder.idle();
+    const amended = await recorder.amend(TRACE_ID, {'a2ui.replay.verdict': 'passed'});
+    assert.equal(amended?.attributes['a2ui.replay.verdict'], 'passed');
+    const [stored] = await store.list();
+    const record = await store.read(stored.file);
+    const turnEvent = record.turns[0].events.find((event): event is TurnEvent =>
+      isEventOfKind(event, 'turn'),
+    );
+    assert.equal(turnEvent?.attributes['a2ui.replay.verdict'], 'passed');
+    assert.equal(turnEvent?.attributes['a2ui.turn.outcome'], 'completed');
+    assert.equal(
+      await recorder.amend('f'.repeat(32), {'a2ui.replay.verdict': 'passed'}),
+      undefined,
+    );
+    assert.deepEqual(out.errors, []);
+  });
+
+  it(
+    'reports a failed amendment, naming the file, and gives the event as amended, kept for this run',
+    {skip: process.platform === 'win32' && 'a folder cannot be made read-only by its mode'},
+    async () => {
+      const store = await storeIn();
+      const out = collect();
+      const recorder = new TurnRecorder(store, out);
+      recorder.onTurn({type: 'turn_closed', traceId: TRACE_ID, turn: turnOf([SURFACE])});
+      await recorder.idle();
+      const folder = path.join(store.turnsDir, 'ctx-1');
+      chmodSync(folder, 0o500);
+      try {
+        const amended = await recorder.amend(TRACE_ID, {'a2ui.replay.verdict': 'failed'});
+        assert.equal(amended?.attributes['a2ui.replay.verdict'], 'failed');
+      } finally {
+        chmodSync(folder, 0o700);
+      }
+      assert.equal(out.errors.length, 1);
+      assert.match(out.errors[0], /^Spectra could not write .*ctx-1.*\.json: /);
+      assert.match(out.errors[0], /The amended turn is kept in memory until Spectra stops\.$/);
+      const [stored] = await store.list();
+      const kept = (await store.read(stored.file)).turns[0].events.find(event =>
+        isEventOfKind(event, 'turn'),
+      );
+      assert.equal(kept?.attributes['a2ui.replay.verdict'], 'failed');
+    },
+  );
 
   it("writes a live replay's provenance, a record that validates with no verdict on it", async () => {
     const store = await storeIn();

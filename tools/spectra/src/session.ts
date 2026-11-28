@@ -38,7 +38,7 @@ import {CallPlacer} from './placement.js';
 import {type ReceiverListener, startReceiverListener} from './receiver/listener.js';
 import {SpanReceiver} from './receiver/receiver.js';
 import {receiverExportLines, receiverVariables, replacedLine} from './receiver/variables.js';
-import {type CapturePath, isEventOfKind, type Turn, type TurnEvent} from './record/turn_record.js';
+import type {CapturePath, Turn} from './record/turn_record.js';
 import {TurnRecorder} from './recorder.js';
 import {startSaveWatcher} from './save_watcher.js';
 import {LOOPBACK_ADDRESS, PortTakenError, startViewerServer, type ViewerServer} from './server.js';
@@ -384,16 +384,7 @@ export async function runSession(
           },
           annotate: (traceId, attributes) => recorder.annotate(traceId, attributes),
           amend: async (traceId, attributes) => {
-            const amended = await store.amend(traceId, (turn: Turn): Turn => ({
-              events: turn.events.map(event =>
-                isEventOfKind(event, 'turn')
-                  ? {...event, attributes: {...event.attributes, ...attributes}}
-                  : event,
-              ),
-            }));
-            const turnEvent = amended?.turn.events.find((event): event is TurnEvent =>
-              isEventOfKind(event, 'turn'),
-            );
+            const turnEvent = await recorder.amend(traceId, attributes);
             if (turnEvent !== undefined) turns.onAmended(traceId, [turnEvent]);
           },
           log: line => out.info(line),

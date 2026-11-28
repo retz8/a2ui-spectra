@@ -6,7 +6,7 @@ import {checkEvents, checkTurn} from './check/checks.js';
 import {nowUnixNano} from './clock.js';
 import type {Output} from './output.js';
 import {isEventOfKind, type Turn, type TurnEvent} from './record/turn_record.js';
-import type {TurnStore} from './store/store.js';
+import {StoreWriteError, type TurnStore} from './store/store.js';
 
 export interface TurnRecorderOptions {
   /**
@@ -66,6 +66,33 @@ export class TurnRecorder {
    */
   annotate(traceId: string, attributes: Record<string, unknown>): void {
     this.annotations.set(traceId, {...this.annotations.get(traceId), ...attributes});
+  }
+
+  /**
+   * Adds attributes to the turn event of a turn already written, such as a
+   * replay's verdict, and resolves with the event as amended; with nothing
+   * for a turn this run did not write. A failed write is reported and the
+   * amended turn stays in the store's memory for this run, as a turn whose
+   * own write failed does.
+   */
+  async amend(
+    traceId: string,
+    attributes: Record<string, unknown>,
+  ): Promise<TurnEvent | undefined> {
+    let amended: TurnEvent | undefined;
+    try {
+      await this.store.amend(traceId, turn => ({
+        events: turn.events.map(event => {
+          if (!isEventOfKind(event, 'turn')) return event;
+          amended = {...event, attributes: {...event.attributes, ...attributes}};
+          return amended;
+        }),
+      }));
+    } catch (error) {
+      if (!(error instanceof StoreWriteError)) throw error;
+      this.out.error(`${error.message}. The amended turn is kept in memory until Spectra stops.`);
+    }
+    return amended;
   }
 
   /** Resolves once no turn is open and every write has finished. */
