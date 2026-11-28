@@ -37,7 +37,12 @@ import {shellsOf} from './paste.js';
 import {CallPlacer} from './placement.js';
 import {type ReceiverListener, startReceiverListener} from './receiver/listener.js';
 import {SpanReceiver} from './receiver/receiver.js';
-import {receiverExportLines, receiverVariables, replacedLine} from './receiver/variables.js';
+import {
+  receiverExportLines,
+  type ReceiverVariables,
+  receiverVariables,
+  replacedLine,
+} from './receiver/variables.js';
 import type {CapturePath, Turn} from './record/turn_record.js';
 import {TurnRecorder} from './recorder.js';
 import {replayHooks} from './replay_hooks.js';
@@ -238,14 +243,17 @@ export async function runSession(
       }
     });
   };
-  /** Stops the catalog files' own watch, under `attach` and `run`. */
-  let stopCatalogWatch: (() => void) | undefined;
-  // Under `run` with restart on save, the save watcher's own watch tells the fixtures folder's
-  // changes when it holds the folder; else the folder has its own.
-  let stopWatching =
-    watching && options.config.watch.paths.length > 0
-      ? () => {}
-      : fixtures.watch(fixturesChanged).stop;
+  const running: Running = {
+    agentStopped: false,
+    agentExitedEarly: false,
+    exitCode: 0,
+    // Under `run` with restart on save, the save watcher's own watch tells the fixtures folder's
+    // changes when it holds the folder; else the folder has its own.
+    stopWatching:
+      watching && options.config.watch.paths.length > 0
+        ? () => {}
+        : fixtures.watch(fixturesChanged).stop,
+  };
   const alwaysCapturePaths: CapturePath[] =
     agentCommand === undefined
       ? []
@@ -270,25 +278,10 @@ export async function runSession(
 
   const stop = new AbortController();
   let stoppedBy: NodeJS.Signals | undefined;
-  /** The agent's process under the headless commands, which end when it does. */
-  let agent: AgentProcess | undefined;
-  let agentExit: AgentExit | undefined;
-  /** Whether the stop of the headless commands' agent process group has ended. */
-  let agentStopped = false;
-  /** The agent's process under `run`, which Spectra outlives. */
-  let supervisor: AgentSupervisor | undefined;
-  /** Stops the watch that restarts the agent on a save, under `run`. */
-  let stopSaveWatcher: (() => void) | undefined;
-  let proxy: WireProxy | undefined;
   let modelProxy: ModelProxy | undefined;
   let toolProxy: ToolProxy | undefined;
   let receiverListener: ReceiverListener | undefined;
-  let box: MessageBox | undefined;
-  let server: ViewerServer | undefined;
   let failed = false;
-  /** Whether the agent's process ended on its own, before Spectra stopped. */
-  let agentExitedEarly = false;
-  let exitCode = 0;
 
   const onSignal = (signal: NodeJS.Signals) => {
     if (!stop.signal.aborted) {
@@ -298,14 +291,14 @@ export async function runSession(
           ? "Stopping the agent's process. Press Ctrl-C again to force it."
           : 'Stopping.',
       );
-      supervisor?.beginStop();
+      running.supervisor?.beginStop();
       stop.abort();
     } else if (underNpmLauncher && signal === stoppedBy && PASSED_ON.has(signal)) {
       // The stop's own signal again, passed on by the launcher after reaching Spectra directly.
     } else if (agentGroupRunning()) {
       out.info("Forcing the agent's process to stop.");
-      agent?.kill();
-      supervisor?.kill();
+      running.agent?.kill();
+      running.supervisor?.kill();
     }
   };
   for (const signal of STOP_SIGNALS) {
@@ -386,236 +379,37 @@ export async function runSession(
       });
     const viewer = options.viewer ?? {port: 0, open: false, allowedHosts: []};
 
+    const parts: SessionParts = {
+      options,
+      out,
+      viewerDir,
+      own,
+      store,
+      catalogs,
+      turns,
+      fixtures,
+      fixturesChanged,
+      catalogChanged,
+      tools,
+      redirected,
+      otel,
+      headers,
+      receiverOrigin: receiverListener.origin,
+      agentEnvironment,
+      cardUrl,
+      waitLine,
+      openWireProxy,
+      openBox,
+      viewer,
+      stop,
+      running,
+    };
     if (agentCommand !== undefined && headless === undefined) {
-      // Under `run` every listener binds before the command starts, and the card is read at each start.
-      const wire = await openWireProxy(undefined);
-      proxy = wire;
-      const session = openBox(undefined);
-      box = session;
-      const context: SessionContext = {
-        agentUrl: options.agentUrl.href,
-        mode: 'run',
-        proxyAddress: wire.address,
-        previewPages: options.config.preview,
-        fixturesFolder: fixtures.display,
-      };
-      const agentProcess = new AgentSupervisor({
-        command: agentCommand,
-        // The agent's streams are pipes, which Python holds back and, on Windows, writes in the ANSI code page.
-        env: {...agentEnvironment, ...pythonVariables(own, {unbuffered: true})},
-        cardUrl,
-        headers,
-        out,
-        waitLine,
-        notify: event => turns.notify(event),
-        session: {
-          stateChanged: state => session.setAgentState(state),
-          processEnded: reason => session.agentEnded(reason),
-          processStopped: () => session.agentStopped(),
-          cutOpenTurns: () => wire.cut(),
-          cardAnswered: card => {
-            const name = typeof card.name === 'string' ? card.name : undefined;
-            wire.setAgentName(name);
-            session.setCard(rewriteCard(card, wire.origin));
-            delete context.agentName;
-            Object.assign(context, name !== undefined && {agentName: name}, cardDetailsOf(card));
-            const transport = checkTransport(card);
-            const line = transportLine(transport);
-            if (transport.kind === 'no_interface' || transport.kind === 'no_jsonrpc') {
-              if (line !== undefined) out.error(line);
-            } else {
-              if (line !== undefined) out.info(line);
-              if (session.cardRefusal !== undefined) out.info(session.cardRefusal);
-            }
-          },
-        },
-      });
-      supervisor = agentProcess;
-      server = await startViewerServer({
-        port: viewer.port,
-        viewerDir,
-        allowedHosts: viewer.allowedHosts,
-        api: {
-          store,
-          turns,
-          box: session,
-          fixtures,
-          catalogs,
-          prices: options.config.prices,
-          context,
-          agent: supervisor,
-        },
-      });
-      const replaced = replacedLine(otel);
-      if (replaced !== undefined) out.info(replaced);
-      out.info(`The viewer is at ${server.url}`);
-      out.info(`Point a host at the wire proxy: ${wire.address}`);
-      // The agent's environment points every prefix at the model proxy: where each forwards.
-      for (const line of prefixLines(redirected)) out.info(line);
-      for (const line of startLines(tools)) out.info(line);
-      out.info(`The OpenTelemetry receiver is at ${receiverListener.origin}`);
-      out.info(`Turns are saved in ${store.turnsDir}`);
-      out.info(`Fixtures are saved in ${fixtures.dir}`);
-      const watch = options.config.watch;
-      /** The catalog files the save watcher's watch tells, which need no watch of their own. */
-      let told: string[] = [];
-      if (watch.paths.length === 0) {
-        const off =
-          options.config.watchSetting === false
-            ? 'watch is false'
-            : watch.excluded.length > 0
-              ? 'watch lists exclusions alone'
-              : 'watch is an empty list';
-        out.info(`Restart on save is off: ${off} in ${options.config.file}.`);
-      } else {
-        out.info(
-          `A save in ${orList(watch.paths)} restarts the agent. ` +
-            'Set watch to false in the config file when the agent reloads itself.',
-        );
-        const saveWatcher = await startSaveWatcher({
-          watch,
-          ignoredPaths: [store.dir, fixtures.dir],
-          ...(options.config.file !== undefined && {configFile: options.config.file}),
-          workingDir: process.cwd(),
-          onSave: file => agentProcess.restart({kind: 'save', file}),
-          log: line => out.info(line),
-          observed: [
-            {path: fixtures.dir, onChange: fixturesChanged},
-            ...options.config.catalogs.map(file => ({
-              path: file,
-              onChange: () => catalogChanged(file),
-            })),
-          ],
-        });
-        stopSaveWatcher = () => saveWatcher.stop();
-        if (!saveWatcher.observing.includes(fixtures.dir)) {
-          stopWatching = fixtures.watch(fixturesChanged).stop;
-        }
-        told = saveWatcher.observing;
-      }
-      // A catalog file no watched folder holds has its folder watched, from the start.
-      stopCatalogWatch = startCatalogWatch({
-        files: options.config.catalogs.filter(file => !told.includes(file)),
-        onChange: catalogChanged,
-        log: line => out.info(line),
-      }).stop;
-      supervisor.start();
-      if (viewer.open) {
-        openBrowser(server.url);
-      }
-      await aborted(stop.signal);
-    } else {
-      if (headless === undefined) {
-        // Under attach each catalog file's folder is watched, from the start.
-        stopCatalogWatch = startCatalogWatch({
-          files: options.config.catalogs,
-          onChange: catalogChanged,
-          log: line => out.info(line),
-        }).stop;
-      }
-      if (agentCommand !== undefined) {
-        const replaced = replacedLine(otel);
-        if (replaced !== undefined) out.info(replaced);
-        agent = startAgentProcess(agentCommand.command, agentCommand.args, {
-          env: {...agentEnvironment, ...pythonVariables(own, {unbuffered: false})},
-          output: 'stderr',
-        });
-        void agent.exited.then(exit => {
-          agentExit = exit;
-          if (!stop.signal.aborted) {
-            agentExitedEarly = true;
-            const when =
-              box === undefined && exit.error === undefined ? ' before its card answered' : '';
-            out.info(`The agent's process ${describeExit(exit)}${when}.`);
-            stop.abort();
-          }
-        });
-      }
-
-      const card = await waitForAgentCard(cardUrl, {
-        signal: stop.signal,
-        headers,
-        onWaiting: reason => out.info(waitLine(reason, true)),
-      });
-
-      if (card !== undefined && !stop.signal.aborted) {
-        const transport = checkTransport(card);
-        const line = transportLine(transport);
-        if (transport.kind === 'no_interface' || transport.kind === 'no_jsonrpc') {
-          if (line !== undefined) out.error(line);
-          stop.abort();
-          return 1;
-        }
-        if (line !== undefined) out.info(line);
-        proxy = await openWireProxy(typeof card.name === 'string' ? card.name : undefined);
-        box = openBox(rewriteCard(card, proxy.origin));
-        if (headless !== undefined) {
-          if (agentCommand !== undefined) {
-            for (const line of prefixLines(redirected)) out.info(line);
-          }
-          for (const line of startLines(tools)) out.info(line);
-          out.info(`The OpenTelemetry receiver is at ${receiverListener.origin}`);
-          out.info(`Turns are saved in ${store.turnsDir}`);
-          out.info(`Fixtures are saved in ${fixtures.dir}`);
-          const session: HeadlessSession = {
-            box,
-            turns,
-            store,
-            stopping: stop.signal,
-            stopReason: () =>
-              agentExit !== undefined && agentExitedEarly
-                ? `The agent's process ${describeExit(agentExit)}.`
-                : 'Spectra is stopping.',
-          };
-          exitCode = await headless(session);
-          stop.abort();
-        } else {
-          if (box.unavailable !== undefined) {
-            out.info(box.unavailable);
-          }
-          server = await startViewerServer({
-            port: viewer.port,
-            viewerDir,
-            allowedHosts: viewer.allowedHosts,
-            api: {
-              store,
-              turns,
-              box,
-              fixtures,
-              catalogs,
-              prices: options.config.prices,
-              context: {
-                ...(typeof card.name === 'string' && {agentName: card.name}),
-                agentUrl: options.agentUrl.href,
-                mode: 'attach',
-                proxyAddress: proxy.address,
-                previewPages: options.config.preview,
-                fixturesFolder: fixtures.display,
-                variables: [...variablesOf(redirected), ...toolVariablesOf(tools), ...otel.printed],
-                shells: shellsOf(),
-                ...cardDetailsOf(card),
-              },
-            },
-          });
-          out.info(`The viewer is at ${server.url}`);
-          out.info(`Point a host at the wire proxy: ${proxy.address}`);
-          for (const line of startLines(tools)) out.info(line);
-          out.info(`The OpenTelemetry receiver is at ${receiverListener.origin}`);
-          out.info(`Turns are saved in ${store.turnsDir}`);
-          out.info(`Fixtures are saved in ${fixtures.dir}`);
-          const lines = attachLines(redirected, shell => [
-            ...exportLines(tools, shell),
-            ...receiverExportLines(otel, shell),
-          ]);
-          out.info(lines.intro);
-          for (const line of lines.exports) out.print(line);
-          out.info(lines.note);
-          if (viewer.open) {
-            openBrowser(server.url);
-          }
-          await aborted(stop.signal);
-        }
-      }
+      await runMode(parts, agentCommand);
+    } else if (headless !== undefined) {
+      if ((await headlessMode(parts, agentCommand, headless)) === 'refused') return 1;
+    } else if ((await attachMode(parts)) === 'refused') {
+      return 1;
     }
   } catch (error) {
     failed = true;
@@ -639,24 +433,24 @@ export async function runSession(
       out.error(`Spectra failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   } finally {
-    supervisor?.beginStop();
-    stopSaveWatcher?.();
-    stopCatalogWatch?.();
-    stopWatching();
-    await server?.close();
-    box?.close();
-    await proxy?.close();
+    running.supervisor?.beginStop();
+    running.stopSaveWatcher?.();
+    running.stopCatalogWatch?.();
+    running.stopWatching();
+    await running.server?.close();
+    running.box?.close();
+    await running.proxy?.close();
     // A call the stop cuts off ends as aborted, so its turn can be written.
     await modelProxy?.close();
     await toolProxy?.close();
     await recorder.idle();
-    if (agent !== undefined) {
-      const stopped = await agent.stop();
-      agentStopped = true;
+    if (running.agent !== undefined) {
+      const stopped = await running.agent.stop();
+      running.agentStopped = true;
       if (stopped.forceKilled) out.info(forceKilledLine());
-      agentExit = await agent.exited;
+      running.agentExit = await running.agent.exited;
     }
-    await supervisor?.stop();
+    await running.supervisor?.stop();
     // The receiver listens until the agent has gone, for the spans its exporter flushes as it stops.
     await receiverListener?.close();
     await spans.idle();
@@ -673,17 +467,19 @@ export async function runSession(
       return 1;
     }
     if (headless !== undefined) {
-      if (agentExitedEarly) {
+      if (running.agentExitedEarly) {
         return 1;
       }
-      return stoppedBy === undefined ? exitCode : 128 + (constants.signals[stoppedBy] ?? 0);
+      return stoppedBy === undefined ? running.exitCode : 128 + (constants.signals[stoppedBy] ?? 0);
     }
     return stoppedBy === undefined ? 0 : 128 + (constants.signals[stoppedBy] ?? 0);
   }
 
   /** Whether the agent's own process is running, under `run` and the headless commands. */
   function agentAlive(): boolean {
-    return supervisor?.alive ?? (agent !== undefined && agentExit === undefined);
+    return (
+      running.supervisor?.alive ?? (running.agent !== undefined && running.agentExit === undefined)
+    );
   }
 
   /**
@@ -692,8 +488,341 @@ export async function runSession(
    * after it exited, until the group's stop has ended.
    */
   function agentGroupRunning(): boolean {
-    return supervisor?.groupRunning ?? (agent !== undefined && !agentStopped);
+    return (
+      running.supervisor?.groupRunning ?? (running.agent !== undefined && !running.agentStopped)
+    );
   }
+}
+
+/** What a session has started so far, each part set as it starts, for the stop to close. */
+interface Running {
+  /** The agent's process under the headless commands, which end when it does. */
+  agent?: AgentProcess;
+  agentExit?: AgentExit;
+  /** Whether the stop of the headless commands' agent process group has ended. */
+  agentStopped: boolean;
+  /** Whether the agent's process ended on its own, before Spectra stopped. */
+  agentExitedEarly: boolean;
+  /** The agent's process under `run`, which Spectra outlives. */
+  supervisor?: AgentSupervisor;
+  /** Stops the watch that restarts the agent on a save, under `run`. */
+  stopSaveWatcher?: () => void;
+  /** Stops the catalog files' own watch, under `attach` and `run`. */
+  stopCatalogWatch?: () => void;
+  /** Stops the fixtures folder's own watch. */
+  stopWatching: () => void;
+  proxy?: WireProxy;
+  box?: MessageBox;
+  server?: ViewerServer;
+  /** A headless command's own exit code, once its work is done. */
+  exitCode: number;
+}
+
+/** What each mode starts from: the session's settings, and the parts every mode shares. */
+interface SessionParts {
+  options: SessionSettings;
+  out: Output;
+  viewerDir: string;
+  /** Spectra's own environment, read by name. */
+  own: NodeJS.ProcessEnv;
+  store: TurnStore;
+  catalogs: CatalogRegistry;
+  turns: TurnHub;
+  fixtures: FixturesFolder;
+  fixturesChanged: () => void;
+  catalogChanged: (file: string) => void;
+  tools: ToolServer[];
+  redirected: Redirection[];
+  otel: ReceiverVariables;
+  headers: Record<string, string>;
+  receiverOrigin: string;
+  /** The variables that point the agent's model calls, tool calls and exports at Spectra. */
+  agentEnvironment: Record<string, string>;
+  cardUrl: URL;
+  waitLine: (reason: string, hint: boolean) => string;
+  openWireProxy: (agentName: string | undefined) => Promise<WireProxy>;
+  openBox: (card: AgentCard | undefined) => MessageBox;
+  viewer: {port: number; open: boolean; allowedHosts: string[]};
+  stop: AbortController;
+  running: Running;
+}
+
+/** Where the receiver listens and where turns and fixtures are saved, as every mode says them at start. */
+function printPlaces({out, receiverOrigin, store, fixtures}: SessionParts): void {
+  out.info(`The OpenTelemetry receiver is at ${receiverOrigin}`);
+  out.info(`Turns are saved in ${store.turnsDir}`);
+  out.info(`Fixtures are saved in ${fixtures.dir}`);
+}
+
+/**
+ * `run`: every listener binds before the command starts, and the card is
+ * read at each start of the command. Runs until Spectra is stopped.
+ */
+async function runMode(parts: SessionParts, agentCommand: AgentCommand): Promise<void> {
+  const {options, out, own, store, catalogs, turns, fixtures, tools, redirected, otel, running} =
+    parts;
+  const {viewer, stop} = parts;
+  const wire = await parts.openWireProxy(undefined);
+  running.proxy = wire;
+  const session = parts.openBox(undefined);
+  running.box = session;
+  const context: SessionContext = {
+    agentUrl: options.agentUrl.href,
+    mode: 'run',
+    proxyAddress: wire.address,
+    previewPages: options.config.preview,
+    fixturesFolder: fixtures.display,
+  };
+  const agentProcess = new AgentSupervisor({
+    command: agentCommand,
+    // The agent's streams are pipes, which Python holds back and, on Windows, writes in the ANSI code page.
+    env: {...parts.agentEnvironment, ...pythonVariables(own, {unbuffered: true})},
+    cardUrl: parts.cardUrl,
+    headers: parts.headers,
+    out,
+    waitLine: parts.waitLine,
+    notify: event => turns.notify(event),
+    session: {
+      stateChanged: state => session.setAgentState(state),
+      processEnded: reason => session.agentEnded(reason),
+      processStopped: () => session.agentStopped(),
+      cutOpenTurns: () => wire.cut(),
+      cardAnswered: card => {
+        const name = typeof card.name === 'string' ? card.name : undefined;
+        wire.setAgentName(name);
+        session.setCard(rewriteCard(card, wire.origin));
+        delete context.agentName;
+        Object.assign(context, name !== undefined && {agentName: name}, cardDetailsOf(card));
+        const transport = checkTransport(card);
+        const line = transportLine(transport);
+        if (transport.kind === 'no_interface' || transport.kind === 'no_jsonrpc') {
+          if (line !== undefined) out.error(line);
+        } else {
+          if (line !== undefined) out.info(line);
+          if (session.cardRefusal !== undefined) out.info(session.cardRefusal);
+        }
+      },
+    },
+  });
+  running.supervisor = agentProcess;
+  const server = await startViewerServer({
+    port: viewer.port,
+    viewerDir: parts.viewerDir,
+    allowedHosts: viewer.allowedHosts,
+    api: {
+      store,
+      turns,
+      box: session,
+      fixtures,
+      catalogs,
+      prices: options.config.prices,
+      context,
+      agent: agentProcess,
+    },
+  });
+  running.server = server;
+  const replaced = replacedLine(otel);
+  if (replaced !== undefined) out.info(replaced);
+  out.info(`The viewer is at ${server.url}`);
+  out.info(`Point a host at the wire proxy: ${wire.address}`);
+  // The agent's environment points every prefix at the model proxy: where each forwards.
+  for (const line of prefixLines(redirected)) out.info(line);
+  for (const line of startLines(tools)) out.info(line);
+  printPlaces(parts);
+  const watch = options.config.watch;
+  /** The catalog files the save watcher's watch tells, which need no watch of their own. */
+  let told: string[] = [];
+  if (watch.paths.length === 0) {
+    const off =
+      options.config.watchSetting === false
+        ? 'watch is false'
+        : watch.excluded.length > 0
+          ? 'watch lists exclusions alone'
+          : 'watch is an empty list';
+    out.info(`Restart on save is off: ${off} in ${options.config.file}.`);
+  } else {
+    out.info(
+      `A save in ${orList(watch.paths)} restarts the agent. ` +
+        'Set watch to false in the config file when the agent reloads itself.',
+    );
+    const saveWatcher = await startSaveWatcher({
+      watch,
+      ignoredPaths: [store.dir, fixtures.dir],
+      ...(options.config.file !== undefined && {configFile: options.config.file}),
+      workingDir: process.cwd(),
+      onSave: file => agentProcess.restart({kind: 'save', file}),
+      log: line => out.info(line),
+      observed: [
+        {path: fixtures.dir, onChange: parts.fixturesChanged},
+        ...options.config.catalogs.map(file => ({
+          path: file,
+          onChange: () => parts.catalogChanged(file),
+        })),
+      ],
+    });
+    running.stopSaveWatcher = () => saveWatcher.stop();
+    if (!saveWatcher.observing.includes(fixtures.dir)) {
+      running.stopWatching = fixtures.watch(parts.fixturesChanged).stop;
+    }
+    told = saveWatcher.observing;
+  }
+  // A catalog file no watched folder holds has its folder watched, from the start.
+  running.stopCatalogWatch = startCatalogWatch({
+    files: options.config.catalogs.filter(file => !told.includes(file)),
+    onChange: parts.catalogChanged,
+    log: line => out.info(line),
+  }).stop;
+  agentProcess.start();
+  if (viewer.open) {
+    openBrowser(server.url);
+  }
+  await aborted(stop.signal);
+}
+
+/**
+ * Waits for the agent's card, checks it offers A2A over JSON-RPC, and starts
+ * the wire proxy and the message box on it, as `attach` and the headless
+ * commands do. Nothing when Spectra is stopped before the card answers;
+ * `refused` for a card Spectra cannot capture, said as an error.
+ */
+async function reachAgent(
+  parts: SessionParts,
+): Promise<{card: AgentCard; proxy: WireProxy; box: MessageBox} | 'refused' | undefined> {
+  const {out, stop, running} = parts;
+  const card = await waitForAgentCard(parts.cardUrl, {
+    signal: stop.signal,
+    headers: parts.headers,
+    onWaiting: reason => out.info(parts.waitLine(reason, true)),
+  });
+  if (card === undefined || stop.signal.aborted) return undefined;
+  const transport = checkTransport(card);
+  const line = transportLine(transport);
+  if (transport.kind === 'no_interface' || transport.kind === 'no_jsonrpc') {
+    if (line !== undefined) out.error(line);
+    stop.abort();
+    return 'refused';
+  }
+  if (line !== undefined) out.info(line);
+  const proxy = await parts.openWireProxy(typeof card.name === 'string' ? card.name : undefined);
+  running.proxy = proxy;
+  const box = parts.openBox(rewriteCard(card, proxy.origin));
+  running.box = box;
+  return {card, proxy, box};
+}
+
+/**
+ * `attach`: waits for the card of an agent already running, then serves the
+ * viewer and prints the variables to set in the agent's shell. Runs until
+ * Spectra is stopped.
+ */
+async function attachMode(parts: SessionParts): Promise<'refused' | undefined> {
+  const {options, out, store, catalogs, turns, fixtures, tools, redirected, otel, running} = parts;
+  const {viewer, stop} = parts;
+  // Under attach each catalog file's folder is watched, from the start.
+  running.stopCatalogWatch = startCatalogWatch({
+    files: options.config.catalogs,
+    onChange: parts.catalogChanged,
+    log: line => out.info(line),
+  }).stop;
+  const reached = await reachAgent(parts);
+  if (reached === undefined || reached === 'refused') return reached;
+  const {card, proxy, box} = reached;
+  if (box.unavailable !== undefined) {
+    out.info(box.unavailable);
+  }
+  const server = await startViewerServer({
+    port: viewer.port,
+    viewerDir: parts.viewerDir,
+    allowedHosts: viewer.allowedHosts,
+    api: {
+      store,
+      turns,
+      box,
+      fixtures,
+      catalogs,
+      prices: options.config.prices,
+      context: {
+        ...(typeof card.name === 'string' && {agentName: card.name}),
+        agentUrl: options.agentUrl.href,
+        mode: 'attach',
+        proxyAddress: proxy.address,
+        previewPages: options.config.preview,
+        fixturesFolder: fixtures.display,
+        variables: [...variablesOf(redirected), ...toolVariablesOf(tools), ...otel.printed],
+        shells: shellsOf(),
+        ...cardDetailsOf(card),
+      },
+    },
+  });
+  running.server = server;
+  out.info(`The viewer is at ${server.url}`);
+  out.info(`Point a host at the wire proxy: ${proxy.address}`);
+  for (const line of startLines(tools)) out.info(line);
+  printPlaces(parts);
+  const lines = attachLines(redirected, shell => [
+    ...exportLines(tools, shell),
+    ...receiverExportLines(otel, shell),
+  ]);
+  out.info(lines.intro);
+  for (const line of lines.exports) out.print(line);
+  out.info(lines.note);
+  if (viewer.open) {
+    openBrowser(server.url);
+  }
+  await aborted(stop.signal);
+  return undefined;
+}
+
+/**
+ * `replay` and `test`: starts the agent's command when given one, its output
+ * on stderr, waits for the card, then runs the work in place of the viewer
+ * and stops when the work is done, or when the agent's process ends first.
+ */
+async function headlessMode(
+  parts: SessionParts,
+  agentCommand: AgentCommand | undefined,
+  work: HeadlessWork,
+): Promise<'refused' | undefined> {
+  const {out, own, store, turns, tools, redirected, otel, stop, running} = parts;
+  if (agentCommand !== undefined) {
+    const replaced = replacedLine(otel);
+    if (replaced !== undefined) out.info(replaced);
+    const agent = startAgentProcess(agentCommand.command, agentCommand.args, {
+      env: {...parts.agentEnvironment, ...pythonVariables(own, {unbuffered: false})},
+      output: 'stderr',
+    });
+    running.agent = agent;
+    void agent.exited.then(exit => {
+      running.agentExit = exit;
+      if (!stop.signal.aborted) {
+        running.agentExitedEarly = true;
+        const when =
+          running.box === undefined && exit.error === undefined ? ' before its card answered' : '';
+        out.info(`The agent's process ${describeExit(exit)}${when}.`);
+        stop.abort();
+      }
+    });
+  }
+  const reached = await reachAgent(parts);
+  if (reached === undefined || reached === 'refused') return reached;
+  if (agentCommand !== undefined) {
+    for (const line of prefixLines(redirected)) out.info(line);
+  }
+  for (const line of startLines(tools)) out.info(line);
+  printPlaces(parts);
+  const session: HeadlessSession = {
+    box: reached.box,
+    turns,
+    store,
+    stopping: stop.signal,
+    stopReason: () =>
+      running.agentExit !== undefined && running.agentExitedEarly
+        ? `The agent's process ${describeExit(running.agentExit)}.`
+        : 'Spectra is stopping.',
+  };
+  running.exitCode = await work(session);
+  stop.abort();
+  return undefined;
 }
 
 /**
