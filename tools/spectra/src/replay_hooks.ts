@@ -1,9 +1,9 @@
 /**
- * What the message box asks of the session during a replay: the two proxies
+ * What a replay asks of the session while it runs: the two proxies
  * armed with the replay's pool and disarmed when it ends, the replay's
  * provenance and its verdict written onto its turns, and a terminal line.
  */
-import type {ReplayHooks} from './message_box.js';
+import type {ReplayHooks} from './replay/driver.js';
 import type {TurnEvent, TurnRecordEvent} from './record/turn_record.js';
 import type {ReplayPool} from './replay/pool.js';
 

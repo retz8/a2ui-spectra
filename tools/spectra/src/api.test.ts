@@ -11,8 +11,9 @@ import type {AgentApi, FixturesListing, ListedTurn, SessionContext} from './api.
 import {CatalogRegistry} from './catalog/registry.js';
 import {CONFIG_SCHEMA, type PriceOverride} from './config.js';
 import {FixturesFolder} from './fixtures/fixtures.js';
-import {MessageBox, type ReplayHooks} from './message_box.js';
+import {A2aMessageBox} from './a2a/message_box.js';
 import type {Turn, TurnRecord, WireInputEvent, WirePart} from './record/turn_record.js';
+import type {ReplayHooks} from './replay/driver.js';
 import {startViewerServer, type ViewerServer} from './server.js';
 import {TurnStore} from './store/store.js';
 import {TurnHub} from './turn_hub.js';
@@ -111,7 +112,7 @@ async function serve(
   dirs.push(dir);
   const store = await TurnStore.open(dir);
   const turns = new TurnHub();
-  const box = new MessageBox({
+  const box = new A2aMessageBox({
     card: {
       capabilities: {streaming: true},
       supportedInterfaces: [

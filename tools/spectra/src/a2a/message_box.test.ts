@@ -2,12 +2,14 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import {describe, it} from 'node:test';
 
-import {capabilitiesFor} from './a2a/client.js';
-import type {CatalogOffer} from './catalog/registry.js';
-import {MessageBox, MessageBoxError, type ReplayHooks} from './message_box.js';
-import type {ModelCallEvent, Turn, TurnOutcome, TurnRecord} from './record/turn_record.js';
-import type {ReplayPool} from './replay/pool.js';
-import {type HubEvent, TurnHub} from './turn_hub.js';
+import type {CatalogOffer} from '../catalog/registry.js';
+import {MessageBoxError} from '../message_box.js';
+import type {ModelCallEvent, Turn, TurnOutcome, TurnRecord} from '../record/turn_record.js';
+import type {ReplayHooks} from '../replay/driver.js';
+import type {ReplayPool} from '../replay/pool.js';
+import {type HubEvent, TurnHub} from '../turn_hub.js';
+import {capabilitiesFor} from './client.js';
+import {A2aMessageBox} from './message_box.js';
 
 const URL_1_0 = 'http://127.0.0.1:10999/a2a';
 const CARD_1_0 = {
@@ -140,9 +142,9 @@ function boxOn(
     offer?: CatalogOffer | (() => CatalogOffer);
     replay?: ReplayHooks;
   } = {},
-): MessageBox {
+): A2aMessageBox {
   let ids = 0;
-  return new MessageBox({
+  return new A2aMessageBox({
     card,
     turns: proxy.turns,
     fetch: proxy.fetch,
@@ -453,7 +455,7 @@ describe('the message box', () => {
   it('reports a wire proxy it cannot reach, keeping no conversation, and stays free to send', async () => {
     const turns = new TurnHub();
     let calls = 0;
-    const box = new MessageBox({
+    const box = new A2aMessageBox({
       card: CARD_1_0,
       turns,
       fetch: () => {
@@ -905,7 +907,7 @@ describe('the message box replaying a record', () => {
     const hooks = new FakeHooks();
     let sends = 0;
     const turns = proxy.turns;
-    const box = new MessageBox({
+    const box = new A2aMessageBox({
       card: CARD_1_0,
       turns,
       replay: hooks,
@@ -1060,7 +1062,7 @@ describe('the message box replaying a record', () => {
   it('rejects when the first turn cannot be sent, the replay over before it began', async () => {
     const hooks = new FakeHooks();
     const turns = new TurnHub();
-    const box = new MessageBox({
+    const box = new A2aMessageBox({
       card: CARD_1_0,
       turns,
       replay: hooks,
@@ -1240,7 +1242,7 @@ describe("the message box following the agent's process under run", () => {
   it('refuses by the state of the process, then by the card, then by an unset variable, the first that applies winning', async () => {
     const proxy = new FakeProxy();
     let ids = 0;
-    const box = new MessageBox({
+    const box = new A2aMessageBox({
       turns: proxy.turns,
       fetch: proxy.fetch,
       newMessageId: () => `m-${++ids}`,

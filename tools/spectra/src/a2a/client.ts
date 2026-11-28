@@ -4,6 +4,7 @@
  */
 
 import {type CatalogOffer, CatalogRegistry} from '../catalog/registry.js';
+import type {BoxInput} from '../message_box.js';
 import {type CardInterface, cardInterfaces, JSONRPC} from './card.js';
 import {dataModelKeyFor, joinInputMetadata} from './metadata.js';
 import {A2UI_MIME_TYPE, a2aPart} from './parts.js';
@@ -103,15 +104,6 @@ export function chooseInterface(card: Record<string, unknown>): InterfaceChoice 
 function majorMinor(version: string): string | undefined {
   return /^(\d+\.\d+)(?:\.\d+)?$/.exec(version.trim())?.[1];
 }
-
-/**
- * What a host message carries: a text, or one A2UI action message,
- * `{version, action}`, with the data model map, `{version, surfaces}`, when
- * a surface asked for it.
- */
-export type BoxInput = ({text: string} | {action: Record<string, unknown>}) & {
-  dataModel?: Record<string, unknown>;
-};
 
 /** The message the box sends, and the conversation it continues. */
 export type BoxMessage = BoxInput & {

@@ -13,10 +13,11 @@ import {
   type FixturesFolder,
 } from './fixtures/fixtures.js';
 import {type ListingFields, listingFieldsOf} from './listing.js';
-import {type MessageBox, MessageBoxError, type ReplaySource} from './message_box.js';
+import {type MessageBox, MessageBoxError} from './message_box.js';
 import {pricesAnswer} from './prices.js';
 import {NewerRecordError, RecordReadError} from './record/read_record.js';
 import {isEventOfKind, type ReplayMode, type Turn, type TurnRecord} from './record/turn_record.js';
+import type {ReplaySource} from './replay/driver.js';
 import type {StoredTurn, TurnStore} from './store/store.js';
 import type {HubEvent, TurnHub} from './turn_hub.js';
 import {VERSION} from './version.js';

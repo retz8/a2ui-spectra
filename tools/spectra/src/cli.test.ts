@@ -24,7 +24,8 @@ import type {LogEntry, LogSnapshot} from './agent_log.js';
 import type {AgentSnapshot} from './agent_supervisor.js';
 import type {ListedTurn, SessionContext} from './api.js';
 import type {CatalogListing} from './catalog/registry.js';
-import type {MessageBoxState, ReplayStarted} from './message_box.js';
+import type {A2aMessageBoxState} from './a2a/message_box.js';
+import type {ReplayStarted} from './replay/driver.js';
 import {VARIABLES} from './model_proxy/redirection.js';
 import {
   type CheckEvent,
@@ -1815,7 +1816,7 @@ describe(`a2ui-spectra as a process, ${binary ? 'the binary' : 'under Node'}`, (
       const agentOf = async (base: string) =>
         (await getJson<AgentSnapshot>(`${base}/api/agent`)).body;
       const boxOf = async (base: string) =>
-        (await getJson<MessageBoxState>(`${base}/api/message-box`)).body;
+        (await getJson<A2aMessageBoxState>(`${base}/api/message-box`)).body;
       const press = (base: string) =>
         postJson<{accepted?: boolean}>(`${base}/api/agent/restart`, {});
 

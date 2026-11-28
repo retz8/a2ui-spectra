@@ -17,7 +17,7 @@ import {describe, it} from 'node:test';
 import {fileURLToPath} from 'node:url';
 
 import type {FixturesListing, SessionContext} from './api.js';
-import type {ReplayStarted} from './message_box.js';
+import type {ReplayStarted} from './replay/driver.js';
 import {
   type A2uiPart,
   type CallEvent,

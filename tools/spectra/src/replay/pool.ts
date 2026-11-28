@@ -261,6 +261,15 @@ function isOnServer(event: CallEvent, server: string | undefined): boolean {
   return typeof url === 'string' && URL.canParse(url) && new URL(url).origin === server;
 }
 
+/**
+ * Why everything-recorded mode refuses a record with no model call or tool
+ * call the proxies can answer with: a call known only from the agent's spans,
+ * an operation the server initiated, a notification, a client's response and
+ * a session end do not count.
+ */
+export const NOTHING_TO_SERVE =
+  'The record holds no model call or tool call the proxies can answer with, so there is nothing to serve with everything recorded.';
+
 /** Whether a record holds nothing the proxies could serve: no model call and no tool call to answer with. */
 export function hasNothingToServe(record: TurnRecord): boolean {
   return new ReplayPool(record, 'recorded').unserved().length === 0;

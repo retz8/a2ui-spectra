@@ -4,6 +4,7 @@ import {constants} from 'node:os';
 import {type AnsweredCard, readAnsweredCard, rewriteCard} from './a2a/card.js';
 import {startWireProxy, type WireProxy} from './a2a/proxy.js';
 import {type AgentCard, agentCardUrl, waitForAgentCard} from './a2a/agent_card.js';
+import {A2aMessageBox} from './a2a/message_box.js';
 import {
   type AgentExit,
   type AgentProcess,
@@ -21,7 +22,7 @@ import {startCatalogWatch} from './catalog/watch.js';
 import {agentHeaders, ConfigError, type SpectraConfig} from './config.js';
 import {ownEnvironment, pythonVariables} from './environment.js';
 import {FixturesFolder} from './fixtures/fixtures.js';
-import {MessageBox, unsetVariablesClause} from './message_box.js';
+import {type MessageBox, unsetVariablesClause} from './message_box.js';
 import {type ModelProxy, startModelProxy} from './model_proxy/proxy.js';
 import {
   attachLines,
@@ -368,8 +369,8 @@ export async function runSession(
       onAmended: turns.onAmended,
       log: line => out.info(line),
     });
-    const openBox = (card: AgentCard | undefined): MessageBox =>
-      new MessageBox({
+    const openBox = (card: AgentCard | undefined): A2aMessageBox =>
+      new A2aMessageBox({
         ...(card !== undefined && {card}),
         turns,
         headers,
@@ -522,7 +523,7 @@ interface Running {
   /** Stops the fixtures folder's own watch. */
   stopWatching: () => void;
   proxy?: WireProxy;
-  box?: MessageBox;
+  box?: A2aMessageBox;
   server?: ViewerServer;
   /** A headless command's own exit code, once its work is done. */
   exitCode: number;
@@ -551,7 +552,7 @@ interface SessionParts {
   cardUrl: URL;
   waitLine: (reason: string, hint: boolean) => string;
   openWireProxy: (agentName: string | undefined) => Promise<WireProxy>;
-  openBox: (card: AgentCard | undefined) => MessageBox;
+  openBox: (card: AgentCard | undefined) => A2aMessageBox;
   viewer: {port: number; open: boolean; allowedHosts: string[]};
   stop: AbortController;
   running: Running;
@@ -694,7 +695,7 @@ async function runMode(parts: SessionParts, agentCommand: AgentCommand): Promise
  */
 async function reachAgent(
   parts: SessionParts,
-): Promise<{answered: AnsweredCard; proxy: WireProxy; box: MessageBox} | 'refused' | undefined> {
+): Promise<{answered: AnsweredCard; proxy: WireProxy; box: A2aMessageBox} | 'refused' | undefined> {
   const {out, stop, running} = parts;
   const card = await waitForAgentCard(parts.cardUrl, {
     signal: stop.signal,

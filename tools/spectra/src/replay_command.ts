@@ -13,7 +13,7 @@ import path from 'node:path';
 import {UsageError} from './args.js';
 import type {SpectraConfig} from './config.js';
 import {type FixtureFile, FixturesFolder} from './fixtures/fixtures.js';
-import {MessageBoxError, NOTHING_TO_SERVE, type ReplaySource} from './message_box.js';
+import {MessageBoxError} from './message_box.js';
 import type {Output} from './output.js';
 import {readRecord, RecordReadError} from './record/read_record.js';
 import {
@@ -25,7 +25,8 @@ import {
   type TurnEvent,
   type TurnRecord,
 } from './record/turn_record.js';
-import {hasNothingToServe} from './replay/pool.js';
+import type {ReplaySource} from './replay/driver.js';
+import {hasNothingToServe, NOTHING_TO_SERVE} from './replay/pool.js';
 import {outcomeOf} from './replay/verdict.js';
 import {
   fixtureLines,
