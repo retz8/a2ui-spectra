@@ -255,7 +255,7 @@ The design docs explain each part of Spectra: what it does, the rules it follows
 | [The A2UI step](docs/design/a2ui-step.md)                   | The wrappers: the prompt and the parse inside the agent SDK, raw text to components, retries       |
 | [The checks](docs/design/checks.md)                         | The four checks and the catalogs they check against                                                |
 | [The preview](docs/design/preview.md)                       | The preview protocol, its core and adapters, the built-in page, a press                            |
-| [Replay and fixtures](docs/design/replay-and-fixtures.md)   | The record, the two replay modes, the verdict, `replay` and `test`, the store and fixtures         |
+| [Replay and fixtures](docs/design/replay-and-fixtures.md)   | The record, the three replay modes, the verdict, `replay` and `test`, the store and fixtures       |
 | [The agent's process](docs/design/agent-process.md)         | Under `run`: start, restart on save, the agent's output, the stop                                  |
 | [The viewer](docs/design/viewer.md)                         | The page: what each area shows and where it comes from                                             |
 | [The API](docs/design/api.md)                               | The routes and the live stream, for a script or a coding agent                                     |

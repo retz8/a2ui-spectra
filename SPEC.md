@@ -73,13 +73,14 @@ Tools that attach to a live agent, as of 2026-10-17:
 **Not paying for every run**
 
 - One-click save as fixture.
-- Two replay modes, each labelled with its cost:
+- Three replay modes, each labelled with its cost:
   - **everything recorded** (model and tools): free;
-  - **tools recorded, model live:** model tokens only.
+  - **tools recorded, model live:** model tokens only;
+  - **live:** every model and tool call, nothing served from the record.
 
   A cache keyed by the exact request means an unchanged request never reaches the model twice. This is the record-and-replay pattern of Ruby's VCR and Netflix's Polly.js, applied to model calls.
 
-  The two modes differ in what a miss does. In both, a request identical to a recorded one is served from the record. With everything recorded, a request that matches nothing is an error and no call leaves the machine; with the model live, a model request that matches nothing goes to the provider, so a replay after a prompt edit pays only from the point where the request changed. A tool request that matches nothing has no live fallback in either mode.
+  The first two modes differ in what a miss does. In both, a request identical to a recorded one is served from the record. With everything recorded, a request that matches nothing is an error and no call leaves the machine; with the model live, a model request that matches nothing goes to the provider, so a replay after a prompt edit pays only from the point where the request changed. A tool request that matches nothing has no live fallback in either mode.
 
 - A test command that runs every fixture with model and tools recorded, for CI.
 
@@ -219,12 +220,12 @@ catalog ──▶ prompt generator ──▶ prompt ──▶ model ──▶ ra
 **1. Point Spectra at the agent.**
 
 ```
-a2ui-spectra run -- python agent.py
-a2ui-spectra run -- npm run dev
-a2ui-spectra run -- dart run bin/agent.dart
+a2ui-spectra run --agent-url http://localhost:10002 -- python agent.py
+a2ui-spectra run --agent-url http://localhost:10002 -- npm run dev
+a2ui-spectra run --agent-url http://localhost:10002 -- dart run bin/agent.dart
 ```
 
-`a2ui-spectra run` launches the command with the environment variables in [Redirection](#redirection) set. Genkit's `genkit start -- <command>` and the MCP Inspector's `npx @modelcontextprotocol/inspector <command>` work the same way.
+`a2ui-spectra run` launches the command with the environment variables in [Redirection](#redirection) set. The agent's URL is `--agent-url`, or the config file's `agent.url`. Genkit's `genkit start -- <command>` and the MCP Inspector's `npx @modelcontextprotocol/inspector <command>` work the same way.
 
 ```
 a2ui-spectra attach http://localhost:10002
@@ -250,7 +251,7 @@ Settings beyond the defaults go in an optional config file committed in the repo
 
 | What the adopter has done                                                                                                                      | What they get                                                                                                                                                                                                                                                                                 |
 | ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Install, `a2ui-spectra run -- <cmd>`, send a message from the box                                                                              | The tree, the data model, the raw messages and actions; the schema and structural checks; the basic catalog's checks and preview; the timeline; the exact model request, the raw response and tokens; capture, fixtures, replay and the test command; agent restart, logs and restart on save |
+| Install, `a2ui-spectra run --agent-url <url> -- <cmd>`, send a message from the box                                                            | The tree, the data model, the raw messages and actions; the schema and structural checks; the basic catalog's checks and preview; the timeline; the exact model request, the raw response and tokens; capture, fixtures, replay and the test command; agent restart, logs and restart on save |
 | Config only: the custom catalog's `catalog.json`, the tool servers' URL variables, where fixtures are saved                                    | Catalog checks for their own components; tool calls recorded, and replay with tools recorded and the model live                                                                                                                                                                               |
 | Small code or dependency changes: a hardcoded tool server URL made configurable, launching under `opentelemetry-instrument`, the wrapper added | Framework traces (tools in the agent's process, the framework's own retries); the A2UI step: raw text linked to the tree, the inference format, retries and parse errors                                                                                                                      |
 | Catalog side: the preview adapter and its page                                                                                                 | The preview of their own catalog, and pressing its controls                                                                                                                                                                                                                                   |
@@ -258,7 +259,7 @@ Settings beyond the defaults go in an optional config file committed in the repo
 **4. Fixtures:**
 
 - **Save as fixture** writes the turn record.
-- Replay runs from the viewer or with `a2ui-spectra replay <file>`, with everything recorded or, under `--model-live`, with tools recorded and the model live.
+- Replay runs from the viewer or with `a2ui-spectra replay <file>`, with everything recorded, under `--model-live` with tools recorded and the model live, or under `--live` with every call live.
 - `a2ui-spectra test [<folder>]` runs every fixture under the folder, the fixtures folder by default, with model and tools recorded, and exits 0 when every one passes.
 
 ### Browser, terminal, editor
