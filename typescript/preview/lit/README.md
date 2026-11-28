@@ -41,7 +41,7 @@ npm install --save-dev a2ui-spectra-preview-lit
 
    ```json
    {
-     "$schema": "https://raw.githubusercontent.com/retz8/a2ui-spectra/main/tools/spectra/src/config.schema.json",
+     "$schema": "https://raw.githubusercontent.com/retz8/a2ui-spectra/v0.1.0/tools/spectra/src/config.schema.json",
      "catalogs": ["../catalog.json"],
      "preview": ["http://localhost:9832/"]
    }

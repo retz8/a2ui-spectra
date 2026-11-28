@@ -119,7 +119,7 @@ The binary also reads `A2UI_SPECTRA_PROVIDER_STAND_IN`, which makes an origin re
 
 ```json
 {
-  "$schema": "https://raw.githubusercontent.com/retz8/a2ui-spectra/main/tools/spectra/src/config.schema.json",
+  "$schema": "https://raw.githubusercontent.com/retz8/a2ui-spectra/v0.1.0/tools/spectra/src/config.schema.json",
   "agent": {
     "url": "http://localhost:10002",
     "headers": {"Authorization": "Bearer ${SPECTRA_AGENT_TOKEN}"}
