@@ -60,6 +60,16 @@ class Generator:
     format: str
 
 
+@dataclass(frozen=True)
+class Read:
+    """A function of the SDK the hooks call. It is read, not hooked."""
+
+    module: str
+    name: str
+    # Whether the wrapper is refused when the SDK lacks it.
+    required: bool
+
+
 _DIRECT_JSON = "a2ui.inference_formats.direct_json"
 _EXPRESS = "a2ui.inference_formats.express"
 _ATOM = "a2ui.inference_formats.experimental.atom"
@@ -134,8 +144,12 @@ TOOL_METHODS = ("run_async", "process_llm_request")
 # swallows.
 TOOLSET_MODULE = "a2ui.adk.send_a2ui_to_client_toolset"
 
-# Names the hooks call, checked with the core names.
-READS: tuple[tuple[str, str], ...] = (("a2ui.parser", "to_message_dicts"),)
+# The names of the SDK the hooks call and do not hook, checked with the core
+# names.
+READS: tuple[Read, ...] = (
+    Read("a2ui.parser", "to_message_dicts", required=True),
+    Read("a2ui.core.common", "to_protocol_version", required=False),
+)
 
 
 # Calling through, guarded.

@@ -46,8 +46,8 @@ class Plan:
     targets: list[Target] = field(default_factory=list)
     # Each format's prompt generator class, by format.
     generators: list[tuple[type, str]] = field(default_factory=list)
+    # Each function the hooks call, by its name; one the SDK lacks is absent.
     reads: dict[str, Any] = field(default_factory=dict)
-    to_protocol_version: Any = None
 
 
 def installed_version(distribution: str) -> str | None:
@@ -165,17 +165,15 @@ def check() -> Plan | None:
     plan = Plan(sdk_version=version)
     try:
         _add_group(plan, "core")
-        for module, name in hooks.READS:
-            plan.reads[name] = _resolve(module, name)[2]
+        for read in hooks.READS:
+            try:
+                plan.reads[read.name] = _resolve(read.module, read.name)[2]
+            except Unusable:
+                if read.required:
+                    raise
     except Unusable as unusable:
         refuse(package.AGENT_SDK, version, str(unusable))
         return None
-    try:
-        plan.to_protocol_version = _resolve("a2ui.core.common", "to_protocol_version")[
-            2
-        ]
-    except Unusable:
-        plan.to_protocol_version = None
     for group in _EXPERIMENTAL:
         try:
             _add_group(plan, group)

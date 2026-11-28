@@ -95,7 +95,7 @@ def _active(
         start_provider=start_provider,
         sdk_version=plan.sdk_version,
         to_message_dicts=plan.reads["to_message_dicts"],
-        to_protocol_version=plan.to_protocol_version,
+        to_protocol_version=plan.reads.get("to_protocol_version"),
         parsers=parsers,
         generators=tuple(plan.generators),
     )
