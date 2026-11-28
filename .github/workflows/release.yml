@@ -30,6 +30,10 @@ concurrency:
 permissions:
   contents: read
 
+# No job of the run restores or saves a cache, those of the workflows it calls included: what the
+# run publishes is built from the commit and the registries alone.
+cache-mode: none
+
 env:
   VERSION: ${{ inputs.version }}
 
