@@ -56,13 +56,26 @@ export function replayInputs(record: TurnRecord): ReplayInput[] {
 }
 
 function replayInput(turn: Turn, number: number, carriesTask: boolean): ReplayInput {
-  const wireInput = turn.events.find(event => isEventOfKind(event, 'wire_input'));
+  const wireInputs = turn.events.filter(event => isEventOfKind(event, 'wire_input'));
+  const wireInput = wireInputs[0];
   if (wireInput === undefined) {
     throw new ReplayRecordError(
       `Turn ${number} of the record has no wire input, so there is nothing to send for it.`,
     );
   }
+  // A turn record may hold several; no transport Spectra sends over gives a second one a meaning.
+  if (wireInputs.length > 1) {
+    throw new ReplayRecordError(
+      `Turn ${number} of the record holds ${wireInputs.length} wire inputs, and a replay sends one input a turn.`,
+    );
+  }
   const attributes = wireInput.attributes;
+  const message: {parts?: unknown} | undefined = attributes['a2ui.wire.message'];
+  if (!Array.isArray(message?.parts)) {
+    throw new ReplayRecordError(
+      `Turn ${number} of the record's wire input holds no message with parts, so there is nothing to send for it.`,
+    );
+  }
   const capabilities = attributes['a2ui.wire.capabilities'];
   const dataModel = attributes['a2ui.wire.data_model'];
   const metadata = attributes['a2ui.wire.metadata'];

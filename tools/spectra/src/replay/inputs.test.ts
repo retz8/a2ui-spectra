@@ -100,4 +100,36 @@ describe('replayInputs, what the driver re-sends for each recorded turn', () => 
       },
     );
   });
+
+  it('refuses a record whose turn holds more than one wire input, naming the turn and the count', () => {
+    const turn = turnWith({});
+    const [turnEvent, wireInput, ...rest] = turn.events;
+    const twice: Turn = {
+      events: [turnEvent, wireInput, {...wireInput, spanId: 'f'.repeat(16)}, ...rest],
+    };
+    assert.throws(
+      () => replayInputs(recordOf(turnWith({}), twice)),
+      (error: unknown) =>
+        error instanceof ReplayRecordError &&
+        error.message ===
+          'Turn 2 of the record holds 2 wire inputs, and a replay sends one input a turn.',
+    );
+  });
+
+  it('refuses a record whose wire input holds no message with parts, naming the turn', () => {
+    for (const message of [undefined, {role: 'user'}, {role: 'user', parts: 'Hi'}]) {
+      assert.throws(
+        () =>
+          replayInputs(
+            recordOf(
+              turnWith({'a2ui.wire.message': message} as Partial<WireInputEvent['attributes']>),
+            ),
+          ),
+        (error: unknown) =>
+          error instanceof ReplayRecordError &&
+          error.message ===
+            "Turn 1 of the record's wire input holds no message with parts, so there is nothing to send for it.",
+      );
+    }
+  });
 });
