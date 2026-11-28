@@ -161,7 +161,12 @@ export class ReplayPool {
     this.all.push(entry);
   }
 
-  /** The recorded calls never served, in pool order: a consumed exchange and housekeeping that was asked for count as served. */
+  /**
+   * The recorded calls never served, in pool order: a consumed exchange
+   * counts as served, and so does every housekeeping exchange a request
+   * stood for, the one it was answered with and the earlier ones of its
+   * method and params.
+   */
   unserved(): CallEvent[] {
     return this.all.filter(entry => !entry.served).map(entry => entry.event);
   }
@@ -196,9 +201,10 @@ export class ReplayPool {
       const withParams = ofMethod.filter(item =>
         jsonEqual(paramsKey(requestMessage(item.event)?.params), key),
       );
-      const entry = (withParams.length > 0 ? withParams : ofMethod).at(-1);
-      if (entry !== undefined) entry.served = true;
-      return entry?.event;
+      // The request stands for every exchange it could have been answered with: each was asked for.
+      const stoodFor = withParams.length > 0 ? withParams : ofMethod;
+      for (const entry of stoodFor) entry.served = true;
+      return stoodFor.at(-1)?.event;
     }
     return take(this.mcpEntries, recorded => {
       const message = requestMessage(recorded);

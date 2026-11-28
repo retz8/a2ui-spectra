@@ -484,4 +484,43 @@ describe('the replay pool', () => {
       ['0000000000000002'],
     );
   });
+
+  it("counts every exchange a housekeeping request stands for as asked for, an earlier turn's included", () => {
+    const pool = new ReplayPool(
+      record(
+        [
+          mcpCall('0000000000000001', 10, 'initialize', {protocolVersion: '2025-06-18'}),
+          mcpCall('0000000000000002', 20, 'tools/list', undefined),
+          mcpCall('0000000000000003', 30, 'tools/list', {cursor: 'c2'}),
+        ],
+        [
+          mcpCall('0000000000000004', 10, 'initialize', {protocolVersion: '2025-06-18'}),
+          mcpCall('0000000000000005', 20, 'tools/list', undefined),
+          mcpCall('0000000000000006', 30, 'tools/list', {cursor: 'c2'}),
+        ],
+      ),
+      'recorded',
+    );
+    pool.mcpRequest('initialize', {protocolVersion: '2025-06-18'});
+    pool.mcpRequest('tools/list', undefined);
+    assert.deepEqual(
+      pool.unserved().map(event => event.spanId),
+      ['0000000000000003', '0000000000000006'],
+      'the page never asked for stays unasked',
+    );
+    pool.mcpRequest('tools/list', {cursor: 'c2'});
+    assert.deepEqual(pool.unserved(), []);
+  });
+
+  it('counts every exchange of the method as asked for when the request matches none by its params', () => {
+    const pool = new ReplayPool(
+      record(
+        [mcpCall('0000000000000001', 10, 'logging/setLevel', {level: 'info'})],
+        [mcpCall('0000000000000002', 10, 'logging/setLevel', {level: 'error'})],
+      ),
+      'recorded',
+    );
+    assert.equal(pool.mcpRequest('logging/setLevel', {level: 'debug'})?.spanId, '0000000000000002');
+    assert.deepEqual(pool.unserved(), []);
+  });
 });
