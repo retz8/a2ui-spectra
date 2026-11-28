@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import {describe, it} from 'node:test';
 
 import {readTestData} from '../testing/recordings.ts';
-import {asOfLabel, positionOf, resultMomentOf} from './as_of.ts';
+import {asOfLabel, noSurfaceSentenceOf, positionOf, resultMomentOf} from './as_of.ts';
 import type {TurnRecordEvent} from './record.ts';
 import {type TimelineRow, timelineOf} from './steps.ts';
 import {summaryOf} from './summary.ts';
@@ -89,5 +89,30 @@ describe('asOfLabel', () => {
 
   it('is empty for no row', () => {
     assert.equal(asOfLabel(undefined, events, startMs), '');
+  });
+});
+
+describe('noSurfaceSentenceOf', () => {
+  const none = {open: false, later: false, deleted: false, sentA2ui: false, failed: false};
+
+  it('says why there is no surface, the first reason that holds winning', () => {
+    assert.equal(noSurfaceSentenceOf({...none, open: true, later: true}), 'No surfaces yet.');
+    assert.equal(
+      noSurfaceSentenceOf({...none, later: true, deleted: true}),
+      'No surfaces yet at this step.',
+    );
+    assert.equal(
+      noSurfaceSentenceOf({...none, deleted: true, sentA2ui: true}),
+      'No surfaces: the turn deleted every surface it had.',
+    );
+    assert.equal(
+      noSurfaceSentenceOf({...none, sentA2ui: true, failed: true}),
+      'No surfaces: the agent sent no A2UI that builds one.',
+    );
+    assert.equal(
+      noSurfaceSentenceOf({...none, failed: true}),
+      'No surfaces: the turn failed before any A2UI arrived.',
+    );
+    assert.equal(noSurfaceSentenceOf(none), 'No surfaces: the agent sent no A2UI in this turn.');
   });
 });
