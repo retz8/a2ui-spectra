@@ -20,7 +20,7 @@ import type {CallReplay, RecordedCall, ToolMissList} from '@/model/provenance.ts
 import type {OtherEvent, TurnRecordEvent} from '@/model/record.ts';
 import {
   argumentsOf,
-  contentBlocksOf,
+  resultShownOf,
   isFullToolRow,
   resultOf,
   type ToolResult,
@@ -168,67 +168,14 @@ function RecordedRequests({
   );
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-/**
- * The result: the tool's content, a text block as text and every other
- * block as JSON, the tool's own text first; a resource's contents, text as
- * text, with its media type and URI; anything else as JSON. Labelled "Error"
- * for the tool's own `isError` or a JSON-RPC error.
- */
+/** The result, as `resultShownOf` reads it: one JSON block, or a list of text and JSON parts. */
 function ResultBlock({result, meta: source}: {result: ToolResult; meta: string | undefined}) {
-  const label = result.error ? 'Error' : 'Result';
-  const facts = (meta: string | undefined) =>
-    [source, meta].filter((part): part is string => part !== undefined && part !== '').join(' · ');
-  if (result.code !== undefined) {
-    return <JsonBlock label={label} meta={facts(`JSON-RPC ${result.code}`)} value={result.value} />;
-  }
-  const blocks = contentBlocksOf(result.value);
-  if (blocks !== undefined) {
-    const isText = (block: unknown) =>
-      isRecord(block) && block.type === 'text' && typeof block.text === 'string';
-    const ordered = [...blocks.filter(isText), ...blocks.filter(block => !isText(block))];
-    const types = [
-      ...new Set(blocks.map(block => (isRecord(block) ? String(block.type ?? '') : ''))),
-    ].filter(Boolean);
-    const structured = isRecord(result.value) ? result.value.structuredContent : undefined;
-    return (
-      <Parts
-        label={label}
-        meta={facts(types.join(', '))}
-        parts={[
-          ...ordered.map(block =>
-            isText(block) ? {text: (block as {text: string}).text} : {json: block},
-          ),
-          ...(structured !== undefined ? [{json: structured}] : []),
-        ]}
-      />
-    );
-  }
-  const contents =
-    isRecord(result.value) && Array.isArray(result.value.contents)
-      ? result.value.contents
-      : undefined;
-  if (contents !== undefined) {
-    const first = isRecord(contents[0]) ? contents[0] : {};
-    const meta = [first.mimeType, first.uri]
-      .filter((part): part is string => typeof part === 'string')
-      .join(' · ');
-    return (
-      <Parts
-        label={label}
-        meta={facts(meta)}
-        parts={contents.map(content =>
-          isRecord(content) && typeof content.text === 'string'
-            ? {text: content.text}
-            : {json: content},
-        )}
-      />
-    );
-  }
-  return <JsonBlock label={label} meta={facts(undefined)} value={result.value} />;
+  const shown = resultShownOf(result, source);
+  return shown.form === 'json' ? (
+    <JsonBlock label={shown.label} meta={shown.meta} value={shown.value} />
+  ) : (
+    <Parts label={shown.label} meta={shown.meta} parts={shown.parts} />
+  );
 }
 
 /**

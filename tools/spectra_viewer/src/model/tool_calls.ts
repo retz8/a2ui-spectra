@@ -195,6 +195,69 @@ export function contentBlocksOf(value: unknown): unknown[] | undefined {
   return value.content;
 }
 
+/** A tool call's result as its detail shows it: one JSON block, or a list of text and JSON parts, each with its label and its facts. */
+export type ResultShown =
+  | {form: 'json'; label: string; meta: string; value: unknown}
+  | {form: 'parts'; label: string; meta: string; parts: Array<{text: string} | {json: unknown}>};
+
+/**
+ * The result: the tool's content, a text block as text and every other
+ * block as JSON, the tool's own text first; a resource's contents, text as
+ * text, with its media type and URI; anything else as JSON. Labelled "Error"
+ * for the tool's own `isError` or a JSON-RPC error. Its facts start with the
+ * source given.
+ */
+export function resultShownOf(result: ToolResult, source: string | undefined): ResultShown {
+  const label = result.error ? 'Error' : 'Result';
+  const facts = (meta: string | undefined) =>
+    [source, meta].filter((part): part is string => part !== undefined && part !== '').join(' · ');
+  if (result.code !== undefined) {
+    return {form: 'json', label, meta: facts(`JSON-RPC ${result.code}`), value: result.value};
+  }
+  const blocks = contentBlocksOf(result.value);
+  if (blocks !== undefined) {
+    const isText = (block: unknown) =>
+      isRecord(block) && block.type === 'text' && typeof block.text === 'string';
+    const ordered = [...blocks.filter(isText), ...blocks.filter(block => !isText(block))];
+    const types = [
+      ...new Set(blocks.map(block => (isRecord(block) ? String(block.type ?? '') : ''))),
+    ].filter(Boolean);
+    const structured = isRecord(result.value) ? result.value.structuredContent : undefined;
+    return {
+      form: 'parts',
+      label,
+      meta: facts(types.join(', ')),
+      parts: [
+        ...ordered.map(block =>
+          isText(block) ? {text: (block as {text: string}).text} : {json: block},
+        ),
+        ...(structured !== undefined ? [{json: structured}] : []),
+      ],
+    };
+  }
+  const contents =
+    isRecord(result.value) && Array.isArray(result.value.contents)
+      ? result.value.contents
+      : undefined;
+  if (contents !== undefined) {
+    const first = isRecord(contents[0]) ? contents[0] : {};
+    const meta = [first.mimeType, first.uri]
+      .filter((part): part is string => typeof part === 'string')
+      .join(' · ');
+    return {
+      form: 'parts',
+      label,
+      meta: facts(meta),
+      parts: contents.map(content =>
+        isRecord(content) && typeof content.text === 'string'
+          ? {text: content.text}
+          : {json: content},
+      ),
+    };
+  }
+  return {form: 'json', label, meta: facts(undefined), value: result.value};
+}
+
 /**
  * How a failed tool call reads, from the tool proxy's event: a JSON-RPC
  * error, an HTTP error status, a tool server that could not be reached, an
