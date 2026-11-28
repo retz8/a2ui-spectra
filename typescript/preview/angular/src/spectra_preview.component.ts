@@ -42,24 +42,27 @@ interface Drawn {
   injector: Injector;
 }
 
-/** Where the page's error handler reports: the current processor's events. */
-let reportTo: PageEvents['componentFailed'] | undefined;
-
-const WRAPPED = Symbol.for('a2ui-spectra-preview-angular.wrapped');
-
 /**
- * Reports every error the page's handler is given, then hands it on. Angular
+ * Reports every error the page's handler is given, then hands it on, until
+ * the returned way to stop is called, which gives the handler back. Angular
  * has no error boundary: a component that throws while drawing reaches the
  * application's `ErrorHandler`, which is not told which component it was.
  */
-function wrapErrorHandler(handler: ErrorHandler): void {
-  const marked = handler as ErrorHandler & {[WRAPPED]?: true};
-  if (marked[WRAPPED]) return;
-  const handOn = handler.handleError.bind(handler);
-  Object.defineProperty(marked, WRAPPED, {value: true});
-  handler.handleError = (error: unknown) => {
-    reportTo?.({error});
-    handOn(error);
+function wrapErrorHandler(handler: ErrorHandler, report: (error: unknown) => void): () => void {
+  const ownBefore = Object.prototype.hasOwnProperty.call(handler, 'handleError');
+  const handOn = handler.handleError;
+  let reporting = true;
+  const wrapped = (error: unknown) => {
+    if (reporting) report(error);
+    handOn.call(handler, error);
+  };
+  handler.handleError = wrapped;
+  return () => {
+    reporting = false;
+    // Wrapped again since, the later wrapper hands on to this one, which now only hands on.
+    if (handler.handleError !== wrapped) return;
+    if (ownBefore) handler.handleError = handOn;
+    else delete (handler as Partial<ErrorHandler>).handleError;
   };
 }
 
@@ -97,13 +100,15 @@ export class SpectraPreviewComponent {
     if (origin === undefined) return;
     const config: RendererConfiguration = inject(A2UI_RENDERER_CONFIG);
     const parent = inject(Injector);
-    wrapErrorHandler(inject(ErrorHandler));
+    /** Where an error the page's handler is given is reported: the current processor's events. */
+    let failed: PageEvents['componentFailed'] | undefined;
+    const giveHandlerBack = wrapErrorHandler(inject(ErrorHandler), error => failed?.({error}));
     const page = startWebPreviewPage<AngularComponentImplementation, Made>({
       catalogs: config.catalogs,
       viewerOrigin: origin,
       processorOptions: config.processorOptions,
       makeProcessor: ({actionHandler, options, componentFailed}) => {
-        reportTo = componentFailed;
+        failed = componentFailed;
         const injector = Injector.create({
           providers: [
             {
@@ -139,7 +144,8 @@ export class SpectraPreviewComponent {
     });
     inject(DestroyRef).onDestroy(() => {
       page.stop();
-      reportTo = undefined;
+      giveHandlerBack();
+      failed = undefined;
     });
   }
 }

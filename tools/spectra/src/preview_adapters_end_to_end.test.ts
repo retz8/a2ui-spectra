@@ -511,7 +511,7 @@ describe('the preview adapters and the built-in page in Chromium', {timeout: 10 
   );
 
   it(
-    'the Angular adapter stops when its application is destroyed',
+    "the Angular adapter stops when its application is destroyed, and gives the page's error handler back",
     {timeout: TIMEOUT},
     async () => {
       const framed = await frame('angular/');
@@ -519,8 +519,17 @@ describe('the preview adapters and the built-in page in Chromium', {timeout: 10 
         await framed.post(render(1, [create, components()]));
         await framed.frame.getByText('Hello from the test').waitFor();
         assert.equal(await answers(framed, 1), true);
+        assert.equal(
+          await framed.frame.evaluate('window.spectraTestPage.errorHandlerReplaced()'),
+          true,
+        );
         await framed.frame.evaluate('window.spectraTestPage.destroy()');
         assert.equal(await answers(framed, 2), false);
+        // The page's own error handler is its own again.
+        assert.equal(
+          await framed.frame.evaluate('window.spectraTestPage.errorHandlerReplaced()'),
+          false,
+        );
       } finally {
         await framed.page.close();
       }

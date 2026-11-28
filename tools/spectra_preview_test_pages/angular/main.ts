@@ -105,8 +105,16 @@ bootstrapApplication(TestPage, {
   ],
 })
   .then(application => {
+    const handler = application.injector.get(ErrorHandler);
     Object.assign(window, {
-      spectraTestPage: {pageErrors, pageActions, hostSent, destroy: () => application.destroy()},
+      spectraTestPage: {
+        pageErrors,
+        pageActions,
+        hostSent,
+        destroy: () => application.destroy(),
+        /** Whether the page's error handler holds a handleError other than its class's. */
+        errorHandlerReplaced: () => Object.prototype.hasOwnProperty.call(handler, 'handleError'),
+      },
     });
   })
   .catch(error => console.error(error));
