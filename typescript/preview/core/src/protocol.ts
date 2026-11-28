@@ -146,18 +146,85 @@ export type ViewerMessage = RenderMessage | PingMessage;
 export type PageMessage =
   ReadyMessage | PongMessage | ReportMessage | DataModelMessage | ActionMessage;
 
-const PAGE_TYPES: ReadonlySet<string> = new Set([
-  'a2ui-spectra-preview/ready',
-  'a2ui-spectra-preview/pong',
-  'a2ui-spectra-preview/report',
-  'a2ui-spectra-preview/data-model',
-  'a2ui-spectra-preview/action',
-]);
+/** A value's fields, when it is an object. */
+function fieldsOf(value: unknown): Record<string, unknown> | undefined {
+  return typeof value === 'object' && value !== null
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
 
-/** Whether a value is a message a page sends, by its type. */
+/** Whether a field is absent or a string. */
+function isOptionalString(value: unknown): boolean {
+  return value === undefined || typeof value === 'string';
+}
+
+function isClaim(value: unknown): value is Claim {
+  const claim = fieldsOf(value);
+  return typeof claim?.catalogId === 'string' && typeof claim.protocolVersion === 'string';
+}
+
+function isReport(value: unknown): value is Report {
+  const report = fieldsOf(value);
+  if (report === undefined || typeof report.error !== 'string') return false;
+  switch (report.kind) {
+    case 'component':
+      return isOptionalString(report.componentId) && isOptionalString(report.componentType);
+    case 'surface':
+      return typeof report.code === 'string' && isOptionalString(report.componentId);
+    case 'refused':
+      return typeof report.index === 'number' && typeof report.code === 'string';
+    default:
+      return false;
+  }
+}
+
+function isPreviewAction(value: unknown): value is PreviewAction {
+  const action = fieldsOf(value);
+  return (
+    action !== undefined &&
+    typeof action.name === 'string' &&
+    typeof action.surfaceId === 'string' &&
+    typeof action.sourceComponentId === 'string' &&
+    typeof action.timestamp === 'string' &&
+    fieldsOf(action.context) !== undefined &&
+    isOptionalString(action.catalogId) &&
+    isOptionalString(action.userMessage)
+  );
+}
+
+/**
+ * Whether a value is a message a page sends, with the fields of its type. A
+ * ready message is judged by the part every version holds, and by its claims
+ * only when it is this version's.
+ */
 export function isPageMessage(value: unknown): value is PageMessage {
-  const type = (value as {type?: unknown} | null)?.type;
-  return typeof type === 'string' && PAGE_TYPES.has(type);
+  const message = fieldsOf(value);
+  switch (message?.type) {
+    case 'a2ui-spectra-preview/ready':
+      return (
+        isReadyMessage(message) &&
+        (message.protocol !== PREVIEW_PROTOCOL ||
+          (Array.isArray(message.claims) && message.claims.every(isClaim)))
+      );
+    case 'a2ui-spectra-preview/pong':
+      return typeof message.load === 'number';
+    case 'a2ui-spectra-preview/report':
+      return typeof message.render === 'number' && isReport(message.report);
+    case 'a2ui-spectra-preview/data-model':
+      return (
+        typeof message.render === 'number' &&
+        typeof message.surfaceId === 'string' &&
+        'dataModel' in message
+      );
+    case 'a2ui-spectra-preview/action':
+      return (
+        typeof message.render === 'number' &&
+        isPreviewAction(message.action) &&
+        'dataModel' in message
+      );
+    default:
+      return false;
+  }
 }
 
 /**
