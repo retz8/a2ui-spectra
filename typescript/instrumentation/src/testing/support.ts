@@ -2,7 +2,9 @@
 
 import {spawn} from 'node:child_process';
 import {readFileSync} from 'node:fs';
+import {createServer} from 'node:http';
 import {createRequire} from 'node:module';
+import type {AddressInfo} from 'node:net';
 import * as path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
@@ -126,6 +128,34 @@ export class Capture {
   reset(): void {
     this.exporter.reset();
   }
+}
+
+/** A local stand-in for an OTLP/HTTP endpoint: it answers every export with 200 and counts them. */
+export async function collector(): Promise<{
+  endpoint: string;
+  exports: () => number;
+  close: () => Promise<void>;
+}> {
+  let exports = 0;
+  const server = createServer((request, response) => {
+    request.resume();
+    request.on('end', () => {
+      exports += 1;
+      response.statusCode = 200;
+      response.end();
+    });
+  });
+  await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+  const {port} = server.address() as AddressInfo;
+  return {
+    endpoint: `http://127.0.0.1:${port}`,
+    exports: () => exports,
+    close: () =>
+      new Promise<void>(resolve => {
+        server.closeAllConnections();
+        server.close(() => resolve());
+      }),
+  };
 }
 
 /** A span's span events by name, with their attributes. */

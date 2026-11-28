@@ -255,6 +255,7 @@ export abstract class Event {
     const attributes = this.attributes();
     if (attributes === undefined) return;
     if (this.errors.length > 0) attributes['error.type'] = className(this.errors[0]);
+    this.active.startProvider();
     const span = this.active
       .tracer()
       .startSpan(

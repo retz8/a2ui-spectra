@@ -15,6 +15,37 @@ import type {InferenceFormat} from './table.js';
 let owner: A2uiInstrumentation | undefined;
 
 /**
+ * What starts the wrapper's own tracer provider for an instrumentation, when
+ * `instrument()` made it. One an agent constructs itself has none: its spans
+ * go to the provider it is handed.
+ */
+const lateStarts = new WeakMap<A2uiInstrumentation, () => void>();
+
+/**
+ * Starts the wrapper's provider at most once, the first time it is called.
+ *
+ * The wrapper calls it when its first event ends, not when it is switched on:
+ * OpenTelemetry takes one global provider a process, so a provider the wrapper
+ * registered at switch-on would refuse the one the agent registers after it,
+ * with the agent's propagator and context manager.
+ */
+function lateStart(): () => void {
+  let called = false;
+  return () => {
+    if (called) return;
+    called = true;
+    try {
+      startProvider();
+    } catch (fault) {
+      warn(
+        'a2ui-spectra-instrumentation could not start a tracer provider ' +
+          `(${className(fault)}: ${messageOf(fault)}); the spans go to a provider the process sets`,
+      );
+    }
+  };
+}
+
+/**
  * Instruments upstream's A2UI agent SDK, `@a2ui/agent`, by replacing the
  * hooked methods on its exported classes' prototypes.
  *
@@ -34,7 +65,7 @@ export class A2uiInstrumentation extends InstrumentationBase<InstrumentationConf
 
   /** Runs the pinned-API check and hooks the SDK, unless another instrumentation has. */
   override enable(): void {
-    switchOn(this, () => this.tracer);
+    switchOn(this, () => this.tracer, lateStarts.get(this) ?? (() => {}));
   }
 
   /** Puts every original back, if this instrumentation hooked the SDK. */
@@ -55,7 +86,11 @@ function formatOf(
 }
 
 /** Checks the SDK and hooks it for an instrumentation, whose tracer the spans go to. */
-function switchOn(instrumentation: A2uiInstrumentation, tracer: () => Tracer): void {
+function switchOn(
+  instrumentation: A2uiInstrumentation,
+  tracer: () => Tracer,
+  startProvider: () => void,
+): void {
   if (owner === instrumentation) return;
   if (owner !== undefined) {
     warn('a2ui-spectra-instrumentation is already switched on; switching it on again does nothing');
@@ -72,6 +107,7 @@ function switchOn(instrumentation: A2uiInstrumentation, tracer: () => Tracer): v
   if (plan === undefined) return;
   state.activate({
     tracer,
+    startProvider,
     sdkVersion: plan.sdkVersion,
     parserFormat: parser => formatOf(plan.parsers, parser),
     generatorFormat: generator => formatOf(plan.generators, generator),
@@ -94,16 +130,17 @@ function switchOff(): void {
 
 export interface InstrumentOptions {
   /**
-   * The provider the spans go to. By default the process's, or one the wrapper
-   * starts when the process has none and the environment names an OTLP endpoint.
+   * The provider the spans go to. By default the process's own, or one the
+   * wrapper starts when its first span is written, if the process has none by
+   * then and the environment names an OTLP endpoint.
    */
   tracerProvider?: TracerProvider;
 }
 
 /**
- * Switches the wrapper on: checks the SDK, hooks it, and starts a tracer
- * provider when the process has none. A second call is one warning line and
- * does nothing.
+ * Switches the wrapper on: checks the SDK and hooks it. With no provider given
+ * it starts a tracer provider when its first span is written, if the process
+ * has none by then. A second call is one warning line and does nothing.
  */
 export function instrument(options: InstrumentOptions = {}): void {
   if (owner !== undefined) {
@@ -113,9 +150,10 @@ export function instrument(options: InstrumentOptions = {}): void {
   const instrumentation = new A2uiInstrumentation({enabled: false});
   if (options.tracerProvider !== undefined) {
     instrumentation.setTracerProvider(options.tracerProvider);
+  } else {
+    lateStarts.set(instrumentation, lateStart());
   }
   instrumentation.enable();
-  if (owner === instrumentation && options.tracerProvider === undefined) startProvider();
 }
 
 /** Puts every original back. A tracer provider the wrapper started stays. */

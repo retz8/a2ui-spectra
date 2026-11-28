@@ -13,6 +13,7 @@ import {HOOKS} from './table.js';
 import {
   Capture,
   childEnv,
+  collector,
   hooked,
   PACKAGE,
   processorOf,
@@ -80,28 +81,42 @@ describe('switching the wrapper on and off', () => {
     assert.ok(hooked().every(on => !on));
   });
 
-  it('node --import a2ui-spectra-instrumentation/register: hooked before the agent runs, on a provider it started', async () => {
+  it('node --import a2ui-spectra-instrumentation/register: hooked before the agent runs, its provider started when the first event ends', async () => {
     const child = [
       "import {trace} from '@opentelemetry/api';",
       "import {DirectJsonParser} from '@a2ui/agent';",
+      "import {processorOf} from './dist/testing/support.js';",
       "const original = DirectJsonParser.prototype.compile[Symbol.for('a2ui-spectra-instrumentation.original')];",
+      'const provider = () => trace.getTracerProvider().getDelegate().constructor.name;',
+      'const before = provider();',
+      '(await processorOf(\'express\')).parser.compile(\'surface("e")\\nroot = Text("Hi")\');',
       'console.log(JSON.stringify({',
       "  hooked: typeof original === 'function',",
-      '  provider: trace.getTracerProvider().getDelegate().constructor.name,',
+      '  before,',
+      '  provider: provider(),',
       '}));',
     ].join('\n');
-    const {code, stdout, stderr} = await runNode(
-      ['--import', 'a2ui-spectra-instrumentation/register', '--input-type=module', '-e', child],
-      {
-        cwd: PACKAGE,
-        env: childEnv({
-          OTEL_EXPORTER_OTLP_ENDPOINT: 'http://127.0.0.1:9',
-          OTEL_EXPORTER_OTLP_PROTOCOL: 'http/protobuf',
-        }),
-      },
-    );
-    assert.equal(code, 0, stderr);
-    assert.deepEqual(JSON.parse(stdout), {hooked: true, provider: 'NodeTracerProvider'});
+    const {endpoint, close} = await collector();
+    try {
+      const {code, stdout, stderr} = await runNode(
+        ['--import', 'a2ui-spectra-instrumentation/register', '--input-type=module', '-e', child],
+        {
+          cwd: PACKAGE,
+          env: childEnv({
+            OTEL_EXPORTER_OTLP_ENDPOINT: endpoint,
+            OTEL_EXPORTER_OTLP_PROTOCOL: 'http/protobuf',
+          }),
+        },
+      );
+      assert.equal(code, 0, stderr);
+      assert.deepEqual(JSON.parse(stdout), {
+        hooked: true,
+        before: 'NoopTracerProvider',
+        provider: 'NodeTracerProvider',
+      });
+    } finally {
+      await close();
+    }
   });
 
   it('a prototype that cannot be hooked: nothing patched, one refusal line', async () => {

@@ -14,12 +14,20 @@ import {
 import {NodeTracerProvider} from '@opentelemetry/sdk-trace-node';
 
 import {instrument, uninstrument} from './index.js';
-import {Capture, otlpVariables, processorOf} from './testing/support.js';
+import {Capture, collector, otlpVariables, processorOf} from './testing/support.js';
 
 const capture = new Capture();
 let restore: () => void = () => {};
 let lines: string[] = [];
 let exitListeners: Function[] = [];
+let closeCollector: () => Promise<void> = async () => {};
+
+/** Names a local stand-in as the OTLP endpoint for a test. */
+async function endpointNamed(): Promise<void> {
+  const {endpoint, close} = await collector();
+  closeCollector = close;
+  restore = otlpVariables({OTEL_EXPORTER_OTLP_ENDPOINT: endpoint});
+}
 
 function delegate(): unknown {
   return (trace.getTracerProvider() as ProxyTracerProvider).getDelegate();
@@ -58,19 +66,35 @@ afterEach(async () => {
   propagation.disable();
   diag.disable();
   restore();
+  await closeCollector();
+  closeCollector = async () => {};
 });
 
 describe('the tracer provider', () => {
-  it('with none, and an endpoint named: a NodeTracerProvider, shut down on beforeExit', () => {
-    restore = otlpVariables({OTEL_EXPORTER_OTLP_ENDPOINT: 'http://127.0.0.1:9'});
+  it('with none, and an endpoint named: a NodeTracerProvider, started when the first event ends', async () => {
+    await endpointNamed();
     instrument();
+    assert.equal(hasGlobalProvider(), false);
+    await compileOnce();
     assert.ok(delegate() instanceof NodeTracerProvider);
     assert.equal(process.listeners('beforeExit').length, exitListeners.length + 1);
   });
 
-  it('with none, and no endpoint named: none started, and one line at info', () => {
+  it('a provider the agent registers after instrument(), with an endpoint named, is kept', async () => {
+    await endpointNamed();
+    instrument();
+    assert.ok(trace.setGlobalTracerProvider(capture.provider));
+    await compileOnce();
+    assert.equal(delegate(), capture.provider);
+    assert.equal(capture.spans().length, 1);
+  });
+
+  it('with none, and no endpoint named: none started, and one line at info, once', async () => {
     restore = otlpVariables({});
     instrument();
+    assert.equal(lines.length, 0);
+    await compileOnce();
+    await compileOnce();
     assert.equal(hasGlobalProvider(), false);
     assert.equal(lines.length, 1);
     assert.match(
@@ -79,12 +103,13 @@ describe('the tracer provider', () => {
     );
   });
 
-  it('with none, and another protocol named: none started, and the line names it', () => {
+  it('with none, and another protocol named: none started, and the line names it', async () => {
     restore = otlpVariables({
       OTEL_EXPORTER_OTLP_ENDPOINT: 'http://127.0.0.1:9',
       OTEL_EXPORTER_OTLP_PROTOCOL: 'grpc',
     });
     instrument();
+    await compileOnce();
     assert.equal(hasGlobalProvider(), false);
     assert.equal(lines.length, 1);
     assert.match(
@@ -93,7 +118,7 @@ describe('the tracer provider', () => {
     );
   });
 
-  it('names the wrapper once, at the start, in each line its diag logger writes', () => {
+  it('names the wrapper once, at the start, in each line its diag logger writes', async () => {
     const all: string[] = [];
     const record = (...args: unknown[]) => all.push(args.join(' '));
     diag.setLogger(
@@ -102,9 +127,11 @@ describe('the tracer provider', () => {
     );
     restore = otlpVariables({});
     instrument();
+    await compileOnce();
     uninstrument();
     trace.setGlobalTracerProvider(capture.provider);
     instrument();
+    await compileOnce();
     const wrapper = all.filter(line => line.includes('a2ui-spectra-instrumentation'));
     assert.ok(wrapper.length >= 3, `${wrapper.length} lines from the wrapper`);
     for (const line of wrapper) {

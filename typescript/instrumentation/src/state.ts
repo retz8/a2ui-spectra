@@ -7,6 +7,11 @@ import type {InferenceFormat} from './table.js';
 export interface Active {
   /** The tracer the spans go to, read when an event ends. */
   tracer(): Tracer;
+  /**
+   * Called before a span is written: the first time, it starts the wrapper's
+   * own tracer provider when the process has none by then.
+   */
+  startProvider(): void;
   /** The agent SDK's version, as its `package.json` gives it. */
   readonly sdkVersion: string;
   /** The format of a parser of one of the two formats' classes. */
