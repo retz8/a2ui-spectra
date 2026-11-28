@@ -29,6 +29,9 @@ function fakeAdapter() {
       return processor;
     },
     feed: (processor, message) => {
+      const raise = (message as {raise?: string}).raise;
+      if (raise !== undefined)
+        processor.events.surfaceError({code: 'VALIDATION_FAILED', message: raise});
       if ((message as {refuse?: string}).refuse !== undefined) {
         throw Object.assign(new Error((message as {refuse: string}).refuse), {
           name: 'A2uiValidationError',
@@ -184,6 +187,20 @@ describe('startPreviewPage', () => {
         },
       },
     ]);
+  });
+
+  it('reports an error web core sends on the surface while a message is fed, unless the message is refused', () => {
+    const {deliver, sent} = start();
+    deliver(
+      render(1, [create, {raise: 'Kept'}, {raise: 'Dropped', refuse: 'Invalid path syntax'}]),
+    );
+    assert.deepEqual(
+      reportsOf(sent).map(message => message.report),
+      [
+        {kind: 'surface', code: 'VALIDATION_FAILED', error: 'Kept'},
+        {kind: 'refused', index: 2, code: 'VALIDATION_ERROR', error: 'Invalid path syntax'},
+      ],
+    );
   });
 
   it("tags each report with the render it belongs to, and sends the surface's earlier reports again with a render that extends it", () => {

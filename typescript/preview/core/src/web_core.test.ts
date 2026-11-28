@@ -5,8 +5,8 @@ import {MessageProcessor} from '@a2ui/web_core/v0_9';
 import {basicCatalog} from '@a2ui/web_core/v0_9/basic_catalog';
 import {A2uiLitElement} from '@a2ui/web_core/v0_9/universal';
 
-import type {PageEvents} from './page.js';
-import type {PreviewAction} from './protocol.js';
+import {type PageEvents, startPreviewPage} from './page.js';
+import type {PageMessage, PreviewAction} from './protocol.js';
 import {actionHandlerFor, guardUniversalElements, watchProcessor} from './web_core.js';
 
 /** Every event a processor's surfaces reported, in order. */
@@ -121,6 +121,57 @@ describe('watchProcessor', () => {
     feed(processor, {...CREATE, createSurface: {...CREATE.createSurface, surfaceId: 'other'}});
     assert.equal(models.length, before);
     assert.deepEqual(surfaces, ['greeting']);
+  });
+});
+
+describe('a page on a watched processor', () => {
+  it('reports a message the processor refuses on a surface it holds once, as refused', () => {
+    const sent: PageMessage[] = [];
+    let deliver: (message: unknown) => void = () => {};
+    startPreviewPage<MessageProcessor>({
+      catalogs: [basicCatalog],
+      adapter: {
+        createProcessor: events => {
+          const processor: MessageProcessor = new MessageProcessor(
+            [basicCatalog],
+            actionHandlerFor(events, () => processor),
+          );
+          watchProcessor(processor, events);
+          return processor;
+        },
+        feed: (processor, message) => feed(processor, message),
+        mount: () => {},
+        teardown: processor => processor.dispose(),
+      },
+      transport: {
+        send: message => sent.push(message),
+        listen: onMessage => {
+          deliver = onMessage;
+          return () => {};
+        },
+      },
+    });
+    const missingId = {
+      version: VERSION,
+      updateComponents: {surfaceId: 'greeting', components: [{component: 'Text', text: 'Hi'}]},
+    };
+    deliver({
+      type: 'a2ui-spectra-preview/render',
+      render: 1,
+      surfaceId: 'greeting',
+      messages: [CREATE, missingId],
+    });
+    const reports = sent.flatMap(message =>
+      message.type === 'a2ui-spectra-preview/report' ? [message.report] : [],
+    );
+    assert.deepEqual(reports, [
+      {
+        kind: 'refused',
+        index: 1,
+        code: 'VALIDATION_ERROR',
+        error: "Component 'Text' is missing an 'id'; entries require a valid string 'id'.",
+      },
+    ]);
   });
 });
 

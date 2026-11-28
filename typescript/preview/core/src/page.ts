@@ -156,6 +156,12 @@ export function startPreviewPage<P>({
   let made: Made<P> | undefined;
   /** The render the shown surface's data model was last sent for. */
   let modelSentFor: number | undefined;
+  /**
+   * The errors web core sends on a surface while a message is fed: held
+   * until the feed ends, and dropped when the processor refused the message,
+   * which the refusal reports.
+   */
+  let whileFeeding: Report[] | undefined;
 
   const send = (report: Report) => {
     if (current !== undefined) {
@@ -191,12 +197,14 @@ export function startPreviewPage<P>({
     },
     surfaceError: ({code, message, componentId}) => {
       if (own !== made) return;
-      add(own, {
+      const report: Report = {
         kind: 'surface',
         code,
         error: message,
         ...(componentId !== undefined && {componentId}),
-      });
+      };
+      if (whileFeeding !== undefined) whileFeeding.push(report);
+      else add(own, report);
     },
     componentFailed: failure => {
       if (own === made) add(own, componentReportOf(failure));
@@ -226,16 +234,22 @@ export function startPreviewPage<P>({
     const keys = keysOf(render.messages);
     const {own, processor, from} = processorFor(render, keys);
     render.messages.slice(from).forEach((message, offset) => {
+      const raised: Report[] = [];
+      let refusal: Report | undefined;
+      whileFeeding = raised;
       try {
         adapter.feed(processor, message);
       } catch (error) {
-        add(own, {
+        refusal = {
           kind: 'refused',
           index: from + offset,
           code: codeOf(error),
           error: refusalOf(error),
-        });
+        };
+      } finally {
+        whileFeeding = undefined;
       }
+      for (const report of refusal === undefined ? raised : [refusal]) add(own, report);
     });
     applied = {surfaceId: render.surfaceId, keys};
     adapter.mount(processor, render.surfaceId);
