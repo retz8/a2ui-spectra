@@ -9,15 +9,9 @@
 import {type ReactNode, useState} from 'react';
 
 import {cn} from '@/lib/utils';
-import {
-  type CallRow,
-  modelReadingOf,
-  sourceOfNames,
-  sourcesOfRow,
-  timedEventOf,
-} from '@/model/call_rows.ts';
+import {type CallRow, modelReadingOf, sourceOfNames} from '@/model/call_rows.ts';
 import {formatTokens} from '@/model/cost.ts';
-import {apiOf, isReadInFull, methodAndPath, spanApiOf} from '@/model/model_calls.ts';
+import {isReadInFull} from '@/model/model_calls.ts';
 import {emptyNoteOf, shownParts} from '@/model/empty_parts.ts';
 import type {UiSection} from '@/model/a2ui_step.ts';
 import {formatNameOf} from '@/model/ranges.ts';
@@ -26,7 +20,6 @@ import type {KnownCatalog} from '@/model/catalogs.ts';
 import {type Marker, partName, partText, type PrefixBreak} from '@/model/prefix.ts';
 import {type CallReplay, isMissCall, type RecordedCall} from '@/model/provenance.ts';
 import {
-  isModelCall,
   type ModelCallEvent,
   readRecordVersionsText,
   type TurnRecordEvent,
@@ -53,7 +46,7 @@ import {
 import {CopyButton} from './CopyButton.tsx';
 import {BreakLines, SectionedText} from './SectionedText.tsx';
 import {SwitchOnHint} from './SwitchOnHint.tsx';
-import {formatDuration, formatOffset, formatTime} from './format.ts';
+import {formatOffset, formatTime} from './format.ts';
 import {BlockLabel, JsonBlock, JsonLines, ShownSwitch} from './JsonBlock.tsx';
 
 /** One tab of a step's detail: its name, its facts line, and what it holds. */
@@ -71,49 +64,6 @@ export interface TabbedDetail {
   tabs: DetailTab[];
   /** The tab a selection opens. */
   first: string;
-}
-
-/**
- * A call's title line: what it went to and where it was seen, then its
- * times. A model call read in full names its API; one recorded raw its
- * method, path and status; one read from spans the API its provider
- * implies. A tool call names its target. The sources follow: the proxy, then
- * each dialect of its spans.
- */
-export function callTitleOf(
-  row: CallRow,
-  target: string,
-  startMs: number,
-): {target: string; times: string} {
-  const sources = sourcesOfRow(row);
-  const proxy = row.proxy !== undefined && isModelCall(row.proxy) ? row.proxy : undefined;
-  let what: string[];
-  if (row.kind === 'tool') {
-    what = [target];
-  } else if (proxy !== undefined && isReadInFull(proxy)) {
-    what = [apiOf(proxy) ?? ''];
-  } else if (proxy !== undefined) {
-    const status = proxy.attributes['http.response.status_code'];
-    what = [methodAndPath(proxy), ...(typeof status === 'number' ? [String(status)] : [])];
-  } else {
-    const api = spanApiOf(modelReadingOf(row).event);
-    what = api === undefined ? [] : [api];
-  }
-  const timed = timedEventOf(row);
-  const start = unixMillis(timed.startTimeUnixNano);
-  const times = [formatOffset(start - startMs)];
-  if (timed.endTimeUnixNano !== undefined) {
-    times.push(formatDuration(unixMillis(timed.endTimeUnixNano) - start));
-  }
-  const first =
-    row.kind === 'model'
-      ? modelReadingOf(row).event.attributes['gen_ai.response.time_to_first_chunk']
-      : undefined;
-  if (typeof first === 'number') times.push(`first token ${formatDuration(first * 1000)}`);
-  return {
-    target: [...what.filter(part => part !== ''), ...sources].join(' · '),
-    times: times.join(' · '),
-  };
 }
 
 /** The names a call's request is read from, and its response's. */

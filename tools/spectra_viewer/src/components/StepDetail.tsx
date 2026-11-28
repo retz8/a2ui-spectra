@@ -3,7 +3,6 @@ import {type ReactNode, useEffect, useState} from 'react';
 import {cn} from '@/lib/utils';
 import {generationTitleOf, parseTitleOf} from '@/model/a2ui_step.ts';
 import type {NodeRef} from '@/model/address.ts';
-import {modelReadingOf, sourceOfNames} from '@/model/call_rows.ts';
 import type {Prices} from '@/model/cost.ts';
 import {legacyLinesOf, type StepLegacy} from '@/model/legacy_form.ts';
 import type {KnownCatalog} from '@/model/catalogs.ts';
@@ -13,7 +12,7 @@ import type {Problem} from '@/model/problems.ts';
 import type {CallReplay, RecordedCall} from '@/model/provenance.ts';
 import {isWireInput, type TurnRecordEvent, unixMillis, type WireEvent} from '@/model/record.ts';
 import {deliveryLabel, plural, type Step, type TimelineRow} from '@/model/steps.ts';
-import {callUsageLineOf} from '@/model/turn_calls.ts';
+import {callTitleOf, factsOf, usageOf} from '@/model/step_head.ts';
 import {useBlockFold} from '@/state/block_folds.ts';
 import {clearDetailTabRequest, detailTabRequest, requestDetailTab} from '@/state/detail_tab.ts';
 
@@ -21,79 +20,13 @@ import {Connections, DetailLink, Pairs, TextBlock} from './CallParts.tsx';
 import {brandIconOf, formatOffset, toneOf} from './format.ts';
 import {Icon, LegacyMark} from './icons.tsx';
 import {BlockLabel, JsonBlock, type Reveal} from './JsonBlock.tsx';
-import {
-  callTitleOf,
-  modelCallDetailOf,
-  type StepOnCall,
-  type TabbedDetail,
-} from './ModelCallDetail.tsx';
+import {modelCallDetailOf, type StepOnCall, type TabbedDetail} from './ModelCallDetail.tsx';
 import {GenerationBlocks, parseDetailOf} from './ParseDetail.tsx';
 import type {RangeReveal} from './RawText.tsx';
 import {toolCallDetailOf} from './ToolCallDetail.tsx';
 
 /** No paths, kept the same from render to render. */
 const NO_PATHS: readonly string[] = [];
-
-/**
- * The head's title row with the detail's top rule, in pixels: also the
- * detail's height when collapsed with no step in it.
- */
-export const TITLE_ROW = 41;
-
-/** The head's facts line and its usage line, in pixels. */
-const FACTS_LINE = 22;
-const USAGE_LINE = 18;
-
-/** The tallest head: a model call's, with its usage line. */
-export const HEAD_MOST = TITLE_ROW + FACTS_LINE + USAGE_LINE;
-
-/** The head's facts line: the title's times, or the step's offset. */
-function factsOf(
-  row: TimelineRow,
-  events: readonly TurnRecordEvent[],
-  startMs: number,
-): string | undefined {
-  const call = row.row === 'step' ? row.call : undefined;
-  const title =
-    row.row !== 'step'
-      ? undefined
-      : row.parse !== undefined
-        ? parseTitleOf(row, startMs)
-        : row.generation !== undefined
-          ? generationTitleOf(row)
-          : call === undefined
-            ? undefined
-            : callTitleOf(call, row.target, startMs);
-  if (title !== undefined) return title.times;
-  const offset = offsetOf(row, events, startMs);
-  return offset === undefined ? undefined : formatOffset(offset);
-}
-
-/** A model call's usage line, as the head's second facts line says it. */
-function usageOf(row: TimelineRow, prices: Prices | undefined): string | undefined {
-  const call = row.row === 'step' ? row.call : undefined;
-  if (call?.kind !== 'model') return undefined;
-  const {event, fromSpans} = modelReadingOf(call);
-  return callUsageLineOf(
-    event,
-    prices,
-    fromSpans ? sourceOfNames(call, ['gen_ai.usage.input_tokens']) : undefined,
-  );
-}
-
-/** The head's height, which the detail keeps when collapsed: its title row, and its facts lines under it. */
-export function headHeightOf(
-  row: TimelineRow,
-  events: readonly TurnRecordEvent[],
-  startMs: number,
-  prices: Prices | undefined,
-): number {
-  return (
-    TITLE_ROW +
-    (factsOf(row, events, startMs) === undefined ? 0 : FACTS_LINE) +
-    (usageOf(row, prices) === undefined ? 0 : USAGE_LINE)
-  );
-}
 
 /**
  * The selected step's detail. Its head stays in view: the title line, its
@@ -520,17 +453,6 @@ function Keys({keys}: {keys: readonly string[]}) {
       <code className="type-code-inline text-xs">{key}</code>
     </span>
   ));
-}
-
-function offsetOf(
-  row: TimelineRow,
-  events: readonly TurnRecordEvent[],
-  startMs: number,
-): number | undefined {
-  if (row.offsetMs !== undefined) return row.offsetMs;
-  const event =
-    row.row === 'step' && row.position !== undefined ? events[row.position.eventIndex] : undefined;
-  return event === undefined ? undefined : unixMillis(event.startTimeUnixNano) - startMs;
 }
 
 function StepBlocks({
