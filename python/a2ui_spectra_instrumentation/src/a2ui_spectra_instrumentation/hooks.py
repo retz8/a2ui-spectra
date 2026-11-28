@@ -39,7 +39,7 @@ class Hook:
     # The name's path in the module: `Class.method` or `function`.
     name: str
     # `parse_response`, `compile`, `open_stream`, `feed`, `close`, `generate`,
-    # `whole_tree`, `apply` or `get_tools`.
+    # `whole_tree`, `apply`, `get_tools` or `resolve_processor`.
     role: str
     # The inference format a parser's hook belongs to.
     format: str | None = None
@@ -95,6 +95,14 @@ HOOKS: tuple[Hook, ...] = (
         "a2ui.adk.send_a2ui_to_client_toolset",
         "validate_payload",
         "whole_tree",
+    ),
+    # What turns the processor or the provider a tool was given into the
+    # processor of one call.
+    Hook(
+        "toolset",
+        "a2ui.adk.send_a2ui_to_client_toolset",
+        "_resolve_processor",
+        "resolve_processor",
     ),
 )
 
@@ -697,16 +705,39 @@ def _system_text(llm_request: Any) -> str | None:
     return instruction if isinstance(instruction, str) else None
 
 
-def _adopt_processor(event: events.Event, tool: Any) -> None:
-    """Adopts the format and catalogs of the tool's processor.
+def _adopt_processor(event: events.Event, processor: Any) -> None:
+    """Adopts the format and catalogs of a processor's prompt generator.
 
-    When the tool was given none, the event adopts nothing.
+    What is no processor, such as a provider of one, gives the event nothing.
     """
-    processor = getattr(tool, "_processor", None)
     generator = getattr(getattr(processor, "format", None), "prompt_generator", None)
     active = state.current()
     if generator is not None and active is not None:
         event.adopt_generator(generator, active.generator_format(generator))
+
+
+def resolve_processor_hook(
+    wrapped: Any, instance: Any, args: tuple[Any, ...], kwargs: dict[str, Any]
+) -> Any:
+    """Hooks the toolset's `_resolve_processor`: the processor of one call.
+
+    The open event adopts its format and catalogs. A tool may hold a provider
+    of processors, which names neither.
+    """
+    awaitable = wrapped(*args, **kwargs)
+    open_event = events.current() if state.current() is not None else None
+    if open_event is None:
+        return awaitable
+
+    async def resolved() -> Any:
+        processor = await awaitable
+        _safely(
+            "the _resolve_processor hook",
+            lambda: _adopt_processor(open_event, processor),
+        )
+        return processor
+
+    return resolved()
 
 
 async def _append_prompt(
@@ -730,12 +761,16 @@ async def _append_prompt(
         log.report_fault(where, fault)
         return await _await_unrecorded(awaitable)
 
+    # The processor the call resolved is adopted as it resolves. A call that
+    # failed before that falls back on what the tool holds, when it is one.
+    held = getattr(tool, "_processor", None)
+
     def failed(error: Exception) -> None:
-        _adopt_processor(event, tool)
+        _adopt_processor(event, held)
         event.fail(error)
 
     def appended(_: Any) -> None:
-        _adopt_processor(event, tool)
+        _adopt_processor(event, held)
         after = _system_text(llm_request)
         section = None
         if before is not None and after is not None and after.startswith(before):
@@ -770,4 +805,6 @@ def wrapper_for(hook: Hook) -> Wrapper:
         return apply_hook
     if hook.role == "get_tools":
         return get_tools_hook
+    if hook.role == "resolve_processor":
+        return resolve_processor_hook
     raise ValueError(f"No hook for the role {hook.role}")

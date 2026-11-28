@@ -52,6 +52,7 @@ def test_uninstrument_removes_every_hook(
         (DirectJsonResponseStream, "feed"),
         (a2ui.utils, "validate_payload"),
         (send_a2ui_to_client_toolset, "validate_payload"),
+        (send_a2ui_to_client_toolset, "_resolve_processor"),
         (SendA2uiToClientToolset, "get_tools"),
     ]:
         assert not support.hooked(owner, name), name

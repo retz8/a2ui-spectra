@@ -286,6 +286,29 @@ def test_the_toolsets_prompt_without_instructions_reads_the_processors_format(
     assert attributes["a2ui.prompt.inference_format"] == "direct_json"
 
 
+def test_the_toolsets_prompt_with_a_processor_provider_and_no_instructions_is_recorded(
+    spans: conftest.Recorded, processor: conftest.ProcessorFactory
+) -> None:
+    made = processor("direct_json")
+    toolset = SendA2uiToClientToolset(
+        a2ui_enabled=True, a2ui_processor=lambda context: made
+    )
+    tools = asyncio.run(toolset.get_tools(STAND_IN))
+    tool: Any = next(tool for tool in tools if tool.name == "send_a2ui_json_to_client")
+    request = LlmRequest()
+    asyncio.run(
+        tool.process_llm_request(tool_context=SimpleNamespace(), llm_request=request)
+    )
+
+    attributes = spans.attributes(spans.one())
+    assert attributes["a2ui.prompt.ui_section"] == request.config.system_instruction
+    assert attributes["a2ui.prompt.inference_format"] == "direct_json"
+    assert spans.parsed(spans.one(), "a2ui.prompt.catalogs") == [
+        {"catalogId": BASIC_V1_0, "protocolVersion": "v1.0"}
+    ]
+    assert attributes["gen_ai.tool.name"] == "send_a2ui_json_to_client"
+
+
 # The block an error belongs to.
 
 
