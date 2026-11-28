@@ -18,7 +18,6 @@ import {asOfLabel, positionOf, resultMomentOf} from '@/model/as_of.ts';
 import {catalogsOf} from '@/model/catalogs.ts';
 import {turnFactsOf, turnSurfacesOf} from '@/model/turn_facts.ts';
 import {HEAD_MOST, headHeightOf, TITLE_ROW} from '@/model/step_head.ts';
-import {firstScreenBoxOf} from '@/model/dev_loop.ts';
 import {dataModelMapOf, dataModelVersionOf, treeHas} from '@/model/host_message.ts';
 import {agentMessages, sameWire} from '@/model/messages.ts';
 import {previewProblemsOf, routeOf, surfaceFeedOf, targetOf} from '@/model/preview.ts';
@@ -221,9 +220,6 @@ export function TurnView({
   if (first) {
     body = (
       <FirstScreen
-        context={state.context}
-        connected={state.connected}
-        box={firstScreenBoxOf(state.box)}
         logsOpen={logsOpen}
         onLogs={onLogs}
         onExample={example => {

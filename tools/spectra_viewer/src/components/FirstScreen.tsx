@@ -1,5 +1,9 @@
-import type {SessionContext} from '@/api.ts';
-import {type FirstScreenBox, type FirstScreenForm, firstScreenFormOf} from '@/model/dev_loop.ts';
+import {
+  type FirstScreenBox,
+  firstScreenBoxOf,
+  type FirstScreenForm,
+  firstScreenFormOf,
+} from '@/model/dev_loop.ts';
 import {logTimeOf, tailSinceStartOf} from '@/model/logs.ts';
 import {pasteBlocksOf} from '@/model/paste.ts';
 import {agentNameOf} from '@/state/selectors.ts';
@@ -31,17 +35,10 @@ import {PressButton} from './Refusal.tsx';
  * its name, in monospace.
  */
 export function FirstScreen({
-  context,
-  connected,
-  box,
   onExample,
   logsOpen,
   onLogs,
 }: {
-  context: SessionContext | undefined;
-  connected: boolean | undefined;
-  /** What the ready form says of the message box; the card's examples are offered only while it can send. */
-  box: FirstScreenBox;
   onExample: (text: string) => void;
   /** Whether the logs drawer is open. */
   logsOpen: boolean;
@@ -49,7 +46,9 @@ export function FirstScreen({
   onLogs: () => void;
 }) {
   const state = useSpectra();
-  const {agent} = state;
+  const {agent, context, connected} = state;
+  // What the ready form says of the message box; the card's examples are offered only while it can send.
+  const box = firstScreenBoxOf(state.box);
   const form: FirstScreenForm =
     agent === undefined ? 'ready' : firstScreenFormOf(agent.state.state);
   const name = agentNameOf(state);
