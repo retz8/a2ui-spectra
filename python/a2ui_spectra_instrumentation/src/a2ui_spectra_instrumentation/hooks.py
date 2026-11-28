@@ -69,7 +69,6 @@ HOOKS: tuple[Hook, ...] = (
     Hook("core", "a2ui.parser", "Parser.parse_response", "parse_response"),
     Hook("core", "a2ui.utils", "RendererState.check_topology", "whole_tree"),
     Hook("core", "a2ui.utils", "RendererState.apply", "apply"),
-    Hook("core", "a2ui.utils", "validate_payload", "whole_tree"),
     # Every format's prompt generation is the base class's one `generate()`.
     Hook("core", "a2ui.prompt", "PromptGenerator.generate", "generate"),
     Hook("core", _DIRECT_JSON, "DirectJsonParser.compile", "compile", "direct_json"),
@@ -89,7 +88,8 @@ HOOKS: tuple[Hook, ...] = (
     Hook("atom", _ATOM, "AtomParser.compile", "compile", "atom"),
     Hook("elemental", _ELEMENTAL, "ElementalParser.compile", "compile", "elemental"),
     Hook("toolset", "a2ui.adk", "SendA2uiToClientToolset.get_tools", "get_tools"),
-    # The toolset's module holds `validate_payload` by name, from `a2ui.utils`.
+    # The toolset's module holds `validate_payload` by name, from `a2ui.utils`,
+    # and its tool's call is the one parse that reaches it.
     Hook(
         "toolset",
         "a2ui.adk.send_a2ui_to_client_toolset",

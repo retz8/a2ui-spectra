@@ -18,7 +18,6 @@ from a2ui.inference_formats import ExpressParser
 from a2ui.inference_formats.direct_json import DirectJsonResponseStream
 from a2ui.parser import Parser
 from a2ui.prompt import PromptGenerator
-import a2ui.utils
 from a2ui.utils import RendererState
 
 import a2ui_spectra_instrumentation
@@ -50,7 +49,6 @@ def test_uninstrument_removes_every_hook(
         (RendererState, "apply"),
         (ExpressParser, "compile"),
         (DirectJsonResponseStream, "feed"),
-        (a2ui.utils, "validate_payload"),
         (send_a2ui_to_client_toolset, "validate_payload"),
         (send_a2ui_to_client_toolset, "_resolve_processor"),
         (SendA2uiToClientToolset, "get_tools"),
